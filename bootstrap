@@ -2,7 +2,10 @@
 set -x
 
 libtoolize --automake --copy
+
+# make aclocal.m4
 aclocal -I m4
+aclocal -I auto/m4
 
 # run autotools
 autoheader

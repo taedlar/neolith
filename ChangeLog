@@ -1,26 +1,3 @@
-2022-09-28  gettextize  <bug-gnu-gettext@gnu.org>
-
-	* m4/gettext.m4: New file, from gettext-0.19.8.1.
-	* m4/iconv.m4: New file, from gettext-0.19.8.1.
-	* m4/lib-ld.m4: New file, from gettext-0.19.8.1.
-	* m4/lib-link.m4: New file, from gettext-0.19.8.1.
-	* m4/lib-prefix.m4: New file, from gettext-0.19.8.1.
-	* m4/nls.m4: New file, from gettext-0.19.8.1.
-	* m4/po.m4: New file, from gettext-0.19.8.1.
-	* m4/progtest.m4: New file, from gettext-0.19.8.1.
-	* Makefile.am (EXTRA_DIST): Add config.rpath.
-	* configure.ac (AC_OUTPUT): Add po/Makefile.in.
-
-2022-09-22  gettextize  <bug-gnu-gettext@gnu.org>
-
-	* Makefile.am (EXTRA_DIST): Add config.rpath.
-
-2022-09-22  gettextize  <bug-gnu-gettext@gnu.org>
-
-	* Makefile.am (SUBDIRS): Remove intl.
-	(ACLOCAL_AMFLAGS): New variable.
-	(EXTRA_DIST): Add auto/config.rpath, m4/ChangeLog.
-
 Neolith-0.1.2 變動
 ==================
 
