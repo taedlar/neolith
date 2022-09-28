@@ -38,7 +38,6 @@ Makefile.in
 
 # Generated build files
 Makefile
-/auto
 /config.h
 *.spec
 src/neolith

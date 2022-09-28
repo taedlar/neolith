@@ -1,12 +1,10 @@
 #! /bin/sh
 set -x
-mkdir -p auto
-mkdir -p po
 
-libtoolize --automake
-gettextize --no-changelog --symlink
+libtoolize --automake --copy
+gettextize --no-changelog 
 aclocal -I m4
 
 autoheader
-automake --foreign --add-missing
+automake --foreign --add-missing --copy
 autoconf
