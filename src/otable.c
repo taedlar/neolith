@@ -14,10 +14,10 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "_lpc/types.h"
-#include "_lpc/object.h"
+#include "lpc/types.h"
+#include "lpc/object.h"
 #include "otable.h"
-#include "_adt/hash.h"
+#include "hash.h"
 #include "rc.h"
 
 #include "LPC/runtime_config.h"

@@ -40,9 +40,9 @@
 #include "src/backend.h"
 #include "src/file.h"
 #include "src/comm.h"
-#include "_adt/hash.h"
-#include "_efuns/call_out.h"
-#include "_socket/socket_efuns.h"
+#include "hash.h"
+#include "efuns/call_out.h"
+#include "socket/socket_efuns.h"
 
 #include <sys/stat.h>
 

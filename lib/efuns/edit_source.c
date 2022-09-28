@@ -35,7 +35,7 @@
 #include "src/lex.h"
 #include "src/preprocess.h"
 #include "edit_source.h"
-#include "_adt/hash.h"
+#include "hash.h"
 #include "lib/wrapper.h"
 
 #define TO_DEV_NULL ">/dev/null 2>&1"

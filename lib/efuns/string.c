@@ -21,9 +21,9 @@
 #include "src/simulate.h"
 #include "src/stralloc.h"
 #include "src/rc.h"
-#include "_adt/crc32.h"
-#include "_lpc/array.h"
-#include "_lpc/buffer.h"
+#include "crc32.h"
+#include "lpc/array.h"
+#include "lpc/buffer.h"
 
 #include "operator.h"
 #include "sprintf.h"

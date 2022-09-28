@@ -20,8 +20,8 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "_lpc/object.h"
-#include "_lpc/buffer.h"
+#include "lpc/object.h"
+#include "lpc/buffer.h"
 #include "applies.h"
 #include "main.h"
 #include "comm.h"
@@ -30,11 +30,11 @@
 #include "simul_efun.h"
 #include "interpret.h"
 #include "stralloc.h"
-#include "_socket/socket_efuns.h"
+#include "socket/socket_efuns.h"
 #include "backend.h"
-#include "_socket/socket_ctrl.h"
-#include "_efuns/operator.h"
-#include "_efuns/ed.h"
+#include "socket/socket_ctrl.h"
+#include "efuns/operator.h"
+#include "efuns/ed.h"
 
 #include "LPC/runtime_config.h"
 #include "LPC/origin.h"

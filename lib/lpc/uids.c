@@ -29,8 +29,8 @@
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/main.h"
-#include "_adt/avltree.h"
-#include "_efuns/operator.h"
+#include "avltree.h"
+#include "efuns/operator.h"
 #include "uids.h"
 
 static object_t *ob;

@@ -36,7 +36,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "_lpc/function.h"
+#include "lpc/function.h"
 
 #define OS_socket_write(f, m, l)	write(f, m, l)
 #define OS_socket_read(r, b, l)		read(r, b, l)

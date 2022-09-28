@@ -94,7 +94,7 @@
 #include "interpret.h"
 #include "main.h"
 #include "stralloc.h"
-#include "_lpc/object.h"
+#include "lpc/object.h"
 
 #include "LPC/function.h"
 #include "LPC/runtime_config.h"

@@ -12,7 +12,7 @@
 #ifndef	_LPC_PROGRAM_H
 #define	_LPC_PROGRAM_H
 
-#include "_lpc/types.h"
+#include "lpc/types.h"
 
 /*
  * A compiled program consists of several data blocks, all allocated

@@ -29,10 +29,10 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
-#include "_lpc/types.h"
+#include "lpc/types.h"
 #include "rc.h"
 #include "stralloc.h"
-#include "_lpc/object.h"
+#include "lpc/object.h"
 #include "simulate.h"
 #include "applies.h"
 #include "backend.h"
@@ -41,7 +41,7 @@
 #include "otable.h"
 #include "comm.h"
 #include "main.h"
-#include "lib/wrapper.h"
+#include "wrapper.h"
 
 const char *argp_program_version = PACKAGE "-" VERSION;
 const char *argp_program_bug_address = "<annihilator@muds.net>";

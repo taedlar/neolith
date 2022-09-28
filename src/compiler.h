@@ -3,7 +3,7 @@
 
 #include "trees.h"
 #include "lex.h"
-#include "_lpc/program.h"
+#include "lpc/program.h"
 
 #define _YACC_
 #ifdef sun

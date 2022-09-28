@@ -58,11 +58,11 @@ AC_CHECK_FUNCS(getcwd gethostname getline gettimeofday getwd mkdir putenv\
 AC_OUTPUT([po/Makefile.in
   $PACKAGE.spec:spec.in
   Makefile
-  _adt/Makefile
-  _efuns/Makefile
-  _lpc/Makefile
-  _socket/Makefile
   lib/Makefile
+  lib/adt/Makefile
+  lib/efuns/Makefile
+  lib/lpc/Makefile
+  lib/socket/Makefile
   src/Makefile
   LPC/Makefile
 ])

@@ -74,7 +74,7 @@
 #include "regexp.h"
 #include "simulate.h"
 #include "comm.h"
-#include "_efuns/ed.h"
+#include "efuns/ed.h"
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
