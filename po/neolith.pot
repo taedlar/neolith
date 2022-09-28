@@ -1,0 +1,922 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# This file is distributed under the same license as the neolith package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: neolith 0.1.3\n"
+"Report-Msgid-Bugs-To: taedlar@gmail.com\n"
+"POT-Creation-Date: 2022-09-28 22:39+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: _efuns/debug.c:79
+msgid "First argument of call_stack() must be 0, 1, 2, or 3.\n"
+msgstr ""
+
+#: _efuns/edit_source.c:719
+#, c-format
+msgid "Writing option definitions to %s ...\n"
+msgstr ""
+
+#: _efuns/unsorted.c:176
+msgid "Local function is not bindable.\n"
+msgstr ""
+
+#: _efuns/unsorted.c:178
+msgid "Function that references global variables is not bindable.\n"
+msgstr ""
+
+#: _efuns/unsorted.c:197
+msgid "Permission of binding denied by master object.\n"
+msgstr ""
+
+#: _efuns/string.c:139
+msgid "repeat_string: String too large.\n"
+msgstr ""
+
+#: src/rc.c:144
+#, c-format
+msgid "warnning: %s is missing, assuming %s\n"
+msgstr ""
+
+#: src/rc.c:151
+#, c-format
+msgid "error: %s is missing\n"
+msgstr ""
+
+#: src/rc.c:187
+#, c-format
+msgid "warnning: %s must be 'Yes' or 'No'\n"
+msgstr ""
+
+#: src/rc.c:210
+#, c-format
+msgid "Use -f option to specify a config file\n"
+msgstr ""
+
+#: src/rc.c:256
+#, c-format
+msgid "*Protocol of port %d is invalid, assuming TELNET\n"
+msgstr ""
+
+#: src/rc.c:264
+msgid "*****No user-accessible ports assigned\n"
+msgstr ""
+
+#: src/rc.c:323
+#, c-format
+msgid "*****Failed loading config (%d error%s): %s\n"
+msgstr ""
+
+#: src/lex.c:374
+msgid "Unexpected end of file while skipping"
+msgstr ""
+
+#: src/lex.c:454
+msgid "Missing leading \" or < in #include"
+msgstr ""
+
+#: src/lex.c:464
+msgid "Missing trailing \" or > in #include"
+msgstr ""
+
+#: src/lex.c:470
+msgid "Include name too long"
+msgstr ""
+
+#: src/lex.c:477
+msgid "Maximum include depth exceeded"
+msgstr ""
+
+#: src/lex.c:502
+#, c-format
+msgid "Cannot #include %s"
+msgstr ""
+
+#: src/lex.c:923
+msgid "End of file in a comment"
+msgstr ""
+
+#: src/lex.c:939
+msgid "/* found in comment."
+msgstr ""
+
+#: src/lex.c:971
+msgid "Illegal # command"
+msgstr ""
+
+#: src/lex.c:985 src/lex.c:1135 src/lex.c:2812
+msgid "Line too long"
+msgstr ""
+
+#: src/lex.c:1035
+msgid "Unknown #pragma, ignored."
+msgstr ""
+
+#: src/lex.c:1174
+msgid "Out of memory when allocating new buffer\n"
+msgstr ""
+
+#: src/lex.c:1221
+msgid "Function pointers nested too deep"
+msgstr ""
+
+#: src/lex.c:1326
+msgid "Missing #endif"
+msgstr ""
+
+#: src/lex.c:1326
+msgid "Missing #else/#elif"
+msgstr ""
+
+#: src/lex.c:1559
+msgid "$var illegal outside of function pointer"
+msgstr ""
+
+#: src/lex.c:1564
+msgid "$var illegal inside anonymous function pointer"
+msgstr ""
+
+#: src/lex.c:1586
+msgid "In function parameter $num, num must be >= 1"
+msgstr ""
+
+#: src/lex.c:1588
+msgid "only 256 parameters allowed"
+msgstr ""
+
+#: src/lex.c:1701
+msgid "Condition too complex in #if"
+msgstr ""
+
+#: src/lex.c:1738
+msgid "Illegal to #undef a predefined value."
+msgstr ""
+
+#: src/lex.c:1753
+msgid "Unrecognised # directive"
+msgstr ""
+
+#: src/lex.c:1808 src/lex.c:1824 src/lex.c:1850
+msgid "Illegal character constant"
+msgstr ""
+
+#: src/lex.c:1817 src/lex.c:2018 src/lex.c:2148
+msgid "\\x must be followed by a valid hex value; interpreting as 'x' instead."
+msgstr ""
+
+#: src/lex.c:1837
+msgid "Unknown \\ escape"
+msgstr ""
+
+#: src/lex.c:1866
+msgid "Illegal terminator"
+msgstr ""
+
+#: src/lex.c:1881
+msgid "End of file in array block"
+msgstr ""
+
+#: src/lex.c:1886
+msgid "Array block exceeded maximum length"
+msgstr ""
+
+#: src/lex.c:1909
+msgid "End of file in text block"
+msgstr ""
+
+#: src/lex.c:1914
+msgid "Text block exceeded maximum length"
+msgstr ""
+
+#: src/lex.c:1931 src/lex.c:1962 src/lex.c:2055 src/lex.c:2092
+msgid "End of file in string"
+msgstr ""
+
+#: src/lex.c:2005 src/lex.c:2135
+msgid "Illegal character constant in string."
+msgstr ""
+
+#: src/lex.c:2025 src/lex.c:2155
+msgid "Illegal character constant."
+msgstr ""
+
+#: src/lex.c:2174
+msgid "String too long"
+msgstr ""
+
+#: src/lex.c:2269
+msgid "Single '#' in identifier -- use '##' for token pasting"
+msgstr ""
+
+#: src/lex.c:2275
+msgid "Pasted token is too long"
+msgstr ""
+
+#: src/lex.c:2749 src/lex.c:2762
+msgid "Name too long"
+msgstr ""
+
+#: src/lex.c:2861
+msgid "Missing ',' in #define parameter list"
+msgstr ""
+
+#: src/lex.c:2868
+msgid "Too many macro arguments"
+msgstr ""
+
+#: src/lex.c:2913 src/lex.c:2935
+msgid "Macro text too long"
+msgstr ""
+
+#: src/lex.c:2950
+msgid "Illegal macro symbol"
+msgstr ""
+
+#: src/lex.c:2963 src/lex.c:2981
+msgid "Macro expansion buffer overflow"
+msgstr ""
+
+#: src/lex.c:3018
+#, c-format
+msgid "redefinition of #define %s\n"
+msgstr ""
+
+#: src/lex.c:3095
+msgid "Too many macro expansions"
+msgstr ""
+
+#: src/lex.c:3115
+msgid "Missing '(' in macro call"
+msgstr ""
+
+#: src/lex.c:3153
+msgid "'#' expected"
+msgstr ""
+
+#: src/lex.c:3170
+msgid "Newline in string"
+msgstr ""
+
+#: src/lex.c:3196
+msgid "Unexpected end of file"
+msgstr ""
+
+#: src/lex.c:3201
+msgid "Macro argument overflow"
+msgstr ""
+
+#: src/lex.c:3218
+msgid "Maximum macro argument count exceeded"
+msgstr ""
+
+#: src/lex.c:3224
+msgid "Wrong number of macro arguments"
+msgstr ""
+
+#: src/lex.c:3245 src/lex.c:3256
+msgid "Macro expansion overflow"
+msgstr ""
+
+#: src/lex.c:3297
+msgid "Missing ( in defined"
+msgstr ""
+
+#: src/lex.c:3314
+msgid "Missing ) in defined"
+msgstr ""
+
+#: src/lex.c:3371
+msgid "*****Fatal error in set_inc_list: bad state.\n"
+msgstr ""
+
+#: src/lex.c:3383
+msgid "*****IncludeDir directories cannot contain any '..' in the path"
+msgstr ""
+
+#: src/simul_efun.c:73
+msgid "warnning: no simul_efun file\n"
+msgstr ""
+
+#: src/simul_efun.c:79
+msgid "warnning: failed loading simul_efun file\n"
+msgstr ""
+
+#: src/backend.c:648
+#, c-format
+msgid "%.2f cmds/s, %.2f comp lines/s"
+msgstr ""
+
+#: grammar.y:230
+msgid "Extra ';' ignored."
+msgstr ""
+
+#: grammar.y:245
+msgid "Invalid inherit clause after variables declarations."
+msgstr ""
+
+#: grammar.y:318
+msgid "\"#pragma strict_types\" requires type of function"
+msgstr ""
+
+#: src/interpret.c:375
+msgid "*Object destructed during efun callback."
+msgstr ""
+
+#: src/interpret.c:542 src/interpret.c:601 src/interpret.c:3068
+#: src/interpret.c:3134
+msgid "*Buffer index out of bounds."
+msgstr ""
+
+#: src/interpret.c:554 src/interpret.c:614 src/interpret.c:3100
+#: src/interpret.c:3165
+msgid "*Array index out of bounds."
+msgstr ""
+
+#: src/interpret.c:562 src/interpret.c:623 src/interpret.c:3107
+#: src/interpret.c:3172
+msgid "*Value being indexed is zero."
+msgstr ""
+
+#: src/interpret.c:563 src/interpret.c:624 src/interpret.c:3108
+#: src/interpret.c:3173
+#, c-format
+msgid "*Cannot index value of type '%s'."
+msgstr ""
+
+#: src/interpret.c:584
+msgid "*Illegal type of index."
+msgstr ""
+
+#: src/interpret.c:592
+msgid "*Illegal to make char lvalue from assigned string."
+msgstr ""
+
+#: src/interpret.c:661 src/interpret.c:666
+msgid "*Range lvalue on illegal type."
+msgstr ""
+
+#: src/interpret.c:669
+msgid "*Illegal 2nd index type to range lvalue."
+msgstr ""
+
+#: src/interpret.c:674
+msgid ""
+"*The 2nd index to range lvalue must be >= -1 and < sizeof(indexed value)"
+msgstr ""
+
+#: src/interpret.c:677
+msgid "*Illegal 1st index type to range lvalue"
+msgstr ""
+
+#: src/interpret.c:683
+msgid ""
+"*The 1st index to range lvalue must be >= 0 and <= sizeof(indexed value)"
+msgstr ""
+
+#: src/interpret.c:710 src/interpret.c:867
+msgid "*Illegal rhs to array range lvalue."
+msgstr ""
+
+#: src/interpret.c:778 src/interpret.c:910
+msgid "*Illegal rhs to string range lvalue."
+msgstr ""
+
+#: src/interpret.c:816 src/interpret.c:947
+msgid "*Illegal rhs to buffer range lvalue."
+msgstr ""
+
+#: src/interpret.c:1022
+#, c-format
+msgid "*Bad argument %d to %s()"
+msgstr ""
+
+#: src/interpret.c:1035
+#, c-format
+msgid "Bad argument %d to %s%s, Expected: "
+msgstr ""
+
+#: src/interpret.c:1070 src/interpret.c:1387
+msgid "***Too deep recursion."
+msgstr ""
+
+#: src/interpret.c:1092
+msgid "Popped out of the control stack\n"
+msgstr ""
+
+#: src/interpret.c:1476
+#, c-format
+msgid "*Owner (/%s) of function pointer is destructed."
+msgstr ""
+
+#: src/interpret.c:1521
+#, c-format
+msgid "*Too few arguments to efun %s in efun pointer."
+msgstr ""
+
+#: src/interpret.c:1526
+#, c-format
+msgid "*Too many arguments to efun %s in efun pointer."
+msgstr ""
+
+#: src/interpret.c:1560 src/interpret.c:2796
+#, c-format
+msgid "*Undefined function: %s"
+msgstr ""
+
+#: src/interpret.c:1610
+msgid "*Unsupported function pointer type."
+msgstr ""
+
+#: src/interpret.c:1730
+msgid "*2nd argument to < is not numeric when the 1st is."
+msgstr ""
+
+#: src/interpret.c:1732
+msgid "*2nd argument to < is not string when the 1st is."
+msgstr ""
+
+#: src/interpret.c:1734
+msgid "*Bad 1st argument to <."
+msgstr ""
+
+#: src/interpret.c:1783
+msgid "*Right side of < is a number, left side is not."
+msgstr ""
+
+#: src/interpret.c:1825
+msgid "*Too long evaluation. Execution aborted."
+msgstr ""
+
+#: src/interpret.c:1890 src/interpret.c:2457 src/interpret.c:2758
+#: src/interpret.c:2866
+msgid "*Strings cannot contain 0 bytes."
+msgstr ""
+
+#: src/interpret.c:1894 src/interpret.c:2123
+msgid "*Increment (++) on non-numeric argument."
+msgstr ""
+
+#: src/interpret.c:1912
+msgid "*Decrement (--) on non-numeric argument."
+msgstr ""
+
+#: src/interpret.c:2198 src/interpret.c:2331
+#, c-format
+msgid "*Bad type argument to +. Had %s and %s."
+msgstr ""
+
+#: src/interpret.c:2239 src/interpret.c:2339
+#, c-format
+msgid "*Bad type argument to +.  Had %s and %s."
+msgstr ""
+
+#: src/interpret.c:2265 src/interpret.c:2275 src/interpret.c:2301
+#, c-format
+msgid "*Bad type argument to +. Had %s and %s"
+msgstr ""
+
+#: src/interpret.c:2390 src/interpret.c:2407
+msgid ""
+"*Left hand side of += is a number (or zero); right side is not a number."
+msgstr ""
+
+#: src/interpret.c:2452
+msgid "*Bad right type to += of char lvalue."
+msgstr ""
+
+#: src/interpret.c:2604
+msgid "*Item being expanded with ... is not an array."
+msgstr ""
+
+#: src/interpret.c:2708
+msgid "*Illegal to assign a non-numeric value to char lvalue."
+msgstr ""
+
+#: src/interpret.c:2714
+msgid "*Strings cannot contain NUL character."
+msgstr ""
+
+#: src/interpret.c:2752
+msgid "*Illegal rhs to char lvalue"
+msgstr ""
+
+#: src/interpret.c:2840
+msgid "*Bad argument to ~"
+msgstr ""
+
+#: src/interpret.c:2872 src/interpret.c:2892
+msgid "Decrement (--) on non-numeric argument"
+msgstr ""
+
+#: src/interpret.c:2888 src/interpret.c:2995 src/interpret.c:3346
+#: src/interpret.c:3369
+msgid "*Strings cannot contain NUL char."
+msgstr ""
+
+#: src/interpret.c:2903 src/interpret.c:2911 src/interpret.c:2921
+msgid "*Division by zero."
+msgstr ""
+
+#: src/interpret.c:2927
+msgid "*Division by 0.0"
+msgstr ""
+
+#: src/interpret.c:3001 src/interpret.c:3374
+msgid "Increment (++) on non-numeric argument."
+msgstr ""
+
+#: src/interpret.c:3010 src/interpret.c:3037
+msgid "*Tried to take a member of something that isn't a class."
+msgstr ""
+
+#: src/interpret.c:3014 src/interpret.c:3041
+msgid "*Class has no corresponding member."
+msgstr ""
+
+#: src/interpret.c:3064
+msgid "*Buffer indexes must be integers."
+msgstr ""
+
+#: src/interpret.c:3079
+msgid "*String indexes must be integers."
+msgstr ""
+
+#: src/interpret.c:3083 src/interpret.c:3151
+msgid "*String index out of bounds."
+msgstr ""
+
+#: src/interpret.c:3094
+msgid "*Array indexes must be integers."
+msgstr ""
+
+#: src/interpret.c:3097
+msgid "*Array index must be positive or zero."
+msgstr ""
+
+#: src/interpret.c:3130
+msgid "*Indexing a buffer with an illegal type."
+msgstr ""
+
+#: src/interpret.c:3147
+msgid "*Indexing a string with an illegal type."
+msgstr ""
+
+#: src/interpret.c:3162
+msgid "*Indexing an array with an illegal type."
+msgstr ""
+
+#: src/interpret.c:3231
+msgid "*Modulus by zero."
+msgstr ""
+
+#: src/interpret.c:3286
+msgid "*Args to * are not compatible."
+msgstr ""
+
+#: src/interpret.c:3306
+msgid "*Bad argument to unary minus"
+msgstr ""
+
+#: src/interpret.c:3350
+msgid "DEcrement (--) on non-numeric argument."
+msgstr ""
+
+#: src/interpret.c:3512
+msgid "*Bad left type to -."
+msgstr ""
+
+#: src/interpret.c:3514
+msgid "*Bad right type to -."
+msgstr ""
+
+#: src/interpret.c:3516
+msgid "*Arguments to - do not have compatible types."
+msgstr ""
+
+#: src/interpret.c:3652 src/interpret.c:3676
+msgid "*Can't catch too deep recursion error."
+msgstr ""
+
+#: src/interpret.c:3671
+msgid "*Can't catch eval cost too big error."
+msgstr ""
+
+#: src/interpret.c:4452
+#, c-format
+msgid "*Format string end in '%%' in sscanf()"
+msgstr ""
+
+#: src/interpret.c:4483
+msgid "*Too few arguments to sscanf()"
+msgstr ""
+
+#: src/interpret.c:4536
+#, c-format
+msgid "*Bad regexp format: '%%%s' in sscanf format string"
+msgstr ""
+
+#: src/interpret.c:4583 src/interpret.c:4741
+#, c-format
+msgid "*Bad type : '%%%c' in sscanf() format string."
+msgstr ""
+
+#: src/interpret.c:4616
+msgid "*Too few arguments to sscanf()."
+msgstr ""
+
+#: src/interpret.c:4624
+#, c-format
+msgid "*Illegal to have 2 adjacent %%s's in format string in sscanf()"
+msgstr ""
+
+#: src/interpret.c:4671
+#, c-format
+msgid "*Bad regexp format : '%%%s' in sscanf format string."
+msgstr ""
+
+#: src/interpret.c:4739
+#, c-format
+msgid "*Format string can't end in '%%'."
+msgstr ""
+
+#: src/simulate.c:94
+msgid "*****Command giver stack overflow!"
+msgstr ""
+
+#: src/simulate.c:114
+msgid "*****Command giver stack underflow!"
+msgstr ""
+
+#: src/simulate.c:127
+#, c-format
+msgid "*Printable strings limited to length of %d.\n"
+msgstr ""
+
+#: src/simulate.c:199
+msgid "*Can't load objects without a master object."
+msgstr ""
+
+#: src/simulate.c:392
+#, c-format
+msgid "*Inherit chain too deep: > %d when trying to load '%s'."
+msgstr ""
+
+#: src/simulate.c:397
+msgid "*Can't load objects when no effective user."
+msgstr ""
+
+#: src/simulate.c:400 src/simulate.c:620
+#, c-format
+msgid "*Filenames with consecutive /'s in them aren't allowed (%s)."
+msgstr ""
+
+#: src/simulate.c:437
+#, c-format
+msgid "*Illegal path name '/%s'."
+msgstr ""
+
+#: src/simulate.c:452
+#, c-format
+msgid "*Could not read the file '/%s'."
+msgstr ""
+
+#: src/simulate.c:469
+#, c-format
+msgid "*No program in object '/%s'!"
+msgstr ""
+
+#: src/simulate.c:470
+#, c-format
+msgid "*Error in loading object '/%s':"
+msgstr ""
+
+#: src/simulate.c:496
+msgid "*Illegal to inherit self."
+msgstr ""
+
+#: src/simulate.c:508
+#, c-format
+msgid "*Inherited file '/%s' does not exist!"
+msgstr ""
+
+#: src/simulate.c:543
+#, c-format
+msgid "*master::%s() denied permission to load '/%s'."
+msgstr ""
+
+#: src/simulate.c:585
+msgid "*Attempt to create object without effective UID."
+msgstr ""
+
+#: src/simulate.c:602
+msgid "*Cannot clone from a clone!"
+msgstr ""
+
+#: src/simulate.c:689
+msgid "*environment() of destructed object."
+msgstr ""
+
+#: src/simulate.c:709
+msgid "*Too long command."
+msgstr ""
+
+#: src/simulate.c:850
+#, c-format
+msgid "*Illegal master file name '%s'"
+msgstr ""
+
+#: src/simulate.c:887
+msgid "*Only this_object() can be destructed from move_or_destruct."
+msgstr ""
+
+#: src/simulate.c:996
+msgid "*Destruct on vital object failed: new copy failed to reload."
+msgstr ""
+
+#: src/simulate.c:1505
+msgid "*Can't move object inside itself."
+msgstr ""
+
+#: src/simulate.c:1574
+msgid "*An object was destructed at call of "
+msgstr ""
+
+#: src/simulate.c:1588
+msgid "*The object to be moved was destructed at call of "
+msgstr ""
+
+#: src/simulate.c:1604
+msgid "*The destination to move to was destructed at call of "
+msgstr ""
+
+#: src/simulate.c:1804
+msgid "*Illegal function name."
+msgstr ""
+
+#: src/simulate.c:1826
+#, c-format
+msgid "*Verb '%s' bound to uncallable function pointer."
+msgstr ""
+
+#: src/simulate.c:1832
+#, c-format
+msgid "*Function for verb '%s' not found."
+msgstr ""
+
+#: src/simulate.c:1853
+msgid "*Illegal to call remove_action() from a verb returning zero."
+msgstr ""
+
+#: src/simulate.c:1856
+msgid ""
+"*Illegal to move or destruct an object defining actions from a verb function "
+"which returns zero."
+msgstr ""
+
+#: src/simulate.c:2407
+#, c-format
+msgid "*****%s\n"
+msgstr ""
+
+#: src/simulate.c:2411
+msgid ""
+"*****Fatal error occured while another proceeding, shutdown immediately.\n"
+msgstr ""
+
+#: src/simulate.c:2421
+#, c-format
+msgid "compiling %s at line %d\n"
+msgstr ""
+
+#: src/simulate.c:2424
+#, c-format
+msgid "current object was /%s\n"
+msgstr ""
+
+#: src/simulate.c:2427
+#, c-format
+msgid "in heart beat of /%s\n"
+msgstr ""
+
+#: src/simulate.c:2432
+#, c-format
+msgid "*****Error in master::%s(), shutdown immediately.\n"
+msgstr ""
+
+#: src/simulate.c:2449
+#, c-format
+msgid "master::%s() done, neolith shutdown.\n"
+msgstr ""
+
+#: src/simulate.c:2488
+msgid "*Throw with no catch."
+msgstr ""
+
+#: src/simulate.c:2496
+#, c-format
+msgid "%s\tprogram: /%s, object: /%s, file: %s\n"
+msgstr ""
+
+#: src/simulate.c:2504
+#, c-format
+msgid "%s\tprogram: (none), object: /%s, file: (none)\n"
+msgstr ""
+
+#: src/simulate.c:2509
+#, c-format
+msgid "%s\tprogram: (none), object: (none), file: (none)\n"
+msgstr ""
+
+#: src/simulate.c:2581
+msgid "***Error in mudlib error handler (caught):\n"
+msgstr ""
+
+#: src/simulate.c:2612
+msgid "***New error occured while generating error trace!"
+msgstr ""
+
+#: src/simulate.c:2626
+msgid "***Error in mudlib error handler:\n"
+msgstr ""
+
+#: src/simulate.c:2645
+#, c-format
+msgid "heart beat in %s turned off\n"
+msgstr ""
+
+#: src/simulate.c:2649
+msgid "Your heart beat stops!\n"
+msgstr ""
+
+#: src/simulate.c:2659
+msgid "*****Failed longjmp() or no error context for error."
+msgstr ""
+
+#: src/comm.c:142
+#, c-format
+msgid "opening TCP service on port %d\n"
+msgstr ""
+
+#: src/comm.c:2463
+msgid "What?\n"
+msgstr ""
+
+#: src/main.c:128
+#, c-format
+msgid "%s version %s starting up\n"
+msgstr ""
+
+#: src/main.c:160
+msgid "*****Error loading master or simul-efun object\n"
+msgstr ""
+
+#: src/main.c:193
+msgid "initialization done\n"
+msgstr ""
+
+#: src/main.c:242
+msgid "config-file"
+msgstr ""
+
+#: src/main.c:243
+msgid "Specifies the name of the configuration file."
+msgstr ""
+
+#: src/main.c:244
+msgid "macro[=definition]"
+msgstr ""
+
+#: src/main.c:245
+msgid "Predefines global preprocessor macro for use in mudlib."
+msgstr ""
+
+#: src/main.c:246
+msgid "debug-level"
+msgstr ""
+
+#: src/main.c:247
+msgid "Specifies the runtime debug level."
+msgstr ""
+
+#: src/main.c:254
+msgid "Copyright (C) 2000-2002 Minxin Zhang <annihilator@muds.net>"
+msgstr ""
+
+#: src/main.c:289
+#, c-format
+msgid "invalid option: %c"
+msgstr ""
+
+#: src/main.c:324
+#, c-format
+msgid "error opening log file %s: %s\n"
+msgstr ""

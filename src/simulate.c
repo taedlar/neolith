@@ -2429,7 +2429,6 @@ fatal (char *fmt, ...)
       save_context (&econ);
       if (setjmp (econ.context))
 	{
-	  /* 在 master 的 crash() 中發生錯誤 */
 	  debug_message (_("*****Error in master::%s(), shutdown immediately.\n"),
 			 APPLY_CRASH);
 	}
@@ -2579,7 +2578,6 @@ error_handler (char *err)
       /* 允許被 catch 的錯誤也經過 master::error_handler() 處理 */
       if (in_mudlib_error_handler)
 	{
-	  /* 在 master::error_handler() 被執行時發生的錯誤 */
 	  debug_message (_("***Error in mudlib error handler (caught):\n"));
 	  debug_message_with_location (err);
 	  dump_trace (g_trace_flag);
@@ -2611,7 +2609,6 @@ error_handler (char *err)
 
   if (in_error)
     {
-      /* 處理 error 過程中又發生 error (例如 master::object_name) */
       debug_message (_("***New error occured while generating error trace!"));
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
@@ -2626,7 +2623,6 @@ error_handler (char *err)
 
   if (in_mudlib_error_handler)
     {
-      /* 在 mudlib 所提供的 error_handler 中發生錯誤 */
       debug_message (_("***Error in mudlib error handler:\n"));
       debug_message_with_location (err);
       dump_trace (g_trace_flag);

@@ -25,7 +25,6 @@ AC_PROG_CC
 AC_PROG_YACC
 AM_PROG_LIBTOOL
 
-ALL_LINGUAS="zh_TW"
 AM_GNU_GETTEXT([external])
 
 localedir=$datadir/locale

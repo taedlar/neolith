@@ -30,7 +30,7 @@ Makefile.in
 /libtool
 /m4
 /ABOUT-NLS
-/config.rpath
+/po/stamp-po
 *.o
 *.lo
 *.la
