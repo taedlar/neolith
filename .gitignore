@@ -38,6 +38,7 @@ Makefile.in
 
 # Generated build files
 Makefile
+po/POTFILES
 /config.h
 *.spec
 src/neolith
