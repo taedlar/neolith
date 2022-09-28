@@ -1,4 +1,5 @@
 AM_CFLAGS = -Wall -pipe -ggdb -O2
+AM_CPPFLAGS = -I@top_srcdir@/lib
 
 noinst_LTLIBRARIES = libsocket.la
 
