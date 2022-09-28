@@ -2,9 +2,9 @@
 set -x
 
 libtoolize --automake --copy
-gettextize --no-changelog 
 aclocal -I m4
 
+# run autotools
 autoheader
 automake --foreign --add-missing --copy
 autoconf
