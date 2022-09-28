@@ -28,6 +28,7 @@ Makefile.in
 
 # libtool
 /ltmain.sh
+/libtool
 
 # m4
 /m4
@@ -38,6 +39,7 @@ Makefile
 /auto
 /po
 /gettext.h
+/config.h
 *.spec
 
 # vim
