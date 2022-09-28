@@ -26,9 +26,13 @@ Makefile.in
 .deps/
 .dirstamp
 
-# libtool
+# gcc / libtool
 /ltmain.sh
 /libtool
+*.o
+*.lo
+*.la
+.libs
 
 # m4
 /m4
@@ -41,6 +45,8 @@ Makefile
 /gettext.h
 /config.h
 *.spec
+src/neolith
+_efuns/edit_source
 
 # vim
 *.swp
