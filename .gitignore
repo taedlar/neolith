@@ -29,20 +29,20 @@ Makefile.in
 # gcc / libtool
 /ltmain.sh
 /libtool
+m4/libtool.m4
+m4/ltoptions.m4
+m4/ltsugar.m4
+m4/ltversion.m4
+m4/lt~obsolete.m4
 *.o
 *.lo
 *.la
 .libs
 
-# m4
-/m4
-
 # Generated build files
 Makefile
-/ABOUT-NLS
 /auto
 /po
-/gettext.h
 /config.h
 *.spec
 src/neolith
