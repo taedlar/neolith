@@ -1,0 +1,30 @@
+This game, LPmud, is copyright by Lars Pensj|, 1990, 1991.
+
+Source code herein refers to the source code, and any executables
+created from the same source code.
+
+All rights reserved.  Permission is granted to extend and modify the
+source code provided subject to the restriction that the source code may
+not be used in any way whatsoever for monetary gain.
+
+******
+
+The name MudOS is copyright 1991-1992 by Erik Kay, Adam Beeman, Stephan Iannce
+and John Garnett.  LPmud copyright restrictions still apply.
+
+In addition, the entire package is copyright 1995 by Tim Hollebeek.
+
+******
+
+The name Neolith is copyright (C) 2000-2001 by Min-Hsin Chang. LPmud and MudOS
+copyright restrictions still apply because Neolith is actually based on a
+heavily modified version of MudOS v22pre5.
+
+The part added/modified (compared against MudOS v22pre5) in Neolith is in fact
+distributed under GPL. Should there be conflict between LPmud, MudOS copyright
+restrictions and GPL, the former takes precedence. (For example: commercial
+use of source code is forbidden because Lars wouldn't like it).
+
+As long as you can obtain permissions from the other authors of LPmud and
+MudOS (dozens of them, check out the Credits.LPmud and Credits.MudOS), you 
+need only follow GPL to use this package.

@@ -1,0 +1,21 @@
+Neolith - LPmud 伺服器
+======================
+
+Neolith 是一個修改自 MudOS 的 LPmud 系統，關於 LPmud 與 MudOS 的著作權聲明
+以及 Neolith 和這二者的關係，請參考 doc/Copyright。 Neolith 中修改或新增的
+任何程式碼及文件，除另有註明者外均依照自由軟體基金會所出版的 GPL version 2
+公眾授權供所有人自由散佈使用。
+
+ * 有關 GPL version 2 的授權內容請參考 COPYING。
+
+ * 有關編譯與安裝 Neolith 的步驟請參考 INSTALL
+
+ * 有關這個版本新增的功能與變動請參考 NEWS
+
+ * 有關 Neolith 變動部份的詳細資料請參考 ChangeLog
+
+ * 有關如何聯繫 Neolith 的作者請參考 AUTHORS
+
+
+By Annihilator <annihilator@muds.net> (2001/05/01)
+$Id: README,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
