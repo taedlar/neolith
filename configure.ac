@@ -55,7 +55,7 @@ AC_CHECK_FUNCS(getcwd gethostname getline gettimeofday getwd mkdir putenv\
 	regcomp rmdir select socket stpcpy strcspn strerror strstr strtol\
 	ualarm)
 
-AC_OUTPUT([po/Makefile.in
+AC_OUTPUT([
   $PACKAGE.spec:spec.in
   Makefile
   _adt/Makefile
