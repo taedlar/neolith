@@ -5,4 +5,4 @@ Familiar with the following skills:
 - GNU autotools: autoconf, automake, libtool, gettext
 - LPMud administration and LPC programming
 
-If you are interested in contribute to this project, add your self-introduction in the Discussion page and mention [@taedlar](https://github.com/taedlar).
+If you are interested in contribute to this project, add your self-introduction in the Discussion page and mention [Annihilator](https://github.com/taedlar).
