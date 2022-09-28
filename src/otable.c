@@ -210,10 +210,10 @@ show_otable_status (outbuffer_t * out, int verbose)
       outbuf_addv (out, "Average hash chain length:       %s\n", sbuf);
       sprintf (sbuf, "%10.2f", (float) obj_probes / obj_searches);
       outbuf_addv (out, "Average search length:           %s\n", sbuf);
-      outbuf_addv (out, "Internal lookups (succeeded):    %lu (%lu)\n",
+      outbuf_addv (out, "Internal lookups (succeeded):    %u (%u)\n",
 		   obj_searches - user_obj_lookups,
 		   objs_found - user_obj_found);
-      outbuf_addv (out, "External lookups (succeeded):    %lu (%lu)\n",
+      outbuf_addv (out, "External lookups (succeeded):    %u (%u)\n",
 		   user_obj_lookups, user_obj_found);
     }
   starts =

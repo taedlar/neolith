@@ -1185,8 +1185,8 @@ dump_file_descriptors (outbuffer_t * out)
 	dev = stbuf.st_dev;
 
       outbuf_addv (out, "%2d", i);
-      outbuf_addv (out, "%13x", dev);
-      outbuf_addv (out, "%9d", stbuf.st_ino);
+      outbuf_addv (out, "%13lx", dev);
+      outbuf_addv (out, "%9lu", stbuf.st_ino);
       outbuf_add (out, "  ");
 
       switch (stbuf.st_mode & S_IFMT)
@@ -1229,7 +1229,7 @@ dump_file_descriptors (outbuffer_t * out)
       outbuf_addv (out, "%5o", stbuf.st_mode & ~S_IFMT);
       outbuf_addv (out, "%7d", stbuf.st_uid);
       outbuf_addv (out, "%7d", stbuf.st_gid);
-      outbuf_addv (out, "%12d", stbuf.st_size);
+      outbuf_addv (out, "%12lu", stbuf.st_size);
       outbuf_add (out, "\n");
     }
 }
