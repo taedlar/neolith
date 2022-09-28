@@ -4,7 +4,7 @@ mkdir -p auto
 mkdir -p po
 
 libtoolize --automake
-gettextize -f --no-changelog --symlink
+gettextize --no-changelog --symlink
 aclocal -I m4
 
 autoheader
