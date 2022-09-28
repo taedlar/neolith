@@ -12,7 +12,7 @@
 #ifndef	RC_H
 #define	RC_H
 
-#include "_lpc/types.h"
+#include "lpc/types.h"
 #include "LPC/runtime_config.h"
 
 #define CONFIG_STR(x)           config_str[(x) - BASE_CONFIG_STR]

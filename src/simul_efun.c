@@ -26,7 +26,7 @@
 #include "simulate.h"
 #include "interpret.h"
 #include "stralloc.h"
-#include "_lpc/object.h"
+#include "lpc/object.h"
 
 /*
  * This file rewritten by Beek because it was inefficient and slow.  We

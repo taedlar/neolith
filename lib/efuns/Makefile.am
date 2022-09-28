@@ -1,10 +1,10 @@
 AM_CFLAGS = -Wall -ggdb -O2 -pipe
-AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@
+AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@ -I@top_srcdir@/lib -I@top_srcdir@/lib/adt
 
 noinst_PROGRAMS = edit_source
 
 edit_source_SOURCES = edit_source.c edit_source.h make_func.y
-edit_source_LDADD = ../_adt/libadt.la
+edit_source_LDADD = ../lib/adt/libadt.la
 
 BUILT_SOURCES = .option.h .opcode.h .vector.h .prototype.h .definition.h
 

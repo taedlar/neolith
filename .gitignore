@@ -30,7 +30,8 @@ Makefile.in
 /libtool
 /m4
 /ABOUT-NLS
-/po/stamp-po
+po/stamp-po
+po/*.sed
 *.o
 *.lo
 *.la
@@ -42,7 +43,7 @@ po/POTFILES
 /config.h
 *.spec
 src/neolith
-_efuns/edit_source
+lib/efuns/edit_source
 
 # vim
 *.swp

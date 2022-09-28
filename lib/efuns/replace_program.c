@@ -14,10 +14,10 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "_lpc/types.h"
-#include "_lpc/object.h"
-#include "_lpc/program.h"
-#include "_lpc/array.h"
+#include "lpc/types.h"
+#include "lpc/object.h"
+#include "lpc/program.h"
+#include "lpc/array.h"
 #include "src/main.h"
 #include "src/interpret.h"
 #include "src/simulate.h"

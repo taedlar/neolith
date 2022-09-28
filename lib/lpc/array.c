@@ -28,7 +28,7 @@
 #include "src/stralloc.h"
 #include "src/comm.h"
 #include "src/regexp.h"
-#include "_adt/qsort.h"
+#include "qsort.h"
 
 #include "array.h"
 #include "object.h"

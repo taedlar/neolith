@@ -19,8 +19,8 @@
 #ifndef _SOCKET_EFUNS_H
 #define _SOCKET_EFUNS_H
 
-#include "_lpc/types.h"
-#include "_lpc/function.h"
+#include "lpc/types.h"
+#include "lpc/function.h"
 
 enum socket_mode {
     MUD, STREAM, DATAGRAM, STREAM_BINARY, DATAGRAM_BINARY

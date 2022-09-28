@@ -22,7 +22,7 @@
 #include "main.h"
 #include "generate.h"
 #include "scratchpad.h"
-#include "_adt/qsort.h"
+#include "qsort.h"
 #include "file.h"
 #include "binaries.h"
 
@@ -30,9 +30,9 @@
 #include "simulate.h"
 #include "stralloc.h"
 #include "icode.h"
-#include "_lpc/program.h"
-#include "_lpc/object.h"
-#include "_lpc/function.h"
+#include "lpc/program.h"
+#include "lpc/object.h"
+#include "lpc/function.h"
 
 #include "LPC/runtime_config.h"
 

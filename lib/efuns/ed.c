@@ -63,7 +63,7 @@
 
 #include "src/std.h"
 #include "src/applies.h"
-#include "_lpc/object.h"
+#include "lpc/object.h"
 #include "LPC/origin.h"
 #include "src/interpret.h"
 #include "src/simulate.h"

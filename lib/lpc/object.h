@@ -12,9 +12,9 @@
 #ifndef	_LPC_OBJECT_H
 #define	_LPC_OBJECT_H
 
-#include "_lpc/types.h"
-#include "_lpc/uids.h"
-#include "_lpc/function.h"
+#include "lpc/types.h"
+#include "lpc/uids.h"
+#include "lpc/function.h"
 
 /*
  * Definition of an object.

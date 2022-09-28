@@ -22,7 +22,7 @@
 #include <math.h>
 
 #include "src/std.h"
-#include "_lpc/types.h"
+#include "lpc/types.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
 

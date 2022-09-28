@@ -26,8 +26,8 @@
 
 #include "src/std.h"
 #include "parse.h"
-#include "_lpc/array.h"
-#include "_lpc/object.h"
+#include "lpc/array.h"
+#include "lpc/object.h"
 #include "LPC/origin.h"
 #include "src/simulate.h"
 #include "src/interpret.h"

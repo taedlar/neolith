@@ -27,11 +27,11 @@
 #include <arpa/inet.h>
 
 #include "src/std.h"
-#include "_lpc/types.h"
-#include "_lpc/array.h"
-#include "_lpc/function.h"
-#include "_lpc/buffer.h"
-#include "_lpc/object.h"
+#include "lpc/types.h"
+#include "lpc/array.h"
+#include "lpc/function.h"
+#include "lpc/buffer.h"
+#include "lpc/object.h"
 #include "src/applies.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
@@ -44,7 +44,7 @@
 #include "socket_err.h"
 #include "socket_ctrl.h"
 #include "LPC/socket_err.h"
-#include "_efuns/operator.h"
+#include "efuns/operator.h"
 
 #define	socket_errno		errno
 #define socket_perror(x,y)	debug_perror(x,y)

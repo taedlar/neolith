@@ -53,7 +53,7 @@
 
 #ifndef	EDIT_SOURCE
 /* all options and configuration */
-#include "_efuns/options.h"
+#include "efuns/options.h"
 //#include "configure.h"
 #endif	/* ! EDIT_SOURCE */
 
@@ -73,7 +73,7 @@ void outbuf_push(outbuffer_t *);
 int outbuf_extend(outbuffer_t *, int);
 
 #ifndef NO_OPCODES
-#include "_efuns/.opcode.h"
+#include "efuns/.opcode.h"
 #endif
 
 #endif	/* ! STD_H */

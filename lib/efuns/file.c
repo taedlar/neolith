@@ -21,9 +21,9 @@
 #include "src/file.h"
 #include "src/interpret.h"
 #include "src/stralloc.h"
-#include "_lpc/array.h"
-#include "_lpc/buffer.h"
-#include "_lpc/object.h"
+#include "lpc/array.h"
+#include "lpc/buffer.h"
+#include "lpc/object.h"
 
 #include <sys/stat.h>
 #include <netinet/in.h>		/* for htonl() in write_bytes */

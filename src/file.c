@@ -23,8 +23,8 @@
 #include <dirent.h>
 
 #include "std.h"
-#include "_lpc/array.h"
-#include "_lpc/object.h"
+#include "lpc/array.h"
+#include "lpc/object.h"
 #include "LPC/runtime_config.h"
 #include "rc.h"
 #include "main.h"

@@ -12,7 +12,7 @@
 #ifndef SIMULATE_H
 #define SIMULATE_H
 
-#include "_lpc/types.h"
+#include "lpc/types.h"
 
 #define V_SHORT         1
 #define V_NOSPACE       2

@@ -12,7 +12,7 @@
 #ifndef CALL_OUT_H
 #define CALL_OUT_H
 
-#include "_lpc/types.h"
+#include "lpc/types.h"
 
 void call_out(void);
 int find_call_out_by_handle(int);

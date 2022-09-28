@@ -18,7 +18,7 @@
 #ifndef _EFUNS_PARSE_H
 #define _EFUNS_PARSE_H
 
-#include "_lpc/types.h"
+#include "lpc/types.h"
 
 int parse(char *, svalue_t *, char *, svalue_t *, int);
 char *process_string(char *);

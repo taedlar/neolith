@@ -17,7 +17,7 @@
 #include <stdarg.h>
 #endif	/* STDC_HEADERS */
 
-#include "_lpc/types.h"
+#include "lpc/types.h"
 
 #define PORT_TELNET      1
 #define PORT_BINARY      2

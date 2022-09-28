@@ -28,7 +28,7 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
-#include "_lpc/object.h"
+#include "lpc/object.h"
 #include "LPC/runtime_config.h"
 #include "rc.h"
 #include "applies.h"
@@ -37,8 +37,8 @@
 #include "simulate.h"
 #include "binaries.h"
 #include "backend.h"
-#include "_adt/qsort.h"
-#include "_adt/hash.h"
+#include "qsort.h"
+#include "hash.h"
 
 static char *magic_id = "NEOLITH";
 static time_t driver_id = 0;

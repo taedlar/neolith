@@ -25,7 +25,7 @@
 #include <netinet/in.h>
 
 #include "src/std.h"
-#include "_lpc/object.h"
+#include "lpc/object.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/stralloc.h"

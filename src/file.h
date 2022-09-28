@@ -18,7 +18,7 @@
 #ifndef FILE_H
 #define FILE_H
 
-#include "_lpc/types.h"
+#include "lpc/types.h"
 
 /*
  * file.c

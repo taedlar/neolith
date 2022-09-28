@@ -31,7 +31,7 @@
 #include "grammar.h"
 #include "scratchpad.h"
 #include "preprocess.h"
-#include "_adt/hash.h"
+#include "hash.h"
 #include "file.h"
 #include "rc.h"
 #include "simulate.h"
@@ -129,9 +129,9 @@ function_context_t *current_function_context = 0;
  * only by the runtime.
  */
 keyword_t predefs[] =
-#include "_efuns/.definition.h"
+#include "efuns/.definition.h"
   char *option_defs[] =
-#include "_efuns/.option.h"
+#include "efuns/.option.h"
   static keyword_t reswords[] = {
   {"asm", 0, 0},
   {"break", L_BREAK, 0},

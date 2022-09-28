@@ -16,10 +16,10 @@
 /* 92/04/18 - cleaned up stylistically by Sulam@TMI */
 
 #include "std.h"
-#include "_lpc/types.h"
-#include "_lpc/array.h"
-#include "_lpc/object.h"
-#include "_lpc/program.h"
+#include "lpc/types.h"
+#include "lpc/array.h"
+#include "lpc/object.h"
+#include "lpc/program.h"
 #include "LPC/origin.h"
 #include "LPC/runtime_config.h"
 #include "main.h"
@@ -29,8 +29,8 @@
 #include "interpret.h"
 #include "backend.h"
 #include "comm.h"
-#include "_efuns/replace_program.h"
-#include "_efuns/call_out.h"
+#include "efuns/replace_program.h"
+#include "efuns/call_out.h"
 
 error_context_t *current_error_context = 0;
 
