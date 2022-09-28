@@ -8,6 +8,7 @@ autom4te.cache
 /config.guess
 /config.h.in
 /config.log
+/config.rpath
 /config.status
 /config.sub
 /configure
@@ -16,6 +17,7 @@ autom4te.cache
 /install-sh
 /missing
 /stamp-h1
+/stamp-h.in
 
 # automake
 Makefile.in
@@ -28,12 +30,17 @@ Makefile.in
 /ltmain.sh
 
 # m4
-m4/libtool.m4
-m4/ltoptions.m4
-m4/ltsugar.m4
-m4/ltversion.m4
-m4/lt~obsolete.m4
+/m4
 
-# Generated Makefiles
+# Generated build files
 Makefile
+/ABOUT-NLS
+/auto
+/po
+/gettext.h
+*.spec
+
+# vim
+*.swp
+*~
 

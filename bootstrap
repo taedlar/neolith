@@ -5,6 +5,7 @@ mkdir -p po
 
 libtoolize --automake
 gettextize --force --no-changelog
+cp /usr/share/gettext/gettext.h .
 aclocal -I m4
 
 autoheader
