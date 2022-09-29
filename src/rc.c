@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "lib/wrapper.h"
 #include "rc.h"
@@ -67,32 +68,40 @@ read_config_malloc (const char *filename)
   char line[1024];
 #endif /* ! HAVE_GETLINE */
   char *conf, *p, *s;
+  int fd;
   FILE *f;
 
-  if (-1 == stat (filename, &st) || NULL == (f = fopen (filename, "r")))
+  if (-1 == (fd = open (filename, O_RDONLY)))
     return NULL;
+
+  if (-1 == fstat (fd, &st) || NULL == (f = fdopen (fd, "r"))) {
+    close (fd);
+    return NULL;
+  }
 
   conf = (char *) calloc (st.st_size + 1, sizeof (char));
-  if (!conf)
+  if (!conf) {
+    close (f);
     return NULL;
+  }
 
-  for (p = conf;
 #ifdef	HAVE_GETLINE
-       -1 != getline (&line, &sz_line, f);)
+  for (p = conf; -1 != getline (&line, &sz_line, f);)
 #else /* ! HAVE_GETLINE */
-       NULL != fgets (line, sizeof (line) - 1, f);
-    )
+  for (p = conf; NULL != fgets (line, sizeof (line) - 1, f);)
 #endif /* ! HAVE_GETLINE */
   {
-    for (s = line; isspace (*s); s++);	/* 跳過每一行前面的空白 */
+    for (s = line; isspace (*s); s++);	/* skip leading blanks */
     if (*s == '#' || *s == '\n')
-      continue;			/* 跳過註解及空行 */
+      continue;			/* skip comments and empty lines */
 
     p = stpcpy (p, s);
   }
   fclose (f);
+#ifdef HAVE_GETLINE
   if (line)
     free (line);
+#endif
   *p++ = '\0';
 
   return (char *) realloc (conf, p - conf);

@@ -943,16 +943,7 @@ do_move (char *from, char *to, int flag)
       error ("/%s: unknown error\n", to);
       return 1;
     }
-#ifdef SYSV
-  if ((flag == F_RENAME) && file_size (from) == -2)
-    {
-      char cmd_buf[100];
 
-      sprintf (cmd_buf, "/usr/lib/mv_dir %s %s", from, to);
-      return system (cmd_buf);
-    }
-  else
-#endif /* SYSV */
   if ((flag == F_RENAME) && (rename (from, to) == 0))
     return 0;
 #ifdef F_LINK
