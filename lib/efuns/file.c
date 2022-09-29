@@ -230,6 +230,7 @@ int
 file_length (char *file)
 {
   struct stat st;
+  int fd;
   FILE *f;
   int ret = 0;
   int num;
@@ -244,8 +245,14 @@ file_length (char *file)
     return -1;
   if (st.st_mode & S_IFDIR)
     return -2;
-  if (!(f = fopen (file, "r")))
+  fd = open (file, O_RDONLY);
+  if (fd == -1)
     return -1;
+  f = fdopen (fd, "r");
+  if (!f) {
+    close (fd);
+    return -1;
+  }
 
   do
     {
@@ -260,6 +267,7 @@ file_length (char *file)
     }
   while (!feof (f));
 
+  close (fd);
   fclose (f);
   return ret;
 }				/* end of file_length() */
