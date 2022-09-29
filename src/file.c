@@ -635,7 +635,8 @@ int
 write_bytes (char *file, int start, char *str, int theLength)
 {
   struct stat st;
-  int size;
+  size_t size;
+  int fd;
   FILE *fp;
 
   file = check_valid_path (file, current_object, "write_bytes", 1);
@@ -644,28 +645,21 @@ write_bytes (char *file, int start, char *str, int theLength)
     return 0;
   if (theLength > CONFIG_INT (__MAX_BYTE_TRANSFER__))
     return 0;
-  /* Under system V, it isn't possible change existing data in a file
-   * opened for append, so it can't be opened for append.
-   * opening for r+ won't create the file if it doesn't exist.
-   * opening for w or w+ will truncate it if it does exist.  So we
-   * have to check if it exists first.
-   */
-  if (stat (file, &st) == -1)
-    {
-      fp = fopen (file, "wb");
-    }
-  else
-    {
-      fp = fopen (file, "r+b");
-    }
-  if (fp == NULL)
-    {
-      return 0;
-    }
-  if (fstat (fileno (fp), &st) == -1)
+
+  fd = open (file, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR); /* create the file if it does not exist, do not truncate */
+  if (-1 == fd)
+    return 0;
+
+  fp = fdopen (fd, "r+");
+  if (!fp) {
+    close (fd);
+    return 0;
+  }
+
+  if (fstat (fd, &st) == -1)
     fatal ("Could not stat an open file.\n");
   size = st.st_size;
-  if (start < 0)
+  if (start < 0) /* negative start position means offset from end-of-file */
     start = size + start;
   if (start < 0 || start > size)
     {
