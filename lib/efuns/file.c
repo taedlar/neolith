@@ -241,13 +241,17 @@ file_length (char *file)
 
   if (!file)
     return -1;
-  if (stat (file, &st) == -1)
-    return -1;
-  if (st.st_mode & S_IFDIR)
-    return -2;
   fd = open (file, O_RDONLY);
   if (fd == -1)
     return -1;
+
+  if (fstat (fd, &st) == -1)
+    return -1;
+  if (st.st_mode & S_IFDIR) {
+    close (fd);
+    return -2;
+  }
+
   f = fdopen (fd, "r");
   if (!f) {
     close (fd);
@@ -267,7 +271,6 @@ file_length (char *file)
     }
   while (!feof (f));
 
-  close (fd);
   fclose (f);
   return ret;
 }				/* end of file_length() */
