@@ -102,7 +102,6 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
     {
       debug_message ("I/O error in save_binary.\n");
       fclose (f);
-      unlink (file_name);
       return;
     }
   /*
@@ -155,8 +154,7 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
       if (tmp > (int) USHRT_MAX)
 	{			/* possible? */
 	  fclose (f);
-	  unlink (file_name);
-	  error ("String to long for save_binary.\n");
+	  error ("String too long for save_binary.\n");
 	  return;
 	}
       len = tmp;
@@ -352,6 +350,7 @@ int_load_binary (char *name)
   char file_name_buf[400];
   char *buf, *iname, *file_name = file_name_buf, *file_name_two =
     &file_name_buf[200];
+  int fd;
   FILE *f;
   int i, buf_size, ilen;
   time_t mtime;
@@ -369,13 +368,19 @@ int_load_binary (char *name)
   len = strlen (file_name);
   file_name[len - 1] = 'b';
 
-  if (stat (file_name, &st) != -1)
-    mtime = st.st_mtime;
-  else
+  fd = open (file_name, O_RDONLY);
+  if (-1 == fd)
+	  return OUT_OF_DATE;
+  if (fstat (fd, &st) == -1) {
+    close (fd);
     return OUT_OF_DATE;
+  }
+  mtime = st.st_mtime;
 
-  if (!(f = fopen (file_name, "r")))
+  if (!(f = fdopen (fd, "r"))) {
+    close (fd);
     return OUT_OF_DATE;
+  }
 
   if (comp_flag)
     {
