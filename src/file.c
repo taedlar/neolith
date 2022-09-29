@@ -825,42 +825,47 @@ again:
 #define	S_ISBLK(m)	(((m)&S_IFMT) == S_IFBLK)
 #endif
 
-static struct stat to_stats, from_stats;
-
+/* Copy file <from> to <to>
+ * Return 0 if success, or return non-zero if fails.
+ * */
 static int
 copy (char *from, char *to)
 {
   int ifd;
   int ofd;
-  char buf[1024 * 8];
+  char buf[16384];
   int len;			/* Number of bytes read into `buf'. */
+  struct stat from_stats;
 
-  if (!S_ISREG (from_stats.st_mode))
-    {
-      return 1;
-    }
-  if (unlink (to) && errno != ENOENT)
-    {
-      return 1;
-    }
   ifd = open (from, O_RDONLY);
-  if (ifd < 0)
+  if (ifd == -1)
+    return -1;
+
+  if (-1 == fstat (ifd, &from_stats)) {
+    close (ifd);
+    return -1;
+  }
+  if (!S_ISREG (from_stats.st_mode)) /* is regular file ? */
     {
-      return errno;
+      error ("not a regular file: /%", from);
+      return -1;
     }
-  ofd = open (to, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+
+  ofd = open (to, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
   if (ofd < 0)
     {
       close (ifd);
-      return 1;
+      return -1;
     }
+
 #ifdef HAS_FCHMOD
+  /* set <to> file as the same mode as <from> file */
   if (fchmod (ofd, from_stats.st_mode & 0777))
     {
       close (ifd);
       close (ofd);
       unlink (to);
-      return 1;
+      return -1;
     }
 #endif
 
@@ -877,7 +882,7 @@ copy (char *from, char *to)
 	      close (ifd);
 	      close (ofd);
 	      unlink (to);
-	      return 1;
+	      return -1;
 	    }
 	  bp += wrote;
 	  len -= wrote;
@@ -889,23 +894,17 @@ copy (char *from, char *to)
       close (ifd);
       close (ofd);
       unlink (to);
-      return 1;
+      return -1;
     }
   if (close (ifd) < 0)
     {
       close (ofd);
-      return 1;
+      return -1;
     }
   if (close (ofd) < 0)
     {
-      return 1;
+      return -1;
     }
-#ifdef FCHMOD_MISSING
-  if (chmod (to, from_stats.st_mode & 0777))
-    {
-      return 1;
-    }
-#endif
 
   return 0;
 }
@@ -918,69 +917,36 @@ copy (char *from, char *to)
 static int
 do_move (char *from, char *to, int flag)
 {
-  if (lstat (from, &from_stats) != 0)
-    {
-      error ("/%s: lstat failed\n", from);
-      return 1;
-    }
-  if (lstat (to, &to_stats) == 0)
-    {
-      if (from_stats.st_dev == to_stats.st_dev
-	  && from_stats.st_ino == to_stats.st_ino)
-	{
-	  error ("`/%s' and `/%s' are the same file", from, to);
-	  return 1;
-	}
-      if (S_ISDIR (to_stats.st_mode))
-	{
-	  error ("/%s: cannot overwrite directory", to);
-	  return 1;
-	}
-    }
-  else if (errno != ENOENT)
-    {
-      error ("/%s: unknown error\n", to);
-      return 1;
-    }
-
-  if ((flag == F_RENAME) && (rename (from, to) == 0))
-    return 0;
-#ifdef F_LINK
-  else if (flag == F_LINK)
-    {
-      if (link (from, to) == 0)
-	return 0;
-    }
-#endif
-
-  if (errno != EXDEV)
-    {
-      if (flag == F_RENAME)
-	error ("cannot move `/%s' to `/%s'\n", from, to);
-      else
-	error ("cannot link `/%s' to `/%s'\n", from, to);
-      return 1;
-    }
-  /* rename failed on cross-filesystem link.  Copy the file instead. */
-
   if (flag == F_RENAME)
     {
-      if (copy (from, to))
-	return 1;
-      if (unlink (from))
-	{
-	  error ("cannot remove `/%s'", from);
-	  return 1;
-	}
+      if (0 == rename (from, to))
+        return 0;
+
+      if (errno != EXDEV)
+        {
+          error ("cannot move `/%s' to `/%s'\n", from, to);
+          return 1;
+        }
+
+      /* rename failed on cross-filesystem link.  Copy the file instead. */
+      if ((0 == copy (from, to)) && (0 == unlink (from)))
+	return 0;
+
+      error ("cannot copy `/%s' to `/%s'", from, to);
+      return 1;
     }
 #ifdef F_LINK
   else if (flag == F_LINK)
     {
       if (symlink (from, to) == 0)	/* symbolic link */
 	return 0;
+      error ("cannot link `/%s' to `/%s'", from, to);
+      return 1;
     }
 #endif
-  return 0;
+
+  error ("invalid flag: %d", flag);
+  return 1; /* invalid flag */
 }
 #endif /* F_RENAME */
 
