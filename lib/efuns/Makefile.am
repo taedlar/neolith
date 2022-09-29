@@ -4,7 +4,7 @@ AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@ -I@top_srcdir@/lib -I@top_srcdi
 noinst_PROGRAMS = edit_source
 
 edit_source_SOURCES = edit_source.c edit_source.h make_func.y
-edit_source_LDADD = ../lib/adt/libadt.la
+edit_source_LDADD = ../adt/libadt.la
 
 BUILT_SOURCES = .option.h .opcode.h .vector.h .prototype.h .definition.h
 

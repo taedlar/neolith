@@ -1,4 +1,4 @@
-SRCDIRS = adt efuns lpc socket
+SUBDIRS = adt efuns lpc socket .
 
 pkglib_LTLIBRARIES = libneolith.la
 

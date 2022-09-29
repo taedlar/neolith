@@ -1,4 +1,5 @@
 AM_CFLAGS = -Wall -ggdb -O2 -pipe
+AM_CPPFLAGS = -I@top_srcdir@/lib
 
 noinst_LTLIBRARIES = libadt.la
 

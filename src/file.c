@@ -430,6 +430,7 @@ char *
 read_file (char *file, int start, int len)
 {
   struct stat st;
+  int fd;
   FILE *f;
   char *str, *end;
   register char *p, *p2;
@@ -442,18 +443,22 @@ read_file (char *file, int start, int len)
   if (!file)
     return 0;
 
+  fd = open (file, O_RDONLY);
+  if (-1 == fd)
+    return 0;
   /*
    * file doesn't exist, or is really a directory
    */
-  if (stat (file, &st) == -1 || (st.st_mode & S_IFDIR))
+  if (fstat (fd, &st) == -1 || (st.st_mode & S_IFDIR)) {
+    close (fd);
     return 0;
+  }
 
-  f = fopen (file, "r");
-  if (f == 0)
+  f = fdopen (fd, "r");
+  if (!f) {
+    close (fd);
     return 0;
-
-  if (fstat (fileno (f), &st) == -1)
-    fatal ("Could not stat an open file.\n");
+  }
 
   size = st.st_size;
   if (size > CONFIG_INT (__MAX_READ_FILE_SIZE__))
@@ -630,7 +635,8 @@ int
 write_bytes (char *file, int start, char *str, int theLength)
 {
   struct stat st;
-  int size;
+  size_t size;
+  int fd;
   FILE *fp;
 
   file = check_valid_path (file, current_object, "write_bytes", 1);
@@ -639,28 +645,21 @@ write_bytes (char *file, int start, char *str, int theLength)
     return 0;
   if (theLength > CONFIG_INT (__MAX_BYTE_TRANSFER__))
     return 0;
-  /* Under system V, it isn't possible change existing data in a file
-   * opened for append, so it can't be opened for append.
-   * opening for r+ won't create the file if it doesn't exist.
-   * opening for w or w+ will truncate it if it does exist.  So we
-   * have to check if it exists first.
-   */
-  if (stat (file, &st) == -1)
-    {
-      fp = fopen (file, "wb");
-    }
-  else
-    {
-      fp = fopen (file, "r+b");
-    }
-  if (fp == NULL)
-    {
-      return 0;
-    }
-  if (fstat (fileno (fp), &st) == -1)
+
+  fd = open (file, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR); /* create the file if it does not exist, do not truncate */
+  if (-1 == fd)
+    return 0;
+
+  fp = fdopen (fd, "r+");
+  if (!fp) {
+    close (fd);
+    return 0;
+  }
+
+  if (fstat (fd, &st) == -1)
     fatal ("Could not stat an open file.\n");
   size = st.st_size;
-  if (start < 0)
+  if (start < 0) /* negative start position means offset from end-of-file */
     start = size + start;
   if (start < 0 || start > size)
     {
@@ -826,42 +825,47 @@ again:
 #define	S_ISBLK(m)	(((m)&S_IFMT) == S_IFBLK)
 #endif
 
-static struct stat to_stats, from_stats;
-
+/* Copy file <from> to <to>
+ * Return 0 if success, or return non-zero if fails.
+ * */
 static int
 copy (char *from, char *to)
 {
   int ifd;
   int ofd;
-  char buf[1024 * 8];
+  char buf[16384];
   int len;			/* Number of bytes read into `buf'. */
+  struct stat from_stats;
 
-  if (!S_ISREG (from_stats.st_mode))
-    {
-      return 1;
-    }
-  if (unlink (to) && errno != ENOENT)
-    {
-      return 1;
-    }
   ifd = open (from, O_RDONLY);
-  if (ifd < 0)
+  if (ifd == -1)
+    return -1;
+
+  if (-1 == fstat (ifd, &from_stats)) {
+    close (ifd);
+    return -1;
+  }
+  if (!S_ISREG (from_stats.st_mode)) /* is regular file ? */
     {
-      return errno;
+      error ("not a regular file: /%", from);
+      return -1;
     }
-  ofd = open (to, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+
+  ofd = open (to, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
   if (ofd < 0)
     {
       close (ifd);
-      return 1;
+      return -1;
     }
+
 #ifdef HAS_FCHMOD
+  /* set <to> file as the same mode as <from> file */
   if (fchmod (ofd, from_stats.st_mode & 0777))
     {
       close (ifd);
       close (ofd);
       unlink (to);
-      return 1;
+      return -1;
     }
 #endif
 
@@ -878,7 +882,7 @@ copy (char *from, char *to)
 	      close (ifd);
 	      close (ofd);
 	      unlink (to);
-	      return 1;
+	      return -1;
 	    }
 	  bp += wrote;
 	  len -= wrote;
@@ -890,23 +894,17 @@ copy (char *from, char *to)
       close (ifd);
       close (ofd);
       unlink (to);
-      return 1;
+      return -1;
     }
   if (close (ifd) < 0)
     {
       close (ofd);
-      return 1;
+      return -1;
     }
   if (close (ofd) < 0)
     {
-      return 1;
+      return -1;
     }
-#ifdef FCHMOD_MISSING
-  if (chmod (to, from_stats.st_mode & 0777))
-    {
-      return 1;
-    }
-#endif
 
   return 0;
 }
@@ -919,78 +917,36 @@ copy (char *from, char *to)
 static int
 do_move (char *from, char *to, int flag)
 {
-  if (lstat (from, &from_stats) != 0)
-    {
-      error ("/%s: lstat failed\n", from);
-      return 1;
-    }
-  if (lstat (to, &to_stats) == 0)
-    {
-      if (from_stats.st_dev == to_stats.st_dev
-	  && from_stats.st_ino == to_stats.st_ino)
-	{
-	  error ("`/%s' and `/%s' are the same file", from, to);
-	  return 1;
-	}
-      if (S_ISDIR (to_stats.st_mode))
-	{
-	  error ("/%s: cannot overwrite directory", to);
-	  return 1;
-	}
-    }
-  else if (errno != ENOENT)
-    {
-      error ("/%s: unknown error\n", to);
-      return 1;
-    }
-#ifdef SYSV
-  if ((flag == F_RENAME) && file_size (from) == -2)
-    {
-      char cmd_buf[100];
-
-      sprintf (cmd_buf, "/usr/lib/mv_dir %s %s", from, to);
-      return system (cmd_buf);
-    }
-  else
-#endif /* SYSV */
-  if ((flag == F_RENAME) && (rename (from, to) == 0))
-    return 0;
-#ifdef F_LINK
-  else if (flag == F_LINK)
-    {
-      if (link (from, to) == 0)
-	return 0;
-    }
-#endif
-
-  if (errno != EXDEV)
-    {
-      if (flag == F_RENAME)
-	error ("cannot move `/%s' to `/%s'\n", from, to);
-      else
-	error ("cannot link `/%s' to `/%s'\n", from, to);
-      return 1;
-    }
-  /* rename failed on cross-filesystem link.  Copy the file instead. */
-
   if (flag == F_RENAME)
     {
-      if (copy (from, to))
-	return 1;
-      if (unlink (from))
-	{
-	  error ("cannot remove `/%s'", from);
-	  return 1;
-	}
+      if (0 == rename (from, to))
+        return 0;
+
+      if (errno != EXDEV)
+        {
+          error ("cannot move `/%s' to `/%s'\n", from, to);
+          return 1;
+        }
+
+      /* rename failed on cross-filesystem link.  Copy the file instead. */
+      if ((0 == copy (from, to)) && (0 == unlink (from)))
+	return 0;
+
+      error ("cannot copy `/%s' to `/%s'", from, to);
+      return 1;
     }
 #ifdef F_LINK
   else if (flag == F_LINK)
     {
       if (symlink (from, to) == 0)	/* symbolic link */
 	return 0;
+      error ("cannot link `/%s' to `/%s'", from, to);
+      return 1;
     }
 #endif
-  return 0;
+
+  error ("invalid flag: %d", flag);
+  return 1; /* invalid flag */
 }
 #endif /* F_RENAME */
 
@@ -1185,8 +1141,8 @@ dump_file_descriptors (outbuffer_t * out)
 	dev = stbuf.st_dev;
 
       outbuf_addv (out, "%2d", i);
-      outbuf_addv (out, "%13x", dev);
-      outbuf_addv (out, "%9d", stbuf.st_ino);
+      outbuf_addv (out, "%13lx", dev);
+      outbuf_addv (out, "%9lu", stbuf.st_ino);
       outbuf_add (out, "  ");
 
       switch (stbuf.st_mode & S_IFMT)
@@ -1229,7 +1185,7 @@ dump_file_descriptors (outbuffer_t * out)
       outbuf_addv (out, "%5o", stbuf.st_mode & ~S_IFMT);
       outbuf_addv (out, "%7d", stbuf.st_uid);
       outbuf_addv (out, "%7d", stbuf.st_gid);
-      outbuf_addv (out, "%12d", stbuf.st_size);
+      outbuf_addv (out, "%12lu", stbuf.st_size);
       outbuf_add (out, "\n");
     }
 }
