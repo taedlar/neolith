@@ -430,6 +430,7 @@ char *
 read_file (char *file, int start, int len)
 {
   struct stat st;
+  int fd;
   FILE *f;
   char *str, *end;
   register char *p, *p2;
@@ -442,18 +443,22 @@ read_file (char *file, int start, int len)
   if (!file)
     return 0;
 
+  fd = open (file, O_RDONLY);
+  if (-1 == fd)
+    return 0;
   /*
    * file doesn't exist, or is really a directory
    */
-  if (stat (file, &st) == -1 || (st.st_mode & S_IFDIR))
+  if (fstat (fd, &st) == -1 || (st.st_mode & S_IFDIR)) {
+    close (fd);
     return 0;
+  }
 
-  f = fopen (file, "r");
-  if (f == 0)
+  f = fdopen (fd, "r");
+  if (!f) {
+    close (fd);
     return 0;
-
-  if (fstat (fileno (f), &st) == -1)
-    fatal ("Could not stat an open file.\n");
+  }
 
   size = st.st_size;
   if (size > CONFIG_INT (__MAX_READ_FILE_SIZE__))
