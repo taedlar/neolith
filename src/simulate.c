@@ -2499,7 +2499,7 @@ debug_message_with_location (char *err)
 {
   if (current_object && current_prog)
     {
-      debug_message ("{\"object\":\"%s\",\"file\":\"%s\",\"line\":%d}\t%s",
+      debug_message ("{\"object\":\"%s\",\"program\":\"%s\",\"line\":\"%s\"}\t%s",
  		      current_object->name, current_prog->name, get_line_number (pc, current_prog), err);
     }
   else if (current_object)
