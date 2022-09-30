@@ -146,7 +146,7 @@ free_empty_array (array_t * p)
 array_t *
 explode_string (char *str, int slen, char *del, int len)
 {
-  char *p, *beg, *lastdel = (char *) NULL;
+  char *p, *beg, *end, *lastdel = (char *) NULL;
   int num, j, limit;
   array_t *ret;
   char *buff, *tmp;
@@ -158,119 +158,38 @@ explode_string (char *str, int slen, char *del, int len)
   /* return an array of length strlen(str) -w- one character per element */
   if (len == 0)
     {
+      int slen_wcs = mbstowcs (NULL, str, 0);
+      int mb;
       sz = 1;
 
-      if (slen > CONFIG_INT (__MAX_ARRAY_SIZE__))
+      if (slen_wcs > CONFIG_INT (__MAX_ARRAY_SIZE__))
 	{
-	  slen = CONFIG_INT (__MAX_ARRAY_SIZE__);
+	  slen_wcs = CONFIG_INT (__MAX_ARRAY_SIZE__);
 	}
-      ret = allocate_empty_array (slen);
-      for (j = 0; j < slen; j++)
+      ret = allocate_empty_array (slen_wcs);
+      for (j = 0; j < slen_wcs; j++)
 	{
+	  mb = mblen (str, slen);	/* get length of a multibyte character */
+	  if (-1 == mb)
+	    {
+	      debug_warn ("invalid multibyte character in string");
+	      break;
+	    }
+	  else if (0 == mb)
+	    break;
 	  ret->item[j].type = T_STRING;
 	  ret->item[j].subtype = STRING_MALLOC;
-	  ret->item[j].u.string = tmp = new_string (1, "explode_string: tmp");
-	  tmp[0] = str[j];
-	  tmp[1] = '\0';
+	  ret->item[j].u.string = tmp = new_string (mb, "explode_string: tmp");
+	  memcpy (tmp, str, mb);
+	  tmp[mb] = '\0';
+	  str += mb;
+	  slen -= mb;
 	}
       return ret;
     }
-  if (len == 1)
-    {
-      char delimeter;
 
-      delimeter = *del;
+  /* length of delimiter > 0 */
 
-#ifndef REVERSIBLE_EXPLODE_STRING
-      /*
-       * Skip leading 'del' strings, if any.
-       */
-      while (*str == delimeter)
-	{
-	  str++;
-	  slen--;
-	  if (str[0] == '\0')
-	    {
-	      return &the_null_array;
-	    }
-#  ifdef SANE_EXPLODE_STRING
-	  break;
-#  endif
-	}
-#endif
-      /*
-       * Find number of occurences of the delimiter 'del'.
-       */
-      for (p = str, num = 0; *p;)
-	{
-	  if (*p == delimeter)
-	    {
-	      num++;
-	      lastdel = p;
-	    }
-	  p++;
-	}
-
-      /*
-       * Compute number of array items. It is either number of delimiters,
-       * or, one more.
-       */
-      limit = CONFIG_INT (__MAX_ARRAY_SIZE__);
-#ifdef REVERSIBLE_EXPLODE_STRING
-      num++;
-      limit--;
-#else
-      if (lastdel != (str + slen - 1))
-	{
-	  num++;
-	  limit--;
-	}
-#endif
-      if (num > CONFIG_INT (__MAX_ARRAY_SIZE__))
-	{
-	  num = CONFIG_INT (__MAX_ARRAY_SIZE__);
-	}
-      ret = allocate_empty_array (num);
-      for (p = str, beg = str, num = 0; *p && (num < limit);)
-	{
-	  if (*p == delimeter)
-	    {
-	      DEBUG_CHECK (num >= ret->size,
-			   "Index out of bounds in explode!\n");
-	      sz = p - beg;
-	      ret->item[num].type = T_STRING;
-	      ret->item[num].subtype = STRING_MALLOC;
-	      ret->item[num].u.string = buff =
-		new_string (p - beg, "explode_string: buff");
-
-	      strncpy (buff, beg, p - beg);
-	      buff[p - beg] = '\0';
-	      num++;
-	      beg = ++p;
-	    }
-	  else
-	    {
-	      p++;
-	    }
-	}
-
-#ifdef REVERSIBLE_EXPLODE_STRING
-      ret->item[num].type = T_STRING;
-      ret->item[num].subtype = STRING_MALLOC;
-      ret->item[num].u.string =
-	string_copy (beg, "explode_string: last, len == 1");
-#else
-      /* Copy last occurence, if there was not a 'del' at the end. */
-      if (*beg != '\0')
-	{
-	  ret->item[num].type = T_STRING;
-	  ret->item[num].subtype = STRING_MALLOC;
-	  ret->item[num].u.string =
-	    string_copy (beg, "explode_string: last, len == 1");
-	}
-#endif
-      return ret;
-    }				/* len == 1 */
 #ifndef REVERSIBLE_EXPLODE_STRING
   /*
    * Skip leading 'del' strings, if any.
@@ -292,7 +211,7 @@ explode_string (char *str, int slen, char *del, int len)
   /*
    * Find number of occurences of the delimiter 'del'.
    */
-  for (p = str, num = 0; *p;)
+  for (p = str, end = str + slen, num = 0; *p;)
     {
       if (strncmp (p, del, len) == 0)
 	{
@@ -302,7 +221,11 @@ explode_string (char *str, int slen, char *del, int len)
 	}
       else
 	{
-	  p++;
+	  int mb = mblen (str, end - p);
+	  if (mb > 0)
+	    p += mb;
+	  else
+	    break;
 	}
     }
 
@@ -324,7 +247,7 @@ explode_string (char *str, int slen, char *del, int len)
     }
   ret = allocate_empty_array (num);
   limit = CONFIG_INT (__MAX_ARRAY_SIZE__) - 1;	/* extra element can be added after loop */
-  for (p = str, beg = str, num = 0; *p && (num < limit);)
+  for (p = str, beg = str, end = str + slen, num = 0; *p && (num < limit);)
     {
       if (strncmp (p, del, len) == 0)
 	{
@@ -344,7 +267,11 @@ explode_string (char *str, int slen, char *del, int len)
 	}
       else
 	{
-	  p++;
+	  int mb = mblen (str, end - p);
+	  if (mb > 0)
+	    p += mb;
+	  else
+	    break;
 	}
     }
 
