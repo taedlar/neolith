@@ -19,6 +19,7 @@
 #include "interpret.h"
 #include "stralloc.h"
 #include "hash.h"
+#include "src/logger.h"
 
 #define NEXT(x)		(x)->next
 #define REFS(x)		(x)->refs
@@ -121,6 +122,9 @@ init_strings ()
     {
       base_table[x] = 0;
     }
+
+  //debug_trace ("sizeof malloc_block_t = %d", sizeof(malloc_block_t));
+  //debug_trace ("sizeof block_t = %d", sizeof(block_t));
 }
 
 /*
@@ -201,6 +205,7 @@ alloc_new_string (char *string, int h)
   base_table[h] = b;
   ADD_NEW_STRING (SIZE (b), sizeof (block_t));
   ADD_STRING (SIZE (b));
+
   return (b);
 }
 

@@ -12,17 +12,18 @@
 #ifndef STRALLOC_H
 #define STRALLOC_H
 
-typedef struct malloc_block_s {
-    unsigned short size;
-    unsigned short ref;
-} malloc_block_t;
-
 typedef struct block_s {
     struct block_s *next;	/* next block in the hash chain */
     /* these two must be last */
     unsigned short size;	/* length of the string */
     unsigned short refs;	/* reference count    */
 } block_t;
+
+typedef struct malloc_block_s {
+    block_t* unused;		/* to force MSTR_BLOCK align with block_t */
+    unsigned short size;
+    unsigned short ref;
+} malloc_block_t;
 
 #define MSTR_BLOCK(x) (((malloc_block_t *)(x)) - 1) 
 #define MSTR_EXTRA_REF(x) (MSTR_BLOCK(x)->extra_ref)
