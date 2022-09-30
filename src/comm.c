@@ -139,13 +139,10 @@ init_user_conn ()
       if (!external_port[i].port)
 	continue;
 
-      debug_message (_("opening TCP service on port %d\n"),
-		     external_port[i].port);
-
       /* create socket of proper type. */
       if ((external_port[i].fd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
 	{
-	  debug_perror ("init_user_conn: socket", 0);
+	  debug_perror ("socket()", 0);
 	  exit (EXIT_FAILURE);
 	}
 
@@ -154,7 +151,7 @@ init_user_conn ()
       if (setsockopt (external_port[i].fd, SOL_SOCKET, SO_REUSEADDR,
 		      (char *) &optval, sizeof (optval)) == -1)
 	{
-	  debug_perror ("init_user_conn: setsockopt", 0);
+	  debug_perror ("setsockopt()", 0);
 	  exit (2);
 	}
       /* fill in socket address information. */
@@ -166,7 +163,7 @@ init_user_conn ()
       if (bind (external_port[i].fd, (struct sockaddr *) &sin,
 		sizeof (sin)) == -1)
 	{
-	  debug_perror ("init_user_conn: bind", 0);
+	  debug_perror ("bind()", 0);
 	  exit (3);
 	}
 
@@ -175,19 +172,19 @@ init_user_conn ()
       if (getsockname (external_port[i].fd, (struct sockaddr *) &sin,
 		       &sin_len) == -1)
 	{
-	  debug_perror ("init_user_conn: getsockname", 0);
+	  debug_perror ("getsockname()", 0);
 	  exit (4);
 	}
       /* set socket non-blocking, */
       if (set_socket_nonblocking (external_port[i].fd, 1) == -1)
 	{
-	  debug_perror ("init_user_conn: set_socket_nonblocking 1", 0);
+	  debug_perror ("set_socket_nonblocking()", 0);
 	  exit (8);
 	}
       /* listen on socket for connections. */
       if (listen (external_port[i].fd, SOMAXCONN) == -1)
 	{
-	  debug_perror ("init_user_conn: listen", 0);
+	  debug_perror ("listen()", 0);
 	  exit (10);
 	}
     }
@@ -195,7 +192,7 @@ init_user_conn ()
   /* register signal handler for SIGPIPE. */
   if (signal (SIGPIPE, sigpipe_handler) == SIG_ERR)
     {
-      debug_perror ("init_user_conn: signal SIGPIPE", 0);
+      debug_perror ("signal()", 0);
       exit (5);
     }
 }
@@ -2384,7 +2381,7 @@ query_ip_number (object_t * ob)
   if (ob == 0)
     ob = command_giver;
   if (!ob || ob->interactive == 0)
-    return 0;
+    return "N/A";
   return (inet_ntoa (ob->interactive->addr.sin_addr));
 }
 

@@ -388,6 +388,8 @@ load_object (char *lname)
   struct stat c_st;
   char real_name[200], name[200];
 
+  //debug_trace(lname);
+
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
     error (_("*Inherit chain too deep: > %d when trying to load '%s'."),
 	   CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
@@ -2393,6 +2395,10 @@ get_svalue_trace (int how)
   return v;
 }
 
+/* fatal() - Fatal error handler
+ *
+ * Prints error message to debug log and exit program.
+ * */
 static int proceeding_fatal_error = 0;
 
 void
@@ -2408,7 +2414,7 @@ fatal (char *fmt, ...)
 
   if (proceeding_fatal_error)
     {
-      debug_message (_("*****Fatal error occured while another proceeding, shutdown immediately.\n"));
+      debug_message (_("*****fatal error occured while another proceeding, shutdown immediately.\n"));
     }
   else
     {
@@ -2418,18 +2424,18 @@ fatal (char *fmt, ...)
       proceeding_fatal_error = 1;
 
       if (current_file)
-	debug_message (_("compiling %s at line %d\n"), current_file,
-		       current_line);
+	debug_message (_("-----compiling %s at line %d\n"), current_file, current_line);
+
       if (current_object)
-	debug_message (_("current object was /%s\n"), current_object->name);
+	debug_message (_("-----current object was /%s\n"), current_object->name);
 
       if ((ob_name = dump_trace (DUMP_WITH_ARGS | DUMP_WITH_LOCALVARS)))
-	debug_message (_("in heart beat of /%s\n"), ob_name);
+	debug_message (_("-----in heart beat of /%s\n"), ob_name);
 
       save_context (&econ);
       if (setjmp (econ.context))
 	{
-	  debug_message (_("*****Error in master::%s(), shutdown immediately.\n"),
+	  debug_message (_("*****error in master::%s(), shutdown immediately.\n"),
 			 APPLY_CRASH);
 	}
       else
@@ -2446,7 +2452,7 @@ fatal (char *fmt, ...)
 	    push_undefined ();
 
 	  apply_master_ob (APPLY_CRASH, 3);
-	  debug_message (_("master::%s() done, neolith shutdown.\n"), APPLY_CRASH);
+	  debug_message (_("-----master::%s() finished, shutdown now.\n"), APPLY_CRASH);
 	}
     }
 
@@ -2493,21 +2499,16 @@ debug_message_with_location (char *err)
 {
   if (current_object && current_prog)
     {
-      debug_message (_("%s\tprogram: /%s, object: /%s, file: %s\n"),
-		     err,
-		     current_prog->name,
-		     current_object->name,
-		     get_line_number (pc, current_prog));
+      debug_message ("{\"object\":\"%s\",\"program\":\"%s\",\"line\":\"%s\"}\t%s",
+ 		      current_object->name, current_prog->name, get_line_number (pc, current_prog), err);
     }
   else if (current_object)
     {
-      debug_message (_("%s\tprogram: (none), object: /%s, file: (none)\n"),
-		     err, current_object->name);
+      debug_message ("{\"object\":\"%s\"}\t%s", current_object->name, err);
     }
   else
     {
-      debug_message (_("%s\tprogram: (none), object: (none), file: (none)\n"),
-		     err);
+      debug_message ("{}\t%s", err);
     }
 }
 
