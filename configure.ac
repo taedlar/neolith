@@ -21,7 +21,7 @@ AH_BOTTOM([#if defined(ENABLE_NLS) && defined(HAVE_GETTEXT)
 #endif
 ])
 
-AC_PROG_CC
+AC_PROG_CC_C99
 AC_PROG_YACC
 AM_PROG_LIBTOOL
 
