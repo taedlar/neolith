@@ -24,6 +24,7 @@
 #ifdef	STDC_HEADERS
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #endif /* STDC_HEADERS */
@@ -134,14 +135,17 @@ scan_config (char *config, char *name, int required, char *def)
       if (strncasecmp (name, term, sz_name) || !isspace (term[sz_name]))
 	continue;
 
-      *term = '#';		/* 標示為已處理過 */
+      *term = '#';
 
       term += sz_name;
       while (isspace (*term))
 	term++;
 
-      if ((p = strchr (term, '\n')))
+      if ((p = strchr (term, '\n'))) {
+	while (isspace (*(p-1)))
+	  p--;
 	*p = '\0';
+      }
       term = xstrdup (term);
       if (p)
 	*p = '\n';
@@ -193,7 +197,7 @@ scan_config_b (char *config, char *name, int required, int def)
       else if (!strcasecmp (p, "no"))
 	result = 0;
       else
-	debug_message (_("warnning: %s must be 'Yes' or 'No'\n"), name);
+	debug_message (_("warnning: %s must be 'Yes' or 'No' [got: %s]\n"), name, p);
       free (p);
       required = 0;
     }

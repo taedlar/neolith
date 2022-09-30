@@ -1,14 +1,3 @@
-/*  $Id: main.c,v 1.3 2003/05/02 06:26:20 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
 #ifdef	HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
@@ -44,7 +33,7 @@
 #include "wrapper.h"
 
 const char *argp_program_version = PACKAGE "-" VERSION;
-const char *argp_program_bug_address = "<annihilator@muds.net>";
+const char *argp_program_bug_address = "https://github.com/taedlar/neolith";
 
 struct server_rec
 {
@@ -84,32 +73,27 @@ static RETSIGTYPE sig_segv (int sig);
 static RETSIGTYPE sig_ill (int sig);
 static RETSIGTYPE sig_bus (int sig);
 
-static struct server_rec server;
-
 /* implementations */
 
 int
 main (int argc, char **argv)
 {
+  struct server_rec server;
   time_t now;
   error_context_t econ;
 
 #ifdef	ENABLE_NLS
-  /* 開啟本地語系 */
   setlocale (LC_ALL, "");
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 #endif /* ENABLE_NLS */
 
-  /* 剖析命令列參數 */
   memset (&server, 0, sizeof (server));
   parse_command_line (&server, argc, argv);
 
-  /* 初始化時區及時間 */
   tzset ();
   boot_time = current_time = time (&now);
 
-  /* 初始化亂數產生器 */
   srand (boot_time);
 
   const0.type = T_NUMBER;
@@ -123,9 +107,10 @@ main (int argc, char **argv)
   const0u.u.number = 0;
   fake_prog.program_size = 0;
 
-  /* 讀取組態檔 */
   init_config (server.config_file);
-  if (!debug_message (_("%s version %s starting up\n"), PACKAGE, VERSION))
+
+  // print a startup banner in the log file (to test if the debug log is created successfully)
+  if (!debug_message ("{}\t===== %s version %s starting up =====\n", PACKAGE, VERSION))
     exit (EXIT_FAILURE);
 
   if (-1 == chdir (CONFIG_STR (__MUD_LIB_DIR__)))
@@ -152,12 +137,11 @@ main (int argc, char **argv)
   init_binaries ();
   add_predefines ();
 
-  /* 載入 simul_efun 與 master */
   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
   save_context (&econ);
   if (setjmp (econ.context))
     {
-      debug_message (_("*****Error loading master or simul-efun object\n"));
+      debug_message (_("{}\terror loading master or simul-efun object."));
       exit (EXIT_FAILURE);
     }
   else
@@ -168,7 +152,7 @@ main (int argc, char **argv)
   pop_context (&econ);
 
   if (g_proceeding_shutdown)
-    exit (1);
+    exit (EXIT_SUCCESS);
 
   preload_objects (0);
 
@@ -183,17 +167,15 @@ main (int argc, char **argv)
   signal (SIGILL, sig_ill);
   signal (SIGCHLD, sig_cld);
 
-  /* 若 debug_level==0，自動進入 daemon 狀態 */
   if (server.debug_level == 0 && daemon (1, 0) == -1)
     {
       perror ("daemon");
       exit (EXIT_FAILURE);
     }
 
-  debug_message (_("initialization done\n"));
   backend ();
 
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 
@@ -237,7 +219,6 @@ static void
 parse_command_line (struct server_rec *server, int argc, char *argv[])
 {
 #ifdef	HAVE_ARGP_H
-  /* 命令列選項 */
   struct argp_option options[] = {
     {NULL, 'f', _("config-file"), 0,
      _("Specifies the name of the configuration file.")},
@@ -251,7 +232,7 @@ parse_command_line (struct server_rec *server, int argc, char *argv[])
     options,
     parse_argument,
     NULL,
-    _("Copyright (C) 2000-2002 Minxin Zhang <annihilator@muds.net>")
+    _("\nA lightweight LPMud driver (MudOS fork) for easy extend.")
   };
 
   argp_parse (&parser, argc, argv, 0, 0, server);
@@ -276,9 +257,7 @@ parse_command_line (struct server_rec *server, int argc, char *argv[])
 	  {
 	    struct lpc_predef_s *def;
 
-	    def = (struct lpc_predef_s *) xcalloc (1,
-						   sizeof (struct
-							   lpc_predef_s));
+	    def = (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
 	    def->flag = optarg;
 	    def->next = lpc_predefs;
 	    lpc_predefs = def;
@@ -293,106 +272,6 @@ parse_command_line (struct server_rec *server, int argc, char *argv[])
 
   if (!*server->config_file)
     snprintf (server->config_file, PATH_MAX, "/etc/neolith.conf");
-}
-
-int
-log_message (const char *file, const char *fmt, ...)
-{
-  static char fname[PATH_MAX];
-  static FILE *fp = NULL;
-  va_list args;
-  int ret;
-
-  if (file)
-    {
-      if (fp)
-	{
-	  fclose (fp);
-	  fp = NULL;
-	}
-      strncpy (fname, file, sizeof(fname)-1);
-
-      if (!*fname)
-	return 0;
-
-      fp = fopen (fname, "a");
-      /* 若 descriptor 用光了，嚐試用 stdout 開啟 */
-      if (!fp && (errno == EMFILE || errno == ENFILE))
-	fp = freopen (fname, "a", stdout);
-      if (!fp)
-	{
-	  fprintf (stderr, _("error opening log file %s: %s\n"),
-		fname, strerror (errno));
-	  return 0;	/* failed */
-	}
-    }
-
-  if (!fp)
-    return 0;	/* fail */
-
-  va_start (args, fmt);
-  ret = vfprintf (fp, fmt, args);
-  va_end (args);
-
-  fflush (fp);
-
-  /* flush, but leave fp open until next call to log_mesage */
-
-  return 1;	/* success */
-}
-
-int
-debug_message (char *fmt, ...)
-{
-  static int append = 0;
-  static char filename[PATH_MAX], *fname = NULL;
-  va_list args;
-  char time_info[1024];
-  struct tm *now;
-  time_t t;
-  char msg[8192];	/* error message cannot exceed this size */
-  int res;
-
-  if (!append)
-    {
-      memset (filename, 0, sizeof (filename));
-      fname = filename;
-      if (CONFIG_STR (__DEBUG_LOG_FILE__))
-	{
-	  if (CONFIG_STR (__LOG_DIR__))
-	    snprintf (fname, PATH_MAX, "%s/%s",
-		      CONFIG_STR (__LOG_DIR__),
-		      CONFIG_STR (__DEBUG_LOG_FILE__));
-	  else
-	    snprintf (fname, PATH_MAX, "%s", CONFIG_STR (__DEBUG_LOG_FILE__));
-	}
-      append = 1;
-    }
-
-  va_start (args, fmt);
-  vsnprintf (msg, sizeof(msg), fmt, args);
-  if (CONFIG_INT (__ENABLE_LOG_DATE__))
-    {
-      time (&t);
-      now = localtime (&t);
-      /* ISO 8601 日期時間格式 */
-      strftime (time_info, 1024, "%G-%m-%d %T\t", now);
-      res = log_message (fname, time_info) && log_message (NULL, "%s", msg);
-    }
-  else
-    res = log_message (fname, "%s", msg);
-  va_end (args);
-
-  return 1;
-}
-
-int
-debug_perror (char *what, char *file)
-{
-  if (file)
-    return debug_message ("System Error: %s:%s:%s\n", what, file, strerror (errno));
-  else
-    return debug_message ("System Error: %s:%s\n", what, strerror (errno));
 }
 
 int slow_shut_down_to_do = 0;
@@ -411,8 +290,8 @@ xalloc (int size)
       if (reserved_area)
 	{
 	  FREE (reserved_area);
-	  p = "Temporarily out of MEMORY. Freeing reserve.\n";
-	  write (1, p, strlen (p));
+	  /* after freeing reserved area, we are supposed to be able to write log messages */
+	  debug_message ("*****temporarily out of MEMORY. Freeing reserve.\n");
 	  reserved_area = 0;
 	  slow_shut_down_to_do = 6;
 	  return xalloc (size);	/* Try again */
