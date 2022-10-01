@@ -1,8 +1,11 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#ifdef STDC_HEADERS
+#include <limits.h>
+#endif /* STDC_HEADERS */
+
 #include "lpc/types.h"
-#include "logger.h"
 
 #define PORT_TELNET      1
 #define PORT_BINARY      2
@@ -13,6 +16,16 @@ typedef struct {
     int port;
     int fd;
 } port_def_t;
+
+typedef struct server_options
+{
+  char config_file[PATH_MAX];
+  int debug_level;
+  unsigned long trace_flags;
+} server_options_t;
+
+extern server_options_t* g_svropts;
+#define SERVER_OPTION(x)	(g_svropts->x)
 
 extern int g_proceeding_shutdown;
 extern port_def_t external_port[5];

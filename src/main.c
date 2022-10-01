@@ -35,11 +35,7 @@
 const char *argp_program_version = PACKAGE "-" VERSION;
 const char *argp_program_bug_address = "https://github.com/taedlar/neolith";
 
-struct server_rec
-{
-  char config_file[PATH_MAX];
-  int debug_level;
-};
+server_options_t* g_svropts = NULL;
 
 port_def_t external_port[5];
 
@@ -58,7 +54,7 @@ object_t *master_ob = 0;
 
 /* prototypes */
 
-static void parse_command_line (struct server_rec *, int, char **);
+static void parse_command_line (int, char **);
 
 static RETSIGTYPE sig_fpe (int sig);
 static RETSIGTYPE sig_cld (int sig);
@@ -78,18 +74,32 @@ static RETSIGTYPE sig_bus (int sig);
 int
 main (int argc, char **argv)
 {
-  struct server_rec server;
+  static server_options_t svropts;
+  char* locale = NULL;
   time_t now;
   error_context_t econ;
 
+  signal (SIGFPE, sig_fpe);
+  signal (SIGUSR1, sig_usr1);
+  signal (SIGUSR2, sig_usr2);
+  signal (SIGTERM, sig_term);
+  signal (SIGINT, sig_int);
+  signal (SIGHUP, sig_hup);
+  signal (SIGBUS, sig_bus);
+  signal (SIGSEGV, sig_segv);
+  signal (SIGILL, sig_ill);
+  signal (SIGCHLD, sig_cld);
+
 #ifdef	ENABLE_NLS
-  setlocale (LC_ALL, "");
-  bindtextdomain (PACKAGE, LOCALEDIR);
-  textdomain (PACKAGE);
+  if (NULL != (locale = setlocale (LC_ALL, ""))) {
+    bindtextdomain (PACKAGE, LOCALEDIR);
+    textdomain (PACKAGE);
+  }
 #endif /* ENABLE_NLS */
 
-  memset (&server, 0, sizeof (server));
-  parse_command_line (&server, argc, argv);
+  memset (&svropts, 0, sizeof (svropts));
+  g_svropts = &svropts;
+  parse_command_line (argc, argv);
 
   tzset ();
   boot_time = current_time = time (&now);
@@ -107,11 +117,13 @@ main (int argc, char **argv)
   const0u.u.number = 0;
   fake_prog.program_size = 0;
 
-  init_config (server.config_file);
+  init_config (SERVER_OPTION(config_file));
 
   // print a startup banner in the log file (to test if the debug log is created successfully)
-  if (!debug_message ("{}\t===== %s version %s starting up =====\n", PACKAGE, VERSION))
+  if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
     exit (EXIT_FAILURE);
+  if (locale)
+    debug_message ("{}\tusing locale %s", locale);
 
   if (-1 == chdir (CONFIG_STR (__MUD_LIB_DIR__)))
     {
@@ -141,38 +153,29 @@ main (int argc, char **argv)
   save_context (&econ);
   if (setjmp (econ.context))
     {
-      debug_message (_("{}\terror loading master or simul-efun object."));
+      debug_message (_("{}\t*****error occurs in pre-loading stage, shutting down."));
       exit (EXIT_FAILURE);
     }
   else
     {
+      debug_message ("{}\t----- loading simul efuns -----");
       init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
+
+      debug_message ("{}\t----- loading master -----");
       init_master (CONFIG_STR (__MASTER_FILE__));
+
+      debug_message ("{}\t----- epilogue -----");
+      preload_objects (0);
     }
   pop_context (&econ);
 
   if (g_proceeding_shutdown)
-    exit (EXIT_SUCCESS);
-
-  preload_objects (0);
-
-  signal (SIGFPE, sig_fpe);
-  signal (SIGUSR1, sig_usr1);
-  signal (SIGUSR2, sig_usr2);
-  signal (SIGTERM, sig_term);
-  signal (SIGINT, sig_int);
-  signal (SIGHUP, sig_hup);
-  signal (SIGBUS, sig_bus);
-  signal (SIGSEGV, sig_segv);
-  signal (SIGILL, sig_ill);
-  signal (SIGCHLD, sig_cld);
-
-  if (server.debug_level == 0 && daemon (1, 0) == -1)
     {
-      perror ("daemon");
-      exit (EXIT_FAILURE);
+      /* the mudlib has decided to shutdown in pre-loading stage, exit now. */
+      exit (EXIT_SUCCESS);
     }
 
+  debug_message (_("{}\t----- entering MUD -----"));
   backend ();
 
   return EXIT_SUCCESS;
@@ -183,12 +186,10 @@ main (int argc, char **argv)
 static error_t
 parse_argument (int key, char *arg, struct argp_state *state)
 {
-  struct server_rec *server = (struct server_rec *) state->input;
-
   switch (key)
     {
     case 'f':
-      if (NULL == realpath (arg, server->config_file))
+      if (NULL == realpath (arg, SERVER_OPTION(config_file)))
 	{
 	  perror (arg);
 	  exit (EXIT_FAILURE);
@@ -198,15 +199,17 @@ parse_argument (int key, char *arg, struct argp_state *state)
       {
 	struct lpc_predef_s *def;
 
-	def =
-	  (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
+	def =  (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
 	def->flag = arg;
 	def->next = lpc_predefs;
 	lpc_predefs = def;
 	break;
       }
     case 'd':
-      server->debug_level = atoi (arg);
+      SERVER_OPTION(debug_level) = atoi (arg);
+      break;
+    case 't':
+      SERVER_OPTION(trace_flags) = strtoul (arg, NULL, 0);
       break;
     default:
       return ARGP_ERR_UNKNOWN;
@@ -216,16 +219,18 @@ parse_argument (int key, char *arg, struct argp_state *state)
 #endif /* HAVE_ARGP_H */
 
 static void
-parse_command_line (struct server_rec *server, int argc, char *argv[])
+parse_command_line (int argc, char *argv[])
 {
 #ifdef	HAVE_ARGP_H
   struct argp_option options[] = {
     {NULL, 'f', _("config-file"), 0,
-     _("Specifies the name of the configuration file.")},
+     _("Specifies the file path of the configuration file.")},
     {NULL, 'D', _("macro[=definition]"), 0,
      _("Predefines global preprocessor macro for use in mudlib.")},
     {"debug", 'd', _("debug-level"), 0,
      _("Specifies the runtime debug level.")},
+    {"trace", 't', _("trace-flags"), 0,
+     _("Specifies an integer of trace flags to enable trace messages in debug log.")},
     {0}
   };
   struct argp parser = {
@@ -235,23 +240,23 @@ parse_command_line (struct server_rec *server, int argc, char *argv[])
     _("\nA lightweight LPMud driver (MudOS fork) for easy extend.")
   };
 
-  argp_parse (&parser, argc, argv, 0, 0, server);
+  argp_parse (&parser, argc, argv, 0, 0, 0);
 #else /* ! HAVE_ARGP_H */
   int c;
 
-  while ((c = getopt (argc, argv, "f:d:")) != -1)
+  while ((c = getopt (argc, argv, "f:d:D:t:")) != -1)
     {
       switch (c)
 	{
 	case 'f':
-	  if (!realpath (optarg, server->config_file))
+	  if (!realpath (optarg, SERVER_OPTION(config_file)))
 	    {
 	      perror (optarg);
 	      exit (0);
 	    }
 	  break;
 	case 'd':
-	  server->debug_level = atoi (optarg);
+	  SERVER_OPTION(debug_level) = atoi (optarg);
 	  break;
 	case 'D':
 	  {
@@ -263,6 +268,9 @@ parse_command_line (struct server_rec *server, int argc, char *argv[])
 	    lpc_predefs = def;
 	    break;
 	  }
+	case 't':
+	  SERVER_OPTION(trace_flags) = strtoul (optarg, NULL, 0);
+	  break;
 	case '?':
 	default:
 	  fatal (_("invalid option: %c"), c);
@@ -270,8 +278,8 @@ parse_command_line (struct server_rec *server, int argc, char *argv[])
     }
 #endif /* ! HAVE_ARGP_H */
 
-  if (!*server->config_file)
-    snprintf (server->config_file, PATH_MAX, "/etc/neolith.conf");
+  if (!*SERVER_OPTION(config_file))
+    snprintf (SERVER_OPTION(config_file), PATH_MAX, "/etc/neolith.conf");
 }
 
 int slow_shut_down_to_do = 0;
