@@ -19,7 +19,6 @@
 #include "interpret.h"
 #include "stralloc.h"
 #include "hash.h"
-#include "src/logger.h"
 
 #define NEXT(x)		(x)->next
 #define REFS(x)		(x)->refs

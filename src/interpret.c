@@ -3886,6 +3886,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	      previous_ob = current_object;
 	      current_object = ob;
 	      IF_DEBUG (save_csp = csp);
+	      opt_trace (TT_EVAL, "call_program: %s", fun);
 	      call_program (current_prog, funp->address);
 
 	      DEBUG_CHECK (save_csp - 1 != csp,
@@ -3958,6 +3959,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	      entry->progp = current_prog;
 	      previous_ob = current_object;
 	      current_object = ob;
+	      opt_trace (TT_EVAL, "call_program: %s", fun);
 	      call_program (current_prog, funp->address);
 
 	      /*
@@ -4052,6 +4054,7 @@ call___INIT (object_t * ob)
   previous_ob = current_object;
 
   current_object = ob;
+  opt_trace (TT_EVAL, "call_program: __INIT");
   call_program (current_prog, cfp->address);
   sp--;
 }
@@ -4354,6 +4357,7 @@ call_function (program_t * progp, int offset)
   previous_ob = current_object;
   current_object = current_heart_beat;
   tracedepth = 0;
+  opt_trace (TT_EVAL, "call_program: (function)");
   call_program (current_prog, funp->address);
   pop_stack ();
 }

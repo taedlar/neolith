@@ -171,8 +171,6 @@ strput_int (char *x, char *limit, int num)
 /*
  * Give the correct uid and euid to a created object.
  */
-static char *creator_file_fname = (char *) 0;
-
 static int
 give_uid_to_object (object_t * ob)
 {
@@ -189,14 +187,13 @@ give_uid_to_object (object_t * ob)
 
   /* ask master object who the creator of this object is */
   push_malloced_string (add_slash (ob->name));
-  if (!creator_file_fname)
-    creator_file_fname = make_shared_string (APPLY_CREATOR_FILE);
-  ret = apply_master_ob (creator_file_fname, 1);
+  ret = apply_master_ob (APPLY_CREATOR_FILE, 1);
 
   if (ret == (svalue_t *) - 1)
     {
       destruct_object (ob);
       error (_("*Can't load objects without a master object."));
+      return 1;
     }
 
   if (ret && ret->type == T_STRING)
@@ -388,8 +385,6 @@ load_object (char *lname)
   struct stat c_st;
   char real_name[200], name[200];
 
-  //debug_trace(lname);
-
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
     error (_("*Inherit chain too deep: > %d when trying to load '%s'."),
 	   CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
@@ -407,6 +402,8 @@ load_object (char *lname)
    */
   (void) strcpy (real_name, name);
   (void) strcat (real_name, ".c");
+
+  opt_trace (TT_COMPILE, "file: /%s", real_name);
 
   if (stat (real_name, &c_st) == -1)
     {
@@ -2408,8 +2405,12 @@ fatal (char *fmt, ...)
   va_list args;
 
   va_start (args, fmt);
-  vasprintf (&msg, fmt, args);
+  if (-1 == vasprintf (&msg, fmt, args)) {
+    debug_message(_("*****failed to format fatal error message \"%s\"."), fmt);
+    exit (EXIT_FAILURE);
+  }
   va_end (args);
+
   debug_message (_("*****%s\n"), msg);
 
   if (proceeding_fatal_error)
