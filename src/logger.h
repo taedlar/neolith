@@ -23,7 +23,10 @@ extern int debug_perror_with_src (const char* func, const char* src, int line, c
 /* trace loggers */
 #define opt_trace(tier, ...)		do{if(SERVER_OPTION(trace_flags)&(tier)) \
 					debug_message_with_src(__func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#define TT_EVAL		01
-#define TT_COMPILE	02
+#define TT_TEMP1	01
+#define TT_TEMP2	02
+#define TT_TEMP3	04
+#define TT_EVAL		010
+#define TT_COMPILE	020
 
 #endif /* ! LOGGER_H */
