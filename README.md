@@ -23,7 +23,7 @@ You can launch the MUD by the command:
 ```
 $ neolith -f <path-to-customized-neolith.conf> &
 ```
-For detailed information about Neolith configuration settings and troubleshooting, see [Administrator Manual](docs/manual/admin.md).
+For detailed information about Neolith configuration settings and troubleshooting, see [Neolith Administrator Guide](docs/manual/admin.md).
 
 ## Contributing
 An open source project relies on collaboration of contributors to fix bugs and improve the code quality.
@@ -33,5 +33,5 @@ Therefore developer-oriented documentations shall be kept up-to-date as best as 
 
 Please take a look into the following documents before you jumping-in:
 
-- [LPMud Driver Internals](docs/manual/internals.md)
-- [Developor Reference Manual](docs/manual/dev.md)
+- [Neolith LPMud Driver Internals](docs/manual/internals.md)
+- [Neolith Developor Reference](docs/manual/dev.md)
