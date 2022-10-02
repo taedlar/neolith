@@ -11,10 +11,26 @@ Although the GPLv2 [LICENSE](LICENSE) allows "commercial use", this program cont
 So, the conclusion is commercial-use NOT allowed.
 
 ## Install
-Neolith is mainly written in C Language. For building the program, see [INSTALL](INSTALL.md).
+Neolith is distributed in source code and mainly written in C Language. You need to build the executables from source code before you can install it.
+
+See [INSTALL](INSTALL.md) for detailed instructions.
 
 ## Using Neolith
-To start a MUD using Neolith, you need a Neolith configuration file. See [neolith.conf](src/neolith.conf) for an example. You can launch the MUD by the command:
+To start a MUD using Neolith, you need a Neolith configuration file.
+Please make a copy from [src/neolith.conf](src/neolith.conf) and customize the settings for your needs.
+You can launch the MUD by the command:
 ```
-$ neolith -f <path-to-neolith.conf> &
+$ neolith -f <path-to-customized-neolith.conf> &
 ```
+For detailed information about Neolith configuration settings and troubleshooting, see [Administrator Manual](docs/manual/admin.md).
+
+## Contributing
+An open source project relies on collaboration of contributors to fix bugs and improve the code quality.
+The original code base from MudOS is quite messy and buggy in terms of nowadays standards of open source community.
+We hope the Neolith project to be a good place where open source contributors are comfortable to read the code and/or contribute new enhancements.
+Therefore developer-oriented documentations shall be kept up-to-date as best as possible.
+
+Please take a look into the following documents before you jumping-in:
+
+- [LPMud Driver Internals](docs/manual/internals.md)
+- [Developor Reference Manual](docs/manual/dev.md)
