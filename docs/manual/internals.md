@@ -1,5 +1,5 @@
-LPMud Driver Internals
-======================
+Neolith LPMud Driver Internals
+==============================
 
 > :pushpin: The contents of this article only applies to Neolith, which is different from original LPMud and MudOS.
 
@@ -14,5 +14,3 @@ When the LPMud Driver process is started, it goes through the follow steps in se
 5. Load simul efun object (optional)
 6. Load master object
 7. Do epilogue
-
-
