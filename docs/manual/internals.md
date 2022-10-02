@@ -14,6 +14,5 @@ When the LPMud Driver process is started, it goes through the follow steps in se
 5. Load simul efun object (optional)
 6. Load master object
 7. Do epilogue
-8. Start accepting connections
 
 
