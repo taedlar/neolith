@@ -143,6 +143,7 @@ free_empty_array (array_t * p)
   FREE ((char *) p);
 }
 
+/* explode_string() - Split a string into sub-strings separated by delimiter, return an array of sub-strings. */
 array_t *
 explode_string (char *str, int slen, char *del, int len)
 {
@@ -158,10 +159,15 @@ explode_string (char *str, int slen, char *del, int len)
   /* return an array of length strlen(str) -w- one character per element */
   if (len == 0)
     {
-      int slen_wcs = mbstowcs (NULL, str, 0);
+      size_t slen_wcs = mbstowcs (NULL, str, 0);
       int mb;
       sz = 1;
 
+      if (slen_wcs == (size_t) -1)
+        {
+	  error (_("An invalid multibyte sequence is encountered."));
+	  return &the_null_array;
+	}
       if (slen_wcs > CONFIG_INT (__MAX_ARRAY_SIZE__))
 	{
 	  slen_wcs = CONFIG_INT (__MAX_ARRAY_SIZE__);
