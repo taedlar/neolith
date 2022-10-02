@@ -12,3 +12,9 @@ So, the conclusion is commercial-use NOT allowed.
 
 ## Install
 Neolith is mainly written in C Language. For building the program, see [INSTALL](INSTALL.md).
+
+## Using Neolith
+To start a MUD using Neolith, you need a Neolith configuration file. See [neolith.conf](src/neolith.conf) for an example. You can launch the MUD by the command:
+```
+$ neolith -f <path-to-neolith.conf> &
+```
