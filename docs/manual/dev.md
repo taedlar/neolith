@@ -1,4 +1,4 @@
-Neolith Developer Manual
-========================
+Neolith Developer Reference
+===========================
 
 (WIP)
