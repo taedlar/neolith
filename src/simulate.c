@@ -2109,10 +2109,10 @@ dump_trace (int how)
 
   if (current_prog == 0)
     return 0;
+
   if (csp < &control_stack[0])
-    {
-      return 0;
-    }
+    return 0;
+
   for (p = &control_stack[0]; p < csp; p++)
     {
       switch (p[0].framekind & FRAME_MASK)
@@ -2120,29 +2120,25 @@ dump_trace (int how)
 	case FRAME_FUNCTION:
 	  get_trace_details (p[1].prog, p[0].fr.table_index,
 			     &fname, &num_arg, &num_local);
-	  log_message (NULL, "\t%s() in /%s (%s) %s\n",
-			 fname, p[1].prog->name, p[1].ob->name,
-			 get_line_number (p[1].pc, p[1].prog));
+	  log_message (NULL, "\t\e[33m%s()\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n", fname,
+		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
 	  if (strcmp (fname, "heart_beat") == 0)
 	    ret = p->ob ? p->ob->name : 0;
 	  break;
 	case FRAME_FUNP:
-	  log_message (NULL, "\t<function> in /%s (%s) %s\n",
-			 p[1].prog->name, p[1].ob->name,
-			 get_line_number (p[1].pc, p[1].prog));
+	  log_message (NULL, "\t\e[33m(function)\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n",
+		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
 	  num_arg = p[0].fr.funp->f.functional.num_arg;
 	  num_local = p[0].fr.funp->f.functional.num_local;
 	  break;
 	case FRAME_FAKE:
-	  log_message (NULL, "\t<function> in %s (%s) %s\n",
-			 p[1].prog->name, p[1].ob->name,
-			 get_line_number (p[1].pc, p[1].prog));
+	  log_message (NULL, "\t\e[33m(function)\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n",
+		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
 	  num_arg = -1;
 	  break;
 	case FRAME_CATCH:
-	  log_message (NULL, "\tCATCH in /%s (%s) %s\n",
-			 p[1].prog->name, p[1].ob->name,
-			 get_line_number (p[1].pc, p[1].prog));
+	  log_message (NULL, "\t\e[33m(catch)\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n",
+		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
 	  num_arg = -1;
 	  break;
 	}
@@ -2153,11 +2149,11 @@ dump_trace (int how)
 
 	  outbuf_zero (&outbuf);
 	  ptr = p[1].fp;
-	  outbuf_add (&outbuf, "\t  arguments: ");
+	  outbuf_add (&outbuf, "\t\targuments: ");
 	  for (i = 0; i < num_arg; i++)
 	    {
-	      svalue_to_string (&ptr[i], &outbuf, 0, (i==num_arg-1) ?0:',',
-				SV2STR_NOINDENT|SV2STR_NOINDENT);
+	      svalue_to_string (&ptr[i], &outbuf, 0, (i==num_arg-1) ? 0 :',',
+				SV2STR_NOINDENT | SV2STR_NONEWLINE);
 	    }
 	  log_message (NULL, "%s\n", outbuf.buffer);
 	  FREE_MSTR (outbuf.buffer);
@@ -2169,43 +2165,40 @@ dump_trace (int how)
 
 	  outbuf_zero (&outbuf);
 	  ptr = p[1].fp + num_arg;
-	  outbuf_add (&outbuf, "\t  local variables: ");
+	  outbuf_add (&outbuf, "\t\tlocal variables: ");
 	  for (i = 0; i < num_local; i++)
 	    {
 	      svalue_to_string (&ptr[i], &outbuf, 0, (i==num_local-1) ? 0 : ',',
-				SV2STR_NONEWLINE|SV2STR_NOINDENT);
+				SV2STR_NOINDENT | SV2STR_NONEWLINE);
 	    }
 	  log_message (NULL, "%s\n", outbuf.buffer);
 	  FREE_MSTR (outbuf.buffer);
 	}
     }
 
+  /* current_prog */
   switch (p[0].framekind & FRAME_MASK)
     {
     case FRAME_FUNCTION:
       get_trace_details (current_prog, p[0].fr.table_index,
 			 &fname, &num_arg, &num_local);
-      log_message (NULL, "\t%s() in /%s (%s) %s\n",
-		     fname, current_prog->name, current_object->name,
-		     get_line_number (pc, current_prog));
+      log_message (NULL, "\t\e[1;33m%s()\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n", fname,
+		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       break;
     case FRAME_FUNP:
-      log_message (NULL, "\t<function> in /%s (%s) %s\n",
-		     current_prog->name, current_object->name,
-		     get_line_number (pc, current_prog));
+      log_message (NULL, "\t\e[1;33m(function)\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n",
+		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = p[0].fr.funp->f.functional.num_arg;
       num_local = p[0].fr.funp->f.functional.num_local;
       break;
     case FRAME_FAKE:
-      log_message (NULL, "\t<function> in /%s (%s) %s\n",
-		     current_prog->name, current_object->name,
-		     get_line_number (pc, current_prog));
+      log_message (NULL, "\t\e[1;33m(function)\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n",
+		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = -1;
       break;
     case FRAME_CATCH:
-      log_message (NULL, "\tCATCH in /%s (%s) %s\n",
-		     current_prog->name, current_object->name,
-		     get_line_number (pc, current_prog));
+      log_message (NULL, "\t\e[1;33m(catch)\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n",
+		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = -1;
       break;
     }
@@ -2215,7 +2208,7 @@ dump_trace (int how)
       outbuffer_t outbuf;
 
       outbuf_zero (&outbuf);
-      outbuf_add (&outbuf, "\t  arguments: ");
+      outbuf_add (&outbuf, "\t\targuments: ");
       for (i = 0; i < num_arg; i++)
 	{
 	  svalue_to_string (&fp[i], &outbuf, 0, (i==num_arg-1)?0:',',
@@ -2231,7 +2224,7 @@ dump_trace (int how)
 
       outbuf_zero (&outbuf);
       ptr = fp + num_arg;
-      outbuf_add (&outbuf, "\t  local variables: ");
+      outbuf_add (&outbuf, "\t\tlocal variables: ");
       for (i = 0; i < num_local; i++)
 	{
 	  svalue_to_string (&ptr[i], &outbuf, 0, (i==num_local-1)?0:',',
