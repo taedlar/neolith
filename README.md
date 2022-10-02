@@ -16,7 +16,7 @@ Neolith is distributed in source code and mainly written in C Language. You need
 
 See [INSTALL](INSTALL.md) for detailed instructions.
 
-## Using Neolith
+## Usage
 To start a MUD using Neolith, you need a Neolith configuration file.
 Please make a copy from [src/neolith.conf](src/neolith.conf) and customize the settings for your needs.
 You can launch the MUD by the command:
