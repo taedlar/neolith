@@ -1987,7 +1987,7 @@ remove_sent (object_t * ob, object_t * user)
 }
 
 static int
-find_line (char *p, program_t * progp, char **ret_file, int *ret_line)
+find_line (const char *pc, const program_t * progp, char **ret_file, int *ret_line)
 {
   int offset;
   unsigned char *lns;
@@ -2010,9 +2010,12 @@ find_line (char *p, program_t * progp, char **ret_file, int *ret_line)
   if (!progp->line_info)
     return 4;
 
-  offset = p - progp->program;
-  DEBUG_CHECK2 (offset > (int) progp->program_size,
-		"Illegal offset %d in object /%s\n", offset, progp->name);
+  offset = pc - progp->program;
+  if (offset > (int) progp->program_size)
+    {
+      debug_error ("illegal offset %+d in object /%s", offset, progp->name);
+      return 4;
+    }
 
   lns = progp->line_info;
   while (offset > *lns)
@@ -2023,11 +2026,13 @@ find_line (char *p, program_t * progp, char **ret_file, int *ret_line)
 
   COPY_SHORT (&abs_line, lns + 1);
 
-  translate_absolute_line (abs_line, &progp->file_info[2],
-			   &file_idx, ret_line);
+  if (0 == translate_absolute_line (abs_line, &progp->file_info[2], (progp->file_info[1] - 2) * sizeof(short), &file_idx, ret_line))
+    {
+      *ret_file = progp->strings[file_idx - 1];
+      return 0;
+    }
 
-  *ret_file = progp->strings[file_idx - 1];
-  return 0;
+  return 4;
 }
 
 static void
@@ -2038,15 +2043,15 @@ get_line_number_info (char **ret_file, int *ret_line)
     *ret_file = current_prog->name;
 }
 
-char *
-get_line_number (char *p, program_t * progp)
+static char*
+get_line_number (const char *pc, const program_t * progp)
 {
   static char buf[256];
   int i;
-  char *file;
-  int line;
+  char *file = "???";
+  int line = -1;
 
-  i = find_line (p, progp, &file, &line);
+  i = find_line (pc, progp, &file, &line);
 
   switch (i)
     {
@@ -2081,9 +2086,8 @@ get_explicit_line_number_info (char *p, program_t * prog, char **ret_file,
     *ret_file = prog->name;
 }
 
-static void
-get_trace_details (program_t * prog, int index, char **fname, int *na,
-		   int *nl)
+static void inline
+get_trace_details (const program_t* prog, int index, char **fname, int *na, int *nl)
 {
   compiler_function_t *cfp = &prog->function_table[index];
   runtime_function_u *func_entry = FIND_FUNC_ENTRY (prog, cfp->runtime_index);
@@ -2100,7 +2104,7 @@ get_trace_details (program_t * prog, int index, char **fname, int *na,
 char *
 dump_trace (int how)
 {
-  control_stack_t *p;
+  const control_stack_t *p;
   char *ret = 0;
   char *fname;
   int num_arg = -1, num_local = -1;
@@ -2113,6 +2117,7 @@ dump_trace (int how)
   if (csp < &control_stack[0])
     return 0;
 
+  /* control stack */
   for (p = &control_stack[0]; p < csp; p++)
     {
       switch (p[0].framekind & FRAME_MASK)
@@ -2399,16 +2404,16 @@ fatal (char *fmt, ...)
 
   va_start (args, fmt);
   if (-1 == vasprintf (&msg, fmt, args)) {
-    debug_message(_("*****failed to format fatal error message \"%s\"."), fmt);
+    debug_message(_("{}\t***** failed to format fatal error message \"%s\"."), fmt);
     exit (EXIT_FAILURE);
   }
   va_end (args);
 
-  debug_message (_("*****%s\n"), msg);
+  debug_message (_("{}\t***** %s"), msg);
 
   if (proceeding_fatal_error)
     {
-      debug_message (_("*****fatal error occured while another proceeding, shutdown immediately.\n"));
+      debug_message (_("{}\t***** fatal error occured while another proceeding, shutdown immediately."));
     }
   else
     {
@@ -2418,18 +2423,18 @@ fatal (char *fmt, ...)
       proceeding_fatal_error = 1;
 
       if (current_file)
-	debug_message (_("-----compiling %s at line %d\n"), current_file, current_line);
+	debug_message (_("{}\t----- compiling %s at line %d"), current_file, current_line);
 
       if (current_object)
-	debug_message (_("-----current object was /%s\n"), current_object->name);
+	debug_message (_("{}\t----- current object was /%s"), current_object->name);
 
       if ((ob_name = dump_trace (DUMP_WITH_ARGS | DUMP_WITH_LOCALVARS)))
-	debug_message (_("-----in heart beat of /%s\n"), ob_name);
+	debug_message (_("{}\t----- in heart beat of /%s"), ob_name);
 
       save_context (&econ);
       if (setjmp (econ.context))
 	{
-	  debug_message (_("*****error in master::%s(), shutdown immediately.\n"),
+	  debug_message (_("{}\t***** error in master::%s(), shutdown immediately."),
 			 APPLY_CRASH);
 	}
       else
@@ -2446,7 +2451,7 @@ fatal (char *fmt, ...)
 	    push_undefined ();
 
 	  apply_master_ob (APPLY_CRASH, 3);
-	  debug_message (_("-----master::%s() finished, shutdown now.\n"), APPLY_CRASH);
+	  debug_message (_("{}\t----- mudlib crash handler finished, shutdown now.\n"));
 	}
     }
 
@@ -2483,7 +2488,7 @@ throw_error ()
       FRAME_CATCH)
     {
       longjmp (current_error_context->context, 1);
-      fatal ("*****Failed longjmp() in throw_error()!");
+      fatal ("Failed longjmp() in throw_error()!");
     }
   error (_("*Throw with no catch."));
 }
@@ -2515,7 +2520,6 @@ mudlib_error_handler (char *err, int catch)
   int line;
   svalue_t *mret;
 
-  /* 建立有關錯誤資訊的 mapping */
   m = allocate_mapping (6);
   add_mapping_string (m, "error", err);
   if (current_prog)
@@ -2527,7 +2531,6 @@ mudlib_error_handler (char *err, int catch)
   add_mapping_string (m, "file", file);
   add_mapping_pair (m, "line", line);
 
-  /* 經由堆疊傳入 master::error_handler */
   push_refed_mapping (m);
   if (catch)
     {
@@ -2541,20 +2544,12 @@ mudlib_error_handler (char *err, int catch)
 
   if ((svalue_t *) - 1 == mret || NULL == mret)
     {
-      /* 若 master 未提供 error_handler, 使用內建的 dump_trace */
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
     }
   else if (mret->type == T_STRING && *mret->u.string)
     {
-      /* 若傳回字串值, 寫入 debug log */
-      int have_newline = 0;
-
-      if (mret->u.string[strlen (mret->u.string) - 1] == '\n')
-	have_newline = 1;
-
-      if (*mret->u.string)
-	debug_message (have_newline ? "%s" : "%s\n", mret->u.string);
+      debug_message ("%s", mret->u.string);
     }
 }
 
@@ -2573,7 +2568,7 @@ error_handler (char *err)
       /* 允許被 catch 的錯誤也經過 master::error_handler() 處理 */
       if (in_mudlib_error_handler)
 	{
-	  debug_message (_("***Error in mudlib error handler (caught):\n"));
+	  debug_message (_("{}\t***** error in mudlib error handler (caught)"));
 	  debug_message_with_location (err);
 	  dump_trace (g_trace_flag);
 	  in_mudlib_error_handler = 0;
@@ -2597,20 +2592,20 @@ error_handler (char *err)
 
       /* jump to do_catch */
       longjmp (current_error_context->context, 1);
-      fatal ("Catch() longjump failed");
+      fatal ("catch() longjump failed");
     }
 
   /* 錯誤未被 catch, 循正常管道處理 */
 
   if (in_error)
     {
-      debug_message (_("***New error occured while generating error trace!"));
+      debug_message (_("{}\t***** New error occured while generating error trace!"));
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
 
       if (current_error_context)
 	longjmp (current_error_context->context, 1);
-      fatal ("*****Failed longjmp() or no error context for error.\n");
+      fatal ("failed longjmp() or no error context for error.");
     }
 
   /* 開始 error 處理 */
@@ -2618,7 +2613,7 @@ error_handler (char *err)
 
   if (in_mudlib_error_handler)
     {
-      debug_message (_("***Error in mudlib error handler:\n"));
+      debug_message (_("{}\t***** error in mudlib error handler"));
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
       in_mudlib_error_handler = 0;
@@ -2637,7 +2632,7 @@ error_handler (char *err)
   if (current_heart_beat)
     {
       set_heart_beat (current_heart_beat, 0);
-      debug_message (_("heart beat in %s turned off\n"),
+      debug_message (_("{}\t----- heart beat in %s turned off\n"),
 		     current_heart_beat->name);
 #if 0
       if (current_heart_beat->interactive)
@@ -2651,7 +2646,7 @@ error_handler (char *err)
 
   if (current_error_context)
     longjmp (current_error_context->context, 1);
-  fatal (_("*****Failed longjmp() or no error context for error."));
+  fatal (_("failed longjmp() or no error context for error."));
 }
 
 void

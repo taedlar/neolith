@@ -123,8 +123,9 @@ main (int argc, char **argv)
   if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
     exit (EXIT_FAILURE);
   if (locale)
-    debug_message ("{}\tusing locale %s", locale);
+    debug_message ("{}\tusing locale \"%s\"", locale);
 
+  debug_message ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
   if (-1 == chdir (CONFIG_STR (__MUD_LIB_DIR__)))
     {
       perror (CONFIG_STR (__MUD_LIB_DIR__));
@@ -153,7 +154,7 @@ main (int argc, char **argv)
   save_context (&econ);
   if (setjmp (econ.context))
     {
-      debug_message (_("{}\t*****error occurs in pre-loading stage, shutting down."));
+      debug_message (_("{}\t***** error occurs in pre-loading stage, shutting down."));
       exit (EXIT_FAILURE);
     }
   else
@@ -288,7 +289,7 @@ char *
 xalloc (int size)
 {
   char *p;
-  static int going_to_exit;
+  static int going_to_exit = 0;
 
   if (going_to_exit)
     exit (3);
@@ -299,7 +300,7 @@ xalloc (int size)
 	{
 	  FREE (reserved_area);
 	  /* after freeing reserved area, we are supposed to be able to write log messages */
-	  debug_message ("*****temporarily out of MEMORY. Freeing reserve.\n");
+	  debug_message ("{}\t***** temporarily out of MEMORY. Freeing reserve.");
 	  reserved_area = 0;
 	  slow_shut_down_to_do = 6;
 	  return xalloc (size);	/* Try again */
@@ -337,7 +338,7 @@ sig_usr1 (int sig)
   push_undefined ();
   push_undefined ();
   apply_master_ob (APPLY_CRASH, 3);
-  debug_message ("Received SIGUSR1, calling exit(-1)\n");
+  debug_message ("{}\t***** received SIGUSR1, calling exit(-1)");
   exit (-1);
 }
 

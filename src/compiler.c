@@ -2266,7 +2266,7 @@ epilog ()
   total_num_prog_blocks += 1;
 
   /* Format is now:
-   * <short total size> <short line_info_offset> <file info> <line info>
+   * <short total-size-in-bytes> <short offset-to-line-info> <file info blob> <line info blob>
    */
   lnoff = 2 + (mem_block[A_FILE_INFO].current_size / sizeof (short));
   lnsz = lnoff * sizeof (short) + mem_block[A_LINENUMBERS].current_size;
@@ -2275,6 +2275,7 @@ epilog ()
     (unsigned short *) DXALLOC (lnsz, TAG_LINENUMBERS, "epilog");
   prog->file_info[0] = (unsigned short) lnsz;
   prog->file_info[1] = (unsigned short) lnoff;
+  opt_trace (TT_COMPILE, "file_info: %d", lnsz);
 
   memcpy (((char *) &prog->file_info[2]),
 	  mem_block[A_FILE_INFO].block, mem_block[A_FILE_INFO].current_size);
@@ -2288,6 +2289,7 @@ epilog ()
 
   prog->program = p;
   prog->program_size = mem_block[A_PROGRAM].current_size;
+  opt_trace (TT_COMPILE, "program_size: %d", prog->program_size);
   copy_in (A_PROGRAM, &p);
 
   prog->num_functions_total = num_fun;
@@ -2570,12 +2572,8 @@ prepare_cases (parse_node_t * pn, int start)
 	  save_file_info (current_file_id, current_line - current_line_saved);
 	  current_line_saved = current_line;
 
-	  translate_absolute_line ((*ce)->line,
-				   (unsigned short *) mem_block[A_FILE_INFO].
-				   block, &fi1, &l1);
-	  translate_absolute_line ((*(ce - 1))->line,
-				   (unsigned short *) mem_block[A_FILE_INFO].
-				   block, &fi2, &l2);
+	  translate_absolute_line ((*ce)->line, (unsigned short *) mem_block[A_FILE_INFO].block, mem_block[A_FILE_INFO].current_size, &fi1, &l1);
+	  translate_absolute_line ((*(ce - 1))->line, (unsigned short *) mem_block[A_FILE_INFO].block, mem_block[A_FILE_INFO].current_size, &fi2, &l2);
 	  f1 = PROG_STRING (fi1);
 	  f2 = PROG_STRING (fi2);
 

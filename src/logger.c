@@ -113,13 +113,13 @@ debug_message (char *fmt, ...)
 }
 
 int
-debug_message_with_src (const char* func, const char* src, int line, const char *fmt, ...)
+debug_message_with_src (const char* _type, const char* func, const char* src, int line, const char *fmt, ...)
 {
     va_list args;
     char msg[8192];
     int n;
 
-    n = snprintf(msg, sizeof(msg), "[\"%s\",%d,\"%s\"]\t", src, line, func);
+    n = snprintf(msg, sizeof(msg), "[\"%s\",\"%s\",%d,\"%s\"]\t", _type, src, line, func);
 
     if (n < sizeof(msg)) {
         va_start (args, fmt);
@@ -132,9 +132,9 @@ int
 debug_perror_with_src (const char* func, const char* src, int line, const char *what, const char *file)
 {
   if (file)
-    return debug_message ("[\"%s\",%d,\"%s\"]\t%s: [%s] %s\n", src, line, func, what, file, strerror (errno));
+    return debug_message ("[\"ERROR\",\"%s\",%d,\"%s\"]\t%s: [%s] %s\n", src, line, func, what, file, strerror (errno));
   else
-    return debug_message ("[\"%s\",%d,\"%s\"]\t%s: %s\n", src, line, func, what, strerror (errno));
+    return debug_message ("[\"ERROR\",\"%s\",%d,\"%s\"]\t%s: %s\n", src, line, func, what, strerror (errno));
 }
 
 
