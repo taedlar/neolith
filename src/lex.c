@@ -1742,7 +1742,7 @@ yylex ()
 		    }
 		  else if (strcmp ("echo", yytext) == 0)
 		    {
-		      debug_message ("%s\n", sp);
+		      debug_message ("{}\t%s", sp);
 		    }
 		  else if (strcmp ("pragma", yytext) == 0)
 		    {

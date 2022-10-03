@@ -76,7 +76,6 @@ void shout_string(char *);
 #define DUMP_WITH_LOCALVARS	0x0002
 extern char *dump_trace (int);
 extern array_t *get_svalue_trace (int);
-extern char *get_line_number(char *, program_t *);
 extern void throw_error(void);
 extern void error_handler(char *);
 extern void fatal(char *, ...);

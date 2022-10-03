@@ -3818,9 +3818,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
   if ((entry->id == progp->id_number) && (entry->oprogp == progp) &&
       (strcmp (entry->name, fun) == 0))
     {
-      /*
-       *        APPLY_CACHE 中存在一個可能的進入點
-       */
+      /* function entry is found in APPLY_CACHE */
 
 #ifdef CACHE_STATS
       apply_low_cache_hits++;
@@ -3859,9 +3857,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	  if (!(funflags & (NAME_STATIC | NAME_PRIVATE))
 	      || (local_call_origin & (ORIGIN_DRIVER | ORIGIN_CALL_OUT)))
 	    {
-	      /*
-	       *        產生一個新的 frame, 推入 control stack
-	       */
+	      /* push a frame onto control stack */
 	      push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
 	      csp->num_local_variables = num_arg;
 	      csp->fr.table_index = entry->index;
@@ -3886,7 +3882,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	      previous_ob = current_object;
 	      current_object = ob;
 	      IF_DEBUG (save_csp = csp);
-	      opt_trace (TT_EVAL, "call_program: %s", fun);
+	      opt_trace (TT_EVAL, "call_program (APPLY_CACHE) \"%s\": offset %+d", fun, funp->address);
 	      call_program (current_prog, funp->address);
 
 	      DEBUG_CHECK (save_csp - 1 != csp,
@@ -3899,9 +3895,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
     }
   else
     {
-      /*
-       *        APPLY_CACHE 中不存在可能的進入點
-       */
+      /* entry is not found in APPLY_CACHE  */
 
       int index;
       /* we have to search the function
@@ -3959,7 +3953,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	      entry->progp = current_prog;
 	      previous_ob = current_object;
 	      current_object = ob;
-	      opt_trace (TT_EVAL, "call_program: %s", fun);
+	      opt_trace (TT_EVAL, "call_program \"%s\": offset %+d", fun, funp->address);
 	      call_program (current_prog, funp->address);
 
 	      /*
@@ -4362,11 +4356,10 @@ call_function (program_t * progp, int offset)
   pop_stack ();
 }
 
-void
-translate_absolute_line (int abs_line, unsigned short *file_info,
-			 int *ret_file, int *ret_line)
+int
+translate_absolute_line (int abs_line, unsigned short *file_info, size_t block_size, int *ret_file, int *ret_line)
 {
-  unsigned short *p1, *p2;
+  unsigned short *p1, *p2, *end = file_info + (block_size / sizeof(unsigned short));
   int file;
   int line_tmp = abs_line;
 
@@ -4376,6 +4369,8 @@ translate_absolute_line (int abs_line, unsigned short *file_info,
     {
       line_tmp -= *p1;
       p1 += 2;
+      if (p1 >= end)
+	return -1; /* file info block corrupted */
     }
   file = p1[1];
 
@@ -4389,6 +4384,7 @@ translate_absolute_line (int abs_line, unsigned short *file_info,
     }
   *ret_line = line_tmp;
   *ret_file = file;
+  return 0;
 }
 
 #define SSCANF_ASSIGN_SVALUE_STRING(S) \

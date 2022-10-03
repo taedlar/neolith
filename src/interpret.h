@@ -276,7 +276,7 @@ svalue_t *apply_master_ob(char *, int);
 svalue_t *safe_apply_master_ob(char *, int);
 void init_master(char *);
 void mark_apply_low_cache(void);
-void translate_absolute_line(int, unsigned short *, int *, int *);
+int translate_absolute_line(int, unsigned short *, size_t, int *, int *);
 char *add_slash(char *);
 int strpref(char *, char *);
 void do_trace(char *, char *, char *);
