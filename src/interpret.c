@@ -1074,7 +1074,7 @@ push_control_stack (int frkind)
   csp->prev_ob = previous_ob;
   csp->fp = fp;
   csp->prog = current_prog;
-  csp->pc = pc;
+  csp->pc = pc; // save return location
   csp->function_index_offset = function_index_offset;
   csp->variable_index_offset = variable_index_offset;
 }
@@ -1113,7 +1113,7 @@ pop_control_stack ()
   current_prog = csp->prog;
   previous_ob = csp->prev_ob;
   caller_type = csp->caller_type;
-  pc = csp->pc;
+  pc = csp->pc; // return
   fp = csp->fp;
   function_index_offset = csp->function_index_offset;
   variable_index_offset = csp->variable_index_offset;
@@ -1807,9 +1807,10 @@ eval_instruction (char *p)
 
   /* Next F_RETURN at this level will return out of eval_instruction() */
   csp->framekind |= FRAME_EXTERNAL;
-  pc = p;
+  pc = p; // current_prog->program
   while (1)
     {
+      opt_trace (TT_EVAL|TT_TEMP1, "offset %+d", pc - current_prog->program);
       instruction = EXTRACT_UCHAR (pc++);
       if (!--eval_cost)
 	{
@@ -1945,7 +1946,7 @@ eval_instruction (char *p)
 	  else
 	    {
 	      COPY_SHORT (&offset, pc);
-	      pc = current_prog->program + offset;
+	      pc = current_prog->program + offset; // F_JUMP_WHEN_NON_ZERO
 	    }
 	  if (i)
 	    {
@@ -2806,8 +2807,8 @@ eval_instruction (char *p)
 	    csp->num_local_variables = EXTRACT_UCHAR (pc++) + num_varargs;
 	    num_varargs = 0;
 	    funp = setup_new_frame (offset);
-	    csp->pc = pc;	/* The corrected return address */
-	    pc = current_prog->program + funp->address;
+	    csp->pc = pc;	/* The corrected return address of local function call */
+	    pc = current_prog->program + funp->address; // F_CALL_FUNCTION_BY_ADDRESS
 	    opt_trace (TT_EVAL, "call_function_by_address \"%s\": offset %+d", name, funp->address);
 	  }
 	  break;
@@ -2833,7 +2834,7 @@ eval_instruction (char *p)
 
 	    funp = setup_inherited_frame (offset);
 	    csp->pc = pc;
-	    pc = current_prog->program + funp->address;
+	    pc = current_prog->program + funp->address; // F_CALL_INHERITED
 	    opt_trace (TT_EVAL, "call_inherited \"%s\": offset %+d", funp->name, funp->address);
 	  }
 	  break;
@@ -3193,7 +3194,7 @@ eval_instruction (char *p)
 	  if ((i = (sp->type == T_NUMBER)) && sp->u.number == 0)
 	    {
 	      COPY_SHORT (&offset, pc);
-	      pc = current_prog->program + offset;
+	      pc = current_prog->program + offset; // F_JUMP_WHEN_ZERO
 	    }
 	  else
 	    {
@@ -3213,7 +3214,7 @@ eval_instruction (char *p)
 #ifdef F_JUMP
 	case F_JUMP:
 	  COPY_SHORT (&offset, pc);
-	  pc = current_prog->program + offset;
+	  pc = current_prog->program + offset; // F_JUMP
 	  break;
 #endif
 	case F_LE:
@@ -3555,7 +3556,7 @@ eval_instruction (char *p)
 
 	    do_catch (pc, offset);
 
-	    pc = current_prog->program + offset;
+	    pc = current_prog->program + offset; // F_CATCH
 
 	    break;
 	  }

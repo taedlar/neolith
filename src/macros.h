@@ -1,6 +1,10 @@
 #ifndef MACROS_H
 #define MACROS_H
 
+#ifdef STDC_HEADERS
+#include <stdint.h>
+#endif /* STDC_HEADERS */
+
 #include "main.h"
 #include "malloc.h"
 #include "logger.h"
@@ -17,7 +21,7 @@
 #define debug_info(...)			debug_message_with_src("INFO", __func__, __FILE__, __LINE__, __VA_ARGS__)
 #define debug_trace(...)		debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, __VA_ARGS__)
 /* trace loggers */
-#define opt_trace(tier, ...)		do{if(SERVER_OPTION(trace_flags)&(tier)) \
+#define opt_trace(tier, ...)		do{if((SERVER_OPTION(trace_flags)&(tier))==(tier)) \
 					debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
 #define TT_TEMP1	01
 #define TT_TEMP2	02
@@ -86,18 +90,26 @@
 #define COPY_INT(x, y)		COPY4(x,y)
 #define LOAD_INT(x, y)		LOAD4(x,y)
 #define STORE_INT(x, y)		STORE4(x,y)
-#define INT_32			int
+#define INT_32			int32_t
 
 #define COPY_FLOAT(x, y)	COPY4(x,y)
 #define LOAD_FLOAT(x, y)	LOAD4(x,y)
 #define STORE_FLOAT(x, y)	STORE4(x,y)
 
-#define COPY_PTR(x, y)	COPY4(x,y)
-#define LOAD_PTR(x, y)	LOAD4(x,y)
-#define STORE_PTR(x, y)	STORE4(x,y)
+#if UINTPTR_MAX == UINT32_MAX
+#define COPY_PTR(x, y)		COPY4(x,y)
+#define LOAD_PTR(x, y)		LOAD4(x,y)
+#define STORE_PTR(x, y)		STORE4(x,y)
+#elif UINTPTR_MAX == UINT64_MAX
+#define COPY_PTR(x, y)		COPY8(x,y)
+#define LOAD_PTR(x, y)		LOAD8(x,y)
+#define STORE_PTR(x, y)		STORE8(x,y)
+#else
+#error only supports pointer size of 4 or 8 bytes
+#endif
 
-#define POINTER_INT		int
-#define INS_POINTER		ins_int
+#define POINTER_INT		intptr_t
+#define INS_POINTER		ins_intptr
 
 #ifndef _FUNC_SPEC_
 extern char *xalloc(int);

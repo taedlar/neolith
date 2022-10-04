@@ -124,6 +124,37 @@ ins_int (int l)
   STORE_INT (prog_code, l);
 }
 
+/*
+ * Store a integer pointer. It is stored in such a way as to be sure
+ * that correct byte order is used, regardless of machine architecture.
+ */
+static void
+ins_intptr (intptr_t l)
+{
+#if UINTPTR_MAX == UINT32_MAX
+  if (prog_code + 4 > prog_code_max)
+#elif UINTPTR_MAX == UINT64_MAX
+  if (prog_code + 8 > prog_code_max)
+#else
+#error only supports pointer size of 4 or 8 bytes
+#endif
+    {
+      mem_block_t *mbp = &mem_block[current_block];
+      UPDATE_PROGRAM_SIZE;
+      realloc_mem_block (mbp, mbp->current_size * 2);
+
+      prog_code = mbp->block + mbp->current_size;
+      prog_code_max = mbp->block + mbp->max_size;
+    }
+#if UINTPTR_MAX == UINT32_MAX
+  STORE4 (prog_code, l);
+#elif UINTPTR_MAX == UINT64_MAX
+  STORE8 (prog_code, l);
+#else
+#error only supports pointer size of 4 or 8 bytes
+#endif
+}
+
 static void
 upd_short (int offset, short l)
 {
