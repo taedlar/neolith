@@ -1987,7 +1987,7 @@ remove_sent (object_t * ob, object_t * user)
 }
 
 static int
-find_line (const char *pc, const program_t * progp, char **ret_file, int *ret_line)
+find_line (const char *p, const program_t * progp, char **ret_file, int *ret_line)
 {
   int offset;
   unsigned char *lns;
@@ -2010,7 +2010,7 @@ find_line (const char *pc, const program_t * progp, char **ret_file, int *ret_li
   if (!progp->line_info)
     return 4;
 
-  offset = pc - progp->program;
+  offset = p - progp->program;
   if (offset > (int) progp->program_size)
     {
       debug_error ("illegal offset %+d in object /%s", offset, progp->name);
@@ -2036,6 +2036,15 @@ find_line (const char *pc, const program_t * progp, char **ret_file, int *ret_li
 }
 
 static void
+get_explicit_line_number_info (char *p, program_t * prog, char **ret_file,
+			       int *ret_line)
+{
+  find_line (p, prog, ret_file, ret_line);
+  if (!(*ret_file))
+    *ret_file = prog->name;
+}
+
+static void
 get_line_number_info (char **ret_file, int *ret_line)
 {
   find_line (pc, current_prog, ret_file, ret_line);
@@ -2044,14 +2053,14 @@ get_line_number_info (char **ret_file, int *ret_line)
 }
 
 static char*
-get_line_number (const char *pc, const program_t * progp)
+get_line_number (const char *p, const program_t * progp)
 {
   static char buf[256];
   int i;
   char *file = "???";
   int line = -1;
 
-  i = find_line (pc, progp, &file, &line);
+  i = find_line (p, progp, &file, &line);
 
   switch (i)
     {
@@ -2075,15 +2084,6 @@ get_line_number (const char *pc, const program_t * progp)
     file = progp->name;
   sprintf (buf, "/%s:%d", file, line);
   return buf;
-}
-
-static void
-get_explicit_line_number_info (char *p, program_t * prog, char **ret_file,
-			       int *ret_line)
-{
-  find_line (p, prog, ret_file, ret_line);
-  if (!(*ret_file))
-    *ret_file = prog->name;
 }
 
 static void inline

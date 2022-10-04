@@ -17,7 +17,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 
-#include "src/main.h"
+#include "src/std.h"
 
 /*
   ioctl.c: part of the MudOS release -- Truilkan@TMI

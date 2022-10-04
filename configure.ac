@@ -19,7 +19,6 @@ AH_BOTTOM([#if defined(ENABLE_NLS) && defined(HAVE_GETTEXT)
 #else
 #define _(s) (s)
 #endif
-#include "src/logger.h"
 ])
 
 AC_PROG_CC_C99

@@ -232,8 +232,6 @@ type_name (int c)
       return "*lvalue_range*";
     case T_ERROR_HANDLER:
       return "*error_handler*";
-    IF_DEBUG (case T_FREED:
-return "*freed*");
     }
   return "*unknown*";
 }
@@ -2489,7 +2487,6 @@ eval_instruction (char *p)
 	  {
 	    int flags = EXTRACT_UCHAR (pc++);
 
-	    IF_DEBUG (foreach_in_progress++);
 	    if (flags & 4)
 	      {
 		CHECK_TYPES (sp, T_MAPPING, 2, F_FOREACH);
@@ -2573,7 +2570,6 @@ eval_instruction (char *p)
 	  pc += 2;
 	  /* fallthrough */
 	case F_EXIT_FOREACH:
-	  IF_DEBUG (foreach_in_progress--);
 	  if ((sp - 1)->type == T_LVALUE)
 	    {
 	      /* mapping */
@@ -2780,6 +2776,7 @@ eval_instruction (char *p)
 	case F_CALL_FUNCTION_BY_ADDRESS:
 	  {
 	    compiler_function_t *funp;
+	    const char* name;
 
 	    LOAD_SHORT (offset, pc);
 	    offset += function_index_offset;
@@ -2789,12 +2786,14 @@ eval_instruction (char *p)
 	     * must look in the last table, which is pointed to by
 	     * current_object.
 	     */
-	    DEBUG_CHECK (offset >= current_object->prog->num_functions_total,
-			 "Illegal function index\n");
+	    if (offset >= current_object->prog->num_functions_total)
+		error ("illegal function index");
 
+	    name = function_name (current_object->prog, offset);
 	    if (current_object->prog->function_flags[offset] & NAME_UNDEFINED)
-	      error (_("*Undefined function: %s"),
-		     function_name (current_object->prog, offset));
+	      error ("undefined function: %s", name);
+
+
 	    /* Save all important global stack machine registers */
 	    push_control_stack (FRAME_FUNCTION);
 	    current_prog = current_object->prog;
@@ -2809,6 +2808,7 @@ eval_instruction (char *p)
 	    funp = setup_new_frame (offset);
 	    csp->pc = pc;	/* The corrected return address */
 	    pc = current_prog->program + funp->address;
+	    opt_trace (TT_EVAL, "call_function_by_address \"%s\": offset %+d", name, funp->address);
 	  }
 	  break;
 	case F_CALL_INHERITED:
@@ -2816,6 +2816,7 @@ eval_instruction (char *p)
 	    inherit_t *ip = current_prog->inherit + EXTRACT_UCHAR (pc++);
 	    program_t *temp_prog = ip->prog;
 	    compiler_function_t *funp;
+	    const char* name;
 
 	    LOAD_SHORT (offset, pc);
 
@@ -2833,6 +2834,7 @@ eval_instruction (char *p)
 	    funp = setup_inherited_frame (offset);
 	    csp->pc = pc;
 	    pc = current_prog->program + funp->address;
+	    opt_trace (TT_EVAL, "call_inherited \"%s\": offset %+d", funp->name, funp->address);
 	  }
 	  break;
 	case F_COMPL:
@@ -3857,6 +3859,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	  if (!(funflags & (NAME_STATIC | NAME_PRIVATE))
 	      || (local_call_origin & (ORIGIN_DRIVER | ORIGIN_CALL_OUT)))
 	    {
+	      const control_stack_t* save_csp;
 	      /* push a frame onto control stack */
 	      push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
 	      csp->num_local_variables = num_arg;
@@ -3881,12 +3884,12 @@ apply_low (char *fun, object_t * ob, int num_arg)
 
 	      previous_ob = current_object;
 	      current_object = ob;
-	      IF_DEBUG (save_csp = csp);
+	      save_csp = csp;
 	      opt_trace (TT_EVAL, "call_program (APPLY_CACHE) \"%s\": offset %+d", fun, funp->address);
 	      call_program (current_prog, funp->address);
 
-	      DEBUG_CHECK (save_csp - 1 != csp,
-			   "Bad csp after execution in apply_low.\n");
+	      if (save_csp - 1 != csp)
+		debug_error ("bad csp after execution in apply_low.");
 	      return 1;
 	    }
 	}			/* when we come here, the cache has told us
@@ -4863,7 +4866,6 @@ reset_machine (void)
   else
     {
       pop_n_elems (sp - start_of_stack + 1);
-      IF_DEBUG (foreach_in_progress = 0);
     }
 }
 

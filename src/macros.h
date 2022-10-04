@@ -1,16 +1,38 @@
 #ifndef MACROS_H
 #define MACROS_H
 
+#include "main.h"
 #include "malloc.h"
+#include "logger.h"
 
 #define ALLOCATE(type, tag, desc) ((type *)DXALLOC(sizeof(type), tag, desc))
 #define CALLOCATE(num, type, tag, desc) ((type *)DXALLOC(sizeof(type[1]) * (num), tag, desc))
 #define RESIZE(ptr, num, type, tag, desc) ((type *)DREALLOC((void *)ptr, sizeof(type) * (num), tag, desc))
 
-#define IF_DEBUG(x) 
-#define DEBUG_CHECK(x, y)
-#define DEBUG_CHECK1(x, y, a)
-#define DEBUG_CHECK2(x, y, a, b)
+#if __STDC_VERSION__ >= 199901L
+/* generic loggers */
+#define debug_fatal(...)		debug_message_with_src("FATAL", __func__, __FILE__, __LINE__, __VA_ARGS__)
+#define debug_error(...)		debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, __VA_ARGS__)
+#define debug_warn(...)			debug_message_with_src("WARN", __func__, __FILE__, __LINE__, __VA_ARGS__)
+#define debug_info(...)			debug_message_with_src("INFO", __func__, __FILE__, __LINE__, __VA_ARGS__)
+#define debug_trace(...)		debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, __VA_ARGS__)
+/* trace loggers */
+#define opt_trace(tier, ...)		do{if(SERVER_OPTION(trace_flags)&(tier)) \
+					debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
+#define TT_TEMP1	01
+#define TT_TEMP2	02
+#define TT_TEMP3	04
+#define TT_EVAL		010
+#define TT_COMPILE	020
+#define TT_SIMUL_EFUN	040
+#endif /* using C99 */
+
+#define debug_perror(what,file)		debug_perror_with_src(__func__, __FILE__, __LINE__, (what), (file))
+
+#define IF_DEBUG(x) 			x
+#define DEBUG_CHECK(x, y)		if(x) debug_error("%s",(y))
+#define DEBUG_CHECK1(x, y, a)		if(x) debug_error((y),(a))
+#define DEBUG_CHECK2(x, y, a, b)	if(x) debug_error((y),(a),(b))
 
 #define COPY2(x, y)      ((char *)(x))[0] = ((char *)(y))[0]; \
                          ((char *)(x))[1] = ((char *)(y))[1]

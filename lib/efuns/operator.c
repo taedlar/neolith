@@ -1255,6 +1255,8 @@ call_simul_efun (unsigned short index, int num_arg)
   extern object_t *simul_efun_ob;
   compiler_function_t *funp;
 
+  opt_trace (TT_SIMUL_EFUN, "index %d, num_arg %d", index, num_arg);
+
   if (current_object->flags & O_DESTRUCTED)
     {				/* No external calls allowed */
       pop_n_elems (num_arg);
@@ -1275,6 +1277,7 @@ call_simul_efun (unsigned short index, int num_arg)
       funp = setup_new_frame (simuls[index].index);
       previous_ob = current_object;
       current_object = simul_efun_ob;
+      opt_trace (TT_SIMUL_EFUN, "call_program: \"%s\" offset %+d", funp->name, funp->address);
       call_program (current_prog, funp->address);
     }
   else
