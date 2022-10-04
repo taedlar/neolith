@@ -11,55 +11,58 @@
 #include <time.h>
 #endif /* STDC_HEADERS */
 
+#include "logger.h"
 #include "rc.h"
 
-/* log_message() - Print log messages to file or previously opend file (if file is NULL). */
+FILE* current_log_file = NULL;
+
+/* log_message() - print raw log messages to file or previously opend file (if file is NULL). */
 int
 log_message (const char *file, const char *fmt, ...)
 {
-  static char fname[PATH_MAX];
-  static FILE *fp = NULL;
+  int n_written = 0;
+  static char target_log_file[PATH_MAX] = "\n"; /* newline is not allowed for debug log path */
   va_list args;
 
-  if (file)
+  if (file && strcmp(file, target_log_file))
     {
-      if (fp)
-	{
-	  fclose (fp);
-	  fp = NULL;
-	}
-      strncpy (fname, file, sizeof(fname)-1);
+      if (current_log_file && (current_log_file != stderr))
+	fclose (current_log_file);
+      current_log_file = NULL;
+      strncpy (target_log_file, file, PATH_MAX - 1);
+      target_log_file[PATH_MAX - 1] = 0;
 
-      if (!*fname)
-	return 0;
-
-      fp = fopen (fname, "a");
-      if (!fp && (errno == EMFILE || errno == ENFILE))
-	fp = freopen (fname, "a", stdout);
-      if (!fp)
+      if (*file)
 	{
-	  fprintf (stderr, _("error opening log file %s: %s\n"),
-		fname, strerror (errno));
-	  return 0;	/* failed */
+	  current_log_file = fopen (file, "a");
+	  if (!current_log_file)
+	    {
+	      current_log_file = stderr;
+	      n_written = debug_message ("{}\t***** error opening log file %s: %s\n", file, strerror (errno));
+	    }
 	}
+      else
+	current_log_file = stderr;
     }
 
-  if (!fp)
-    return 0;	/* fail */
+  if (!current_log_file)
+    current_log_file = stderr;
 
   va_start (args, fmt);
-  vfprintf (fp, fmt, args);
+  if (*fmt && (n_written >= 0))
+    {
+      int ret = vfprintf (current_log_file, fmt, args);
+      if (ret > 0)
+	n_written += ret;
+    }
   va_end (args);
 
-  fflush (fp);
-
-  /* flush, but leave fp open until next call to log_mesage */
-
-  return 1;	/* success */
+  fflush (current_log_file);
+  return n_written;
 }
 
 int
-debug_message (char *fmt, ...)
+debug_message (const char *fmt, ...)
 {
   static int append = 0;
   static char filename[PATH_MAX], *fname = NULL;
@@ -103,13 +106,14 @@ debug_message (char *fmt, ...)
       time (&t);
       now = localtime (&t);
       strftime (time_info, 1024, "%G-%m-%d %T\t", now);
-      res = log_message (fname, time_info) && log_message (NULL, "%s\n", msg);
+      log_message (fname, time_info);
+      log_message (fname, "%s\n", msg);
     }
   else
-    res = log_message (fname, "%s\n", msg);
+    log_message (fname, "%s\n", msg);
   va_end (args);
 
-  return res;
+  return 1;
 }
 
 int
