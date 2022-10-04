@@ -447,23 +447,37 @@ static inline int
 restore_size (char **str, int is_mapping)
 {
   register char *cp = *str;
-  int size = 0;
+  int size = 0, mb_span;
   char c, delim, index = 0;
 
   delim = is_mapping ? ':' : ',';
 
-  while ((c = *cp++))
+  while ((c = *cp))
     {
+      mb_span = mblen (cp, MB_CUR_MAX);
+      if (mb_span < 0)
+	return -1;
+      cp += mb_span; /* don't check in the middle of a multibyte character */
       switch (c)
 	{
 	case '"':
 	  {
-	    while ((c = *cp++) != '"')
-	      if ((c == '\0') || (c == '\\' && !*cp++))
-		return 0;
+	    char* start = cp - 1;
+	    while ((c = *cp) != '"')
+	      {
+		mb_span = mblen (cp, MB_CUR_MAX);
+		if (mb_span < 0)
+		  return -1;
+		cp += mb_span; /* don't check backslash in the middle of a multibyte character */
+		if ((c == '\0') || (c == '\\' && !*cp++))
+		  return 0;
+	      }
+	    cp++;
+
 
 	    if (*cp++ != delim)
 	      {
+		debug_error ("corrupted multibyte string: %s", start);
 		return -1;
 	      }
 	    size++;
@@ -764,7 +778,10 @@ restore_mapping (char **str, svalue_t * sv)
   if (save_svalue_depth)
     size = sizes[save_svalue_depth - 1];
   else if ((size = restore_size (str, 1)) < 0)
-    return 0;
+    {
+      debug_error ("corrupted");
+      return 0;
+    }
 
   if (!size)
     {
