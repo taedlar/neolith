@@ -145,8 +145,7 @@ get_simul_efuns (program_t * prog)
       int index;
       runtime_function_u *func_entry;
 
-      if (prog->
-	  function_flags[i] & (NAME_NO_CODE | NAME_STATIC | NAME_PRIVATE))
+      if (prog->function_flags[i] & (NAME_NO_CODE | NAME_STATIC | NAME_PRIVATE))
 	continue;
       nprog = prog;
       index = i;
@@ -214,6 +213,8 @@ find_or_add_simul_efun (program_t * prog, int index, int runtime_index)
   int last = num_simul_efun - 1;
   int i, j;
   compiler_function_t *funp = &prog->function_table[index];
+
+  opt_trace (TT_SIMUL_EFUN, "%s: runtime_index=%d", funp->name, runtime_index);
 
   while (first <= last)
     {
