@@ -1061,12 +1061,14 @@ f_switch ()
 	  if (sp->subtype == STRING_SHARED)
 	    {
 	      s = (POINTER_INT) sp->u.string;
+	      opt_trace (TT_EVAL|TT_TEMP1, "f_switch (string labels): search \"%s\"", (char*)s);
 	      free_string (sp->u.string);
 	      sp--;
 	    }
 	  else
 	    {
 	      s = (POINTER_INT) findstring (sp->u.string);
+	      opt_trace (TT_EVAL|TT_TEMP1, "f_switch (string labels): search \"%s\"", (char*)sp->u.string);
 	      free_string_svalue (sp--);
 	    }
 	  if (s == 0)
@@ -1090,6 +1092,7 @@ f_switch ()
       CHECK_TYPES (sp, T_NUMBER, 1, F_SWITCH);
       s = (sp--)->u.number;
       i = (int) pc[0] & 0xf;
+      opt_trace (TT_EVAL|TT_TEMP1, "f_switch (integer labels): search %d", s);
     }
   end_tab = current_prog->program + end_off;
   /*
@@ -1110,12 +1113,14 @@ f_switch ()
 	      if (offset)
 		{
 		  pc = current_prog->program + offset;
+		  opt_trace (TT_EVAL|TT_TEMP1, "jump to %+d", offset);
 		  return;
 		}
 	    }
 	  /* default */
 	  COPY_SHORT (&offset, pc + SW_DEFAULT);
 	  pc = current_prog->program + offset;
+	  opt_trace (TT_EVAL, "jump to %+d", offset);
 	  return;
 	}
       else
@@ -1135,6 +1140,7 @@ f_switch ()
   for (;;)
     {
       COPY_PTR (&r, l);
+      opt_trace (TT_EVAL|TT_TEMP1, "comparing %p with %p", s, r);
       if (s < r)
 	{
 	  if (d < SWITCH_CASE_SIZE)
@@ -1152,8 +1158,7 @@ f_switch ()
 		      if (!offset)
 			{
 			  /* range with lookup table */
-			  l = current_prog->program + offset +
-			    (s - r) * sizeof (short);
+			  l = current_prog->program + offset + (s - r) * sizeof (short);
 			  COPY_SHORT (&offset, l);
 			}	/* else normal range and offset is correct */
 		      break;
@@ -1161,6 +1166,7 @@ f_switch ()
 		}
 	      /* key not found, use default address */
 	      COPY_SHORT (&offset, pc + SW_DEFAULT);
+	      opt_trace (TT_EVAL|TT_TEMP1, "switch case not found, default offset %+d", offset);
 	      break;
 	    }
 	  else
@@ -1186,8 +1192,7 @@ f_switch ()
 		      if (!offset)
 			{
 			  /* range with lookup table */
-			  l = current_prog->program + offset +
-			    (s - r) * sizeof (short);
+			  l = current_prog->program + offset + (s - r) * sizeof (short);
 			  COPY_SHORT (&offset, l);
 			}	/* else normal range and offset is correct */
 		      break;
@@ -1195,6 +1200,7 @@ f_switch ()
 		}
 	      /* use default address */
 	      COPY_SHORT (&offset, pc + SW_DEFAULT);
+	      opt_trace (TT_EVAL|TT_TEMP1, "switch case not found, default offset %+d", offset);
 	      break;
 	    }
 	  else
@@ -1215,6 +1221,7 @@ f_switch ()
 		{
 		  /* use default address */
 		  COPY_SHORT (&offset, pc + SW_DEFAULT);
+		  opt_trace (TT_EVAL|TT_TEMP1, "switch case not found, default offset %+d", offset);
 		  break;
 		}
 	      d >>= 1;
@@ -1242,11 +1249,13 @@ f_switch ()
 		  COPY_SHORT (&offset, l);
 		}		/* else normal range, offset is correct */
 	    }
+	  opt_trace (TT_EVAL|TT_TEMP1, "switch case is found, offset %+d", offset);
 	  break;
 	}
     }
   /* now do jump */
   pc = current_prog->program + offset;
+  opt_trace (TT_EVAL, "jump to %+d", offset);
 }
 
 void

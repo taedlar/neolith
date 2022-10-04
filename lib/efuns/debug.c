@@ -930,7 +930,8 @@ f_program_info (void)
 void
 f_debug_message (void)
 {
-  debug_message ("%s\n", sp->u.string);
+  debug_message ("%s", sp->u.string);
   free_string_svalue (sp--);
+  opt_trace (TT_TEMP1, "return from f_debug_message");
 }
 #endif

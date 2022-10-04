@@ -20,6 +20,7 @@
 #include "lpc/object.h"
 #include "lpc/program.h"
 #include "lpc/function.h"
+#include "lpc/disassemble.h"
 #include "backend.h"
 #include "interpret.h"
 #include "simul_efun.h"
@@ -2014,6 +2015,7 @@ find_line (const char *p, const program_t * progp, char **ret_file, int *ret_lin
   if (offset > (int) progp->program_size)
     {
       debug_error ("illegal offset %+d in object /%s", offset, progp->name);
+      //fatal ("illegal offset %+d in object /%s", offset, progp->name);
       return 4;
     }
 
@@ -2086,15 +2088,26 @@ get_line_number (const char *p, const program_t * progp)
   return buf;
 }
 
+typedef struct function_trace_details_s {
+	char* name;
+	int num_arg;
+	int num_local;
+	int program_offset;
+} function_trace_details_t;
+
 static void inline
-get_trace_details (const program_t* prog, int index, char **fname, int *na, int *nl)
+get_trace_details (const program_t* prog, int index, function_trace_details_t* ftd)
 {
   compiler_function_t *cfp = &prog->function_table[index];
   runtime_function_u *func_entry = FIND_FUNC_ENTRY (prog, cfp->runtime_index);
 
-  *fname = cfp->name;
-  *na = func_entry->def.num_arg;
-  *nl = func_entry->def.num_local;
+  if (ftd)
+    {
+      ftd->name = cfp->name;
+      ftd->program_offset = cfp->address;
+      ftd->num_arg = func_entry->def.num_arg;
+      ftd->num_local = func_entry->def.num_local;
+    }
 }
 
 /*
@@ -2106,10 +2119,10 @@ dump_trace (int how)
 {
   const control_stack_t *p;
   char *ret = 0;
-  char *fname;
   int num_arg = -1, num_local = -1;
   svalue_t *ptr;
-  int i;
+  int i, offset = 0;
+  function_trace_details_t ftd;
 
   if (current_prog == 0)
     return 0;
@@ -2123,11 +2136,12 @@ dump_trace (int how)
       switch (p[0].framekind & FRAME_MASK)
 	{
 	case FRAME_FUNCTION:
-	  get_trace_details (p[1].prog, p[0].fr.table_index,
-			     &fname, &num_arg, &num_local);
-	  log_message (NULL, "\t\e[33m%s()\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n", fname,
+	  get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
+	  num_arg = ftd.num_arg;
+	  num_local = ftd.num_local;
+	  log_message (NULL, "\t\e[33m%s()\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n", ftd.name,
 		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-	  if (strcmp (fname, "heart_beat") == 0)
+	  if (strcmp (ftd.name, "heart_beat") == 0)
 	    ret = p->ob ? p->ob->name : 0;
 	  break;
 	case FRAME_FUNP:
@@ -2185,9 +2199,11 @@ dump_trace (int how)
   switch (p[0].framekind & FRAME_MASK)
     {
     case FRAME_FUNCTION:
-      get_trace_details (current_prog, p[0].fr.table_index,
-			 &fname, &num_arg, &num_local);
-      log_message (NULL, "\t\e[1;33m%s()\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n", fname,
+      get_trace_details (current_prog, p[0].fr.table_index, &ftd);
+      offset = ftd.program_offset;
+      num_arg = ftd.num_arg;
+      num_local = ftd.num_local;
+      log_message (NULL, "\t\e[1;33m%s()\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n", ftd.name,
 		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       break;
     case FRAME_FUNP:
@@ -2216,7 +2232,7 @@ dump_trace (int how)
       outbuf_add (&outbuf, "\t\targuments: ");
       for (i = 0; i < num_arg; i++)
 	{
-	  svalue_to_string (&fp[i], &outbuf, 0, (i==num_arg-1)?0:',',
+	  svalue_to_string (&fp[i], &outbuf, 0, (i == num_arg - 1) ? 0 : ',',
 			    SV2STR_NOINDENT|SV2STR_NONEWLINE);
 	}
       log_message (NULL, "%s\n", outbuf.buffer);
@@ -2232,13 +2248,16 @@ dump_trace (int how)
       outbuf_add (&outbuf, "\t\tlocal variables: ");
       for (i = 0; i < num_local; i++)
 	{
-	  svalue_to_string (&ptr[i], &outbuf, 0, (i==num_local-1)?0:',',
+	  svalue_to_string (&ptr[i], &outbuf, 0, (i == num_local - 1) ? 0 : ',',
 			    SV2STR_NOINDENT|SV2STR_NONEWLINE);
 	}
       log_message (NULL, "%s\n", outbuf.buffer);
       FREE_MSTR (outbuf.buffer);
     }
 
+  log_message (NULL, "\tdisassembly:\n");
+  disassemble (current_log_file, current_prog->program, offset, offset + 30, current_prog);
+  fflush (current_log_file);
   return ret;
 }
 
@@ -2250,10 +2269,10 @@ get_svalue_trace (int how)
   mapping_t *m;
   char *file;
   int line;
-  char *fname;
   int num_arg, num_local;
   svalue_t *ptr;
   int i, n, n2;
+  function_trace_details_t ftd;
 
   if (current_prog == 0)
     return &the_null_array;
@@ -2268,9 +2287,10 @@ get_svalue_trace (int how)
       switch (p[0].framekind & FRAME_MASK)
 	{
 	case FRAME_FUNCTION:
-	  get_trace_details (p[1].prog, p[0].fr.table_index,
-			     &fname, &num_arg, &num_local);
-	  add_mapping_string (m, "function", fname);
+	  get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
+	  num_arg = ftd.num_arg;
+	  num_local = ftd.num_local;
+	  add_mapping_string (m, "function", ftd.name);
 	  break;
 	case FRAME_CATCH:
 	  add_mapping_string (m, "function", "CATCH");
@@ -2330,9 +2350,10 @@ get_svalue_trace (int how)
   switch (p[0].framekind & FRAME_MASK)
     {
     case FRAME_FUNCTION:
-      get_trace_details (current_prog, p[0].fr.table_index,
-			 &fname, &num_arg, &num_local);
-      add_mapping_string (m, "function", fname);
+      get_trace_details (current_prog, p[0].fr.table_index, &ftd);
+      num_arg = ftd.num_arg;
+      num_local = ftd.num_local;
+      add_mapping_string (m, "function", ftd.name);
       break;
     case FRAME_CATCH:
       add_mapping_string (m, "function", "CATCH");
@@ -2434,8 +2455,7 @@ fatal (char *fmt, ...)
       save_context (&econ);
       if (setjmp (econ.context))
 	{
-	  debug_message (_("{}\t***** error in master::%s(), shutdown immediately."),
-			 APPLY_CRASH);
+	  debug_message (_("{}\t***** error in master::%s(), shutdown now."), APPLY_CRASH);
 	}
       else
 	{
@@ -2451,7 +2471,7 @@ fatal (char *fmt, ...)
 	    push_undefined ();
 
 	  apply_master_ob (APPLY_CRASH, 3);
-	  debug_message (_("{}\t----- mudlib crash handler finished, shutdown now.\n"));
+	  debug_message (_("{}\t----- mudlib crash handler finished, shutdown now."));
 	}
     }
 
