@@ -28,7 +28,7 @@
 #define opt_info(level, ...)		do{if(SERVER_OPTION(debug_level)>=(level)) \
 					debug_message_with_src("INFO", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
 /* trace loggers */
-#define opt_trace(tier, ...)		do{if(((SERVER_OPTION(trace_flags)^(tier))<010) && ((SERVER_OPTION(trace_flags)&07) >= ((tier)&07))) \
+#define opt_trace(tier, ...)		do{if(((SERVER_OPTION(trace_flags)&(tier)&~07)==((tier)&~07)) && ((SERVER_OPTION(trace_flags)&07) >= ((tier)&07))) \
 					debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
 #define TT_EVAL		010
 #define TT_COMPILE	020
