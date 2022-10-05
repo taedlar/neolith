@@ -2458,7 +2458,10 @@ fatal (char *fmt, ...)
 	}
       else
 	{
+	  svalue_t* ret;
+
 	  copy_and_push_string (msg);
+
 	  if (command_giver)
 	    push_object (command_giver);
 	  else
@@ -2469,8 +2472,11 @@ fatal (char *fmt, ...)
 	  else
 	    push_undefined ();
 
-	  apply_master_ob (APPLY_CRASH, 3);
-	  debug_message (_("{}\t----- mudlib crash handler finished, shutdown now."));
+	  ret = apply_master_ob (APPLY_CRASH, 3);
+	  if (ret && ret != (svalue_t*)-1)
+	    {
+	      debug_message (_("{}\t----- mudlib crash handler finished, shutdown now."));
+	    }
 	}
     }
 
