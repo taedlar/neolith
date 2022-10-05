@@ -65,6 +65,9 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   svalue_t *ret;
   char *nm;
 
+  if (!CONFIG_STR (__SAVE_BINARIES_DIR__))
+    return; /* do not allow save binary */
+
   nm = add_slash (prog->name);
   push_malloced_string (nm);
   ret = safe_apply_master_ob (APPLY_VALID_SAVE_BINARY, 1);
@@ -362,6 +365,8 @@ int_load_binary (char *name)
   /* stuff from prolog() */
   num_parse_error = 0;
 
+  if (!CONFIG_STR(__SAVE_BINARIES_DIR__))
+    return OUT_OF_DATE;
   sprintf (file_name, "%s/%s", CONFIG_STR (__SAVE_BINARIES_DIR__), name);
   if (file_name[0] == '/')
     file_name++;
@@ -370,7 +375,7 @@ int_load_binary (char *name)
 
   fd = open (file_name, O_RDONLY);
   if (-1 == fd)
-	  return OUT_OF_DATE;
+    return OUT_OF_DATE;
   if (fstat (fd, &st) == -1) {
     close (fd);
     return OUT_OF_DATE;
@@ -477,8 +482,7 @@ int_load_binary (char *name)
        * Check times against inherited source.  If saved binary of
        * inherited prog exists, check against it also.
        */
-      sprintf (file_name_two, "%s/%s", CONFIG_STR (__SAVE_BINARIES_DIR__),
-	       buf);
+      sprintf (file_name_two, "%s/%s", CONFIG_STR (__SAVE_BINARIES_DIR__), buf);
       if (file_name_two[0] == '/')
 	file_name_two++;
       len = strlen (file_name_two);
@@ -581,6 +585,14 @@ int_load_binary (char *name)
 void
 init_binaries ()
 {
+  if (CONFIG_STR(__SAVE_BINARIES_DIR__))
+    {
+      opt_info (1, "using #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
+    }
+  else
+    {
+      opt_info (1, "not using #pragma save_binary");
+    }
 }
 
 /*
