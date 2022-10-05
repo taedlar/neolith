@@ -241,7 +241,7 @@ init_config (char *filename)
   CONFIG_STR (__GLOBAL_INCLUDE_FILE__) =
     scan_config (config, "GlobalInclude", 0, NULL);
   CONFIG_STR (__BIN_DIR__) = NULL;
-  CONFIG_STR (__INCLUDE_DIRS__) = scan_config (config, "IncludeDir", 1, NULL);
+  CONFIG_STR (__INCLUDE_DIRS__) = scan_config (config, "IncludeDir", 0, NULL);
   CONFIG_STR (__SAVE_BINARIES_DIR__) = scan_config (config, "SaveBinaryDir", 0, NULL);
   CONFIG_STR (__MASTER_FILE__) = scan_config (config, "MasterFile", 1, NULL);
   CONFIG_STR (__SIMUL_EFUN_FILE__) =

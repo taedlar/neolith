@@ -79,8 +79,8 @@ struct lpc_predef_s *lpc_predefs = NULL;
 
 static int yyin_desc;
 static int lex_fatal;
-static char **inc_list;
-static int inc_list_size;
+static char **inc_list = NULL;
+static int inc_list_size = 0;
 static int defines_need_freed = 0;
 static char *last_nl;
 static int nexpands = 0;
@@ -407,6 +407,10 @@ inc_open (char *buf, char *name)
     }
   for (i = 0; i < inc_list_size; i++)
     {
+      if (inc_list)
+	break;
+      if (inc_list[i] == 0)
+	continue;
       sprintf (buf, "%s/%s", inc_list[i], name);
       if ((f = open (buf, O_RDONLY)) != -1)
 	{
@@ -3337,13 +3341,15 @@ set_inc_list (char *list)
   char *p;
 
   if (list == 0)
+    return; /* it's ok to not having inc_list */
+
+  if (mbstowcs (NULL, list, 0) != strlen(list))
     {
-      fprintf (stderr,
-	       "The config string 'include dirs' must bet set.\n"
-	       "It should contain a list of all directories to be searched\n"
-	       "for include files, separated by a ':'.\n");
-      exit (-1);
+      debug_message ("{}\t***** non-ANSI characters are not allowed in include search path.");
+      exit (EXIT_FAILURE);
     }
+  debug_message ("{}\tusing LPC header search path: %s", list);
+
   size = 1;
   p = list;
   while (1)
@@ -3358,7 +3364,7 @@ set_inc_list (char *list)
   inc_list_size = size;
   for (i = size - 1; i >= 0; i--)
     {
-      p = strrchr (list, ':');
+      p = strrchr (list, ':'); /* get one path from the end of list */
       if (p)
 	{
 	  *p = '\0';
@@ -3368,20 +3374,19 @@ set_inc_list (char *list)
 	{
 	  if (i)
 	    {
-	      fatal (_("*****Fatal error in set_inc_list: bad state.\n"));
-	      exit (1);
+	      while (i>0)
+		inc_list[i--] = 0;
 	    }
 	  p = list;
 	}
       if (*p == '/')
 	p++;
-      /*
-       * Even make sure that the mud administrator has not made an error.
-       */
+
       if (!legal_path (p))
 	{
-	  fatal (_("*****IncludeDir directories cannot contain any '..' in the path"));
-	  exit (-1);
+	  debug_warn ("unsafe directory removed from include search path: %s", p);
+	  inc_list[i] = 0;
+	  continue;
 	}
       inc_list[i] = make_shared_string (p);
     }
