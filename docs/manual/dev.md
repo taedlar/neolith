@@ -71,4 +71,5 @@ Example below is a Neolith debug log file with ES2 mudlib (mixing NDLF messages 
 2022-10-05 13:11:03     ["ERROR","interpret.c",3639,"eval_instruction"] Bad stack after evaluation. Instruction 93
 2022-10-05 13:11:03     ["ERROR","interpret.c",3639,"eval_instruction"] Bad stack after evaluation. Instruction 93
 2022-10-05 13:11:03     ["ERROR","interpret.c",3639,"eval_instruction"] Bad stack after evaluation. Instruction 93
-2022-10-05 13:11:03     ["ERROR","interpret.c",3639,"eval_instruction"] Bad stack after evaluation. Instruction 93```
+2022-10-05 13:11:03     ["ERROR","interpret.c",3639,"eval_instruction"] Bad stack after evaluation. Instruction 93
+```
