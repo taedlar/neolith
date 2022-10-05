@@ -21,9 +21,12 @@ To start a MUD using Neolith, you need a Neolith configuration file.
 Please make a copy from [src/neolith.conf](src/neolith.conf) and customize the settings for your needs.
 You can launch the MUD by the command:
 ```
-$ neolith -f <path-to-customized-neolith.conf> &
+$ neolith -f <path-to-neolith.conf> &
 ```
-For detailed information about Neolith configuration settings and troubleshooting, see [Neolith Administrator Guide](docs/manual/admin.md).
+If you are new to Neolith, the follow documentations are for you:
+- [Neolith Administrator Guide](docs/manual/admin.md)
+- [Neolith LPC Guide](docs/manual/lpc.md)
+- [Neolith World Creation Guide](docs/manual/world.md)
 
 ## Contributing
 An open source project relies on collaboration of contributors to fix bugs and improve the code quality.
@@ -32,6 +35,5 @@ We hope the Neolith project to be a good place where open source contributors ar
 Therefore developer-oriented documentations shall be kept up-to-date as best as possible.
 
 Please take a look into the following documents before you jumping-in:
-
 - [Neolith LPMud Driver Internals](docs/manual/internals.md)
 - [Neolith Developor Reference](docs/manual/dev.md)
