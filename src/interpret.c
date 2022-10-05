@@ -3768,13 +3768,10 @@ find_function_by_name2 (object_t * ob, char **name, int *index, int *fio,
 }
 
 
-/*
- *	int apply_low (char* fun, object_t* ob, int num_arg)
+/*  int apply_low (char* fun, object_t* ob, int num_arg)
  *
- *	呼叫一個 LPC 函數。
- *	如果函數未定義, 傳回 0。
- *	如果執行成功, 傳回值會被放在 stack 頂端 (*sp), 傳回 1。
- *	如果執行過程發生錯誤, 會 longjmp 到 current_error_context。
+ *  Return 0 if the applied function is not defined in the LPC object.
+ *  Return 1 if the applied function has been called successfully.
  */
 
 int
@@ -3813,7 +3810,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
   apply_low_call_others++;
 #endif
 
-  /* 計算出一個 APPLY_CACHE 的 hash key */
+  /* compute hash key in APPLY_CACHE */
   ix = (progp->id_number ^ (POINTER_INT) fun ^
 	((POINTER_INT) fun >> APPLY_CACHE_BITS)) & cache_mask;
   entry = &cache[ix];
@@ -3860,7 +3857,6 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	  if (!(funflags & (NAME_STATIC | NAME_PRIVATE))
 	      || (local_call_origin & (ORIGIN_DRIVER | ORIGIN_CALL_OUT)))
 	    {
-	      const control_stack_t* save_csp;
 	      /* push a frame onto control stack */
 	      push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
 	      csp->num_local_variables = num_arg;
@@ -3885,12 +3881,9 @@ apply_low (char *fun, object_t * ob, int num_arg)
 
 	      previous_ob = current_object;
 	      current_object = ob;
-	      save_csp = csp;
 	      opt_trace (TT_EVAL, "call_program (APPLY_CACHE) \"%s\": offset %+d", fun, funp->address);
 	      call_program (current_prog, funp->address);
 
-	      if (save_csp - 1 != csp)
-		debug_error ("bad csp after execution in apply_low.");
 	      return 1;
 	    }
 	}			/* when we come here, the cache has told us
@@ -3982,6 +3975,8 @@ apply_low (char *fun, object_t * ob, int num_arg)
 
   /* Failure. Deallocate stack. */
   pop_n_elems (num_arg);
+
+  opt_trace (TT_EVAL, "not defined: \"%s\"", fun);
   return 0;
 }
 
@@ -4879,6 +4874,7 @@ apply_master_ob (char *fun, int num_arg)
 {
   if (NULL == master_ob)
     {
+      opt_trace (TT_EVAL, "no master object: \"%s\"", fun);
       pop_n_elems (num_arg);
       return (svalue_t *) - 1;
     }

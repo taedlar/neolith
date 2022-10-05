@@ -2275,7 +2275,7 @@ epilog ()
     (unsigned short *) DXALLOC (lnsz, TAG_LINENUMBERS, "epilog");
   prog->file_info[0] = (unsigned short) lnsz;
   prog->file_info[1] = (unsigned short) lnoff;
-  opt_trace (TT_COMPILE, "file_info: %d", lnsz);
+  opt_trace (TT_COMPILE|1, "file_info: %d bytes", lnsz);
 
   memcpy (((char *) &prog->file_info[2]),
 	  mem_block[A_FILE_INFO].block, mem_block[A_FILE_INFO].current_size);
@@ -2289,7 +2289,7 @@ epilog ()
 
   prog->program = p;
   prog->program_size = mem_block[A_PROGRAM].current_size;
-  opt_trace (TT_COMPILE, "program_size: %d", prog->program_size);
+  opt_trace (TT_COMPILE|1, "program_size: %d bytes", prog->program_size);
   copy_in (A_PROGRAM, &p);
 
   prog->num_functions_total = num_fun;
