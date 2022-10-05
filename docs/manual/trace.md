@@ -1,7 +1,7 @@
 Tracing Neolith LPMud Driver
 ============================
 
-Troubleshooting a LPMud Driver in your local test is one thing, while troubleshooting a LPMud Driver while there are users connected is another.
+Troubleshooting a LPMud Driver in your local test is one thing, but troubleshooting a LPMud Driver **while users connected** is another.
 It is not likely you can attach a debugger to the process and set breakpoints. Also, there are also cases that bug or crash issues will not reproduce
 without user interaction with the MUD. You may need thoe old-fashioned tracing techniques to find out what goes wrong.
 
@@ -42,6 +42,10 @@ Conventionally a trace flag is represented as an octal integer so we use the las
 
 Enables trace messages about LPC code evaluation.
 
+Extra verbose level:
+- 011: switch statement internals
+- 013: per-instruction program counter change
+
 ## Tier 020: TT_COMPILE
 
 Enables trace messages about compiling LPC programs.
@@ -49,3 +53,8 @@ Enables trace messages about compiling LPC programs.
 ## Tier 040: TT_SIMUL_EFUN
 
 Enables trace messages about Simul Efuns.
+
+Extra verbose level:
+- 041: calling simul efun
+- 042: number of args when calling simul efun
+
