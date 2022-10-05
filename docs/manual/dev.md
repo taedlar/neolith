@@ -14,10 +14,9 @@ Human-readbility is equally important for a LPMud's wizards, especially when the
 Neolith's log format is designed to balance both requirements while keeping the size of debug log as small as possible.
 The Neolith Debug Log Format (NDLF) is described as below:
 
-1. The debug log file is a stream of log messages separated by the newline ('\n') character.
-2. If a log message starts with a hash sign ('#') or tab ('\t') character, the line is only for human-readaile. Log processing tool can skip these lines safely.
-3. Otherwise, the log message can be parsed into multiple columns separated by tab character like below:
-
+1. The debug log file is a stream of log messages separated by newline ('\n') character.
+2. If a log message starts with a hash sign ('#') or tab ('\t') character, the line is only for human read. Log processing tool may skip these lines safely.
+4. Otherwise, the log message can be parsed into multiple columns separated by tab character like below:
 ```
 [timestamp \t] [log-meta \t] message-text \n
 ```
