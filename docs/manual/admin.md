@@ -23,8 +23,6 @@ Below is a list of settings that are mandatory.
 | Name | Value |
 | --- | --- |
 | MudlibDir | Full-path of the mudlib directory in the host filesystem. |
-| IncludeDir | The search path of LPC #include. Multiple paths can be assigned by separate them with `:` character. |
-| SaveBinaryDir | The path for storing data file when using `#pragma save_binary`. |
 | MasterFile | The file path of the privileged master object. |
 | Port | The TCP port for which your MUD shall listen for new connections. |
 
@@ -35,9 +33,11 @@ Below is a list of optional settings.
 | --- | --- | --- |
 | MudName | Name of the MUD, which is made available to LPC by the pre-defined symbol `MUD_NAME`. | (empty string) |
 | LogDir | The full-path for `log_file()` to create log files. | use MudlibDir |
-| DebugLogFile | The filename of debug log file where the LPMud driver's log messages is appended to. | NULL |
+| DebugLogFile | The filename of debug log file where the LPMud driver's log messages is appended to. | Use stderr |
 | LogWithDate | Prefix each log message with an ISO-8601 format date and time. | No |
+| IncludeDir | The search path of LPC #include. Multiple paths can be assigned by separate them with `:` character. | Not using |
 | GlobalInclude | An #include header that is automatically included by all LPC programs. | Not using |
+| SaveBinaryDir | The path for storing data file when using `#pragma save_binary`. | Ignores #pragma save_binary |
 | SimulEfunFile | The first LPC object to be loaded, and all its public functions are made available to any LPC program like efuns. | Not using |
 | DefaultErrorMessage | A default message shown to the interactive user when LPC runtime error occurs during processing of the commmand he or she has typed. | Not using |
 | DefaultFailMessage | A default message shown to the interactive user when he or she typed a command that is not recognized by any `add_action` | Not using |
