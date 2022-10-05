@@ -1810,7 +1810,7 @@ eval_instruction (char *p)
   pc = p; // current_prog->program
   while (1)
     {
-      opt_trace (TT_EVAL|TT_TEMP1, "offset %+d", pc - current_prog->program);
+      opt_trace (TT_EVAL|3, "offset %+d", pc - current_prog->program);
       instruction = EXTRACT_UCHAR (pc++);
       if (!--eval_cost)
 	{

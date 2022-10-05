@@ -2014,8 +2014,7 @@ find_line (const char *p, const program_t * progp, char **ret_file, int *ret_lin
   offset = p - progp->program;
   if (offset > (int) progp->program_size)
     {
-      debug_error ("illegal offset %+d in object /%s", offset, progp->name);
-      //fatal ("illegal offset %+d in object /%s", offset, progp->name);
+      opt_warn (1, "illegal offset %+d in object /%s", offset, progp->name);
       return 4;
     }
 

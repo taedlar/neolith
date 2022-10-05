@@ -932,6 +932,5 @@ f_debug_message (void)
 {
   debug_message ("%s", sp->u.string);
   free_string_svalue (sp--);
-  opt_trace (TT_TEMP1, "return from f_debug_message");
 }
 #endif
