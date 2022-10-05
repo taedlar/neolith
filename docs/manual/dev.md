@@ -23,7 +23,7 @@ Neolith generates these types of debug log:
 | ERROR | An error occurs in the LPMud Driver. Evaluation of LPC code is interrupted and `error_hander()` is called in the master object. | Yes |
 | WARN | An warning message that worth a look, but the LPMud Driver is able to tolerate or fall back to some reasonable behavior. | Yes |
 | INFO | An informative message. This is similar to trace messages, but enabled by default. | Yes |
-| TRACE | A trace message that is enabled through `--trace`. | No |
+| TRACE | A trace message that is enabled through `--trace`. | No, see [tracing](trace.md) |
 
 Please note that Debug Log Type does not imply any default Debug Log Level. For example, when you specify debug level 1, an ERROR message of debug level 3 is not enabled while a WARN message of debug level 1 is enabled.
 
