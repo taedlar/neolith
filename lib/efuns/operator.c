@@ -1061,14 +1061,14 @@ f_switch ()
 	  if (sp->subtype == STRING_SHARED)
 	    {
 	      s = (POINTER_INT) sp->u.string;
-	      opt_trace (TT_EVAL|TT_TEMP1, "f_switch (string labels): search \"%s\"", (char*)s);
+	      opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)s);
 	      free_string (sp->u.string);
 	      sp--;
 	    }
 	  else
 	    {
 	      s = (POINTER_INT) findstring (sp->u.string);
-	      opt_trace (TT_EVAL|TT_TEMP1, "f_switch (string labels): search \"%s\"", (char*)sp->u.string);
+	      opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)sp->u.string);
 	      free_string_svalue (sp--);
 	    }
 	  if (s == 0)
@@ -1092,7 +1092,7 @@ f_switch ()
       CHECK_TYPES (sp, T_NUMBER, 1, F_SWITCH);
       s = (sp--)->u.number;
       i = (int) pc[0] & 0xf;
-      opt_trace (TT_EVAL|TT_TEMP1, "f_switch (integer labels): search %d", s);
+      opt_trace (TT_EVAL|1, "f_switch (integer labels): search %d", s);
     }
   end_tab = current_prog->program + end_off;
   /*
@@ -1113,7 +1113,7 @@ f_switch ()
 	      if (offset)
 		{
 		  pc = current_prog->program + offset;
-		  opt_trace (TT_EVAL|TT_TEMP1, "jump to %+d", offset);
+		  opt_trace (TT_EVAL|1, "jump to %+d", offset);
 		  return;
 		}
 	    }
@@ -1140,7 +1140,7 @@ f_switch ()
   for (;;)
     {
       COPY_PTR (&r, l);
-      opt_trace (TT_EVAL|TT_TEMP1, "comparing %p with %p", s, r);
+      opt_trace (TT_EVAL|1, "comparing %p with %p", s, r);
       if (s < r)
 	{
 	  if (d < SWITCH_CASE_SIZE)
@@ -1166,7 +1166,7 @@ f_switch ()
 		}
 	      /* key not found, use default address */
 	      COPY_SHORT (&offset, pc + SW_DEFAULT);
-	      opt_trace (TT_EVAL|TT_TEMP1, "switch case not found, default offset %+d", offset);
+	      opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
 	      break;
 	    }
 	  else
@@ -1200,7 +1200,7 @@ f_switch ()
 		}
 	      /* use default address */
 	      COPY_SHORT (&offset, pc + SW_DEFAULT);
-	      opt_trace (TT_EVAL|TT_TEMP1, "switch case not found, default offset %+d", offset);
+	      opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
 	      break;
 	    }
 	  else
@@ -1221,7 +1221,7 @@ f_switch ()
 		{
 		  /* use default address */
 		  COPY_SHORT (&offset, pc + SW_DEFAULT);
-		  opt_trace (TT_EVAL|TT_TEMP1, "switch case not found, default offset %+d", offset);
+		  opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
 		  break;
 		}
 	      d >>= 1;
@@ -1249,7 +1249,7 @@ f_switch ()
 		  COPY_SHORT (&offset, l);
 		}		/* else normal range, offset is correct */
 	    }
-	  opt_trace (TT_EVAL|TT_TEMP1, "switch case is found, offset %+d", offset);
+	  opt_trace (TT_EVAL|1, "switch case is found, offset %+d", offset);
 	  break;
 	}
     }
@@ -1264,7 +1264,7 @@ call_simul_efun (unsigned short index, int num_arg)
   extern object_t *simul_efun_ob;
   compiler_function_t *funp;
 
-  opt_trace (TT_SIMUL_EFUN, "index %d, num_arg %d", index, num_arg);
+  opt_trace (TT_SIMUL_EFUN|2, "index %d, num_arg %d", index, num_arg);
 
   if (current_object->flags & O_DESTRUCTED)
     {				/* No external calls allowed */
@@ -1286,7 +1286,7 @@ call_simul_efun (unsigned short index, int num_arg)
       funp = setup_new_frame (simuls[index].index);
       previous_ob = current_object;
       current_object = simul_efun_ob;
-      opt_trace (TT_SIMUL_EFUN, "call_program: \"%s\" offset %+d", funp->name, funp->address);
+      opt_trace (TT_SIMUL_EFUN|1, "call_program: \"%s\" offset %+d", funp->name, funp->address);
       call_program (current_prog, funp->address);
     }
   else
