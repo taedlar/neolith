@@ -127,9 +127,9 @@ format that shows which Neolith function prints the message.
 ```
 2022-10-06 12:20:22     ["TRACE","interpret.c",4877,"apply_master_ob"]  no master object: "valid_object"
 ```
-Follwing the `load_object()` function, you can see the `apply_master_ob()` function says *"no master object"* when it tries to call
+Follwing the `load_object` function, you can see the `apply_master_ob` function says *"no master object"* when it tries to call
 the `valid_object` in the master object. This is okay because master object is not acting yet before it finiishs initialization
-in `create()'.
+in `create`.
 
 > The term "apply" is LPMud's version of [delegate](https://en.wikipedia.org/wiki/Delegation_pattern) technique that calls a
 > LPC function from the LPMud Driver. Don't complain for misuses of term, LPMud was developed in 1989 while the definition of
@@ -138,8 +138,10 @@ in `create()'.
 ```
 2022-10-06 12:20:22     ["TRACE","interpret.c",3979,"apply_low"]        not defined: "create"
 ```
-Neolith then calls `create()` in the master object. M3 Mudlib's master object looks like below:
+Neolith then calls `create` in the master object. The `apply_low` is a generic function to call apply functions in any LPC object,
+including the master object. You can expect `apply_master_ob` to invoke `apply_low` after the master object has finished loading.
 
+M3 Mudlib's master object LPC code looks like below:
 ```C
 static object connect (int port)
 {
@@ -147,14 +149,26 @@ static object connect (int port)
 }
 ```
 
-It only defines a `connect()` function, which we will discuss later. M3's master object does not define `create()` function,
+It only defines a `connect` function, which we will discuss later. M3's master object does not define the `create` function,
 as the trace message has indicated. This is okay too.
 
-The `get_root_uid()` and `get_bb_uid()` are not used in M3 either. Neolith then initiates the mudlib-defined `epilog()` stage
-that allows pre-loading important objects. Again, M3 Mudlib does not need pre-loading.
+The `get_root_uid` apply and `get_bb_uid` apply are not used in M3 either. Neolith then initiates the mudlib-defined `epilog`
+stage that allows pre-loading important objects. Again, M3 Mudlib does not need pre-loading.
 
-When you see the line saying **----- entering MUD -----**, it means the MUD is ready for accepting user connections.
+When you see the line saying **----- entering MUD -----**, it means the MUD has finished epilog stage and is ready for
+accepting user connections.
 
 ### What happens when a user connects to M3 MUD?
 ### What happens when user types a command?
 ### What happens when LPMud Driver process is terminated?
+## User Object
+### Command routing
+### The `heart_beat` apply
+## Physics of LPC Objects
+### The `reset` apply
+### The `clean_up` apply
+## Magics behind Wizard
+### File System
+### Socket
+
+
