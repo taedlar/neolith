@@ -299,13 +299,13 @@ Terminology | Definition
 *environment* | An object A can be moved "into" another object B, so that object B becomes the environment of object A.
 *inventory* | If object B is environment of object A, then object A is one of the objects in object B's inventory.
 
-## Creating The First Room
+## Creating Rooms
 > Explains `say`, `shout`, `tell_object`, `tell_room`
 
-## Creating The First Item
+## Creating Items
 > Explains `move_object`, `environment`, `inventory`
 
-## Creating the First Non-Player Character
+## Creating Non-Player Characters
 > Explains `heart_beat`
 
 ## Resource Management
@@ -322,6 +322,7 @@ Terminology | Definition
 > Explains `input_to`
 
 ## Creating Command Routes
+> Explains `call_other`
 > Implement command handlers as individual object to help resource management.
 
 ## Creating Save Files
