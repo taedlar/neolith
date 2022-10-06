@@ -300,8 +300,16 @@ Terminology | Definition
 *inventory* | If object B is environment of object A, then object A is one of the objects in object B's inventory.
 
 ## Creating The First Room
+> Explains `say`, `shout`, `tell_object`, `tell_room`
+
 ## Creating The First Item
+> Explains `move_object`, `environment`, `inventory`
+
 ## Creating the First Non-Player Character
+> Explains `heart_beat`
+
+## Resource Management
+> Explains `reset`, `clean_up`
 
 # Chapter 3: Players
 
@@ -311,8 +319,13 @@ Terminology | Definition
 *euid* | A secondary uid (effective uid) for mudlib designer to implement temporary uid.
 
 ## Creating Logon Flow
-## Creating Command Routings
-## Creating Player Save Files
+> Explains `input_to`
+
+## Creating Command Routes
+> Implement command handlers as individual object to help resource management.
+
+## Creating Save Files
+> Explains `save_object`, `restore_object`
 
 # Chapter 4: Security
 
@@ -321,5 +334,7 @@ Terminology | Definition
 *simul efun* | A LPC function defined in the simul efun file that is made directly available to all LPC programs by the LPMud Driver.
 
 ## Creating Simul Efun
-## Creating Wizard Class
+> Explains `valid_*`
 
+## Creating Wizard Class
+> Explains `enable_wizard`, `disable_wizard`
