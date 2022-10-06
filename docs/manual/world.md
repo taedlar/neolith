@@ -1,7 +1,7 @@
 Neolith World Creation Guide
 ============================
 
-# Tutorial: M3 Mudlib
+# Chapter 1: Tutorial of M3 Mudlib
 Did you ever seen a LPMud mudlib in *less than 20* lines of LPC code?
 
 Meet the [M3 Mudlib](/examples/m3_mudlib) (**M**inimum **M**akeshift **M**udlib)
@@ -77,14 +77,6 @@ Please press Ctrl-C, and you shall see messages like below:
 Aborted
 ```
 When the `neolith` process is interrupted, it disconnects all connected users, write a log message and exits.
-
-# Neolith and Mudlib Interaction
-
-If you wonder how your favorite MUD is created, and why it is so difficult to find good documentations about creating a MUD,
-it is because most LPMud Driver variants hide their interactions with the Mudlib deep inside the LPC code.
-It makes the knowledge about the system of a MUD almost a "secret" owned by the high level wizards of individual MUD, and
-those wizards love it. This article will try to *make you one of them*. It is your decision whether you'd share the
-secrets with your players, because knowing too much is not always a good thing for ordinary players.
 
 ## Meet M3 Mudlib Again (in a new way)
 
@@ -255,9 +247,11 @@ Now, try yo enter the `'quit'` command in the telnet client. Your connection sha
 2022-10-06 18:59:00     ["TRACE","interpret.c",3953,"apply_low"]        call_program "cmd_quit": offset +12
 ```
 
-The `add_action` in the `logon` registers the `cmd_quit` as command handler of `'quit'` for this user object. When Neolith receives
-a command from the client, it parses the command and look ups the list of registered command handlers, the call matched handlers
-in sequence until one of them returns a non-zero value.
+The `add_action` in the `logon` registers the `cmd_quit` as command handler of `'quit'` (a **verb**, in LPMud's terminology) for
+this user object. When Neolith receives a line of command from the client, it parses the command and take the first word as verb,
+the look up the list of registered command handlers and call matching verb handlers in sequence until one of them returns a
+non-zero value. The way commands are parsed allows the handler of `'quit'` to match any command string start with `'quit'` and
+optionally followed by a space and arguments, for example: `'quit now'`.
 
 In the `cmd_quit` function, there are two lines of code:
 ```C
@@ -269,34 +263,44 @@ Calling `destruct` for `this_object()` destroys the object where the function is
 an user object effectively disconnects the user.
 
 ### What happens when LPMud Driver process is terminated?
-The M3 Mudlib does not provide wizard command to shutdown the MUD. Instead, you can shutdown it easily by press Ctrl-C to interrupt
-the `neolith` process. The operating system sends SIGINT to the process and Neolith can catch it, then terminate.
+The M3 Mudlib does not provide wizard command to shutdown the MUD. Instead, you can shutdown it directly by press Ctrl-C to interrupt
+the process. The operating system sends SIGINT to the process and Neolith can catch it, then terminate.
 
 ```
 ^C2022-10-06 19:32:49   {}      ***** process interrupted
 2022-10-06 19:32:49     ["TRACE","interpret.c",3979,"apply_low"]        not defined: "crash"
 Aborted
 ```
-The last line shows Neolith attempts to call the `crash` apply in master to let M3 do the some proper handlings.
+The last line shows Neolith attempts to call the `crash` apply in master to let M3 do the some proper handlings. Besides SIGINT, SIGTERM
+SIGSEGV also lead to the crash handler and terminate the MUD process.
 
-## User Object
-A LPC object can be become a user obejct by being returned from the master object's `connect` apply when a new connection is accept by the LPMud Driver.
-Or, being transtered to from another user object.
+## Tutorial Take-Aways
+The tutorials of M3 Mudlib ends here.
 
-### Command routing
-### The `heart_beat` apply
+By finish reading this far, you are able to set up a minimum mudlib and add verb handlers. Below table is a cheatsheet for you to recall
+the take-aways:
 
-## Physics of LPC Objects
-LPC objects can have a "inventory and environment" relationship to each other, which offers the foundation of physics in a MUD world.
+Concept | Summary
+--- | ---
+`connect` in master object | Creates the user object when a new connection is accepted.
+`logon` in user object | Initiates the other things after `connect` creates the user object.
+`enable_commands` | Eables an object to take commands.
+verb | The first word of a command string.
+`add_action` efun | Installs a handler function to handle a verb.
 
-### Moving objects around
-### The `reset` apply
-### The `clean_up` apply
+# Chapter 2: Physics of LPC Objects
+Before we proceed to explain about essential concepts of object physics, here is a table of more terminologies
+(they are common to all LPMud variants) that will be used in the following chapters:
 
-## Magics behind Wizard
-In addition to the inventory and environment relationships, you must have seen some wizard toys that works beyond limitations of these relationships.
+Terminology | Definition
+--- | ---
+*user object* | An object can become an user obejct by being returned from the master object's `connect` function when a new connection is accepted. You can also turn an object into user object by calling `exec` efun to transfer the user from an existing user object.
+*living object* | An object becomes living object after the `enable_commands` is called. Only a living object can interact with its environment, inventory, and sibling objects in the same environment via commands. The state of living object can be removed by calling `disable_commands`.
+*environment* | An object A can be moved "into" another object B, so that object B becomes the environment of object A.
+*inventory* | If object B is environment of object A, then object A is one of the objects in object B's inventory.
 
-### Filesystem
-### Socket
-
+## Creating The First Room
+## Creating The First Item
+## Creating the First Non-Player Character
+## Lifecycle of objects
 
