@@ -302,5 +302,24 @@ Terminology | Definition
 ## Creating The First Room
 ## Creating The First Item
 ## Creating the First Non-Player Character
-## Lifecycle of objects
+
+# Chapter 3: Players
+
+Terminology | Definition
+--- | ---
+*uid* | A identifier assigned by the master object's `creator_file` function when an object was created.
+*euid* | A secondary uid (effective uid) for mudlib designer to implement temporary uid.
+
+## Creating Logon Flow
+## Creating Command Routings
+## Creating Player Save Files
+
+# Chapter 4: Security
+
+Terminology | Definition
+--- | ---
+*simul efun* | A LPC function defined in the simul efun file that is made directly available to all LPC programs by the LPMud Driver.
+
+## Creating Simul Efun
+## Creating Wizard Class
 
