@@ -7,7 +7,7 @@ Neolith is a MudOS fork that retains almost every LPC language features and comp
 LPC reference manual.
 
 ## References
-- [Efuns List](efuns.md)
+- [Efuns List](/docs/efuns.md)
 
 # For Beginers
 (WIP)
