@@ -8,6 +8,10 @@ LPC reference manual.
 
 ## References
 - [Efuns List](/docs/efuns.md)
+- Apply Functions
+  - [All Objects](/docs/applies/all-objects.md)
+  - [Interactive Objects](/doc/applies/interactive-objects.md)
+  - [Master Object](/doc/applies/master-object.md)
 
 # For Beginers
 (WIP)
