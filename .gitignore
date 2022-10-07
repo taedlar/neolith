@@ -44,6 +44,7 @@ po/POTFILES
 *.spec
 src/neolith
 lib/efuns/edit_source
+lib/efuns/.*.h
 
 # vim
 *.swp
