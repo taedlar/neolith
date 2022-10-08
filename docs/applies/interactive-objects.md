@@ -6,5 +6,6 @@
 - [receive_message](/docs/applies/interactive/receive_message.md)
 - [receive_snoop](/docs/applies/interactive/receive_snoop.md)
 - [telnet_suboption](/docs/applies/interactive/telnet_suboption.md)
-- [terminal_type](/docs/applies/interactive/terminal_type.md)
+- [set_terminal_type](/docs/applies/interactive/set_terminal_type.md)
+- [set_window_size](/docs/applies/interactive/set_window_size.md)
 - [write_prompt](/docs/applies/interactive/write_prompt.md)
