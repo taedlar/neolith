@@ -11,7 +11,6 @@
 - [arrayp](/docs/efuns/arrayp.md)
 - [asin](/docs/efuns/asin.md)
 - [atan](/docs/efuns/atan.md)
-- [author_stats](/docs/efuns/author_stats.md)
 ### b
 - [bind](/docs/efuns/bind.md)
 - [break_string](/docs/efuns/break_string.md)
@@ -43,7 +42,6 @@
 - [destruct](/docs/efuns/destruct.md)
 - [disable_commands](/docs/efuns/disable_commands.md)
 - [disable_wizard](/docs/efuns/disable_wizard.md)
-- [domain_stats](/docs/efuns/domain_stats.md)
 - [dump_file_descriptors](/docs/efuns/dump_file_descriptors.md)
 - [dump_prog](/docs/efuns/dump_prog.md)
 - [dump_socket_status](/docs/efuns/dump_socket_status.md)
@@ -182,7 +180,6 @@
 - [save_object](/docs/efuns/save_object.md)
 - [save_variable](/docs/efuns/save_variable.md)
 - [say](/docs/efuns/say.md)
-- [set_author](/docs/efuns/set_author.md)
 - [set_bit](/docs/efuns/set_bit.md)
 - [set_debug_level](/docs/efuns/set_debug_level.md)
 - [set_eval_limit](/docs/efuns/set_eval_limit.md)

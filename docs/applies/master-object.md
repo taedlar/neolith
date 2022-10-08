@@ -1,10 +1,8 @@
 # Apply Functions Called In Master Object
-- [author_file](/docs/applies/master/author_file.md)
 - [compile_object](/docs/applies/master/compile_object.md)
 - [connect](/docs/applies/master/connect.md)
 - [crash](/docs/applies/master/crash.md)
 - [creator_file](/docs/applies/master/creator_file.md)
-- [domain_file](/docs/applies/master/domain_file.md)
 - [epilog](/docs/applies/master/epilog.md)
 - [error_handler](/docs/applies/master/error_handler.md)
 - [flag](/docs/applies/master/flag.md)
