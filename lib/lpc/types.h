@@ -12,6 +12,13 @@
 #ifndef	_LPC_TYPES_H
 #define	_LPC_TYPES_H
 
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+
 typedef struct array_s			array_t;
 typedef struct buffer_s			buffer_t;
 typedef struct compiler_function_s	compiler_function_t;
@@ -31,7 +38,7 @@ typedef struct {
 
 union u {
     char *string;
-    int number;
+    intptr_t number;
     float real;
 
     refed_t *refed;		/* any of the block below */

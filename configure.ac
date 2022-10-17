@@ -51,9 +51,9 @@ AC_FUNC_MEMCMP
 AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
 AC_FUNC_WAIT3
+AC_CHECK_LIB([rt],[timer_settime])
 AC_CHECK_FUNCS(getcwd gethostname getline gettimeofday getwd mkdir putenv\
-	regcomp rmdir select socket stpcpy strcspn strerror strstr strtol\
-	ualarm)
+	regcomp rmdir select socket stpcpy strcspn strerror strstr strtol)
 
 AC_OUTPUT([po/Makefile.in
   $PACKAGE.spec:spec.in

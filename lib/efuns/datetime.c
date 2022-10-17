@@ -32,8 +32,9 @@ f_ctime (void)
 {
   char *cp, *nl, *p;
   int l;
+  time_t t = (time_t)sp->u.number;
 
-  cp = ctime ((time_t *) & sp->u.number);
+  cp = ctime (&t);
   if ((nl = strchr (cp, '\n')))
     l = nl - cp;
   else
