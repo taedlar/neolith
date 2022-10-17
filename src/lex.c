@@ -395,6 +395,7 @@ inc_open (char *buf, char *name)
   merge (name, buf);
   if ((f = open (buf, O_RDONLY)) != -1)
     {
+      opt_trace (TT_COMPILE|3, "%s", buf);
       return f;
     }
   /*
@@ -407,13 +408,14 @@ inc_open (char *buf, char *name)
     }
   for (i = 0; i < inc_list_size; i++)
     {
-      if (inc_list)
+      if (!inc_list)
 	break;
       if (inc_list[i] == 0)
 	continue;
       sprintf (buf, "%s/%s", inc_list[i], name);
       if ((f = open (buf, O_RDONLY)) != -1)
 	{
+	  opt_trace (TT_COMPILE|3, "%s", buf);
 	  return f;
 	}
     }
@@ -460,7 +462,6 @@ handle_include (const char *inc_name, int optional)
       return;
     }
 
-  /* 尋找檔名結束的 " 或 > */
   delim = (*name++ == '"') ? '"' : '>';
   for (p = name; *p && *p != delim; p++);
   if (!*p)
