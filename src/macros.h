@@ -33,6 +33,7 @@
 #define TT_EVAL		010
 #define TT_COMPILE	020
 #define TT_SIMUL_EFUN	040
+#define TT_BACKEND	0100
 #endif /* using C99 */
 
 #define debug_perror(what,file)		debug_perror_with_src(__func__, __FILE__, __LINE__, (what), (file))

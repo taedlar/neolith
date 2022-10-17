@@ -35,11 +35,13 @@
 error_context_t *current_error_context = 0;
 
 /* The 'current_time' is updated at every heart beat. */
-int current_time;
+time_t current_time;
 
 int heart_beat_flag = 0;
 
 object_t *current_heart_beat;
+
+static timer_t hb_timerid = 0; /* heart beat timer id */
 
 static void look_for_objects_to_swap (void);
 static void call_heart_beat (void);
@@ -118,6 +120,13 @@ backend ()
   int i;
   error_context_t econ;
 
+#ifdef HAVE_LIBRT
+  if (-1 == timer_create (CLOCK_REALTIME, NULL, &hb_timerid))
+    {
+      debug_perror ("timer_create()", NULL);
+      return;
+    }
+#endif /* HAVE_LIBRT */
   init_user_conn ();		/* initialize user connection socket */
 
   if (!t_flag)
@@ -205,7 +214,7 @@ backend ()
 static void
 look_for_objects_to_swap ()
 {
-  static int next_time;
+  static time_t next_time;
   object_t *ob;
   static object_t *next_ob;
   error_context_t econ;
@@ -329,14 +338,26 @@ call_heart_beat ()
   heart_beat_flag = 0;
   signal (SIGALRM, sigalrm_handler);
 
-  /* 設定計時器 */
-#ifdef HAVE_UALARM
-  ualarm (HEARTBEAT_INTERVAL, 0);
-#else /* ! HAVE_UALARM */
-  alarm (((HEARTBEAT_INTERVAL + 999999) / 1000000));
-#endif /* ! HAVE_UALARM */
+#ifdef HAVE_LIBRT
+  struct itimerspec itimer;
+  itimer.it_interval.tv_sec = HEARTBEAT_INTERVAL / 1000000;
+  itimer.it_interval.tv_nsec = (HEARTBEAT_INTERVAL % 1000000) * 1000;
+  itimer.it_value.tv_sec = HEARTBEAT_INTERVAL / 1000000;
+  itimer.it_value.tv_nsec = (HEARTBEAT_INTERVAL % 1000000) * 1000;
+  if (-1 == timer_settime (hb_timerid, 0, &itimer, NULL))
+    {
+      debug_perror ("timer_settime()", NULL);
+      return;
+    }
+#endif /* HAVE_LIBRT */
+//#ifdef HAVE_UALARM
+//  ualarm (HEARTBEAT_INTERVAL, 0);
+//#else /* ! HAVE_UALARM */
+//  alarm (((HEARTBEAT_INTERVAL + 999999) / 1000000));
+//#endif /* ! HAVE_UALARM */
 
   current_time = time (NULL);
+  opt_trace (TT_BACKEND|3, "current_time = %ul", current_time);
   current_interactive = 0;
 
   if ((num_hb_to_do = num_hb_objs))
@@ -599,7 +620,7 @@ static double load_av = 0.0;
 void
 update_load_av ()
 {
-  static int last_time;
+  static time_t last_time;
   int n;
   double c;
   static int acc = 0;
@@ -622,7 +643,7 @@ static double compile_av = 0.0;
 void
 update_compile_av (int lines)
 {
-  static int last_time;
+  static time_t last_time;
   int n;
   double c;
   static int acc = 0;
@@ -677,5 +698,5 @@ static RETSIGTYPE
 sigalrm_handler (int sig)
 {
   heart_beat_flag = 1;
-  debug (512, ("sigalrm_handler: SIGALRM\n"));
+  opt_trace (TT_BACKEND|3, "SIGALRM");
 }

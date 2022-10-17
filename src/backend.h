@@ -11,7 +11,7 @@
 /*
  * backend.c
  */
-extern int current_time;
+extern time_t current_time;
 extern int heart_beat_flag;
 extern object_t *current_heart_beat;
 extern int eval_cost;
