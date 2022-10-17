@@ -2230,7 +2230,7 @@ eval_instruction (char *p)
 		      {
 			char buff[20];
 
-			sprintf (buff, "%d", (sp + 1)->u.number);
+			sprintf (buff, "%ld", (sp + 1)->u.number);
 			EXTEND_SVALUE_STRING (sp, buff, "f_add: 2");
 			break;
 		      }
@@ -2308,7 +2308,7 @@ eval_instruction (char *p)
 		      {
 			char buff[20];
 
-			sprintf (buff, "%d", (sp - 1)->u.number);
+			sprintf (buff, "%ld", (sp - 1)->u.number);
 			SVALUE_STRING_ADD_LEFT (buff, "f_add: 3");
 			break;
 		      }		/* end of T_NUMBER + T_STRING */
@@ -2356,7 +2356,7 @@ eval_instruction (char *p)
 		{
 		  char buff[20];
 
-		  sprintf (buff, "%d", sp->u.number);
+		  sprintf (buff, "%ld", sp->u.number);
 		  EXTEND_SVALUE_STRING (lval, buff, "f_add_eq: 2");
 		}
 	      else if (sp->type == T_REAL)
