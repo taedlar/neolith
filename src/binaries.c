@@ -91,10 +91,7 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   if (!(f = crdir_fopen (file_name)))
     return;
 
-  if (comp_flag)
-    {
-      debug_message (" saving binary ... ");
-    }
+  opt_trace (TT_COMPILE|1, "saving binary: /%s", file_name);
   /*
    * Write out preamble.  Includes magic number, etc, all of which must
    * match while loading.
@@ -103,7 +100,7 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
       fwrite ((char *) &driver_id, sizeof driver_id, 1, f) != 1 ||
       fwrite ((char *) &config_id, sizeof config_id, 1, f) != 1)
     {
-      debug_message ("I/O error in save_binary.\n");
+      debug_perror ("fwrite()", file_name);
       fclose (f);
       return;
     }
@@ -125,8 +122,7 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   if (patches->current_size)
     {
       locate_in (p);
-      patch_out (p, (short *) patches->block,
-		 patches->current_size / sizeof (short));
+      patch_out (p, (short *) patches->block, patches->current_size / sizeof (short));
       locate_out (p);
     }
   /*
@@ -136,6 +132,7 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   len = SHARED_STRLEN (p->name);
   fwrite ((char *) &len, sizeof len, 1, f);
   fwrite (p->name, sizeof (char), len, f);
+  opt_trace (TT_COMPILE|1, "binary name: [%d]%s", len, p->name);
 
   fwrite ((char *) &p->total_size, sizeof p->total_size, 1, f);
   fwrite ((char *) p, p->total_size, 1, f);
@@ -356,11 +353,12 @@ int_load_binary (char *name)
   int fd;
   FILE *f;
   int i, buf_size, ilen;
-  time_t mtime;
+  time_t bin_id, mtime;
   short len;
   program_t *p, *prog;
   object_t *ob;
   struct stat st;
+
 
   /* stuff from prolog() */
   num_parse_error = 0;
@@ -373,6 +371,7 @@ int_load_binary (char *name)
   len = strlen (file_name);
   file_name[len - 1] = 'b';
 
+  comp_flag = 1;
   fd = open (file_name, O_RDONLY);
   if (-1 == fd)
     return OUT_OF_DATE;
@@ -386,16 +385,12 @@ int_load_binary (char *name)
     close (fd);
     return OUT_OF_DATE;
   }
+  opt_trace (TT_COMPILE|1, "found saved binary: /%s", file_name);
 
-  if (comp_flag)
-    {
-      debug_message (" loading binary %s ... ", name);
-    }
   /* see if we're out of date with source */
   if (check_times (mtime, name) <= 0)
     {
-      if (comp_flag)
-	debug_message ("out of date (source file newer).\n");
+      opt_trace (TT_COMPILE|1, "out of date (source file newer).");
       fclose (f);
       return OUT_OF_DATE;
     }
@@ -408,24 +403,21 @@ int_load_binary (char *name)
   if (fread (buf, strlen (magic_id), 1, f) != 1 ||
       strncmp (buf, magic_id, strlen (magic_id)) != 0)
     {
-      if (comp_flag)
-	debug_message ("out of date. (bad magic number)\n");
+      opt_trace (TT_COMPILE|1, "out of date. (bad magic number)\n");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
-  if ((fread ((char *) &i, sizeof i, 1, f) != 1 || driver_id != i))
+  if ((fread ((char *) &bin_id, sizeof bin_id, 1, f) != 1 || driver_id != bin_id))
     {
-      if (comp_flag)
-	debug_message ("out of date. (driver changed)\n");
+      opt_trace (TT_COMPILE|1, "out of date. (driver changed)\n");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
-  if (fread ((char *) &i, sizeof i, 1, f) != 1 || config_id != i)
+  if (fread ((char *) &bin_id, sizeof bin_id, 1, f) != 1 || config_id != bin_id)
     {
-      if (comp_flag)
-	debug_message ("out of date. (config file changed)\n");
+      opt_trace (TT_COMPILE|1, "out of date. (config file changed)\n");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
@@ -433,15 +425,26 @@ int_load_binary (char *name)
   /*
    * read list of includes and check times
    */
-  fread ((char *) &len, sizeof len, 1, f);
+  if (fread ((char *) &len, sizeof len, 1, f) != 1)
+    {
+      opt_trace (TT_COMPILE|1, "failed reading include list size.");
+      fclose (f);
+      FREE (buf);
+      return OUT_OF_DATE;
+    }
   ALLOC_BUF (len);
-  fread (buf, sizeof (char), len, f);
+  if (fread (buf, sizeof (char), len, f) != len)
+    {
+      opt_trace (TT_COMPILE|1, "failed reading include list.");
+      fclose (f);
+      FREE (buf);
+      return OUT_OF_DATE;
+    }
   for (iname = buf; iname < buf + len; iname += strlen (iname) + 1)
     {
       if (check_times (mtime, iname) <= 0)
 	{
-	  if (comp_flag)
-	    debug_message ("out of date (include file newer).\n");
+	  opt_trace (TT_COMPILE|1, "out of date (include file is newer).");
 	  fclose (f);
 	  FREE (buf);
 	  return OUT_OF_DATE;
@@ -449,34 +452,73 @@ int_load_binary (char *name)
     }
 
   /* check program name */
-  fread ((char *) &len, sizeof len, 1, f);
-  ALLOC_BUF (len + 1);
-  fread (buf, sizeof (char), len, f);
-  buf[len] = '\0';
-  if (strcmp (name, buf) != 0)
+  if (fread ((char *) &len, sizeof len, 1, f) != 1)
     {
-      if (comp_flag)
-	debug_message ("binary name inconsistent with file.\n");
+      opt_trace (TT_COMPILE|1, "failed reading binary name length.");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
+  if (len > 0)
+    {
+      ALLOC_BUF (len + 1);
+      if (fread (buf, sizeof (char), len, f) != len)
+	{
+	  opt_trace (TT_COMPILE|1, "failed reading binary name.");
+	  fclose (f);
+	  FREE (buf);
+	  return OUT_OF_DATE;
+	}
+      buf[len] = '\0';
+      if (strcmp (name, buf) != 0)
+	{
+	  opt_trace (TT_COMPILE|1, "binary name [%d]%s inconsistent with file (%s).", (unsigned int)len, buf, name);
+	  fclose (f);
+	  FREE (buf);
+	  return OUT_OF_DATE;
+	}
+    }
+
   /*
    * Read program structure.
    */
-  fread ((char *) &ilen, sizeof ilen, 1, f);
+  if (fread ((char *) &ilen, sizeof ilen, 1, f) != 1)
+    {
+      opt_trace (TT_COMPILE|1, "failed reading program struct size");
+      fclose (f);
+      FREE (buf);
+      return OUT_OF_DATE;
+    }
   p = (program_t *) DXALLOC (ilen, TAG_PROGRAM, "load_binary");
-  fread ((char *) p, ilen, 1, f);
+  if (fread ((char *) p, ilen, 1, f) != 1)
+    {
+      opt_trace (TT_COMPILE|1, "failed reading program struct");
+      fclose (f);
+      FREE (buf);
+      return OUT_OF_DATE;
+    }
   locate_in (p);		/* from swap.c */
   p->name = make_shared_string (name);
 
   /* Read inherit names and find prog.  Check mod times also. */
   for (i = 0; i < (int) p->num_inherited; i++)
     {
-      fread ((char *) &len, sizeof len, 1, f);
-      ALLOC_BUF (len + 1);
-      fread (buf, sizeof (char), len, f);
-      buf[len] = '\0';
+      buf[0] = '\0';
+      if (fread ((char *) &len, sizeof len, 1, f) == 1)
+        {
+	  ALLOC_BUF (len + 1);
+	  if (fread (buf, sizeof (char), len, f) == len)
+	    buf[len] = '\0';
+	}
+      if (!buf[0])
+        {
+	  opt_trace (TT_COMPILE|1, "inherited program name corrupted.");
+	  fclose (f);
+	  free_string (p->name);
+	  FREE (p);
+	  FREE (buf);
+	  return OUT_OF_DATE;
+	}
 
       /*
        * Check times against inherited source.  If saved binary of
@@ -490,9 +532,7 @@ int_load_binary (char *name)
       if (check_times (mtime, buf) <= 0 ||
 	  check_times (mtime, file_name_two) == 0)
 	{			/* ok if -1 */
-
-	  if (comp_flag)
-	    debug_message ("out of date (inherited source newer).\n");
+	  opt_trace (TT_COMPILE|1, "out of date (inherited source is newer).");
 	  fclose (f);
 	  free_string (p->name);
 	  FREE (p);
@@ -503,8 +543,7 @@ int_load_binary (char *name)
       ob = find_object2 (buf);
       if (!ob)
 	{
-	  if (comp_flag)
-	    debug_message ("missing inherited prog.\n");
+	  opt_trace (TT_COMPILE|1, "saved binary inherits: /%s", buf);
 	  fclose (f);
 	  free_string (p->name);
 	  FREE (p);
@@ -517,47 +556,99 @@ int_load_binary (char *name)
   /* Read string table */
   for (i = 0; i < (int) p->num_strings; i++)
     {
-      fread ((char *) &len, sizeof len, 1, f);
-      ALLOC_BUF (len + 1);
-      fread (buf, sizeof (char), len, f);
-      buf[len] = '\0';
-      p->strings[i] = make_shared_string (buf);
+      if (fread ((char *) &len, sizeof len, 1, f) == 1)
+        {
+	  ALLOC_BUF (len + 1);
+	  if (fread (buf, sizeof (char), len, f) == len)
+	    {
+	      buf[len] = '\0';
+	      p->strings[i] = make_shared_string (buf);
+	      continue;
+	    }
+	}
+      opt_trace (TT_COMPILE|1, "string table corrupted.");
+      fclose (f);
+      free_string (p->name);
+      FREE (p);
+      FREE (buf);
+      /* TODO: free shared strings */
+      return OUT_OF_DATE;
     }
 
   /* var names */
   for (i = 0; i < (int) p->num_variables_defined; i++)
     {
-      fread ((char *) &len, sizeof len, 1, f);
-      ALLOC_BUF (len + 1);
-      fread (buf, sizeof (char), len, f);
-      buf[len] = '\0';
-      p->variable_table[i] = make_shared_string (buf);
+      if (fread ((char *) &len, sizeof len, 1, f) == 1)
+	{
+	  ALLOC_BUF (len + 1);
+	  if (fread (buf, sizeof (char), len, f) == len)
+	    {
+	      buf[len] = '\0';
+	      p->variable_table[i] = make_shared_string (buf);
+	      continue;
+	    }
+	}
+      opt_trace (TT_COMPILE|1, "variable table corrupted.");
+      fclose (f);
+      free_string (p->name);
+      FREE (p);
+      FREE (buf);
+      /* TODO: free shared strings */
+      return OUT_OF_DATE;
     }
 
   /* function names */
   for (i = 0; i < (int) p->num_functions_defined; i++)
     {
-      fread ((char *) &len, sizeof len, 1, f);
-      ALLOC_BUF (len + 1);
-      fread (buf, sizeof (char), len, f);
-      buf[len] = '\0';
-      p->function_table[i].name = make_shared_string (buf);
+      if (fread ((char *) &len, sizeof len, 1, f) == 1)
+	{
+	  ALLOC_BUF (len + 1);
+	  if (fread (buf, sizeof (char), len, f) == len)
+	    {
+	      buf[len] = '\0';
+	      p->function_table[i].name = make_shared_string (buf);
+	      continue;
+	    }
+	}
+      opt_trace (TT_COMPILE|1, "function table corrupted.");
+      fclose (f);
+      free_string (p->name);
+      FREE (p);
+      FREE (buf);
+      /* TODO: free shared strings */
+      return OUT_OF_DATE;
     }
   sort_function_table (p);
 
   /* line numbers */
-  fread ((char *) &len, sizeof len, 1, f);
-  p->file_info =
-    (unsigned short *) DXALLOC (len, TAG_LINENUMBERS, "load binary");
-  fread ((char *) p->file_info, len, 1, f);
-  p->line_info = (unsigned char *) &p->file_info[p->file_info[1]];
+  if (fread ((char *) &len, sizeof len, 1, f) == 1)
+    {
+      p->file_info = (unsigned short *) DXALLOC (len, TAG_LINENUMBERS, "load binary");
+      if (fread ((char *) p->file_info, len, 1, f) != 1)
+	{
+	  opt_trace (TT_COMPILE|1, "line number info corrupted.");
+	  fclose (f);
+	  free_string (p->name);
+	  FREE (p->file_info);
+	  FREE (p);
+	  FREE (buf);
+	  /* TODO: free shared strings */
+	  return OUT_OF_DATE;
+	}
+      p->line_info = (unsigned char *) &p->file_info[p->file_info[1]];
+    }
+
 
   /* patches */
-  fread ((char *) &len, sizeof len, 1, f);
-  ALLOC_BUF (len);
-  fread (buf, len, 1, f);
-  /* fix up some stuff */
-  patch_in (p, (short *) buf, len / sizeof (short));
+  if (fread ((char *) &len, sizeof len, 1, f) == 1)
+    {
+      ALLOC_BUF (len);
+      if (fread (buf, len, 1, f) == 1)
+	{
+	  /* fix up some stuff */
+	  patch_in (p, (short *) buf, len / sizeof (short));
+	}
+    }
 
   fclose (f);
   FREE (buf);
@@ -577,8 +668,7 @@ int_load_binary (char *name)
       reference_prog (prog->inherit[i].prog, "inheritance");
     }
 
-  if (comp_flag)
-    debug_message ("done.\n");
+  opt_trace (TT_COMPILE, "loaded saved binary: %s", file_name);
   return prog;
 }
 
@@ -587,11 +677,11 @@ init_binaries ()
 {
   if (CONFIG_STR(__SAVE_BINARIES_DIR__))
     {
-      opt_info (1, "using #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
+      debug_message ("{}\tusing #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
     }
   else
     {
-      opt_info (1, "not using #pragma save_binary");
+      debug_message ("{}\tnot using #pragma save_binary");
     }
 }
 
