@@ -387,16 +387,13 @@ load_object (char *lname)
   char real_name[200], name[200];
 
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
-    error (_("*Inherit chain too deep: > %d when trying to load '%s'."),
-	   CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
+    error (_("*Inherit chain too deep: > %d when trying to load '%s'."), CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
 
-  if (current_object && current_object!=master_ob &&
-      current_object->euid == NULL)
+  if (current_object && current_object!=master_ob && current_object->euid == NULL)
     error (_("*Can't load objects when no effective user."));
 
   if (!strip_name (lname, name, sizeof name))
-    error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."),
-	   lname);
+    error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."), lname);
 
   /*
    * First check that the c-file exists.
@@ -404,7 +401,6 @@ load_object (char *lname)
   (void) strcpy (real_name, name);
   (void) strcat (real_name, ".c");
 
-  opt_trace (TT_COMPILE, "file: /%s", real_name);
 
   if (stat (real_name, &c_st) == -1)
     {
@@ -441,20 +437,14 @@ load_object (char *lname)
   if (!(prog = load_binary (real_name, lpc_obj)) && !inherit_file)
     {
       /* maybe move this section into compile_file? */
-      if (comp_flag)
-	{
-	  debug_message (" compiling /%s ...", real_name);
-	}
       f = open (real_name, O_RDONLY);
       if (f == -1)
 	{
-	  debug_perror ("compile_file", real_name);
+	  debug_perror ("open()", real_name);
 	  error (_("*Could not read the file '/%s'."), real_name);
 	}
       prog = compile_file (f, real_name);
 
-      if (comp_flag)
-	debug_message (" done\n");
       update_compile_av (total_lines);
       total_lines = 0;
       close (f);
@@ -483,6 +473,7 @@ load_object (char *lname)
 
       if (!strip_name (inherit_file, inhbuf, sizeof inhbuf))
 	strcpy (inhbuf, inherit_file);
+
       FREE (inherit_file);
       inherit_file = 0;
 
@@ -502,6 +493,7 @@ load_object (char *lname)
 	}
       else
 	{
+	  opt_trace (TT_COMPILE, "loading inherit file: /%s", inhbuf);
 	  inh_obj = load_object (inhbuf);
 	}
       if (!inh_obj)
@@ -527,6 +519,8 @@ load_object (char *lname)
       num_objects_this_thread--;
       return ob;
     }
+
+  opt_trace (TT_COMPILE, "creating: /%s", real_name);
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
   ob->name = alloc_cstring (name, "load_object");
@@ -2254,8 +2248,8 @@ dump_trace (int how)
       FREE_MSTR (outbuf.buffer);
     }
 
-  log_message (NULL, "\tdisassembly:\n");
-  disassemble (current_log_file, current_prog->program, offset, offset + 30, current_prog);
+  //log_message (NULL, "\tdisassembly:\n");
+  //disassemble (current_log_file, current_prog->program, offset, offset + 30, current_prog);
   fflush (current_log_file);
   return ret;
 }
