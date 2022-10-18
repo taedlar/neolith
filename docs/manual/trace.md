@@ -50,6 +50,10 @@ Extra verbose level:
 
 Enables trace messages about compiling LPC programs.
 
+Extra verbose level:
+- 021: detailed info of compiled LPC program, save binary
+- 023: header includes
+
 ## Tier 040: TT_SIMUL_EFUN
 
 Enables trace messages about Simul Efuns.
