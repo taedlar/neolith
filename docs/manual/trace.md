@@ -58,3 +58,9 @@ Extra verbose level:
 - 041: calling simul efun
 - 042: number of args when calling simul efun
 
+## Tier 0100: TT_BACKEND
+
+Enables trace messages about LPMud driver backend activities (heart beats, call out, reset, garbage collection)
+
+Extra verbose level:
+- 0103: heart beat timer, efun `time`
