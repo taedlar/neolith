@@ -305,6 +305,7 @@ void break_point(void);
 
 
 extern int get_error_state (int mask);
+extern void set_error_state (int flag);
 
 #define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
 #define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */

@@ -275,9 +275,15 @@ tail (char *path)
     offset = 0;
   if (fseek (f, offset, 0) == -1)
     fatal ("Could not seek.\n");
-  /* Throw away the first incomplete line. */
   if (offset > 0)
-    (void) fgets (buff, sizeof buff, f);
+    {
+      /* Throw away the first incomplete line. */
+      if (NULL == fgets (buff, sizeof buff, f))
+	{
+	  debug_perror ("fgets()", path);
+	  error ("Failed reading file.");
+	}
+    }
   while (fgets (buff, sizeof buff, f))
     {
       tell_object (command_giver, buff);
@@ -1018,7 +1024,9 @@ do_rename (char *fr, char *t, int flag)
       else
 	cp = from;
 
-      sprintf (newto, "%s/%s", to, cp);
+      if (snprintf (newto, sizeof(newto), "%s/%s", to, cp) >= sizeof(newto))
+	error("File path too long.");
+
       return do_move (from, newto, flag);
     }
   else

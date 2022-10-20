@@ -1504,8 +1504,6 @@ move_object (object_t * item, object_t * dest)
 
   if (item->super)
     {
-      int okey = 0;
-
       if (item->flags & O_ENABLE_COMMANDS)
 	remove_sent (item->super, item);
 
@@ -1526,7 +1524,6 @@ move_object (object_t * item, object_t * dest)
 
 	  /* unlink object from original inventory list */
 	  *pp = item->next_inv;
-	  okey = 1;
 	}
     }
 
@@ -1669,7 +1666,6 @@ int
 user_parser (char *buff)
 {
   char verb_buff[MAX_VERB_BUFF];
-  object_t *super;
   sentence_t *s;
   char *p;
   int length;
@@ -1737,7 +1733,6 @@ user_parser (char *buff)
   for (s = save_command_giver->sent; s; s = s->next)
     {
       svalue_t *ret;
-      object_t *command_object;
 
       if (s->flags & (V_NOSPACE | V_SHORT))
 	{
@@ -1777,10 +1772,6 @@ user_parser (char *buff)
        * the origin is the driver and it will be allowed.
        */
       where = (current_object ? ORIGIN_EFUN : ORIGIN_DRIVER);
-
-      /* Remember the object, to update moves. */
-      command_object = s->ob;
-      super = command_object->super;
 
       if (s->flags & V_NOSPACE)
 	copy_and_push_string (&buff[strlen (s->verb)]);
@@ -2114,7 +2105,8 @@ dump_trace (int how)
   char *ret = 0;
   int num_arg = -1, num_local = -1;
   svalue_t *ptr;
-  int i, offset = 0;
+  int i;
+  //int offset = 0;
   function_trace_details_t ftd;
 
   if (current_prog == 0)
@@ -2193,7 +2185,7 @@ dump_trace (int how)
     {
     case FRAME_FUNCTION:
       get_trace_details (current_prog, p[0].fr.table_index, &ftd);
-      offset = ftd.program_offset;
+      //offset = ftd.program_offset;
       num_arg = ftd.num_arg;
       num_local = ftd.num_local;
       log_message (NULL, "\t\e[1;33m%s()\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n", ftd.name,
@@ -2262,7 +2254,7 @@ get_svalue_trace (int how)
   mapping_t *m;
   char *file;
   int line;
-  int num_arg, num_local;
+  int num_arg = 0, num_local = 0;
   svalue_t *ptr;
   int i, n, n2;
   function_trace_details_t ftd;

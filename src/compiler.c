@@ -1921,7 +1921,10 @@ static void
 copy_and_sort_function_table (program_t * prog, char **p)
 {
   int *temp, *inverse;
-  int i, num_runtime;
+  int i;
+#ifndef COMPRESS_FUNCTION_TABLES
+  int num_runtime;
+#endif
   compiler_function_t *dest = (compiler_function_t *) * p;
   int num, new_num;
 
@@ -1953,8 +1956,6 @@ copy_and_sort_function_table (program_t * prog, char **p)
   for (i = 0; i < new_num; i++)
     dest[i] = *COMPILER_FUNC (temp[i]);
 
-  num_runtime =
-    mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u);
 #ifdef COMPRESS_FUNCTION_TABLES
   {
     compressed_offset_table_t *cftp =
@@ -1992,6 +1993,8 @@ copy_and_sort_function_table (program_t * prog, char **p)
       }
   }
 #else
+  num_runtime =
+    mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u);
   for (i = 0; i < num_runtime; i++)
     {
       if (!(FUNCTION_FLAGS (i) & NAME_INHERITED))

@@ -130,7 +130,7 @@ void
 init_user_conn ()
 {
   struct sockaddr_in sin;
-  int sin_len;
+  socklen_t sin_len;
   int optval;
   int i;
 
@@ -169,8 +169,7 @@ init_user_conn ()
 
       /* get socket name. */
       sin_len = sizeof (sin);
-      if (getsockname (external_port[i].fd, (struct sockaddr *) &sin,
-		       &sin_len) == -1)
+      if (getsockname (external_port[i].fd, (struct sockaddr *) &sin, &sin_len) == -1)
 	{
 	  debug_perror ("getsockname()", 0);
 	  exit (4);
@@ -290,16 +289,28 @@ add_message (object_t * who, char *data)
 }				/* add_message() */
 
 
+/* add_vmessage() is mainly used by the efun ed().
+ */
 void
 add_vmessage (object_t * who, char *format, ...)
 {
+  int ret = -1;
   interactive_t *ip;
   char *cp, *str = NULL;
   va_list args;
 
+#ifdef _GNU_SOURCE
   va_start (args, format);
-  vasprintf (&str, format, args);
+  ret = vasprintf (&str, format, args);
   va_end (args);
+  if (ret == -1)
+    {
+      debug_perror ("vsaprintf()", NULL);
+      return;
+    }
+#else
+#error Requires _GNU_SOURCE for vsaprintf
+#endif
 
   /*
    * if who->interactive is not valid, write message on stderr.
@@ -311,7 +322,6 @@ add_vmessage (object_t * who, char *format, ...)
       if (who == master_ob || who == simul_efun_ob)
 	debug_message ("%s", str);
       free (str);
-      va_end (args);
       return;
     }
 
@@ -341,9 +351,9 @@ add_vmessage (object_t * who, char *format, ...)
 	      if (ip->message_length == (MESSAGE_BUF_SIZE - 1))
 		break;
 	    }
+	  /* write CR LF for every newline, to make some crappy terminal happy */
 	  ip->message_buf[ip->message_producer] = '\r';
-	  ip->message_producer = (ip->message_producer + 1)
-	    % MESSAGE_BUF_SIZE;
+	  ip->message_producer = (ip->message_producer + 1) % MESSAGE_BUF_SIZE;
 	  ip->message_length++;
 	}
       ip->message_buf[ip->message_producer] = *cp;
@@ -566,13 +576,13 @@ copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
 			break;
 		      case LM_SLC:
 			{
-			  int j, nslc;
+			  int j;
 			  char slc[4] = { 0, 0, 0, 0 };
 
 			  /* We does very little on SLC for now, just ack
 			   * anything client tells us. --- Annihilator@ES2 [2002-05-07] */
 			  add_message (ip->ob, telnet_sb_lm_slc);
-			  for (nslc = 0, j = 2; j < ip->sb_pos - 3; j += 3)
+			  for (j = 2; j < ip->sb_pos - 3; j += 3)
 			    {
 			      if (ip->sb_buf[j] == 0
 				  && ip->sb_buf[j + 2] == 0)
@@ -953,7 +963,7 @@ new_user_handler (int which)
 {
   int new_socket_fd;
   struct sockaddr_in addr;
-  int length;
+  socklen_t length;
   int i;
   object_t *ob;
   svalue_t *ret;
@@ -962,8 +972,7 @@ new_user_handler (int which)
   debug (512,
 	 ("new_user_handler: accept on fd %d\n", external_port[which].fd));
   new_socket_fd =
-    accept (external_port[which].fd, (struct sockaddr *) &addr,
-	    (int *) &length);
+    accept (external_port[which].fd, (struct sockaddr *) &addr, &length);
   if (new_socket_fd < 0)
     {
       if (errno == EWOULDBLOCK)
@@ -1528,13 +1537,12 @@ get_user_data (interactive_t * ip)
 	case PORT_BINARY:
 	  {
 	    buffer_t *buffer;
-	    svalue_t *ret;
 
 	    buffer = allocate_buffer (num_bytes);
 	    memcpy (buffer->item, buf, num_bytes);
 
 	    push_refed_buffer (buffer);
-	    ret = apply (APPLY_PROCESS_INPUT, ip->ob, 1, ORIGIN_DRIVER);
+	    apply (APPLY_PROCESS_INPUT, ip->ob, 1, ORIGIN_DRIVER);
 	    break;
 	  }
 	}

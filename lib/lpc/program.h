@@ -238,7 +238,7 @@ void reference_prog(program_t *, char *);
 void free_prog(program_t *, int);
 void deallocate_program(program_t *);
 char *variable_name(program_t *, int);
-runtime_function_u *find_func_entry(program_t *, int);
+runtime_function_u *find_func_entry(const program_t *, int);
 
 /* the simple version */
 #define FUNC_ENTRY(p, i) ((p)->function_offsets + (i))

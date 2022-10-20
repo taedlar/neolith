@@ -49,9 +49,9 @@ extern int yydebug;
 # define YYTOKENTYPE
   enum yytokentype
   {
-    L_STRING = 258,
-    L_NUMBER = 259,
-    L_REAL = 260,
+    L_NUMBER = 258,
+    L_REAL = 259,
+    L_STRING = 260,
     L_BASIC_TYPE = 261,
     L_TYPE_MODIFIER = 262,
     L_DEFINED_NAME = 263,
@@ -101,9 +101,9 @@ extern int yydebug;
   };
 #endif
 /* Tokens.  */
-#define L_STRING 258
-#define L_NUMBER 259
-#define L_REAL 260
+#define L_NUMBER 258
+#define L_REAL 259
+#define L_STRING 260
 #define L_BASIC_TYPE 261
 #define L_TYPE_MODIFIER 262
 #define L_DEFINED_NAME 263
@@ -155,7 +155,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 131 "grammar.y"
+#line 134 "grammar.y"
 
     POINTER_INT pointer_int;
     int number;

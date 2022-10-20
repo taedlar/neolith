@@ -65,16 +65,18 @@ int yyparse(void);
  *      '('  ')'  '['  ']'  '$'
  */
 
-%token L_STRING L_NUMBER L_REAL
-%token L_BASIC_TYPE L_TYPE_MODIFIER
-%token L_DEFINED_NAME L_IDENTIFIER
-%token L_EFUN
+%token <number> L_NUMBER
+%token <real>   L_REAL
+%token <string> L_STRING
+%token <type> L_BASIC_TYPE L_TYPE_MODIFIER
+%token <ihe> L_DEFINED_NAME
+%token <string> L_IDENTIFIER L_EFUN
 
 %token L_INC L_DEC
-%token L_ASSIGN
+%token <number> L_ASSIGN
 %token L_LAND L_LOR
 %token L_LSH L_RSH
-%token L_ORDER
+%token <number> L_ORDER
 %token L_NOT
 
 %token L_IF L_ELSE
@@ -83,12 +85,13 @@ int yyparse(void);
 %token L_BREAK L_CONTINUE
 %token L_RETURN
 %token L_ARROW L_INHERIT L_COLON_COLON
-%token L_ARRAY_OPEN L_MAPPING_OPEN L_FUNCTION_OPEN L_NEW_FUNCTION_OPEN
+%token L_ARRAY_OPEN L_MAPPING_OPEN L_FUNCTION_OPEN
+%token <number> L_NEW_FUNCTION_OPEN
 
 %token L_SSCANF L_CATCH
 %token L_PARSE_COMMAND L_TIME_EXPRESSION
 %token L_CLASS L_NEW
-%token L_PARAMETER
+%token <number> L_PARAMETER
 
 /*
  * 'Dangling else' shift/reduce conflict is well known...
@@ -156,41 +159,29 @@ int yyparse(void);
  */
 
 /* These hold opcodes */
-%type <number> efun_override L_ASSIGN L_ORDER
+%type <number> efun_override
 
 /* Holds a variable index */
-%type <number> L_PARAMETER single_new_local_def
-
-/* These hold arbitrary numbers */
-%type <number> L_NUMBER 
+%type <number> single_new_local_def
 
 /* These hold numbers that are going to be stuffed into pointers :)
  * Don't ask :)
  */
 %type <pointer_int> constant
 
-/* These hold a real number */
-%type <real>   L_REAL
-
 /* holds a string constant */
-%type <string> L_STRING string_con1 string_con2
+%type <string> string_con1 string_con2
 
 /* Holds the number of elements in a list and whether it must be a prototype */
 %type <argument> argument_list argument
 
-/* These hold a list of possible interpretations of an identifier */
-%type <ihe> L_DEFINED_NAME
-
 /* These hold a type */
 %type <type> type optional_star type_modifier_list 
-%type <type> opt_basic_type L_TYPE_MODIFIER L_BASIC_TYPE basic_type atomic_type
+%type <type> opt_basic_type basic_type atomic_type
 %type <type> cast
 
-/* This holds compressed and less flexible def_name information */
-%type <number> L_NEW_FUNCTION_OPEN
-
 /* holds an identifier or some sort */
-%type <string> L_IDENTIFIER L_EFUN function_name identifier
+%type <string> function_name identifier
 %type <string> new_local_name
 
 /* The following return a parse node */
@@ -3046,7 +3037,7 @@ function_name:
 		p = $$ + l;
 		while (p--,l--)
 		    *(p+3) = *p;
-		strncpy($$, ":::", 3);
+		memcpy($$, ":::", 3);
 	    }
     |   L_BASIC_TYPE L_COLON_COLON identifier
 	    {

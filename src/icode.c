@@ -317,7 +317,7 @@ generate_lvalue_list (parse_node_t * expr)
     }
 }
 
-inline void
+static void
 switch_to_line (int line)
 {
   int sz = CURRENT_PROGRAM_SIZE - last_size_generated;
