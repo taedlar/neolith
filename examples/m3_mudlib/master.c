@@ -1,5 +1,7 @@
-static object connect (int port)
+// vim: syntax=lpc
+private object
+connect (int port)
 {
-	return new ("/user.c");
+  return new ("/user.c");
 }
 
