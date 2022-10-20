@@ -72,7 +72,6 @@ debug_message (const char *fmt, ...)
   time_t t;
   char msg[8192];	/* error message cannot exceed this size */
   char* ptr;
-  int res;
 
   if (!append)
     {

@@ -118,6 +118,12 @@ control_stack_t *csp;		/* Points to last element pushed */
 
 static int error_state = 0;
 
+void
+set_error_state (int flag)
+{
+  error_state |= flag;
+}
+
 /*
  *	get_error_state() - return current error state flags
  */
@@ -129,11 +135,11 @@ get_error_state (int mask)
 
 #define CHECK_AND_PUSH(n)	do {\
 	if ((sp += n) >= end_of_stack) \
-	  { sp -= n; error_state |= ES_STACK_FULL; error("***Stack overflow!"); } \
+	  { sp -= n; set_error_state(ES_STACK_FULL); error("***Stack overflow!"); } \
 	} while (0)
 #define STACK_CHECK(n)		do {\
 	if (sp + n >= end_of_stack) \
-	  { error_state |= ES_STACK_FULL; error("***Stack overflow!"); } \
+	  { set_error_state(ES_STACK_FULL); error("***Stack overflow!"); } \
 	} while (0)
 
 /*
@@ -633,7 +639,7 @@ global_lvalue_range;
 
 static svalue_t global_lvalue_range_sv = { T_LVALUE_RANGE };
 
-inline void
+static inline void
 push_lvalue_range (int code)
 {
   int ind1, ind2, size = 0;
@@ -1468,8 +1474,6 @@ cfp_error (char *s)
 svalue_t *
 call_function_pointer (funptr_t * funp, int num_arg)
 {
-  static func_t *oefun_table = efun_table - BASE;
-
   if (funp->hdr.owner->flags & O_DESTRUCTED)
     error (_("*Owner (/%s) of function pointer is destructed."),
 	   funp->hdr.owner->name);
@@ -1516,13 +1520,11 @@ call_function_pointer (funptr_t * funp, int num_arg)
 	  }
 	else if (num_arg < instrs[i].min_arg)
 	  {
-	    error (_("*Too few arguments to efun %s in efun pointer."),
-		   instrs[i].name);
+	    error (_("*Too few arguments to efun %s in efun pointer."), instrs[i].name);
 	  }
 	else if (num_arg > instrs[i].max_arg && instrs[i].max_arg != -1)
 	  {
-	    error (_("*Too many arguments to efun %s in efun pointer."),
-		   instrs[i].name);
+	    error (_("*Too many arguments to efun %s in efun pointer."), instrs[i].name);
 	  }
 	/* possibly we should add TRACE, OPC, etc here;
 	   also on eval_cost here, which is ok for just 1 efun */
@@ -1537,7 +1539,7 @@ call_function_pointer (funptr_t * funp, int num_arg)
 	    {
 	      CHECK_TYPES (sp - num_arg + j + 1, instrs[i].type[j], j + 1, i);
 	    }
-	  (*oefun_table[i]) ();
+	  (*efun_table[i - BASE]) ();
 
 	  free_svalue (&apply_ret_value, "call_function_pointer");
 	  if (instrs[i].ret_type == TYPE_NOVALUE)
@@ -1801,8 +1803,6 @@ eval_instruction (char *p)
   svalue_t *lval;
   int instruction;
   unsigned short offset;
-  static func_t *oefun_table = efun_table - BASE + ONEARG_MAX;
-  static func_t *ooefun_table = efun_table - BASE;
   static instr_t *instrs2 = instrs + ONEARG_MAX;
 
   /* Next F_RETURN at this level will return out of eval_instruction() */
@@ -2817,7 +2817,6 @@ eval_instruction (char *p)
 	    inherit_t *ip = current_prog->inherit + EXTRACT_UCHAR (pc++);
 	    program_t *temp_prog = ip->prog;
 	    compiler_function_t *funp;
-	    const char* name;
 
 	    LOAD_SHORT (offset, pc);
 
@@ -3591,29 +3590,33 @@ eval_instruction (char *p)
 	    break;
 	  }
 #define Instruction (instruction + ONEARG_MAX)
-#define CALL_THE_EFUN (*oefun_table[instruction])(); continue
+#define CALL_THE_EFUN(i) (*efun_table[i - BASE + ONEARG_MAX])() 
 	case F_EFUN0:
 	  st_num_arg = 0;
 	  instruction = EXTRACT_UCHAR (pc++);
-	  CALL_THE_EFUN;
+	  CALL_THE_EFUN(instruction);
+	  continue;
 	case F_EFUN1:
 	  st_num_arg = 1;
 	  instruction = EXTRACT_UCHAR (pc++);
 	  CHECK_TYPES (sp, instrs2[instruction].type[0], 1, Instruction);
-	  CALL_THE_EFUN;
+	  CALL_THE_EFUN(instruction);
+	  continue;
 	case F_EFUN2:
 	  st_num_arg = 2;
 	  instruction = EXTRACT_UCHAR (pc++);
 	  CHECK_TYPES (sp - 1, instrs2[instruction].type[0], 1, Instruction);
 	  CHECK_TYPES (sp, instrs2[instruction].type[1], 2, Instruction);
-	  CALL_THE_EFUN;
+	  CALL_THE_EFUN(instruction);
+	  continue;
 	case F_EFUN3:
 	  st_num_arg = 3;
 	  instruction = EXTRACT_UCHAR (pc++);
 	  CHECK_TYPES (sp - 2, instrs2[instruction].type[0], 1, Instruction);
 	  CHECK_TYPES (sp - 1, instrs2[instruction].type[1], 2, Instruction);
 	  CHECK_TYPES (sp, instrs2[instruction].type[2], 3, Instruction);
-	  CALL_THE_EFUN;
+	  CALL_THE_EFUN(instruction);
+	  continue;
 	case F_EFUNV:
 	  {
 	    int i, num;
@@ -3627,13 +3630,14 @@ eval_instruction (char *p)
 			     instrs2[instruction].type[i - 1], i,
 			     Instruction);
 	      }
-	    CALL_THE_EFUN;
+	    CALL_THE_EFUN(instruction);
+	    continue;
 	  }
 	default:
 	  /* optimized 1 arg efun */
 	  st_num_arg = 1;
 	  CHECK_TYPES (sp, instrs[instruction].type[0], 1, instruction);
-	  (*ooefun_table[instruction]) ();
+	  (*efun_table[instruction - BASE]) ();
 	  continue;
 	}			/* switch (instruction) */
       DEBUG_CHECK1 (sp < fp + csp->num_local_variables - 1,
@@ -3767,6 +3771,31 @@ find_function_by_name2 (object_t * ob, char **name, int *index, int *fio,
   return ffbn_recurse2 (ob->prog, *name, index, fio, vio);
 }
 
+static int
+function_visible (int origin, int func_flags)
+{
+  switch (origin)
+    {
+    case ORIGIN_LOCAL:
+    case ORIGIN_DRIVER:
+    case ORIGIN_CALL_OUT:
+      break;
+
+    case ORIGIN_CALL_OTHER:
+      if (func_flags & (NAME_STATIC | NAME_PRIVATE | NAME_PROTECTED))
+	return 0;
+      break;
+
+    case ORIGIN_EFUN:
+    case ORIGIN_SIMUL_EFUN:
+      /*
+       *  this should never happen, for simul_efun are called
+       *  directly from call_simul_efun()
+       */
+      break;
+    }
+  return 1;
+}
 
 /*  int apply_low (char* fun, object_t* ob, int num_arg)
  *
@@ -3783,7 +3812,6 @@ apply_low (char *fun, object_t * ob, int num_arg)
   int ix, fio, vio;
   static int cache_mask = APPLY_CACHE_SIZE - 1;
   int local_call_origin = call_origin;
-  int function_visible = 1;
 
   if (!local_call_origin)
     local_call_origin = ORIGIN_DRIVER;
@@ -3831,31 +3859,11 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	    entry->oprogp->function_flags[funp->runtime_index +
 					  entry->function_index_offset];
 
-	  switch (local_call_origin)
-	    {
-	    case ORIGIN_LOCAL:
-	    case ORIGIN_DRIVER:
-	    case ORIGIN_CALL_OUT:
-	      break;
-
-	    case ORIGIN_EFUN:
-	    case ORIGIN_CALL_OTHER:
-	      if (funflags & (NAME_STATIC | NAME_PRIVATE | NAME_PROTECTED))
-		function_visible = 0;
-	      break;
-
-	    case ORIGIN_SIMUL_EFUN:
-	      /*
-	       *  this should never happen, for simul_efun are called
-	       *  directly from call_simul_efun()
-	       */
-	      break;
-	    }
-
 	  /* if progp is zero, the cache is telling us the function
 	   * isn't here */
-	  if (!(funflags & (NAME_STATIC | NAME_PRIVATE))
-	      || (local_call_origin & (ORIGIN_DRIVER | ORIGIN_CALL_OUT)))
+	  //if (!(funflags & (NAME_STATIC | NAME_PRIVATE))
+	  //    || (local_call_origin & (ORIGIN_DRIVER | ORIGIN_CALL_OUT)))
+	  if (function_visible(local_call_origin, funflags))
 	    {
 	      /* push a frame onto control stack */
 	      push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
@@ -3921,8 +3929,9 @@ apply_low (char *fun, object_t * ob, int num_arg)
 	    &(FIND_FUNC_ENTRY (prog, funp->runtime_index)->def);
 	  int funflags = ob->prog->function_flags[funp->runtime_index + fio];
 
-	  if (!(funflags & (NAME_STATIC | NAME_PRIVATE))
-	      || (local_call_origin & (ORIGIN_DRIVER | ORIGIN_CALL_OUT)))
+	  //if (!(funflags & (NAME_STATIC | NAME_PRIVATE))
+	  //    || (local_call_origin & (ORIGIN_DRIVER | ORIGIN_CALL_OUT)))
+	  if (function_visible(local_call_origin, funflags))
 	    {
 	      push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
 	      current_prog = prog;
@@ -3976,7 +3985,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
   /* Failure. Deallocate stack. */
   pop_n_elems (num_arg);
 
-  opt_trace (TT_EVAL, "not defined: \"%s\"", fun);
+  opt_trace (TT_EVAL, "not defined or not visible to caller: \"%s\"", fun);
   return 0;
 }
 
@@ -4017,15 +4026,10 @@ call___INIT (object_t * ob)
   program_t *progp;
   compiler_function_t *cfp;
   int num_functions;
-  IF_DEBUG (svalue_t * expected_sp);
-  IF_DEBUG (control_stack_t * save_csp);
 
   tracedepth = 0;
 
-  IF_DEBUG (expected_sp = sp);
-
   /* No try_reset here for obvious reasons :) */
-
   ob->flags &= ~O_RESET_STATE;
 
   progp = ob->prog;
@@ -4273,7 +4277,7 @@ function_exists (char *fun, object_t * ob, int flag)
 {
   int index, runtime_index;
   program_t *prog;
-  compiler_function_t *cfp;
+  //compiler_function_t *cfp;
 
   DEBUG_CHECK (ob->flags & O_DESTRUCTED,
 	       "function_exists() on destructed object\n");
@@ -4285,7 +4289,7 @@ function_exists (char *fun, object_t * ob, int flag)
   if (!prog)
     return 0;
 
-  cfp = prog->function_table + index;
+  //cfp = prog->function_table + index;
 
   if ((ob->prog->function_flags[runtime_index] & NAME_UNDEFINED) ||
       ((ob->prog->

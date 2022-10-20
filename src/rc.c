@@ -38,6 +38,7 @@
 #include "rc.h"
 #include "main.h"
 #include "simulate.h"
+#include "macros.h"
 
 /* global declarations */
 
@@ -82,7 +83,7 @@ read_config_malloc (const char *filename)
 
   conf = (char *) calloc (st.st_size + 1, sizeof (char));
   if (!conf) {
-    close (f);
+    fclose (f);
     return NULL;
   }
 
@@ -154,14 +155,13 @@ scan_config (char *config, char *name, int required, char *def)
 
   if (required < 0)
     {
-      debug_message (_("warnning: %s is missing, assuming %s\n"),
-		     name, def ? def : "null");
+      debug_warn ("{}\t%s is missing, assuming %s", name, def ? def : "null");
       return def;
     }
 
   if (required > 0)
     {
-      debug_message (_("error: %s is missing\n"), name);
+      debug_error ("%s is missing", name);
       fatal_config_error++;
       return NULL;
     }

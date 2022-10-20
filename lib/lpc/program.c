@@ -112,7 +112,7 @@ variable_name (program_t * prog, int idx)
    hold the returned pointers too long; it will be invalidated on the
    next call to this function */
 runtime_function_u *
-find_func_entry (program_t * prog, int index)
+find_func_entry (const program_t * prog, int index)
 {
   static runtime_function_u ret;
 

@@ -70,13 +70,13 @@ init_simul_efun (char *file)
 
   if ((NULL == file) || ('\0' == *file))
     {
-      debug_message (_("warnning: no simul_efun file\n"));
+      debug_warn ("no simul_efun file");
       return;
     }
 
   if (NULL == (new_ob = load_object (file)))
     {
-      debug_message (_("warnning: failed loading simul_efun file\n"));
+      debug_error (_("failed loading simul_efun file"));
       return;
     }
   set_simul_efun (new_ob);
