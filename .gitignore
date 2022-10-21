@@ -32,6 +32,7 @@ Makefile.in
 /ABOUT-NLS
 po/stamp-po
 po/*.sed
+po/*.gmo
 *.o
 *.lo
 *.la
