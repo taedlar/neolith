@@ -29,7 +29,7 @@
 #include "lpc/object.h"
 #include "lpc/function.h"
 #include "lpc/mapping.h"
-#include "lpc/program.h"
+#include "src/program.h"
 #include "LPC/function.h"
 
 #include "call_out.h"

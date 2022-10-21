@@ -13,7 +13,7 @@
 #define	_LPC_OBJECT_H
 
 #include "lpc/types.h"
-#include "lpc/uids.h"
+//#include "lpc/uids.h"
 #include "lpc/function.h"
 
 /*

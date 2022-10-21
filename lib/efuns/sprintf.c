@@ -70,7 +70,7 @@
 #include "lpc/object.h"
 #include "lpc/array.h"
 #include "lpc/mapping.h"
-#include "lpc/program.h"
+#include "src/program.h"
 #include "src/simulate.h"
 #include "src/interpret.h"
 #include "src/stralloc.h"

@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "disassemble.h"
-#include "program.h"
+#include "src/program.h"
 #include "LPC/function.h"
 #include "src/std.h"
 #include "src/interpret.h"

@@ -33,7 +33,7 @@
 #include "compiler.h"
 #include "main.h"
 #include "regexp.h"
-#include "lpc/uids.h"
+#include "uids.h"
 #include "LPC/function.h"
 #include "LPC/runtime_config.h"
 #include "LPC/origin.h"
