@@ -18,7 +18,7 @@
 #include "lpc/array.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"
-#include "lpc/program.h"
+#include "program.h"
 #include "lpc/function.h"
 #include "lpc/disassemble.h"
 #include "backend.h"
@@ -39,6 +39,7 @@
 #include "LPC/origin.h"
 #include "LPC/runtime_config.h"
 #include "rc.h"
+#include "uids.h"
 
 #include <sys/stat.h>
 

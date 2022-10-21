@@ -19,7 +19,7 @@
 #include "lpc/types.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
-#include "lpc/program.h"
+#include "program.h"
 #include "LPC/origin.h"
 #include "LPC/runtime_config.h"
 #include "main.h"

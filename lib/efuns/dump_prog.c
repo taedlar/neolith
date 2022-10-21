@@ -8,7 +8,7 @@
 #include "src/simulate.h"
 #include "lpc/disassemble.h"
 #include "lpc/object.h"
-#include "lpc/program.h"
+#include "src/program.h"
 
 #ifdef F_DUMP_PROG
 /*

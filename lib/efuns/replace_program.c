@@ -16,7 +16,7 @@
 #include "src/std.h"
 #include "lpc/types.h"
 #include "lpc/object.h"
-#include "lpc/program.h"
+#include "src/program.h"
 #include "lpc/array.h"
 #include "src/main.h"
 #include "src/interpret.h"

@@ -19,10 +19,10 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "src/std.h"
-#include "types.h"
+#include "std.h"
+#include "lpc/types.h"
 #include "program.h"
-#include "src/stralloc.h"
+#include "stralloc.h"
 
 int total_num_prog_blocks, total_prog_block_size;
 

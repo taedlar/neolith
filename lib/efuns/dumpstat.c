@@ -19,7 +19,7 @@
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"
-#include "lpc/program.h"
+#include "src/program.h"
 #include "LPC/function.h"
 #include "src/interpret.h"
 #include "src/main.h"

@@ -26,7 +26,7 @@
 #include "class.h"
 #include "object.h"
 #include "mapping.h"
-#include "program.h"
+#include "src/program.h"
 #include "src/main.h"
 #include "src/interpret.h"
 #include "src/simulate.h"

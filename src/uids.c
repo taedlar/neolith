@@ -21,16 +21,16 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "src/std.h"
-#include "types.h"
-#include "object.h"
-#include "src/applies.h"
-#include "src/stralloc.h"
-#include "src/interpret.h"
-#include "src/simulate.h"
-#include "src/main.h"
-#include "avltree.h"
+#include "std.h"
+#include "adt/avltree.h"
+#include "lpc/types.h"
+#include "lpc/object.h"
 #include "efuns/operator.h"
+#include "applies.h"
+#include "stralloc.h"
+#include "interpret.h"
+#include "simulate.h"
+#include "main.h"
 #include "uids.h"
 
 static object_t *ob;

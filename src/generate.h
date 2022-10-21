@@ -13,7 +13,7 @@
 #define GENERATE_H
 
 #include "trees.h"
-#include "lpc/program.h"
+#include "program.h"
 #include "icode.h"
 
 #define generate_function_call i_generate_function_call

@@ -30,7 +30,7 @@
 #include "simulate.h"
 #include "stralloc.h"
 #include "icode.h"
-#include "lpc/program.h"
+#include "program.h"
 #include "lpc/object.h"
 #include "lpc/function.h"
 

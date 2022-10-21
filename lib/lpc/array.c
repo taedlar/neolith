@@ -32,7 +32,7 @@
 
 #include "array.h"
 #include "object.h"
-#include "program.h"
+#include "src/program.h"
 #include "LPC/origin.h"
 
 #ifdef ARRAY_STATS
