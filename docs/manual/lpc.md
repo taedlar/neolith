@@ -754,4 +754,314 @@ Perhaps a pointer type will be introduced to allow passing by reference into fun
 > Last Updated : Tue Jan 10 11:02:40 EST 1995
 
 ## Constructs
+### `inherit`
+
+The LPC inherit statement:
+
+Syntax: inherit pathname;
+
+where pathname is a full path delimited by quotes (e.g. "/std/Object").
+
+The 'inherit' statement provides the inheritance capability (a concept from
+object-oriented programming) to LPC objects.  Inheritance lets an object
+inherit functions and variables from other objects.  Because the MudOSdriver
+internally stores global data and compiled code separately, many different
+objects can use inheritance to share the same piece of compiled code.  Each of
+these objects will have its own local copy of any global variables defined
+by the object.  Suppose that two object A and B inherit object C.  Recompiling
+object either of A or B will not cause C to be recompiled.  However, it will
+cause any global variables provided by C to lose whatever data they had
+(remember that A and B each have their own copy of the global variables
+provided by C.  Thus updating A will not effect the global variables of B
+(even those provided by C) and vice versa).
+
+Suppose object A inherits object B.  Object A may define variables and functions
+having the same names as those defined by B.  If object A defines a function
+of the same name as one defined by B, then the definition provided by A
+overrides the definition provided by B.  If A wishes to access the definition
+provided by B, then it may do so.  For example suppose that object A defines
+its own function named query_long and yet wishes to call the query_long
+function provided by the /std/Object.c object.  Then A may refer to the
+query_long in Object.c as Object::query_long().  If A defines a variable
+of the same name as a global variable defined in B, then the only way that A
+can access that variable is via functions provided by B.  If B defines
+a global variable that is not declared in A, then by default A may use that
+global variable as if the global variable were defined in A (assuming B does
+not choose to restrict access).  Note: if object B is recompiled, object A
+will continue to use the old version of object B until object A is also
+recompiled.
+
+Multiple inheritance is allowed.  That is, an object may inherit more than
+one other object.  Suppose special.c inherits weapon.c and armor.c and that
+both weapon.c and armor.c each provide their own version of query_long().
+We may assume that special.c wants to sometimes act like a weapon and
+sometimes act like armor.  When special.c is to look like armor it
+can use armor::query_long() and when it is to look like a weapon it
+can use weapon::query_long().
+
+See the tutorial named 'types/modifiers' for more information on how
+inherited objects may hide data and function definitions from objects that
+inherit them.
+
+### prototypes
+
+* The function prototype:
+
+The LPC function prototype is very similar to that of ANSI C.  The
+function prototype allows for better type checking and can serve as
+a kind of 'forward' declaration.
+
+return_type function_name(arg1_type arg1, arg2_type arg2, ...);
+
+Also note that the arguments need not have names:
+
+return_type function_name(arg1_type, arg2_type, ...);
+
+### function
+
+* The LPC function (or method):
+
+The LPC function is similar but not identical to that provided by C
+(it is most similar to that provided by ANSI C).  The syntax is as follows:
+
+return_type function_name(arg1_type arg1, arg2_type arg2, ...)
+{
+	variable_declarations;
+	...;
+
+	statements;
+	...;
+	return var0;
+}
+
+Note that var0 must be of return_type.
+
+If a function doesn't need to return a value, then it should be declared
+with a return_type of "void".  E.g.
+
+void function_name(arg1_type arg1, ...)
+{
+	statements;
+	...;
+}
+
+Invoke a function as follows:
+
+function_name(arg1, arg2, arg3, ...);
+
+You may invoke a function in another object as follows:
+
+object->function_name(arg1, arg2, arg3, ...);
+
+or:
+
+call_other(object, function_name, arg1, arg2, ...);
+
+### `if`
+
+* The if else statement:
+
+LPC's if statement is identical to that provided by C.  Syntax is as follows:
+
+    if (expression)
+        statement;
+
+Alternately:
+
+    if (expression) {
+        statements;
+    }
+
+Alternately:
+
+    if (expression0) {
+        statements;
+    } else {
+        statements1;
+    }
+
+Alternately:
+
+    if (expression0) {
+        statements0;
+    } else if (expression1) {
+        statements1;
+    }
+
+The number of else clauses is not explicitly limited.
+
+- - - - -
+
+Another favorite programming construct is the ? : operator, which also
+operates identical to C.  The syntax is:
+
+    expression0 ? expression1_if_true : expression2_if_false
+
+In some cases, ? : is an shorter way of expression constructs such as:
+
+    if (expression0)
+        var = expression1;
+    else
+        var = expression2;
+
+which can be equivalently translated to:
+
+    var = expression0 ? expression1 : expression;
+
+### `for`
+
+* The LPC for loop:
+
+The LPC for loop is also identical to that provided by C.  Syntax is as
+follows:
+
+for (expression0; expression1; expression2) {
+	statements;
+	...;
+}
+
+Expression0 is evaluated once prior to the execution of the loop.  Expression1
+is evaluated at the beginning of each iteration of the loop.  If expression1
+evaluates to zero, then the loop terminates.  Expression2 is evaluated at
+the end of each loop iteration.
+
+A 'break' in the body of the loop will terminate the loop. A 'continue' will
+continue the execution from the beginning of the loop (after evaluating
+Expression2).
+
+A typical usage of the for loop is to execute a body of code some
+fixed number of times:
+
+int i;
+
+for (i = 0; i < 10; i++) {
+	write("i == " + i + "\n");
+	write("10 - i == " + (10 - i) + "\n");
+}
+
+### `while`
+
+The LPC while loop:
+
+LPC's while loop is identical to that provided by C.  Syntax is as follows:
+
+while (expression)
+	statement;	
+
+where statement may be replaced by a block of statements delimited by
+matching curly brackets.  For example:
+
+while (expression) {
+	statement0;
+	statement1;
+}
+
+The statements inside the body of the while loop will be executed
+repeatedly for as long as the test expression evaluates to non-zero.
+If the test expression is zero just prior to the execution of the loop,
+then the body of the loop will not be executed.  A 'break;' statement
+in the body of the loop will terminate the loop (skipping any statements
+in the loop that remain to be executed).  A 'continue;' statement
+in the body of the loop will continue the execution from the beginning
+of the loop (skipping the remainder of the statements in the loop for
+the current iteration).
+
+int test(int limit)
+{
+	total = 0;
+	j = 0;
+	while (j < limit) {
+		if ((j % 2) != 0)
+			continue;
+		total += j;
+		j++;
+	}
+	return total;
+}
+
+The results of this code fragment will be to sum all of the even numbers
+from 0 to to limit - 1. 
+
+### `switch`
+
+* The switch statement.  The LPC switch statement is nearly identical to
+the C switch statement.  The only real difference is that the cases of
+the LPC switch may be strings as well as integers.  Syntax is as follows:
+
+switch (expression) {
+	case constant0 : statements0;
+		break;
+	case constant1 : statements1;
+		break;
+	default : statements2;
+		break;
+}
+
+The switch is a replacement for the chained if else if else if else
+construct.  The above switch is equivalent to:
+
+tmp = expression;
+if (tmp == constant0) {
+	statements0;
+	...;
+} else if (tmp == constant1) {
+	statements1;
+	...;
+} else {
+	statements2;
+	...;
+}
+
+The main difference between the switch and the if statement is that if
+the "break;" statement is ommited from the end of a particular case,
+then the statements in the next case will be executed as well.
+
 ## Preprocessor
+
+### `#define`
+
+the #define preprocessor command creates a macro that can be expanded later
+on in the file.  For example, if you have the line:
+
+#define apples oranges
+
+Then every time the word 'apples' appears after that point, it will be
+treated as if it were 'oranges'.
+
+### `#include`
+
+A line of the form:
+
+#include "filename"
+
+will cause the compiler to pretend that the entire contents of 'filename'
+are actually contained in the file being compiled.  If you want to include
+a certain function in many different objects, use the 'inherit' statement
+instead.  #including causes each object to have it's own copy of the
+code, while inheriting causes many objects to share code.
+### `#include`
+
+The LPC #include directive:
+
+Syntax: #include <file.h>
+Alternate: #include "file.h"
+
+Note: the '#include "file.h"' form looks for file.h in the current directory.
+The '#include <file.h>' form looks for file.h in one of the standard
+system include directories (on TMI these directories are /include and
+/local/include).
+
+For those that know C, the LPC #include statement is identical to C's
+#include statement.  For those that don't know C, the #include statement
+is a way to textually include one file into another.  Putting a statement
+'#include "file.h" in a file gives the same effect as if you had simply
+typed the contents of file.h directly into the file at the point where you
+had the #include statement.  Included files are recompiled each time the
+object that include's them is recompiled.  If the included file contains
+variables or functions of the same name as variables in the file doing
+the including, then a duplicate-name error will occur at compile time
+(in the same way that the error would occur if you simply typed in file.h
+rather than using #include).
+
+### `#pragma save_binary`
+
