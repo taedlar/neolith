@@ -89,13 +89,13 @@ It is in general much harder to trace an error occuring at run time.
 
 The basic types can be divided into groups. Those that are referenced by value, and those that are referenced by address.
 The types **int**, **string**, and **float** are referenced by value.
-The types **mapping**, **function**, **object**, and pointers ('<type> *') are referenced by address.
+The types **mapping**, **function**, **object**, and pointers (`<type> *`) are referenced by address.
 If a value of this type is assigned to a variable or passed as argument, they will all point to the same actual data.
 That means that if the value of an element in an array is changed, then it can modify all other variables pointing to the same array.
 Changing the size of the array will always allocate a new one though.
 The comparison operator, `==`, will compare the actual value for the group of value-referenced types above.
 But for arrays, mappings, etc, it will simply check if it is the same array, mapping, etc.
-That has the very important implication that the expression `({ 1 }) == ({ 1 })` will evaluate to false because the array construction operator-pair, ({ ... }) always generates a new array.
+That has the very important implication that the expression `({ 1 }) == ({ 1 })` will evaluate to false because the array construction operator-pair, `({ ... })` always generates a new array.
 
 ## Basic types
 
@@ -498,39 +498,32 @@ Thus, if everything was declared `mixed`, then the compiler would never complain
 This is of course not the idea. It is really only supposed to be used when a variable really is going to contain different types of values.
 This should be avoided if possible. It is not good coding practice to allow a function, for example, to return different types.
  
-## Special types
+## Special Types
  
-There are some special types, which can be given before the basic type. These
-special types can also be combined.  When using special type T before an 
-inherit statement, all symbols defined by inheritance will also get the 
-special type T.  The only special case is public--defined symbols, which can 
-not be redefined as private in a private inheritance statement.
+There are some special types, which can be given before the basic type.
+These special types can also be combined.
+When using special type T before an `inherit` statement, all symbols defined by inheritance will also get the special type T.
+The only special case is `public`-defined symbols, which can not be redefined as private in a private inheritance statement.
  
-### varargs
+### `varargs`
  A function of this type can be called with a variable number of arguments.
  Otherwise, the number of arguments is checked, and can generate an error.
  
-### private
- Can be given for both functions and variables. Functions that are private in
- object A can not be called through call_other() in another object.  They're
- also not accessable to any object that inherits A.
+### `private`
+ Can be given for both functions and variables. Functions that are private in object A can not be called through `call_other()` in another object.
+ They're also not accessable to any object that inherits A.
  
-### static
- This special type behaves different for variables and functions.  It is 
- similar to private for functions, in that they cannot be called from other 
- objects with call_other().  static variables will be neither saved nor 
- restored when using save_object() or restore_object().
+### `static`
+ This special type behaves different for variables and functions.
+ It is similar to private for functions, in that they cannot be called from other objects with `call_other()`.
+ static variables will be neither saved nor restored when using `save_object()` or `restore_object()`.
  
-### public
- A function defined as public will always be accessible from other objects, 
- even if private inheritance is used.
+### `public`
+ A function defined as public will always be accessible from other objects, even if private inheritance is used.
  
-### nomask
- All symbols defined as nomask cannot be redefined by inheritance.  They can 
- still be used and accessed as usual.  nomask also blocks functions from
- being shadowed with shadow().
-
-
+### `nomask`
+ All symbols defined as nomask cannot be redefined by inheritance.
+ They can still be used and accessed as usual.  nomask also blocks functions from being shadowed with `shadow()`.
 
 ## LPC Substructures
 
