@@ -1,0 +1,134 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "windows-default",
+            "hidden": true,
+            "generator": "Visual Studio 16 2019",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets",
+                "VCPKG_APPLOCAL_DEPS": false
+            },
+            "vendor": {
+                "microsoft.com/VisualStudioSettings/CMake/1.0": {
+                  "hostOS": [ "Windows" ]
+                }
+            }
+        },
+        {
+            "name": "vs16-x64",
+            "displayName": "x64 - VS2019",
+            "description": "Uses Visual Studio 2019 generator, x64 architecture",
+            "inherits": ["windows-default"],
+            "architecture": {
+              "value": "x64",
+              "strategy": "set"
+            },
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+            }
+        },
+        {
+            "name": "vs16-win32",
+            "displayName": "Win32 - VS2019",
+            "description": "Uses Visual Studio 2019 generator, Win32 architecture",
+            "inherits": ["windows-default"],
+            "architecture": {
+              "value": "Win32",
+              "strategy": "set"
+            },
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x86-windows-static"
+            }
+        },
+        {
+            "name": "linux-default",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets"
+            },
+            "vendor": {
+                "microsoft.com/VisualStudioSettings/CMake/1.0": {
+                  "hostOS": [ "Linux" ]
+                }
+            }            
+        },
+        {
+            "name": "linux",
+            "displayName": "Linux",
+            "description": "Uses Ninja generator, architecture unspecified",
+            "inherits": ["linux-default"]
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "dev-vs16-x64",
+            "description": "Debug Build (build modified files)",
+            "configurePreset": "vs16-x64",
+            "configuration": "Debug",
+            "targets": ["ALL_BUILD"]
+        },
+        {
+            "name": "pr-vs16-x64",
+            "description": "Pull-Request Validation Build (build modified files)",
+            "inherits": ["dev-vs16-x64"],
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "ci-vs16-x64",
+            "description": "Continous Integration Build (rebuild all)",
+            "inherits": ["pr-vs16-x64"],
+            "targets": ["ALL_BUILD"],
+            "cleanFirst": true
+        },
+        {
+            "name": "dev-vs16-win32",
+            "description": "Debug Build (build modified files)",
+            "configurePreset": "vs16-win32",
+            "configuration": "Debug",
+            "targets": ["ALL_BUILD"]
+        },
+        {
+            "name": "pr-vs16-win32",
+            "description": "Pull-Request Validation Build (build modified files)",
+            "inherits": ["dev-vs16-win32"],
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "ci-vs16-win32",
+            "description": "Continous Integration Build (rebuild all)",
+            "inherits": ["pr-vs16-win32"],
+            "targets": ["ALL_BUILD"],
+            "cleanFirst": true
+        },
+        {
+            "name": "dev-linux",
+            "description": "Debug Build (build modified files)",
+            "configurePreset": "linux",
+            "configuration": "Debug",
+            "targets": ["all"]
+        },
+        {
+            "name": "pr-linux",
+            "description": "Pull-Request Validation Build (build modified files)",
+            "inherits": ["dev-linux"],
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "ci-linux",
+            "description": "Continous Integration Build (rebuild all)",
+            "inherits": ["pr-linux"],
+            "targets": ["all"],
+            "cleanFirst": true
+        }
+    ]
+}
