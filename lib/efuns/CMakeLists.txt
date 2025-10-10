@@ -26,3 +26,29 @@ add_custom_command(TARGET edit_source POST_BUILD
     COMMAND ${CPP_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/prototype.c > ${CMAKE_CURRENT_BINARY_DIR}/prototype.i
     COMMAND $<TARGET_FILE:edit_source> ${CMAKE_CURRENT_SOURCE_DIR}/options.h ${CMAKE_CURRENT_BINARY_DIR}/prototype.i
 )
+
+set(efuns_SOURCES
+    call_out.c
+    datetime.c
+    debug.c
+    dump_prog.c
+    dumpstat.c
+    ed.c
+    file.c
+    math.c
+    operator.c
+    parse.c
+    reclaim_object.c
+    replace_program.c
+    sprintf.c
+    string.c
+    unsorted.c
+)
+
+# add_library(efuns STATIC ${efuns_SOURCES})
+# add_dependencies(efuns edit_source)
+# target_include_directories(efuns PRIVATE
+#     ${CMAKE_SOURCE_DIR}
+#     ${CMAKE_SOURCE_DIR}/lib
+#     ${CMAKE_CURRENT_BINARY_DIR}
+# )
