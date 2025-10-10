@@ -1,6 +1,5 @@
 Neolith LPMud Driver
 ====================
-[![CodeQL](https://github.com/taedlar/neolith/workflows/CodeQL/badge.svg)](https://github.com/taedlar/neolith/actions?query=workflow%3ACodeQL)
 
 ## Main Features
 - UTF-8 support (tons of fixes on top of MudOS code)
