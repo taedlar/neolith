@@ -1,22 +1,22 @@
 # $Id: Makefile.am,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
 #
-# �ɦW�GMakefile.am
+# 檔名：Makefile.am
 #
-# �o���ɮץΨӳ]�w automake ���U���\��A�ç@�� automake ����J�ɥH����
-# Makefile.in�C�p�G�A������ק� Neolith ���{���A�i�H���z�|�o���ɮת���
-# �e�C
+# 這個檔案用來設定 automake 的各項功能，並作為 automake 的輸入檔以產生
+# Makefile.in。如果你不打算修改 Neolith 的程式，可以不理會這個檔案的內
+# 容。
 #
-# �� ���� automake ���ϥΤ�k�λ����A�а���H�U���O�G
+# ◎ 有關 automake 的使用方法及說明，請執行以下指令：
 #	info automake
-#    �ΰѦ� GNU �� automake �M�׭����G
+#    或參考 GNU 的 automake 專案首頁：
 #	http://www.gnu.org/software/automake/automake.html
 #
-# ��@�̡G Annihilator <annihilator@muds.net> (2001/05/01)
+# 原作者： Annihilator <annihilator@muds.net> (2001/05/01)
 
 ###########################################################################
-# �o���ɮ׭�@�̥H PUBLIC DOMAIN �覡���v�A�z�i�H����覡���N�ϥΡB�ק�B #
-# ���G�B�Ʀܳc��(���H�@�N�R����)�A ����@�̹�o���ɮת��\��Φw���ʨä��� #
-# �ѥ����O(NO WARRANTY)�C                                               #
+# 這個檔案原作者以 PUBLIC DOMAIN 方式授權，您可以任何方式任意使用、修改、 #
+# 散佈、甚至販賣(有人願意買的話)， 但原作者對這個檔案的功能或安全性並不提 #
+# 供任何擔保(NO WARRANTY)。                                               #
 ###########################################################################
 
 EXTRA_DIST = README
