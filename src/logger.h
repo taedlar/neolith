@@ -1,9 +1,7 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#ifdef STD_HEADERS
 #include <stdio.h>
-#endif
 
 extern FILE* current_log_file;
 

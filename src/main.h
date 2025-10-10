@@ -1,9 +1,13 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#ifdef STDC_HEADERS
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif /* STDC_HEADERS */
+#endif /* HAVE_LIMITS_H */
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 #include "lpc/types.h"
 
@@ -19,7 +23,11 @@ typedef struct {
 
 typedef struct server_options
 {
+#ifdef PATH_MAX
   char config_file[PATH_MAX];
+#else
+  char config_file[MAX_PATH];
+#endif
   int debug_level;
   unsigned long trace_flags;
 } server_options_t;
