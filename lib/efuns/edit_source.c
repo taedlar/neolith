@@ -673,7 +673,7 @@ open_input_file (const char *filename)
   /* keep the file name */
   if (current_file)
     free ((char *) current_file);
-  current_file = _strdup (filename);
+  current_file = xstrdup (filename);
 
   /* reset line number */
   current_line = 0;

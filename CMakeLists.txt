@@ -30,5 +30,6 @@ configure_file(config.h.in config.h @ONLY)
 include_directories("${CMAKE_BINARY_DIR}")
 add_compile_definitions(HAVE_CONFIG_H)
 
+add_subdirectory(lib)
 add_subdirectory(lib/adt)
 add_subdirectory(lib/efuns)

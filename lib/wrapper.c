@@ -13,10 +13,9 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#ifdef	STDC_HEADERS
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#endif /* STDC_HEADERS */
 
 #include "wrapper.h"
 
