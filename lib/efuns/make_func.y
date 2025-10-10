@@ -14,12 +14,10 @@
 #include <config.h>
 #endif	/* HAVE_CONFIG_H */
 
-#ifdef	STDC_HEADERS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#endif	/* STDC_HEADERS */
 
 #define EDIT_SOURCE
 #define NO_OPCODES
@@ -99,7 +97,7 @@ op: ID
 	int i = 2;
 	sprintf(f_name, "F_%s", $1);
 	while ((c = f_name[i])) {
-	    if (islower(c)) f_name[i++] = toupper(c);
+	    if (islower(c)) f_name[i++] = (char)toupper(c);
 	    else i++;
 	}
 	oper_codes[op_code] = (char *) malloc(i+1);
@@ -114,9 +112,9 @@ optional_ID: ID | /* empty */ { $$ = ""; } ;
 optional_default: /* empty */ { $$="DEFAULT_NONE"; } 
                 | DEFAULT ':' NUM
                   {
-		      static char buf[40];
-                      sprintf(buf, "%i", $3);
-                      $$ = buf;
+		      static char xbuf[40];
+                      sprintf(xbuf, "%i", $3);
+                      $$ = xbuf;
 		  }
                 | DEFAULT ':' ID 
                   { 
@@ -137,10 +135,10 @@ func: type ID optional_ID '(' arg_list optional_default ')' ';'
 	    if (strlen($2) + 1 + 2 > sizeof f_name)
 		mf_fatal("A local buffer was too small!(1)\n");
 	    sprintf(f_name, "F_%s", $2);
-	    len = strlen(f_name);
+	    len = (int)strlen(f_name);
 	    for (i=0; i < len; i++) {
 		if (islower(f_name[i]))
-		    f_name[i] = toupper(f_name[i]);
+		    f_name[i] = (char)toupper(f_name[i]);
 	    }
             if (min_arg == 1 && !limit_max && $5 == 1) {
 	        efun1_codes[efun1_code] = (char *) malloc(len + 1);
@@ -159,10 +157,10 @@ func: type ID optional_ID '(' arg_list optional_default ')' ';'
 	    if (strlen($3) + 1 + 17 > sizeof f_name)
 		mf_fatal("A local buffer was too small(2)!\n");
 	    sprintf(f_name, "F_%s | F_ALIAS_FLAG", $3);
-	    len = strlen(f_name);
+	    len = (int)strlen(f_name);
 	    for (i=0; i < len; i++) {
 		if (islower(f_name[i]))
-		    f_name[i] = toupper(f_name[i]);
+		    f_name[i] = (char)toupper(f_name[i]);
 	    }
 	    free($3);
 	}
@@ -216,9 +214,9 @@ basic: ID
 	    }
 	}
 	if (!$$) {
-		char buf[256];
-		sprintf(buf, "Invalid type: %s", $1);
-		yyerror(buf);
+		char xbuf[256];
+		sprintf(xbuf, "Invalid type: %s", $1);
+		yyerror(xbuf);
 	}
         free($1);
     };
@@ -313,7 +311,7 @@ char *
 etype(int n)
 {
     int i;
-    int local_size = 100;
+    size_t local_size = 100;
     char *buff = (char *)malloc(local_size);
 
     for (i=0; i < curr_arg_type_size; i++) {
@@ -419,7 +417,7 @@ ident(int c)
     int len;
 
     for (len = 0; isalunum(c); c = getc(yyin)) {
-	buff[len++] = c;
+	buff[len++] = (char)c;
 	if (len == sizeof buff - 1) {
 	    yyerror("Too long indentifier");
 	    break;

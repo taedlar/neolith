@@ -12,7 +12,7 @@
 #ifndef	LIB_WRAPPER_H
 #define	LIB_WRAPPER_H
 
-extern char* xstrdup(char* s);
+extern char* xstrdup(const char* s);
 extern void* xcalloc(size_t nmemb, size_t size);
 
 #ifndef	HAVE_STPCPY

@@ -84,12 +84,12 @@ whashstr (char *s, int maxn)
   if (!*s)
     return 0;
   p = (unsigned char *) s;
-  oh = T[*p];
+  oh = (unsigned char) T[*p];
   h = (*(p++) + 1) & 0xff;
   for (i = maxn - 1; *p && --i >= 0;)
     {
-      oh = T[oh ^ *p];
-      h = T[h ^ *(p++)];
+      oh = (unsigned char) T[oh ^ *p];
+      h = (unsigned char) T[h ^ *(p++)];
     }
 
   return (oh << 8) + h;
