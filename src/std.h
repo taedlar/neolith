@@ -72,7 +72,7 @@ void outbuf_push(outbuffer_t *);
 int outbuf_extend(outbuffer_t *, int);
 
 #ifndef NO_OPCODES
-#include "efuns/.opcode.h"
+#include "efuns_opcode.h"
 #endif
 
 #endif	/* ! STD_H */
