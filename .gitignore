@@ -51,3 +51,6 @@ lib/efuns/.*.h
 *.swp
 *~
 
+# cmake
+out/**
+
