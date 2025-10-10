@@ -68,10 +68,10 @@ add_define (char *name, int nargs, char *exps)
 	    }
 	  if (nargs != p->nargs || strcmp (exps, p->exps))
 	    {
-	      char buf[200 + NSIZE];
+	      char buff[200 + NSIZE];
 
-	      sprintf (buf, "redefinition of #define %s\n", name);
-	      yywarn (buf);
+	      sprintf (buff, "redefinition of #define %s\n", name);
+	      yywarn (buff);
 
 	      p->exps =
 		(char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER,
@@ -123,17 +123,17 @@ handle_elif ()
 	  FREE ((char *) p);
 
 #ifdef LEXER
-	  *--outp = '\0';
+	  *--outptr = '\0';
 	  add_input (sp);
 #endif
 	  cond = cond_get_exp (0);
 #ifdef LEXER
-	  if (*outp++)
+	  if (*outptr++)
 	    {
 	      yyerror ("Condition too complex in #elif");
-	      while (*outp++);
+	      while (*outptr++);
 #else
-	  if (*outp != '\n')
+	  if (*outptr != '\n')
 	    {
 	      yyerror ("Condition too complex in #elif");
 #endif
@@ -262,7 +262,7 @@ cond_get_exp (int priority)
 	{
 	  yyerror ("bracket not paired in #if");
 	  if (!c)
-	    *--outp = '\0';
+	    *--outptr = '\0';
 	}
 #else
       if ((c = exgetc ()) != ')')
@@ -271,11 +271,11 @@ cond_get_exp (int priority)
     }
   else if (ispunct (c))
     {
-      if (!(x = optab1[c]))
-	{
-	  yyerrorp ("illegal character in %cif");
-	  return 0;
-	}
+	  x = optab1[c];
+      if (!x) {
+	    yyerrorp ("illegal character in %cif");
+	    return 0;
+	  }
       value = cond_get_exp (12);
       switch (optab2[x - 1])
 	{
@@ -319,11 +319,11 @@ cond_get_exp (int priority)
 	base = 10;
       else
 	{
-	  c = *outp++;
+	  c = *outptr++;
 	  if (c == 'x' || c == 'X')
 	    {
 	      base = 16;
-	      c = *outp++;
+	      c = *outptr++;
 	    }
 	  else
 	    base = 8;
@@ -342,9 +342,9 @@ cond_get_exp (int priority)
 	  if (x > base)
 	    break;
 	  value = value * base + x;
-	  c = *outp++;
+	  c = *outptr++;
 	}
-      outp--;
+      outptr--;
     }
   for (;;)
     {
@@ -358,14 +358,15 @@ cond_get_exp (int priority)
       if (!ispunct (c = exgetc ()))
 	break;
 #endif
-      if (!(x = optab1[c]))
+      x = optab1[c];
+      if (!x)
 	break;
-      value2 = *outp++;
+      value2 = *outptr++;
       for (;; x += 3)
 	{
 	  if (!optab2[x])
 	    {
-	      outp--;
+	      outptr--;
 	      if (!optab2[x + 1])
 		{
 		  yyerrorp ("illegal operator use in %cif");
@@ -379,7 +380,7 @@ cond_get_exp (int priority)
       if (priority >= optab2[x + 2])
 	{
 	  if (optab2[x])
-	    *--outp = value2;
+	    *--outptr = (char)value2;
 	  break;
 	}
       value2 = cond_get_exp (optab2[x + 2]);
@@ -453,7 +454,7 @@ cond_get_exp (int priority)
 	  if (c != ':')
 	    {
 	      yyerror ("'?' without ':' in #if");
-	      outp--;
+	      outptr--;
 	      return 0;
 	    }
 #else
@@ -470,7 +471,7 @@ cond_get_exp (int priority)
 	  break;
 	}
     }
-  outp--;
+  outptr--;
   return value;
 }
 

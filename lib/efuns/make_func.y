@@ -14,12 +14,10 @@
 #include <config.h>
 #endif	/* HAVE_CONFIG_H */
 
-#ifdef	STDC_HEADERS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#endif	/* STDC_HEADERS */
 
 #define EDIT_SOURCE
 #define NO_OPCODES

@@ -4,3 +4,9 @@
 #cmakedefine HAVE_LIMITS_H
 #cmakedefine HAVE_STDINT_H
 #cmakedefine HAVE_INTTYPES_H
+
+#ifdef HAVE_GETTEXT
+#include "gettext.h"
+#else
+#define _(String) String
+#endif
