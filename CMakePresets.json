@@ -7,10 +7,7 @@
             "generator": "Visual Studio 16 2019",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-                "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets",
-                "VCPKG_APPLOCAL_DEPS": false
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -26,9 +23,6 @@
             "architecture": {
               "value": "x64",
               "strategy": "set"
-            },
-            "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-windows-static"
             }
         },
         {
@@ -39,9 +33,6 @@
             "architecture": {
               "value": "Win32",
               "strategy": "set"
-            },
-            "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x86-windows-static"
             }
         },
         {
@@ -50,11 +41,9 @@
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-                "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/triplets"
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
