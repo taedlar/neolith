@@ -22,11 +22,15 @@
 /* implementations */
 
 char *
-xstrdup (char *s)
+xstrdup (const char *s)
 {
   char *str;
 
-  str = strdup (s);
+#ifdef _MSC_VER
+  str = _strdup (s);  // ISO C
+#else
+  str = strdup (s); // POSIX
+#endif
   if (!str)
     {
       perror ("strdup");

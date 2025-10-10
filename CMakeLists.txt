@@ -10,9 +10,16 @@ if(WIN32)
     add_compile_definitions(WIN32_WINNT=0x0601) # Windows 7 or higher
 endif()
 
-# enable pedantic warnings and treat warnings as errors
 if(MSVC)
-    # add_compile_options(/W4 /WX /permissive- /Zc:__cplusplus)
+	option(USE_STATIC_MSVC_RUNTIME "Enable static MSVC Runtime library (-MT/-MD)" ON)
+	if (USE_STATIC_MSVC_RUNTIME)
+		message(STATUS "Using static MSVC Runtime Library. (-MT)")
+		set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+	else()
+		message(STATUS "Using dynamic-linking MSVC Runtime Library. (-MD)")
+		set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+	endif()
+    add_compile_options(/W3 /WX /permissive- /Zc:__cplusplus)
 else()
     # add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
