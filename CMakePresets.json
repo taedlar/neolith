@@ -7,7 +7,8 @@
             "generator": "Visual Studio 16 2019",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "BISON_ROOT": "C:/GnuWin32"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
