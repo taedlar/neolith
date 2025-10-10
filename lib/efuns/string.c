@@ -14,7 +14,7 @@
 #endif /* HAVE_CONFIG_H */
 
 
-#include ".opcode.h"
+#include "efuns_opcode.h"
 #include "src/std.h"
 #include "src/main.h"
 #include "src/interpret.h"
@@ -478,7 +478,7 @@ f_replace_string (void)
   first = 0;
   last = 0;
 
-  /* ÀË¬d¶Ç¤J replace_string ªº°Ñ¼Æ­Ó¼Æ */
+  /* ï¿½Ë¬dï¿½Ç¤J replace_string ï¿½ï¿½ï¿½Ñ¼Æ­Ó¼ï¿½ */
   if (st_num_arg >= 4)
     {
       CHECK_TYPES ((arg + 3), T_NUMBER, 4, F_REPLACE_STRING);
@@ -521,8 +521,8 @@ f_replace_string (void)
 
   if (rlen <= plen)
     {
-      /* replace ¤ñ pattern µu -> ¦r¦êªø«×¤£¥i¯à¦ùªø¡A¤£»Ý­«·s
-       * °t¸m°O¾ÐÅé */
+      /* replace ï¿½ï¿½ pattern ï¿½u -> ï¿½rï¿½ï¿½ï¿½ï¿½×¤ï¿½ï¿½iï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½Ý­ï¿½ï¿½s
+       * ï¿½tï¿½mï¿½Oï¿½ï¿½ï¿½ï¿½ */
       unlink_string_svalue (arg);
       src = arg->u.string;
     }
@@ -543,12 +543,12 @@ f_replace_string (void)
 
   if (rlen <= plen)
     {
-      /* ¦r¦ê¤º³¡ªº¨ú¥N¤è¦¡ */
+      /* ï¿½rï¿½ê¤ºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Nï¿½è¦¡ */
       dst2 = dst1 = arg->u.string;
 
       if (plen > 1)
 	{
-	  /* pattern ªø«×¤j©ó 1, ¨Ï¥Î jump table ³t«×¸û§Ö */
+	  /* pattern ï¿½ï¿½ï¿½×¤jï¿½ï¿½ 1, ï¿½Ï¥ï¿½ jump table ï¿½tï¿½×¸ï¿½ï¿½ï¿½ */
 	  while (src < flimit)
 	    {
 	      if ((skip = skip_table[(unsigned char) src[probe]]))
@@ -589,9 +589,9 @@ f_replace_string (void)
 	}
       else
 	{
-	  /* pattern ªø«× == 1, ÆZ¤Oªk³Ì§Ö */
+	  /* pattern ï¿½ï¿½ï¿½ï¿½ == 1, ï¿½Zï¿½Oï¿½kï¿½Ì§ï¿½ */
 	  if (rlen)
-	    {			/* ¦]¬° rlen<=plen, ¥B plen==1, ©Ò¥H rlen==1 */
+	    {			/* ï¿½]ï¿½ï¿½ rlen<=plen, ï¿½B plen==1, ï¿½Ò¥H rlen==1 */
 	      while (*src)
 		{
 		  if (*src == *pattern)

@@ -40,8 +40,8 @@
 #include "rc.h"
 #include "applies.h"
 
-#include "efuns/.prototype.h"
-#include "efuns/.vector.h"
+#include "efuns_prototype.h"
+#include "efuns_vector.h"
 
 
 static char *type_names[] = {
@@ -1067,7 +1067,7 @@ bad_argument (svalue_t * val, int type, int arg, int instr)
 inline void
 push_control_stack (int frkind)
 {
-  /* ­Y control stack ²`«×¶W¹L¤¹³\ªº¤W­­, µø¬°¿ù»~ */
+  /* ï¿½Y control stack ï¿½`ï¿½×¶Wï¿½Lï¿½ï¿½ï¿½\ï¿½ï¿½ï¿½Wï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½~ */
   if (csp == &control_stack[CONFIG_INT (__MAX_CALL_DEPTH__) - 1])
     {
       error_state |= ES_STACK_FULL;
@@ -1384,7 +1384,7 @@ unsigned char fake_program = F_RETURN;
 void
 setup_fake_frame (funptr_t * fun)
 {
-  /* ¦pªG control stack ²`«×¶W¹L¤¹³\ªº¤W­­, µø¬°¿ù»~ */
+  /* ï¿½pï¿½G control stack ï¿½`ï¿½×¶Wï¿½Lï¿½ï¿½ï¿½\ï¿½ï¿½ï¿½Wï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½~ */
   if (csp == &control_stack[CONFIG_INT (__MAX_CALL_DEPTH__) - 1])
     {
       error_state |= ES_STACK_FULL;
@@ -1819,7 +1819,7 @@ eval_instruction (char *p)
 			 CONFIG_INT (__MAX_EVAL_COST__));
 	  error_state |= ES_MAX_EVAL_COST;
 
-	  /* ­«·s³]©w eval cost ¨Ñ¿ù»~³B²z¨ç¦¡°õ¦æ¨Ï¥Î */
+	  /* ï¿½ï¿½ï¿½sï¿½]ï¿½w eval cost ï¿½Ñ¿ï¿½ï¿½~ï¿½Bï¿½zï¿½ç¦¡ï¿½ï¿½ï¿½ï¿½Ï¥ï¿½ */
 	  eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
 	  error (_("*Too long evaluation. Execution aborted."));
 	}
@@ -5017,7 +5017,7 @@ pop_context (error_context_t * econ)
 {
   current_error_context = econ->save_context;
 
-  /* ²M°£©Ò¦³¿ù»~ª¬ºAºX¼Ð */
+  /* ï¿½Mï¿½ï¿½ï¿½Ò¦ï¿½ï¿½ï¿½ï¿½~ï¿½ï¿½ï¿½Aï¿½Xï¿½ï¿½ */
   error_state = 0;
 }
 

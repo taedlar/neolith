@@ -38,20 +38,17 @@
 #include "adt/hash.h"
 #include "lib/wrapper.h"
 
-// #define TO_DEV_NULL ">/dev/null 2>&1"
-
 char *outptr;
 static int buffered = 0;
 static int nexpands = 0;
 
 FILE *yyin = 0, *yyout = 0;
 
-#define HEADER_OPTION		".option.h"
-
-#define HEADER_VECTOR		".vector.h"
-#define HEADER_OPCODE		".opcode.h"
-#define HEADER_PROTOTYPE	".prototype.h"
-#define HEADER_DEFINITION	".definition.h"
+#define HEADER_OPTION		"efuns_option.h"
+#define HEADER_VECTOR		"efuns_vector.h"
+#define HEADER_OPCODE		"efuns_opcode.h"
+#define HEADER_PROTOTYPE	"efuns_prototype.h"
+#define HEADER_DEFINITION	"efuns_definition.h"
 
 #define PRAGMA_NOTE_CASE_START 1
 
@@ -93,7 +90,6 @@ int
 main (int argc, char *argv[])
 {
 #if defined(HAVE_GETTEXT) && defined(ENABLE_NLS)
-  /* �}�ҥ��a�y�t */
   setlocale (LC_ALL, "");
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);

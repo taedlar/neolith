@@ -13,7 +13,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include ".opcode.h"
+#include "efuns_opcode.h"
 #include "src/std.h"
 #include "src/applies.h"
 #include "src/main.h"

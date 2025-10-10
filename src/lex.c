@@ -129,9 +129,9 @@ function_context_t *current_function_context = 0;
  * only by the runtime.
  */
 keyword_t predefs[] =
-#include "efuns/.definition.h"
+#include "efuns_definition.h"
   char *option_defs[] =
-#include "efuns/.option.h"
+#include "efuns_option.h"
   static keyword_t reswords[] = {
   {"asm", 0, 0},
   {"break", L_BREAK, 0},

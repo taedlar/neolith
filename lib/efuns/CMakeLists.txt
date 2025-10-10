@@ -13,3 +13,42 @@ target_include_directories(edit_source PRIVATE
 
 target_compile_definitions(edit_source PRIVATE _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(edit_source PRIVATE adt misc)
+
+# preprocessor-only command
+if(MSVC)
+    set(CPP_COMMAND ${CMAKE_C_COMPILER} /I ${CMAKE_CURRENT_SOURCE_DIR} /EP) # cl
+else()
+    set(CPP_COMMAND ${CMAKE_C_COMPILER} -I ${CMAKE_CURRENT_SOURCE_DIR} -E)  # gcc
+endif()
+
+# generate efun tables
+add_custom_command(TARGET edit_source POST_BUILD
+    COMMAND ${CPP_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/prototype.c > ${CMAKE_CURRENT_BINARY_DIR}/prototype.i
+    COMMAND $<TARGET_FILE:edit_source> ${CMAKE_CURRENT_SOURCE_DIR}/options.h ${CMAKE_CURRENT_BINARY_DIR}/prototype.i
+)
+
+set(efuns_SOURCES
+    call_out.c
+    datetime.c
+    debug.c
+    dump_prog.c
+    dumpstat.c
+    ed.c
+    file.c
+    math.c
+    operator.c
+    parse.c
+    reclaim_object.c
+    replace_program.c
+    sprintf.c
+    string.c
+    unsorted.c
+)
+
+# add_library(efuns STATIC ${efuns_SOURCES})
+# add_dependencies(efuns edit_source)
+# target_include_directories(efuns PRIVATE
+#     ${CMAKE_SOURCE_DIR}
+#     ${CMAKE_SOURCE_DIR}/lib
+#     ${CMAKE_CURRENT_BINARY_DIR}
+# )
