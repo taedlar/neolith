@@ -13,14 +13,14 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#ifdef	STDC_HEADERS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #include <locale.h>
-#endif /* STDC_HEADERS */
 
 #ifdef	HAVE_ARGP_H
 #include <argp.h>
@@ -35,7 +35,7 @@
 #include "src/lex.h"
 #include "src/preprocess.h"
 #include "edit_source.h"
-#include "hash.h"
+#include "adt/hash.h"
 #include "lib/wrapper.h"
 
 #define TO_DEV_NULL ">/dev/null 2>&1"
@@ -93,7 +93,7 @@ int
 main (int argc, char *argv[])
 {
 #if defined(HAVE_GETTEXT) && defined(ENABLE_NLS)
-  /* ¶}±Ò¥»¦a»y¨t */
+  /* ï¿½}ï¿½Ò¥ï¿½ï¿½aï¿½yï¿½t */
   setlocale (LC_ALL, "");
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
