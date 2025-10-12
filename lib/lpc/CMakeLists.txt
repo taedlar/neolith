@@ -9,7 +9,7 @@ set(lpc_SOURCES
     object.c
 )
 add_library(lpc STATIC ${lpc_SOURCES})
-target_include_directories(lpc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(lpc PUBLIC ${CMAKE_SOURCE_DIR}/lib)
 target_include_directories(lpc PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib

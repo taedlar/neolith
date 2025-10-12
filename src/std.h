@@ -18,7 +18,9 @@
 #include <locale.h>
 #include <math.h>
 #include <setjmp.h>
+#ifdef HAVE_SIGNAL_H
 #include <signal.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
