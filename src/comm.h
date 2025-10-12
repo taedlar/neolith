@@ -33,10 +33,15 @@
 #include <resolv.h>
 #endif	/* HAVE_RESOLVE_H */
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#elif __linux__
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#endif
 
-#include "lpc/function.h"
+#include "lpc/functional.h"
 
 #define OS_socket_write(f, m, l)	write(f, m, l)
 #define OS_socket_read(r, b, l)		read(r, b, l)
@@ -89,7 +94,6 @@ typedef struct interactive_s {
     struct interactive_s *snoop_on;
     struct interactive_s *snoop_by;
     int last_time;		/* time of last command executed           */
-    /* this or What ? is printed when error    */
     string_or_func_t default_err_message;
 #ifdef OLD_ED
     struct ed_buffer_s *ed_buffer;  /* local ed                        */
