@@ -57,7 +57,6 @@ AC_CHECK_FUNCS(getcwd gethostname getline gettimeofday getwd mkdir putenv\
 
 AC_OUTPUT([po/Makefile.in
   Makefile
-  lib/Makefile
   lib/port/Makefile
   lib/adt/Makefile
   lib/efuns/Makefile
