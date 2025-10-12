@@ -1,6 +1,6 @@
 YFLAGS = -d
 AM_CFLAGS = -Wall -ggdb -O -pipe
-AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@ -I@top_srcdir@/lib -I@top_srcdir@/lib/adt
+AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@ -I@top_srcdir@ -I@top_srcdir@/lib -I@top_srcdir@/lib/adt -I@top_builddir@/lib/efuns
 
 EXTRA_DIST = preprocess.c ChangeLog neolith.conf
 

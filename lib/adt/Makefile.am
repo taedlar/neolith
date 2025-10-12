@@ -1,5 +1,5 @@
 AM_CFLAGS = -Wall -ggdb -O2 -pipe
-AM_CPPFLAGS = -I@top_srcdir@/lib
+AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@ -I@top_srcdir@ -I@top_srcdir@/lib
 
 noinst_LTLIBRARIES = libadt.la
 

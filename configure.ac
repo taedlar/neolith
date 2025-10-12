@@ -1,6 +1,6 @@
 AC_INIT([neolith], [0.1.3])
 AC_CONFIG_SRCDIR([gettext.h])
-AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_HEADERS([config.h:ahcfg.h.in])
 AC_CONFIG_AUX_DIR([auto])
 AM_INIT_AUTOMAKE
 AC_USE_SYSTEM_EXTENSIONS
@@ -14,7 +14,7 @@ AH_TEMPLATE([HAVE_GETTEXT],
 	    [Defined when GNU gettext is available.])
 
 AH_BOTTOM([#if defined(ENABLE_NLS) && defined(HAVE_GETTEXT)
-#include <gettext.h>
+#include "gettext.h"
 #define _(s) gettext(s)
 #else
 #define _(s) (s)
@@ -58,6 +58,7 @@ AC_CHECK_FUNCS(getcwd gethostname getline gettimeofday getwd mkdir putenv\
 AC_OUTPUT([po/Makefile.in
   Makefile
   lib/Makefile
+  lib/port/Makefile
   lib/adt/Makefile
   lib/efuns/Makefile
   lib/lpc/Makefile

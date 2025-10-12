@@ -1,9 +1,9 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif /* HAVE_LIMITS_H */
+#ifdef __linux__
+#include <linux/limits.h>
+#endif /* __linux__ */
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -29,7 +29,7 @@ typedef struct server_options
   char config_file[MAX_PATH];
 #endif
   int debug_level;
-  unsigned long trace_flags;
+  unsigned long trace_flags;  
 } server_options_t;
 
 extern server_options_t* g_svropts;

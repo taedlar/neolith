@@ -88,7 +88,7 @@ static int nexpands = 0;
 #define EXPANDMAX 25000
 
 char yytext[MAXLINE];
-static char *outp;
+static char *outptr;
 
 typedef struct incstate_s
 {
@@ -98,7 +98,7 @@ typedef struct incstate_s
   char *file;
   int file_id;
   char *last_nl;
-  char *outp;
+  char *outptr;
 }
 incstate_t;
 
@@ -191,7 +191,7 @@ typedef struct linked_buf_s
   char term_type;
   char buf[DEFMAX];
   char *buf_end;
-  char *outp;
+  char *outptr;
   char *last_nl;
 }
 linked_buf_t;
@@ -317,7 +317,7 @@ skip_to (char *token, char *atoken)
 {
   char b[20], *p;
   char c;
-  register char *yyp = outp, *startp;
+  register char *yyp = outptr, *startp;
   char *b_end = b + 19;
   int nest;
 
@@ -349,20 +349,20 @@ skip_to (char *token, char *atoken)
 	    {
 	      if (!strcmp (b, token))
 		{
-		  outp = startp;
-		  *--outp = '#';
+		  outptr = startp;
+		  *--outptr = '#';
 		  return 1;
 		}
 	      else if (atoken && !strcmp (b, atoken))
 		{
-		  outp = startp;
-		  *--outp = '#';
+		  outptr = startp;
+		  *--outptr = '#';
 		  return 0;
 		}
 	      else if (!strcmp (b, "elif"))
 		{
-		  outp = startp;
-		  *--outp = '#';
+		  outptr = startp;
+		  *--outptr = '#';
 		  return (atoken == 0);
 		}
 	    }
@@ -372,16 +372,16 @@ skip_to (char *token, char *atoken)
       if (c == LEX_EOF)
 	{
 	  lexerror (_("Unexpected end of file while skipping"));
-	  outp = yyp - 1;
+	  outptr = yyp - 1;
 	  return 1;
 	}
       current_line++;
       total_lines++;
       if (yyp == last_nl + 1)
 	{
-	  outp = yyp;
+	  outptr = yyp;
 	  refill_buffer ();
-	  yyp = outp;
+	  yyp = outptr;
 	}
     }
 }
@@ -490,7 +490,7 @@ handle_include (const char *inc_name, int optional)
       is->file_id = current_file_id;
       is->last_nl = last_nl;
       is->next = inctop;
-      is->outp = outp;
+      is->outptr = outptr;
       inctop = is;
       current_line--;
       save_file_info (current_file_id, current_line - current_line_saved);
@@ -516,13 +516,13 @@ get_terminator (char *terminator)
 {
   int c, j = 0;
 
-  while (((c = *outp++) != LEX_EOF) && (isalnum (c) || c == '_'))
+  while (((c = *outptr++) != LEX_EOF) && (isalnum (c) || c == '_'))
     terminator[j++] = c;
 
   terminator[j] = '\0';
 
   while (is_wspace (c) && c != LEX_EOF)
-    c = *outp++;
+    c = *outptr++;
 
   if (c == LEX_EOF)
     return 0;
@@ -530,12 +530,12 @@ get_terminator (char *terminator)
   if (c == '\n')
     {
       current_line++;
-      if (outp == last_nl + 1)
+      if (outptr == last_nl + 1)
 	refill_buffer ();
     }
   else
     {
-      outp--;
+      outptr--;
     }
 
   return j;
@@ -565,7 +565,7 @@ get_array_block (char *term)
   int startpos, startchunk;	/* start of line */
   int curchunk, res;		/* current chunk; this function's result */
   int c, i;			/* a char; an index counter */
-  register char *yyp = outp;
+  register char *yyp = outptr;
 
   /*
    * initialize
@@ -598,9 +598,9 @@ get_array_block (char *term)
 
       if (c == '\n' && (yyp == last_nl + 1))
 	{
-	  outp = yyp;
+	  outptr = yyp;
 	  refill_buffer ();
-	  yyp = outp;
+	  yyp = outptr;
 	}
 
       /*
@@ -610,7 +610,7 @@ get_array_block (char *term)
 
       if (res)
 	{
-	  outp = yyp;
+	  outptr = yyp;
 	  break;
 	}
 
@@ -627,14 +627,14 @@ get_array_block (char *term)
 	  if (strlen (array_line[startchunk] + startpos) == termlen)
 	    {
 	      current_line++;
-	      outp = yyp;
+	      outptr = yyp;
 	    }
 	  else
 	    {
 	      /*
 	       * put back trailing portion after terminator
 	       */
-	      outp = --yyp;	/* some operating systems give EOF only once */
+	      outptr = --yyp;	/* some operating systems give EOF only once */
 
 	      for (i = curchunk; i > startchunk; i--)
 		add_input (array_line[i]);
@@ -649,8 +649,8 @@ get_array_block (char *term)
 	  /*
 	   * insert array block into input stream
 	   */
-	  *--outp = ')';
-	  *--outp = '}';
+	  *--outptr = ')';
+	  *--outptr = '}';
 	  for (i = startchunk; i >= 0; i--)
 	    add_input (array_line[i]);
 
@@ -665,7 +665,7 @@ get_array_block (char *term)
 	  if (c == LEX_EOF && inctop == 0)
 	    {
 	      res = -1;
-	      outp = yyp;
+	      outptr = yyp;
 	      break;
 	    }
 	  if (c == '\n')
@@ -683,7 +683,7 @@ get_array_block (char *term)
 	      if (curchunk == NUMCHUNKS - 1)
 		{
 		  res = -2;
-		  outp = yyp;
+		  outptr = yyp;
 		  break;
 		}
 	      array_line[++curchunk] =
@@ -722,7 +722,7 @@ get_text_block (char *term)
   int startpos, startchunk;	/* start of line */
   int curchunk, res;		/* current chunk; this function's result */
   int c, i;			/* a char; an index counter */
-  register char *yyp = outp;
+  register char *yyp = outptr;
 
   /*
    * initialize
@@ -752,9 +752,9 @@ get_text_block (char *term)
 
       if (c == '\n' && yyp == last_nl + 1)
 	{
-	  outp = yyp;
+	  outptr = yyp;
 	  refill_buffer ();
-	  yyp = outp;
+	  yyp = outptr;
 	}
 
       /*
@@ -764,7 +764,7 @@ get_text_block (char *term)
 
       if (res)
 	{
-	  outp = yyp;
+	  outptr = yyp;
 	  break;
 	}
 
@@ -778,7 +778,7 @@ get_text_block (char *term)
 	  if (strlen (text_line[startchunk] + startpos) == termlen)
 	    {
 	      current_line++;
-	      outp = yyp;
+	      outptr = yyp;
 	    }
 	  else
 	    {
@@ -786,7 +786,7 @@ get_text_block (char *term)
 	      /*
 	       * put back trailing portion after terminator
 	       */
-	      outp = --yyp;	/* some operating systems give EOF only once */
+	      outptr = --yyp;	/* some operating systems give EOF only once */
 
 	      for (i = curchunk; i > startchunk; i--)
 		{
@@ -835,8 +835,8 @@ get_text_block (char *term)
 	  /*
 	   * insert text block into input stream
 	   */
-	  *--outp = '\0';
-	  *--outp = '"';
+	  *--outptr = '\0';
+	  *--outptr = '"';
 
 	  for (i = startchunk; i >= 0; i--)
 	    add_input (text_line[i]);
@@ -852,7 +852,7 @@ get_text_block (char *term)
 	  if (c == LEX_EOF && inctop == 0)
 	    {
 	      res = -1;
-	      outp = yyp;
+	      outptr = yyp;
 	      break;
 	    }
 	  if (c == '\n')
@@ -870,7 +870,7 @@ get_text_block (char *term)
 	      if (curchunk == NUMCHUNKS - 1)
 		{
 		  res = -2;
-		  outp = yyp;
+		  outptr = yyp;
 		  break;
 		}
 	      text_line[++curchunk] =
@@ -902,21 +902,21 @@ static void
 skip_line ()
 {
   int c;
-  register char *yyp = outp;
+  register char *yyp = outptr;
 
   while (((c = *yyp++) != '\n') && (c != LEX_EOF));
 
   /* Next read of this '\n' will do refill_buffer() if neccesary */
   if (c == '\n')
     yyp--;
-  outp = yyp;
+  outptr = yyp;
 }
 
 static void
 skip_comment ()
 {
   int c = '*';
-  register char *yyp = outp;
+  register char *yyp = outptr;
 
   for (;;)
     {
@@ -924,7 +924,7 @@ skip_comment ()
 	{
 	  if (c == LEX_EOF)
 	    {
-	      outp = --yyp;
+	      outptr = --yyp;
 	      lexerror (_("End of file in a comment"));
 	      return;
 	    }
@@ -934,9 +934,9 @@ skip_comment ()
 	      current_line++;
 	      if (yyp == last_nl + 1)
 		{
-		  outp = yyp;
+		  outptr = yyp;
 		  refill_buffer ();
-		  yyp = outp;
+		  yyp = outptr;
 		}
 	    }
 	}
@@ -946,7 +946,7 @@ skip_comment ()
 	{
 	  if ((c = *yyp++) == '/')
 	    {
-	      outp = yyp;
+	      outptr = yyp;
 	      return;
 	    }
 	  if (c == '\n')
@@ -955,9 +955,9 @@ skip_comment ()
 	      current_line++;
 	      if (yyp == last_nl + 1)
 		{
-		  outp = yyp;
+		  outptr = yyp;
 		  refill_buffer ();
-		  yyp = outp;
+		  yyp = outptr;
 		}
 	    }
 	}
@@ -1053,7 +1053,7 @@ show_error_context ()
     strcpy (buf, " around ");
   else
     strcpy (buf, " before ");
-  yyp = outp;
+  yyp = outptr;
   yyp2 = sub_context;
   len = 20;
   while (len--)
@@ -1086,7 +1086,7 @@ refill_buffer ()
 {
   if (cur_lbuf != &head_lbuf)
     {
-      if (outp >= cur_lbuf->buf_end && cur_lbuf->term_type == TERM_ADD_INPUT)
+      if (outptr >= cur_lbuf->buf_end && cur_lbuf->term_type == TERM_ADD_INPUT)
 	{
 	  /* In this case it cur_lbuf cannot have been 
 	     allocated due to #include */
@@ -1094,15 +1094,15 @@ refill_buffer ()
 
 	  FREE (cur_lbuf);
 	  cur_lbuf = prev_lbuf;
-	  outp = cur_lbuf->outp;
+	  outptr = cur_lbuf->outptr;
 	  last_nl = cur_lbuf->last_nl;
-	  if (cur_lbuf->term_type == TERM_ADD_INPUT || (outp != last_nl + 1))
+	  if (cur_lbuf->term_type == TERM_ADD_INPUT || (outptr != last_nl + 1))
 	    return;
 	}
     }
 
   /* Here we are sure that we need more from the file */
-  /* Assume outp is one beyond a newline at last_nl */
+  /* Assume outptr is one beyond a newline at last_nl */
   /* or after an #include .... */
 
   {
@@ -1121,10 +1121,10 @@ refill_buffer ()
 	else
 	  {
 	    /* No more space at the end */
-	    size = cur_lbuf->buf_end - outp + 1;	/* Include newline */
-	    memcpy (outp - MAXLINE - 1, outp - 1, size);
-	    outp -= MAXLINE;
-	    p = outp + size - 1;
+	    size = cur_lbuf->buf_end - outptr + 1;	/* Include newline */
+	    memcpy (outptr - MAXLINE - 1, outptr - 1, size);
+	    outptr -= MAXLINE;
+	    p = outptr + size - 1;
 	  }
 
 	size = correct_read (yyin_desc, p, MAXLINE);
@@ -1135,7 +1135,7 @@ refill_buffer ()
 	    return;
 	  }
 	while (*--p != '\n');
-	if (p == outp - 1)
+	if (p == outptr - 1)
 	  {
 	    lexerror (_("Line too long"));
 	    *(last_nl = cur_lbuf->buf_end - 1) = '\n';
@@ -1150,7 +1150,7 @@ refill_buffer ()
 
 	/* We are reading from an include file */
 	/* Is there enough space? */
-	end = inctop->outp;
+	end = inctop->outptr;
 
 	/* See if we are the last include in a different linked buffer */
 	if (cur_lbuf->term_type == TERM_INCLUDE &&
@@ -1160,12 +1160,12 @@ refill_buffer ()
 	    flag = 1;
 	  }
 
-	size = end - outp + 1;	/* Include newline */
-	if (outp - cur_lbuf->buf > 2 * MAXLINE)
+	size = end - outptr + 1;	/* Include newline */
+	if (outptr - cur_lbuf->buf > 2 * MAXLINE)
 	  {
-	    memcpy (outp - MAXLINE - 1, outp - 1, size);
-	    outp -= MAXLINE;
-	    p = outp + size - 1;
+	    memcpy (outptr - MAXLINE - 1, outptr - 1, size);
+	    outptr -= MAXLINE;
+	    p = outptr + size - 1;
 	  }
 	else
 	  {			/* No space, need to allocate new buffer */
@@ -1180,14 +1180,14 @@ refill_buffer ()
 		return;
 	      }
 	    cur_lbuf->last_nl = last_nl;
-	    cur_lbuf->outp = outp;
+	    cur_lbuf->outptr = outptr;
 	    new_lbuf->prev = cur_lbuf;
 	    new_lbuf->term_type = TERM_INCLUDE;
 	    new_outp = new_lbuf->buf + DEFMAX - MAXLINE - size - 5;
-	    memcpy (new_outp - 1, outp - 1, size);
+	    memcpy (new_outp - 1, outptr - 1, size);
 	    cur_lbuf = new_lbuf;
-	    outp = new_outp;
-	    p = outp + size - 1;
+	    outptr = new_outp;
+	    p = outptr + size - 1;
 	    flag = 1;
 	  }
 
@@ -1201,7 +1201,7 @@ refill_buffer ()
 	    return;
 	  }
 	while (*--p != '\n');
-	if (p == outp - 1)
+	if (p == outptr - 1)
 	  {
 	    lexerror ("Line too long.");
 	    *(last_nl = end - 1) = '\n';
@@ -1281,7 +1281,7 @@ yylex ()
 	{
 	  return -1;
 	}
-      switch (c = *outp++)
+      switch (c = *outptr++)
 	{
 	case LEX_EOF:
 	  if (inctop)
@@ -1298,7 +1298,7 @@ yylex ()
 	      current_line_base += current_line - current_line_saved;
 	      free_string (current_file);
 	      nexpands = 0;
-	      if (outp >= cur_lbuf->buf_end)
+	      if (outptr >= cur_lbuf->buf_end)
 		{
 		  linked_buf_t *prev_lbuf;
 		  if ((prev_lbuf = cur_lbuf->prev))
@@ -1314,12 +1314,12 @@ yylex ()
 
 	      yyin_desc = p->yyin_desc;
 	      last_nl = p->last_nl;
-	      outp = p->outp;
+	      outptr = p->outptr;
 	      inctop = p->next;
 	      incnum--;
 	      FREE ((char *) p);
-	      outp[-1] = '\n';
-	      if (outp == last_nl + 1)
+	      outptr[-1] = '\n';
+	      if (outptr == last_nl + 1)
 		refill_buffer ();
 	      break;
 	    }
@@ -1336,14 +1336,14 @@ yylex ()
 		  FREE ((char *) p);
 		}
 	    }
-	  outp--;
+	  outptr--;
 	  return -1;
 	case '\n':
 	  {
 	    nexpands = 0;
 	    current_line++;
 	    total_lines++;
-	    if (outp == last_nl + 1)
+	    if (outptr == last_nl + 1)
 	      refill_buffer ();
 	  }
 	case ' ':
@@ -1354,20 +1354,20 @@ yylex ()
 	  break;
 	case '+':
 	  {
-	    switch (*outp++)
+	    switch (*outptr++)
 	      {
 	      case '+':
 		return L_INC;
 	      case '=':
 		return_assign (F_ADD_EQ);
 	      default:
-		outp--;
+		outptr--;
 		return '+';
 	      }
 	  }
 	case '-':
 	  {
-	    switch (*outp++)
+	    switch (*outptr++)
 	      {
 	      case '>':
 		return L_ARROW;
@@ -1376,95 +1376,95 @@ yylex ()
 	      case '=':
 		return_assign (F_SUB_EQ);
 	      default:
-		outp--;
+		outptr--;
 		return '-';
 	      }
 	  }
 	case '&':
 	  {
-	    switch (*outp++)
+	    switch (*outptr++)
 	      {
 	      case '&':
 		return L_LAND;
 	      case '=':
 		return_assign (F_AND_EQ);
 	      default:
-		outp--;
+		outptr--;
 		return '&';
 	      }
 	  }
 	case '|':
 	  {
-	    switch (*outp++)
+	    switch (*outptr++)
 	      {
 	      case '|':
 		return L_LOR;
 	      case '=':
 		return_assign (F_OR_EQ);
 	      default:
-		outp--;
+		outptr--;
 		return '|';
 	      }
 	  }
 	case '^':
 	  {
-	    if (*outp++ == '=')
+	    if (*outptr++ == '=')
 	      return_assign (F_XOR_EQ);
-	    outp--;
+	    outptr--;
 	    return '^';
 	  }
 	case '<':
 	  {
-	    switch (*outp++)
+	    switch (*outptr++)
 	      {
 	      case '<':
 		{
-		  if (*outp++ == '=')
+		  if (*outptr++ == '=')
 		    return_assign (F_LSH_EQ);
-		  outp--;
+		  outptr--;
 		  return L_LSH;
 		}
 	      case '=':
 		return_order (F_LE);
 	      default:
-		outp--;
+		outptr--;
 		return '<';
 	      }
 	  }
 	case '>':
 	  {
-	    switch (*outp++)
+	    switch (*outptr++)
 	      {
 	      case '>':
 		{
-		  if (*outp++ == '=')
+		  if (*outptr++ == '=')
 		    return_assign (F_RSH_EQ);
-		  outp--;
+		  outptr--;
 		  return L_RSH;
 		}
 	      case '=':
 		return_order (F_GE);
 	      default:
-		outp--;
+		outptr--;
 		return_order (F_GT);
 	      }
 	  }
 	case '*':
 	  {
-	    if (*outp++ == '=')
+	    if (*outptr++ == '=')
 	      return_assign (F_MULT_EQ);
-	    outp--;
+	    outptr--;
 	    return '*';
 	  }
 	case '%':
 	  {
-	    if (*outp++ == '=')
+	    if (*outptr++ == '=')
 	      return_assign (F_MOD_EQ);
-	    outp--;
+	    outptr--;
 	    return '%';
 	  }
 	case '/':
-	  switch (*outp++)
+	  switch (*outptr++)
 	    {
 	    case '*':
 	      skip_comment ();
@@ -1475,18 +1475,18 @@ yylex ()
 	    case '=':
 	      return_assign (F_DIV_EQ);
 	    default:
-	      outp--;
+	      outptr--;
 	      return '/';
 	    }
 	  break;
 	case '=':
-	  if (*outp++ == '=')
+	  if (*outptr++ == '=')
 	    return L_EQ;
-	  outp--;
+	  outptr--;
 	  yylval.number = F_ASSIGN;
 	  return L_ASSIGN;
 	case '(':
-	  yyp = outp;
+	  yyp = outptr;
 	  while (isspace (c = *yyp++))
 	    {
 	      if (c == '\n')
@@ -1494,9 +1494,9 @@ yylex ()
 		  current_line++;
 		  if (yyp == last_nl + 1)
 		    {
-		      outp = yyp;
+		      outptr = yyp;
 		      refill_buffer ();
-		      yyp = outp;
+		      yyp = outptr;
 		    }
 		}
 	    }
@@ -1505,19 +1505,19 @@ yylex ()
 	    {
 	    case '{':
 	      {
-		outp = yyp;
+		outptr = yyp;
 		return L_ARRAY_OPEN;
 	      }
 	    case '[':
 	      {
-		outp = yyp;
+		outptr = yyp;
 		return L_MAPPING_OPEN;
 	      }
 	    case ':':
 	      {
 		if ((c = *yyp++) == ':')
 		  {
-		    outp = yyp -= 2;
+		    outptr = yyp -= 2;
 		    return '(';
 		  }
 		else
@@ -1528,16 +1528,16 @@ yylex ()
 			  {
 			    if ((yyp == last_nl + 1))
 			      {
-				outp = yyp;
+				outptr = yyp;
 				refill_buffer ();
-				yyp = outp;
+				yyp = outptr;
 			      }
 			    current_line++;
 			  }
 			c = *yyp++;
 		      }
 
-		    outp = yyp;
+		    outptr = yyp;
 
 		    if (isalpha (c) || c == '_')
 		      {
@@ -1545,7 +1545,7 @@ yylex ()
 			goto parse_identifier;
 		      }
 
-		    outp--;
+		    outptr--;
 		    push_function_context ();
 		    return L_FUNCTION_OPEN;
 		  }
@@ -1553,7 +1553,7 @@ yylex ()
 	      }
 	    default:
 	      {
-		outp = yyp - 1;
+		outptr = yyp - 1;
 		return '(';
 	      }
 	    }
@@ -1571,20 +1571,20 @@ yylex ()
 	    }
 	  else
 	    {
-	      if (!isdigit (c = *outp++))
+	      if (!isdigit (c = *outptr++))
 		{
-		  outp--;
+		  outptr--;
 		  return '$';
 		}
 	      yyp = yytext;
 	      SAVEC;
 	      for (;;)
 		{
-		  if (!isdigit (c = *outp++))
+		  if (!isdigit (c = *outptr++))
 		    break;
 		  SAVEC;
 		}
-	      outp--;
+	      outptr--;
 	      *yyp = 0;
 	      yylval.number = atoi (yytext) - 1;
 	      if (yylval.number < 0)
@@ -1607,32 +1607,32 @@ yylex ()
 	case '?':
 	  return c;
 	case '!':
-	  if (*outp++ == '=')
+	  if (*outptr++ == '=')
 	    return L_NE;
-	  outp--;
+	  outptr--;
 	  return L_NOT;
 	case ':':
-	  if (*outp++ == ':')
+	  if (*outptr++ == ':')
 	    return L_COLON_COLON;
-	  outp--;
+	  outptr--;
 	  return ':';
 	case '.':
-	  if (*outp++ == '.')
+	  if (*outptr++ == '.')
 	    {
-	      if (*outp++ == '.')
+	      if (*outptr++ == '.')
 		return L_DOT_DOT_DOT;
-	      outp--;
+	      outptr--;
 	      return L_RANGE;
 	    }
-	  outp--;
+	  outptr--;
 	  goto badlex;
 	case '#':
-	  if (*(outp - 2) == '\n')
+	  if (*(outptr - 2) == '\n')
 	    {
 	      char *sp = 0;
 	      int quote;
 
-	      while (is_wspace (c = *outp++));
+	      while (is_wspace (c = *outptr++));
 
 	      yyp = yytext;
 
@@ -1643,17 +1643,17 @@ yylex ()
 		    quote ^= 1;
 		  else if (c == '/' && !quote)
 		    {
-		      if (*outp == '*')
+		      if (*outptr == '*')
 			{
-			  outp++;
+			  outptr++;
 			  skip_comment ();
-			  c = *outp++;
+			  c = *outptr++;
 			}
-		      else if (*outp == '/')
+		      else if (*outptr == '/')
 			{
-			  outp++;
+			  outptr++;
 			  skip_line ();
-			  c = *outp++;
+			  c = *outptr++;
 			}
 		    }
 		  if (!sp && isspace (c))
@@ -1661,7 +1661,7 @@ yylex ()
 		  if (c == '\n' || c == LEX_EOF)
 		    break;
 		  SAVEC;
-		  c = *outp++;
+		  c = *outptr++;
 		}
 	      if (sp)
 		{
@@ -1679,15 +1679,15 @@ yylex ()
 		  current_line++;
 		  if (c == LEX_EOF)
 		    {
-		      *(last_nl = --outp) = LEX_EOF;
-		      outp[-1] = '\n';
+		      *(last_nl = --outptr) = LEX_EOF;
+		      outptr[-1] = '\n';
 		    }
 		  handle_include (sp, 0);
 		  break;
 		}
 	      else
 		{
-		  if (outp == last_nl + 1)
+		  if (outptr == last_nl + 1)
 		    refill_buffer ();
 
 		  if (strcmp ("define", yytext) == 0)
@@ -1698,13 +1698,13 @@ yylex ()
 		    {
 		      int cond;
 
-		      *--outp = '\0';
+		      *--outptr = '\0';
 		      add_input (sp);
 		      cond = cond_get_exp (0);
-		      if (*outp++)
+		      if (*outptr++)
 			{
 			  yyerror (_("Condition too complex in #if"));
-			  while (*outp++);
+			  while (*outptr++);
 			}
 		      else
 			handle_cond (cond);
@@ -1757,7 +1757,7 @@ yylex ()
 		    {
 		      yyerror (_("Unrecognised # directive"));
 		    }
-		  *--outp = '\n';
+		  *--outptr = '\n';
 		  break;
 		}
 	    }
@@ -1765,9 +1765,9 @@ yylex ()
 	    goto badlex;
 	case '\'':
 
-	  if (*outp++ == '\\')
+	  if (*outptr++ == '\\')
 	    {
-	      switch (*outp++)
+	      switch (*outptr++)
 		{
 		case 'n':
 		  yylval.number = '\n';
@@ -1806,8 +1806,8 @@ yylex ()
 		case '7':
 		case '8':
 		case '9':
-		  outp--;
-		  yylval.number = strtol (outp, &outp, 8);
+		  outptr--;
+		  yylval.number = strtol (outptr, &outptr, 8);
 		  if (yylval.number > 255)
 		    {
 		      yywarn (_("Illegal character constant"));
@@ -1815,7 +1815,7 @@ yylex ()
 		    }
 		  break;
 		case 'x':
-		  if (!isxdigit (*outp))
+		  if (!isxdigit (*outptr))
 		    {
 		      yylval.number = 'x';
 		      yywarn (_
@@ -1823,7 +1823,7 @@ yylex ()
 		    }
 		  else
 		    {
-		      yylval.number = strtol (outp, &outp, 16);
+		      yylval.number = strtol (outptr, &outptr, 16);
 		      if (yylval.number > 255)
 			{
 			  yywarn (_("Illegal character constant"));
@@ -1835,23 +1835,23 @@ yylex ()
 		  yylval.number = '\n';
 		  current_line++;
 		  total_lines++;
-		  if ((outp = last_nl + 1))
+		  if ((outptr = last_nl + 1))
 		    refill_buffer ();
 		  break;
 		default:
 		  yywarn (_("Unknown \\ escape"));
-		  yylval.number = *(outp - 1);
+		  yylval.number = *(outptr - 1);
 		  break;
 		}
 	    }
 	  else
 	    {
-	      yylval.number = *(outp - 1);
+	      yylval.number = *(outptr - 1);
 	    }
 
-	  if (*outp++ != '\'')
+	  if (*outptr++ != '\'')
 	    {
-	      outp--;
+	      outptr--;
 	      yyerror (_("Illegal character constant"));
 	      yylval.number = 0;
 	    }
@@ -1861,10 +1861,10 @@ yylex ()
 	    int rc;
 	    int tmp;
 
-	    if ((tmp = *outp++) != '@')
+	    if ((tmp = *outptr++) != '@')
 	      {
 		/* check for Robocoder's @@ block */
-		outp--;
+		outptr--;
 	      }
 	    if (!get_terminator (terminator))
 	      {
@@ -1877,8 +1877,8 @@ yylex ()
 
 		if (rc > 0)
 		  {
-		    /* outp is pointing at "({" for histortical reasons */
-		    outp += 2;
+		    /* outptr is pointing at "({" for histortical reasons */
+		    outptr += 2;
 		    return L_ARRAY_OPEN;
 		  }
 		else if (rc == -1)
@@ -1902,10 +1902,10 @@ yylex ()
 		    /*
 		     * make string token and clean up
 		     */
-		    yylval.string = scratch_copy_string (outp);
+		    yylval.string = scratch_copy_string (outptr);
 
-		    n = strlen (outp) + 1;
-		    outp += n;
+		    n = strlen (outptr) + 1;
+		    outptr += n;
 
 		    return L_STRING;
 		  }
@@ -1930,7 +1930,7 @@ yylex ()
 	      l = 255;
 	    while (l-- > 0)
 	      {
-		switch (c = *outp++)
+		switch (c = *outptr++)
 		  {
 		  case LEX_EOF:
 		    lexerror (_("End of file in string"));
@@ -1947,19 +1947,19 @@ yylex ()
 		  case '\n':
 		    current_line++;
 		    total_lines++;
-		    if (outp == last_nl + 1)
+		    if (outptr == last_nl + 1)
 		      refill_buffer ();
 		    *to++ = '\n';
 		    break;
 
 		  case '\\':
 		    /* Don't copy the \ in yet */
-		    switch (*outp++)
+		    switch (*outptr++)
 		      {
 		      case '\n':
 			current_line++;
 			total_lines++;
-			if (outp == last_nl + 1)
+			if (outptr == last_nl + 1)
 			  refill_buffer ();
 			l++;	/* Nothing is copied */
 			break;
@@ -2002,8 +2002,8 @@ yylex ()
 		      case '9':
 			{
 			  int tmp;
-			  outp--;
-			  tmp = strtol (outp, &outp, 8);
+			  outptr--;
+			  tmp = strtol (outptr, &outptr, 8);
 			  if (tmp > 255)
 			    {
 			      yywarn (_
@@ -2016,7 +2016,7 @@ yylex ()
 		      case 'x':
 			{
 			  int tmp;
-			  if (!isxdigit (*outp))
+			  if (!isxdigit (*outptr))
 			    {
 			      *to++ = 'x';
 			      yywarn (_
@@ -2024,7 +2024,7 @@ yylex ()
 			    }
 			  else
 			    {
-			      tmp = strtol (outp, &outp, 16);
+			      tmp = strtol (outptr, &outptr, 16);
 			      if (tmp > 255)
 				{
 				  yywarn (_("Illegal character constant."));
@@ -2039,7 +2039,7 @@ yylex ()
 			 * By Annihilator (05/15/2000)
 			 */
 			*to++ = '\\';
-			*to++ = *(outp - 1);
+			*to++ = *(outptr - 1);
 			/* yywarn(_("Unknown \\ escape.")); */
 		      }
 		    break;
@@ -2054,7 +2054,7 @@ yylex ()
 	    yyp = yytext;
 	    while (l--)
 	      {
-		switch (c = *outp++)
+		switch (c = *outptr++)
 		  {
 		  case LEX_EOF:
 		    lexerror (_("End of file in string"));
@@ -2077,19 +2077,19 @@ yylex ()
 		  case '\n':
 		    current_line++;
 		    total_lines++;
-		    if (outp == last_nl + 1)
+		    if (outptr == last_nl + 1)
 		      refill_buffer ();
 		    *yyp++ = '\n';
 		    break;
 
 		  case '\\':
 		    /* Don't copy the \ in yet */
-		    switch (*outp++)
+		    switch (*outptr++)
 		      {
 		      case '\n':
 			current_line++;
 			total_lines++;
-			if (outp == last_nl + 1)
+			if (outptr == last_nl + 1)
 			  refill_buffer ();
 			l++;	/* Nothing is copied */
 			break;
@@ -2132,8 +2132,8 @@ yylex ()
 		      case '9':
 			{
 			  int tmp;
-			  outp--;
-			  tmp = strtol (outp, &outp, 8);
+			  outptr--;
+			  tmp = strtol (outptr, &outptr, 8);
 			  if (tmp > 255)
 			    {
 			      yywarn (_
@@ -2146,7 +2146,7 @@ yylex ()
 		      case 'x':
 			{
 			  int tmp;
-			  if (!isxdigit (*outp))
+			  if (!isxdigit (*outptr))
 			    {
 			      *yyp++ = 'x';
 			      yywarn (_
@@ -2154,7 +2154,7 @@ yylex ()
 			    }
 			  else
 			    {
-			      tmp = strtol (outp, &outp, 16);
+			      tmp = strtol (outptr, &outptr, 16);
 			      if (tmp > 255)
 				{
 				  yywarn (_("Illegal character constant."));
@@ -2166,7 +2166,7 @@ yylex ()
 			}
 		      default:
 			*yyp++ = '\\';
-			*yyp++ = *(outp - 1);
+			*yyp++ = *(outptr - 1);
 		      }
 		    break;
 
@@ -2189,22 +2189,22 @@ yylex ()
 	    }
 	  }
 	case '0':
-	  c = *outp++;
+	  c = *outptr++;
 	  if (c == 'X' || c == 'x')
 	    {
 	      yyp = yytext;
 	      for (;;)
 		{
-		  c = *outp++;
+		  c = *outptr++;
 		  SAVEC;
 		  if (!isxdigit (c))
 		    break;
 		}
-	      outp--;
+	      outptr--;
 	      yylval.number = (int) strtol (yytext, (char **) NULL, 0x10);
 	      return L_NUMBER;
 	    }
-	  outp--;
+	  outptr--;
 	  c = '0';
 	  /* fall through */
 	case '1':
@@ -2221,7 +2221,7 @@ yylex ()
 	  *yyp++ = c;
 	  for (;;)
 	    {
-	      c = *outp++;
+	      c = *outptr++;
 	      if (c == '.')
 		{
 		  if (!is_float)
@@ -2231,7 +2231,7 @@ yylex ()
 		  else
 		    {
 		      is_float = 0;
-		      outp--;
+		      outptr--;
 		      break;
 		    }
 		}
@@ -2239,7 +2239,7 @@ yylex ()
 		break;
 	      SAVEC;
 	    }
-	  outp--;
+	  outptr--;
 	  *yyp = 0;
 	  if (is_float)
 	    {
@@ -2262,17 +2262,17 @@ yylex ()
 	      *yyp++ = c;
 	      for (;;)
 		{
-		  if (!isalnum (c = *outp++) && (c != '_'))
+		  if (!isalnum (c = *outptr++) && (c != '_'))
 		    break;
 		  SAVEC;
 		}
 	      *yyp = 0;
 	      if (c == '#')
 		{
-		  if (*outp++ != '#')
+		  if (*outptr++ != '#')
 		    lexerror (_
 			      ("Single '#' in identifier -- use '##' for token pasting"));
-		  outp -= 2;
+		  outptr -= 2;
 		  if (!expand_define ())
 		    {
 		      if (partp + (r = strlen (yytext)) +
@@ -2285,23 +2285,23 @@ yylex ()
 			}
 		      strcpy (partp, yytext);
 		      partp += r;
-		      outp += 2;
+		      outptr += 2;
 		    }
 		}
 	      else if (partp != partial)
 		{
-		  outp--;
+		  outptr--;
 		  if (!expand_define ())
 		    add_input (yytext);
-		  while ((c = *outp++) == ' ');
-		  outp--;
+		  while ((c = *outptr++) == ' ');
+		  outptr--;
 		  add_input (partial);
 		  partp = partial;
 		  partial[0] = 0;
 		}
 	      else
 		{
-		  outp--;
+		  outptr--;
 		  if (!expand_define ())
 		    {
 		      ident_hash_elem_t *ihe;
@@ -2324,8 +2324,8 @@ yylex ()
 			      int val;
 
 			      function_flag = 0;
-			      while ((c = *outp++) == ' ');
-			      outp--;
+			      while ((c = *outptr++) == ' ');
+			      outptr--;
 			      if (c != ':' && c != ',')
 				return old_func ();
 			      if ((val = ihe->dn.local_num) >= 0)
@@ -2495,8 +2495,8 @@ start_new_file (int f)
   last_function_context = -1;
   current_function_context = 0;
   cur_lbuf = &head_lbuf;
-  cur_lbuf->outp = cur_lbuf->buf_end = outp = cur_lbuf->buf + (DEFMAX >> 1);
-  *(last_nl = outp - 1) = '\n';
+  cur_lbuf->outptr = cur_lbuf->buf_end = outptr = cur_lbuf->buf + (DEFMAX >> 1);
+  *(last_nl = outptr - 1) = '\n';
   pragmas = DEFAULT_PRAGMAS;
   nexpands = 0;
   incnum = 0;
@@ -2743,7 +2743,7 @@ get_f_name (int n)
     }
 }
 
-#define get_next_char(c) if ((c = *outp++) == '\n' && outp == last_nl + 1) refill_buffer()
+#define get_next_char(c) if ((c = *outptr++) == '\n' && outptr == last_nl + 1) refill_buffer()
 
 #define GETALPHA(p, q, m) \
     while(isalunum(*p)) {\
@@ -2780,7 +2780,7 @@ cmygetc ()
       get_next_char (c);
       if (c == '/')
 	{
-	  switch (*outp++)
+	  switch (*outptr++)
 	    {
 	    case '*':
 	      skip_comment ();
@@ -2789,7 +2789,7 @@ cmygetc ()
 	      skip_line ();
 	      break;
 	    default:
-	      outp--;
+	      outptr--;
 	      return c;
 	    }
 	}
@@ -2809,7 +2809,7 @@ refill ()
   p = yytext;
   do
     {
-      c = *outp++;
+      c = *outptr++;
       if (p < yytext + MAXLINE - 5)
 	*p++ = c;
       else
@@ -2819,7 +2819,7 @@ refill ()
 	}
     }
   while (c != '\n' && c != LEX_EOF);
-  if ((c == '\n') && (outp == last_nl + 1))
+  if ((c == '\n') && (outptr == last_nl + 1))
     refill_buffer ();
   p[-1] = ' ';
   *p = 0;
@@ -2969,25 +2969,25 @@ add_input (char *p)
       return;
     }
 
-  if (outp < l + 5 + cur_lbuf->buf)
+  if (outptr < l + 5 + cur_lbuf->buf)
     {
       /* Not enough space, so let's move it up another linked_buf */
       linked_buf_t *new_lbuf;
       char *q, *new_outp, *buf;
       int size;
 
-      q = outp;
+      q = outptr;
 
       while (*q != '\n' && *q != LEX_EOF)
 	q++;
       /* Incorporate EOF later */
-      if (*q != '\n' || ((q - outp) + l) >= DEFMAX - 11)
+      if (*q != '\n' || ((q - outptr) + l) >= DEFMAX - 11)
 	{
 	  lexerror (_("Macro expansion buffer overflow"));
 	  return;
 	}
-      size = (q - outp) + l + 1;
-      cur_lbuf->outp = q + 1;
+      size = (q - outptr) + l + 1;
+      cur_lbuf->outptr = q + 1;
       cur_lbuf->last_nl = last_nl;
 
       new_lbuf = ALLOCATE (linked_buf_t, TAG_COMPILER, "add_input");
@@ -2996,16 +2996,16 @@ add_input (char *p)
       buf = new_lbuf->buf;
       cur_lbuf = new_lbuf;
       last_nl = (new_lbuf->buf_end = buf + DEFMAX - 2) - 1;
-      new_outp = new_lbuf->outp = buf + DEFMAX - 2 - size;
+      new_outp = new_lbuf->outptr = buf + DEFMAX - 2 - size;
       memcpy (new_outp, p, l);
-      memcpy (new_outp + l, outp, (q - outp) + 1);
-      outp = new_outp;
+      memcpy (new_outp + l, outptr, (q - outptr) + 1);
+      outptr = new_outp;
       *(last_nl + 1) = 0;
       return;
     }
 
-  outp -= l;
-  strncpy (outp, p, l);
+  outptr -= l;
+  strncpy (outptr, p, l);
 }
 
 static void
@@ -3118,7 +3118,7 @@ expand_define ()
       if (c != '(')
 	{
 	  yyerror (_("Missing '(' in macro call"));
-	  if (c == '\n' && outp == last_nl + 1)
+	  if (c == '\n' && outptr == last_nl + 1)
 	    refill_buffer ();
 	  return 0;
 	}
@@ -3153,7 +3153,7 @@ expand_define ()
 		  if (!squote && !dquote)
 		    {
 		      *q++ = c;
-		      if (*outp++ != '#')
+		      if (*outptr++ != '#')
 			{
 			  lexerror (_("'#' expected"));
 			  return 0;
@@ -3168,7 +3168,7 @@ expand_define ()
 		    }
 		  break;
 		case '\n':
-		  if (outp == last_nl + 1)
+		  if (outptr == last_nl + 1)
 		    refill_buffer ();
 		  if (squote || dquote)
 		    {
@@ -3272,30 +3272,30 @@ expand_define ()
 /* Stuff to evaluate expression.  I havn't really checked it. /LA
 ** Written by "J\"orn Rennecke" <amylaar@cs.tu-berlin.de>
 */
-#define SKPW 	do c = *outp++; while(is_wspace(c)); outp--
+#define SKPW 	do c = *outptr++; while(is_wspace(c)); outptr--
 
 static int
 exgetc ()
 {
   register char c, *yyp;
 
-  c = *outp++;
+  c = *outptr++;
   while (isalpha (c) || c == '_')
     {
       yyp = yytext;
       do
 	{
 	  SAVEC;
-	  c = *outp++;
+	  c = *outptr++;
 	}
       while (isalunum (c));
-      outp--;
+      outptr--;
       *yyp = '\0';
       if (strcmp (yytext, "defined") == 0)
 	{
 	  /* handle the defined "function" in #if */
 	  do
-	    c = *outp++;
+	    c = *outptr++;
 	  while (is_wspace (c));
 	  if (c != '(')
 	    {
@@ -3303,17 +3303,17 @@ exgetc ()
 	      continue;
 	    }
 	  do
-	    c = *outp++;
+	    c = *outptr++;
 	  while (is_wspace (c));
 	  yyp = yytext;
 	  while (isalunum (c))
 	    {
 	      SAVEC;
-	      c = *outp++;
+	      c = *outptr++;
 	    }
 	  *yyp = '\0';
 	  while (is_wspace (c))
-	    c = *outp++;
+	    c = *outptr++;
 	  if (c != ')')
 	    {
 	      yyerror (_("Missing ) in defined"));
@@ -3330,7 +3330,7 @@ exgetc ()
 	  if (!expand_define ())
 	    add_input (" 0 ");
 	}
-      c = *outp++;
+      c = *outptr++;
     }
   return c;
 }
