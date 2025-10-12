@@ -19,7 +19,7 @@
 #include "lpc/mapping.h"
 #include "lpc/object.h"
 #include "program.h"
-#include "lpc/function.h"
+#include "lpc/functional.h"
 #include "lpc/disassemble.h"
 #include "backend.h"
 #include "interpret.h"
@@ -79,26 +79,26 @@ static void remove_sent (object_t *, object_t *);
 /*************************************************************************
  *  command_giver_stack
  *
- *  ³o­Ó°ïÅ|¥Î¨Ó¼È¦s command_giver «ü¼Ð¡C¥D­n¥Î³~¬O¦b©I¥s LPC µ{¦¡¤§«e¡A
- *  ±N¥Ø«eªº command_giver ±À¤J°ïÅ| (¨Ã¥i³]©w·sªº command_giver)¡A¦b LPC
- *  µ{¦¡ªð¦^¤§«á¡A¥Ñ°ïÅ|¨ú¥X command_giver¡C³o¼Ë§Y¨Ï LPC µ{¦¡±N command_giver
- *  ºR·´¤F¡A§Ú­Ì¤]¯à¨ú±o command_giver ªº«ü¼Ð¡C
+ *  ï¿½oï¿½Ó°ï¿½ï¿½|ï¿½Î¨Ó¼È¦s command_giver ï¿½ï¿½ï¿½Ð¡Cï¿½Dï¿½nï¿½Î³~ï¿½Oï¿½bï¿½Iï¿½s LPC ï¿½{ï¿½ï¿½ï¿½ï¿½ï¿½eï¿½A
+ *  ï¿½Nï¿½Ø«eï¿½ï¿½ command_giver ï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½| (ï¿½Ã¥iï¿½]ï¿½wï¿½sï¿½ï¿½ command_giver)ï¿½Aï¿½b LPC
+ *  ï¿½{ï¿½ï¿½ï¿½ï¿½^ï¿½ï¿½ï¿½ï¿½Aï¿½Ñ°ï¿½ï¿½|ï¿½ï¿½ï¿½X command_giverï¿½Cï¿½oï¿½Ë§Yï¿½ï¿½ LPC ï¿½{ï¿½ï¿½ï¿½N command_giver
+ *  ï¿½Rï¿½ï¿½ï¿½Fï¿½Aï¿½Ú­Ì¤]ï¿½ï¿½ï¿½ï¿½o command_giver ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡C
  */
 
-static object_t *command_giver_stack[1024];	/* °ïÅ| */
-static object_t **cgsp = command_giver_stack;	/* «ü¦V°ïÅ|³»ºÝ */
+static object_t *command_giver_stack[1024];	/* ï¿½ï¿½ï¿½| */
+static object_t **cgsp = command_giver_stack;	/* ï¿½ï¿½ï¿½Vï¿½ï¿½ï¿½|ï¿½ï¿½ï¿½ï¿½ */
 
 void
 save_command_giver (object_t * new_command_giver)
 {
-  /* ÀË¬d°ïÅ|¬O¤£¬Oº¡¤F */
+  /* ï¿½Ë¬dï¿½ï¿½ï¿½|ï¿½Oï¿½ï¿½ï¿½Oï¿½ï¿½ï¿½F */
   if (cgsp >= EndOf (command_giver_stack))
     fatal (_("*****Command giver stack overflow!"));
 
-  /* ±N­ì command_giver ±À¤J°ïÅ| */
+  /* ï¿½Nï¿½ï¿½ command_giver ï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½| */
   *(++cgsp) = command_giver;
 
-  /* ³]©w·sªº command_giver (¥i¥H¬° NULL), ¨Ã±N°Ñ¦Ò­p¼Æ¥[ 1 */
+  /* ï¿½]ï¿½wï¿½sï¿½ï¿½ command_giver (ï¿½iï¿½Hï¿½ï¿½ NULL), ï¿½Ã±Nï¿½Ñ¦Ò­pï¿½Æ¥[ 1 */
   if (new_command_giver)
     add_ref (new_command_giver, "save_command_giver");
   command_giver = new_command_giver;
@@ -107,15 +107,15 @@ save_command_giver (object_t * new_command_giver)
 void
 restore_command_giver ()
 {
-  /* ±N¥Ø«eªº command_giver °Ñ¦Ò­p¼Æ´î 1 */
+  /* ï¿½Nï¿½Ø«eï¿½ï¿½ command_giver ï¿½Ñ¦Ò­pï¿½Æ´ï¿½ 1 */
   if (command_giver)
     free_object (command_giver, "restore_command_giver");
 
-  /* ÀË¬d°ïÅ|¬O¤£¬OªÅªº */
+  /* ï¿½Ë¬dï¿½ï¿½ï¿½|ï¿½Oï¿½ï¿½ï¿½Oï¿½Åªï¿½ */
   if (cgsp == command_giver_stack)
     fatal (_("*****Command giver stack underflow!"));
 
-  /* ±q°ïÅ|¨ú¦^ command_giver */
+  /* ï¿½qï¿½ï¿½ï¿½|ï¿½ï¿½ï¿½^ command_giver */
   command_giver = *(cgsp--);
 }
 
@@ -575,7 +575,7 @@ clone_object (char *str1, int num_arg)
 
   if (current_object && current_object->euid == 0)
     {
-      /* ¤¹³\ master object ¦b¨S¦³ effective UID ª¬ªp¤U¸ü¤Jª«¥ó */
+      /* ï¿½ï¿½ï¿½\ master object ï¿½bï¿½Sï¿½ï¿½ effective UID ï¿½ï¿½ï¿½pï¿½Uï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½ */
       if (current_object != master_ob)
 	error (_("*Attempt to create object without effective UID."));
     }
@@ -1675,7 +1675,7 @@ user_parser (char *buff)
   int where;
   int save_illegal_sentence_action;
 
-  /* §R°£«ü¥O¦C«á­±¦h¾lªºªÅ¥Õ¦r¤¸ */
+  /* ï¿½Rï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Cï¿½á­±ï¿½hï¿½lï¿½ï¿½ï¿½Å¥Õ¦rï¿½ï¿½ */
   for (p = buff + strlen (buff) - 1; p >= buff; p--)
     {
       if (isspace (*p))
@@ -1726,7 +1726,7 @@ user_parser (char *buff)
 	}
     }
 
-  /* ·j´M command_giver ©Ò¦³³Q½á¤©ªº sentence */
+  /* ï¿½jï¿½M command_giver ï¿½Ò¦ï¿½ï¿½Qï¿½á¤©ï¿½ï¿½ sentence */
 
   save_illegal_sentence_action = illegal_sentence_action;
   illegal_sentence_action = 0;
@@ -1747,7 +1747,7 @@ user_parser (char *buff)
 	    continue;
 	}
 
-      /* §ä¨ì¥i¯à²Å¦Xªº sentence */
+      /* ï¿½ï¿½ï¿½iï¿½ï¿½Å¦Xï¿½ï¿½ sentence */
 
       if (s->flags & V_NOSPACE)
 	{
@@ -1781,7 +1781,7 @@ user_parser (char *buff)
       else
 	push_undefined ();
 
-      /* ©I¥s«ü¥O³B²z¨ç¦¡ */
+      /* ï¿½Iï¿½sï¿½ï¿½ï¿½Oï¿½Bï¿½zï¿½ç¦¡ */
       if (s->flags & V_FUNCTION)
 	ret = call_function_pointer (s->function.f, 1);
       else
@@ -1822,7 +1822,7 @@ user_parser (char *buff)
 	    }
 	}
 
-      /* «ü¥O³Q¦¨¥\¦a¿ëÃÑ¨Ã°õ¦æ ? */
+      /* ï¿½ï¿½ï¿½Oï¿½Qï¿½ï¿½ï¿½\ï¿½aï¿½ï¿½ï¿½Ñ¨Ã°ï¿½ï¿½ï¿½ ? */
       if (ret && (ret->type != T_NUMBER || ret->u.number != 0))
 	{
 	  if (!illegal_sentence_action)
@@ -2469,7 +2469,7 @@ fatal (char *fmt, ...)
 
   free (msg);
 
-  /* ºò«æµ²§ôµ{¦¡ */
+  /* ï¿½ï¿½æµ²ï¿½ï¿½ï¿½{ï¿½ï¿½ */
   if (CONFIG_INT (__ENABLE_CRASH_DROP_CORE__))
     abort ();
   else
@@ -2572,12 +2572,12 @@ error_handler (char *err)
   restrict_destruct = 0;
   num_objects_this_thread = 0;	/* reset the count */
 
-  /* ¿ù»~¬O§_³Q LPC µ{¦¡½X catch ? */
+  /* ï¿½ï¿½ï¿½~ï¿½Oï¿½_ï¿½Q LPC ï¿½{ï¿½ï¿½ï¿½X catch ? */
   if (((current_error_context->save_csp + 1)->framekind & FRAME_MASK)
       == FRAME_CATCH && !proceeding_fatal_error)
     {
 #ifdef LOG_CATCHES
-      /* ¤¹³\³Q catch ªº¿ù»~¤]¸g¹L master::error_handler() ³B²z */
+      /* ï¿½ï¿½ï¿½\ï¿½Q catch ï¿½ï¿½ï¿½ï¿½ï¿½~ï¿½]ï¿½gï¿½L master::error_handler() ï¿½Bï¿½z */
       if (in_mudlib_error_handler)
 	{
 	  debug_message (_("{}\t***** error in mudlib error handler (caught)"));
@@ -2587,7 +2587,7 @@ error_handler (char *err)
 	}
       else
 	{
-	  /* ©I¥s master::error_handler() */
+	  /* ï¿½Iï¿½s master::error_handler() */
 	  in_mudlib_error_handler = 1;
 	  mudlib_error_handler (err, 1);
 	  in_mudlib_error_handler = 0;
@@ -2607,7 +2607,7 @@ error_handler (char *err)
       fatal ("catch() longjump failed");
     }
 
-  /* ¿ù»~¥¼³Q catch, ´`¥¿±`ºÞ¹D³B²z */
+  /* ï¿½ï¿½ï¿½~ï¿½ï¿½ï¿½Q catch, ï¿½`ï¿½ï¿½ï¿½`ï¿½Þ¹Dï¿½Bï¿½z */
 
   if (in_error)
     {
@@ -2620,7 +2620,7 @@ error_handler (char *err)
       fatal ("failed longjmp() or no error context for error.");
     }
 
-  /* ¶}©l error ³B²z */
+  /* ï¿½}ï¿½l error ï¿½Bï¿½z */
   in_error = 1;
 
   if (in_mudlib_error_handler)
@@ -2632,15 +2632,15 @@ error_handler (char *err)
     }
   else
     {
-      /* ·Ç³Æ©I¥s master::error_handler */
+      /* ï¿½Ç³Æ©Iï¿½s master::error_handler */
       in_mudlib_error_handler = 1;
-      in_error = 0;	/* ¼È®ÉÁôÂÃ¿ù»~³B²zª¬ºA */
+      in_error = 0;	/* ï¿½È®ï¿½ï¿½ï¿½ï¿½Ã¿ï¿½ï¿½~ï¿½Bï¿½zï¿½ï¿½ï¿½A */
       mudlib_error_handler (err, 0);
-      in_error = 1;	/* ¦^´_¨ì¿ù»~³B²zª¬ºA */
+      in_error = 1;	/* ï¿½^ï¿½_ï¿½ï¿½ï¿½ï¿½~ï¿½Bï¿½zï¿½ï¿½ï¿½A */
       in_mudlib_error_handler = 0;
     }
 
-  /* ­Y error µo¥Í¦b¦b heart_beat ªº°õ¦æ¹Lµ{, Ãö³¬¸Óª«¥óªº heart_beat */
+  /* ï¿½Y error ï¿½oï¿½Í¦bï¿½b heart_beat ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Lï¿½{, ï¿½ï¿½ï¿½ï¿½ï¿½Óªï¿½ï¿½ï¿½ heart_beat */
   if (current_heart_beat)
     {
       set_heart_beat (current_heart_beat, 0);
@@ -2653,7 +2653,7 @@ error_handler (char *err)
       current_heart_beat = 0;
     }
 
-  /* µ²§ô error ³B²z, Ä~Äò°õ¦æ */
+  /* ï¿½ï¿½ï¿½ï¿½ error ï¿½Bï¿½z, ï¿½~ï¿½ï¿½ï¿½ï¿½ï¿½ */
   in_error = 0;
 
   if (current_error_context)

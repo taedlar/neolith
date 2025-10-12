@@ -32,7 +32,7 @@
 #include "icode.h"
 #include "program.h"
 #include "lpc/object.h"
-#include "lpc/function.h"
+#include "lpc/functional.h"
 
 #include "LPC/runtime_config.h"
 

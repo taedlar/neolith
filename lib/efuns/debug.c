@@ -27,7 +27,7 @@
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/object.h"
-#include "lpc/function.h"
+#include "lpc/functional.h"
 #include "lpc/mapping.h"
 #include "src/program.h"
 #include "LPC/function.h"

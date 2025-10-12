@@ -30,8 +30,6 @@ typedef struct sentence_s		sentence_t;
 typedef struct svalue_s			svalue_t;
 typedef struct userid_s			userid_t;
 
-typedef union string_or_func_u	string_or_func_t;
-
 typedef struct {
     unsigned short ref;
 } refed_t;

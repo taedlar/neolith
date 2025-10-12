@@ -28,6 +28,8 @@
 #include <sys/stat.h>
 #include <netinet/in.h>		/* for htonl() in write_bytes */
 
+#include <fcntl.h>
+
 
 #ifdef F_CP
 void

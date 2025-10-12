@@ -1,17 +1,4 @@
-/*  $Id: function.h,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
-#ifndef _LPC_FUNCTION_H
-#define _LPC_FUNCTION_H
-
+#pragma once
 #include "types.h"
 
 /* FP_LOCAL */
@@ -53,12 +40,10 @@ struct funptr_s {
     } f;
 };
 
-union string_or_func_u {
+typedef union {
     funptr_t *f;
     char *s;
-};
+} string_or_func_t;
 
 void dealloc_funp(funptr_t *);
 void push_refed_funp(funptr_t *);
-
-#endif	/* ! _LPC_FUNCTION_H */

@@ -45,10 +45,11 @@ set(efuns_SOURCES
     unsorted.c
 )
 
-# add_library(efuns STATIC ${efuns_SOURCES})
-# add_dependencies(efuns edit_source)
-# target_include_directories(efuns PRIVATE
-#     ${CMAKE_SOURCE_DIR}
-#     ${CMAKE_SOURCE_DIR}/lib
-#     ${CMAKE_CURRENT_BINARY_DIR}
-# )
+add_library(efuns STATIC ${efuns_SOURCES})
+add_dependencies(efuns edit_source)
+target_include_directories(efuns PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/lib
+)
+target_include_directories(efuns PUBLIC ${CMAKE_CURRENT_BINARY_DIR})    # generated efuns tables
+target_link_libraries(efuns PUBLIC port adt)
