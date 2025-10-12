@@ -64,5 +64,4 @@ AC_OUTPUT([po/Makefile.in
   lib/lpc/Makefile
   lib/socket/Makefile
   src/Makefile
-  LPC/Makefile
 ])
