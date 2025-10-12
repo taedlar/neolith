@@ -21,20 +21,18 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#ifdef	STDC_HEADERS
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#endif /* STDC_HEADERS */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "lib/wrapper.h"
+#include "port/wrapper.h"
 #include "rc.h"
 #include "main.h"
 #include "simulate.h"

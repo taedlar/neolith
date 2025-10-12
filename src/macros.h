@@ -1,9 +1,7 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#ifdef STDC_HEADERS
 #include <stdint.h>
-#endif /* STDC_HEADERS */
 
 #include "main.h"
 #include "malloc.h"

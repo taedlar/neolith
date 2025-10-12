@@ -3,15 +3,14 @@
 configure
 ahcfg.h.in
 Makefile.in
-autom4te.cache/**
+/autom4te.cache
 
 # autotools - configured files
-build
+/build
 
 # vim
 *.swp
 *~
 
 # cmake
-out/**
-
+/out

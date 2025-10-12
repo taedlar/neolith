@@ -1,27 +1,35 @@
 Neolith LPMud Driver
 ====================
+![C](https://img.shields.io/badge/C-%23ABCC.svg?style=plastic&logo=c&logoColor=white)
+![C++](https://img.shields.io/badge/C++-%2300599C.svg?style=plastic&logo=c%2B%2B&logoColor=white)
+![CMake](https://img.shields.io/badge/CMake-%23008FBA.svg?style=plastic&logo=cmake&logoColor=white)
 
-## Main Features
-- UTF-8 support (tons of fixes on top of MudOS code)
-- Integrated with GNU autotools.
-- Refactored driver debug log / tracing messages.
-- Refactored usage of obsoleted C library dependency.
-- Current official development platform: Ubuntu 20.04 (Native & WSL2)
+Neolith is an open-source project of [LPMud](https://en.wikipedia.org/wiki/LPMud) driver based on the **MudOS v22pre5** code base.
+Most of the efforts are to improve the code quality, portability, performance and other design issues.
+The goal is to provide LPMud builders a code base with concise design and easy-to-read source code while also easy to maintain and troubleshoot.
 
-## TODOs
-- Migration to CMake build.
-  - Support for native build on MSVC compiler.
-- Clean up old messy C code.
-- Refactor memory management.
+## Supported Platforms
+Platform | autotools build | CMake build
+--- | --- | ---
+Linux | Yes | WIP (gcc)
+Windows | No | WIP (MSVC)
 
-## License
-Neolith is a LPMud Driver that run the [Eastern Stories 2 MUD](https://zh.wikipedia.org/wiki/%E6%9D%B1%E6%96%B9%E6%95%85%E4%BA%8B2_%E5%A4%A9%E6%9C%9D%E5%B8%9D%E5%9C%8B) (up since 1995). The code was modified from **MudOS v22pre5**, which is a derived work of the original LPMud by Lars Pensjö. I intended to distribute my parts of code in GPL style, and the copyright notices from original authors of MudOS and LPMud should also apply to this derived work (see [Copyright](docs/Copyright) for details).
+## Credits & License
+Neolith is a LPMud Driver that run the [Eastern Stories 2 MUD](https://zh.wikipedia.org/wiki/%E6%9D%B1%E6%96%B9%E6%95%85%E4%BA%8B2_%E5%A4%A9%E6%9C%9D%E5%B8%9D%E5%9C%8B) (up since 1995).
+The code was modified from MudOS v22pre5 which is derived from the original LPMud by Lars Pensjö.
+Credits to original authors can be found in [Credits.LPmud](docs/Credits.LPmud) and [Credits.MudOS](docs/Credits.MudOS).
 
-Although the GPLv2 [LICENSE](LICENSE) allows "commercial use", this program contains additional restrictions from original authors. In brief:  
-- **"May not be used in any way whatsoever for monetary gain"** (restriction by Lars Pensjö)
-- **GPLv2** (open source required, must comply all restrictions from all authors)
+The Neolith project is to be distributed under [GPLv2](LICENSE), with the copyright notices from original authors of LPMud and MudOS still applies.
 
-So, the conclusion is commercial-use **NOT ALLOWED**.
+> [!IMPORTANT]
+> Although GPLv2 allows commercial use, this project contains additional restrictions from original authors.
+> In brief:
+> - "May not be used in any way whatsoever for monetary gain" (restriction by Lars Pensjö)
+> - GPLv2 (open source required, must comply all restrictions from all authors)
+>
+> With all these terms combined, **Commercial Use is NOT ALLOWED**.
+
+See [Copyright](docs/Copyright) for details.
 
 ## Build
 ### Out-of-tree build using autotools

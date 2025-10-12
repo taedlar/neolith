@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 
-SRCDIRS = lib src LPC
+SRCDIRS = lib/port lib/adt lib/efuns lib/lpc lib/socket src
 
 SUBDIRS = $(SRCDIRS) po
 

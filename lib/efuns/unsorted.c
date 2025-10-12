@@ -2,9 +2,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#ifdef	STDC_HEADERS
 #include <limits.h>
-#endif /* STDC_HEADERS */
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -212,7 +210,7 @@ f_call_other (void)
   char *funcname;
   int num_arg = st_num_arg;
 
-  // ­Y this_object() ¤w¸g¾D¨ìºR·´, ¸T¤î©Ò¦³ªº call_other
+  // ï¿½Y this_object() ï¿½wï¿½gï¿½Dï¿½ï¿½Rï¿½ï¿½, ï¿½Tï¿½ï¿½Ò¦ï¿½ï¿½ï¿½ call_other
   if (current_object->flags & O_DESTRUCTED)
     {
       pop_n_elems (num_arg);
@@ -1325,7 +1323,7 @@ f_message (void)
   svalue_t *args;
 
   args = sp - num_arg + 1;
-  switch (args[2].type)		/* ÀË¬d message ¶Ç°e¹ï¶Hªº«¬§O */
+  switch (args[2].type)		/* ï¿½Ë¬d message ï¿½Ç°eï¿½ï¿½Hï¿½ï¿½ï¿½ï¿½ï¿½O */
     {
     case T_OBJECT:
     case T_STRING:
@@ -1344,7 +1342,7 @@ f_message (void)
   if (num_arg == 4)
     {
       switch (args[3].type)
-	{			/* ÀË¬d message ¶Ç°e°£¥~¹ï¶Hªº«¬§O */
+	{			/* ï¿½Ë¬d message ï¿½Ç°eï¿½ï¿½ï¿½~ï¿½ï¿½Hï¿½ï¿½ï¿½ï¿½ï¿½O */
 	case T_OBJECT:
 	  avoid = allocate_empty_array (1);
 	  avoid->item[0] = args[3];

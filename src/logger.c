@@ -2,14 +2,12 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#ifdef	STDC_HEADERS
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#endif /* STDC_HEADERS */
 
 #include "logger.h"
 #include "rc.h"

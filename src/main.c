@@ -2,11 +2,9 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#ifdef	STDC_HEADERS
 #include <errno.h>
 #include <stdlib.h>
 #include <locale.h>
-#endif /* STDC_HEADERS */
 
 #ifdef	HAVE_UNISTD_H
 #include <unistd.h>
@@ -30,7 +28,7 @@
 #include "otable.h"
 #include "comm.h"
 #include "main.h"
-#include "wrapper.h"
+#include "port/wrapper.h"
 
 const char *argp_program_version = PACKAGE "-" VERSION;
 const char *argp_program_bug_address = "https://github.com/taedlar/neolith";

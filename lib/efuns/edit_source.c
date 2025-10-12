@@ -36,7 +36,7 @@
 #include "src/preprocess.h"
 #include "edit_source.h"
 #include "adt/hash.h"
-#include "lib/wrapper.h"
+#include "port/wrapper.h"
 
 char *outptr;
 static int buffered = 0;
