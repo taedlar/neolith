@@ -1,8 +1,7 @@
 #ifndef INTERPRET_H
 #define INTERPRET_H
 
-#include "lpc/types.h"
-#include "lpc/function.h"
+#include "lpc/functional.h"
 
 #define PUSH_STRING    (0 << 6)
 #define PUSH_NUMBER    (1 << 6)

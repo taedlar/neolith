@@ -29,7 +29,7 @@
 #include "src/std.h"
 #include "lpc/types.h"
 #include "lpc/array.h"
-#include "lpc/function.h"
+#include "lpc/functional.h"
 #include "lpc/buffer.h"
 #include "lpc/object.h"
 #include "src/applies.h"

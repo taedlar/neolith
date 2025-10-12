@@ -20,7 +20,7 @@
 #define _SOCKET_EFUNS_H
 
 #include "lpc/types.h"
-#include "lpc/function.h"
+#include "lpc/functional.h"
 
 enum socket_mode {
     MUD, STREAM, DATAGRAM, STREAM_BINARY, DATAGRAM_BINARY
