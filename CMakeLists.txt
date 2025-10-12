@@ -19,9 +19,10 @@ if(MSVC)
 		set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 	endif()
     # add_compile_options(/W3 /WX /permissive- /Zc:__cplusplus)
-    add_compile_options(/W3 /permissive- /Zc:__cplusplus)
+    add_compile_options(/W4 /permissive- /Zc:__cplusplus)
 else()
     # add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+    add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 # check for standard headers
