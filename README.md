@@ -19,19 +19,23 @@ Neolith is a LPMud Driver that run the [Eastern Stories 2 MUD](https://zh.wikipe
 The code was modified from MudOS v22pre5 which is derived from the original LPMud by Lars Pensjö.
 Credits to original authors can be found in [Credits.LPmud](docs/Credits.LPmud) and [Credits.MudOS](docs/Credits.MudOS).
 
-The Neolith project is to be distributed under [GPLv2](LICENSE), with the copyright notices from original authors of LPMud and MudOS still applies.
+The Neolith project is intended to be distributed under [GPLv2](docs/GPLv2_LICENSE), with the copyright notices from original authors of LPMud and MudOS still applies.
 
 > [!IMPORTANT]
 > Although GPLv2 allows commercial use, this project contains additional restrictions from original authors.
-> In brief:
-> - "May not be used in any way whatsoever for monetary gain" (restriction by Lars Pensjö)
+> - "May not be used in any way whatsoever for monetary gain" (restriction by Lars Pensjö, origin of LPMud)
 > - GPLv2 (open source required, must comply all restrictions from all authors)
 >
 > With all these terms combined, **Commercial Use is NOT ALLOWED**.
 
-See [Copyright](docs/Copyright) for details.
+See [Copyright](Copyright) for details.
 
-## Build
+## How To Build
+
+Neolith is always released as source code.
+You need to build the Neolith executable from source code on your target platform.
+See [INSTALL](INSTALL.md) for detailed instructions on setting up build environment.
+
 ### Out-of-tree build using autotools
 After checkout the source code, do `bootstrap` to get autotools ready.
 
@@ -44,8 +48,7 @@ make
 If the build finishes successfully, the `neolith` executable can be found in `build/src`.
 
 ### CMake build (WIP)
-To decouple the source code from toolchains, CMake build scripts will be added side-by-side in addition to autotools.
-
+To utilize modern compiler toolchains and adding features from other packages, the build system will be migrated to CMake.
 Several CMake presets are added to enable WSL + VS Code development:
 ~~~sh
 cmake --preset linux
@@ -55,15 +58,9 @@ If the build finishes successfully, the `neolith` executable can be found in `ou
 
 See [CMakePresets.json](CMakePresets.json) for details.
 
-## Install
-Neolith is distributed in source code and mainly written in C Language.
-You need to build the executables from source code before you can install it.
-
-See [INSTALL](INSTALL.md) for detailed instructions.
-
 ## Usage
-To start a MUD using Neolith, you need a Neolith configuration file.
-Please make a copy from [src/neolith.conf](src/neolith.conf) and customize the settings for your needs.
+To start a MUD using Neolith LPMud Driver, you need a Neolith configuration file.
+Make a copy from [src/neolith.conf](src/neolith.conf) and customize the settings for your needs.
 You can launch the MUD by the command:
 ```sh
 neolith -f /path/to/neolith.conf &
