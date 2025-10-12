@@ -1,7 +1,7 @@
 # autotools - bootstrap files
 *.m4
 configure
-ahcfg.in
+ahcfg.h.in
 Makefile.in
 autom4te.cache/**
 
