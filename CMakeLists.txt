@@ -1,15 +1,13 @@
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.28)
 
-include(CheckIncludeFile)
-
-project(neolith)
+# project configuration
+project(neolith
+	VERSION 2.0.0
+	DESCRIPTION "A lightweight, embeddable scripting language"
+	LANGUAGES C CXX
+)
 set(CMAKE_CXX_STANDARD 11)
-add_compile_definitions(USING_CMAKE) # activate cmake configurations in config.h.in
-
-if(WIN32)
-    add_compile_definitions(WIN32_WINNT=0x0601) # Windows 7 or higher
-endif()
 
 if(MSVC)
 	option(USE_STATIC_MSVC_RUNTIME "Enable static MSVC Runtime library (-MT/-MD)" ON)
@@ -26,11 +24,13 @@ else()
 endif()
 
 # check for standard headers
+include(CheckIncludeFile)
 check_include_file("inttypes.h" HAVE_INTTYPES_H)
 check_include_file("stdint.h" HAVE_STDINT_H)
 check_include_file("unistd.h" HAVE_UNISTD_H)
 check_include_file("limits.h" HAVE_LIMITS_H)
 
+# check dependencies
 find_package(BISON REQUIRED)
 
 # generate global header "config.h" for build configurations
@@ -38,6 +38,7 @@ configure_file(config.h.in config.h @ONLY)
 include_directories("${CMAKE_BINARY_DIR}")
 add_compile_definitions(HAVE_CONFIG_H)
 
+# add project components
 add_subdirectory(lib/port)
 add_subdirectory(lib/adt)
 add_subdirectory(lib/efuns)
