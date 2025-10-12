@@ -11,7 +11,7 @@ The goal is to provide LPMud builders a code base with concise design and easy-t
 ## Supported Platforms
 Platform | autotools build | CMake build
 --- | --- | ---
-Linux | Yes | WIP (gcc)
+Linux | Yes | Yes (gcc)
 Windows | No | WIP (MSVC)
 
 ## Credits & License
@@ -45,6 +45,13 @@ If the build finishes successfully, the `neolith` executable can be found in `bu
 
 ### CMake build (WIP)
 To decouple the source code from toolchains, CMake build scripts will be added side-by-side in addition to autotools.
+
+Several CMake presets are added to enable WSL + VS Code development:
+~~~sh
+cmake --preset linux
+cmake --build --preset ci-linux
+~~~
+If the build finishes successfully, the `neolith` executable can be found in `out/linux/src/RelWithDebInfo`.
 
 See [CMakePresets.json](CMakePresets.json) for details.
 
