@@ -29,7 +29,7 @@ The Neolith project is to be distributed under [GPLv2](LICENSE), with the copyri
 >
 > With all these terms combined, **Commercial Use is NOT ALLOWED**.
 
-See [Copyright](docs/Copyright) for details.
+See [Copyright](Copyright) for details.
 
 ## Build
 ### Out-of-tree build using autotools
