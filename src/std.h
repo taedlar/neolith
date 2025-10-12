@@ -12,7 +12,6 @@
 #ifndef STD_H
 #define STD_H
 
-#ifdef	STDC_HEADERS
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -25,7 +24,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
-#endif	/* STDC_HEADERS */
 
 #ifdef	HAVE_UNISTD_H
 #include <unistd.h>

@@ -1,9 +1,7 @@
 #ifndef LPC_DISASSEMBLE_H
 #define LPC_DISASSEMBLE_H
 
-#ifdef STDC_HEADERS
 #include <stdio.h>
-#endif /* STDC_HEADERS */
 
 #include "types.h"
 
