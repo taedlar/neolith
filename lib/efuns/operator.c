@@ -26,6 +26,7 @@
 #include "lpc/mapping.h"
 #include "lpc/object.h"
 #include "src/program.h"
+#include "lpc/functional.h"
 #include "LPC/function.h"
 #include "LPC/origin.h"
 #include "src/stralloc.h"

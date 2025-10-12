@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.28)
 
 # project configuration
 project(neolith
-	VERSION 2.0.0
+	VERSION 1.0.0
 	DESCRIPTION "A lightweight, embeddable scripting language"
 	LANGUAGES C CXX
 )
@@ -23,14 +23,22 @@ if(MSVC)
 else()
     # add_compile_options(-Wall -Wextra -Wpedantic -Werror)
     add_compile_options(-Wall -Wextra -Wpedantic)
+	add_compile_definitions(_GNU_SOURCE)
 endif()
 
 # check for standard headers
 include(CheckIncludeFile)
-check_include_file("inttypes.h" HAVE_INTTYPES_H)
-check_include_file("stdint.h" HAVE_STDINT_H)
-check_include_file("unistd.h" HAVE_UNISTD_H)
-check_include_file("limits.h" HAVE_LIMITS_H)
+check_include_file(argp.h HAVE_ARGP_H)
+check_include_file(fcntl.h HAVE_FCNTL_H)
+check_include_file(inttypes.h HAVE_INTTYPES_H)
+check_include_file(limits.h HAVE_LIMITS_H)
+check_include_file(signal.h HAVE_SIGNAL_H)
+check_include_file(stdint.h HAVE_STDINT_H)
+check_include_file(sys/param.h HAVE_SYS_PARAM_H)
+check_include_file(sys/time.h HAVE_SYS_TIME_H)
+check_include_file(sys/types.h HAVE_SYS_TYPES_H)
+check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
+check_include_file(unistd.h HAVE_UNISTD_H)
 
 # check dependencies
 find_package(BISON REQUIRED)
@@ -46,3 +54,4 @@ add_subdirectory(lib/adt)
 add_subdirectory(lib/efuns)
 add_subdirectory(lib/lpc)
 add_subdirectory(lib/socket)
+add_subdirectory(src)
