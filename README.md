@@ -19,7 +19,7 @@ Neolith is a LPMud Driver that run the [Eastern Stories 2 MUD](https://zh.wikipe
 The code was modified from MudOS v22pre5 which is derived from the original LPMud by Lars Pensjö.
 Credits to original authors can be found in [Credits.LPmud](docs/Credits.LPmud) and [Credits.MudOS](docs/Credits.MudOS).
 
-The Neolith project is intended to be distributed under [GPLv2](docs/LICENSE), with the copyright notices from original authors of LPMud and MudOS still applies.
+The Neolith project is intended to be distributed under [GPLv2](docs/GPLv2_LICENSE), with the copyright notices from original authors of LPMud and MudOS still applies.
 
 > [!IMPORTANT]
 > Although GPLv2 allows commercial use, this project contains additional restrictions from original authors.
