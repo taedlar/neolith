@@ -11,3 +11,4 @@ target_include_directories(adt PRIVATE
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/lib
 )
+target_link_libraries(adt PRIVATE port)

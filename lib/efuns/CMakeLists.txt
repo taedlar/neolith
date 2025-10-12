@@ -12,7 +12,7 @@ target_include_directories(edit_source PRIVATE
 )
 
 target_compile_definitions(edit_source PRIVATE _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(edit_source PRIVATE adt misc)
+target_link_libraries(edit_source PRIVATE adt port)
 
 # preprocessor-only command
 if(MSVC)

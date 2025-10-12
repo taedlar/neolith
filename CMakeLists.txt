@@ -5,6 +5,7 @@ include(CheckIncludeFile)
 
 project(neolith)
 set(CMAKE_CXX_STANDARD 11)
+add_compile_definitions(USING_CMAKE) # activate cmake configurations in config.h.in
 
 if(WIN32)
     add_compile_definitions(WIN32_WINNT=0x0601) # Windows 7 or higher
@@ -37,6 +38,6 @@ configure_file(config.h.in config.h @ONLY)
 include_directories("${CMAKE_BINARY_DIR}")
 add_compile_definitions(HAVE_CONFIG_H)
 
-add_subdirectory(lib)
+add_subdirectory(lib/port)
 add_subdirectory(lib/adt)
 add_subdirectory(lib/efuns)

@@ -1,5 +1,5 @@
 AM_CFLAGS = -Wall -ggdb -O2 -pipe
-AM_CPPFLAGS = -I@top_srcdir@/lib -I@top_srcdir@/lib/adt
+AM_CPPFLAGS = -I@top_srcdir@ -I@top_srcdir@/lib -I@top_srcdir@/lib/adt -I@top_builddir@/lib/efuns
 
 noinst_LTLIBRARIES = liblpc.la
 

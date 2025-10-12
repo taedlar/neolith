@@ -1,16 +1,16 @@
 AM_CFLAGS = -Wall -ggdb -O2 -pipe
-AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@ -I@top_srcdir@/lib -I@top_srcdir@/lib/adt
+AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@ -I@top_srcdir@ -I@top_srcdir@/lib -I@top_srcdir@/lib/adt
 
 noinst_PROGRAMS = edit_source
 
 edit_source_SOURCES = edit_source.c edit_source.h make_func.y
-edit_source_LDADD = ../adt/libadt.la
+edit_source_LDADD = ../adt/libadt.la ../port/libport.la
 
-BUILT_SOURCES = .option.h .opcode.h .vector.h .prototype.h .definition.h
+BUILT_SOURCES = efuns_option.h efuns_opcode.h efuns_vector.h efuns_prototype.h efuns_definition.h
 
-$(BUILT_SOURCES): edit_source prototype.lpc
-	${CPP} -I@srcdir@ -x c-header @srcdir@/prototype.lpc > SPECFILE; \
-	[ -x ./edit_source ] && ./edit_source @srcdir@/options.h SPECFILE; \
+$(BUILT_SOURCES): edit_source prototype.c
+	${CPP} -I@srcdir@ -x c-header @srcdir@/prototype.c > prototype.i; \
+	[ -x ./edit_source ] && ./edit_source @srcdir@/options.h prototype.i; \
 	${RM} SPECFILE
 
 noinst_LTLIBRARIES = libefuns.la
