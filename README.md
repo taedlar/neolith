@@ -3,10 +3,16 @@ Neolith LPMud Driver
 
 ## Main Features
 - UTF-8 support (tons of fixes on top of MudOS code)
-- Integrated with GNU autotools, migrating to CMake.
+- Integrated with GNU autotools.
 - Refactored driver debug log / tracing messages.
 - Refactored usage of obsoleted C library dependency.
 - Current official development platform: Ubuntu 20.04 (Native & WSL2)
+
+## TODOs
+- Migration to CMake build.
+  - Support for native build on MSVC compiler.
+- Clean up old messy C code.
+- Refactor memory management.
 
 ## License
 Neolith is a LPMud Driver that run the [Eastern Stories 2 MUD](https://zh.wikipedia.org/wiki/%E6%9D%B1%E6%96%B9%E6%95%85%E4%BA%8B2_%E5%A4%A9%E6%9C%9D%E5%B8%9D%E5%9C%8B) (up since 1995). The code was modified from **MudOS v22pre5**, which is a derived work of the original LPMud by Lars Pensjö. I intended to distribute my parts of code in GPL style, and the copyright notices from original authors of MudOS and LPMud should also apply to this derived work (see [Copyright](docs/Copyright) for details).
@@ -25,11 +31,18 @@ Create a `build` subdirectory, and run `configure` from the build directory:
 ~~~sh
 mkdir build
 cd build && ../configure
+make
 ~~~
 If the build finishes successfully, the `neolith` executable can be found in `build/src`.
 
+### CMake build (WIP)
+To decouple the source code from toolchains, CMake build scripts will be added side-by-side in addition to autotools.
+
+See [CMakePresets.json](CMakePresets.json) for details.
+
 ## Install
-Neolith is distributed in source code and mainly written in C Language. You need to build the executables from source code before you can install it.
+Neolith is distributed in source code and mainly written in C Language.
+You need to build the executables from source code before you can install it.
 
 See [INSTALL](INSTALL.md) for detailed instructions.
 
