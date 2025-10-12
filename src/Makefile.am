@@ -14,7 +14,7 @@ neolith_SOURCES = grammar.y grammar.h lex.c main.c rc.c comm.c backend.c \
 	generate.c scratchpad.c binaries.c file.c malloc.c \
 	simulate.c stralloc.c regexp.c simul_efun.c uids.c
 
-neolith_LDADD = ../lib/libneolith.la -lm -lcrypt
+neolith_LDADD = ../lib/efuns/libefuns.la ../lib/lpc/liblpc.la ../lib/socket/libsocket.la ../lib/adt/libadt.la ../lib/port/libport.la -lm -lcrypt
 
 noinst_HEADERS = applies.h backend.h binaries.h comm.h compiler.h \
 	file.h generate.h icode.h interpret.h lex.h logger.h \
