@@ -36,8 +36,8 @@
 #include "simulate.h"
 #include "stralloc.h"
 #include "main.h"
-#include "LPC/origin.h"
-#include "LPC/runtime_config.h"
+#include "lpc/include/origin.h"
+#include "lpc/include/runtime_config.h"
 #include "rc.h"
 #include "uids.h"
 

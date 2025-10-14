@@ -20,7 +20,7 @@
 #include "lpc/object.h"
 #include "src/backend.h"
 #include "src/simulate.h"
-#include "LPC/origin.h"
+#include "lpc/include/origin.h"
 #include "src/applies.h"
 
 #include "operator.h"

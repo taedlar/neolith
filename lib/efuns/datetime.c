@@ -4,7 +4,7 @@
 
 #include <time.h>
 #include "lpc/array.h"
-#include "LPC/localtime.h"
+#include "lpc/include/localtime.h"
 #include "src/std.h"
 #include "src/backend.h"
 

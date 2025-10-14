@@ -20,7 +20,7 @@
 #include "hash.h"
 #include "rc.h"
 
-#include "LPC/runtime_config.h"
+#include "lpc/include/runtime_config.h"
 
 /*
  * Object name hash table.  Object names are unique, so no special

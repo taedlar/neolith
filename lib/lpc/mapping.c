@@ -8,7 +8,7 @@
 #include "mapping.h"
 #include "object.h"
 
-#include "LPC/runtime_config.h"
+#include "lpc/include/runtime_config.h"
 #include "src/rc.h"
 #include "src/interpret.h"
 #include "src/simulate.h"

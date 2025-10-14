@@ -37,8 +37,8 @@
 #include "simulate.h"
 #include "stralloc.h"
 #include "main.h"
-#include "LPC/runtime_config.h"
-#include "LPC/function.h"
+#include "lpc/include/runtime_config.h"
+#include "lpc/include/function.h"
 
 #define SKIPWHITE while (isspace(*p) && (*p != '\n')) p++
 

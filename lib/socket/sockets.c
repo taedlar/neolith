@@ -31,7 +31,7 @@
 #include "src/stralloc.h"
 #include "socket_err.h"
 #include "socket_efuns.h"
-#include "LPC/socket_err.h"
+#include "lpc/include/socket_err.h"
 #include "src/comm.h"
 
 #define VALID_SOCKET(x) check_valid_socket((x), fd, get_socket_owner(fd), addr, port)

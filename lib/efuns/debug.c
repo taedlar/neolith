@@ -29,7 +29,7 @@
 #include "lpc/functional.h"
 #include "lpc/mapping.h"
 #include "src/program.h"
-#include "LPC/function.h"
+#include "lpc/include/function.h"
 
 #include "call_out.h"
 #include "sprintf.h"

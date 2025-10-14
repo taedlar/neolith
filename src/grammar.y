@@ -27,8 +27,8 @@
 #include "stralloc.h"
 #include "lpc/object.h"
 
-#include "LPC/function.h"
-#include "LPC/runtime_config.h"
+#include "lpc/include/function.h"
+#include "lpc/include/runtime_config.h"
 
 /*
  * This is the grammar definition of LPC, and its parse tree generator.

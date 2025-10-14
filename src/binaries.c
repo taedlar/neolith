@@ -29,7 +29,7 @@
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
 #include "lpc/object.h"
-#include "LPC/runtime_config.h"
+#include "lpc/include/runtime_config.h"
 #include "rc.h"
 #include "applies.h"
 #include "stralloc.h"

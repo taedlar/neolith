@@ -4,7 +4,7 @@
 
 #include "disassemble.h"
 #include "src/program.h"
-#include "LPC/function.h"
+#include "lpc/include/function.h"
 #include "src/std.h"
 #include "src/interpret.h"
 #include "src/simul_efun.h"
