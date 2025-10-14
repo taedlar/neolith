@@ -266,7 +266,7 @@ allocate_mapping (int n)
   copyMapping: make a copy of a mapping
 */
 
-inline mapping_t *
+mapping_t *
 copyMapping (mapping_t * m)
 {
   mapping_t *newmap;
@@ -376,7 +376,7 @@ restore_hash_string (char **val, svalue_t * sv)
  * svalue_t_to_int: Converts an svalue into an integer index.
  */
 
-inline int
+int
 svalue_to_int (svalue_t * v)
 {
   if (v->type == T_STRING && v->subtype != STRING_SHARED)
@@ -1149,8 +1149,8 @@ filter_mapping (svalue_t * arg, int num_arg)
 
   process_efun_callback (1, &ftc, F_FILTER);
 
-  // ­Y¶Ç¤Jªº mapping °Ñ¦Ò­p¼Æ > 1, ¨Ï¥Î½Æ»sªº mapping ¶i¦æ¹LÂo¥H¨¾¤î
-  // filter ¨ç¼ÆÅÜ§ó mapping ªº¤º®e¡C
+  // ï¿½Yï¿½Ç¤Jï¿½ï¿½ mapping ï¿½Ñ¦Ò­pï¿½ï¿½ > 1, ï¿½Ï¥Î½Æ»sï¿½ï¿½ mapping ï¿½iï¿½ï¿½Lï¿½oï¿½Hï¿½ï¿½ï¿½ï¿½
+  // filter ï¿½ï¿½ï¿½ï¿½Ü§ï¿½ mapping ï¿½ï¿½ï¿½ï¿½ï¿½eï¿½C
   if (arg->u.map->ref > 1)
     {
       m = copyMapping (arg->u.map);

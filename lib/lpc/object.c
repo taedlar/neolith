@@ -1223,7 +1223,7 @@ error:
   return err;
 }
 
-inline int
+int
 restore_string (char *val, svalue_t * sv)
 {
   register char *cp = val;
@@ -1358,7 +1358,7 @@ restore_svalue (char *cp, svalue_t * v)
 
 /* for this case, we're being careful and want to leave the value alone on
    an error */
-inline int
+int
 safe_restore_svalue (char *cp, svalue_t * v)
 {
   int ret;
