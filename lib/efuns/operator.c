@@ -39,7 +39,7 @@
 #include "operator.h"
 #include "parse.h"
 
-inline void
+void
 dealloc_funp (funptr_t * fp)
 {
   free_object (fp->hdr.owner, "free_funp");
@@ -55,7 +55,7 @@ dealloc_funp (funptr_t * fp)
   FREE (fp);
 }
 
-inline void
+void
 free_funp (funptr_t * fp)
 {
   fp->hdr.ref--;
@@ -66,7 +66,7 @@ free_funp (funptr_t * fp)
   dealloc_funp (fp);
 }
 
-inline void
+void
 f_and ()
 {
   if (sp->type == T_ARRAY && (sp - 1)->type == T_ARRAY)
@@ -82,7 +82,7 @@ f_and ()
   sp->subtype = 0;
 }
 
-inline void
+void
 f_and_eq ()
 {
   svalue_t *argp;
@@ -95,7 +95,7 @@ f_and_eq ()
   sp->subtype = 0;
 }
 
-inline void
+void
 f_div_eq ()
 {
   svalue_t *argp = (sp--)->u.lvalue;
@@ -148,7 +148,7 @@ f_div_eq ()
     }
 }
 
-inline void
+void
 f_eq ()
 {
   int i;
@@ -245,7 +245,7 @@ f_eq ()
   put_number (i);
 }
 
-inline void
+void
 f_ge ()
 {
   int i = sp->type;
@@ -293,7 +293,7 @@ f_ge ()
     }
 }
 
-inline void
+void
 f_gt ()
 {
   int i = sp->type;
@@ -340,7 +340,7 @@ f_gt ()
     }
 }
 
-inline void
+void
 f_le ()
 {
   int i = sp->type;
@@ -392,7 +392,7 @@ f_le ()
   sp->subtype = 0;
 }
 
-inline void
+void
 f_lt ()
 {
   int i = sp->type;
@@ -436,7 +436,7 @@ f_lt ()
   sp->subtype = 0;
 }
 
-inline void
+void
 f_lsh ()
 {
   CHECK_TYPES ((sp - 1), T_NUMBER, 1, F_LSH);
@@ -445,7 +445,7 @@ f_lsh ()
   sp->u.number <<= (sp + 1)->u.number;
 }
 
-inline void
+void
 f_lsh_eq ()
 {
   svalue_t *argp;
@@ -459,7 +459,7 @@ f_lsh_eq ()
   sp->subtype = 0;
 }
 
-inline void
+void
 f_mod_eq ()
 {
   svalue_t *argp;
@@ -474,7 +474,7 @@ f_mod_eq ()
   sp->subtype = 0;
 }
 
-inline void
+void
 f_mult_eq ()
 {
   svalue_t *argp = (sp--)->u.lvalue;
@@ -531,7 +531,7 @@ f_mult_eq ()
 }
 
 
-inline void
+void
 f_ne ()
 {
   int i;
@@ -631,7 +631,7 @@ f_ne ()
   sp->u.number = i;
 }
 
-inline void
+void
 f_or ()
 {
   CHECK_TYPES ((sp - 1), T_NUMBER, 1, F_OR);
@@ -640,7 +640,7 @@ f_or ()
   sp->u.number |= (sp + 1)->u.number;
 }
 
-inline void
+void
 f_or_eq ()
 {
   svalue_t *argp;
@@ -653,7 +653,7 @@ f_or_eq ()
   sp->subtype = 0;
 }
 
-inline void
+void
 f_parse_command ()
 {
   svalue_t *arg;
@@ -711,7 +711,7 @@ f_parse_command ()
   fp->subtype = 0;
 }
 
-inline void
+void
 f_range (int code)
 {
   int from, to, len;
@@ -829,7 +829,7 @@ f_range (int code)
     }
 }
 
-inline void
+void
 f_extract_range (int code)
 {
   int from, len;
@@ -912,7 +912,7 @@ f_extract_range (int code)
     }
 }
 
-inline void
+void
 f_rsh ()
 {
   CHECK_TYPES ((sp - 1), T_NUMBER, 1, F_RSH);
@@ -921,7 +921,7 @@ f_rsh ()
   sp->u.number >>= (sp + 1)->u.number;
 }
 
-inline void
+void
 f_rsh_eq ()
 {
   svalue_t *argp;
@@ -934,7 +934,7 @@ f_rsh_eq ()
   sp->subtype = 0;
 }
 
-inline void
+void
 f_sub_eq ()
 {
   svalue_t *argp = (sp--)->u.lvalue;
@@ -1028,7 +1028,7 @@ f_sub_eq ()
 #define U_UPPER	0
 #define U_ADDR	(sizeof(char *))
 
-inline void
+void
 f_switch ()
 {
   unsigned short offset, end_off;
@@ -1294,7 +1294,7 @@ call_simul_efun (unsigned short index, int num_arg)
     error ("Function is no longer a simul_efun.\n");
 }
 
-inline void
+void
 f_xor ()
 {
   CHECK_TYPES ((sp - 1), T_NUMBER, 1, F_XOR);
@@ -1303,7 +1303,7 @@ f_xor ()
   sp->u.number ^= (sp + 1)->u.number;
 }
 
-inline void
+void
 f_xor_eq ()
 {
   svalue_t *argp;
@@ -1316,7 +1316,7 @@ f_xor_eq ()
   sp->subtype = 0;
 }
 
-inline funptr_t *
+funptr_t *
 make_efun_funp (int opcode, svalue_t * args)
 {
   funptr_t *fp;
@@ -1341,7 +1341,7 @@ make_efun_funp (int opcode, svalue_t * args)
   return fp;
 }
 
-inline funptr_t *
+funptr_t *
 make_lfun_funp (int index, svalue_t * args)
 {
   funptr_t *fp;
@@ -1366,7 +1366,7 @@ make_lfun_funp (int index, svalue_t * args)
   return fp;
 }
 
-inline funptr_t *
+funptr_t *
 make_simul_funp (int index, svalue_t * args)
 {
   funptr_t *fp;
@@ -1426,7 +1426,7 @@ make_functional_funp (short num_arg, short num_local, short len,
   return fp;
 }
 
-inline void
+void
 push_refed_funp (funptr_t * fp)
 {
   sp++;
@@ -1434,7 +1434,7 @@ push_refed_funp (funptr_t * fp)
   sp->u.fp = fp;
 }
 
-inline void
+void
 push_funp (funptr_t * fp)
 {
   sp++;
@@ -1443,7 +1443,7 @@ push_funp (funptr_t * fp)
   fp->hdr.ref++;
 }
 
-inline void
+void
 f_function_constructor ()
 {
   funptr_t *fp = NULL;
@@ -1501,7 +1501,7 @@ f_function_constructor ()
   push_refed_funp (fp);
 }
 
-inline void
+void
 f_evaluate (void)
 {
   svalue_t *v;
@@ -1523,7 +1523,7 @@ f_evaluate (void)
   assign_svalue_no_free (sp, v);
 }
 
-inline void
+void
 f_sscanf ()
 {
   svalue_t *fp;
