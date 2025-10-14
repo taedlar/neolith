@@ -1391,7 +1391,7 @@ make_simul_funp (int index, svalue_t * args)
   return fp;
 }
 
-inline funptr_t *
+funptr_t *
 make_functional_funp (short num_arg, short num_local, short len,
 		      svalue_t * args, int flag)
 {

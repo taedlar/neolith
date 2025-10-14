@@ -204,7 +204,7 @@ push_undefined ()
   *sp = const0u;
 }
 
-inline void
+void
 push_undefineds (int num)
 {
   STACK_CHECK(num);
@@ -1251,7 +1251,7 @@ push_constant_string (char *p)
  * There is a number of arguments on the stack. Normalize them and initialize
  * local variables, so that the called function is pleased.
  */
-inline void
+void
 setup_variables (int actual, int local, int num_arg)
 {
   int tmp;
@@ -1271,7 +1271,7 @@ setup_variables (int actual, int local, int num_arg)
 }
 
 
-inline void
+void
 setup_varargs_variables (int actual, int local, int num_arg)
 {
   array_t *arr;

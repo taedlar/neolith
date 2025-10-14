@@ -1864,7 +1864,7 @@ get_id_number ()
   return current_id_number++;
 }
 
-inline void
+void
 copy_in (int which, char **start)
 {
   char *block;
