@@ -11,7 +11,7 @@ BUILT_SOURCES = efuns_option.h efuns_opcode.h efuns_vector.h efuns_prototype.h e
 $(BUILT_SOURCES): edit_source prototype.c
 	${CPP} -I@srcdir@ -x c-header @srcdir@/prototype.c > prototype.i; \
 	[ -x ./edit_source ] && ./edit_source @srcdir@/options.h prototype.i; \
-	${RM} SPECFILE
+	${RM} prototype.i
 
 noinst_LTLIBRARIES = libefuns.la
 libefuns_la_SOURCES = $(BUILT_SOURCES) \
