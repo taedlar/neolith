@@ -127,7 +127,7 @@ check_legal_string (char *s)
   if (strlen (s) >= LARGEST_PRINTABLE_STRING)
     {
       error (_("*Printable strings limited to length of %d.\n"),
-	     LARGEST_PRINTABLE_STRING);
+             LARGEST_PRINTABLE_STRING);
     }
 }
 
@@ -153,10 +153,10 @@ strput (char *x, char *limit, char *y)
   while ((*x++ = *y++))
     {
       if (x == limit)
-	{
-	  *(x - 1) = 0;
-	  break;
-	}
+        {
+          *(x - 1) = 0;
+          break;
+        }
     }
   return x - 1;
 }
@@ -287,14 +287,14 @@ set_master (object_t * ob)
   if (first_load)
     {
       if (root_uid)
-	{
-	  master_ob->uid = set_root_uid (root_uid);
-	  master_ob->euid = master_ob->uid;
-	}
+        {
+          master_ob->uid = set_root_uid (root_uid);
+          master_ob->euid = master_ob->uid;
+        }
 
       ret = apply_master_ob (APPLY_GET_BACKBONE_UID, 0);
       if (ret && (ret->type == T_STRING))
-	set_backbone_uid (ret->u.string);
+        set_backbone_uid (ret->u.string);
     }
   else if (root_uid)
     {
@@ -314,7 +314,7 @@ check_name (char *src)
   while (*p)
     {
       if (*p == '/' && *(p + 1) == '/')
-	return 0;
+        return 0;
       p++;
     }
   return src;
@@ -333,7 +333,7 @@ strip_name (char *src, char *dest, int size)
   while (*src && p < end)
     {
       if (last_c == '/' && *src == '/')
-	return 0;
+        return 0;
       last_c = (*p++ = *src++);
     }
 
@@ -408,15 +408,15 @@ load_object (char *lname)
       svalue_t *v;
 
       if (!(v = load_virtual_object (name)))
-	{
-	  num_objects_this_thread--;
-	  return 0;
-	}
+        {
+          num_objects_this_thread--;
+          return 0;
+        }
       /* Now set the file name of the specified object correctly... */
       ob = v->u.ob;
       remove_object_hash (ob);
       if (ob->name)
-	FREE (ob->name);
+        FREE (ob->name);
       ob->name = alloc_cstring (name, "load_object");
       enter_object_hash (ob);
       ob->flags |= O_VIRTUAL;
@@ -440,10 +440,10 @@ load_object (char *lname)
       /* maybe move this section into compile_file? */
       f = open (real_name, O_RDONLY);
       if (f == -1)
-	{
-	  debug_perror ("open()", real_name);
-	  error (_("*Could not read the file '/%s'."), real_name);
-	}
+        {
+          debug_perror ("open()", real_name);
+          error (_("*Could not read the file '/%s'."), real_name);
+        }
       prog = compile_file (f, real_name);
 
       update_compile_av (total_lines);
@@ -455,9 +455,9 @@ load_object (char *lname)
   if (inherit_file == 0 && (num_parse_error > 0 || prog == 0))
     {
       if (prog)
-	free_prog (prog, 1);
+        free_prog (prog, 1);
       if (num_parse_error == 0 && prog == 0)
-	error (_("*No program in object '/%s'!"), name);
+        error (_("*No program in object '/%s'!"), name);
       error (_("*Error in loading object '/%s':"), name);
     }
 
@@ -473,32 +473,32 @@ load_object (char *lname)
       char inhbuf[MAX_OBJECT_NAME_SIZE];
 
       if (!strip_name (inherit_file, inhbuf, sizeof inhbuf))
-	strcpy (inhbuf, inherit_file);
+        strcpy (inhbuf, inherit_file);
 
       FREE (inherit_file);
       inherit_file = 0;
 
       if (prog)
-	{
-	  free_prog (prog, 1);
-	  prog = 0;
-	}
+        {
+          free_prog (prog, 1);
+          prog = 0;
+        }
       if (strcmp (inhbuf, name) == 0)
-	{
-	  error (_("*Illegal to inherit self."));
-	}
+        {
+          error (_("*Illegal to inherit self."));
+        }
 
       if ((inh_obj = lookup_object_hash (inhbuf)))
-	{
-	  IF_DEBUG (fatal ("*****Inherited object is already loaded!"));
-	}
+        {
+          IF_DEBUG (fatal ("*****Inherited object is already loaded!"));
+        }
       else
-	{
-	  opt_trace (TT_COMPILE, "loading inherit file: /%s", inhbuf);
-	  inh_obj = load_object (inhbuf);
-	}
+        {
+          opt_trace (TT_COMPILE, "loading inherit file: /%s", inhbuf);
+          inh_obj = load_object (inhbuf);
+        }
       if (!inh_obj)
-	error (_("*Inherited file '/%s' does not exist!"), inhbuf);
+        error (_("*Inherited file '/%s' does not exist!"), inhbuf);
 
       /*
        * Yes, the following is necessary.  It is possible that when we
@@ -507,16 +507,16 @@ load_object (char *lname)
        * -Beek
        */
       if (!(ob = lookup_object_hash (name)))
-	{
-	  ob = load_object (name);
-	  /* sigh, loading the inherited file removed us */
-	  if (!ob)
-	    {
-	      num_objects_this_thread--;
-	      return 0;
-	    }
-	  ob->load_time = current_time;
-	}
+        {
+          ob = load_object (name);
+          /* sigh, loading the inherited file removed us */
+          if (!ob)
+            {
+              num_objects_this_thread--;
+              return 0;
+            }
+          ob->load_time = current_time;
+        }
       num_objects_this_thread--;
       return ob;
     }
@@ -577,7 +577,7 @@ clone_object (char *str1, int num_arg)
     {
       /* ���\ master object �b�S�� effective UID ���p�U���J���� */
       if (current_object != master_ob)
-	error (_("*Attempt to create object without effective UID."));
+        error (_("*Attempt to create object without effective UID."));
     }
   num_objects_this_thread = 0;
   ob = find_object (str1);
@@ -594,57 +594,57 @@ clone_object (char *str1, int num_arg)
   if (ob->flags & O_CLONE)
     {
       if (!(ob->flags & O_VIRTUAL) || strrchr (str1, '#'))
-	error (_("*Cannot clone from a clone!"));
+        error (_("*Cannot clone from a clone!"));
       else
-	{
-	  /*
-	   * well... it's a virtual object.  So now we're going to "clone"
-	   * it.
-	   */
-	  svalue_t *v;
+        {
+          /*
+           * well... it's a virtual object.  So now we're going to "clone"
+           * it.
+           */
+          svalue_t *v;
 
-	  pop_n_elems (num_arg);	/* possibly this should be smarter */
-	  /* but then, this whole section is a
-	     kludge and should be looked at.
+          pop_n_elems (num_arg);	/* possibly this should be smarter */
+          /* but then, this whole section is a
+             kludge and should be looked at.
 
-	     Note that create() never gets called
-	     in clones of virtual objects.
-	     -Beek */
+             Note that create() never gets called
+             in clones of virtual objects.
+             -Beek */
 
-	  if (!(str1 = check_name (str1)))
-	    error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."),
-	       str1);
+          if (!(str1 = check_name (str1)))
+            error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."),
+               str1);
 
-	  if (ob->ref == 1 && !ob->super && !ob->contains)
-	    {
-	      /*
-	       * ob unused so reuse it instead to save space. (possibly
-	       * loaded just for cloning)
-	       */
-	      new_ob = ob;
-	    }
-	  else
-	    {
-	      /* can't reuse, so load another */
-	      if (!(v = load_virtual_object (str1)))
-		return 0;
-	      new_ob = v->u.ob;
-	    }
-	  remove_object_hash (new_ob);
-	  if (new_ob->name)
-	    FREE (new_ob->name);
-	  /* Now set the file name of the specified object correctly... */
-	  new_ob->name = make_new_name (str1);
-	  enter_object_hash (new_ob);
-	  new_ob->flags |= O_VIRTUAL;
-	  new_ob->load_time = current_time;
-	  command_giver = save_command_giver;
-	  return (new_ob);
-	  /*
-	   * we can skip all of the stuff below since we were already
-	   * cloned once to have gotten to this stage.
-	   */
-	}
+          if (ob->ref == 1 && !ob->super && !ob->contains)
+            {
+              /*
+               * ob unused so reuse it instead to save space. (possibly
+               * loaded just for cloning)
+               */
+              new_ob = ob;
+            }
+          else
+            {
+              /* can't reuse, so load another */
+              if (!(v = load_virtual_object (str1)))
+                return 0;
+              new_ob = v->u.ob;
+            }
+          remove_object_hash (new_ob);
+          if (new_ob->name)
+            FREE (new_ob->name);
+          /* Now set the file name of the specified object correctly... */
+          new_ob->name = make_new_name (str1);
+          enter_object_hash (new_ob);
+          new_ob->flags |= O_VIRTUAL;
+          new_ob->load_time = current_time;
+          command_giver = save_command_giver;
+          return (new_ob);
+          /*
+           * we can skip all of the stuff below since we were already
+           * cloned once to have gotten to this stage.
+           */
+        }
     }
 
   /* We do not want the heart beat to be running for unused copied objects */
@@ -740,16 +740,16 @@ object_present (svalue_t * v, object_t * ob)
   if (v->type == T_OBJECT)
     {
       if (specific)
-	{
-	  if (v->u.ob->super == ob)
-	    return v->u.ob;
-	  else
-	    return 0;
-	}
+        {
+          if (v->u.ob->super == ob)
+            return v->u.ob;
+          else
+            return 0;
+        }
 
       if (v->u.ob->super == ob ||
-	  (v->u.ob->super == ob->super && ob->super != 0))
-	return v->u.ob->super;
+          (v->u.ob->super == ob->super && ob->super != 0))
+        return v->u.ob->super;
 
       return 0;
     }
@@ -768,10 +768,10 @@ object_present (svalue_t * v, object_t * ob)
       ret = apply (APPLY_ID, ob->super, 1, ORIGIN_DRIVER);
 
       if (ob->super->flags & O_DESTRUCTED)
-	return 0;
+        return 0;
 
       if (!IS_ZERO (ret))
-	return ob->super;
+        return ob->super;
 
       return object_present2 (v->u.string, ob->super->contains);
     }
@@ -790,19 +790,19 @@ object_present2 (char *str, object_t * ob)
     {
       p = str + length - 1;
       if (isdigit (*p))
-	{
-	  do
-	    {
-	      p--;
-	    }
-	  while (p > str && isdigit (*p));
+        {
+          do
+            {
+              p--;
+            }
+          while (p > str && isdigit (*p));
 
-	  if (*p == ' ')
-	    {
-	      count = atoi (p + 1) - 1;
-	      length = p - str;
-	    }
-	}
+          if (*p == ' ')
+            {
+              count = atoi (p + 1) - 1;
+              length = p - str;
+            }
+        }
     }
 
   for (; ob; ob = ob->next_inv)
@@ -815,13 +815,13 @@ object_present2 (char *str, object_t * ob)
       ret = apply (APPLY_ID, ob, 1, ORIGIN_DRIVER);
 
       if (ob->flags & O_DESTRUCTED)
-	return 0;
+        return 0;
 
       if (IS_ZERO (ret))
-	continue;
+        continue;
 
       if (count-- > 0)
-	continue;
+        continue;
 
       return ob;
     }
@@ -915,9 +915,9 @@ destruct_object (object_t * ob)
        * stage.
        */
       if (super && !(super->flags & O_DESTRUCTED))
-	push_object (super);
+        push_object (super);
       else
-	push_number (0);
+        push_number (0);
 
       restrict_destruct = ob->contains;
       (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
@@ -925,10 +925,10 @@ destruct_object (object_t * ob)
 
       /* OUCH! we could be dested by this. -Beek */
       if (ob->flags & O_DESTRUCTED)
-	return;
+        return;
 
       if (otmp == ob->contains)
-	destruct_object (otmp);
+        destruct_object (otmp);
     }
 
 #ifdef OLD_ED
@@ -949,18 +949,18 @@ destruct_object (object_t * ob)
   if (ob->super)
     {
       if (ob->super->flags & O_ENABLE_COMMANDS)
-	remove_sent (ob, ob->super);
+        remove_sent (ob, ob->super);
 
       for (pp = &ob->super->contains; *pp;)
-	{
-	  if ((*pp)->flags & O_ENABLE_COMMANDS)
-	    remove_sent (ob, *pp);
+        {
+          if ((*pp)->flags & O_ENABLE_COMMANDS)
+            remove_sent (ob, *pp);
 
-	  if (*pp != ob)
-	    pp = &(*pp)->next_inv;
-	  else
-	    *pp = (*pp)->next_inv;
-	}
+          if (*pp != ob)
+            pp = &(*pp)->next_inv;
+          else
+            *pp = (*pp)->next_inv;
+        }
     }
 
   /* At this point, we can still back out, but this is the very last
@@ -975,7 +975,7 @@ destruct_object (object_t * ob)
       (++sp)->type = T_ERROR_HANDLER;
       sp->u.error_handler = fix_object_names;
       if (master_ob)		/* this could be called before init_master() returns */
-	saved_master_name = master_ob->name;
+        saved_master_name = master_ob->name;
       saved_simul_name = simul_efun_ob->name;
 
       /* hack to make sure we don't find ourselves at several points
@@ -985,17 +985,17 @@ destruct_object (object_t * ob)
       /* handle these two carefully, since they are rather vital */
       new_ob = load_object (tmp);
       if (!new_ob)
-	{
-	  ob->name = tmp;
-	  sp--;
-	  error (_("*Destruct on vital object failed: new copy failed to reload."));
-	}
+        {
+          ob->name = tmp;
+          sp--;
+          error (_("*Destruct on vital object failed: new copy failed to reload."));
+        }
 
       free_object (ob, "vital object reference");
       if (ob == master_ob)
-	set_master (new_ob);
+        set_master (new_ob);
       if (ob == simul_efun_ob)
-	set_simul_efun (new_ob);
+        set_simul_efun (new_ob);
 
       /* Set the name back so we can remove it from the hash table.
          Also be careful not to remove the new object, which has
@@ -1018,7 +1018,7 @@ destruct_object (object_t * ob)
   for (pp = &obj_list; *pp; pp = &(*pp)->next_all)
     {
       if (*pp != ob)
-	continue;
+        continue;
       *pp = (*pp)->next_all;
       removed = 1;
       break;
@@ -1069,10 +1069,10 @@ destruct2 (object_t * ob)
       int i;
 
       for (i = 0; i < (int) ob->prog->num_variables_total; i++)
-	{
-	  free_svalue (&ob->variables[i], "destruct2");
-	  ob->variables[i] = const0u;
-	}
+        {
+          free_svalue (&ob->variables[i], "destruct2");
+          ob->variables[i] = const0u;
+        }
     }
   free_object (ob, "destruct_object");
 }
@@ -1099,12 +1099,12 @@ send_say (object_t * ob, char *text, array_t * avoid)
   for (valid = 1, j = 0; j < avoid->size; j++)
     {
       if (avoid->item[j].type != T_OBJECT)
-	continue;
+        continue;
       if (avoid->item[j].u.ob == ob)
-	{
-	  valid = 0;
-	  break;
-	}
+        {
+          valid = 0;
+          break;
+        }
     }
 
   if (!valid)
@@ -1133,28 +1133,28 @@ say (svalue_t * v, array_t * avoid)
   if ((ob = origin->super))
     {
       if (ob->flags & O_LISTENER || ob->interactive)
-	send_say (ob, buff, avoid);
+        send_say (ob, buff, avoid);
 
       /* And its inventory... */
       for (ob = origin->super->contains; ob; ob = ob->next_inv)
-	{
-	  if (ob != origin && (ob->flags & O_LISTENER || ob->interactive))
-	    {
-	      send_say (ob, buff, avoid);
-	      if (ob->flags & O_DESTRUCTED)
-		break;
-	    }
-	}
+        {
+          if (ob != origin && (ob->flags & O_LISTENER || ob->interactive))
+            {
+              send_say (ob, buff, avoid);
+              if (ob->flags & O_DESTRUCTED)
+                break;
+            }
+        }
     }
   /* Our inventory... */
   for (ob = origin->contains; ob; ob = ob->next_inv)
     {
       if (ob->flags & O_LISTENER || ob->interactive)
-	{
-	  send_say (ob, buff, avoid);
-	  if (ob->flags & O_DESTRUCTED)
-	    break;
-	}
+        {
+          send_say (ob, buff, avoid);
+          if (ob->flags & O_DESTRUCTED)
+            break;
+        }
     }
 
   command_giver = save_command_giver;
@@ -1192,7 +1192,7 @@ tell_room (object_t * room, svalue_t * v, array_t * avoid)
       break;
     default:
       bad_argument (v, T_OBJECT | T_NUMBER | T_REAL | T_STRING,
-		    2, F_TELL_ROOM);
+                    2, F_TELL_ROOM);
       IF_DEBUG (buff = 0);
       return;
     }
@@ -1200,34 +1200,34 @@ tell_room (object_t * room, svalue_t * v, array_t * avoid)
   for (ob = room->contains; ob; ob = ob->next_inv)
     {
       if (!ob->interactive && !(ob->flags & O_LISTENER))
-	continue;
+        continue;
 
       for (valid = 1, j = 0; j < avoid->size; j++)
-	{
-	  if (avoid->item[j].type != T_OBJECT)
-	    continue;
-	  if (avoid->item[j].u.ob == ob)
-	    {
-	      valid = 0;
-	      break;
-	    }
-	}
+        {
+          if (avoid->item[j].type != T_OBJECT)
+            continue;
+          if (avoid->item[j].u.ob == ob)
+            {
+              valid = 0;
+              break;
+            }
+        }
 
       if (!valid)
-	continue;
+        continue;
 
       if (!ob->interactive)
-	{
-	  tell_npc (ob, buff);
-	  if (ob->flags & O_DESTRUCTED)
-	    break;
-	}
+        {
+          tell_npc (ob, buff);
+          if (ob->flags & O_DESTRUCTED)
+            break;
+        }
       else
-	{
-	  tell_object (ob, buff);
-	  if (ob->flags & O_DESTRUCTED)
-	    break;
-	}
+        {
+          tell_object (ob, buff);
+          if (ob->flags & O_DESTRUCTED)
+            break;
+        }
     }
 }
 #endif
@@ -1242,7 +1242,7 @@ shout_string (char *str)
   for (ob = obj_list; ob; ob = ob->next_all)
     {
       if (!(ob->flags & O_LISTENER) || (ob == command_giver) || !ob->super)
-	continue;
+        continue;
       tell_object (ob, str);
     }
 }
@@ -1296,29 +1296,29 @@ input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args)
        * (elsewhere) to avoid double free_svalue()'s
        */
       if (num_arg)
-	{
-	  i = num_arg * sizeof (svalue_t);
-	  if ((x = (svalue_t *)
-	       DMALLOC (i, TAG_INPUT_TO, "input_to: 1")) == NULL)
-	    fatal ("Out of memory!\n");
-	  memcpy (x, args, i);
-	}
+        {
+          i = num_arg * sizeof (svalue_t);
+          if ((x = (svalue_t *)
+               DMALLOC (i, TAG_INPUT_TO, "input_to: 1")) == NULL)
+            fatal ("Out of memory!\n");
+          memcpy (x, args, i);
+        }
       else
-	x = NULL;
+        x = NULL;
 
       command_giver->interactive->carryover = x;
       command_giver->interactive->num_carry = num_arg;
       if (fun->type == T_STRING)
-	{
-	  s->function.s = make_shared_string (fun->u.string);
-	  s->flags = 0;
-	}
+        {
+          s->function.s = make_shared_string (fun->u.string);
+          s->flags = 0;
+        }
       else
-	{
-	  s->function.f = fun->u.fp;
-	  fun->u.fp->hdr.ref++;
-	  s->flags = V_FUNCTION;
-	}
+        {
+          s->function.f = fun->u.fp;
+          fun->u.fp->hdr.ref++;
+          s->flags = V_FUNCTION;
+        }
       s->ob = current_object;
       add_ref (current_object, "input_to");
       return 1;
@@ -1351,29 +1351,29 @@ get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args)
        * (elsewhere) to avoid double free_svalue()'s
        */
       if (num_arg)
-	{
-	  i = num_arg * sizeof (svalue_t);
-	  if ((x = (svalue_t *)
-	       DMALLOC (i, TAG_TEMPORARY, "get_char: 1")) == NULL)
-	    fatal ("Out of memory!\n");
-	  memcpy (x, args, i);
-	}
+        {
+          i = num_arg * sizeof (svalue_t);
+          if ((x = (svalue_t *)
+               DMALLOC (i, TAG_TEMPORARY, "get_char: 1")) == NULL)
+            fatal ("Out of memory!\n");
+          memcpy (x, args, i);
+        }
       else
-	x = NULL;
+        x = NULL;
 
       command_giver->interactive->carryover = x;
       command_giver->interactive->num_carry = num_arg;
       if (fun->type == T_STRING)
-	{
-	  s->function.s = make_shared_string (fun->u.string);
-	  s->flags = 0;
-	}
+        {
+          s->function.s = make_shared_string (fun->u.string);
+          s->flags = 0;
+        }
       else
-	{
-	  s->function.f = fun->u.fp;
-	  fun->u.fp->hdr.ref++;
-	  s->flags = V_FUNCTION;
-	}
+        {
+          s->function.f = fun->u.fp;
+          fun->u.fp->hdr.ref++;
+          s->flags = V_FUNCTION;
+        }
       s->ob = current_object;
       add_ref (current_object, "get_char");
       return 1;
@@ -1395,36 +1395,36 @@ print_svalue (svalue_t * arg)
     switch (arg->type)
       {
       case T_STRING:
-	check_legal_string (arg->u.string);
-	tell_object (command_giver, arg->u.string);
-	break;
+        check_legal_string (arg->u.string);
+        tell_object (command_giver, arg->u.string);
+        break;
       case T_OBJECT:
-	sprintf (tbuf, "OBJ(/%s)", arg->u.ob->name);
-	tell_object (command_giver, tbuf);
-	break;
+        sprintf (tbuf, "OBJ(/%s)", arg->u.ob->name);
+        tell_object (command_giver, tbuf);
+        break;
       case T_NUMBER:
-	sprintf (tbuf, "%ld", arg->u.number);
-	tell_object (command_giver, tbuf);
-	break;
+        sprintf (tbuf, "%ld", arg->u.number);
+        tell_object (command_giver, tbuf);
+        break;
       case T_REAL:
-	sprintf (tbuf, "%g", arg->u.real);
-	tell_object (command_giver, tbuf);
-	break;
+        sprintf (tbuf, "%g", arg->u.real);
+        tell_object (command_giver, tbuf);
+        break;
       case T_ARRAY:
-	tell_object (command_giver, "<ARRAY>");
-	break;
+        tell_object (command_giver, "<ARRAY>");
+        break;
       case T_MAPPING:
-	tell_object (command_giver, "<MAPPING>");
-	break;
+        tell_object (command_giver, "<MAPPING>");
+        break;
       case T_FUNCTION:
-	tell_object (command_giver, "<FUNCTION>");
-	break;
+        tell_object (command_giver, "<FUNCTION>");
+        break;
       case T_BUFFER:
-	tell_object (command_giver, "<BUFFER>");
-	break;
+        tell_object (command_giver, "<BUFFER>");
+        break;
       default:
-	tell_object (command_giver, "<UNKNOWN>");
-	break;
+        tell_object (command_giver, "<UNKNOWN>");
+        break;
       }
   return;
 }
@@ -1506,26 +1506,26 @@ move_object (object_t * item, object_t * dest)
   if (item->super)
     {
       if (item->flags & O_ENABLE_COMMANDS)
-	remove_sent (item->super, item);
+        remove_sent (item->super, item);
 
       if (item->super->flags & O_ENABLE_COMMANDS)
-	remove_sent (item, item->super);
+        remove_sent (item, item->super);
 
       for (pp = &item->super->contains; *pp;)
-	{
-	  if (*pp != item)
-	    {
-	      if ((*pp)->flags & O_ENABLE_COMMANDS)
-		remove_sent (item, *pp);
-	      if (item->flags & O_ENABLE_COMMANDS)
-		remove_sent (*pp, item);
-	      pp = &(*pp)->next_inv;
-	      continue;
-	    }
+        {
+          if (*pp != item)
+            {
+              if ((*pp)->flags & O_ENABLE_COMMANDS)
+                remove_sent (item, *pp);
+              if (item->flags & O_ENABLE_COMMANDS)
+                remove_sent (*pp, item);
+              pp = &(*pp)->next_inv;
+              continue;
+            }
 
-	  /* unlink object from original inventory list */
-	  *pp = item->next_inv;
-	}
+          /* unlink object from original inventory list */
+          *pp = item->next_inv;
+        }
     }
 
   /* link object into target's inventory list */
@@ -1546,10 +1546,10 @@ move_object (object_t * item, object_t * dest)
       command_giver = item;
       (void) apply (APPLY_INIT, dest, 0, ORIGIN_DRIVER);
       if ((dest->flags & O_DESTRUCTED) || item->super != dest)
-	{
-	  command_giver = save_cmd;	/* marion */
-	  return;
-	}
+        {
+          command_giver = save_cmd;	/* marion */
+          return;
+        }
     }
 
   /*
@@ -1560,41 +1560,41 @@ move_object (object_t * item, object_t * dest)
     {
       next_ob = ob->next_inv;
       if (ob == item)
-	continue;
+        continue;
 
       if (ob->flags & O_DESTRUCTED)
-	error (_("*An object was destructed at call of " APPLY_INIT "()"));
+        error (_("*An object was destructed at call of " APPLY_INIT "()"));
 
       if (ob->flags & O_ENABLE_COMMANDS)
-	{
-	  command_giver = ob;
-	  (void) apply (APPLY_INIT, item, 0, ORIGIN_DRIVER);
-	  if (dest != item->super)
-	    {
-	      command_giver = save_cmd;	/* marion */
-	      return;
-	    }
-	}
+        {
+          command_giver = ob;
+          (void) apply (APPLY_INIT, item, 0, ORIGIN_DRIVER);
+          if (dest != item->super)
+            {
+              command_giver = save_cmd;	/* marion */
+              return;
+            }
+        }
 
       if (item->flags & O_DESTRUCTED)	/* marion */
-	error (_("*The object to be moved was destructed at call of " APPLY_INIT
-	       "()!"));
+        error (_("*The object to be moved was destructed at call of " APPLY_INIT
+               "()!"));
 
       if (item->flags & O_ENABLE_COMMANDS)
-	{
-	  command_giver = item;
-	  (void) apply (APPLY_INIT, ob, 0, ORIGIN_DRIVER);
-	  if (dest != item->super)
-	    {
-	      command_giver = save_cmd;	/* marion */
-	      return;
-	    }
-	}
+        {
+          command_giver = item;
+          (void) apply (APPLY_INIT, ob, 0, ORIGIN_DRIVER);
+          if (dest != item->super)
+            {
+              command_giver = save_cmd;	/* marion */
+              return;
+            }
+        }
     }
 
   if (dest->flags & O_DESTRUCTED)	/* marion */
     error (_("*The destination to move to was destructed at call of " APPLY_INIT
-	   "()!"));
+           "()!"));
 
   if (dest->flags & O_ENABLE_COMMANDS)
     {
@@ -1637,13 +1637,13 @@ free_sentence (sentence_t * p)
   if (p->flags & V_FUNCTION)
     {
       if (p->function.f)
-	free_funp (p->function.f);
+        free_funp (p->function.f);
       p->function.f = 0;
     }
   else
     {
       if (p->function.s)
-	free_string (p->function.s);
+        free_string (p->function.s);
       p->function.s = 0;
     }
 
@@ -1675,11 +1675,10 @@ user_parser (char *buff)
   int where;
   int save_illegal_sentence_action;
 
-  /* �R�����O�C�᭱�h�l���ťզr�� */
   for (p = buff + strlen (buff) - 1; p >= buff; p--)
     {
       if (isspace (*p))
-	continue;
+        continue;
       *(p + 1) = '\0';		/* truncate */
       break;
     }
@@ -1721,12 +1720,10 @@ user_parser (char *buff)
 
       pos = p - buff;
       if (pos < MAX_VERB_BUFF)
-	{
-	  verb_buff[pos] = '\0';
-	}
+        {
+          verb_buff[pos] = '\0';
+        }
     }
-
-  /* �j�M command_giver �Ҧ��Q�ᤩ�� sentence */
 
   save_illegal_sentence_action = illegal_sentence_action;
   illegal_sentence_action = 0;
@@ -1736,36 +1733,34 @@ user_parser (char *buff)
       svalue_t *ret;
 
       if (s->flags & (V_NOSPACE | V_SHORT))
-	{
-	  if (strncmp (buff, s->verb, strlen (s->verb)) != 0)
-	    continue;
-	}
+        {
+          if (strncmp (buff, s->verb, strlen (s->verb)) != 0)
+            continue;
+        }
       else
-	{
-	  /* note: if was add_action(blah, "") then accept it */
-	  if (s->verb[0] && (user_verb != s->verb))
-	    continue;
-	}
-
-      /* ���i��ŦX�� sentence */
+        {
+          /* note: if was add_action(blah, "") then accept it */
+          if (s->verb[0] && (user_verb != s->verb))
+            continue;
+        }
 
       if (s->flags & V_NOSPACE)
-	{
-	  int l1 = strlen (s->verb);
-	  int l2 = strlen (verb_buff);
+        {
+          int l1 = strlen (s->verb);
+          int l2 = strlen (verb_buff);
 
-	  if (l1 < l2)
-	    last_verb = verb_buff + l1;
-	  else
-	    last_verb = "";
-	}
+          if (l1 < l2)
+            last_verb = verb_buff + l1;
+          else
+            last_verb = "";
+        }
       else
-	{
-	  if (!s->verb[0] || (s->flags & V_SHORT))
-	    last_verb = verb_buff;
-	  else
-	    last_verb = s->verb;
-	}
+        {
+          if (!s->verb[0] || (s->flags & V_SHORT))
+            last_verb = verb_buff;
+          else
+            last_verb = s->verb;
+        }
 
       /*
        * If the function is static and not defined by current object, then
@@ -1775,22 +1770,21 @@ user_parser (char *buff)
       where = (current_object ? ORIGIN_EFUN : ORIGIN_DRIVER);
 
       if (s->flags & V_NOSPACE)
-	copy_and_push_string (&buff[strlen (s->verb)]);
+        copy_and_push_string (&buff[strlen (s->verb)]);
       else if (buff[length] == ' ')
-	copy_and_push_string (&buff[length + 1]);
+        copy_and_push_string (&buff[length + 1]);
       else
-	push_undefined ();
+        push_undefined ();
 
-      /* �I�s���O�B�z�禡 */
       if (s->flags & V_FUNCTION)
-	ret = call_function_pointer (s->function.f, 1);
+        ret = call_function_pointer (s->function.f, 1);
       else
-	{
-	  if (s->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
-	    error (_("*Illegal function name."));
-	  ret = apply (s->function.s, s->ob, 1, where);
+        {
+          if (s->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
+            error (_("*Illegal function name."));
+          ret = apply (s->function.s, s->ob, 1, where);
 //        ret = apply (s->function.s, s->ob, 1, ORIGIN_DRIVER);
-	}
+        }
 
       /* s may be dangling at this point */
 
@@ -1800,48 +1794,42 @@ user_parser (char *buff)
 
       /* was this the right verb? */
       if (ret == 0)
-	{
-	  /* is it still around?  Otherwise, ignore this ...
-	     it moved somewhere or dested itself */
-	  if (s == save_command_giver->sent)
-	    {
-	      char buf[256];
-	      if (s->flags & V_FUNCTION)
-		{
-		  sprintf (buf,
-			   _("*Verb '%s' bound to uncallable function pointer."),
-			   s->verb);
-		  error (buf);
-		}
-	      else
-		{
-		  sprintf (buf, _("*Function for verb '%s' not found."),
-			   s->verb);
-		  error (buf);
-		}
-	    }
-	}
+        {
+          /* is it still around?  Otherwise, ignore this ...
+             it moved somewhere or dested itself */
+          if (s == save_command_giver->sent)
+            {
+              char buf[256];
+              if (s->flags & V_FUNCTION)
+                {
+                  sprintf (buf, _("*Verb '%s' bound to uncallable function pointer."), s->verb);
+                  error (buf);
+                }
+              else
+                {
+                  sprintf (buf, _("*Function for verb '%s' not found."), s->verb);
+                  error (buf);
+                }
+            }
+        }
 
-      /* ���O�Q���\�a���Ѩð��� ? */
       if (ret && (ret->type != T_NUMBER || ret->u.number != 0))
-	{
-	  if (!illegal_sentence_action)
-	    illegal_sentence_action = save_illegal_sentence_action;
-	  return 1;
-	}
+        {
+          if (!illegal_sentence_action)
+            illegal_sentence_action = save_illegal_sentence_action;
+          return 1;
+        }
 
       if (illegal_sentence_action)
-	{
-	  switch (illegal_sentence_action)
-	    {
-	    case 1:
-	      error (_
-		("*Illegal to call remove_action() from a verb returning zero."));
-	    case 2:
-	      error (_
-		("*Illegal to move or destruct an object defining actions from a verb function which returns zero."));
-	    }
-	}
+        {
+          switch (illegal_sentence_action)
+            {
+            case 1:
+              error (_("*Illegal to call remove_action() from a verb returning zero."));
+            case 2:
+              error (_("*Illegal to move or destruct an object defining actions from a verb function which returns zero."));
+            }
+        }
     }
 
   notify_no_command ();
@@ -1889,7 +1877,7 @@ add_action (svalue_t * str, char *cmd, int flag)
       && ob->super != command_giver &&
       ob->super != command_giver->super && ob != command_giver->super)
     return;			/* No need for an error, they know what they
-				 * did wrong. */
+                                 * did wrong. */
   p = alloc_sentence ();
   if (str->type == T_STRING)
     {
@@ -1929,20 +1917,20 @@ remove_action (char *act, char *verb)
   if (ob)
     {
       for (s = &ob->sent; *s; s = &((*s)->next))
-	{
-	  sentence_t *tmp;
+        {
+          sentence_t *tmp;
 
-	  if (((*s)->ob == current_object) && (!((*s)->flags & V_FUNCTION))
-	      && !strcmp ((*s)->function.s, act)
-	      && !strcmp ((*s)->verb, verb))
-	    {
-	      tmp = *s;
-	      *s = tmp->next;
-	      free_sentence (tmp);
-	      illegal_sentence_action = 1;
-	      return 1;
-	    }
-	}
+          if (((*s)->ob == current_object) && (!((*s)->flags & V_FUNCTION))
+              && !strcmp ((*s)->function.s, act)
+              && !strcmp ((*s)->verb, verb))
+            {
+              tmp = *s;
+              *s = tmp->next;
+              free_sentence (tmp);
+              illegal_sentence_action = 1;
+              return 1;
+            }
+        }
     }
   return 0;
 }
@@ -1962,14 +1950,14 @@ remove_sent (object_t * ob, object_t * user)
       sentence_t *tmp;
 
       if ((*s)->ob == ob)
-	{
-	  tmp = *s;
-	  *s = tmp->next;
-	  free_sentence (tmp);
-	  illegal_sentence_action = 2;
-	}
+        {
+          tmp = *s;
+          *s = tmp->next;
+          free_sentence (tmp);
+          illegal_sentence_action = 2;
+        }
       else
-	s = &((*s)->next);
+        s = &((*s)->next);
     }
 }
 
@@ -2024,7 +2012,7 @@ find_line (const char *p, const program_t * progp, char **ret_file, int *ret_lin
 
 static void
 get_explicit_line_number_info (char *p, program_t * prog, char **ret_file,
-			       int *ret_line)
+                               int *ret_line)
 {
   find_line (p, prog, ret_file, ret_line);
   if (!(*ret_file))
@@ -2074,13 +2062,13 @@ get_line_number (const char *p, const program_t * progp)
 }
 
 typedef struct function_trace_details_s {
-	char* name;
-	int num_arg;
-	int num_local;
-	int program_offset;
+        char* name;
+        int num_arg;
+        int num_local;
+        int program_offset;
 } function_trace_details_t;
 
-static void inline
+static void
 get_trace_details (const program_t* prog, int index, function_trace_details_t* ftd)
 {
   compiler_function_t *cfp = &prog->function_table[index];
@@ -2117,71 +2105,77 @@ dump_trace (int how)
     return 0;
 
   /* control stack */
+#define CSI "\033["
+#define YELLOW CSI "33m"
+#define CYAN CSI "36m"
+#define RESET CSI "0m"
   for (p = &control_stack[0]; p < csp; p++)
     {
       switch (p[0].framekind & FRAME_MASK)
-	{
-	case FRAME_FUNCTION:
-	  get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
-	  num_arg = ftd.num_arg;
-	  num_local = ftd.num_local;
-	  log_message (NULL, "\t\e[33m%s()\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n", ftd.name,
-		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-	  if (strcmp (ftd.name, "heart_beat") == 0)
-	    ret = p->ob ? p->ob->name : 0;
-	  break;
-	case FRAME_FUNP:
-	  log_message (NULL, "\t\e[33m(function)\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n",
-		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-	  num_arg = p[0].fr.funp->f.functional.num_arg;
-	  num_local = p[0].fr.funp->f.functional.num_local;
-	  break;
-	case FRAME_FAKE:
-	  log_message (NULL, "\t\e[33m(function)\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n",
-		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-	  num_arg = -1;
-	  break;
-	case FRAME_CATCH:
-	  log_message (NULL, "\t\e[33m(catch)\e[0m at \e[36m%s\e[0m, in program /%s (object %s)\n",
-		       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-	  num_arg = -1;
-	  break;
-	}
+        {
+        case FRAME_FUNCTION:
+          get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
+          num_arg = ftd.num_arg;
+          num_local = ftd.num_local;
+          log_message (NULL, "\t" YELLOW "%s()" RESET " at " CYAN "%s" RESET ", in program /%s (object %s)\n", ftd.name,
+                       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
+          if (strcmp (ftd.name, "heart_beat") == 0)
+            ret = p->ob ? p->ob->name : 0;
+          break;
+        case FRAME_FUNP:
+          log_message (NULL, "\t" YELLOW "(function)" RESET " at " CYAN "%s" RESET ", in program /%s (object %s)\n",
+                       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
+          num_arg = p[0].fr.funp->f.functional.num_arg;
+          num_local = p[0].fr.funp->f.functional.num_local;
+          break;
+        case FRAME_FAKE:
+          log_message (NULL, "\t" YELLOW "(function)" RESET " at " CYAN "%s" RESET ", in program /%s (object %s)\n",
+                       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
+          num_arg = -1;
+          break;
+        case FRAME_CATCH:
+          log_message (NULL, "\t" YELLOW "(catch)" RESET " at " CYAN "%s" RESET ", in program /%s (object %s)\n",
+                       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
+          num_arg = -1;
+          break;
+        }
 
       if ((how & DUMP_WITH_ARGS) && (num_arg != -1))
-	{
-	  outbuffer_t outbuf;
+        {
+          outbuffer_t outbuf;
 
-	  outbuf_zero (&outbuf);
-	  ptr = p[1].fp;
-	  outbuf_add (&outbuf, "\t\targuments: ");
-	  for (i = 0; i < num_arg; i++)
-	    {
-	      svalue_to_string (&ptr[i], &outbuf, 0, (i==num_arg-1) ? 0 :',',
-				SV2STR_NOINDENT | SV2STR_NONEWLINE);
-	    }
-	  log_message (NULL, "%s\n", outbuf.buffer);
-	  FREE_MSTR (outbuf.buffer);
-	}
+          outbuf_zero (&outbuf);
+          ptr = p[1].fp;
+          outbuf_add (&outbuf, "\t\targuments: ");
+          for (i = 0; i < num_arg; i++)
+            {
+              svalue_to_string (&ptr[i], &outbuf, 0, (i==num_arg-1) ? 0 :',',
+                                SV2STR_NOINDENT | SV2STR_NONEWLINE);
+            }
+          log_message (NULL, "%s\n", outbuf.buffer);
+          FREE_MSTR (outbuf.buffer);
+        }
 
       if ((how & DUMP_WITH_LOCALVARS) && num_local > 0 && num_arg != -1)
-	{
-	  outbuffer_t outbuf;
+        {
+          outbuffer_t outbuf;
 
-	  outbuf_zero (&outbuf);
-	  ptr = p[1].fp + num_arg;
-	  outbuf_add (&outbuf, "\t\tlocal variables: ");
-	  for (i = 0; i < num_local; i++)
-	    {
-	      svalue_to_string (&ptr[i], &outbuf, 0, (i==num_local-1) ? 0 : ',',
-				SV2STR_NOINDENT | SV2STR_NONEWLINE);
-	    }
-	  log_message (NULL, "%s\n", outbuf.buffer);
-	  FREE_MSTR (outbuf.buffer);
-	}
+          outbuf_zero (&outbuf);
+          ptr = p[1].fp + num_arg;
+          outbuf_add (&outbuf, "\t\tlocal variables: ");
+          for (i = 0; i < num_local; i++)
+            {
+              svalue_to_string (&ptr[i], &outbuf, 0, (i==num_local-1) ? 0 : ',',
+                                SV2STR_NOINDENT | SV2STR_NONEWLINE);
+            }
+          log_message (NULL, "%s\n", outbuf.buffer);
+          FREE_MSTR (outbuf.buffer);
+        }
     }
 
   /* current_prog */
+#define BOLD_YELLOW CSI "1;33m"
+#define BOLD_CYAN CSI "1;36m"
   switch (p[0].framekind & FRAME_MASK)
     {
     case FRAME_FUNCTION:
@@ -2189,23 +2183,23 @@ dump_trace (int how)
       //offset = ftd.program_offset;
       num_arg = ftd.num_arg;
       num_local = ftd.num_local;
-      log_message (NULL, "\t\e[1;33m%s()\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n", ftd.name,
-		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
+      log_message (NULL, "\t" BOLD_YELLOW "%s()" RESET " at " BOLD_CYAN "%s" RESET ", in program /%s (object %s)\n", ftd.name,
+                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       break;
     case FRAME_FUNP:
-      log_message (NULL, "\t\e[1;33m(function)\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n",
-		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
+      log_message (NULL, "\t" BOLD_YELLOW "(function)" RESET " at " BOLD_CYAN "%s" RESET ", in program /%s (object %s)\n",
+                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = p[0].fr.funp->f.functional.num_arg;
       num_local = p[0].fr.funp->f.functional.num_local;
       break;
     case FRAME_FAKE:
-      log_message (NULL, "\t\e[1;33m(function)\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n",
-		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
+      log_message (NULL, "\t" BOLD_YELLOW "(function)" RESET " at " BOLD_CYAN "%s" RESET ", in program /%s (object %s)\n",
+                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = -1;
       break;
     case FRAME_CATCH:
-      log_message (NULL, "\t\e[1;33m(catch)\e[0m at \e[1;36m%s\e[0m, in program /%s (object %s)\n",
-		   get_line_number (pc, current_prog), current_prog->name, current_object->name);
+      log_message (NULL, "\t" BOLD_YELLOW "(catch)" RESET " at " BOLD_CYAN "%s" RESET ", in program /%s (object %s)\n",
+                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = -1;
       break;
     }
@@ -2217,10 +2211,10 @@ dump_trace (int how)
       outbuf_zero (&outbuf);
       outbuf_add (&outbuf, "\t\targuments: ");
       for (i = 0; i < num_arg; i++)
-	{
-	  svalue_to_string (&fp[i], &outbuf, 0, (i == num_arg - 1) ? 0 : ',',
-			    SV2STR_NOINDENT|SV2STR_NONEWLINE);
-	}
+        {
+          svalue_to_string (&fp[i], &outbuf, 0, (i == num_arg - 1) ? 0 : ',',
+                            SV2STR_NOINDENT|SV2STR_NONEWLINE);
+        }
       log_message (NULL, "%s\n", outbuf.buffer);
       FREE_MSTR (outbuf.buffer);
     }
@@ -2233,10 +2227,10 @@ dump_trace (int how)
       ptr = fp + num_arg;
       outbuf_add (&outbuf, "\t\tlocal variables: ");
       for (i = 0; i < num_local; i++)
-	{
-	  svalue_to_string (&ptr[i], &outbuf, 0, (i == num_local - 1) ? 0 : ',',
-			    SV2STR_NOINDENT|SV2STR_NONEWLINE);
-	}
+        {
+          svalue_to_string (&ptr[i], &outbuf, 0, (i == num_local - 1) ? 0 : ',',
+                            SV2STR_NOINDENT|SV2STR_NONEWLINE);
+        }
       log_message (NULL, "%s\n", outbuf.buffer);
       FREE_MSTR (outbuf.buffer);
     }
@@ -2271,27 +2265,27 @@ get_svalue_trace (int how)
     {
       m = allocate_mapping (6);
       switch (p[0].framekind & FRAME_MASK)
-	{
-	case FRAME_FUNCTION:
-	  get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
-	  num_arg = ftd.num_arg;
-	  num_local = ftd.num_local;
-	  add_mapping_string (m, "function", ftd.name);
-	  break;
-	case FRAME_CATCH:
-	  add_mapping_string (m, "function", "CATCH");
-	  num_arg = -1;
-	  break;
-	case FRAME_FAKE:
-	  add_mapping_string (m, "function", "<function>");
-	  num_arg = -1;
-	  break;
-	case FRAME_FUNP:
-	  add_mapping_string (m, "function", "<function>");
-	  num_arg = p[0].fr.funp->f.functional.num_arg;
-	  num_local = p[0].fr.funp->f.functional.num_local;
-	  break;
-	}
+        {
+        case FRAME_FUNCTION:
+          get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
+          num_arg = ftd.num_arg;
+          num_local = ftd.num_local;
+          add_mapping_string (m, "function", ftd.name);
+          break;
+        case FRAME_CATCH:
+          add_mapping_string (m, "function", "CATCH");
+          num_arg = -1;
+          break;
+        case FRAME_FAKE:
+          add_mapping_string (m, "function", "<function>");
+          num_arg = -1;
+          break;
+        case FRAME_FUNP:
+          add_mapping_string (m, "function", "<function>");
+          num_arg = p[0].fr.funp->f.functional.num_arg;
+          num_local = p[0].fr.funp->f.functional.num_local;
+          break;
+        }
       add_mapping_string (m, "program", p[1].prog->name);
       add_mapping_object (m, "object", p[1].ob);
       get_explicit_line_number_info (p[1].pc, p[1].prog, &file, &line);
@@ -2299,35 +2293,35 @@ get_svalue_trace (int how)
       add_mapping_pair (m, "line", line);
 
       if ((how & DUMP_WITH_ARGS) && (num_arg != -1))
-	{
-	  array_t *v2;
+        {
+          array_t *v2;
 
-	  n = num_arg;
-	  ptr = p[1].fp;
-	  v2 = allocate_empty_array (n);
-	  for (i = 0; i < n; i++)
-	    {
-	      assign_svalue_no_free (&v2->item[i], &ptr[i]);
-	    }
-	  add_mapping_array (m, "arguments", v2);
-	  v2->ref--;
-	}
+          n = num_arg;
+          ptr = p[1].fp;
+          v2 = allocate_empty_array (n);
+          for (i = 0; i < n; i++)
+            {
+              assign_svalue_no_free (&v2->item[i], &ptr[i]);
+            }
+          add_mapping_array (m, "arguments", v2);
+          v2->ref--;
+        }
 
       if ((how & DUMP_WITH_LOCALVARS) && num_local > 0 && num_arg != -1)
-	{
-	  array_t *v2;
+        {
+          array_t *v2;
 
-	  n = num_arg;
-	  n2 = num_local;
-	  ptr = p[1].fp;
-	  v2 = allocate_empty_array (n2);
-	  for (i = 0; i < n2; i++)
-	    {
-	      assign_svalue_no_free (&v2->item[i], &ptr[i + n]);
-	    }
-	  add_mapping_array (m, "locals", v2);
-	  v2->ref--;
-	}
+          n = num_arg;
+          n2 = num_local;
+          ptr = p[1].fp;
+          v2 = allocate_empty_array (n2);
+          for (i = 0; i < n2; i++)
+            {
+              assign_svalue_no_free (&v2->item[i], &ptr[i + n]);
+            }
+          add_mapping_array (m, "locals", v2);
+          v2->ref--;
+        }
 
       v->item[(p - &control_stack[0])].type = T_MAPPING;
       v->item[(p - &control_stack[0])].u.map = m;
@@ -2368,9 +2362,9 @@ get_svalue_trace (int how)
       n = num_arg;
       v2 = allocate_empty_array (n);
       for (i = 0; i < n; i++)
-	{
-	  assign_svalue_no_free (&v2->item[i], &fp[i]);
-	}
+        {
+          assign_svalue_no_free (&v2->item[i], &fp[i]);
+        }
       add_mapping_array (m, "arguments", v2);
       v2->ref--;
     }
@@ -2383,9 +2377,9 @@ get_svalue_trace (int how)
       n2 = num_local;
       v2 = allocate_empty_array (n2);
       for (i = 0; i < n2; i++)
-	{
-	  assign_svalue_no_free (&v2->item[i], &fp[i + n]);
-	}
+        {
+          assign_svalue_no_free (&v2->item[i], &fp[i + n]);
+        }
       add_mapping_array (m, "locals", v2);
       v2->ref--;
     }
@@ -2430,46 +2424,45 @@ fatal (char *fmt, ...)
       proceeding_fatal_error = 1;
 
       if (current_file)
-	debug_message (_("{}\t----- compiling %s at line %d"), current_file, current_line);
+        debug_message (_("{}\t----- compiling %s at line %d"), current_file, current_line);
 
       if (current_object)
-	debug_message (_("{}\t----- current object was /%s"), current_object->name);
+        debug_message (_("{}\t----- current object was /%s"), current_object->name);
 
       if ((ob_name = dump_trace (DUMP_WITH_ARGS | DUMP_WITH_LOCALVARS)))
-	debug_message (_("{}\t----- in heart beat of /%s"), ob_name);
+        debug_message (_("{}\t----- in heart beat of /%s"), ob_name);
 
       save_context (&econ);
       if (setjmp (econ.context))
-	{
-	  debug_message (_("{}\t***** error in master::%s(), shutdown now."), APPLY_CRASH);
-	}
+        {
+          debug_message (_("{}\t***** error in master::%s(), shutdown now."), APPLY_CRASH);
+        }
       else
-	{
-	  svalue_t* ret;
+        {
+          svalue_t* ret;
 
-	  copy_and_push_string (msg);
+          copy_and_push_string (msg);
 
-	  if (command_giver)
-	    push_object (command_giver);
-	  else
-	    push_undefined ();
+          if (command_giver)
+            push_object (command_giver);
+          else
+            push_undefined ();
 
-	  if (current_object)
-	    push_object (current_object);
-	  else
-	    push_undefined ();
+          if (current_object)
+            push_object (current_object);
+          else
+            push_undefined ();
 
-	  ret = apply_master_ob (APPLY_CRASH, 3);
-	  if (ret && ret != (svalue_t*)-1)
-	    {
-	      debug_message (_("{}\t----- mudlib crash handler finished, shutdown now."));
-	    }
-	}
+          ret = apply_master_ob (APPLY_CRASH, 3);
+          if (ret && ret != (svalue_t*)-1)
+            {
+              debug_message (_("{}\t----- mudlib crash handler finished, shutdown now."));
+            }
+        }
     }
 
   free (msg);
 
-  /* ��浲���{�� */
   if (CONFIG_INT (__ENABLE_CRASH_DROP_CORE__))
     abort ();
   else
@@ -2511,7 +2504,7 @@ debug_message_with_location (char *err)
   if (current_object && current_prog)
     {
       debug_message ("{\"object\":\"%s\",\"program\":\"%s\",\"line\":\"%s\"}\t%s",
- 		      current_object->name, current_prog->name, get_line_number (pc, current_prog), err);
+                       current_object->name, current_prog->name, get_line_number (pc, current_prog), err);
     }
   else if (current_object)
     {
@@ -2572,27 +2565,24 @@ error_handler (char *err)
   restrict_destruct = 0;
   num_objects_this_thread = 0;	/* reset the count */
 
-  /* ���~�O�_�Q LPC �{���X catch ? */
   if (((current_error_context->save_csp + 1)->framekind & FRAME_MASK)
       == FRAME_CATCH && !proceeding_fatal_error)
     {
 #ifdef LOG_CATCHES
-      /* ���\�Q catch �����~�]�g�L master::error_handler() �B�z */
       if (in_mudlib_error_handler)
-	{
-	  debug_message (_("{}\t***** error in mudlib error handler (caught)"));
-	  debug_message_with_location (err);
-	  dump_trace (g_trace_flag);
-	  in_mudlib_error_handler = 0;
-	}
+        {
+          debug_message (_("{}\t***** error in mudlib error handler (caught)"));
+          debug_message_with_location (err);
+          dump_trace (g_trace_flag);
+          in_mudlib_error_handler = 0;
+        }
       else
-	{
-	  /* �I�s master::error_handler() */
-	  in_mudlib_error_handler = 1;
-	  mudlib_error_handler (err, 1);
-	  in_mudlib_error_handler = 0;
-	}
-#endif	/* LOG)CATCHES */
+        {
+          in_mudlib_error_handler = 1;
+          mudlib_error_handler (err, 1);
+          in_mudlib_error_handler = 0;
+        }
+#endif	/* LOG_CATCHES */
 
       /* free catch_value allocated in last catch if any */
       free_svalue (&catch_value, "caught error");
@@ -2607,8 +2597,6 @@ error_handler (char *err)
       fatal ("catch() longjump failed");
     }
 
-  /* ���~���Q catch, �`���`�޹D�B�z */
-
   if (in_error)
     {
       debug_message (_("{}\t***** New error occured while generating error trace!"));
@@ -2616,11 +2604,10 @@ error_handler (char *err)
       dump_trace (g_trace_flag);
 
       if (current_error_context)
-	longjmp (current_error_context->context, 1);
+        longjmp (current_error_context->context, 1);
       fatal ("failed longjmp() or no error context for error.");
     }
 
-  /* �}�l error �B�z */
   in_error = 1;
 
   if (in_mudlib_error_handler)
@@ -2632,28 +2619,25 @@ error_handler (char *err)
     }
   else
     {
-      /* �ǳƩI�s master::error_handler */
       in_mudlib_error_handler = 1;
-      in_error = 0;	/* �Ȯ����ÿ��~�B�z���A */
+      in_error = 0;
       mudlib_error_handler (err, 0);
-      in_error = 1;	/* �^�_����~�B�z���A */
+      in_error = 1;
       in_mudlib_error_handler = 0;
     }
 
-  /* �Y error �o�ͦb�b heart_beat ������L�{, �����Ӫ��� heart_beat */
   if (current_heart_beat)
     {
       set_heart_beat (current_heart_beat, 0);
       debug_message (_("{}\t----- heart beat in %s turned off\n"),
-		     current_heart_beat->name);
+                     current_heart_beat->name);
 #if 0
       if (current_heart_beat->interactive)
-	add_message (current_heart_beat, _("Your heart beat stops!\n"));
+        add_message (current_heart_beat, _("Your heart beat stops!\n"));
 #endif
       current_heart_beat = 0;
     }
 
-  /* ���� error �B�z, �~����� */
   in_error = 0;
 
   if (current_error_context)
@@ -2696,14 +2680,14 @@ do_shutdown (int exit_code)
   for (i = 0; i < max_lpc_socks; i++)
     {
       if (lpc_socks[i].state == CLOSED)
-	continue;
+        continue;
       while (close (lpc_socks[i].fd) == -1 && errno == EINTR)
-	;
+        ;
     }
   for (i = 0; i < max_users; i++)
     {
       if (all_users[i] && !(all_users[i]->iflags & CLOSING))
-	flush_message (all_users[i]);
+        flush_message (all_users[i]);
     }
 
 #ifdef PROFILING
@@ -2744,7 +2728,7 @@ slow_shut_down (int minutes)
 
 void
 do_message (svalue_t * class, svalue_t * msg, array_t * scope,
-	    array_t * exclude, int recurse)
+            array_t * exclude, int recurse)
 {
   int i, j, valid;
   object_t *ob;
@@ -2752,45 +2736,45 @@ do_message (svalue_t * class, svalue_t * msg, array_t * scope,
   for (i = 0; i < scope->size; i++)
     {
       switch (scope->item[i].type)
-	{
-	case T_STRING:
-	  ob = find_object (scope->item[i].u.string);
-	  if (!ob || !object_visible (ob))
-	    continue;
-	  break;
-	case T_OBJECT:
-	  ob = scope->item[i].u.ob;
-	  break;
-	default:
-	  continue;
-	}
+        {
+        case T_STRING:
+          ob = find_object (scope->item[i].u.string);
+          if (!ob || !object_visible (ob))
+            continue;
+          break;
+        case T_OBJECT:
+          ob = scope->item[i].u.ob;
+          break;
+        default:
+          continue;
+        }
       if (ob->flags & O_LISTENER || ob->interactive)
-	{
-	  for (valid = 1, j = 0; j < exclude->size; j++)
-	    {
-	      if (exclude->item[j].type != T_OBJECT)
-		continue;
-	      if (exclude->item[j].u.ob == ob)
-		{
-		  valid = 0;
-		  break;
-		}
-	    }
-	  if (valid)
-	    {
-	      push_svalue (class);
-	      push_svalue (msg);
-	      apply (APPLY_RECEIVE_MESSAGE, ob, 2, ORIGIN_DRIVER);
-	    }
-	}
+        {
+          for (valid = 1, j = 0; j < exclude->size; j++)
+            {
+              if (exclude->item[j].type != T_OBJECT)
+                continue;
+              if (exclude->item[j].u.ob == ob)
+                {
+                  valid = 0;
+                  break;
+                }
+            }
+          if (valid)
+            {
+              push_svalue (class);
+              push_svalue (msg);
+              apply (APPLY_RECEIVE_MESSAGE, ob, 2, ORIGIN_DRIVER);
+            }
+        }
       else if (recurse)
-	{
-	  array_t *tmp;
+        {
+          array_t *tmp;
 
-	  tmp = all_inventory (ob, 1);
-	  do_message (class, msg, tmp, exclude, 0);
-	  free_array (tmp);
-	}
+          tmp = all_inventory (ob, 1);
+          do_message (class, msg, tmp, exclude, 0);
+          free_array (tmp);
+        }
     }
 }
 
@@ -2819,7 +2803,7 @@ first_inventory (svalue_t * arg)
     {
       ob = find_object (arg->u.string);
       if (ob && !object_visible (ob))
-	ob = 0;
+        ob = 0;
     }
   else
     ob = arg->u.ob;
@@ -2829,14 +2813,14 @@ first_inventory (svalue_t * arg)
   while (ob)
     {
       if (ob->flags & O_HIDDEN)
-	{
-	  if (object_visible (ob))
-	    {
-	      return ob;
-	    }
-	}
+        {
+          if (object_visible (ob))
+            {
+              return ob;
+            }
+        }
       else
-	return ob;
+        return ob;
       ob = ob->next_inv;
     }
   return 0;

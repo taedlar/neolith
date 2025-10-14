@@ -412,6 +412,7 @@ i_generate_node (parse_node_t * expr)
     case NODE_TERNARY_OP:
       i_generate_node (expr->l.expr);
       expr = expr->r.expr;
+      /* fall through */
     case NODE_BINARY_OP:
       i_generate_node (expr->l.expr);
       /* fall through */
@@ -1286,6 +1287,7 @@ optimize_icode (char *start, char *pc, char *end)
 	case F_EFUN3:
 	case F_EFUNV:
 	  instr = EXTRACT_UCHAR (pc++) + ONEARG_MAX;
+	  /* fall through */
 	default:
 	  if ((instr >= BASE) &&
 	      (instrs[instr].min_arg != instrs[instr].max_arg))

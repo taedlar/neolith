@@ -38,6 +38,7 @@ static int
 sumSizes (mapping_t * m, mapping_node_t * elt, void *tp)
 {
   int *t = (int *) tp;
+  (void)m; /* unused */
 
   *t += (svalue_size (&elt->values[0]) + svalue_size (&elt->values[1]));
   *t += sizeof (mapping_node_t);

@@ -320,21 +320,21 @@ more_append (char *str)
       int less_indent_flag = 0;
 
       while (*str == '\004' || *str == '\013')
-	{
-	  str++;
-	  P_LEADBLANKS -= P_SHIFTWIDTH;
-	  if (P_LEADBLANKS < 0)
-	    P_LEADBLANKS = 0;
-	  less_indent_flag = 1;
-	}
+        {
+          str++;
+          P_LEADBLANKS -= P_SHIFTWIDTH;
+          if (P_LEADBLANKS < 0)
+            P_LEADBLANKS = 0;
+          less_indent_flag = 1;
+        }
       for (i = 0; i < P_LEADBLANKS;)
-	inlin[i++] = ' ';
+        inlin[i++] = ' ';
       strncpy (inlin + P_LEADBLANKS, str, ED_MAXLINE - P_LEADBLANKS);
       inlin[ED_MAXLINE - 1] = '\0';
       _count_blanks (inlin, 0);
       ED_OUTPUTV (ED_DEST, "%*s", P_LEADBLANKS, "");
       if (!*str && less_indent_flag)
-	return 0;
+        return 0;
       str = inlin;
     }
   if (ins (str) < 0)
@@ -354,11 +354,11 @@ _count_blanks (char *str, int blanks)
   for (; *str; str++)
     {
       if (*str == ' ')
-	blanks++;
+        blanks++;
       else if (*str == '\t')
-	blanks += 8 - blanks % 8;
+        blanks += 8 - blanks % 8;
       else
-	break;
+        break;
     }
   P_LEADBLANKS = blanks < ED_MAXLINE ? blanks : ED_MAXLINE;
 }
@@ -392,26 +392,26 @@ ckglob ()
     {
       ptr->l_stat &= ~LGLOB;
       if (P_LINE1 <= num && num <= P_LINE2)
-	{
-	  /*
-	   * we might have got a NULL pointer if the supplied pattern was
-	   * invalid
-	   */
-	  if (glbpat)
-	    {
-	      lin = gettxtl (ptr);
-	      if (regexec (glbpat, lin))
-		{
-		  if (c == 'g')
-		    ptr->l_stat |= LGLOB;
-		}
-	      else
-		{
-		  if (c == 'v')
-		    ptr->l_stat |= LGLOB;
-		}
-	    }
-	}
+        {
+          /*
+           * we might have got a NULL pointer if the supplied pattern was
+           * invalid
+           */
+          if (glbpat)
+            {
+              lin = gettxtl (ptr);
+              if (regexec (glbpat, lin))
+                {
+                  if (c == 'g')
+                    ptr->l_stat |= LGLOB;
+                }
+              else
+                {
+                  if (c == 'v')
+                    ptr->l_stat |= LGLOB;
+                }
+            }
+        }
       ptr = getnextptr (ptr);
     }
   return (1);
@@ -498,12 +498,12 @@ doprnt (int from, int to)
     {
       setCurLn (from);
       while (P_CURLN <= to)
-	{
-	  prntln (gettxtl (P_CURPTR), P_LFLG, (P_NFLG ? P_CURLN : 0));
-	  if (P_NET_DEAD || (P_CURLN == to))
-	    break;
-	  nextCurLn ();
-	}
+        {
+          prntln (gettxtl (P_CURPTR), P_LFLG, (P_NFLG ? P_CURLN : 0));
+          if (P_NET_DEAD || (P_CURLN == to))
+            break;
+          nextCurLn ();
+        }
     }
   return (0);
 }
@@ -557,31 +557,31 @@ prntln (char *str, int vflg, int len)
   while (*str && *str != NL)
     {
       if ((line - start) > ED_MAXLINE)
-	{
-	  free_ed_buffer (current_editor);
-	  error ("Bad file format. Ed can't handle lines longer than %d.\n",
-		 ED_MAXLINE);
-	}
+        {
+          free_ed_buffer (current_editor);
+          error ("Bad file format. Ed can't handle lines longer than %d.\n",
+                 ED_MAXLINE);
+        }
       if (*str >= 0 && *str < ' ')
-	{
-	  switch (*str)
-	    {
-	    case '\t':
-	      /* have to be smart about this or the indentor will fail */
-	      *line++ = ' ';
-	      while ((line - start) % 8)
-		*line++ = ' ';
-	      break;
-	    case DEL:
-	      putcntl (0);
-	      break;
-	    default:
-	      putcntl (1);
-	      break;
-	    }
-	}
+        {
+          switch (*str)
+            {
+            case '\t':
+              /* have to be smart about this or the indentor will fail */
+              *line++ = ' ';
+              while ((line - start) % 8)
+                *line++ = ' ';
+              break;
+            case DEL:
+              putcntl (0);
+              break;
+            default:
+              putcntl (1);
+              break;
+            }
+        }
       else
-	*line++ = *str;
+        *line++ = *str;
       str++;
     }
 #ifndef NO_END_DOLLAR_SIGN
@@ -604,30 +604,30 @@ egets (char *str, int size, FILE * stream)
     {
       c = getc (stream);
       if (c == EOF)
-	{
-	  *cp = EOS;
-	  if (count)
-	    ED_OUTPUT (ED_DEST, "[Incomplete last line]\n");
-	  return (count);
-	}
+        {
+          *cp = EOS;
+          if (count)
+            ED_OUTPUT (ED_DEST, "[Incomplete last line]\n");
+          return (count);
+        }
       else if (c == NL)
-	{
-	  *cp = EOS;
-	  return (++count);
-	}
+        {
+          *cp = EOS;
+          return (++count);
+        }
       else if (c == 0)
-	P_NULLCHAR++;		/* count nulls */
+        P_NULLCHAR++;		/* count nulls */
       else
-	{
-	  if (c > 127)
-	    {
-	      if (!P_EIGHTBIT)	/* if not saving eighth bit */
-		c = c & 127;	/* strip eigth bit */
-	      P_NONASCII++;	/* count it */
-	    }
-	  *cp++ = c;		/* not null, keep it */
-	  count++;
-	}
+        {
+          if (c > 127)
+            {
+              if (!P_EIGHTBIT)	/* if not saving eighth bit */
+                c = c & 127;	/* strip eigth bit */
+              P_NONASCII++;	/* count it */
+            }
+          *cp++ = c;		/* not null, keep it */
+          count++;
+        }
     }
   str[count - 1] = EOS;
   if (c != NL)
@@ -635,8 +635,8 @@ egets (char *str, int size, FILE * stream)
       ED_OUTPUT (ED_DEST, "truncating line\n");
       P_TRUNCATED++;
       while ((c = getc (stream)) != EOF)
-	if (c == NL)
-	  break;
+        if (c == NL)
+          break;
     }
   return (count);
 }				/* egets */
@@ -665,10 +665,10 @@ doread (int lin, char *fname)
     {
       bytes += err;
       if (ins (str) < 0)
-	{
-	  err = MEM_FAIL;
-	  break;
-	}
+        {
+          err = MEM_FAIL;
+          break;
+        }
       lines++;
     }
   fclose (fp);
@@ -678,11 +678,11 @@ doread (int lin, char *fname)
     {
       ED_OUTPUTV (ED_DEST, "%u lines %u bytes", lines, bytes);
       if (P_NONASCII)
-	ED_OUTPUTV (ED_DEST, " [%d non-ascii]", P_NONASCII);
+        ED_OUTPUTV (ED_DEST, " [%d non-ascii]", P_NONASCII);
       if (P_NULLCHAR)
-	ED_OUTPUTV (ED_DEST, " [%d nul]", P_NULLCHAR);
+        ED_OUTPUTV (ED_DEST, " [%d nul]", P_NULLCHAR);
       if (P_TRUNCATED)
-	ED_OUTPUTV (ED_DEST, " [%d lines truncated]", P_TRUNCATED);
+        ED_OUTPUTV (ED_DEST, " [%d lines truncated]", P_TRUNCATED);
       ED_OUTPUT (ED_DEST, "\n");
     }
   return (err);
@@ -709,10 +709,10 @@ dowrite (int from, int to, char *fname, int apflg)
       share_and_push_string (fname);
       push_number (0);
       res =
-	safe_apply (ED_BUFFER->write_fn, ED_BUFFER->exit_ob, 2,
-		    ORIGIN_DRIVER);
+        safe_apply (ED_BUFFER->write_fn, ED_BUFFER->exit_ob, 2,
+                    ORIGIN_DRIVER);
       if (IS_ZERO (res))
-	return (ERR);
+        return (ERR);
     }
 #endif
 
@@ -721,9 +721,9 @@ dowrite (int from, int to, char *fname, int apflg)
   if ((fp = fopen (fname, (apflg ? "a" : "w"))) == NULL)
     {
       if (!P_RESTRICT)
-	ED_OUTPUT (ED_DEST, " can't be opened for writing!\n");
+        ED_OUTPUT (ED_DEST, " can't be opened for writing!\n");
       else
-	ED_OUTPUT (ED_DEST, "Couldn't open file for writing!\n");
+        ED_OUTPUT (ED_DEST, "Couldn't open file for writing!\n");
       return (ERR);
     }
   lptr = getptr (from);
@@ -733,11 +733,11 @@ dowrite (int from, int to, char *fname, int apflg)
       lines++;
       bytes += strlen (str) + 1;	/* str + '\n' */
       if (fputs (str, fp) == EOF)
-	{
-	  ED_OUTPUT (ED_DEST, "file write error\n");
-	  err++;
-	  break;
-	}
+        {
+          ED_OUTPUT (ED_DEST, "file write error\n");
+          err++;
+          break;
+        }
       fputc ('\n', fp);
       lptr = lptr->l_next;
     }
@@ -774,16 +774,16 @@ find (regexp * pat, int dir)
   for (i = 0; i < P_LASTLN; i++)
     {
       if (regexec (pat, gettxtl (lin)))
-	return (num);
+        return (num);
       if (EdErr)
-	{
-	  EdErr = 0;
-	  break;
-	}
+        {
+          EdErr = 0;
+          break;
+        }
       if (dir)
-	num = nextln (num), lin = getnextptr (lin);
+        num = nextln (num), lin = getnextptr (lin);
       else
-	num = prevln (num), lin = getprevptr (lin);
+        num = prevln (num), lin = getprevptr (lin);
     }
 /* Put us back to where we came from */
   dir ? prevCurLn () : nextCurLn ();
@@ -813,7 +813,7 @@ getfn (int writeflg)
 
       cp = file;
       while (*inptr && *inptr != NL && *inptr != SP && *inptr != HT)
-	*cp++ = *inptr++;
+        *cp++ = *inptr++;
       *cp = '\0';
 
     }
@@ -828,7 +828,7 @@ getfn (int writeflg)
       copy_and_push_string (file);
       ret = apply_master_ob (APPLY_MAKE_PATH_ABSOLUTE, 1);
       if ((ret == 0) || (ret == (svalue_t *) - 1) || ret->type != T_STRING)
-	return NULL;
+        return NULL;
       strncpy (file, ret->u.string, sizeof file - 1);
       file[MAXFNAME - 1] = '\0';
     }
@@ -860,9 +860,9 @@ getnum (int first)
   if (*inptr >= '0' && *inptr <= '9')
     {				/* line number */
       for (num = 0; *inptr >= '0' && *inptr <= '9'; ++inptr)
-	{
-	  num = (num * 10) + (*inptr - '0');
-	}
+        {
+          num = (num * 10) + (*inptr - '0');
+        }
       return num;
     }
   switch (c = *inptr)
@@ -879,7 +879,7 @@ getnum (int first)
     case '?':
       srchpat = optpat ();
       if (*inptr == c)
-	inptr++;
+        inptr++;
       return (find (srchpat, c == '/' ? 1 : 0));
 
     case '-':
@@ -889,7 +889,7 @@ getnum (int first)
     case '\'':
       inptr++;
       if (*inptr < 'a' || *inptr > 'z')
-	return MARK_A_TO_Z;
+        return MARK_A_TO_Z;
       return P_MARK[*inptr++ - 'a'];
 
     default:
@@ -912,23 +912,23 @@ getone ()
   if ((num = getnum (FIRST)) >= 0)
     {
       for (;;)
-	{
-	  Skip_White_Space;
-	  if (*inptr != '+' && *inptr != '-')
-	    break;		/* exit infinite loop */
+        {
+          Skip_White_Space;
+          if (*inptr != '+' && *inptr != '-')
+            break;		/* exit infinite loop */
 
-	  c = *inptr++;
-	  if ((i = getnum (NOTFIRST)) < 0)
-	    return (i);
-	  if (c == '+')
-	    num += i;
-	  else
-	    {
-	      num -= i;
-	      if (num < 1)
-		num = 1;
-	    }
-	}
+          c = *inptr++;
+          if ((i = getnum (NOTFIRST)) < 0)
+            return (i);
+          if (c == '+')
+            num += i;
+          else
+            {
+              num -= i;
+              if (num < 1)
+                num = 1;
+            }
+        }
     }
   return (num > P_LASTLN ? BAD_LINE_NUMBER : num);
 }				/* getone */
@@ -944,15 +944,15 @@ getlst ()
     {
       /* if it's out of bounds, go to the end of the file. */
       if (num == BAD_LINE_NUMBER)
-	num = P_LASTLN;
+        num = P_LASTLN;
 
       P_LINE1 = P_LINE2;
       P_LINE2 = num;
       P_NLINES++;
       if (*inptr != ',' && *inptr != ';')
-	break;
+        break;
       if (*inptr == ';')
-	setCurLn (num);
+        setCurLn (num);
       inptr++;
     }
   P_NLINES = min (P_NLINES, 2);
@@ -977,13 +977,13 @@ getptr (int num)
     {				/* high line numbers */
       ptr = P_LINE0.l_prev;
       for (j = P_LASTLN; j > num; j--)
-	ptr = ptr->l_prev;
+        ptr = ptr->l_prev;
     }
   else
     {				/* low line numbers */
       ptr = &P_LINE0;
       for (j = 0; j < num; j++)
-	ptr = ptr->l_next;
+        ptr = ptr->l_next;
     }
   return (ptr);
 }
@@ -1002,62 +1002,62 @@ getrhs (char *sub)
   while (*inptr != delim && *inptr != NL)
     {
       if (sub > outmax)
-	return ERR;
+        return ERR;
       if (*inptr == ESCAPE)
-	{
-	  switch (*++inptr)
-	    {
-	    case 'r':
-	      *sub++ = '\r';
-	      inptr++;
-	      break;
-	    case 'n':
-	      *sub++ = '\n';
-	      inptr++;
-	      break;
-	    case 'b':
-	      *sub++ = '\b';
-	      inptr++;
-	      break;
-	    case 't':
-	      *sub++ = '\t';
-	      inptr++;
-	      break;
-	    case '0':
-	      {
-		int i = 3;
+        {
+          switch (*++inptr)
+            {
+            case 'r':
+              *sub++ = '\r';
+              inptr++;
+              break;
+            case 'n':
+              *sub++ = '\n';
+              inptr++;
+              break;
+            case 'b':
+              *sub++ = '\b';
+              inptr++;
+              break;
+            case 't':
+              *sub++ = '\t';
+              inptr++;
+              break;
+            case '0':
+              {
+                int i = 3;
 
-		*sub = 0;
-		do
-		  {
-		    if (*++inptr < '0' || *inptr > '7')
-		      break;
-		    *sub = (*sub << 3) | (*inptr - '0');
-		  }
-		while (--i != 0);
-		sub++;
-	      }
-	      break;
-	    case '&':
-	    case '1':
-	    case '2':
-	    case '3':
-	    case '4':
-	    case '5':
-	    case '6':
-	    case '7':
-	    case '8':
-	    case '9':
-	    case '\\':
-	      *sub++ = ESCAPE;	/* fall through */
-	    default:
-	      *sub++ = *inptr;
-	      if (*inptr != NL)
-		inptr++;
-	    }
-	}
+                *sub = 0;
+                do
+                  {
+                    if (*++inptr < '0' || *inptr > '7')
+                      break;
+                    *sub = (*sub << 3) | (*inptr - '0');
+                  }
+                while (--i != 0);
+                sub++;
+              }
+              break;
+            case '&':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+            case '\\':
+              *sub++ = ESCAPE;	/* fall through */
+            default:
+              *sub++ = *inptr;
+              if (*inptr != NL)
+                inptr++;
+            }
+        }
       else
-	*sub++ = *inptr++;
+        *sub++ = *inptr++;
     }
   *sub = '\0';
 
@@ -1087,8 +1087,8 @@ ins (char *str)
       /* cp now points to end of first or only line */
 
       if ((new = (ed_line_t *) DXALLOC (sizeof (ed_line_t) + len,
-					TAG_ED, "ins: new")) == NULL)
-	return (MEM_FAIL);	/* no memory */
+                                        TAG_ED, "ins: new")) == NULL)
+        return (MEM_FAIL);	/* no memory */
 
       new->l_stat = 0;
       strncpy (new->l_buff, str, len);	/* build new line */
@@ -1128,14 +1128,14 @@ join (int first, int last)
     {
       str = gettxtl (lin);
       while (*str)
-	{
-	  if (cp >= buf + ED_MAXLINE - 1)
-	    {
-	      ED_OUTPUT (ED_DEST, "line too long\n");
-	      return ERR;
-	    }
-	  *cp++ = *str++;
-	}
+        {
+          if (cp >= buf + ED_MAXLINE - 1)
+            {
+              ED_OUTPUT (ED_DEST, "line too long\n");
+              return ERR;
+            }
+          *cp++ = *str++;
+        }
       lin = getnextptr (lin);
     }
   *cp = EOS;
@@ -1196,7 +1196,7 @@ transfer (int num)
   for (lin = P_LINE1; lin <= mid; lin++)
     {
       if (ins (gettxt (lin)) < 0)
-	return MEM_FAIL;
+        return MEM_FAIL;
       ntrans++;
     }
   lin += ntrans;
@@ -1205,7 +1205,7 @@ transfer (int num)
   for (; lin <= P_LINE2; lin += 2)
     {
       if (ins (gettxt (lin)) < 0)
-	return MEM_FAIL;
+        return MEM_FAIL;
       P_LINE2++;
     }
   return (1);
@@ -1224,10 +1224,10 @@ optpat ()
     return P_OLDPAT;
   cp = str;
   while (*inptr != delim && *inptr != NL && *inptr != EOS
-	 && cp < str + MAXPAT - 1)
+         && cp < str + MAXPAT - 1)
     {
       if (*inptr == ESCAPE && inptr[1] != NL)
-	*cp++ = *inptr++;
+        *cp++ = *inptr++;
       *cp++ = *inptr++;
     }
 
@@ -1249,7 +1249,7 @@ set ()
   if (*(++inptr) != 't')
     {
       if (*inptr != SP && *inptr != HT && *inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
     }
   else
     inptr++;
@@ -1257,13 +1257,13 @@ set ()
   if ((*inptr == NL))
     {
       ED_OUTPUTV (ED_DEST, "ed version %d.%d\n", version / 100,
-		  version % 100);
+                  version % 100);
       limit = tbl + (sizeof (tbl) / sizeof (struct tbl));
       for (t = tbl; t < limit; t += 2)
-	{
-	  ED_OUTPUTV (ED_DEST, "%s:%s ", t->t_str,
-		      P_FLAGS & t->t_or_mask ? "on" : "off");
-	}
+        {
+          ED_OUTPUTV (ED_DEST, "%s:%s ", t->t_str,
+                      P_FLAGS & t->t_or_mask ? "on" : "off");
+        }
       ED_OUTPUTV (ED_DEST, "\nshiftwidth:%d\n", P_SHIFTWIDTH);
       return (0);
     }
@@ -1271,10 +1271,10 @@ set ()
   for (i = 0; *inptr != SP && *inptr != HT && *inptr != NL;)
     {
       if (i == sizeof word - 1)
-	{
-	  ED_OUTPUT (ED_DEST, "Too long argument to 'set'!\n");
-	  return 0;
-	}
+        {
+          ED_OUTPUT (ED_DEST, "Too long argument to 'set'!\n");
+          return 0;
+        }
       word[i++] = *inptr++;
     }
   word[i] = EOS;
@@ -1282,31 +1282,31 @@ set ()
   for (t = tbl; t < limit; t++)
     {
       if (strcmp (word, t->t_str) == 0)
-	{
-	  P_FLAGS = (P_FLAGS & t->t_and_mask) | t->t_or_mask;
-	  return (0);
-	}
+        {
+          P_FLAGS = (P_FLAGS & t->t_and_mask) | t->t_or_mask;
+          return (0);
+        }
     }
   if (!strcmp (word, "save"))
     {
       svalue_t *ret;
 
       if (P_RESTRICT)
-	return (SET_FAIL);
+        return (SET_FAIL);
       push_object (current_editor);
       push_number (P_SHIFTWIDTH | P_FLAGS);
       ret = apply_master_ob (APPLY_SAVE_ED_SETUP, 2);
       if (MASTER_APPROVED (ret))
-	return 0;
+        return 0;
     }
   if (!strcmp (word, "shiftwidth"))
     {
       Skip_White_Space;
       if (isdigit (*inptr))
-	{
-	  P_SHIFTWIDTH = *inptr - '0';
-	  return 0;
-	}
+        {
+          P_SHIFTWIDTH = *inptr - '0';
+          return 0;
+        }
     }
   return SET_FAIL;
 }
@@ -1352,52 +1352,52 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
       new = buf;
       space = ED_MAXLINE;	/* amylaar */
       if (P_CURPTR == lastline)
-	still_running = 0;
+        still_running = 0;
       if (regexec (pat, txtptr = gettxtl (P_CURPTR)))
-	{
-	  do
-	    {
-	      /* Copy leading text */
-	      int diff = pat->startp[0] - txtptr;
+        {
+          do
+            {
+              /* Copy leading text */
+              int diff = pat->startp[0] - txtptr;
 
-	      if ((space -= diff) < 0)	/* amylaar */
-		return SUB_FAIL;
-	      strncpy (new, txtptr, diff);
-	      new += diff;
-	      /* Do substitution */
-	      old = new;
-	      new = regsub (pat, sub, new, space);
-	      if (!new || (space -= new - old) < 0)	/* amylaar */
-		return SUB_FAIL;
-	      if (txtptr == pat->endp[0])
-		{		/* amylaar : prevent infinite
-				 * loop */
-		  if (!*txtptr)
-		    break;
-		  if (--space < 0)
-		    return SUB_FAIL;
-		  *new++ = *txtptr++;
-		}
-	      else
-		txtptr = pat->endp[0];
-	    }
-	  while (gflg && !pat->reganch && regexec (pat, txtptr));
+              if ((space -= diff) < 0)	/* amylaar */
+                return SUB_FAIL;
+              strncpy (new, txtptr, diff);
+              new += diff;
+              /* Do substitution */
+              old = new;
+              new = regsub (pat, sub, new, space);
+              if (!new || (space -= new - old) < 0)	/* amylaar */
+                return SUB_FAIL;
+              if (txtptr == pat->endp[0])
+                {		/* amylaar : prevent infinite
+                                 * loop */
+                  if (!*txtptr)
+                    break;
+                  if (--space < 0)
+                    return SUB_FAIL;
+                  *new++ = *txtptr++;
+                }
+              else
+                txtptr = pat->endp[0];
+            }
+          while (gflg && !pat->reganch && regexec (pat, txtptr));
 
-	  /* Copy trailing chars */
-	  /*
-	   * amylaar : always check for enough space left BEFORE altering
-	   * memory
-	   */
-	  if ((space -= strlen (txtptr) + 1) < 0)
-	    return SUB_FAIL;
-	  strcpy (new, txtptr);
-	  del (P_CURLN, P_CURLN);
-	  if (ins (buf) < 0)
-	    return MEM_FAIL;
-	  nchngd++;
-	  if (pflag)
-	    doprnt (P_CURLN, P_CURLN);
-	}
+          /* Copy trailing chars */
+          /*
+           * amylaar : always check for enough space left BEFORE altering
+           * memory
+           */
+          if ((space -= strlen (txtptr) + 1) < 0)
+            return SUB_FAIL;
+          strcpy (new, txtptr);
+          del (P_CURLN, P_CURLN);
+          if (ins (buf) < 0)
+            return MEM_FAIL;
+          nchngd++;
+          if (pflag)
+            doprnt (P_CURLN, P_CURLN);
+        }
     }
   return ((nchngd == 0 && !gflg) ? SUB_FAIL : nchngd);
 }
@@ -1411,7 +1411,7 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
 #define bool char
 static int lineno, errs;
 static int shi;			/* the current shift (negative for left
-				 * shift) */
+                                 * shift) */
 
 /*
  * NAME:        shift(char*)
@@ -1430,43 +1430,43 @@ shift (register char *text)
   while (*text == ' ' || *text == '\t')
     {
       if (*text++ == ' ')
-	{
-	  indent_index++;
-	}
+        {
+          indent_index++;
+        }
       else
-	{
-	  indent_index = (indent_index + 8) & ~7;
-	}
+        {
+          indent_index = (indent_index + 8) & ~7;
+        }
     }
 
   if (*text != '\0')
     {				/* don't shift lines with ws only */
       indent_index += shi;
       if (indent_index < ED_MAXLINE)
-	{
-	  char buffer[ED_MAXLINE];
-	  register char *p;
+        {
+          char buffer[ED_MAXLINE];
+          register char *p;
 
-	  p = buffer;
-	  /* fill with leading ws */
-	  while (indent_index >= 8)
-	    {
-	      *p++ = '\t';
-	      indent_index -= 8;
-	    }
-	  while (indent_index > 0)
-	    {
-	      *p++ = ' ';
-	      --indent_index;
-	    }
-	  if (p - buffer + strlen (text) < ED_MAXLINE)
-	    {
-	      strcpy (p, text);
-	      del (lineno, lineno);
-	      ins (buffer);
-	      return;
-	    }
-	}
+          p = buffer;
+          /* fill with leading ws */
+          while (indent_index >= 8)
+            {
+              *p++ = '\t';
+              indent_index -= 8;
+            }
+          while (indent_index > 0)
+            {
+              *p++ = ' ';
+              --indent_index;
+            }
+          if (p - buffer + strlen (text) < ED_MAXLINE)
+            {
+              strcpy (p, text);
+              del (lineno, lineno);
+              ins (buffer);
+              return;
+            }
+        }
       error ("Result of shift would be too long, line %d\n");
     }
 }
@@ -1538,55 +1538,55 @@ indent (char *buf)
   else if (in_ppcontrol || *p == '#')
     {
       while (*p != '\0')
-	{
-	  if (*p == '\\' && *++p == '\0')
-	    {
-	      in_ppcontrol = TRUE;
-	      return;
-	    }
-	  p++;
-	}
+        {
+          if (*p == '\\' && *++p == '\0')
+            {
+              in_ppcontrol = TRUE;
+              return;
+            }
+          p++;
+        }
       in_ppcontrol = FALSE;
       return;
     }
   else if (in_mblock)
     {
       if (!strncmp (p, last_term, last_term_len))
-	{
-	  in_mblock = FALSE;
-	  p += last_term_len;
-	}
+        {
+          in_mblock = FALSE;
+          p += last_term_len;
+        }
       else
-	return;
+        return;
     }
   else
     {
       /* count leading ws */
       while (*p == ' ' || *p == '\t')
-	{
-	  if (*p++ == ' ')
-	    {
-	      indent_index++;
-	    }
-	  else
-	    {
-	      indent_index = (indent_index + 8) & ~7;
-	    }
-	}
+        {
+          if (*p++ == ' ')
+            {
+              indent_index++;
+            }
+          else
+            {
+              indent_index = (indent_index + 8) & ~7;
+            }
+        }
       if (*p == '\0')
-	{
-	  del (lineno, lineno);
-	  ins (p);
-	  return;
-	}
+        {
+          del (lineno, lineno);
+          ins (p);
+          return;
+        }
       else if (in_comment)
-	{
-	  shift (text);		/* use previous shi */
-	}
+        {
+          shift (text);		/* use previous shi */
+        }
       else
-	{
-	  do_indent = TRUE;
-	}
+        {
+          do_indent = TRUE;
+        }
     }
 
   /* process this line */
@@ -1597,312 +1597,314 @@ indent (char *buf)
       /* lexical scanning: find the next token */
       ident[0] = '\0';
       if (in_comment)
-	{
-	  /* comment */
-	  while (*p != '*')
-	    {
-	      if (*p == '\0')
-		{
-		  if (in_comment == 2)
-		    in_comment = 0;
-		  return;
-		}
-	      p++;
-	    }
-	  while (*p == '*')
-	    {
-	      p++;
-	    }
-	  if (*p == '/')
-	    {
-	      in_comment = 0;
-	      p++;
-	    }
-	  continue;
+        {
+          /* comment */
+          while (*p != '*')
+            {
+              if (*p == '\0')
+                {
+                  if (in_comment == 2)
+                    in_comment = 0;
+                  return;
+                }
+              p++;
+            }
+          while (*p == '*')
+            {
+              p++;
+            }
+          if (*p == '/')
+            {
+              in_comment = 0;
+              p++;
+            }
+          continue;
 
-	}
+        }
       else if (quote != '\0')
-	{
-	  /* string or character constant */
-	  for (;;)
-	    {
-	      if (*p == quote)
-		{
-		  quote = '\0';
-		  p++;
-		  break;
-		}
-	      else if (*p == '\0')
-		{
-		  error ("Unterminated string in line %d\n");
-		}
-	      else if (*p == '\\' && *++p == '\0')
-		{
-		  break;
-		}
-	      p++;
-	    }
-	  token = TOKEN;
+        {
+          /* string or character constant */
+          for (;;)
+            {
+              if (*p == quote)
+                {
+                  quote = '\0';
+                  p++;
+                  break;
+                }
+              else if (*p == '\0')
+                {
+                  error ("Unterminated string in line %d\n");
+                }
+              else if (*p == '\\' && *++p == '\0')
+                {
+                  break;
+                }
+              p++;
+            }
+          token = TOKEN;
 
-	}
+        }
       else
-	{
-	  switch (*p++)
-	    {
-	    case ' ':		/* white space */
-	    case '\t':
-	      continue;
+        {
+          switch (*p++)
+            {
+            case ' ':		/* white space */
+            case '\t':
+              continue;
 
-	    case '\'':
-	    case '"':		/* start of string */
-	      quote = p[-1];
-	      continue;
+            case '\'':
+            case '"':		/* start of string */
+              quote = p[-1];
+              continue;
 
-	    case '@':
-	      {
-		int j = 0;
+            case '@':
+              {
+                int j = 0;
 
-		if (*p == '@')
-		  p++;
-		while (isalnum (*p) || *p == '_')
-		  last_term[j++] = *p++;
-		last_term[j] = '\0';
-		last_term_len = j;
-		in_mblock = TRUE;
-		return;
-	      }
-	    case '/':
-	      if (*p == '*' || *p == '/')
-		{		/* start of a comment    */
-		  in_comment = (*p == '*') ? 1 : 2;
-		  if (do_indent)
-		    {
-		      /* this line hasn't been indented yet */
-		      shi = *ind - indent_index;
-		      shift (text);
-		      do_indent = FALSE;
-		    }
-		  else
-		    {
-		      register char *q;
-		      register int index2;
+                if (*p == '@')
+                  p++;
+                while (isalnum (*p) || *p == '_')
+                  last_term[j++] = *p++;
+                last_term[j] = '\0';
+                last_term_len = j;
+                in_mblock = TRUE;
+                return;
+              }
+            case '/':
+              if (*p == '*' || *p == '/')
+                {		/* start of a comment    */
+                  in_comment = (*p == '*') ? 1 : 2;
+                  if (do_indent)
+                    {
+                      /* this line hasn't been indented yet */
+                      shi = *ind - indent_index;
+                      shift (text);
+                      do_indent = FALSE;
+                    }
+                  else
+                    {
+                      register char *q;
+                      register int index2;
 
-		      /*
-		       * find how much the comment has shifted, so the same
-		       * shift can be used if the coment continues on the
-		       * next line
-		       */
-		      index2 = *ind;
-		      for (q = start; q < p - 1;)
-			{
-			  if (*q++ == '\t')
-			    {
-			      indent_index = (indent_index + 8) & ~7;
-			      index2 = (index2 + 8) & ~7;
-			    }
-			  else
-			    {
-			      indent_index++;
-			      index2++;
-			    }
-			}
-		      shi = index2 - indent_index;
-		    }
-		  p++;
-		  continue;
-		}
-	      token = TOKEN;
-	      break;
+                      /*
+                       * find how much the comment has shifted, so the same
+                       * shift can be used if the coment continues on the
+                       * next line
+                       */
+                      index2 = *ind;
+                      for (q = start; q < p - 1;)
+                        {
+                          if (*q++ == '\t')
+                            {
+                              indent_index = (indent_index + 8) & ~7;
+                              index2 = (index2 + 8) & ~7;
+                            }
+                          else
+                            {
+                              indent_index++;
+                              index2++;
+                            }
+                        }
+                      shi = index2 - indent_index;
+                    }
+                  p++;
+                  continue;
+                }
+              token = TOKEN;
+              break;
 
-	    case '{':
-	      token = LBRACKET;
-	      break;
+            case '{':
+              token = LBRACKET;
+              break;
 
-	    case '(':
-	      if (after_keyword_t)
-		{
-		  /*
-		   * LOPERATOR & ROPERATOR are a kludge. The operator
-		   * precedence parser that is used could not work if
-		   * parenthesis after keyword_ts was not treated specially.
-		   */
-		  token = LOPERATOR;
-		  break;
-		}
-	      if (*p == '{' || *p == '[' || (*p == ':' && p[1] != ':'))
-		{
-		  p++;		/* ({ , ([ , (: each are one token */
-		  token = LHOOK2;
-		  break;
-		}
-	    case '[':
-	      token = LHOOK;
-	      break;
+            case '(':
+              if (after_keyword_t)
+                {
+                  /*
+                   * LOPERATOR & ROPERATOR are a kludge. The operator
+                   * precedence parser that is used could not work if
+                   * parenthesis after keyword_ts was not treated specially.
+                   */
+                  token = LOPERATOR;
+                  break;
+                }
+              if (*p == '{' || *p == '[' || (*p == ':' && p[1] != ':'))
+                {
+                  p++;		/* ({ , ([ , (: each are one token */
+                  token = LHOOK2;
+                  break;
+                }
+              /* fall through */
+            case '[':
+              token = LHOOK;
+              break;
 
-	    case ':':
-	      if (*p == ')')
-		{
-		  p++;
-		  token = RHOOK;
-		  break;
-		}
-	      token = TOKEN;
-	      break;
-	    case '}':
-	      if (*p != ')')
-		{
-		  token = RBRACKET;
-		  break;
-		}
-	      /* }) is one token */
-	      p++;
-	      token = RHOOK;
-	      break;
-	    case ']':
-	      if (*p == ')' &&
-		  (*stack == LHOOK2 || (*stack != XEOT &&
-					(stack[1] == LHOOK2 ||
-					 (stack[1] == ROPERATOR
-					  && stack[2] == LHOOK2)))))
-		{
-		  p++;
-		}
-	    case ')':
-	      token = RHOOK;
-	      break;
+            case ':':
+              if (*p == ')')
+                {
+                  p++;
+                  token = RHOOK;
+                  break;
+                }
+              token = TOKEN;
+              break;
+            case '}':
+              if (*p != ')')
+                {
+                  token = RBRACKET;
+                  break;
+                }
+              /* }) is one token */
+              p++;
+              token = RHOOK;
+              break;
+            case ']':
+              if (*p == ')' &&
+                  (*stack == LHOOK2 || (*stack != XEOT &&
+                                        (stack[1] == LHOOK2 ||
+                                         (stack[1] == ROPERATOR
+                                          && stack[2] == LHOOK2)))))
+                {
+                  p++;
+                }
+              /* fall through */
+            case ')':
+              token = RHOOK;
+              break;
 
-	    case ';':
-	      token = SEMICOLON;
-	      break;
+            case ';':
+              token = SEMICOLON;
+              break;
 
-	    default:
-	      if (isalpha (*--p) || *p == '_')
-		{
-		  register char *q;
+            default:
+              if (isalpha (*--p) || *p == '_')
+                {
+                  register char *q;
 
-		  /* Identifier. See if it's a keyword_t. */
-		  q = ident;
-		  do
-		    {
-		      *q++ = *p++;
-		    }
-		  while (isalnum (*p) || *p == '_');
-		  *q = '\0';
+                  /* Identifier. See if it's a keyword_t. */
+                  q = ident;
+                  do
+                    {
+                      *q++ = *p++;
+                    }
+                  while (isalnum (*p) || *p == '_');
+                  *q = '\0';
 
-		  if (strcmp (ident, "if") == 0)
-		    token = IF;
-		  else if (strcmp (ident, "else") == 0)
-		    token = ELSE;
-		  else if (strcmp (ident, "for") == 0)
-		    token = FOR;
-		  else if (strcmp (ident, "while") == 0)
-		    token = WHILE;
-		  else if (strcmp (ident, "do") == 0)
-		    token = XDO;
-		  else		/* not a keyword_t */
-		    token = TOKEN;
-		}
-	      else
-		{
-		  /* anything else is a "token" */
-		  p++;
-		  token = TOKEN;
-		}
-	      break;
-	    }
-	}
+                  if (strcmp (ident, "if") == 0)
+                    token = IF;
+                  else if (strcmp (ident, "else") == 0)
+                    token = ELSE;
+                  else if (strcmp (ident, "for") == 0)
+                    token = FOR;
+                  else if (strcmp (ident, "while") == 0)
+                    token = WHILE;
+                  else if (strcmp (ident, "do") == 0)
+                    token = XDO;
+                  else		/* not a keyword_t */
+                    token = TOKEN;
+                }
+              else
+                {
+                  /* anything else is a "token" */
+                  p++;
+                  token = TOKEN;
+                }
+              break;
+            }
+        }
 
       /* parse */
       sp = stack;
       ip = ind;
       for (;;)
-	{
-	  top = *sp;
-	  if (top == LOPERATOR && token == RHOOK)
-	    {
-	      /* ) after LOPERATOR is ROPERATOR */
-	      token = ROPERATOR;
-	    }
-	  if (f[top] <= g[token])
-	    {			/* shift the token on the stack */
-	      register int i;
+        {
+          top = *sp;
+          if (top == LOPERATOR && token == RHOOK)
+            {
+              /* ) after LOPERATOR is ROPERATOR */
+              token = ROPERATOR;
+            }
+          if (f[top] <= g[token])
+            {			/* shift the token on the stack */
+              register int i;
 
-	      if (sp == stackbot)
-		{
-		  /* out of stack */
-		  error ("Nesting too deep in line %d\n");
-		}
-	      /* handle indentation */
-	      i = *ip;
-	      /* if needed, reduce indentation prior to shift */
-	      if ((token == LBRACKET &&
-		   (*sp == ROPERATOR || *sp == ELSE || *sp == XDO)) ||
-		  token == RBRACKET || (token == IF && *sp == ELSE))
-		{
-		  /* back up */
-		  i -= P_SHIFTWIDTH;
-		}
-	      else if (token == RHOOK || token == ROPERATOR)
-		{
-		  i -= P_SHIFTWIDTH / 2;
-		}
-	      /* shift the current line, if appropriate */
-	      if (do_indent)
-		{
-		  shi = i - indent_index;
-		  if (token == TOKEN && *sp == LBRACKET &&
-		      (strcmp (ident, "case") == 0 ||
-		       strcmp (ident, "default") == 0))
-		    {
-		      /* back up if this is a switch label */
-		      shi -= P_SHIFTWIDTH;
-		    }
-		  shift (text);
-		  do_indent = FALSE;
-		}
-	      /* change indentation after current token */
-	      switch (token)
-		{
-		case LBRACKET:
-		case ROPERATOR:
-		case ELSE:
-		case XDO:
-		  {
-		    /* add indentation */
-		    i += P_SHIFTWIDTH;
-		    break;
-		  }
-		case LOPERATOR:
-		case LHOOK:
-		case LHOOK2:	/* Is this right? */
-		  {
-		    /* half indent after ( [ ({ ([ */
-		    i += P_SHIFTWIDTH / 2;
-		    break;
-		  }
-		case SEMICOLON:
-		  {
-		    /* in case it is followed by a comment */
-		    if (*sp == ROPERATOR || *sp == ELSE)
-		      {
-			i -= P_SHIFTWIDTH;
-		      }
-		    break;
-		  }
-		}
+              if (sp == stackbot)
+                {
+                  /* out of stack */
+                  error ("Nesting too deep in line %d\n");
+                }
+              /* handle indentation */
+              i = *ip;
+              /* if needed, reduce indentation prior to shift */
+              if ((token == LBRACKET &&
+                   (*sp == ROPERATOR || *sp == ELSE || *sp == XDO)) ||
+                  token == RBRACKET || (token == IF && *sp == ELSE))
+                {
+                  /* back up */
+                  i -= P_SHIFTWIDTH;
+                }
+              else if (token == RHOOK || token == ROPERATOR)
+                {
+                  i -= P_SHIFTWIDTH / 2;
+                }
+              /* shift the current line, if appropriate */
+              if (do_indent)
+                {
+                  shi = i - indent_index;
+                  if (token == TOKEN && *sp == LBRACKET &&
+                      (strcmp (ident, "case") == 0 ||
+                       strcmp (ident, "default") == 0))
+                    {
+                      /* back up if this is a switch label */
+                      shi -= P_SHIFTWIDTH;
+                    }
+                  shift (text);
+                  do_indent = FALSE;
+                }
+              /* change indentation after current token */
+              switch (token)
+                {
+                case LBRACKET:
+                case ROPERATOR:
+                case ELSE:
+                case XDO:
+                  {
+                    /* add indentation */
+                    i += P_SHIFTWIDTH;
+                    break;
+                  }
+                case LOPERATOR:
+                case LHOOK:
+                case LHOOK2:	/* Is this right? */
+                  {
+                    /* half indent after ( [ ({ ([ */
+                    i += P_SHIFTWIDTH / 2;
+                    break;
+                  }
+                case SEMICOLON:
+                  {
+                    /* in case it is followed by a comment */
+                    if (*sp == ROPERATOR || *sp == ELSE)
+                      {
+                        i -= P_SHIFTWIDTH;
+                      }
+                    break;
+                  }
+                }
 
-	      *--sp = token;
-	      *--ip = i;
-	      break;
-	    }
-	  /* reduce handle */
-	  do
-	    {
-	      top = *sp++;
-	      ip++;
-	    }
-	  while (f[(int) *sp] >= g[top]);
-	}
+              *--sp = token;
+              *--ip = i;
+              break;
+            }
+          /* reduce handle */
+          do
+            {
+              top = *sp++;
+              ip++;
+            }
+          while (f[(int) *sp] >= g[top]);
+        }
       stack = sp;
       ind = ip;
       after_keyword_t = (token >= IF);	/* but not after ELSE */
@@ -1937,9 +1939,9 @@ indent_code ()
       setCurLn (lineno);
       indent (gettxtl (P_CURPTR));
       if (errs != 0)
-	{
-	  return ERR;
-	}
+        {
+          return ERR;
+        }
     }
 
   return 0;
@@ -1974,15 +1976,15 @@ docmd (int glob)
     {
     case NL:
       if (P_NLINES == 0 && (P_LINE2 = nextln (P_CURLN)) == 0)
-	return END_OF_FILE;
+        return END_OF_FILE;
       if (P_NLINES == 2)
-	{
-	  if (P_LINE1 > P_LINE2 || P_LINE1 <= 0)
-	    return BAD_LINE_RANGE;
-	  if ((st = doprnt (P_LINE1, P_LINE2)))
-	    return st;
-	  return 0;
-	}
+        {
+          if (P_LINE1 > P_LINE2 || P_LINE1 <= 0)
+            return BAD_LINE_RANGE;
+          if ((st = doprnt (P_LINE1, P_LINE2)))
+            return st;
+          return 0;
+        }
       setCurLn (P_LINE2);
       return (1);
 
@@ -1995,69 +1997,69 @@ docmd (int glob)
     case 'A':
       P_CUR_AUTOIND = c == 'A' ? !P_AUTOINDFLG : P_AUTOINDFLG;
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
       if (P_NLINES > 1)
-	return RANGE_ILLEGAL;
+        return RANGE_ILLEGAL;
 
       if (P_CUR_AUTOIND)
-	count_blanks (P_LINE1);
+        count_blanks (P_LINE1);
       if ((st = append (P_LINE1, glob)) < 0)
-	return st;
+        return st;
       P_FCHANGED = TRUE;
       break;
 
     case 'c':
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
 
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
 
       P_CUR_AUTOIND = P_AUTOINDFLG;
       if (P_AUTOINDFLG)
-	count_blanks (P_LINE1);
+        count_blanks (P_LINE1);
       if ((st = del (P_LINE1, P_LINE2)) < 0)
-	return st;
+        return st;
       if ((st = append (P_CURLN, glob)) < 0)
-	return st;
+        return st;
       P_FCHANGED = TRUE;
       break;
 
     case 'd':
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
 
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
 
       if ((st = del (P_LINE1, P_LINE2)) < 0)
-	return st;
+        return st;
       if (nextln (P_CURLN) != 0)
-	nextCurLn ();
+        nextCurLn ();
       if (P_DPRINT)
-	doprnt (P_CURLN, P_CURLN);
+        doprnt (P_CURLN, P_CURLN);
       P_FCHANGED = TRUE;
       break;
 
     case 'e':
       if (P_RESTRICT)
-	return IS_RESTRICTED;
+        return IS_RESTRICTED;
       if (P_NLINES > 0)
-	return LINE_OR_RANGE_ILL;
+        return LINE_OR_RANGE_ILL;
       if (P_FCHANGED)
-	return CHANGED;
+        return CHANGED;
       /* FALL THROUGH */
     case 'E':
       if (P_RESTRICT)
-	return IS_RESTRICTED;
+        return IS_RESTRICTED;
       if (P_NLINES > 0)
-	return LINE_OR_RANGE_ILL;
+        return LINE_OR_RANGE_ILL;
 
       if (*inptr != ' ' && *inptr != HT && *inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
 
       if ((fptr = getfn (0)) == NULL)
-	return FILE_NAME_ERROR;
+        return FILE_NAME_ERROR;
 
       clrbuf ();
       (void) doread (0, fptr);
@@ -2068,101 +2070,101 @@ docmd (int glob)
 
     case 'f':
       if (P_RESTRICT)
-	return IS_RESTRICTED;
+        return IS_RESTRICTED;
       if (P_NLINES > 0)
-	return LINE_OR_RANGE_ILL;
+        return LINE_OR_RANGE_ILL;
 
       if (*inptr != ' ' && *inptr != HT && *inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
 
       fptr = getfn (0);
 
       if (P_NOFNAME)
-	ED_OUTPUTV (ED_DEST, "%s\n", P_FNAME);
+        ED_OUTPUTV (ED_DEST, "%s\n", P_FNAME);
       else
-	{
-	  if (fptr == NULL)
-	    return FILE_NAME_ERROR;
-	  strcpy (P_FNAME, fptr);
-	}
+        {
+          if (fptr == NULL)
+            return FILE_NAME_ERROR;
+          strcpy (P_FNAME, fptr);
+        }
       break;
 
     case 'O':
     case 'i':
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
       if (P_NLINES > 1)
-	return RANGE_ILLEGAL;
+        return RANGE_ILLEGAL;
 
       P_CUR_AUTOIND = P_AUTOINDFLG;
       if (P_AUTOINDFLG)
-	count_blanks (P_LINE1);
+        count_blanks (P_LINE1);
       if ((st = append (prevln (P_LINE1), glob)) < 0)
-	return st;
+        return st;
       P_FCHANGED = TRUE;
       break;
 
     case 'j':
       if (*inptr != NL || deflt (P_CURLN, P_CURLN + 1) < 0)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
 
       if ((st = join (P_LINE1, P_LINE2)) < 0)
-	return st;
+        return st;
       break;
 
     case 'k':
       Skip_White_Space;
 
       if (*inptr < 'a' || *inptr > 'z')
-	return MARK_A_TO_Z;
+        return MARK_A_TO_Z;
       c = *inptr++;
 
       if (*inptr != ' ' && *inptr != HT && *inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
 
       P_MARK[c - 'a'] = P_LINE1;
       break;
 
     case 'l':
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
       if ((st = dolst (P_LINE1, P_LINE2)) < 0)
-	return st;
+        return st;
       break;
 
     case 'm':
       if ((line3 = getone ()) < 0)
-	return line3;
+        return line3;
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
       if ((st = move (line3)) < 0)
-	return st;
+        return st;
       P_FCHANGED = TRUE;
       break;
 
     case 'n':
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
       if (P_NFLG)
-	P_FLAGS &= ~NFLG_MASK;
+        P_FLAGS &= ~NFLG_MASK;
       else
-	P_FLAGS |= NFLG_MASK;
+        P_FLAGS |= NFLG_MASK;
       ED_OUTPUTV (ED_DEST, "number %s, list %s\n",
-		  P_NFLG ? "on" : "off", P_LFLG ? "on" : "off");
+                  P_NFLG ? "on" : "off", P_LFLG ? "on" : "off");
       break;
 
     case 'I':
       if (P_NLINES > 0)
-	return LINE_OR_RANGE_ILL;
+        return LINE_OR_RANGE_ILL;
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
       ED_OUTPUT (ED_DEST, "Indenting entire code...\n");
       if (indent_code ())
-	ED_OUTPUT (ED_DEST, "Indentation halted.\n");
+        ED_OUTPUT (ED_DEST, "Indentation halted.\n");
       else
-	ED_OUTPUT (ED_DEST, "Indentation complete.\n");
+        ED_OUTPUT (ED_DEST, "Indentation complete.\n");
       break;
 
     case 'H':
@@ -2173,78 +2175,78 @@ docmd (int glob)
     case 'P':
     case 'p':
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
       if ((st = doprnt (P_LINE1, P_LINE2)) < 0)
-	return st;
+        return st;
       break;
 
     case 'q':
       if (P_FCHANGED)
-	return CHANGED;
+        return CHANGED;
       /* FALL THROUGH */
     case 'Q':
       if (*inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
       if (glob)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
       clrbuf ();
       if (P_NLINES > 0)
-	return LINE_OR_RANGE_ILL;
+        return LINE_OR_RANGE_ILL;
       return (EOF);
 
     case 'r':
       if (P_RESTRICT)
-	return IS_RESTRICTED;
+        return IS_RESTRICTED;
       if (P_NLINES > 1)
-	return RANGE_ILLEGAL;
+        return RANGE_ILLEGAL;
 
       if (P_NLINES == 0)	/* The original code tested */
-	P_LINE2 = P_LASTLN;	/* if(P_NLINES = 0)    */
+        P_LINE2 = P_LASTLN;	/* if(P_NLINES = 0)    */
       /* which looks wrong.  RAM  */
 
       if (*inptr != ' ' && *inptr != HT && *inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
 
       if ((fptr = getfn (0)) == NULL)
-	return FILE_NAME_ERROR;
+        return FILE_NAME_ERROR;
 
       if ((err = doread (P_LINE2, fptr)) < 0)
-	return (err);
+        return (err);
       P_FCHANGED = TRUE;
       break;
 
     case 's':
       if (*inptr == 'e')
-	return (set ());
+        return (set ());
       Skip_White_Space;
       if ((subpat = optpat ()) == NULL)
-	return SUB_BAD_PATTERN;
+        return SUB_BAD_PATTERN;
       if ((gflag = getrhs (rhs)) < 0)
-	return SUB_BAD_REPLACEMENT;
+        return SUB_BAD_REPLACEMENT;
       if (*inptr == 'p')
-	pflag++;
+        pflag++;
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
       if ((nchng = subst (subpat, rhs, gflag, pflag)) < 0)
-	return nchng;
+        return nchng;
       if (nchng)
-	P_FCHANGED = TRUE;
+        P_FCHANGED = TRUE;
       if (nchng == 1 && P_PFLG)
-	{
-	  if ((st = doprnt (P_CURLN, P_CURLN)) < 0)
-	    return st;
-	}
+        {
+          if ((st = doprnt (P_CURLN, P_CURLN)) < 0)
+            return st;
+        }
       break;
 
     case 't':
       if ((line3 = getone ()) < 0)
-	return BAD_DESTINATION;
+        return BAD_DESTINATION;
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
       if ((st = transfer (line3)) < 0)
-	return st;
+        return st;
       P_FCHANGED = TRUE;
       break;
 
@@ -2253,81 +2255,81 @@ docmd (int glob)
       apflg = (c == 'W');
 
       if (*inptr != NL && P_RESTRICT)
-	return IS_RESTRICTED;
+        return IS_RESTRICTED;
       if (*inptr != ' ' && *inptr != HT && *inptr != NL)
-	return SYNTAX_ERROR;
+        return SYNTAX_ERROR;
 
       if ((fptr = getfn (1)) == NULL)
-	return FILE_NAME_ERROR;
+        return FILE_NAME_ERROR;
 
       if (deflt (1, P_LASTLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
       if ((st = dowrite (P_LINE1, P_LINE2, fptr, apflg)) < 0)
-	return st;
+        return st;
       P_FCHANGED = FALSE;
       break;
 
     case 'x':
       if (*inptr == NL && P_NLINES == 0 && !glob)
-	{
-	  if ((fptr = getfn (1)) == NULL)
-	    return FILE_NAME_ERROR;
-	  if (dowrite (1, P_LASTLN, fptr, 0) >= 0)
-	    {
-	      clrbuf ();
-	      return (EOF);
-	    }
-	}
+        {
+          if ((fptr = getfn (1)) == NULL)
+            return FILE_NAME_ERROR;
+          if (dowrite (1, P_LASTLN, fptr, 0) >= 0)
+            {
+              clrbuf ();
+              return (EOF);
+            }
+        }
       if (P_NLINES)
-	return LINE_OR_RANGE_ILL;
+        return LINE_OR_RANGE_ILL;
       return SYNTAX_ERROR;
 
     case 'z':
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
 
       switch (*inptr)
-	{
-	case '-':
-	  if ((st = doprnt (P_LINE1 - 21, P_LINE1)) < 0)
-	    return st;
-	  break;
+        {
+        case '-':
+          if ((st = doprnt (P_LINE1 - 21, P_LINE1)) < 0)
+            return st;
+          break;
 
-	case '.':
-	  if ((st = doprnt (P_LINE1 - 11, P_LINE1 + 10)) < 0)
-	    return st;
-	  break;
+        case '.':
+          if ((st = doprnt (P_LINE1 - 11, P_LINE1 + 10)) < 0)
+            return st;
+          break;
 
-	case '+':
-	case '\n':
-	  if ((st = doprnt (P_LINE1, P_LINE1 + 21)) < 0)
-	    return st;
-	  break;
-	}
+        case '+':
+        case '\n':
+          if ((st = doprnt (P_LINE1, P_LINE1 + 21)) < 0)
+            return st;
+          break;
+        }
       break;
 
     case 'Z':
       if (deflt (P_CURLN, P_CURLN) < 0)
-	return BAD_LINE_RANGE;
+        return BAD_LINE_RANGE;
 
       switch (*inptr)
-	{
-	case '-':
-	  if ((st = doprnt (P_LINE1 - 41, P_LINE1)) < 0)
-	    return st;
-	  break;
+        {
+        case '-':
+          if ((st = doprnt (P_LINE1 - 41, P_LINE1)) < 0)
+            return st;
+          break;
 
-	case '.':
-	  if ((st = doprnt (P_LINE1 - 21, P_LINE1 + 20)) < 0)
-	    return st;
-	  break;
+        case '.':
+          if ((st = doprnt (P_LINE1 - 21, P_LINE1 + 20)) < 0)
+            return st;
+          break;
 
-	case '+':
-	case '\n':
-	  if ((st = doprnt (P_LINE1, P_LINE1 + 41)) < 0)
-	    return st;
-	  break;
-	}
+        case '+':
+        case '\n':
+          if ((st = doprnt (P_LINE1, P_LINE1 + 41)) < 0)
+            return st;
+          break;
+        }
       break;
     default:
       return (UNRECOG_COMMAND);
@@ -2350,22 +2352,22 @@ doglob ()
     {
       ptr = getptr (1);
       for (lin = 1; lin <= P_LASTLN; lin++)
-	{
-	  if (ptr->l_stat & LGLOB)
-	    break;
-	  ptr = getnextptr (ptr);
-	}
+        {
+          if (ptr->l_stat & LGLOB)
+            break;
+          ptr = getnextptr (ptr);
+        }
       if (lin > P_LASTLN)
-	break;
+        break;
 
       ptr->l_stat &= ~LGLOB;
       P_CURLN = lin;
       P_CURPTR = ptr;
       inptr = cmd;
       if ((status = getlst ()) < 0 && status != NO_LINE_RANGE)
-	return (status);
+        return (status);
       if ((status = docmd (1)) < 0)
-	return (status);
+        return (status);
     }
   return (P_CURLN);
 }				/* doglob */
@@ -2387,7 +2389,7 @@ doglob ()
 #ifdef OLD_ED
 void
 ed_start (char *file_arg, char *write_fn, char *exit_fn, int restricted,
-	  object_t * exit_ob)
+          object_t * exit_ob)
 {
   svalue_t *setup;
 
@@ -2458,8 +2460,8 @@ ed_start (char *file_arg, char *write_fn, char *exit_fn, int restricted,
    */
   if (file_arg
       && (file_arg =
-	  check_valid_path (file_arg, current_editor,
-			    "ed_start", 0)) && !doread (0, file_arg))
+          check_valid_path (file_arg, current_editor,
+                            "ed_start", 0)) && !doread (0, file_arg))
     {
       setCurLn (1);
     }
@@ -2506,22 +2508,22 @@ ed_cmd (char *str)
   if (((status = getlst ()) >= 0) || (status == NO_LINE_RANGE))
     {
       if ((status = ckglob ()) != 0)
-	{
-	  if (status >= 0 && (status = doglob ()) >= 0)
-	    {
-	      setCurLn (status);
-	      return;
-	    }
-	}
+        {
+          if (status >= 0 && (status = doglob ()) >= 0)
+            {
+              setCurLn (status);
+              return;
+            }
+        }
       else
-	{
-	  if ((status = docmd (0)) >= 0)
-	    {
-	      if (status == 1)
-		doprnt (P_CURLN, P_CURLN);
-	      return;
-	    }
-	}
+        {
+          if ((status = docmd (0)) >= 0)
+            {
+              if (status == 1)
+                doprnt (P_CURLN, P_CURLN);
+              return;
+            }
+        }
     }
   report_status (status);
 }
@@ -2613,12 +2615,12 @@ save_ed_buffer (object_t * who)
   if (stmp && stmp != (svalue_t *) - 1)
     {
       if (stmp->type == T_STRING)
-	{
-	  fname = stmp->u.string;
-	  if (*fname == '/')
-	    fname++;
-	  dowrite (1, P_LASTLN, fname, 0);
-	}
+        {
+          fname = stmp->u.string;
+          if (*fname == '/')
+            fname++;
+          dowrite (1, P_LASTLN, fname, 0);
+        }
     }
   free_ed_buffer (who);
 }
@@ -2634,36 +2636,36 @@ print_help (int arg)
       ED_OUTPUT (ED_DEST, "------------------------------------\n");
       ED_OUTPUT (ED_DEST, "           by Qixx [Update: 7/10/91]\n");
       ED_OUTPUT (ED_DEST,
-		 "\nBy using the command 'I', a program is run which will\n");
+                 "\nBy using the command 'I', a program is run which will\n");
       ED_OUTPUT (ED_DEST,
-		 "automatically indent all lines in your code.  As this is\n");
+                 "automatically indent all lines in your code.  As this is\n");
       ED_OUTPUT (ED_DEST,
-		 "being done, the program will also search for some basic\n");
+                 "being done, the program will also search for some basic\n");
       ED_OUTPUT (ED_DEST,
-		 "errors (which don't show up good during compiling) such as\n");
+                 "errors (which don't show up good during compiling) such as\n");
       ED_OUTPUT (ED_DEST,
-		 "Unterminated String, Mismatched Brackets and Parentheses,\n");
+                 "Unterminated String, Mismatched Brackets and Parentheses,\n");
       ED_OUTPUT (ED_DEST,
-		 "and indented code is easy to understand and debug, since if\n");
+                 "and indented code is easy to understand and debug, since if\n");
       ED_OUTPUT (ED_DEST,
-		 "your brackets are off -- the code will LOOK wrong. Please\n");
+                 "your brackets are off -- the code will LOOK wrong. Please\n");
       ED_OUTPUT (ED_DEST,
-		 "mail me at gaunt@mcs.anl.gov with any pieces of code which\n");
+                 "mail me at gaunt@mcs.anl.gov with any pieces of code which\n");
       ED_OUTPUT (ED_DEST, "don't get indented properly.\n");
       break;
     case 'n':
       ED_OUTPUT (ED_DEST, "Command: n   Usage: n\n");
       ED_OUTPUT (ED_DEST,
-		 "This command toggles the internal flag which will cause line\n");
+                 "This command toggles the internal flag which will cause line\n");
       ED_OUTPUT (ED_DEST,
-		 "numbers to be printed whenever a line is listed.\n");
+                 "numbers to be printed whenever a line is listed.\n");
       break;
     case 'a':
       ED_OUTPUT (ED_DEST, "Command: a   Usage: a\n");
       ED_OUTPUT (ED_DEST,
-		 "Append causes the editor to enter input mode, inserting all text\n");
+                 "Append causes the editor to enter input mode, inserting all text\n");
       ED_OUTPUT (ED_DEST,
-		 "starting AFTER the current line. Use a '.' on a blank line to exit\n");
+                 "starting AFTER the current line. Use a '.' on a blank line to exit\n");
       ED_OUTPUT (ED_DEST, "this mode.\n");
       break;
     case 'A':
@@ -2673,139 +2675,139 @@ Like the 'a' command, but uses inverse autoindent mode.\n");
     case 'i':
       ED_OUTPUT (ED_DEST, "Command: i   Usage: i\n");
       ED_OUTPUT (ED_DEST,
-		 "Insert causes the editor to enter input mode, inserting all text\n");
+                 "Insert causes the editor to enter input mode, inserting all text\n");
       ED_OUTPUT (ED_DEST,
-		 "starting BEFORE the current line. Use a '.' on a blank line to exit\n");
+                 "starting BEFORE the current line. Use a '.' on a blank line to exit\n");
       ED_OUTPUT (ED_DEST, "this mode.\n");
       break;
     case 'c':
       ED_OUTPUT (ED_DEST, "Command: c   Usage: c\n");
       ED_OUTPUT (ED_DEST,
-		 "Change command causes the current line to be wiped from memory.\n");
+                 "Change command causes the current line to be wiped from memory.\n");
       ED_OUTPUT (ED_DEST,
-		 "The editor enters input mode and all text is inserted where the previous\n");
+                 "The editor enters input mode and all text is inserted where the previous\n");
       ED_OUTPUT (ED_DEST, "line existed.\n");
       break;
     case 'd':
       ED_OUTPUT (ED_DEST, "Command: d   Usage: d  or [range]d\n");
       ED_OUTPUT (ED_DEST,
-		 "Deletes the current line unless preceeded with a range of lines,\n");
+                 "Deletes the current line unless preceeded with a range of lines,\n");
       ED_OUTPUT (ED_DEST, "then the entire range will be deleted.\n");
       break;
 #ifndef RESTRICTED_ED
     case 'e':
       ED_OUTPUT (ED_DEST, "Commmand: e  Usage: e filename\n");
       ED_OUTPUT (ED_DEST,
-		 "Causes the current file to be wiped from memory, and the new file\n");
+                 "Causes the current file to be wiped from memory, and the new file\n");
       ED_OUTPUT (ED_DEST, "to be loaded in.\n");
       break;
     case 'E':
       ED_OUTPUT (ED_DEST, "Commmand: E  Usage: E filename\n");
       ED_OUTPUT (ED_DEST,
-		 "Causes the current file to be wiped from memory, and the new file\n");
+                 "Causes the current file to be wiped from memory, and the new file\n");
       ED_OUTPUT (ED_DEST,
-		 "to be loaded in.  Different from 'e' in the fact that it will wipe\n");
+                 "to be loaded in.  Different from 'e' in the fact that it will wipe\n");
       ED_OUTPUT (ED_DEST,
-		 "the current file even if there are unsaved modifications.\n");
+                 "the current file even if there are unsaved modifications.\n");
       break;
     case 'f':
       ED_OUTPUT (ED_DEST, "Command: f  Usage: f  or f filename\n");
       ED_OUTPUT (ED_DEST,
-		 "Display or set the current filename.   If  filename is given as \nan argument, the file (f) command changes the current filename to\nfilename; otherwise, it prints  the current filename.\n");
+                 "Display or set the current filename.   If  filename is given as \nan argument, the file (f) command changes the current filename to\nfilename; otherwise, it prints  the current filename.\n");
       break;
 #endif /* RESTRICTED_ED mode */
     case 'g':
       ED_OUTPUT (ED_DEST, "Command: g  Usage: g/re/p\n");
       ED_OUTPUT (ED_DEST,
-		 "Search in all lines for expression 're', and print\n");
+                 "Search in all lines for expression 're', and print\n");
       ED_OUTPUT (ED_DEST, "every match. Command 'l' can also be given\n");
       ED_OUTPUT (ED_DEST,
-		 "Unlike in unix ed, you can also supply a range of lines\n");
+                 "Unlike in unix ed, you can also supply a range of lines\n");
       ED_OUTPUT (ED_DEST, "to search in\n");
       ED_OUTPUT (ED_DEST, "Compare with command 'v'.\n");
       break;
     case 'h':
       ED_OUTPUT (ED_DEST,
-		 "Command: h    Usage:  h  or hc (where c is a command)\n");
+                 "Command: h    Usage:  h  or hc (where c is a command)\n");
       ED_OUTPUT (ED_DEST, "Help files added by Qixx.\n");
       break;
     case 'j':
       ED_OUTPUT (ED_DEST, "Command: j    Usage: j or [range]j\n");
       ED_OUTPUT (ED_DEST,
-		 "Join Lines. Remove the NEWLINE character  from  between the  two\naddressed lines.  The defaults are the current line and the line\nfollowing.  If exactly one address is given,  this  command does\nnothing.  The joined line is the resulting current line.\n");
+                 "Join Lines. Remove the NEWLINE character  from  between the  two\naddressed lines.  The defaults are the current line and the line\nfollowing.  If exactly one address is given,  this  command does\nnothing.  The joined line is the resulting current line.\n");
       break;
     case 'k':
       ED_OUTPUT (ED_DEST,
-		 "Command: k   Usage: kc  (where c is a character)\n");
+                 "Command: k   Usage: kc  (where c is a character)\n");
       ED_OUTPUT (ED_DEST,
-		 "Mark the addressed line with the name c,  a  lower-case\nletter.   The  address-form,  'c,  addresses  the  line\nmarked by c.  k accepts one address; the default is the\ncurrent line.  The current line is left unchanged.\n");
+                 "Mark the addressed line with the name c,  a  lower-case\nletter.   The  address-form,  'c,  addresses  the  line\nmarked by c.  k accepts one address; the default is the\ncurrent line.  The current line is left unchanged.\n");
       break;
     case 'l':
       ED_OUTPUT (ED_DEST, "Command: l   Usage: l  or  [range]l\n");
       ED_OUTPUT (ED_DEST,
-		 "List the current line or a range of lines in an unambiguous\nway such that non-printing characters are represented as\nsymbols (specifically New-Lines).\n");
+                 "List the current line or a range of lines in an unambiguous\nway such that non-printing characters are represented as\nsymbols (specifically New-Lines).\n");
       break;
     case 'm':
       ED_OUTPUT (ED_DEST,
-		 "Command: m   Usage: mADDRESS or [range]mADDRESS\n");
+                 "Command: m   Usage: mADDRESS or [range]mADDRESS\n");
       ED_OUTPUT (ED_DEST,
-		 "Move the current line (or range of lines if specified) to a\nlocation just after the specified ADDRESS.  Address 0 is the\nbeginning of the file and the default destination is the\ncurrent line.\n");
+                 "Move the current line (or range of lines if specified) to a\nlocation just after the specified ADDRESS.  Address 0 is the\nbeginning of the file and the default destination is the\ncurrent line.\n");
       break;
     case 'p':
       ED_OUTPUT (ED_DEST, "Command: p    Usage: p  or  [range]p\n");
       ED_OUTPUT (ED_DEST,
-		 "Print the current line (or range of lines if specified) to the\nscreen. See the command 'n' if line numbering is desired.\n");
+                 "Print the current line (or range of lines if specified) to the\nscreen. See the command 'n' if line numbering is desired.\n");
       break;
     case 'q':
       ED_OUTPUT (ED_DEST, "Command: q    Usage: q\n");
       ED_OUTPUT (ED_DEST,
-		 "Quit the editor. Note that you can't quit this way if there\nare any unsaved changes.  See 'w' for writing changes to file.\n");
+                 "Quit the editor. Note that you can't quit this way if there\nare any unsaved changes.  See 'w' for writing changes to file.\n");
       break;
     case 'Q':
       ED_OUTPUT (ED_DEST, "Command: Q    Usage: Q\n");
       ED_OUTPUT (ED_DEST,
-		 "Force Quit.  Quit the editor even if the buffer contains unsaved\nmodifications.\n");
+                 "Force Quit.  Quit the editor even if the buffer contains unsaved\nmodifications.\n");
       break;
 #ifndef RESTRICTED_ED
     case 'r':
       ED_OUTPUT (ED_DEST, "Command: r    Usage: r filename\n");
       ED_OUTPUT (ED_DEST,
-		 "Reads the given filename into the current buffer starting\nat the current line.\n");
+                 "Reads the given filename into the current buffer starting\nat the current line.\n");
       break;
 #endif /* RESTRICTED_ED */
     case 't':
       ED_OUTPUT (ED_DEST,
-		 "Command: t   Usage: tADDRESS or [range]tADDRESS\n");
+                 "Command: t   Usage: tADDRESS or [range]tADDRESS\n");
       ED_OUTPUT (ED_DEST,
-		 "Transpose a copy of the current line (or range of lines if specified)\nto a location just after the specified ADDRESS.  Address 0 is the\nbeginning of the file and the default destination\nis the current line.\n");
+                 "Transpose a copy of the current line (or range of lines if specified)\nto a location just after the specified ADDRESS.  Address 0 is the\nbeginning of the file and the default destination\nis the current line.\n");
       break;
     case 'v':
       ED_OUTPUT (ED_DEST, "Command: v   Usage: v/re/p\n");
       ED_OUTPUT (ED_DEST,
-		 "Search in all lines without expression 're', and print\n");
+                 "Search in all lines without expression 're', and print\n");
       ED_OUTPUT (ED_DEST,
-		 "every match. Other commands than 'p' can also be given\n");
+                 "every match. Other commands than 'p' can also be given\n");
       ED_OUTPUT (ED_DEST, "Compare with command 'g'.\n");
       break;
     case 'z':
       ED_OUTPUT (ED_DEST, "Command: z   Usage: z  or  z-  or z.\n");
       ED_OUTPUT (ED_DEST,
-		 "Displays 20 lines starting at the current line.\nIf the command is 'z.' then 20 lines are displayed being\ncentered on the current line. The command 'z-' displays\nthe 20 lines before the current line.\n");
+                 "Displays 20 lines starting at the current line.\nIf the command is 'z.' then 20 lines are displayed being\ncentered on the current line. The command 'z-' displays\nthe 20 lines before the current line.\n");
       break;
     case 'Z':
       ED_OUTPUT (ED_DEST, "Command: Z   Usage: Z  or  Z-  or Z.\n");
       ED_OUTPUT (ED_DEST,
-		 "Displays 40 lines starting at the current line.\nIf the command is 'Z.' then 40 lines are displayed being\ncentered on the current line. The command 'Z-' displays\nthe 40 lines before the current line.\n");
+                 "Displays 40 lines starting at the current line.\nIf the command is 'Z.' then 40 lines are displayed being\ncentered on the current line. The command 'Z-' displays\nthe 40 lines before the current line.\n");
       break;
     case 'x':
       ED_OUTPUT (ED_DEST, "Command: x   Usage: x\n");
       ED_OUTPUT (ED_DEST,
-		 "Save file under the current name, and then exit from ed.\n");
+                 "Save file under the current name, and then exit from ed.\n");
       break;
     case 's':
       if (*inptr == 'e' && *(inptr + 1) == 't')
-	{
-	  ED_OUTPUT (ED_DEST, "\
+        {
+          ED_OUTPUT (ED_DEST, "\
 Without arguments: show current settings.\n\
 'set save' will preserve the current settings for subsequent invocations of ed.\n\
 Options:\n\
@@ -2815,7 +2817,7 @@ list	   will print control characters in p(rint) and z command like in l(ist)\n\
 print	   will show current line after a single substitution\n\
 eightbit\n\
 autoindent will preserve current indentation while entering text.\n\
-	   use ^D or ^K to get back one step back to the right.\n\
+           use ^D or ^K to get back one step back to the right.\n\
 excompatible will exchange the meaning of \\( and ( as well as \\) and )\n\
 dprint     will print out the current line after deleting text.\n\
 \n\
@@ -2825,18 +2827,18 @@ An option can be cleared by prepending it with 'no' in the set command, e.g.\n\
 set shiftwidth <digit> will store <digit> in the shiftwidth variable, which\n\
 determines how much blanks are removed from the current indentation when\n\
 typing ^D or ^K in the autoindent mode.\n");
-	}
+        }
       break;
     case '/':
       ED_OUTPUT (ED_DEST, "Command: /   Usage: /pattern\n");
       ED_OUTPUT (ED_DEST,
-		 "finds the next occurence of 'pattern'.  Note that pattern\n\
+                 "finds the next occurence of 'pattern'.  Note that pattern\n\
 is a regular expression, so things like .*][() have to be preceded by a \\.\n");
       break;
     case '?':
       ED_OUTPUT (ED_DEST, "Command: ?   Usage: ?pattern\n");
       ED_OUTPUT (ED_DEST,
-		 "finds the last occurence of 'pattern' before the current line.  Note that pattern\n\
+                 "finds the last occurence of 'pattern' before the current line.  Note that pattern\n\
 is a regular expression, so things like .*][() have to be preceded by a \\.\n");
       break;
       /* someone should REALLY write help for s in the near future */
@@ -2844,7 +2846,7 @@ is a regular expression, so things like .*][() have to be preceded by a \\.\n");
     case 'w':
     case 'W':
       ED_OUTPUT (ED_DEST,
-		 "Sorry no help yet for this command. Try again later.\n");
+                 "Sorry no help yet for this command. Try again later.\n");
       break;
 #endif /* RESTRICTED_ED */
     default:
@@ -2859,19 +2861,19 @@ is a regular expression, so things like .*][() have to be preceded by a \\.\n");
       ED_OUTPUT (ED_DEST, "a\tappend text starting after this line\n");
       ED_OUTPUT (ED_DEST, "A\tlike 'a' but with inverse autoindent mode\n");
       ED_OUTPUT (ED_DEST,
-		 "c\tchange current line, query for replacement text\n");
+                 "c\tchange current line, query for replacement text\n");
       ED_OUTPUT (ED_DEST, "d\tdelete line(s)\n");
 #ifdef RESTRICTED_ED
       if (!P_RESTRICT)
-	{
-	  ED_OUTPUT (ED_DEST, "e\treplace this file with another file\n");
-	  ED_OUTPUT (ED_DEST,
-		     "E\tsame as 'e' but works if file has been modified\n");
-	  ED_OUTPUT (ED_DEST, "f\tshow/change current file name\n");
-	}
+        {
+          ED_OUTPUT (ED_DEST, "e\treplace this file with another file\n");
+          ED_OUTPUT (ED_DEST,
+                     "E\tsame as 'e' but works if file has been modified\n");
+          ED_OUTPUT (ED_DEST, "f\tshow/change current file name\n");
+        }
 #endif /* restricted ed */
       ED_OUTPUT (ED_DEST,
-		 "g\tSearch and execute command on any matching line.\n");
+                 "g\tSearch and execute command on any matching line.\n");
       ED_OUTPUT (ED_DEST, "h\thelp file (display this message)\n");
       ED_OUTPUT (ED_DEST, "i\tinsert text starting before this line\n");
       ED_OUTPUT (ED_DEST, "I\tindent the entire code (Qixx version 1.0)\n");
@@ -2887,7 +2889,7 @@ print_help2 ()
   P_MORE = 0;
   ED_OUTPUT (ED_DEST, "j\tjoin lines together\n");
   ED_OUTPUT (ED_DEST,
-	     "k\tmark this line with a character - later referenced as 'a\n");
+             "k\tmark this line with a character - later referenced as 'a\n");
   ED_OUTPUT (ED_DEST, "l\tlist line(s) with control characters displayed\n");
   ED_OUTPUT (ED_DEST, "m\tmove line(s) to specified line\n");
   ED_OUTPUT (ED_DEST, "n\ttoggle line numbering\n");
@@ -2897,12 +2899,12 @@ print_help2 ()
   ED_OUTPUT (ED_DEST, "q\tquit editor\n");
   ED_OUTPUT (ED_DEST, "Q\tquit editor even if file modified and not saved\n");
   ED_OUTPUT (ED_DEST,
-	     "r\tread file into editor at end of file or behind the given line\n");
+             "r\tread file into editor at end of file or behind the given line\n");
   ED_OUTPUT (ED_DEST, "s\tsearch and replace\n");
   ED_OUTPUT (ED_DEST, "set\tquery, change or save option settings\n");
   ED_OUTPUT (ED_DEST, "t\tmove copy of line(s) to specified line\n");
   ED_OUTPUT (ED_DEST,
-	     "v\tSearch and execute command on any non-matching line.\n");
+             "v\tSearch and execute command on any non-matching line.\n");
   ED_OUTPUT (ED_DEST, "x\tsave file and quit\n");
 #ifdef RESTRICTED_ED
   if (!P_RESTRICT)
@@ -2914,6 +2916,6 @@ print_help2 ()
   ED_OUTPUT (ED_DEST, "z\tdisplay 20 lines, possible args are . + -\n");
   ED_OUTPUT (ED_DEST, "Z\tdisplay 40 lines, possible args are . + -\n");
   ED_OUTPUT (ED_DEST,
-	     "\nFor further information type 'hc' where c is the command\nthat help is desired for.\n");
+             "\nFor further information type 'hc' where c is the command\nthat help is desired for.\n");
 }
 #endif /* ED */

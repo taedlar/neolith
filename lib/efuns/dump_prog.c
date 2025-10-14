@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
+#include "src/file.h"
 #include "src/main.h"
 #include "src/interpret.h"
 #include "src/simulate.h"

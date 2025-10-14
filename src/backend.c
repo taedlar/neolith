@@ -108,7 +108,7 @@ parse_command (char *str, object_t * ob)
 
 /*  backend()
  * 
- *  ³o­Ó¨ç¼Æ¬O¨t²Îªº¥D°j°é¡A±±¨î¾ã­Ó¨t²Îªº I/O polling ©M update¡C
+ *  ï¿½oï¿½Ó¨ï¿½Æ¬Oï¿½tï¿½Îªï¿½ï¿½Dï¿½jï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½Ó¨tï¿½Îªï¿½ I/O polling ï¿½M updateï¿½C
  */
 int eval_cost;
 
@@ -166,13 +166,13 @@ backend ()
 	  slow_shut_down (tmp);
 	}
 
-      /* ÀË¬d³s½u¨Ï¥ÎªÌªº I/O ¨Æ¥ó */
+      /* ï¿½Ë¬dï¿½sï¿½uï¿½Ï¥ÎªÌªï¿½ I/O ï¿½Æ¥ï¿½ */
       make_selectmasks ();
       if (heart_beat_flag)
 	{
-	  /* ¦pªGÁÙ¦³ heart_beat ¨S¦³°µ§¹¡A§â timeout ³]©w¦¨ 0¡A©Ò¥H
-	   * select ¤£·|µ¥«Ý I/O ªºµo¥Í¦Ó¥ß§Yªð¦^¡A¥H«K§Ú­Ì³B²z©|¥¼
-	   * §¹¦¨ªº heart_beat
+	  /* ï¿½pï¿½Gï¿½Ù¦ï¿½ heart_beat ï¿½Sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Aï¿½ï¿½ timeout ï¿½]ï¿½wï¿½ï¿½ 0ï¿½Aï¿½Ò¥H
+	   * select ï¿½ï¿½ï¿½|ï¿½ï¿½ï¿½ï¿½ I/O ï¿½ï¿½ï¿½oï¿½Í¦Ó¥ß§Yï¿½ï¿½^ï¿½Aï¿½Hï¿½Kï¿½Ú­Ì³Bï¿½zï¿½|ï¿½ï¿½
+	   * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ heart_beat
 	   */
 	  timeout.tv_sec = 0;
 	  timeout.tv_usec = 0;
@@ -184,14 +184,14 @@ backend ()
 	}
       nb = get_IO_polling (&timeout);
 
-      /* ¦pªG¦³ socket ªº I/O µo¥Í¡A³B²z³o¨Ç I/O */
+      /* ï¿½pï¿½Gï¿½ï¿½ socket ï¿½ï¿½ I/O ï¿½oï¿½Í¡Aï¿½Bï¿½zï¿½oï¿½ï¿½ I/O */
       if (nb > 0)
 	process_io ();
 
-      /* ³B²z³s½u¨Ï¥ÎªÌªº«ü¥O */
+      /* ï¿½Bï¿½zï¿½sï¿½uï¿½Ï¥ÎªÌªï¿½ï¿½ï¿½ï¿½O */
       for (i = 0; process_user_command () && i < max_users; i++);
 
-      /* ³B²z heart_beat ¤u§@ */
+      /* ï¿½Bï¿½z heart_beat ï¿½uï¿½@ */
       if (heart_beat_flag)
 	call_heart_beat ();
     }
@@ -230,7 +230,7 @@ look_for_objects_to_swap ()
    */
   next_ob = obj_list;
 
-  /* ­Yµo¥Í¿ù»~¡A·| longjump ¦^¨ì³o¸Ì­«·s¶}©l */
+  /* ï¿½Yï¿½oï¿½Í¿ï¿½ï¿½~ï¿½Aï¿½| longjump ï¿½^ï¿½ï¿½oï¿½Ì­ï¿½ï¿½sï¿½}ï¿½l */
   save_context (&econ);
   if (setjmp (econ.context))
     restore_context (&econ);
@@ -697,6 +697,7 @@ get_heart_beats ()
 static RETSIGTYPE
 sigalrm_handler (int sig)
 {
+  (void) sig; /* unused */
   heart_beat_flag = 1;
   opt_trace (TT_BACKEND|3, "SIGALRM");
 }
