@@ -88,12 +88,12 @@ main (int argc, char **argv)
   signal (SIGILL, sig_ill);
   signal (SIGCHLD, sig_cld);
 
-#ifdef	ENABLE_NLS
   if (NULL != (locale = setlocale (LC_ALL, ""))) {
+#ifdef	ENABLE_NLS
     bindtextdomain (PACKAGE, LOCALEDIR);
     textdomain (PACKAGE);
-  }
 #endif /* ENABLE_NLS */
+  }
 
   memset (&svropts, 0, sizeof (svropts));
   g_svropts = &svropts;
