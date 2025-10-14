@@ -1,6 +1,6 @@
-YFLAGS = -d
 AM_CFLAGS = -Wall -ggdb -O -pipe
 AM_CPPFLAGS = -DLOCALEDIR=\"@localedir@\" @DEFS@ -I@top_srcdir@ -I@top_srcdir@/lib -I@top_srcdir@/lib/adt -I@top_builddir@/lib/efuns
+AM_YFLAGS = --defines=grammar.h
 
 EXTRA_DIST = preprocess.c ChangeLog neolith.conf
 
@@ -9,7 +9,7 @@ EXTRA_DIST = preprocess.c ChangeLog neolith.conf
 
 bin_PROGRAMS = neolith
 
-neolith_SOURCES = grammar.y grammar.h lex.c main.c rc.c comm.c backend.c \
+neolith_SOURCES = grammar.y lex.c main.c rc.c comm.c backend.c \
 	interpret.c logger.c otable.c program.c compiler.c icode.c trees.c \
 	generate.c scratchpad.c binaries.c file.c malloc.c \
 	simulate.c stralloc.c regexp.c simul_efun.c uids.c
