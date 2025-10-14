@@ -18,7 +18,6 @@
 #include "lpc/object.h"
 #include "src/program.h"
 #include "lpc/array.h"
-#include "src/main.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/simul_efun.h"

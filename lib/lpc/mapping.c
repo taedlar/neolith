@@ -11,7 +11,6 @@
 #include "LPC/runtime_config.h"
 #include "src/rc.h"
 #include "src/interpret.h"
-#include "src/main.h"
 #include "src/simulate.h"
 #include "src/stralloc.h"
 

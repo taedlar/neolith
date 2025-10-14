@@ -32,7 +32,6 @@
 #include "src/stralloc.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
-#include "src/main.h"
 #include "src/backend.h"
 #include "src/simul_efun.h"
 

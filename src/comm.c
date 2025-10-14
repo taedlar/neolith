@@ -39,6 +39,8 @@
 #include "LPC/runtime_config.h"
 #include "LPC/origin.h"
 
+#include <stdarg.h>
+
  /*
   * This macro is for testing whether ip is still valid, since many
   * functions call LPC code, which could otherwise use
@@ -614,7 +616,7 @@ copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
 
 				    case SLC_VARIABLE:
 				    case SLC_CANTCHANGE:
-				      /* ¥u¤¹³\¨Ï¥Î ASCII 0-32 ¤Î 127 §@¬°±±¨î¦r¤¸, ¥H§K¤¤¤å¦Y¦r */
+				      /* ï¿½uï¿½ï¿½ï¿½\ï¿½Ï¥ï¿½ ASCII 0-32 ï¿½ï¿½ 127 ï¿½@ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½rï¿½ï¿½, ï¿½Hï¿½Kï¿½ï¿½ï¿½ï¿½Yï¿½r */
 				      if ((unsigned) slc[SLC_VALUE] >= ' ' &&
 					  (unsigned) slc[SLC_VALUE] != '\x7f')
 					{
@@ -1389,7 +1391,7 @@ get_user_data (interactive_t * ip)
   /*
    * this /3 is here because of the trick copy_chars() uses to allow empty
    * commands. it needs to be fixed right. later.
-   * (³o¸Ìªºµ{¦¡½X¤Ó·MÄø¤F, §ä®É¶¡§ï.... )
+   * (ï¿½oï¿½Ìªï¿½ï¿½{ï¿½ï¿½ï¿½Xï¿½Ó·Mï¿½ï¿½ï¿½F, ï¿½ï¿½É¶ï¿½ï¿½ï¿½.... )
    */
   switch (ip->connection_type)
     {
@@ -1971,7 +1973,7 @@ call_function_interactive (interactive_t * i, char *str)
 
 
 /*
- * ³]©w¨Ï¥ÎªÌ¤U¤@¦¸¿é¤Jªº«ü¥O±N©I¥sªº sentence
+ * ï¿½]ï¿½wï¿½Ï¥ÎªÌ¤Uï¿½@ï¿½ï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½ï¿½ï¿½Oï¿½Nï¿½Iï¿½sï¿½ï¿½ sentence
  */
 int
 set_call (object_t * ob, sentence_t * sent, int flags)

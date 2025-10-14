@@ -61,7 +61,7 @@
  * NAME_PROTOTYPE - only a prototype has been found so far
  * NAME_DEF_BY_INHERIT - this function actually exists in an object we've
                          inherited; if we don't find a function at this level
-			 we'll use that one
+                         we'll use that one
  * NAME_ALIAS     - This entry refers us to another entry, usually because
                     this function was overloaded by that function
  */
@@ -138,8 +138,8 @@ typedef struct
 {
     struct program_s *prog; /* inherited if nonzero */
     union {
-	compiler_function_t *func;
-	int index;
+        compiler_function_t *func;
+        int index;
     } u;
     /* For non-aliases, this is a count of the number of non-aliases we've
        seen for this function. */
@@ -187,8 +187,8 @@ struct program_s
     unsigned short func_ref;
     char *program;		/* The binary instructions */
     int id_number;		/* used to associate information with this
-				 * prog block without needing to increase the
-				 * reference count     */
+                                 * prog block without needing to increase the
+                                 * reference count     */
     unsigned char *line_info;   /* Line number information */
     unsigned short *file_info;
     compiler_function_t *function_table;
@@ -205,7 +205,7 @@ struct program_s
     inherit_t *inherit;	/* List of inherited prgms */
     int total_size;		/* Sum of all data in this struct */
     int heart_beat;		/* Index of the heart beat function. -1 means
-				 * no heart beat */
+                                 * no heart beat */
     /*
      * The types of function arguments are saved where 'argument_types'
      * points. It can be a variable number of arguments, so allocation is

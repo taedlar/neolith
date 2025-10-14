@@ -16,7 +16,6 @@
 #include "src/std.h"
 #include "src/comm.h"
 #include "src/stralloc.h"
-#include "src/main.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "src/backend.h"

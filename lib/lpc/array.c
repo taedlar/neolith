@@ -22,7 +22,6 @@
 #include "src/std.h"
 #include "types.h"
 #include "src/rc.h"
-#include "src/main.h"
 #include "src/simulate.h"
 #include "src/interpret.h"
 #include "src/stralloc.h"
@@ -720,7 +719,7 @@ f_unique_array (void)
 
   size = (v = (sp - num_arg + 1)->u.arr)->size;
   if (!size)
-    {				/* ªÅ°}¦C(size=0)ªº³Ì¨Î¤Æ¡Gª½±µ return */
+    {				/* ï¿½Å°}ï¿½C(size=0)ï¿½ï¿½ï¿½Ì¨Î¤Æ¡Gï¿½ï¿½ï¿½ï¿½ return */
       if (num_arg == 3)
 	free_svalue (sp--, "f_unique_array");
       free_svalue (sp--, "f_unique_array");

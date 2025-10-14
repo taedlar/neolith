@@ -1,5 +1,4 @@
-#ifndef MAIN_H
-#define MAIN_H
+#pragma once
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -47,5 +46,3 @@ extern svalue_t const0u;
 extern int st_num_arg;
 extern int slow_shut_down_to_do;
 extern object_t *master_ob;
-
-#endif	/* ! MAIN_H */

@@ -41,6 +41,7 @@
 #include "rc.h"
 #include "uids.h"
 
+#include <stdarg.h>
 #include <sys/stat.h>
 
 /*

@@ -15,7 +15,6 @@
 
 #include "efuns_opcode.h"
 #include "src/std.h"
-#include "src/main.h"
 #include "src/comm.h"
 #include "src/file.h"
 #include "src/interpret.h"
