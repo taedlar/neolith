@@ -5,7 +5,6 @@
 #include "lex.h"
 #include "program.h"
 
-#define _YACC_
 #ifdef sun
 #include <malloc.h>
 #endif
@@ -108,9 +107,9 @@ extern int var_defined;
 #define CLASS_IDX(t) (t & ~(NAME_TYPE_MOD | TYPE_MOD_CLASS))
 
 #define COMP_TYPE(e, t) (!(e & (TYPE_MOD_ARRAY | TYPE_MOD_CLASS)) \
-			 && (compatible[(unsigned char)e] & (1 << (t))))
+                         && (compatible[(unsigned char)e] & (1 << (t))))
 #define IS_TYPE(e, t) (!(e & (TYPE_MOD_ARRAY | TYPE_MOD_CLASS)) \
-		       && (is_type[(unsigned char)e] & (1 << (t))))
+                       && (is_type[(unsigned char)e] & (1 << (t))))
 
 #define FUNCTION_TEMP(n) ((compiler_temp_t *)mem_block[A_FUNCTION_DEFS].block + (n))
 /* compiler_function_t from A_COMPILER_FUNCTIONS index */
@@ -236,9 +235,9 @@ static inline void
 realloc_mem_block(mem_block_t* m, int size)
 {
     while (size > m->max_size) {
-	m->max_size <<= 1;
-	m->block = (char *)
-	    DREALLOC((char *) m->block, m->max_size, TAG_COMPILER, "realloc_mem_block");
+        m->max_size <<= 1;
+        m->block = (char *)
+            DREALLOC((char *) m->block, m->max_size, TAG_COMPILER, "realloc_mem_block");
     }
 }
 
@@ -248,9 +247,9 @@ add_to_mem_block(int n, char* data, int size)
     mem_block_t *mbp = &mem_block[n];
 
     if (mbp->current_size + size > mbp->max_size)
-	realloc_mem_block(mbp, mbp->current_size + size);
+        realloc_mem_block(mbp, mbp->current_size + size);
     if (data)
-	memcpy(mbp->block + mbp->current_size, data, size);
+        memcpy(mbp->block + mbp->current_size, data, size);
     mbp->current_size += size;
 }
 
@@ -261,7 +260,7 @@ allocate_in_mem_block(int n, int size)
     char *ret;
 
     if (mbp->current_size + size > mbp->max_size)
-	realloc_mem_block(mbp, mbp->current_size + size);
+        realloc_mem_block(mbp, mbp->current_size + size);
     ret = mbp->block + mbp->current_size;
     mbp->current_size += size;
     return ret;
@@ -274,11 +273,11 @@ insert_in_mem_block(int n, int where, int size)
     char *p;
 
     if (mbp->current_size + size > mbp->max_size)
-	realloc_mem_block(mbp, mbp->current_size + size);
+        realloc_mem_block(mbp, mbp->current_size + size);
     /* memcpy can't handle overlapping blocks on some systems */
     p = mbp->block + mbp->current_size;
     while (p-- > mbp->block + where)
-	*(p + size) = *p;
+        *(p + size) = *p;
     mbp->current_size += size;
 }
 #endif	/* ! SUPPRESS_COMPILER_INLINES */

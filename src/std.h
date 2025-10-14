@@ -1,29 +1,9 @@
-/*  $Id: std.h,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
-#ifndef STD_H
-#define STD_H
-
+#pragma once
 #include <ctype.h>
 #include <errno.h>
-#include <limits.h>
-#include <locale.h>
 #include <math.h>
-#include <setjmp.h>
-#ifdef HAVE_SIGNAL_H
-#include <signal.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
@@ -74,5 +54,3 @@ int outbuf_extend(outbuffer_t *, int);
 #ifndef NO_OPCODES
 #include "efuns_opcode.h"
 #endif
-
-#endif	/* ! STD_H */

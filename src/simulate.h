@@ -47,7 +47,6 @@ void free_sentence(sentence_t *);
 int input_to(svalue_t *, int, int, svalue_t *);
 int get_char(svalue_t *, int, int, svalue_t *);
 
-/* command_giver 堆疊存取 */
 extern void save_command_giver (object_t*);
 extern void restore_command_giver (void);
 
@@ -71,7 +70,6 @@ void say(svalue_t *, array_t *);
 void tell_room(object_t *, svalue_t *, array_t *);
 void shout_string(char *);
 
-/* ===== 錯誤處理相關函式 ===== */
 #define DUMP_WITH_ARGS		0x0001
 #define DUMP_WITH_LOCALVARS	0x0002
 extern char *dump_trace (int);
@@ -80,7 +78,6 @@ extern void throw_error(void);
 extern void error_handler(char *);
 extern void fatal(char *, ...);
 extern void error(char *, ...);
-/* ============================ */
 
 void do_shutdown (int);
 void slow_shut_down (int);

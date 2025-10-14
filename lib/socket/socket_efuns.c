@@ -39,7 +39,6 @@
 #include "LPC/runtime_config.h"
 #include "LPC/origin.h"
 #include "src/rc.h"
-#include "src/main.h"
 #include "socket_efuns.h"
 #include "socket_err.h"
 #include "socket_ctrl.h"

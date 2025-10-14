@@ -22,7 +22,6 @@
 #include "src/program.h"
 #include "LPC/function.h"
 #include "src/interpret.h"
-#include "src/main.h"
 #include "src/simulate.h"
 #include "src/comm.h"
 #include "src/file.h"

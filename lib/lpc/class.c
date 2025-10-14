@@ -24,7 +24,6 @@
 #include "array.h"
 #include "class.h"
 #include "src/interpret.h"
-#include "src/main.h"
 
 void
 dealloc_class (array_t * p)

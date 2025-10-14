@@ -29,7 +29,6 @@
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/stralloc.h"
-#include "src/main.h"
 #include "socket_err.h"
 #include "socket_efuns.h"
 #include "LPC/socket_err.h"

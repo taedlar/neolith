@@ -1,6 +1,7 @@
 #ifndef INTERPRET_H
 #define INTERPRET_H
 
+#include <setjmp.h>
 #include "lpc/functional.h"
 
 #define PUSH_STRING    (0 << 6)
