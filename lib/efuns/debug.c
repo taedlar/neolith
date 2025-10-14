@@ -18,7 +18,7 @@
 #include "src/comm.h"
 #include "src/file.h"
 #include "src/interpret.h"
-#include "src/otable.h"
+#include "lpc/otable.h"
 #include "src/backend.h"
 #include "src/simulate.h"
 #include "src/stralloc.h"

@@ -10,7 +10,7 @@ EXTRA_DIST = preprocess.c ChangeLog neolith.conf
 bin_PROGRAMS = neolith
 
 neolith_SOURCES = grammar.y lex.c main.c rc.c comm.c backend.c \
-	interpret.c logger.c otable.c program.c compiler.c icode.c trees.c \
+	interpret.c logger.c program.c compiler.c icode.c trees.c \
 	generate.c scratchpad.c binaries.c file.c malloc.c \
 	simulate.c stralloc.c regexp.c simul_efun.c uids.c
 

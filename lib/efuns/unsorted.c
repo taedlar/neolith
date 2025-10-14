@@ -24,7 +24,7 @@
 #include "src/file.h"
 #include "src/comm.h"
 #include "src/backend.h"
-#include "src/otable.h"
+#include "lpc/otable.h"
 #include "src/stralloc.h"
 #include "efuns/ed.h"
 #include "lpc/include/function.h"

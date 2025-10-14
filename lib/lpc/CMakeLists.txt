@@ -7,6 +7,7 @@ set(lpc_SOURCES
     disassemble.c
     mapping.c
     object.c
+    otable.c
 )
 add_library(lpc STATIC ${lpc_SOURCES})
 target_include_directories(lpc PUBLIC ${CMAKE_SOURCE_DIR}/lib)
