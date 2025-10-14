@@ -415,6 +415,7 @@ static int
 node_share (mapping_t * m, mapping_node_t * elt, void *tp)
 {
   int *t = (int *) tp;
+  (void)m; /* unused */
 
   *t += sizeof (mapping_node_t) - 2 * sizeof (svalue_t);
   *t += memory_share (&elt->values[0]);

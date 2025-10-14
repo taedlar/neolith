@@ -28,7 +28,7 @@
 #define STRING(x)	((char *)(x + 1))
 
 /* used temporarily by SVALUE_STRLEN() */
-int svalue_strlen_size;
+size_t svalue_strlen_size;
 
 /*
    this code is not the same as the original code.  I cleaned it up to

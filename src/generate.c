@@ -540,6 +540,7 @@ short
 generate_function (compiler_function_t * f, parse_node_t * node, int num)
 {
   short ret;
+  (void)f; /* unused */
   if (pragmas & PRAGMA_OPTIMIZE)
     {
       optimizer_start_function (num);

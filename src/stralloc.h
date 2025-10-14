@@ -12,6 +12,8 @@
 #ifndef STRALLOC_H
 #define STRALLOC_H
 
+extern size_t svalue_strlen_size;
+
 typedef struct block_s {
     struct block_s *next;	/* next block in the hash chain */
     /* these two must be last */
@@ -100,8 +102,6 @@ extern void free_string(char *);
 extern void deallocate_string(char *);
 extern int add_string_status(outbuffer_t *, int);
 extern char *extend_string(char *, int);
-
-extern int svalue_strlen_size;
 
 #ifdef STRING_STATS
 extern int num_distinct_strings;

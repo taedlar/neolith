@@ -138,6 +138,7 @@ f_replace_program (int num_arg, int instruction)
   char *name, *xname;
   program_t *new_prog;
   int var_offset;
+  (void) num_arg; /* unused */
 
   if (sp->type != T_STRING)
     bad_arg (1, instruction);

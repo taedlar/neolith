@@ -139,7 +139,7 @@ main (int argc, char **argv)
   set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
   if (CONFIG_INT (__RESERVED_MEM_SIZE__) > 0)
     reserved_area = (char *) DMALLOC (CONFIG_INT (__RESERVED_MEM_SIZE__),
-				      TAG_RESERVED, "main.c: reserved_area");
+                                      TAG_RESERVED, "main.c: reserved_area");
 
   init_precomputed_tables ();
   init_num_args ();
@@ -185,24 +185,25 @@ main (int argc, char **argv)
 static error_t
 parse_argument (int key, char *arg, struct argp_state *state)
 {
+  (void)state; /* unused */
   switch (key)
     {
     case 'f':
       if (NULL == realpath (arg, SERVER_OPTION(config_file)))
-	{
-	  perror (arg);
-	  exit (EXIT_FAILURE);
-	}
+        {
+          perror (arg);
+          exit (EXIT_FAILURE);
+        }
       break;
     case 'D':
       {
-	struct lpc_predef_s *def;
+        struct lpc_predef_s *def;
 
-	def =  (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
-	def->flag = arg;
-	def->next = lpc_predefs;
-	lpc_predefs = def;
-	break;
+        def =  (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
+        def->flag = arg;
+        def->next = lpc_predefs;
+        lpc_predefs = def;
+        break;
       }
     case 'd':
       SERVER_OPTION(debug_level) = atoi (arg);
@@ -246,34 +247,34 @@ parse_command_line (int argc, char *argv[])
   while ((c = getopt (argc, argv, "f:d:D:t:")) != -1)
     {
       switch (c)
-	{
-	case 'f':
-	  if (!realpath (optarg, SERVER_OPTION(config_file)))
-	    {
-	      perror (optarg);
-	      exit (0);
-	    }
-	  break;
-	case 'd':
-	  SERVER_OPTION(debug_level) = atoi (optarg);
-	  break;
-	case 'D':
-	  {
-	    struct lpc_predef_s *def;
+        {
+        case 'f':
+          if (!realpath (optarg, SERVER_OPTION(config_file)))
+            {
+              perror (optarg);
+              exit (0);
+            }
+          break;
+        case 'd':
+          SERVER_OPTION(debug_level) = atoi (optarg);
+          break;
+        case 'D':
+          {
+            struct lpc_predef_s *def;
 
-	    def = (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
-	    def->flag = optarg;
-	    def->next = lpc_predefs;
-	    lpc_predefs = def;
-	    break;
-	  }
-	case 't':
-	  SERVER_OPTION(trace_flags) = strtoul (optarg, NULL, 0);
-	  break;
-	case '?':
-	default:
-	  fatal (_("invalid option: %c"), c);
-	}
+            def = (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
+            def->flag = optarg;
+            def->next = lpc_predefs;
+            lpc_predefs = def;
+            break;
+          }
+        case 't':
+          SERVER_OPTION(trace_flags) = strtoul (optarg, NULL, 0);
+          break;
+        case '?':
+        default:
+          fatal (_("invalid option: %c"), c);
+        }
     }
 #endif /* ! HAVE_ARGP_H */
 
@@ -295,14 +296,14 @@ xalloc (int size)
   if (p == 0)
     {
       if (reserved_area)
-	{
-	  FREE (reserved_area);
-	  /* after freeing reserved area, we are supposed to be able to write log messages */
-	  debug_message ("{}\t***** temporarily out of MEMORY. Freeing reserve.");
-	  reserved_area = 0;
-	  slow_shut_down_to_do = 6;
-	  return xalloc (size);	/* Try again */
-	}
+        {
+          FREE (reserved_area);
+          /* after freeing reserved area, we are supposed to be able to write log messages */
+          debug_message ("{}\t***** temporarily out of MEMORY. Freeing reserve.");
+          reserved_area = 0;
+          slow_shut_down_to_do = 6;
+          return xalloc (size);	/* Try again */
+        }
       going_to_exit = 1;
       fatal ("Totally out of MEMORY.\n");
     }
@@ -313,6 +314,7 @@ static RETSIGTYPE
 sig_cld (int sig)
 {
   int status;
+  (void)sig; /* unused */
 
   while (wait3 (&status, WNOHANG, NULL) > 0);
 }
@@ -321,6 +323,7 @@ sig_cld (int sig)
 static RETSIGTYPE
 sig_fpe (int sig)
 {
+  (void)sig; /* unused */
   signal (SIGFPE, sig_fpe);
 }
 
@@ -332,6 +335,7 @@ sig_fpe (int sig)
 static RETSIGTYPE
 sig_usr1 (int sig)
 {
+  (void)sig; /* unused */
   push_constant_string ("Host machine shutting down");
   push_undefined ();
   push_undefined ();
@@ -344,6 +348,7 @@ sig_usr1 (int sig)
 static RETSIGTYPE
 sig_usr2 (int sig)
 {
+  (void)sig; /* unused */
   eval_cost = 1;
 }
 
@@ -354,36 +359,42 @@ sig_usr2 (int sig)
 static RETSIGTYPE
 sig_term (int sig)
 {
+  (void)sig; /* unused */
   fatal ("process terminated");
 }
 
 static RETSIGTYPE
 sig_int (int sig)
 {
+  (void)sig; /* unused */
   fatal ("process interrupted");
 }
 
 static RETSIGTYPE
 sig_segv (int sig)
 {
+  (void)sig; /* unused */
   fatal ("segmentation fault");
 }
 
 static RETSIGTYPE
 sig_bus (int sig)
 {
+  (void)sig; /* unused */
   fatal ("bus error");
 }
 
 static RETSIGTYPE
 sig_ill (int sig)
 {
+  (void)sig; /* unused */
   fatal ("illegal instruction");
 }
 
 static RETSIGTYPE
 sig_hup (int sig)
 {
+  (void)sig; /* unused */
   debug_message ("SIGHUP received, reconfiguration not implemented.\n");
 
 #if 0

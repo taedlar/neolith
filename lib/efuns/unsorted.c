@@ -2927,6 +2927,7 @@ static int
 doCopy (mapping_t * map, mapping_node_t * elt, mapping_t * dest)
 {
   svalue_t *sp;
+  (void) map; /* unused */
 
   sp = find_for_insert (dest, &elt->values[0], 1);
   if (!sp)

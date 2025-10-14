@@ -152,7 +152,7 @@ typedef unsigned int format_info;
 #define ERR_NULL_PS		0xC	/* pad string is null */
 #define ERR_ARRAY_EXPECTED      0xD	/* Yep!  You guessed it. */
 #define ERR_RECOVERY_ONLY       0xE	/* err msg already done...just
-					 * recover */
+                                         * recover */
 
 #define ADD_CHAR(x) {\
   outbuf_addchar(&obuff, x);\
@@ -207,7 +207,7 @@ static svalue_t clean = { T_NUMBER };
 static void numadd (outbuffer_t *, int num);
 static void add_space (outbuffer_t *, int indent);
 static void add_justified (char *str, int slen, pad_info_t * pad, int fs,
-			   format_info finfo, short int trailing);
+                           format_info finfo, short int trailing);
 static int add_column (cst ** column, int trailing);
 static int add_table (cst ** table);
 
@@ -298,20 +298,20 @@ numadd (outbuffer_t * outbuf, int num)
     {
       chop = num_l - space;
       while (chop--)
-	num /= 10;		/* lose that last digits that got chopped */
+        num /= 10;		/* lose that last digits that got chopped */
       p = outbuf->buffer + outbuf->real_size;
       outbuf->real_size += space;
       p[space] = 0;
       if (nve)
-	{
-	  *p++ = '-';
-	  space--;
-	}
+        {
+          *p++ = '-';
+          space--;
+        }
       while (space--)
-	{
-	  p[space] = (num % 10) + '0';
-	  num /= 10;
-	}
+        {
+          p[space] = (num % 10) + '0';
+          num /= 10;
+        }
     }
 }				/* end of numadd() */
 
@@ -336,7 +336,7 @@ add_space (outbuffer_t * outbuf, int indent)
 
 void
 svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
-		  char delimiter, int flags)
+                  char delimiter, int flags)
 {
   int i;
 
@@ -376,90 +376,90 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
     case T_STRING:
       {
         const char* str;
-	outbuf_add (outbuf, "\"");
-	for (str = obj->u.string; *str; ++str)
-	  {
-	    switch (*str)
-	      {
-		case '\t':
-		  outbuf_add (outbuf, "\\t");
-		  break;
-		case '\n':
-		  outbuf_add (outbuf, "\\n");
-		  break;
-		case '\r':
-		  outbuf_add (outbuf, "\\r");
-		  break;
-		case '\b':
-		  outbuf_add (outbuf, "\\b");
-		  break;
-		case '\x7':
-		  outbuf_add (outbuf, "\\a");
-		  break;
-		case '\x1b':
-		  outbuf_add (outbuf, "\\e");
-		  break;
-		case '\\':
-		  outbuf_add (outbuf, "\\\\");
-		  break;
-		case '"':
-		  outbuf_add (outbuf, "\\\"");
-		  break;
-		default:
-		  if (iscntrl (*str))
-		    outbuf_addv (outbuf, "\\0%o", *str);
-		  else
-		    outbuf_addchar (outbuf, *str);
-		  break;
-	      }
-	  }
-	outbuf_add (outbuf, "\"");
-	break;
+        outbuf_add (outbuf, "\"");
+        for (str = obj->u.string; *str; ++str)
+          {
+            switch (*str)
+              {
+                case '\t':
+                  outbuf_add (outbuf, "\\t");
+                  break;
+                case '\n':
+                  outbuf_add (outbuf, "\\n");
+                  break;
+                case '\r':
+                  outbuf_add (outbuf, "\\r");
+                  break;
+                case '\b':
+                  outbuf_add (outbuf, "\\b");
+                  break;
+                case '\x7':
+                  outbuf_add (outbuf, "\\a");
+                  break;
+                case '\x1b':
+                  outbuf_add (outbuf, "\\e");
+                  break;
+                case '\\':
+                  outbuf_add (outbuf, "\\\\");
+                  break;
+                case '"':
+                  outbuf_add (outbuf, "\\\"");
+                  break;
+                default:
+                  if (iscntrl (*str))
+                    outbuf_addv (outbuf, "\\0%o", *str);
+                  else
+                    outbuf_addchar (outbuf, *str);
+                  break;
+              }
+          }
+        outbuf_add (outbuf, "\"");
+        break;
       }
 
     case T_CLASS:
       {
-	int n = obj->u.arr->size;
-	outbuf_add (outbuf, "CLASS( ");
-	numadd (outbuf, n);
-	outbuf_add (outbuf, n == 1 ? " element\n" : " elements\n");
-	for (i = 0; i < (obj->u.arr->size) - 1; i++)
-	  svalue_to_string (&(obj->u.arr->item[i]), outbuf, indent + 2, ',', flags);
-	svalue_to_string (&(obj->u.arr->item[i]), outbuf, indent + 2, 0, flags);
-	if (0==(flags & SV2STR_NONEWLINE))
-	  outbuf_addchar (outbuf, '\n');
+        int n = obj->u.arr->size;
+        outbuf_add (outbuf, "CLASS( ");
+        numadd (outbuf, n);
+        outbuf_add (outbuf, n == 1 ? " element\n" : " elements\n");
+        for (i = 0; i < (obj->u.arr->size) - 1; i++)
+          svalue_to_string (&(obj->u.arr->item[i]), outbuf, indent + 2, ',', flags);
+        svalue_to_string (&(obj->u.arr->item[i]), outbuf, indent + 2, 0, flags);
+        if (0==(flags & SV2STR_NONEWLINE))
+          outbuf_addchar (outbuf, '\n');
 
-	if (indent > 0 && 0==(flags & SV2STR_NOINDENT))
-	  add_space (outbuf, indent);
-	outbuf_add (outbuf, " )");
-	break;
+        if (indent > 0 && 0==(flags & SV2STR_NOINDENT))
+          add_space (outbuf, indent);
+        outbuf_add (outbuf, " )");
+        break;
       }
 
     case T_ARRAY:
       if (!(obj->u.arr->size))
-	{
-	  outbuf_add (outbuf, "({ })");
-	}
+        {
+          outbuf_add (outbuf, "({ })");
+        }
       else
-	{
-	  outbuf_add (outbuf, "({");
-	  if (0==(flags & SV2STR_NONEWLINE))
-	    outbuf_addchar (outbuf, '\n');
+        {
+          outbuf_add (outbuf, "({");
+          if (0==(flags & SV2STR_NONEWLINE))
+            outbuf_addchar (outbuf, '\n');
 #if 0
-	  outbuf_add (outbuf, "({ /* sizeof() == ");
-	  numadd (outbuf, obj->u.arr->size);
-	  outbuf_add (outbuf, " */\n");
+          outbuf_add (outbuf, "({ /* sizeof() == ");
+          numadd (outbuf, obj->u.arr->size);
+          outbuf_add (outbuf, " */\n");
 #endif
-	  for (i = 0; i < obj->u.arr->size; i++)
-	    {
-	      svalue_to_string (&(obj->u.arr->item[i]), outbuf, indent + 2,
-				(i==obj->u.arr->size-1 && (flags & SV2STR_NOINDENT))?0:',',
-				flags);
-	    }
-	  if (indent > 0 && 0==(flags & SV2STR_NOINDENT))
-	    add_space (outbuf, indent);
-	  outbuf_add (outbuf, "})");
-	}
+          for (i = 0; i < obj->u.arr->size; i++)
+            {
+              svalue_to_string (&(obj->u.arr->item[i]), outbuf, indent + 2,
+                                (i==obj->u.arr->size-1 && (flags & SV2STR_NOINDENT))?0:',',
+                                flags);
+            }
+          if (indent > 0 && 0==(flags & SV2STR_NOINDENT))
+            add_space (outbuf, indent);
+          outbuf_add (outbuf, "})");
+        }
       break;
 
     case T_BUFFER:
@@ -468,123 +468,123 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
 
     case T_FUNCTION:
       {
-	svalue_t tmp;
-	tmp.type = T_ARRAY;
+        // svalue_t tmp;
+        // tmp.type = T_ARRAY;
 
-	outbuf_add (outbuf, "(: ");
-	switch (obj->u.fp->hdr.type)
-	  {
-	  case FP_LOCAL | FP_NOT_BINDABLE:
-	    outbuf_add (outbuf, function_name (obj->u.fp->hdr.owner->prog,
-					       obj->u.fp->f.local.index));
-	    break;
-	  case FP_SIMUL:
-	    outbuf_add (outbuf, simuls[obj->u.fp->f.simul.index].func->name);
-	    break;
-	  case FP_FUNCTIONAL:
-	  case FP_FUNCTIONAL | FP_NOT_BINDABLE:
-	    {
-	      char buf[10];
-	      int n = obj->u.fp->f.functional.num_arg;
+        outbuf_add (outbuf, "(: ");
+        switch (obj->u.fp->hdr.type)
+          {
+          case FP_LOCAL | FP_NOT_BINDABLE:
+            outbuf_add (outbuf, function_name (obj->u.fp->hdr.owner->prog,
+                                               obj->u.fp->f.local.index));
+            break;
+          case FP_SIMUL:
+            outbuf_add (outbuf, simuls[obj->u.fp->f.simul.index].func->name);
+            break;
+          case FP_FUNCTIONAL:
+          case FP_FUNCTIONAL | FP_NOT_BINDABLE:
+            {
+              char buf[10];
+              int n = obj->u.fp->f.functional.num_arg;
 
-	      outbuf_add (outbuf, "<code>(");
-	      for (i = 1; i < n; i++)
-		{
-		  sprintf (buf, "$%i, ", i);
-		  outbuf_add (outbuf, buf);
-		}
-	      if (n)
-		{
-		  sprintf (buf, "$%i", n);
-		  outbuf_add (outbuf, buf);
-		}
-	      outbuf_add (outbuf, ")");
-	      break;
-	    }
-	  case FP_EFUN:
-	    {
-	      int i;
-	      i = obj->u.fp->f.efun.index;
-	      outbuf_add (outbuf, instrs[i].name);
-	      break;
-	    }
-	  }
-	if (obj->u.fp->hdr.args)
-	  {
-	    for (i = 0; i < obj->u.fp->hdr.args->size; i++)
-	      {
-		outbuf_add (outbuf, ", ");
-		svalue_to_string (&(obj->u.fp->hdr.args->item[i]), outbuf,
-				  indent, 0, flags);
-	      }
-	  }
+              outbuf_add (outbuf, "<code>(");
+              for (i = 1; i < n; i++)
+                {
+                  sprintf (buf, "$%i, ", i);
+                  outbuf_add (outbuf, buf);
+                }
+              if (n)
+                {
+                  sprintf (buf, "$%i", n);
+                  outbuf_add (outbuf, buf);
+                }
+              outbuf_add (outbuf, ")");
+              break;
+            }
+          case FP_EFUN:
+            {
+              int i;
+              i = obj->u.fp->f.efun.index;
+              outbuf_add (outbuf, instrs[i].name);
+              break;
+            }
+          }
+        if (obj->u.fp->hdr.args)
+          {
+            for (i = 0; i < obj->u.fp->hdr.args->size; i++)
+              {
+                outbuf_add (outbuf, ", ");
+                svalue_to_string (&(obj->u.fp->hdr.args->item[i]), outbuf,
+                                  indent, 0, flags);
+              }
+          }
       }
       outbuf_add (outbuf, " :)");
       break;
 
     case T_MAPPING:
       if (!(obj->u.map->count))
-	{
-	  outbuf_add (outbuf, "([ ])");
-	}
+        {
+          outbuf_add (outbuf, "([ ])");
+        }
       else
-	{
-	  int count = 0;
+        {
+          int count = 0;
 
-	  outbuf_add (outbuf, "([");
-	  if (0==(flags & SV2STR_NONEWLINE))
-	    outbuf_addchar (outbuf, '\n');
+          outbuf_add (outbuf, "([");
+          if (0==(flags & SV2STR_NONEWLINE))
+            outbuf_addchar (outbuf, '\n');
 #if 0
-	  outbuf_add (outbuf, "([ /* ");
-	  numadd (outbuf, obj->u.map->count);
-	  outbuf_add (outbuf, " element(s) */\n");
+          outbuf_add (outbuf, "([ /* ");
+          numadd (outbuf, obj->u.map->count);
+          outbuf_add (outbuf, " element(s) */\n");
 #endif
-	  for (i = 0; i <= (int) (obj->u.map->table_size); i++)
-	    {
-	      mapping_node_t *elm;
+          for (i = 0; i <= (int) (obj->u.map->table_size); i++)
+            {
+              mapping_node_t *elm;
 
-	      for (elm = obj->u.map->table[i]; elm; elm = elm->next)
-		{
-		  svalue_to_string (&(elm->values[0]), outbuf, indent + 2, ':',
-				    flags | SV2STR_NONEWLINE);
-		  svalue_to_string (&(elm->values[1]), outbuf, indent + 2,
-				((++count==obj->u.map->count) && (flags & SV2STR_NOINDENT)) ? 0 : ',',
-				flags | SV2STR_DONEINDENT);
-		}
-	    }
-	  if (indent > 0 && 0==(flags & SV2STR_NOINDENT))
-	    add_space (outbuf, indent);
-	  outbuf_add (outbuf, "])");
-	}
+              for (elm = obj->u.map->table[i]; elm; elm = elm->next)
+                {
+                  svalue_to_string (&(elm->values[0]), outbuf, indent + 2, ':',
+                                    flags | SV2STR_NONEWLINE);
+                  svalue_to_string (&(elm->values[1]), outbuf, indent + 2,
+                                ((++count==obj->u.map->count) && (flags & SV2STR_NOINDENT)) ? 0 : ',',
+                                flags | SV2STR_DONEINDENT);
+                }
+            }
+          if (indent > 0 && 0==(flags & SV2STR_NOINDENT))
+            add_space (outbuf, indent);
+          outbuf_add (outbuf, "])");
+        }
       break;
 
     case T_OBJECT:
       {
-	svalue_t *temp;
+        svalue_t *temp;
 
-	if (obj->u.ob->flags & O_DESTRUCTED)
-	  {
-	    numadd (outbuf, 0);
-	    break;
-	  }
+        if (obj->u.ob->flags & O_DESTRUCTED)
+          {
+            numadd (outbuf, 0);
+            break;
+          }
 
-	outbuf_add (outbuf, obj->u.ob->name);
+        outbuf_add (outbuf, obj->u.ob->name);
 
-	if (!get_error_state (ES_STACK_FULL))
-	  {
-	    /* ©I¥s master::object_name() ¨ú±oª«¥ó¦WºÙ */
-	    push_object (obj->u.ob);
-	    guard = 1;
-	    temp = safe_apply_master_ob (APPLY_OBJECT_NAME, 1);
-	    guard = 0;
-	    if (temp && temp != (svalue_t *) - 1 && (temp->type == T_STRING))
-	      {
-		outbuf_add (outbuf, " (\"");
-		outbuf_add (outbuf, temp->u.string);
-		outbuf_add (outbuf, "\")");
-	      }
-	  }
-	break;
+        if (!get_error_state (ES_STACK_FULL))
+          {
+            /* ï¿½Iï¿½s master::object_name() ï¿½ï¿½ï¿½oï¿½ï¿½ï¿½ï¿½Wï¿½ï¿½ */
+            push_object (obj->u.ob);
+            guard = 1;
+            temp = safe_apply_master_ob (APPLY_OBJECT_NAME, 1);
+            guard = 0;
+            if (temp && temp != (svalue_t *) - 1 && (temp->type == T_STRING))
+              {
+                outbuf_add (outbuf, " (\"");
+                outbuf_add (outbuf, temp->u.string);
+                outbuf_add (outbuf, "\")");
+              }
+          }
+        break;
       }
     default:
       outbuf_add (outbuf, "!ERROR: GARBAGE SVALUE!");
@@ -594,10 +594,10 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
     {
       outbuf_addchar (outbuf, delimiter);
       if (0==(flags & SV2STR_NONEWLINE))
-	outbuf_addchar (outbuf, '\n');
+        outbuf_addchar (outbuf, '\n');
       else
-	outbuf_addchar (outbuf, ' ');
-	
+        outbuf_addchar (outbuf, ' ');
+        
     }
 }				/* end of svalue_to_string() */
 
@@ -621,18 +621,18 @@ add_pad (pad_info_t * pad, int len)
       char c;
 
       for (i = 0, end = p + len; p < end; i++)
-	{
-	  if (i == padlen)
-	    i = 0;
+        {
+          if (i == padlen)
+            i = 0;
 
-	  if ((c = pstr[i]) == '\\')
-	    {
-	      /* guaranteed to have a valid char next */
-	      *p++ = pstr[++i];
-	    }
-	  else
-	    *p++ = c;
-	}
+          if ((c = pstr[i]) == '\\')
+            {
+              /* guaranteed to have a valid char next */
+              *p++ = pstr[++i];
+            }
+          else
+            *p++ = c;
+        }
     }
   else
     memset (p, ' ', len);
@@ -656,63 +656,63 @@ add_nstr (char *str, int len)
  */
 static void
 add_justified (char *str, int slen, pad_info_t * pad, int fs,
-	       format_info finfo, short int trailing)
+               format_info finfo, short int trailing)
 {
   const char *pstr;
-  /* ½Õ¾ãÄæ¼e¡A¥[¤W ANSI ±±¨î½X©Ò¦û¥Îªº¦r¤¸¼Æ¡A¦p¦¹¤@¨Ó¹ê»ÚÅã¥Üªº
-     8 Äæ¼e·|µ¥©ó¥¿½TªºÄæ¼e¡C
+  /* ï¿½Õ¾ï¿½ï¿½ï¿½eï¿½Aï¿½[ï¿½W ANSI ï¿½ï¿½ï¿½ï¿½Xï¿½Ò¦ï¿½ï¿½Îªï¿½ï¿½rï¿½ï¿½ï¿½Æ¡Aï¿½pï¿½ï¿½ï¿½@ï¿½Ó¹ï¿½ï¿½ï¿½ï¿½Üªï¿½
+     8 ï¿½ï¿½eï¿½|ï¿½ï¿½ï¿½ó¥¿½Tï¿½ï¿½ï¿½ï¿½eï¿½C
      * Added by Annihilator@ES2 (05/18/2000)
    */
   for (pstr = str; pstr - str < slen;)
     {
       if (*pstr == '\x1B')
-	{			/* ESC §Ç¦Cªº¶}©l¡H */
-	  pstr++;		/* ¸õ¹L ESC */
-	  fs += 2;
-	  if (*pstr++ == '[')
-	    {			/* §t°Ñ¼Æªº§Ç¦C¡H */
-	      while (isdigit (*pstr) || *pstr == ';')
-		{
-		  pstr++;
-		  fs++;		/* ¸õ¹L°Ñ¼Æ */
-		}
-	      pstr++;
-	      fs++;		/* ¸õ¹L«ü¥O½X */
-	    }
-	  continue;
-	}
+        {			/* ESC ï¿½Ç¦Cï¿½ï¿½ï¿½}ï¿½lï¿½H */
+          pstr++;		/* ï¿½ï¿½ï¿½L ESC */
+          fs += 2;
+          if (*pstr++ == '[')
+            {			/* ï¿½tï¿½Ñ¼Æªï¿½ï¿½Ç¦Cï¿½H */
+              while (isdigit (*pstr) || *pstr == ';')
+                {
+                  pstr++;
+                  fs++;		/* ï¿½ï¿½ï¿½Lï¿½Ñ¼ï¿½ */
+                }
+              pstr++;
+              fs++;		/* ï¿½ï¿½ï¿½Lï¿½ï¿½ï¿½Oï¿½X */
+            }
+          continue;
+        }
       pstr++;
     }
 
   fs -= slen;
 
   if (fs <= 0)
-    {				/* ¦r¦êªø«×¤j©óÄæ¼e¡H */
+    {				/* ï¿½rï¿½ï¿½ï¿½ï¿½×¤jï¿½ï¿½ï¿½ï¿½eï¿½H */
       add_nstr (str, slen);
     }
   else
     {
       int i;
       switch (finfo & INFO_J)
-	{
-	case INFO_J_LEFT:
-	  add_nstr (str, slen);
-	  if (trailing)
-	    add_pad (pad, fs);
-	  break;
-	case INFO_J_CENTRE:
-	  i = fs / 2 + fs % 2;
-	  add_pad (pad, i);
-	  add_nstr (str, slen);
-	  if (trailing)
-	    add_pad (pad, fs - i);
-	  break;
-	default:
-	  /* std (s)printf defaults to right
-	   * justification */
-	  add_pad (pad, fs);
-	  add_nstr (str, slen);
-	}
+        {
+        case INFO_J_LEFT:
+          add_nstr (str, slen);
+          if (trailing)
+            add_pad (pad, fs);
+          break;
+        case INFO_J_CENTRE:
+          i = fs / 2 + fs % 2;
+          add_pad (pad, i);
+          add_nstr (str, slen);
+          if (trailing)
+            add_pad (pad, fs - i);
+          break;
+        default:
+          /* std (s)printf defaults to right
+           * justification */
+          add_pad (pad, fs);
+          add_nstr (str, slen);
+        }
     }
 }				/* end of add_justified() */
 
@@ -737,20 +737,20 @@ add_column (cst ** column, int trailing)
   while ((c = col_d[done]) && c != '\n')
     {
       if (c == ' ')
-	space = done;
+        space = done;
       if (++done == col->pres)
-	{
-	  if (space != -1)
-	    {
-	      c = col_d[done];
-	      if (c != '\n' && c != ' ' && c)
-		done = space;
-	    }
-	  break;
-	}
+        {
+          if (space != -1)
+            {
+              c = col_d[done];
+              if (c != '\n' && c != ' ' && c)
+                done = space;
+            }
+          break;
+        }
     }
   add_justified (col_d, done, col->pad,
-		 col->size, col->info, trailing || col->next);
+                 col->size, col->info, trailing || col->next);
   col_d += done;
   ret = 1;
   if (*col_d == '\n')
@@ -769,7 +769,7 @@ add_column (cst ** column, int trailing)
 
       temp = col->next;
       if (col->pad)
-	FREE (col->pad);
+        FREE (col->pad);
       FREE (col);
       *column = temp;
       return ret;
@@ -796,26 +796,26 @@ add_table (cst ** table)
       end = tab_d[i + 1].start - tab_di - 1;
 
       for (done = 0; done != end && tab_di[done] != '\n'; done++)
-	;
+        ;
       add_justified (tab_di, (done > tab->size ? tab->size : done),
-		     tab->pad, tab->size, tab->info,
-		     tab->pad || (i < tab->nocols - 1) || tab->next);
+                     tab->pad, tab->size, tab->info,
+                     tab->pad || (i < tab->nocols - 1) || tab->next);
       if (done >= end - 1)
-	{
-	  tab_di = 0;
-	}
+        {
+          tab_di = 0;
+        }
       else
-	{
-	  tab_di += done + 1;	/* inc'ed next line ... */
-	}
+        {
+          tab_di += done + 1;	/* inc'ed next line ... */
+        }
       tab_d[i].cur = tab_di;
     }
   if (tab->pad)
     {
       while (i++ < tab->nocols)
-	{
-	  add_pad (tab->pad, tab->size);
-	}
+        {
+          add_pad (tab->pad, tab->size);
+        }
       add_pad (tab->pad, tab->remainder);
     }
   if (!tab_d[0].cur)
@@ -824,9 +824,9 @@ add_table (cst ** table)
 
       temp = tab->next;
       if (tab->pad)
-	FREE (tab->pad);
+        FREE (tab->pad);
       if (tab_d)
-	FREE (tab_d);
+        FREE (tab_d);
       FREE (tab);
       *table = temp;
       return 1;
@@ -892,7 +892,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
     {
       guard = 0;
       error
-	("Illegal to use sprintf() within the object_name() master call.\n");
+        ("Illegal to use sprintf() within the object_name() master call.\n");
     }
 
   /* free anything that is sitting around here from errors */
@@ -912,7 +912,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
     {
       cst *next = csts->next;
       if (!(csts->info & INFO_COLS) && csts->d.tab)
-	FREE (csts->d.tab);
+        FREE (csts->d.tab);
       FREE (csts);
       csts = next;
     }
@@ -924,533 +924,533 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
       char c = format_str[fpos];
 
       if (c == '\n' || !c)
-	{
-	  int column_stat = 0;
+        {
+          int column_stat = 0;
 
-	  if (last != fpos)
-	    {
-	      add_nstr (format_str + last, fpos - last);
-	      last = fpos + 1;
-	    }
-	  else
-	    last++;
+          if (last != fpos)
+            {
+              add_nstr (format_str + last, fpos - last);
+              last = fpos + 1;
+            }
+          else
+            last++;
 
-	  if (!csts)
-	    {
-	      if (!c)
-		break;
-	      ADD_CHAR ('\n');
-	      continue;
-	    }
-	  ADD_CHAR ('\n');
-	  while (csts)
-	    {
-	      cst **temp;
+          if (!csts)
+            {
+              if (!c)
+                break;
+              ADD_CHAR ('\n');
+              continue;
+            }
+          ADD_CHAR ('\n');
+          while (csts)
+            {
+              cst **temp;
 
-	      temp = &csts;
-	      while (*temp)
-		{
-		  if ((*temp)->info & INFO_COLS)
-		    {
-		      if (*((*temp)->d.col - 1) != '\n')
-			while (*((*temp)->d.col) == ' ')
-			  (*temp)->d.col++;
-		      add_pad (0, (*temp)->start - get_curpos ());
-		      column_stat = add_column (temp, 0);
-		      if (!column_stat)
-			temp = &((*temp)->next);
-		    }
-		  else
-		    {
-		      add_pad (0, (*temp)->start - get_curpos ());
-		      if (!add_table (temp))
-			temp = &((*temp)->next);
-		    }
-		}		/* of while (*temp) */
-	      if (csts || c == '\n')
-		ADD_CHAR ('\n');
-	    }			/* of while (csts) */
-	  if (column_stat == 2)
-	    ADD_CHAR ('\n');
-	  if (!c)
-	    break;
-	}
+              temp = &csts;
+              while (*temp)
+                {
+                  if ((*temp)->info & INFO_COLS)
+                    {
+                      if (*((*temp)->d.col - 1) != '\n')
+                        while (*((*temp)->d.col) == ' ')
+                          (*temp)->d.col++;
+                      add_pad (0, (*temp)->start - get_curpos ());
+                      column_stat = add_column (temp, 0);
+                      if (!column_stat)
+                        temp = &((*temp)->next);
+                    }
+                  else
+                    {
+                      add_pad (0, (*temp)->start - get_curpos ());
+                      if (!add_table (temp))
+                        temp = &((*temp)->next);
+                    }
+                }		/* of while (*temp) */
+              if (csts || c == '\n')
+                ADD_CHAR ('\n');
+            }			/* of while (csts) */
+          if (column_stat == 2)
+            ADD_CHAR ('\n');
+          if (!c)
+            break;
+        }
       else if (c == '%')
-	{
-	  if (last != fpos)
-	    {
-	      add_nstr (format_str + last, fpos - last);
-	      last = fpos + 1;
-	    }
-	  else
-	    last++;
+        {
+          if (last != fpos)
+            {
+              add_nstr (format_str + last, fpos - last);
+              last = fpos + 1;
+            }
+          else
+            last++;
 
-	  /* ¦pªG¬O %%¡A¥u¦L¥X % */
-	  if (format_str[fpos + 1] == '%')
-	    {
-	      ADD_CHAR ('%');
-	      fpos++;
-	      last++;
-	      continue;
-	    }
+          /* ï¿½pï¿½Gï¿½O %%ï¿½Aï¿½uï¿½Lï¿½X % */
+          if (format_str[fpos + 1] == '%')
+            {
+              ADD_CHAR ('%');
+              fpos++;
+              last++;
+              continue;
+            }
 
-	  GET_NEXT_ARG;
-	  fs = 0;
-	  pres = 0;
-	  pad.len = 0;
-	  finfo = 0;
-	  for (fpos++; !(finfo & INFO_T); fpos++)
-	    {
-	      if (!format_str[fpos])
-		{
-		  finfo |= INFO_T_ERROR;
-		  break;
-		}
-	      /* ÀË¬d¬O§_«ü©w¼e«× */
-	      if (((format_str[fpos] >= '0') && (format_str[fpos] <= '9'))
-		  || (format_str[fpos] == '*'))
-		{
-		  if (pres == -1)
-		    {		/* ºë½T«×¡H */
-		      /* ¥H°Ñ¼Æ­È°µ¼e«×¡H */
-		      if (format_str[fpos] == '*')
-			{
-			  if (carg->type != T_NUMBER)
-			    ERROR (ERR_INVALID_STAR);
-			  pres = carg->u.number;
-			  GET_NEXT_ARG;
-			  continue;
-			}
-		      pres = format_str[fpos] - '0';
-		      for (fpos++; isdigit (format_str[fpos]); fpos++)
-			pres = pres * 10 + format_str[fpos] - '0';
-		      if (pres < 0)
-			pres = 0;
-		    }
-		  else
-		    {		/* Äæ¼e (¤]¥i¯à¬Oºë½T«×) */
-		      if ((format_str[fpos] == '0')
-			  &&
-			  (((format_str
-			     [fpos + 1] >= '1')
-			    && (format_str[fpos + 1] <= '9'))
-			   || (format_str[fpos + 1] == '*')))
-			{
-			  pad.what = "0";
-			  pad.len = 1;
-			}
-		      else
-			{
-			  if (format_str[fpos] == '*')
-			    {
-			      if (carg->type != T_NUMBER)
-				ERROR (ERR_INVALID_STAR);
-			      fs = carg->u.number;
-			      if (fs < 0)
-				fs = 0;
-			      if (pres == -2)
-				pres = fs;	/* colon */
-			      GET_NEXT_ARG;
-			      continue;
-			    }
-			  fs = format_str[fpos] - '0';
-			}
-		      for (fpos++; isdigit (format_str[fpos]); fpos++)
-			fs = fs * 10 + format_str[fpos] - '0';
-		      if (fs < 0)
-			fs = 0;
-		      if (pres == -2)
-			{	/* colon */
-			  pres = fs;
-			}
-		    }
-		  fpos--;	/* about to get incremented */
-		  continue;
-		}
-	      switch (format_str[fpos])
-		{
-		case ' ':
-		  finfo |= INFO_PP_SPACE;
-		  break;
-		case '+':
-		  finfo |= INFO_PP_PLUS;
-		  break;
-		case '-':
-		  finfo |= INFO_J_LEFT;
-		  break;
-		case '|':
-		  finfo |= INFO_J_CENTRE;
-		  break;
-		case '@':
-		  finfo |= INFO_ARRAY;
-		  break;
-		case '=':
-		  finfo |= INFO_COLS;
-		  break;
-		case '#':
-		  finfo |= INFO_TABLE;
-		  break;
-		case '.':
-		  pres = -1;
-		  break;
-		case ':':
-		  pres = -2;
-		  break;
-		case 'O':
-		  finfo |= INFO_T_LPC;
-		  break;
-		case 's':
-		  finfo |= INFO_T_STRING;
-		  break;
-		case 'd':
-		case 'i':
-		  finfo |= INFO_T_INT;
-		  break;
-		case 'f':
-		  finfo |= INFO_T_FLOAT;
-		  break;
-		case 'c':
-		  finfo |= INFO_T_CHAR;
-		  break;
-		case 'o':
-		  finfo |= INFO_T_OCT;
-		  break;
-		case 'x':
-		  finfo |= INFO_T_HEX;
-		  break;
-		case 'X':
-		  finfo |= INFO_T_C_HEX;
-		  break;
-		case '\'':
-		  fpos++;
-		  pad.what = format_str + fpos;
-		  while (1)
-		    {
-		      if (!format_str[fpos])
-			ERROR (ERR_UNEXPECTED_EOS);
-		      if (format_str[fpos] == '\\')
-			{
-			  if (!format_str[++fpos])
-			    ERROR (ERR_UNEXPECTED_EOS);
-			}
-		      else if (format_str[fpos] == '\'')
-			{
-			  pad.len = format_str + fpos - pad.what;
-			  if (!pad.len)
-			    ERROR (ERR_NULL_PS);
-			  break;
-			}
-		      fpos++;
-		    }
-		  break;
-		default:
-		  finfo |= INFO_T_ERROR;
-		}
-	    }			/* end of for () */
-	  if (pres < 0)
-	    ERROR (ERR_PRES_EXPECTED);
-	  /*
-	   * now handle the different arg types...
-	   */
-	  if (finfo & INFO_ARRAY)
-	    {
-	      if (carg->type != T_ARRAY)
-		ERROR (ERR_ARRAY_EXPECTED);
-	      if (carg->u.arr->size == 0)
-		{
-		  last = fpos;
-		  fpos--;	/* 'bout to get incremented */
-		  continue;
-		}
-	      carg = (argv + cur_arg)->u.arr->item;
-	      nelemno = 1;	/* next element number */
-	    }
-	  while (1)
-	    {
-	      if ((finfo & INFO_T) == INFO_T_LPC)
-		{
-		  outbuffer_t outbuf;
+          GET_NEXT_ARG;
+          fs = 0;
+          pres = 0;
+          pad.len = 0;
+          finfo = 0;
+          for (fpos++; !(finfo & INFO_T); fpos++)
+            {
+              if (!format_str[fpos])
+                {
+                  finfo |= INFO_T_ERROR;
+                  break;
+                }
+              /* ï¿½Ë¬dï¿½Oï¿½_ï¿½ï¿½ï¿½wï¿½eï¿½ï¿½ */
+              if (((format_str[fpos] >= '0') && (format_str[fpos] <= '9'))
+                  || (format_str[fpos] == '*'))
+                {
+                  if (pres == -1)
+                    {		/* ï¿½ï¿½Tï¿½×¡H */
+                      /* ï¿½Hï¿½Ñ¼Æ­È°ï¿½ï¿½eï¿½×¡H */
+                      if (format_str[fpos] == '*')
+                        {
+                          if (carg->type != T_NUMBER)
+                            ERROR (ERR_INVALID_STAR);
+                          pres = carg->u.number;
+                          GET_NEXT_ARG;
+                          continue;
+                        }
+                      pres = format_str[fpos] - '0';
+                      for (fpos++; isdigit (format_str[fpos]); fpos++)
+                        pres = pres * 10 + format_str[fpos] - '0';
+                      if (pres < 0)
+                        pres = 0;
+                    }
+                  else
+                    {		/* ï¿½ï¿½e (ï¿½]ï¿½iï¿½ï¿½Oï¿½ï¿½Tï¿½ï¿½) */
+                      if ((format_str[fpos] == '0')
+                          &&
+                          (((format_str
+                             [fpos + 1] >= '1')
+                            && (format_str[fpos + 1] <= '9'))
+                           || (format_str[fpos + 1] == '*')))
+                        {
+                          pad.what = "0";
+                          pad.len = 1;
+                        }
+                      else
+                        {
+                          if (format_str[fpos] == '*')
+                            {
+                              if (carg->type != T_NUMBER)
+                                ERROR (ERR_INVALID_STAR);
+                              fs = carg->u.number;
+                              if (fs < 0)
+                                fs = 0;
+                              if (pres == -2)
+                                pres = fs;	/* colon */
+                              GET_NEXT_ARG;
+                              continue;
+                            }
+                          fs = format_str[fpos] - '0';
+                        }
+                      for (fpos++; isdigit (format_str[fpos]); fpos++)
+                        fs = fs * 10 + format_str[fpos] - '0';
+                      if (fs < 0)
+                        fs = 0;
+                      if (pres == -2)
+                        {	/* colon */
+                          pres = fs;
+                        }
+                    }
+                  fpos--;	/* about to get incremented */
+                  continue;
+                }
+              switch (format_str[fpos])
+                {
+                case ' ':
+                  finfo |= INFO_PP_SPACE;
+                  break;
+                case '+':
+                  finfo |= INFO_PP_PLUS;
+                  break;
+                case '-':
+                  finfo |= INFO_J_LEFT;
+                  break;
+                case '|':
+                  finfo |= INFO_J_CENTRE;
+                  break;
+                case '@':
+                  finfo |= INFO_ARRAY;
+                  break;
+                case '=':
+                  finfo |= INFO_COLS;
+                  break;
+                case '#':
+                  finfo |= INFO_TABLE;
+                  break;
+                case '.':
+                  pres = -1;
+                  break;
+                case ':':
+                  pres = -2;
+                  break;
+                case 'O':
+                  finfo |= INFO_T_LPC;
+                  break;
+                case 's':
+                  finfo |= INFO_T_STRING;
+                  break;
+                case 'd':
+                case 'i':
+                  finfo |= INFO_T_INT;
+                  break;
+                case 'f':
+                  finfo |= INFO_T_FLOAT;
+                  break;
+                case 'c':
+                  finfo |= INFO_T_CHAR;
+                  break;
+                case 'o':
+                  finfo |= INFO_T_OCT;
+                  break;
+                case 'x':
+                  finfo |= INFO_T_HEX;
+                  break;
+                case 'X':
+                  finfo |= INFO_T_C_HEX;
+                  break;
+                case '\'':
+                  fpos++;
+                  pad.what = format_str + fpos;
+                  while (1)
+                    {
+                      if (!format_str[fpos])
+                        ERROR (ERR_UNEXPECTED_EOS);
+                      if (format_str[fpos] == '\\')
+                        {
+                          if (!format_str[++fpos])
+                            ERROR (ERR_UNEXPECTED_EOS);
+                        }
+                      else if (format_str[fpos] == '\'')
+                        {
+                          pad.len = format_str + fpos - pad.what;
+                          if (!pad.len)
+                            ERROR (ERR_NULL_PS);
+                          break;
+                        }
+                      fpos++;
+                    }
+                  break;
+                default:
+                  finfo |= INFO_T_ERROR;
+                }
+            }			/* end of for () */
+          if (pres < 0)
+            ERROR (ERR_PRES_EXPECTED);
+          /*
+           * now handle the different arg types...
+           */
+          if (finfo & INFO_ARRAY)
+            {
+              if (carg->type != T_ARRAY)
+                ERROR (ERR_ARRAY_EXPECTED);
+              if (carg->u.arr->size == 0)
+                {
+                  last = fpos;
+                  fpos--;	/* 'bout to get incremented */
+                  continue;
+                }
+              carg = (argv + cur_arg)->u.arr->item;
+              nelemno = 1;	/* next element number */
+            }
+          while (1)
+            {
+              if ((finfo & INFO_T) == INFO_T_LPC)
+                {
+                  outbuffer_t outbuf;
 
-		  outbuf_zero (&outbuf);
-		  svalue_to_string (carg, &outbuf, 0, 0, 0);
-		  outbuf_fix (&outbuf);
+                  outbuf_zero (&outbuf);
+                  svalue_to_string (carg, &outbuf, 0, 0, 0);
+                  outbuf_fix (&outbuf);
 
-		  clean.type = T_STRING;
-		  clean.subtype = STRING_MALLOC;
-		  clean.u.string = outbuf.buffer;
-		  carg = &clean;
-		  finfo ^= INFO_T_LPC;
-		  finfo |= INFO_T_STRING;
-		}
-	      if ((finfo & INFO_T) == INFO_T_ERROR)
-		{
-		  ERROR (ERR_INVALID_FORMAT_STR);
-		}
-	      else if ((finfo & INFO_T) == INFO_T_STRING)
-		{
-		  int slen;
+                  clean.type = T_STRING;
+                  clean.subtype = STRING_MALLOC;
+                  clean.u.string = outbuf.buffer;
+                  carg = &clean;
+                  finfo ^= INFO_T_LPC;
+                  finfo |= INFO_T_STRING;
+                }
+              if ((finfo & INFO_T) == INFO_T_ERROR)
+                {
+                  ERROR (ERR_INVALID_FORMAT_STR);
+                }
+              else if ((finfo & INFO_T) == INFO_T_STRING)
+                {
+                  int slen;
 
-		  /*
-		   * %s null handling added 930709 by Luke Mewburn
-		   * <zak@rmit.oz.au>
-		   */
-		  if (carg->type == T_NUMBER && carg->u.number == 0)
-		    {
-		      clean.type = T_STRING;
-		      clean.subtype = STRING_MALLOC;
-		      clean.u.string = string_copy (NULL_MSG, "sprintf NULL");
-		      carg = &clean;
-		    }
-		  else if (carg->type != T_STRING)
-		    {
-		      ERROR (ERR_INCORRECT_ARG_S);
-		    }
-		  slen = SVALUE_STRLEN (carg);
-		  if ((finfo & INFO_COLS) || (finfo & INFO_TABLE))
-		    {
-		      cst **temp;
+                  /*
+                   * %s null handling added 930709 by Luke Mewburn
+                   * <zak@rmit.oz.au>
+                   */
+                  if (carg->type == T_NUMBER && carg->u.number == 0)
+                    {
+                      clean.type = T_STRING;
+                      clean.subtype = STRING_MALLOC;
+                      clean.u.string = string_copy (NULL_MSG, "sprintf NULL");
+                      carg = &clean;
+                    }
+                  else if (carg->type != T_STRING)
+                    {
+                      ERROR (ERR_INCORRECT_ARG_S);
+                    }
+                  slen = SVALUE_STRLEN (carg);
+                  if ((finfo & INFO_COLS) || (finfo & INFO_TABLE))
+                    {
+                      cst **temp;
 
-		      if (!fs)
-			ERROR (ERR_CST_REQUIRES_FS);
+                      if (!fs)
+                        ERROR (ERR_CST_REQUIRES_FS);
 
-		      temp = &csts;
-		      while (*temp)
-			temp = &((*temp)->next);
-		      if (finfo & INFO_COLS)
-			{
-			  int tmp;
-			  if (pres > fs)
-			    pres = fs;
-			  *temp =
-			    ALLOCATE (cst, TAG_TEMPORARY, "string_print: 3");
-			  (*temp)->next = 0;
-			  (*temp)->d.col = carg->u.string;
-			  (*temp)->pad = make_pad (&pad);
-			  (*temp)->size = fs;
-			  (*temp)->pres = (pres) ? pres : fs;
-			  (*temp)->info = finfo;
-			  (*temp)->start = get_curpos ();
-			  tmp = ((format_str[fpos] != '\n')
-				 && (format_str[fpos] != '\0'))
-			    || ((finfo & INFO_ARRAY)
-				&& (nelemno < (argv + cur_arg)->u.arr->size));
-			  tmp = add_column (temp, tmp);
-			  if (tmp == 2 && !format_str[fpos])
-			    {
-			      ADD_CHAR ('\n');
-			    }
-			}
-		      else
-			{	/* (finfo & INFO_TABLE) */
-			  unsigned int n, len, max_len;
-			  char *p1, *p2;
+                      temp = &csts;
+                      while (*temp)
+                        temp = &((*temp)->next);
+                      if (finfo & INFO_COLS)
+                        {
+                          int tmp;
+                          if (pres > fs)
+                            pres = fs;
+                          *temp =
+                            ALLOCATE (cst, TAG_TEMPORARY, "string_print: 3");
+                          (*temp)->next = 0;
+                          (*temp)->d.col = carg->u.string;
+                          (*temp)->pad = make_pad (&pad);
+                          (*temp)->size = fs;
+                          (*temp)->pres = (pres) ? pres : fs;
+                          (*temp)->info = finfo;
+                          (*temp)->start = get_curpos ();
+                          tmp = ((format_str[fpos] != '\n')
+                                 && (format_str[fpos] != '\0'))
+                            || ((finfo & INFO_ARRAY)
+                                && (nelemno < (argv + cur_arg)->u.arr->size));
+                          tmp = add_column (temp, tmp);
+                          if (tmp == 2 && !format_str[fpos])
+                            {
+                              ADD_CHAR ('\n');
+                            }
+                        }
+                      else
+                        {	/* (finfo & INFO_TABLE) */
+                          unsigned int n, len, max_len;
+                          char *p1, *p2;
 
 #define TABLE carg->u.string
 
-			  (*temp) =
-			    ALLOCATE (cst, TAG_TEMPORARY, "string_print: 4");
-			  (*temp)->d.tab = 0;
-			  (*temp)->pad = make_pad (&pad);
-			  (*temp)->info = finfo;
-			  (*temp)->start = get_curpos ();
-			  (*temp)->next = 0;
-			  max_len = 0;
-			  n = 1;
+                          (*temp) =
+                            ALLOCATE (cst, TAG_TEMPORARY, "string_print: 4");
+                          (*temp)->d.tab = 0;
+                          (*temp)->pad = make_pad (&pad);
+                          (*temp)->info = finfo;
+                          (*temp)->start = get_curpos ();
+                          (*temp)->next = 0;
+                          max_len = 0;
+                          n = 1;
 
-			  p2 = p1 = TABLE;
-			  while (*p1)
-			    {
-			      if (*p1 == '\n')
-				{
-				  if (p1 - p2 > max_len)
-				    max_len = p1 - p2;
-				  p1++;
-				  if (*(p2 = p1))
-				    n++;
-				}
-			      else
-				p1++;
-			    }
-			  if (!pres)
-			    {
-			      /* the null terminated word */
-			      if (p1 - p2 > max_len)
-				max_len = p1 - p2;
-			      pres = fs / (max_len + 2);	/* at least two
-								 * separating spaces */
-			      if (!pres)
-				pres = 1;
+                          p2 = p1 = TABLE;
+                          while (*p1)
+                            {
+                              if (*p1 == '\n')
+                                {
+                                  if (p1 - p2 > max_len)
+                                    max_len = p1 - p2;
+                                  p1++;
+                                  if (*(p2 = p1))
+                                    n++;
+                                }
+                              else
+                                p1++;
+                            }
+                          if (!pres)
+                            {
+                              /* the null terminated word */
+                              if (p1 - p2 > max_len)
+                                max_len = p1 - p2;
+                              pres = fs / (max_len + 2);	/* at least two
+                                                                 * separating spaces */
+                              if (!pres)
+                                pres = 1;
 
-			      /* This moves some entries from the right side
-			       * of the table to fill out the last line,
-			       * which makes the table look a bit nicer.
-			       * E.g.
-			       * (n=13,p=6)      (l=3,p=5)
-			       * X X X X X X     X X X X X
-			       * X X X X X X  -> X X X X X
-			       * X               X X X X
-			       *
-			       */
-			      len = (n - 1) / pres + 1;
-			      if (n > pres && n % pres)
-				pres -= (pres - n % pres) / len;
-			    }
-			  else
-			    {
-			      len = (n - 1) / pres + 1;
-			    }
-			  (*temp)->size = fs / pres;
-			  (*temp)->remainder = fs % pres;
-			  if (n < pres)
-			    {
-			      /* If we have fewer elements than columns,
-			       * pretend we are dealing with a smaller
-			       * table.
-			       */
-			      (*temp)->remainder +=
-				(pres - n) * ((*temp)->size);
-			      pres = n;
-			    }
+                              /* This moves some entries from the right side
+                               * of the table to fill out the last line,
+                               * which makes the table look a bit nicer.
+                               * E.g.
+                               * (n=13,p=6)      (l=3,p=5)
+                               * X X X X X X     X X X X X
+                               * X X X X X X  -> X X X X X
+                               * X               X X X X
+                               *
+                               */
+                              len = (n - 1) / pres + 1;
+                              if (n > pres && n % pres)
+                                pres -= (pres - n % pres) / len;
+                            }
+                          else
+                            {
+                              len = (n - 1) / pres + 1;
+                            }
+                          (*temp)->size = fs / pres;
+                          (*temp)->remainder = fs % pres;
+                          if (n < pres)
+                            {
+                              /* If we have fewer elements than columns,
+                               * pretend we are dealing with a smaller
+                               * table.
+                               */
+                              (*temp)->remainder +=
+                                (pres - n) * ((*temp)->size);
+                              pres = n;
+                            }
 
-			  (*temp)->d.tab = CALLOCATE (pres + 1, tab_data_t,
-						      TAG_TEMPORARY,
-						      "string_print: 5");
-			  (*temp)->nocols = pres;	/* heavy sigh */
-			  (*temp)->d.tab[0].start = TABLE;
-			  if (pres == 1)
-			    {
+                          (*temp)->d.tab = CALLOCATE (pres + 1, tab_data_t,
+                                                      TAG_TEMPORARY,
+                                                      "string_print: 5");
+                          (*temp)->nocols = pres;	/* heavy sigh */
+                          (*temp)->d.tab[0].start = TABLE;
+                          if (pres == 1)
+                            {
 
-			      (*temp)->d.tab[1].start =
-				TABLE + SVALUE_STRLEN (carg) + 1;
-			    }
-			  else
-			    {
-			      i = 1;	/* the next column number */
-			      n = 0;	/* the current "word" number in this
-					 * column */
+                              (*temp)->d.tab[1].start =
+                                TABLE + SVALUE_STRLEN (carg) + 1;
+                            }
+                          else
+                            {
+                              i = 1;	/* the next column number */
+                              n = 0;	/* the current "word" number in this
+                                         * column */
 
-			      p1 = TABLE;
-			      while (*p1)
-				{
-				  if (*p1++ == '\n' && ++n >= len)
-				    {
-				      (*temp)->d.tab[i++].start = p1;
-				      n = 0;
-				    }
-				}
-			      for (; i <= pres; i++)
-				(*temp)->d.tab[i].start = ++p1;
-			    }
-			  for (i = 0; i < pres; i++)
-			    (*temp)->d.tab[i].cur = (*temp)->d.tab[i].start;
+                              p1 = TABLE;
+                              while (*p1)
+                                {
+                                  if (*p1++ == '\n' && ++n >= len)
+                                    {
+                                      (*temp)->d.tab[i++].start = p1;
+                                      n = 0;
+                                    }
+                                }
+                              for (; i <= pres; i++)
+                                (*temp)->d.tab[i].start = ++p1;
+                            }
+                          for (i = 0; i < pres; i++)
+                            (*temp)->d.tab[i].cur = (*temp)->d.tab[i].start;
 
-			  add_table (temp);
-			}
-		    }
-		  else
-		    {		/* not column or table */
-		      if (pres && pres < slen)
-			slen = pres;
-		      add_justified (carg->u.string, slen, &pad, fs, finfo,
-				     (((format_str
-					[fpos] != '\n')
-				       && (format_str[fpos] != '\0'))
-				      || ((finfo & INFO_ARRAY)
-					  && (nelemno <
-					      (argv + cur_arg)->u.arr->size)))
-				     || carg->u.string[slen - 1] != '\n');
-		    }
-		}
-	      else if (finfo & INFO_T_INT)
-		{		/* one of the integer
-				 * types */
-		  char cheat[8];
-		  char temp[100];
+                          add_table (temp);
+                        }
+                    }
+                  else
+                    {		/* not column or table */
+                      if (pres && pres < slen)
+                        slen = pres;
+                      add_justified (carg->u.string, slen, &pad, fs, finfo,
+                                     (((format_str
+                                        [fpos] != '\n')
+                                       && (format_str[fpos] != '\0'))
+                                      || ((finfo & INFO_ARRAY)
+                                          && (nelemno <
+                                              (argv + cur_arg)->u.arr->size)))
+                                     || carg->u.string[slen - 1] != '\n');
+                    }
+                }
+              else if (finfo & INFO_T_INT)
+                {		/* one of the integer
+                                 * types */
+                  char cheat[8];
+                  char temp[100];
 
-		  *cheat = '%';
-		  i = 1;
-		  switch (finfo & INFO_PP)
-		    {
-		    case INFO_PP_SPACE:
-		      cheat[i++] = ' ';
-		      break;
-		    case INFO_PP_PLUS:
-		      cheat[i++] = '+';
-		      break;
-		    }
-		  if (pres)
-		    {
-		      cheat[i++] = '.';
-		      sprintf (cheat + i, "%d", pres);
-		      i += strlen (cheat + i);
-		    }
-		  switch (finfo & INFO_T)
-		    {
-		    case INFO_T_INT:
-		      cheat[i++] = 'd';
-		      break;
-		    case INFO_T_FLOAT:
-		      cheat[i++] = 'f';
-		      break;
-		    case INFO_T_CHAR:
-		      cheat[i++] = 'c';
-		      break;
-		    case INFO_T_OCT:
-		      cheat[i++] = 'o';
-		      break;
-		    case INFO_T_HEX:
-		      cheat[i++] = 'x';
-		      break;
-		    case INFO_T_C_HEX:
-		      cheat[i++] = 'X';
-		      break;
-		    default:
-		      ERROR (ERR_BAD_INT_TYPE);
-		    }
-		  if ((cheat[i - 1] == 'f' && carg->type != T_REAL)
-		      || (cheat[i - 1] != 'f' && carg->type != T_NUMBER))
-		    {
-		      error
-			("ERROR: (s)printf(): Incorrect argument type to %%%c.\n",
-			 cheat[i - 1]);
-		    }
-		  cheat[i] = '\0';
+                  *cheat = '%';
+                  i = 1;
+                  switch (finfo & INFO_PP)
+                    {
+                    case INFO_PP_SPACE:
+                      cheat[i++] = ' ';
+                      break;
+                    case INFO_PP_PLUS:
+                      cheat[i++] = '+';
+                      break;
+                    }
+                  if (pres)
+                    {
+                      cheat[i++] = '.';
+                      sprintf (cheat + i, "%d", pres);
+                      i += strlen (cheat + i);
+                    }
+                  switch (finfo & INFO_T)
+                    {
+                    case INFO_T_INT:
+                      cheat[i++] = 'd';
+                      break;
+                    case INFO_T_FLOAT:
+                      cheat[i++] = 'f';
+                      break;
+                    case INFO_T_CHAR:
+                      cheat[i++] = 'c';
+                      break;
+                    case INFO_T_OCT:
+                      cheat[i++] = 'o';
+                      break;
+                    case INFO_T_HEX:
+                      cheat[i++] = 'x';
+                      break;
+                    case INFO_T_C_HEX:
+                      cheat[i++] = 'X';
+                      break;
+                    default:
+                      ERROR (ERR_BAD_INT_TYPE);
+                    }
+                  if ((cheat[i - 1] == 'f' && carg->type != T_REAL)
+                      || (cheat[i - 1] != 'f' && carg->type != T_NUMBER))
+                    {
+                      error
+                        ("ERROR: (s)printf(): Incorrect argument type to %%%c.\n",
+                         cheat[i - 1]);
+                    }
+                  cheat[i] = '\0';
 
-		  if (carg->type == T_REAL)
-		    {
-		      sprintf (temp, cheat, carg->u.real);
-		    }
-		  else
-		    sprintf (temp, cheat, carg->u.number);
-		  {
-		    int tmpl = strlen (temp);
+                  if (carg->type == T_REAL)
+                    {
+                      sprintf (temp, cheat, carg->u.real);
+                    }
+                  else
+                    sprintf (temp, cheat, carg->u.number);
+                  {
+                    int tmpl = strlen (temp);
 
-		    add_justified (temp, tmpl, &pad, fs, finfo,
-				   (((format_str
-				      [fpos] != '\n')
-				     && (format_str[fpos] != '\0'))
-				    || ((finfo & INFO_ARRAY)
-					&& (nelemno <
-					    (argv + cur_arg)->u.arr->size))));
-		  }
-		}
-	      else		/* type not found */
-		ERROR (ERR_UNDEFINED_TYPE);
-	      if (clean.type != T_NUMBER)
-		{
-		  free_svalue (&clean, "string_print_formatted");
-		  clean.type = T_NUMBER;
-		}
+                    add_justified (temp, tmpl, &pad, fs, finfo,
+                                   (((format_str
+                                      [fpos] != '\n')
+                                     && (format_str[fpos] != '\0'))
+                                    || ((finfo & INFO_ARRAY)
+                                        && (nelemno <
+                                            (argv + cur_arg)->u.arr->size))));
+                  }
+                }
+              else		/* type not found */
+                ERROR (ERR_UNDEFINED_TYPE);
+              if (clean.type != T_NUMBER)
+                {
+                  free_svalue (&clean, "string_print_formatted");
+                  clean.type = T_NUMBER;
+                }
 
-	      if (!(finfo & INFO_ARRAY))
-		break;
-	      if (nelemno >= (argv + cur_arg)->u.arr->size)
-		break;
-	      carg = (argv + cur_arg)->u.arr->item + nelemno++;
-	    }			/* end of while (1) */
-	  last = fpos;
-	  fpos--;		/* bout to get incremented */
-	}
+              if (!(finfo & INFO_ARRAY))
+                break;
+              if (nelemno >= (argv + cur_arg)->u.arr->size)
+                break;
+              carg = (argv + cur_arg)->u.arr->item + nelemno++;
+            }			/* end of while (1) */
+          last = fpos;
+          fpos--;		/* bout to get incremented */
+        }
     }				/* end of for (fpos=0; 1; fpos++) */
 
   outbuf_fix (&obuff);

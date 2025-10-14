@@ -154,35 +154,35 @@ skip_comment (char *tmp, int flag)
   for (;;)
     {
       while ((c = *++tmp) != '*')
-	{
-	  if (c == EOF)
-	    yyerror ("End of file in a comment");
-	  if (c == '\n')
-	    {
-	      nexpands = 0;
-	      current_line++;
-	      if (!fgets (yytext, MAXLINE - 1, yyin))
-		yyerror ("End of file in a comment");
-	      if (flag && yyout)
-		fputs (yytext, yyout);
-	      tmp = yytext - 1;
-	    }
-	}
+        {
+          if (c == EOF)
+            yyerror ("End of file in a comment");
+          if (c == '\n')
+            {
+              nexpands = 0;
+              current_line++;
+              if (!fgets (yytext, MAXLINE - 1, yyin))
+                yyerror ("End of file in a comment");
+              if (flag && yyout)
+                fputs (yytext, yyout);
+              tmp = yytext - 1;
+            }
+        }
       do
-	{
-	  if ((c = *++tmp) == '/')
-	    return tmp + 1;
-	  if (c == '\n')
-	    {
-	      nexpands = 0;
-	      current_line++;
-	      if (!fgets (yytext, MAXLINE - 1, yyin))
-		yyerror ("End of file in a comment");
-	      if (flag && yyout)
-		fputs (yytext, yyout);
-	      tmp = yytext - 1;
-	    }
-	}
+        {
+          if ((c = *++tmp) == '/')
+            return tmp + 1;
+          if (c == '\n')
+            {
+              nexpands = 0;
+              current_line++;
+              if (!fgets (yytext, MAXLINE - 1, yyin))
+                yyerror ("End of file in a comment");
+              if (flag && yyout)
+                fputs (yytext, yyout);
+              tmp = yytext - 1;
+            }
+        }
       while (c == '*');
     }
 }
@@ -196,19 +196,19 @@ refill ()
   if (fgets (p = yyp = defbuf + (DEFMAX >> 1), MAXLINE - 1, yyin))
     {
       while (((c = *yyp++) != '\n') && (c != EOF))
-	{
-	  if (c == '/')
-	    {
-	      if ((c = *yyp) == '*')
-		{
-		  yyp = skip_comment (yyp, 0);
-		  continue;
-		}
-	      else if (c == '/')
-		break;
-	    }
-	  *p++ = (char) c;
-	}
+        {
+          if (c == '/')
+            {
+              if ((c = *yyp) == '*')
+                {
+                  yyp = skip_comment (yyp, 0);
+                  continue;
+                }
+              else if (c == '/')
+                break;
+            }
+          *p++ = (char) c;
+        }
     }
   else
     yyerror ("End of macro definition in \\");
@@ -232,9 +232,9 @@ handle_define ()
   while (isalunum (*tmp))
     {
       if (q < end)
-	*q++ = *tmp++;
+        *q++ = *tmp++;
       else
-	yyerror ("Name too long.\n");
+        yyerror ("Name too long.\n");
     }
   if (q == namebuf)
     yyerror ("Macro name missing.\n");
@@ -248,109 +248,109 @@ handle_define ()
       tmp++;			/* skip '(' */
       SKIPW (tmp);
       if (*tmp == ')')
-	{
-	  arg = 0;
-	}
+        {
+          arg = 0;
+        }
       else
-	{
-	  for (arg = 0; arg < NARGS;)
-	    {
-	      end = (q = args[arg]) + NSIZE - 1;
-	      while (isalunum (*tmp) || (*tmp == '#'))
-		{
-		  if (q < end)
-		    *q++ = *tmp++;
-		  else
-		    yyerror ("Name too long.\n");
-		}
-	      if (q == args[arg])
-		{
-		  char buff[200];
-		  sprintf (buff,
-			   "Missing argument %d in #define parameter list",
-			   arg + 1);
-		  yyerror (buff);
-		}
-	      arg++;
-	      SKIPW (tmp);
-	      if (*tmp == ')')
-		break;
-	      if (*tmp++ != ',')
-		{
-		  yyerror ("Missing ',' in #define parameter list");
-		}
-	      SKIPW (tmp);
-	    }
-	  if (arg == NARGS)
-	    yyerror ("Too many macro arguments");
-	}
+        {
+          for (arg = 0; arg < NARGS;)
+            {
+              end = (q = args[arg]) + NSIZE - 1;
+              while (isalunum (*tmp) || (*tmp == '#'))
+                {
+                  if (q < end)
+                    *q++ = *tmp++;
+                  else
+                    yyerror ("Name too long.\n");
+                }
+              if (q == args[arg])
+                {
+                  char buff[200];
+                  sprintf (buff,
+                           "Missing argument %d in #define parameter list",
+                           arg + 1);
+                  yyerror (buff);
+                }
+              arg++;
+              SKIPW (tmp);
+              if (*tmp == ')')
+                break;
+              if (*tmp++ != ',')
+                {
+                  yyerror ("Missing ',' in #define parameter list");
+                }
+              SKIPW (tmp);
+            }
+          if (arg == NARGS)
+            yyerror ("Too many macro arguments");
+        }
       tmp++;			/* skip ')' */
       end = mtext + MLEN - 2;
       for (inid = 0, q = mtext; *tmp;)
-	{
-	  if (isalunum (*tmp))
-	    {
-	      if (!inid)
-		{
-		  inid++;
-		  ids = tmp;
-		}
-	    }
-	  else
-	    {
-	      if (inid)
-		{
-		  size_t idlen = tmp - ids;
-		  int n, l;
+        {
+          if (isalunum (*tmp))
+            {
+              if (!inid)
+                {
+                  inid++;
+                  ids = tmp;
+                }
+            }
+          else
+            {
+              if (inid)
+                {
+                  size_t idlen = tmp - ids;
+                  size_t l;
 
-		  for (n = 0; n < arg; n++)
-		    {
-		      l = (int) strlen (args[n]);
-		      if (l == idlen && strncmp (args[n], ids, l) == 0)
-			{
-			  q -= idlen;
-			  *q++ = MARKS;
-			  *q++ = (char) (n + MARKS + 1);
-			  break;
-			}
-		    }
-		  inid = 0;
-		}
-	    }
-	  if ((*q = *tmp++) == MARKS)
-	    *++q = MARKS;
-	  if (q < end)
-	    q++;
-	  else
-	    yyerror ("Macro text too long");
-	  if (!*tmp && tmp[-2] == '\\')
-	    {
-	      q -= 2;
-	      refill ();
-	      tmp = defbuf + (DEFMAX >> 1);
-	    }
-	}
+                  for (int n = 0; n < arg; n++)
+                    {
+                      l = strlen (args[n]);
+                      if (l == idlen && strncmp (args[n], ids, l) == 0)
+                        {
+                          q -= idlen;
+                          *q++ = MARKS;
+                          *q++ = (char) (n + MARKS + 1);
+                          break;
+                        }
+                    }
+                  inid = 0;
+                }
+            }
+          if ((*q = *tmp++) == MARKS)
+            *++q = MARKS;
+          if (q < end)
+            q++;
+          else
+            yyerror ("Macro text too long");
+          if (!*tmp && tmp[-2] == '\\')
+            {
+              q -= 2;
+              refill ();
+              tmp = defbuf + (DEFMAX >> 1);
+            }
+        }
       *--q = 0;
       add_define (namebuf, arg, mtext);
     }
   else if (isspace (*tmp) || (!*tmp)) {
-		*(tmp + 1) = '\0';
-		 *tmp = ' ';
+                *(tmp + 1) = '\0';
+                 *tmp = ' ';
       end = mtext + MLEN - 2;
       for (q = mtext; *tmp;)
-	{
-	  *q = *tmp++;
-	  if (q < end)
-	    q++;
-	  else
-	    yyerror ("Macro text too long");
-	  if (!*tmp && tmp[-2] == '\\')
-	    {
-	      q -= 2;
-	      refill ();
-	      tmp = defbuf + (DEFMAX >> 1);
-	    }
-	}
+        {
+          *q = *tmp++;
+          if (q < end)
+            q++;
+          else
+            yyerror ("Macro text too long");
+          if (!*tmp && tmp[-2] == '\\')
+            {
+              q -= 2;
+              refill ();
+              tmp = defbuf + (DEFMAX >> 1);
+            }
+        }
       *q = 0;
       add_define (namebuf, -1, mtext);
     }
@@ -371,16 +371,16 @@ cmygetc ()
   for (;;)
     {
       if ((c = *outptr++) == '/')
-	{
-	  if ((c = *outptr) == '*')
-	    outptr = skip_comment (outptr, 0);
-	  else if (c == '/')
-	    return -1;
-	  else
-	    return c;
-	}
+        {
+          if ((c = *outptr) == '*')
+            outptr = skip_comment (outptr, 0);
+          else if (c == '/')
+            return -1;
+          else
+            return c;
+        }
       else
-	return c;
+        return c;
     }
 }
 
@@ -410,125 +410,125 @@ expand_define ()
 
       SKPW;
       if (*outptr++ != '(')
-	yyerror ("Missing '(' in macro call");
+        yyerror ("Missing '(' in macro call");
       SKPW;
       if ((c = *outptr++) == ')')
-	n = 0;
+        n = 0;
       else
-	{
-	  q = expbuf;
-	  args[0] = q;
-	  for (n = 0; n < NARGS;)
-	    {
-	      switch (c)
-		{
-		case '"':
-		  if (!squote)
-		    dquote ^= 1;
-		  break;
-		case '\'':
-		  if (!dquote)
-		    squote ^= 1;
-		  break;
-		case '(':
-		  if (!squote && !dquote)
-		    parcnt++;
-		  break;
-		case ')':
-		  if (!squote && !dquote)
-		    parcnt--;
-		  break;
-		case '#':
-		  if (!squote && !dquote)
-		    {
-		      *q++ = (char) c;
-		      if (*outptr++ != '#')
-			yyerror ("'#' expected");
-		    }
-		  break;
-		case '\\':
-		  if (squote || dquote)
-		    {
-		      *q++ = (char) c;
-		      c = *outptr++;
-		    }
-		  break;
-		case '\n':
-		  if (squote || dquote)
-		    yyerror ("Newline in string");
-		  break;
-		}
-	      if (c == ',' && !parcnt && !dquote && !squote)
-		{
-		  *q++ = 0;
-		  args[++n] = q;
-		}
-	      else if (parcnt < 0)
-		{
-		  *q++ = 0;
-		  n++;
-		  break;
-		}
-	      else
-		{
-		  if (c == EOF)
-		    yyerror ("Unexpected end of file");
-		  if (q >= expbuf + DEFMAX - 5)
-		    {
-		      yyerror ("Macro argument overflow");
-		    }
-		  else
-		    {
-		      *q++ = (char) c;
-		    }
-		}
-	      if (!squote && !dquote)
-		{
-		  if ((c = cmygetc ()) < 0)
-		    yyerror ("End of macro in // comment");
-		}
-	      else
-		c = *outptr++;
-	    }
-	  if (n == NARGS)
-	    {
-	      yyerror ("Maximum macro argument count exceeded");
-	      return 0;
-	    }
-	}
+        {
+          q = expbuf;
+          args[0] = q;
+          for (n = 0; n < NARGS;)
+            {
+              switch (c)
+                {
+                case '"':
+                  if (!squote)
+                    dquote ^= 1;
+                  break;
+                case '\'':
+                  if (!dquote)
+                    squote ^= 1;
+                  break;
+                case '(':
+                  if (!squote && !dquote)
+                    parcnt++;
+                  break;
+                case ')':
+                  if (!squote && !dquote)
+                    parcnt--;
+                  break;
+                case '#':
+                  if (!squote && !dquote)
+                    {
+                      *q++ = (char) c;
+                      if (*outptr++ != '#')
+                        yyerror ("'#' expected");
+                    }
+                  break;
+                case '\\':
+                  if (squote || dquote)
+                    {
+                      *q++ = (char) c;
+                      c = *outptr++;
+                    }
+                  break;
+                case '\n':
+                  if (squote || dquote)
+                    yyerror ("Newline in string");
+                  break;
+                }
+              if (c == ',' && !parcnt && !dquote && !squote)
+                {
+                  *q++ = 0;
+                  args[++n] = q;
+                }
+              else if (parcnt < 0)
+                {
+                  *q++ = 0;
+                  n++;
+                  break;
+                }
+              else
+                {
+                  if (c == EOF)
+                    yyerror ("Unexpected end of file");
+                  if (q >= expbuf + DEFMAX - 5)
+                    {
+                      yyerror ("Macro argument overflow");
+                    }
+                  else
+                    {
+                      *q++ = (char) c;
+                    }
+                }
+              if (!squote && !dquote)
+                {
+                  if ((c = cmygetc ()) < 0)
+                    yyerror ("End of macro in // comment");
+                }
+              else
+                c = *outptr++;
+            }
+          if (n == NARGS)
+            {
+              yyerror ("Maximum macro argument count exceeded");
+              return 0;
+            }
+        }
       if (n != p->nargs)
-	{
-	  yyerror ("Wrong number of macro arguments");
-	  return 0;
-	}
+        {
+          yyerror ("Wrong number of macro arguments");
+          return 0;
+        }
       /* Do expansion */
       b = xbuf;
       e = p->exps;
       while (*e)
-	{
-	  if (*e == '#' && *(e + 1) == '#')
-	    e += 2;
-	  if (*e == MARKS)
-	    {
-	      if (*++e == MARKS)
-		*b++ = *e++;
-	      else
-		{
-		  for (q = args[*e++ - MARKS - 1]; *q;)
-		    {
-		      *b++ = *q++;
-		      if (b >= xbuf + DEFMAX)
-			yyerror ("Macro expansion overflow");
-		    }
-		}
-	    }
-	  else
-	    {
-	      *b++ = *e++;
-	      if (b >= xbuf + DEFMAX)
-		yyerror ("Macro expansion overflow");
-	    }
-	}
+        {
+          if (*e == '#' && *(e + 1) == '#')
+            e += 2;
+          if (*e == MARKS)
+            {
+              if (*++e == MARKS)
+                *b++ = *e++;
+              else
+                {
+                  for (q = args[*e++ - MARKS - 1]; *q;)
+                    {
+                      *b++ = *q++;
+                      if (b >= xbuf + DEFMAX)
+                        yyerror ("Macro expansion overflow");
+                    }
+                }
+            }
+          else
+            {
+              *b++ = *e++;
+              if (b >= xbuf + DEFMAX)
+                yyerror ("Macro expansion overflow");
+            }
+        }
       *b++ = 0;
       add_input (xbuf);
     }
@@ -545,45 +545,45 @@ exgetc ()
     {
       yyp = yytext;
       do
-	{
-	  *yyp++ = c;
-	}
+        {
+          *yyp++ = c;
+        }
       while (isalnum (c = *++outptr) || (c == '_'));
       *yyp = '\0';
       if (!strcmp (yytext, "defined"))
-	{
-	  /* handle the defined "function" in #/%if */
-	  SKPW;
-	  if (*outptr++ != '(')
-	    yyerror ("Missing ( after 'defined'");
-	  SKPW;
-	  yyp = yytext;
-	  if (isalpha (c = *outptr) || c == '_')
-	    {
-	      do
-		{
-		  *yyp++ = c;
-		}
-	      while (isalnum (c = *++outptr) || (c == '_'));
-	      *yyp = '\0';
-	    }
-	  else
-	    yyerror ("Incorrect definition macro after defined(\n");
-	  SKPW;
-	  if (*outptr != ')')
-	    yyerror ("Missing ) in defined");
-	  if (lookup_define (yytext))
-	    add_input ("1 ");
-	  else
-	    add_input ("0 ");
-	}
+        {
+          /* handle the defined "function" in #/%if */
+          SKPW;
+          if (*outptr++ != '(')
+            yyerror ("Missing ( after 'defined'");
+          SKPW;
+          yyp = yytext;
+          if (isalpha (c = *outptr) || c == '_')
+            {
+              do
+                {
+                  *yyp++ = c;
+                }
+              while (isalnum (c = *++outptr) || (c == '_'));
+              *yyp = '\0';
+            }
+          else
+            yyerror ("Incorrect definition macro after defined(\n");
+          SKPW;
+          if (*outptr != ')')
+            yyerror ("Missing ) in defined");
+          if (lookup_define (yytext))
+            add_input ("1 ");
+          else
+            add_input ("0 ");
+        }
       else
-	{
-	  if (!expand_define ())
-	    add_input ("0 ");
-	  else
-	    SKPW;
-	}
+        {
+          if (!expand_define ())
+            add_input ("0 ");
+          else
+            SKPW;
+        }
     }
   return c;
 }
@@ -598,59 +598,59 @@ skip_to (char *token, char *atoken)
   for (nest = 0;;)
     {
       if (!fgets (outptr = defbuf + (DEFMAX >> 1), MAXLINE - 1, yyin))
-	{
-	  yyerror ("Unexpected end of file while skipping");
-	}
+        {
+          yyerror ("Unexpected end of file while skipping");
+        }
       current_line++;
       if ((c = *outptr++) == ppchar)
-	{
-	  while (isspace (*outptr))
-	    outptr++;
-	  end = b + sizeof b - 1;
-	  for (p = b; (c = *outptr++) != '\n' && !isspace (c) && c != EOF;)
-	    {
-	      if (p < end)
-		*p++ = (char) c;
-	    }
-	  *p = 0;
-	  if (!strcmp (b, "if") || !strcmp (b, "ifdef")
-	      || !strcmp (b, "ifndef"))
-	    {
-	      nest++;
-	    }
-	  else if (nest > 0)
-	    {
-	      if (!strcmp (b, "endif"))
-		nest--;
-	    }
-	  else
-	    {
-	      if (!strcmp (b, token))
-		{
-		  *--outptr = (char) c;
-		  add_input (b);
-		  *--outptr = ppchar;
-		  buffered = 1;
-		  return 1;
-		}
-	      else if (atoken && !strcmp (b, atoken))
-		{
-		  *--outptr = (char) c;
-		  add_input (b);
-		  *--outptr = ppchar;
-		  buffered = 1;
-		  return 0;
-		}
-	      else if (!strcmp (b, "elif"))
-		{
-		  *--outptr = (char) c;
-		  add_input (b);
-		  *--outptr = ppchar;
-		  buffered = 1;
-		  return !atoken;
-		}
-	    }
-	}
+        {
+          while (isspace (*outptr))
+            outptr++;
+          end = b + sizeof b - 1;
+          for (p = b; (c = *outptr++) != '\n' && !isspace (c) && c != EOF;)
+            {
+              if (p < end)
+                *p++ = (char) c;
+            }
+          *p = 0;
+          if (!strcmp (b, "if") || !strcmp (b, "ifdef")
+              || !strcmp (b, "ifndef"))
+            {
+              nest++;
+            }
+          else if (nest > 0)
+            {
+              if (!strcmp (b, "endif"))
+                nest--;
+            }
+          else
+            {
+              if (!strcmp (b, token))
+                {
+                  *--outptr = (char) c;
+                  add_input (b);
+                  *--outptr = ppchar;
+                  buffered = 1;
+                  return 1;
+                }
+              else if (atoken && !strcmp (b, atoken))
+                {
+                  *--outptr = (char) c;
+                  add_input (b);
+                  *--outptr = ppchar;
+                  buffered = 1;
+                  return 0;
+                }
+              else if (!strcmp (b, "elif"))
+                {
+                  *--outptr = (char) c;
+                  add_input (b);
+                  *--outptr = ppchar;
+                  buffered = 1;
+                  return !atoken;
+                }
+            }
+        }
     }
 }
 
@@ -701,7 +701,7 @@ protect (char *p)
   while (*p)
     {
       if (*p == '\"' || *p == '\\')
-	*bufp++ = '\\';
+        *bufp++ = '\\';
       *bufp++ = *p++;
     }
   *bufp = 0;
@@ -716,40 +716,40 @@ create_option_defines ()
   int i;
 
   fprintf (stderr, _("Writing option definitions to %s ...\n"),
-	   HEADER_OPTION);
+           HEADER_OPTION);
   open_output_file (HEADER_OPTION);
   fprintf (yyout, "{\n");
 
   for (i = 0; i < DEFHASH; i++)
     {
       for (p = defns[i]; p; p = p->next)
-	if (!(p->flags & DEF_IS_UNDEFINED))
-	  {
-	    count++;
-	    fprintf (yyout, "  \"__%s__\", \"%s\",\n",
-		     p->name, protect (p->exps));
-	    if (strncmp (p->name, "PACKAGE_", 8) == 0)
-	      {
-		size_t len;
-		char *tmp, *t;
+        if (!(p->flags & DEF_IS_UNDEFINED))
+          {
+            count++;
+            fprintf (yyout, "  \"__%s__\", \"%s\",\n",
+                     p->name, protect (p->exps));
+            if (strncmp (p->name, "PACKAGE_", 8) == 0)
+              {
+                size_t len;
+                char *tmp, *t;
 
-		len = strlen (p->name + 8);
-		t = tmp = (char *) malloc (len + 1);
-		strcpy (tmp, p->name + 8);
-		while (*t)
-		  {
-		    if (isupper (*t))
-		      *t = (char) tolower (*t);
-		    t++;
-		  }
-		if (num_packages == 100)
-		  {
-		    fprintf (stderr, "Too many packages.\n");
-		    exit (-1);
-		  }
-		packages[num_packages++] = tmp;
-	      }
-	  }
+                len = strlen (p->name + 8);
+                t = tmp = (char *) malloc (len + 1);
+                strcpy (tmp, p->name + 8);
+                while (*t)
+                  {
+                    if (isupper (*t))
+                      *t = (char) tolower (*t);
+                    t++;
+                  }
+                if (num_packages == 100)
+                  {
+                    fprintf (stderr, "Too many packages.\n");
+                    exit (-1);
+                  }
+                packages[num_packages++] = tmp;
+              }
+          }
     }
   fprintf (yyout, "};\n\n#define NUM_OPTION_DEFS %d\n\n", count);
   close_output_file ();
@@ -780,20 +780,20 @@ handle_include (char *name)
     {
       defn_t *d;
 
-	  d = lookup_define (name);
+          d = lookup_define (name);
       if (d && d->nargs == -1)
-	{
-	  char *q;
+        {
+          char *q;
 
-	  q = d->exps;
-	  while (isspace (*q))
-	    q++;
-	  handle_include (q);
-	}
+          q = d->exps;
+          while (isspace (*q))
+            q++;
+          handle_include (q);
+        }
       else
-	{
-	  yyerrorp ("Missing leading \" in %cinclude");
-	}
+        {
+          yyerrorp ("Missing leading \" in %cinclude");
+        }
       return;
     }
   for (p = ++name; *p && *p != '"'; p++);
@@ -804,7 +804,7 @@ handle_include (char *name)
   if ((f = fopen (name, "r")) != NULL)
     {
       is = (incstate *)
-	malloc (sizeof (incstate) /*, 61, "handle_include: 1" */ );
+        malloc (sizeof (incstate) /*, 61, "handle_include: 1" */ );
       is->yyin = yyin;
       is->line = current_line;
       is->file = current_file;
@@ -812,7 +812,7 @@ handle_include (char *name)
       inctop = is;
       current_line = 0;
       current_file =
-	(char *) malloc (strlen (name) + 1 /*, 62, "handle_include: 2" */ );
+        (char *) malloc (strlen (name) + 1 /*, 62, "handle_include: 2" */ );
       strcpy (current_file, name);
       yyin = f;
     }
@@ -844,274 +844,274 @@ preprocess ()
   int cond;
 
   while (buffered ? (yyp = yyp2 = outptr) :
-	 fgets (yyp = yyp2 = defbuf + (DEFMAX >> 1), MAXLINE - 1, yyin))
+         fgets (yyp = yyp2 = defbuf + (DEFMAX >> 1), MAXLINE - 1, yyin))
     {
       if (!buffered)
-	current_line++;
+        current_line++;
       else
-	buffered = 0;
+        buffered = 0;
       while (isspace (*yyp2))
-	yyp2++;
+        yyp2++;
       if ((c = *yyp2) == ppchar)
-	{
-	  int quote = 0;
-	  char sp_buf = 0, *oldoutp = NULL;
+        {
+          int quote = 0;
+          char sp_buf = 0, *oldoutp = NULL;
 
-	  if (c == '%' && yyp2[1] == '%')
-	    grammar_mode++;
-	  outptr = 0;
-	  if (yyp != yyp2)
-	    yyerrorp ("Misplaced '%c'.\n");
-	  while (isspace (*++yyp2));
-	  yyp++;
-	  for (;;)
-	    {
-	      if ((c = *yyp2++) == '"')
-		quote ^= 1;
-	      else
-		{
-		  if (!quote && c == '/')
-		    {
-		      if (*yyp2 == '*')
-			{
-			  yyp2 = skip_comment (yyp2, 0);
-			  continue;
-			}
-		      else if (*yyp2 == '/')
-			break;
-		    }
-		  if (!outptr && isspace (c))
-		    outptr = yyp;
-		  if (c == '\n' || c == EOF)
-		    break;
-		}
-	      *yyp++ = (char) c;
-	    }
+          if (c == '%' && yyp2[1] == '%')
+            grammar_mode++;
+          outptr = 0;
+          if (yyp != yyp2)
+            yyerrorp ("Misplaced '%c'.\n");
+          while (isspace (*++yyp2));
+          yyp++;
+          for (;;)
+            {
+              if ((c = *yyp2++) == '"')
+                quote ^= 1;
+              else
+                {
+                  if (!quote && c == '/')
+                    {
+                      if (*yyp2 == '*')
+                        {
+                          yyp2 = skip_comment (yyp2, 0);
+                          continue;
+                        }
+                      else if (*yyp2 == '/')
+                        break;
+                    }
+                  if (!outptr && isspace (c))
+                    outptr = yyp;
+                  if (c == '\n' || c == EOF)
+                    break;
+                }
+              *yyp++ = (char) c;
+            }
 
-	  if (outptr)
-	    {
-	      if (yyout)
-		sp_buf = *(oldoutp = outptr);
-	      *outptr++ = 0;
-	      while (isspace (*outptr))
-		outptr++;
-	    }
-	  else
-	    outptr = yyp;
-	  *yyp = 0;
-	  yyp = defbuf + (DEFMAX >> 1) + 1;
+          if (outptr)
+            {
+              if (yyout)
+                sp_buf = *(oldoutp = outptr);
+              *outptr++ = 0;
+              while (isspace (*outptr))
+                outptr++;
+            }
+          else
+            outptr = yyp;
+          *yyp = 0;
+          yyp = defbuf + (DEFMAX >> 1) + 1;
 
-	  if (!strcmp ("define", yyp))
-	    {
-	      handle_define ();
-	    }
-	  else if (!strcmp ("if", yyp))
-	    {
-	      cond = cond_get_exp (0);
-	      if (*outptr != '\n')
-		yyerrorp ("Condition too complex in %cif");
-	      else
-		handle_cond (cond);
-	    }
-	  else if (!strcmp ("ifdef", yyp))
-	    {
-	      deltrail ();
-	      handle_cond (lookup_define (outptr) != 0);
-	    }
-	  else if (!strcmp ("ifndef", yyp))
-	    {
-	      deltrail ();
-	      handle_cond (!lookup_define (outptr));
-	    }
-	  else if (!strcmp ("elif", yyp))
-	    {
-	      handle_elif ();
-	    }
-	  else if (!strcmp ("else", yyp))
-	    {
-	      handle_else ();
-	    }
-	  else if (!strcmp ("endif", yyp))
-	    {
-	      handle_endif ();
-	    }
-	  else if (!strcmp ("undef", yyp))
-	    {
-	      defn_t *d;
+          if (!strcmp ("define", yyp))
+            {
+              handle_define ();
+            }
+          else if (!strcmp ("if", yyp))
+            {
+              cond = cond_get_exp (0);
+              if (*outptr != '\n')
+                yyerrorp ("Condition too complex in %cif");
+              else
+                handle_cond (cond);
+            }
+          else if (!strcmp ("ifdef", yyp))
+            {
+              deltrail ();
+              handle_cond (lookup_define (outptr) != 0);
+            }
+          else if (!strcmp ("ifndef", yyp))
+            {
+              deltrail ();
+              handle_cond (!lookup_define (outptr));
+            }
+          else if (!strcmp ("elif", yyp))
+            {
+              handle_elif ();
+            }
+          else if (!strcmp ("else", yyp))
+            {
+              handle_else ();
+            }
+          else if (!strcmp ("endif", yyp))
+            {
+              handle_endif ();
+            }
+          else if (!strcmp ("undef", yyp))
+            {
+              defn_t *d;
 
-	      deltrail ();
-		  d = lookup_definition (outptr);
-	      if (d) {
-		  d->flags |= DEF_IS_UNDEFINED;
-		  d->flags &= ~DEF_IS_NOT_LOCAL;
-		}
-	      else
-		{
-		  add_define (outptr, -1, " ");
-		  d = lookup_definition (outptr);
-		  d->flags |= DEF_IS_UNDEFINED;
-		  d->flags &= ~DEF_IS_NOT_LOCAL;
-		}
-	    }
-	  else if (!strcmp ("echo", yyp))
-	    {
-	      fprintf (stderr, "echo at line %d of %s: %s\n", current_line,
-		       current_file, outptr);
-	    }
-	  else if (!strcmp ("include", yyp))
-	    {
-	      handle_include (outptr);
-	    }
-	  else if (!strcmp ("pragma", yyp))
-	    {
-	      handle_pragma (outptr);
-	    }
-	  else if (yyout)
-	    {
-	      if (!strcmp ("line", yyp))
-		{
-		  fprintf (yyout, "#line %d \"%s\"\n", current_line,
-			   current_file);
-		}
-	      else
-		{
-		  if (sp_buf)
-		    *oldoutp = sp_buf;
-		  if (pragmas & PRAGMA_NOTE_CASE_START)
-		    {
-		      if (*yyp == '%')
-			pragmas &= ~PRAGMA_NOTE_CASE_START;
-		    }
-		  fprintf (yyout, "%s\n", yyp - 1);
-		}
-	    }
-	  else
-	    {
-	      char buff[200];
-	      sprintf (buff, "Unrecognised %c directive : %s\n", ppchar, yyp);
-	      yyerror (buff);
-	    }
-	}
+              deltrail ();
+                  d = lookup_definition (outptr);
+              if (d) {
+                  d->flags |= DEF_IS_UNDEFINED;
+                  d->flags &= ~DEF_IS_NOT_LOCAL;
+                }
+              else
+                {
+                  add_define (outptr, -1, " ");
+                  d = lookup_definition (outptr);
+                  d->flags |= DEF_IS_UNDEFINED;
+                  d->flags &= ~DEF_IS_NOT_LOCAL;
+                }
+            }
+          else if (!strcmp ("echo", yyp))
+            {
+              fprintf (stderr, "echo at line %d of %s: %s\n", current_line,
+                       current_file, outptr);
+            }
+          else if (!strcmp ("include", yyp))
+            {
+              handle_include (outptr);
+            }
+          else if (!strcmp ("pragma", yyp))
+            {
+              handle_pragma (outptr);
+            }
+          else if (yyout)
+            {
+              if (!strcmp ("line", yyp))
+                {
+                  fprintf (yyout, "#line %d \"%s\"\n", current_line,
+                           current_file);
+                }
+              else
+                {
+                  if (sp_buf)
+                    *oldoutp = sp_buf;
+                  if (pragmas & PRAGMA_NOTE_CASE_START)
+                    {
+                      if (*yyp == '%')
+                        pragmas &= ~PRAGMA_NOTE_CASE_START;
+                    }
+                  fprintf (yyout, "%s\n", yyp - 1);
+                }
+            }
+          else
+            {
+              char buff[200];
+              sprintf (buff, "Unrecognised %c directive : %s\n", ppchar, yyp);
+              yyerror (buff);
+            }
+        }
       else if (c == '/')
-	{
-	  if ((c = *++yyp2) == '*')
-	    {
-	      if (yyout)
-		fputs (yyp, yyout);
-	      yyp2 = skip_comment (yyp2, 1);
-	    }
-	  else if (c == '/' && !yyout)
-	    continue;
-	  else if (yyout)
-	    {
-	      fprintf (yyout, "%s", yyp);
-	    }
-	}
+        {
+          if ((c = *++yyp2) == '*')
+            {
+              if (yyout)
+                fputs (yyp, yyout);
+              yyp2 = skip_comment (yyp2, 1);
+            }
+          else if (c == '/' && !yyout)
+            continue;
+          else if (yyout)
+            {
+              fprintf (yyout, "%s", yyp);
+            }
+        }
       else if (yyout)
-	{
-	  fprintf (yyout, "%s", yyp);
-	  if (pragmas & PRAGMA_NOTE_CASE_START)
-	    {
-	      static int line_to_print;
+        {
+          fprintf (yyout, "%s", yyp);
+          if (pragmas & PRAGMA_NOTE_CASE_START)
+            {
+              static int line_to_print;
 
-	      line_to_print = 0;
+              line_to_print = 0;
 
-	      if (!in_c_case)
-		{
-		  while (isalunum (*yyp2))
-		    yyp2++;
-		  while (isspace (*yyp2))
-		    yyp2++;
-		  if (*yyp2 == ':')
-		    {
-		      in_c_case = 1;
-		      yyp2++;
-		    }
-		}
+              if (!in_c_case)
+                {
+                  while (isalunum (*yyp2))
+                    yyp2++;
+                  while (isspace (*yyp2))
+                    yyp2++;
+                  if (*yyp2 == ':')
+                    {
+                      in_c_case = 1;
+                      yyp2++;
+                    }
+                }
 
-	      if (in_c_case)
-		{
-		  while ((c = *yyp2++))
-		    {
-		      switch (c)
-			{
-			case '{':
-			  {
-			    if (!cquote && (++block_nest == 1))
-			      line_to_print = 1;
-			    break;
-			  }
+              if (in_c_case)
+                {
+                  while ((c = *yyp2++))
+                    {
+                      switch (c)
+                        {
+                        case '{':
+                          {
+                            if (!cquote && (++block_nest == 1))
+                              line_to_print = 1;
+                            break;
+                          }
 
-			case '}':
-			  {
-			    if (!cquote)
-			      {
-				if (--block_nest < 0)
-				  yyerror ("Too many }'s");
-			      }
-			    break;
-			  }
+                        case '}':
+                          {
+                            if (!cquote)
+                              {
+                                if (--block_nest < 0)
+                                  yyerror ("Too many }'s");
+                              }
+                            break;
+                          }
 
-			case '"':
-			  if (!(cquote & CHAR_QUOTE))
-			    cquote ^= STRING_QUOTE;
-			  break;
+                        case '"':
+                          if (!(cquote & CHAR_QUOTE))
+                            cquote ^= STRING_QUOTE;
+                          break;
 
-			case '\'':
-			  if (!(cquote & STRING_QUOTE))
-			    cquote ^= CHAR_QUOTE;
-			  break;
+                        case '\'':
+                          if (!(cquote & STRING_QUOTE))
+                            cquote ^= CHAR_QUOTE;
+                          break;
 
-			case '\\':
-			  if (cquote && *yyp2)
-			    yyp2++;
-			  break;
+                        case '\\':
+                          if (cquote && *yyp2)
+                            yyp2++;
+                          break;
 
-			case '/':
-			  if (!cquote)
-			    {
-			      if ((c = *yyp2) == '*')
-				{
-				  yyp2 = skip_comment (yyp2, 1);
-				}
-			      else if (c == '/')
-				{
-				  *(yyp2 - 1) = '\n';
-				  *yyp2 = '\0';
-				}
-			    }
-			  break;
+                        case '/':
+                          if (!cquote)
+                            {
+                              if ((c = *yyp2) == '*')
+                                {
+                                  yyp2 = skip_comment (yyp2, 1);
+                                }
+                              else if (c == '/')
+                                {
+                                  *(yyp2 - 1) = '\n';
+                                  *yyp2 = '\0';
+                                }
+                            }
+                          break;
 
-			case ':':
-			  if (!cquote && !block_nest)
-			    yyerror
-			      ("Case started before ending previous case with ;");
-			  break;
+                        case ':':
+                          if (!cquote && !block_nest)
+                            yyerror
+                              ("Case started before ending previous case with ;");
+                          break;
 
-			case ';':
-			  if (!cquote && !block_nest)
-			    in_c_case = 0;
-			}
-		    }
-		}
+                        case ';':
+                          if (!cquote && !block_nest)
+                            in_c_case = 0;
+                        }
+                    }
+                }
 
-	      if (line_to_print)
-		fprintf (yyout, "#line %d \"%s\"\n", current_line + 1,
-			 current_file);
+              if (line_to_print)
+                fprintf (yyout, "#line %d \"%s\"\n", current_line + 1,
+                         current_file);
 
-	    }
-	}
+            }
+        }
     }
   if (iftop)
     {
       ifstate_t *p = iftop;
 
       while (iftop)
-	{
-	  p = iftop;
-	  iftop = p->next;
-	  free (p);
-	}
+        {
+          p = iftop;
+          iftop = p->next;
+          free (p);
+        }
       yyerrorp ("Missing %cendif");
     }
   fclose (yyin);
@@ -1148,13 +1148,13 @@ make_efun_tables ()
       fprintf (stderr, "Writing efun tables to %s ...\n", outfiles[i]);
       files[i] = fopen (outfiles[i], "w");
       if (!files[i])
-	{
-	  fprintf (stderr, "make_func: unable to open %s\n", outfiles[i]);
-	  exit (-1);
-	}
+        {
+          fprintf (stderr, "make_func: unable to open %s\n", outfiles[i]);
+          exit (-1);
+        }
       fprintf (files[i], "/*\n\tThis file is automatically generated.\n");
       fprintf (files[i],
-	       "\tDo not make any manual changes to this file.\n*/\n\n");
+               "\tDo not make any manual changes to this file.\n*/\n\n");
     }
 
   fprintf (files[0], "\n#include \"%s\"\n\n", HEADER_PROTOTYPE);
@@ -1172,17 +1172,17 @@ make_efun_tables ()
     {
       fprintf (files[0], "\tf_%s,\n", efun1_names[i]);
       fprintf (files[1], "#define %-30s %d\n", efun1_codes[i],
-	       i + op_code + 1);
+               i + op_code + 1);
       fprintf (files[2], "void f_%s(void);\n", efun1_names[i]);
     }
 
   fprintf (files[1], "\n/* efuns */\n#define ONEARG_MAX %d\n\n",
-	   efun1_code + op_code + 1);
+           efun1_code + op_code + 1);
   for (i = 0; i < efun_code; i++)
     {
       fprintf (files[0], "\tf_%s,\n", efun_names[i]);
       fprintf (files[1], "#define %-30s %d\n", efun_codes[i],
-	       i + op_code + efun1_code + 1);
+               i + op_code + efun1_code + 1);
       fprintf (files[2], "void f_%s(void);\n", efun_names[i]);
     }
   fprintf (files[0], "};\n");
@@ -1190,31 +1190,31 @@ make_efun_tables ()
   if (efun1_code + op_code >= 256)
     {
       fprintf (stderr,
-	       "You have way too many efuns.  Contact the MudOS developers if you really need this many.\n");
+               "You have way too many efuns.  Contact the MudOS developers if you really need this many.\n");
     }
   if (efun_code >= 256)
     {
       fprintf (stderr,
-	       "You have way too many efuns.  Contact the MudOS developers if you really need this many.\n");
+               "You have way too many efuns.  Contact the MudOS developers if you really need this many.\n");
     }
   fprintf (files[1], "\n/* efuns */\n#define NUM_OPCODES %d\n\n",
-	   efun_code + efun1_code + op_code);
+           efun_code + efun1_code + op_code);
 
   /* Now sort the main_list */
   for (i = 0; i < num_buff; i++)
     {
       int j;
       for (j = 0; j < i; j++)
-	if (strcmp (key[i], key[j]) < 0)
-	  {
-	    char *tmp;
-	    tmp = key[i];
-	    key[i] = key[j];
-	    key[j] = tmp;
-	    tmp = buf[i];
-	    buf[i] = buf[j];
-	    buf[j] = tmp;
-	  }
+        if (strcmp (key[i], key[j]) < 0)
+          {
+            char *tmp;
+            tmp = key[i];
+            key[i] = key[j];
+            key[j] = tmp;
+            tmp = buf[i];
+            buf[i] = buf[j];
+            buf[j] = tmp;
+          }
     }
 
   /* Now display it... */
@@ -1225,9 +1225,9 @@ make_efun_tables ()
   for (i = 0; i < last_current_type; i++)
     {
       if (arg_types[i] == 0)
-	fprintf (files[3], "0,\n");
+        fprintf (files[3], "0,\n");
       else
-	fprintf (files[3], "%s,", ctype (arg_types[i]));
+        fprintf (files[3], "%s,", ctype (arg_types[i]));
     }
   fprintf (files[3], "};\n");
 
@@ -1252,10 +1252,10 @@ handle_options (char *fname)
 /*  handle_build_efuns()
 
     Generate the following files:
-	HEADER_VECTOR
-	HEADER_OPCODE
-	HEADER_PROTOTYPE
-	HEADER_DEFINITION
+        HEADER_VECTOR
+        HEADER_OPCODE
+        HEADER_PROTOTYPE
+        HEADER_DEFINITION
  */
 static void
 handle_build_efuns (const char *efun_spec)
