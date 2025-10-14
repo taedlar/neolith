@@ -13,12 +13,11 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "std.h"
-#include "lpc/types.h"
-#include "lpc/object.h"
+#include "src/std.h"
+#include "types.h"
+#include "object.h"
 #include "otable.h"
 #include "hash.h"
-#include "rc.h"
 
 #include "lpc/include/runtime_config.h"
 
@@ -49,13 +48,12 @@ static object_t *find_obj_n (char *);
 static object_t **obj_table = 0;
 
 void
-init_otable ()
+init_otable (size_t sz)
 {
-  int x, y;
+  int x;
 
   /* ensure that otable_size is a power of 2 */
-  y = CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__);
-  for (otable_size = 1; otable_size < y; otable_size *= 2)
+  for (otable_size = 1; otable_size < sz; otable_size *= 2)
     ;
   otable_size_minus_one = otable_size - 1;
   obj_table = CALLOCATE (otable_size, object_t *, TAG_OBJ_TBL, "init_otable");
@@ -88,16 +86,16 @@ find_obj_n (char *s)
     {
       obj_probes++;
       if (!strcmp (curr->name, s))
-	{			/* found it */
-	  if (prev)
-	    {			/* not at head of list */
-	      prev->next_hash = curr->next_hash;
-	      curr->next_hash = obj_table[h];
-	      obj_table[h] = curr;
-	    }
-	  objs_found++;
-	  return (curr);	/* pointer to object */
-	}
+        {			/* found it */
+          if (prev)
+            {			/* not at head of list */
+              prev->next_hash = curr->next_hash;
+              curr->next_hash = obj_table[h];
+              obj_table[h] = curr;
+            }
+          objs_found++;
+          return (curr);	/* pointer to object */
+        }
       prev = curr;
       curr = curr->next_hash;
     }
@@ -161,7 +159,7 @@ remove_object_hash (object_t * ob)
   s = find_obj_n (ob->name);	/* this sets h, and cycles the ob to the front */
 
   DEBUG_CHECK1 (s != ob, "Remove object \"/%s\": found a different object!",
-		ob->name);
+                ob->name);
 
   obj_table[h] = ob->next_hash;
   ob->next_hash = 0;
@@ -205,26 +203,22 @@ show_otable_status (outbuffer_t * out, int verbose)
       outbuf_add (out, "Object name hash table status:\n");
       outbuf_add (out, "------------------------------\n");
       sprintf (sbuf, "%10.2f",
-	       objs_in_table /
-	       (float) CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));
+               objs_in_table / (float) otable_size);
       outbuf_addv (out, "Average hash chain length:       %s\n", sbuf);
       sprintf (sbuf, "%10.2f", (float) obj_probes / obj_searches);
       outbuf_addv (out, "Average search length:           %s\n", sbuf);
       outbuf_addv (out, "Internal lookups (succeeded):    %u (%u)\n",
-		   obj_searches - user_obj_lookups,
-		   objs_found - user_obj_found);
+                   obj_searches - user_obj_lookups,
+                   objs_found - user_obj_found);
       outbuf_addv (out, "External lookups (succeeded):    %u (%u)\n",
-		   user_obj_lookups, user_obj_found);
+                   user_obj_lookups, user_obj_found);
     }
-  starts =
-    (int) CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__) * sizeof (object_t *) +
-    objs_in_table * sizeof (object_t);
+  starts = otable_size * sizeof (object_t *) + objs_in_table * sizeof (object_t);
 
   if (!verbose)
     {
       outbuf_addv (out, "Obj table overhead:\t\t%8d %8d\n",
-		   CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__) *
-		   sizeof (object_t *), starts);
+                   otable_size * sizeof (object_t *), starts);
     }
   return starts;
 }

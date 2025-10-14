@@ -25,7 +25,7 @@
 #include "backend.h"
 #include "simul_efun.h"
 #include "binaries.h"
-#include "otable.h"
+#include "lpc/otable.h"
 #include "comm.h"
 #include "main.h"
 #include "port/wrapper.h"
@@ -132,7 +132,7 @@ main (int argc, char **argv)
 
   init_strings ();		/* stralloc.c */
   init_objects ();		/* object.c */
-  init_otable ();		/* otable.c */
+  init_otable (__OBJECT_HASH_TABLE_SIZE__);		/* otable.c */
   init_identifiers ();		/* lex.c */
   init_locals ();		/* compiler.c */
 

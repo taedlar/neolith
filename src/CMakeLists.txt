@@ -17,7 +17,6 @@ set(neolith_SOURCES
     logger.c
     main.c
     malloc.c
-    otable.c
     program.c
     rc.c
     regexp.c

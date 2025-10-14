@@ -24,7 +24,7 @@
 #include "backend.h"
 #include "interpret.h"
 #include "simul_efun.h"
-#include "otable.h"
+#include "lpc/otable.h"
 #include "comm.h"
 #include "binaries.h"
 #include "socket/socket_efuns.h"
