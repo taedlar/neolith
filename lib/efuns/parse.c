@@ -28,7 +28,7 @@
 #include "parse.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
-#include "LPC/origin.h"
+#include "lpc/include/origin.h"
 #include "src/simulate.h"
 #include "src/interpret.h"
 #include "src/stralloc.h"

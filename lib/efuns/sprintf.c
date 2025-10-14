@@ -74,7 +74,7 @@
 #include "src/simulate.h"
 #include "src/interpret.h"
 #include "src/stralloc.h"
-#include "LPC/function.h"
+#include "lpc/include/function.h"
 #include "src/applies.h"
 #include "src/simul_efun.h"
 #include "src/lex.h"

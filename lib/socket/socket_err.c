@@ -19,7 +19,7 @@
  *   10-92 : Dave Richards (Cynosure) : less original coding.
  */
 
-#include "LPC/socket_err.h"
+#include "lpc/include/socket_err.h"
 
 char *error_strings[ERROR_STRINGS] = {
   "Problem creating socket",

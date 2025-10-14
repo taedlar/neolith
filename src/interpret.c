@@ -34,9 +34,9 @@
 #include "main.h"
 #include "regexp.h"
 #include "uids.h"
-#include "LPC/function.h"
-#include "LPC/runtime_config.h"
-#include "LPC/origin.h"
+#include "lpc/include/function.h"
+#include "lpc/include/runtime_config.h"
+#include "lpc/include/origin.h"
 #include "rc.h"
 #include "applies.h"
 

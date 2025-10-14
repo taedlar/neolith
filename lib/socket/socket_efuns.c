@@ -36,13 +36,13 @@
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/stralloc.h"
-#include "LPC/runtime_config.h"
-#include "LPC/origin.h"
+#include "lpc/include/runtime_config.h"
+#include "lpc/include/origin.h"
 #include "src/rc.h"
 #include "socket_efuns.h"
 #include "socket_err.h"
 #include "socket_ctrl.h"
-#include "LPC/socket_err.h"
+#include "lpc/include/socket_err.h"
 #include "efuns/operator.h"
 
 #define	socket_errno		errno

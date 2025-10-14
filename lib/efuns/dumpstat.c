@@ -20,7 +20,7 @@
 #include "lpc/mapping.h"
 #include "lpc/object.h"
 #include "src/program.h"
-#include "LPC/function.h"
+#include "lpc/include/function.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/comm.h"

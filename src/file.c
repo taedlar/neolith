@@ -25,7 +25,7 @@
 #include "std.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
-#include "LPC/runtime_config.h"
+#include "lpc/include/runtime_config.h"
 #include "rc.h"
 #include "main.h"
 #include "applies.h"
@@ -1046,19 +1046,19 @@ copy_file (char *from, char *to)
   static svalue_t to_sv = { T_NUMBER };
   extern svalue_t apply_ret_value;
 
-  /* ÀË¬d¬O§_¤¹³\Åª¨ú from */
+  /* ï¿½Ë¬dï¿½Oï¿½_ï¿½ï¿½ï¿½\Åªï¿½ï¿½ from */
   from = check_valid_path (from, current_object, "cp", 0);
   if (from == 0)
     return -1;
   assign_svalue (&from_sv, &apply_ret_value);
 
-  /* ÀË¬d¬O§_¤¹³\¼g¤J to */
+  /* ï¿½Ë¬dï¿½Oï¿½_ï¿½ï¿½ï¿½\ï¿½gï¿½J to */
   to = check_valid_path (to, current_object, "cp", 1);
   if (to == 0)
     return -2;
   assign_svalue (&to_sv, &apply_ret_value);
 
-  /* ¶}±Ò from */
+  /* ï¿½}ï¿½ï¿½ from */
   from_fd = open (from, O_RDONLY);
   if (from_fd < 0)
     {
@@ -1066,10 +1066,10 @@ copy_file (char *from, char *to)
       return (-1);
     }
 
-  /* ÀË¬d to ¬O§_¬°¥Ø¿ý */
+  /* ï¿½Ë¬d to ï¿½Oï¿½_ï¿½ï¿½ï¿½Ø¿ï¿½ */
   if (0 == stat (to, &st) && (S_IFDIR & st.st_mode))
     {
-      /* to ¬°¥Ø¿ý¦WºÙ¡A±N from ÀÉ¦W¥[¦b¥Ø¿ý¦WºÙ«á­± */
+      /* to ï¿½ï¿½ï¿½Ø¿ï¿½ï¿½Wï¿½Ù¡Aï¿½N from ï¿½É¦Wï¿½[ï¿½bï¿½Ø¿ï¿½ï¿½Wï¿½Ù«á­± */
       char *cp;
       char newto[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
 
@@ -1083,7 +1083,7 @@ copy_file (char *from, char *to)
       to = newto;
     }
 
-  /* ¶}±Ò to */
+  /* ï¿½}ï¿½ï¿½ to */
   to_fd = open (to, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (to_fd < 0)
     {
@@ -1092,7 +1092,7 @@ copy_file (char *from, char *to)
       return (-2);
     }
 
-  /* ½Æ»sÀÉ®× */
+  /* ï¿½Æ»sï¿½É®ï¿½ */
   while ((num_read = read (from_fd, buf, sizeof (buf))) != 0)
     {
       if (num_read < 0)

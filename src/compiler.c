@@ -34,7 +34,7 @@
 #include "lpc/object.h"
 #include "lpc/functional.h"
 
-#include "LPC/runtime_config.h"
+#include "lpc/include/runtime_config.h"
 
 static void clean_parser (void);
 static void prolog (int, char *);

@@ -32,7 +32,7 @@
 #include "array.h"
 #include "object.h"
 #include "src/program.h"
-#include "LPC/origin.h"
+#include "lpc/include/origin.h"
 
 #ifdef ARRAY_STATS
 int num_arrays;

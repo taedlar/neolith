@@ -17,7 +17,7 @@
  * code generator for runtime LPC code
  */
 #include "std.h"
-#include "LPC/function.h"
+#include "lpc/include/function.h"
 #include "interpret.h"
 #include "simulate.h"
 #include "icode.h"

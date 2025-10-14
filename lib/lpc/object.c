@@ -13,8 +13,8 @@
 #include "src/simulate.h"
 #include "src/simul_efun.h"
 #include "src/stralloc.h"
-#include "LPC/origin.h"
-#include "LPC/runtime_config.h"
+#include "lpc/include/origin.h"
+#include "lpc/include/runtime_config.h"
 #include "src/rc.h"
 #include "src/applies.h"
 

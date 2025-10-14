@@ -13,7 +13,7 @@
 #define	RC_H
 
 #include "lpc/types.h"
-#include "LPC/runtime_config.h"
+#include "lpc/include/runtime_config.h"
 
 #define CONFIG_STR(x)           config_str[(x) - BASE_CONFIG_STR]
 #define CONFIG_INT(x)           config_int[(x) - BASE_CONFIG_INT]

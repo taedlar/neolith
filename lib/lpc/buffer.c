@@ -22,7 +22,7 @@
 #include "src/std.h"
 #include "types.h"
 #include "buffer.h"
-#include "LPC/runtime_config.h"
+#include "lpc/include/runtime_config.h"
 #include "src/rc.h"
 #include "src/simulate.h"
 
