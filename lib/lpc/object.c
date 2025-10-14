@@ -1,20 +1,3 @@
-/*  $Id: object.c,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
-
-    ORIGINAL AUTHOR
-	Unknown
-
-    MODIFIED BY
-	[2001-06-27] by Annihilator <annihilator@muds.net>, see CVS log.
- */
-
 #ifdef	HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
@@ -54,11 +37,11 @@ object_t *previous_ob;
 int tot_alloc_object, tot_alloc_object_size;
 
 char *save_mapping (mapping_t * m);
-static inline int restore_array (char **str, svalue_t *);
-static inline int restore_class (char **str, svalue_t *);
+static int restore_array (char **str, svalue_t *);
+static int restore_class (char **str, svalue_t *);
 int restore_hash_string (char **str, svalue_t *);
 
-inline int
+int
 valid_hide (object_t * obj)
 {
   svalue_t *ret;
@@ -76,7 +59,7 @@ valid_hide (object_t * obj)
 int save_svalue_depth = 0, max_depth;
 int *sizes = 0;
 
-inline int
+int
 svalue_save_size (svalue_t * v)
 {
   switch (v->type)
@@ -174,7 +157,7 @@ svalue_save_size (svalue_t * v)
     }
 }
 
-inline void
+void
 save_svalue (svalue_t * v, char **buf)
 {
   switch (v->type)
@@ -298,7 +281,7 @@ save_svalue (svalue_t * v, char **buf)
     }
 }
 
-static inline int
+static int
 restore_internal_size (char **str, int is_mapping, int depth)
 {
   register char *cp = *str;
@@ -443,7 +426,7 @@ restore_internal_size (char **str, int is_mapping, int depth)
 
 
 
-static inline int
+static int
 restore_size (char **str, int is_mapping)
 {
   register char *cp = *str;
@@ -456,123 +439,122 @@ restore_size (char **str, int is_mapping)
     {
       mb_span = mblen (cp, MB_CUR_MAX);
       if (mb_span < 0)
-	return -1;
+		    return -1;
       cp += mb_span; /* don't check in the middle of a multibyte character */
       switch (c)
-	{
-	case '"':
-	  {
-	    char* start = cp - 1;
-	    while ((c = *cp) != '"')
-	      {
-		mb_span = mblen (cp, MB_CUR_MAX);
-		if (mb_span < 0)
-		  return -1;
-		cp += mb_span; /* don't check backslash in the middle of a multibyte character */
-		if ((c == '\0') || (c == '\\' && !*cp++))
-		  return 0;
-	      }
-	    cp++;
+		    {
+		      case '"':
+	  	      {
+	            char* start = cp - 1;
+	            while ((c = *cp) != '"')
+	              {
+		              mb_span = mblen (cp, MB_CUR_MAX);
+              		if (mb_span < 0)
+		                return -1;
+		              cp += mb_span; /* don't check backslash in the middle of a multibyte character */
+		              if ((c == '\0') || (c == '\\' && !*cp++))
+		                return 0;
+	              }
+	            cp++;
 
+  	          if (*cp++ != delim)
+	              {
+		              debug_error ("corrupted multibyte string: %s", start);
+		              return -1;
+	              }
+	            size++;
+	            break;
+	          }
 
-	    if (*cp++ != delim)
-	      {
-		debug_error ("corrupted multibyte string: %s", start);
-		return -1;
-	      }
-	    size++;
-	    break;
-	  }
+      	  case '(':
+	          {
+	            if (*cp == '{')
+	              {
+		              *str = ++cp;
+		              if (!restore_internal_size (str, 0, save_svalue_depth++))
+		                return -1;
+	              }
+	            else if (*cp == '[')
+	              {
+              		*str = ++cp;
+		              if (!restore_internal_size (str, 1, save_svalue_depth++))
+		                return -1;
+	              }
+        	    else if (*cp == '/')
+	              {
+              		*str = ++cp;
+		              if (!restore_internal_size (str, 0, save_svalue_depth++))
+		                return -1;
+	              }
+        	    else
+	              {
+              		return -1;
+                }
 
-	case '(':
-	  {
-	    if (*cp == '{')
-	      {
-		*str = ++cp;
-		if (!restore_internal_size (str, 0, save_svalue_depth++))
-		  return -1;
-	      }
-	    else if (*cp == '[')
-	      {
-		*str = ++cp;
-		if (!restore_internal_size (str, 1, save_svalue_depth++))
-		  return -1;
-	      }
-	    else if (*cp == '/')
-	      {
-		*str = ++cp;
-		if (!restore_internal_size (str, 0, save_svalue_depth++))
-		  return -1;
-	      }
-	    else
-	      {
-		return -1;
-	      }
+        	    if (*(cp = *str) != delim)
+	              {
+              		return -1;
+	              }
+        	    cp++;
+	            size++;
+	            break;
+	          }
 
-	    if (*(cp = *str) != delim)
-	      {
-		return -1;
-	      }
-	    cp++;
-	    size++;
-	    break;
-	  }
+	        case ']':
+	          {
+	            save_svalue_depth = 0;
+	            if (*cp++ == ')' && is_mapping)
+	              {
+		              *str = cp;
+		              return size;
+	              }
+        	    else
+	              {
+              		return -1;
+	              }
+        	  }
 
-	case ']':
-	  {
-	    save_svalue_depth = 0;
-	    if (*cp++ == ')' && is_mapping)
-	      {
-		*str = cp;
-		return size;
-	      }
-	    else
-	      {
-		return -1;
-	      }
-	  }
+	        case '/':
+	        case '}':
+	          {
+	            save_svalue_depth = 0;
+	            if (*cp++ == ')' && !is_mapping)
+	              {
+		              *str = cp;
+		              return size;
+	              }
+	            else
+	              {
+              		return -1;
+	              }
+	          }
 
-	case '/':
-	case '}':
-	  {
-	    save_svalue_depth = 0;
-	    if (*cp++ == ')' && !is_mapping)
-	      {
-		*str = cp;
-		return size;
-	      }
-	    else
-	      {
-		return -1;
-	      }
-	  }
+	        case ':':
+	        case ',':
+	          {
+        	    if (c != delim)
+	              return -1;
+	            size++;
+	            break;
+	          }
 
-	case ':':
-	case ',':
-	  {
-	    if (c != delim)
-	      return -1;
-	    size++;
-	    break;
-	  }
-
-	default:
-	  {
-	    if (!(cp = strchr (cp, delim)))
-	      {
-		return -1;
+        	default:
+	          {
+        	    if (!(cp = strchr (cp, delim)))
+	              {
+              		return -1;
+	              }
+        	    cp++;
+	            size++;
+	          }
 	      }
-	    cp++;
-	    size++;
-	  }
-	}
       if (is_mapping)
-	delim = (index ^= 1) ? ',' : ':';
+	      delim = (index ^= 1) ? ',' : ':';
     }
   return -1;
 }
 
-static inline int
+static int
 restore_interior_string (char **val, svalue_t * sv)
 {
   register char *cp = *val;
@@ -754,7 +736,7 @@ parse_numeric (char **cpp, char c, svalue_t * dest)
     }
 }
 
-static inline void
+static void
 add_map_stats (mapping_t * m, int count)
 {
   total_mapping_nodes += count;
@@ -1017,7 +999,7 @@ key_error:
 }
 
 
-static inline int
+static int
 restore_class (char **str, svalue_t * ret)
 {
   int size;
@@ -1120,7 +1102,7 @@ error:
   return err;
 }
 
-static inline int
+static int
 restore_array (char **str, svalue_t * ret)
 {
   int size;
@@ -1296,7 +1278,7 @@ restore_string (char *val, svalue_t * sv)
 
 /* for this case, the variable in question has been set to zero already,
    and we don't have to worry about preserving it */
-inline int
+int
 restore_svalue (char *cp, svalue_t * v)
 {
   int ret;
@@ -1952,7 +1934,7 @@ object_t **hashed_living;
 
 static int num_living_names, num_searches = 1, search_length = 1;
 
-static inline int
+static int
 hash_living_name (char *str)
 {
   return whashstr (str, 20) % CONFIG_INT (__LIVING_HASH_TABLE_SIZE__);
@@ -2092,7 +2074,7 @@ call_create (object_t * ob, int num_arg)
   ob->flags |= O_RESET_STATE;
 }
 
-inline int
+int
 object_visible (object_t * ob)
 {
   if (ob->flags & O_HIDDEN)

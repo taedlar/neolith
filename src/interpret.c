@@ -61,10 +61,10 @@ static char *type_names[] = {
 
 extern int call_origin;
 
-inline void push_indexed_lvalue (int);
+void push_indexed_lvalue (int);
 void break_point (void);
-static inline void do_loop_cond_number (void);
-static inline void do_loop_cond_local (void);
+static void do_loop_cond_number (void);
+static void do_loop_cond_local (void);
 static void do_catch (char *, unsigned short);
 static float _strtof (char *, char **);
 
@@ -165,7 +165,7 @@ get_error_state (int mask)
  * incremented.
  * A destructed object must never be pushed onto the stack.
  */
-inline void
+void
 push_object (object_t * ob)
 {
   CHECK_AND_PUSH(1);
@@ -177,7 +177,7 @@ push_object (object_t * ob)
 /*
  * Push a number on the value stack.
  */
-inline void
+void
 push_number (int n)
 {
   CHECK_AND_PUSH(1);
@@ -186,7 +186,7 @@ push_number (int n)
   sp->u.number = n;
 }
 
-inline void
+void
 push_real (double n)
 {
   CHECK_AND_PUSH(1);
@@ -197,7 +197,7 @@ push_real (double n)
 /*
  * Push undefined (const0u) onto the value stack.
  */
-inline void
+void
 push_undefined ()
 {
   CHECK_AND_PUSH(1);
@@ -251,7 +251,7 @@ type_name (int c)
 static program_t *ffbn_recurse (program_t *, char *, int *, int *);
 static program_t *ffbn_recurse2 (program_t *, char *, int *, int *, int *);
 
-inline void
+void
 copy_and_push_string (char *p)
 {
   CHECK_AND_PUSH(1);
@@ -260,7 +260,7 @@ copy_and_push_string (char *p)
   sp->u.string = string_copy (p, "copy_and_push_string");
 }
 
-inline void
+void
 share_and_push_string (char *p)
 {
   CHECK_AND_PUSH(1);
@@ -279,7 +279,7 @@ share_and_push_string (char *p)
  * itself.
  * Use the free_svalue() define to call this
  */
-inline void
+void
 int_free_svalue (svalue_t * v)
 {
 
@@ -390,7 +390,7 @@ call_efun_callback (function_to_call_t * ftc, int n)
  * Free several svalues, and free up the space used by the svalues.
  * The svalues must be sequentially located.
  */
-inline void
+void
 free_some_svalues (svalue_t * v, int num)
 {
   while (num--)
@@ -419,7 +419,7 @@ add_slash (char *str)
  * (as all identifiers are kept in a array pointed to by the object).
  */
 
-inline void
+void
 assign_svalue_no_free (svalue_t * to, svalue_t * from)
 {
   DEBUG_CHECK (from == 0, "Attempt to assign_svalue() from a null ptr.\n");
@@ -440,7 +440,7 @@ assign_svalue_no_free (svalue_t * to, svalue_t * from)
     }
 }
 
-inline void
+void
 assign_svalue (svalue_t * dest, svalue_t * v)
 {
   /* First deallocate the previous value. */
@@ -448,7 +448,7 @@ assign_svalue (svalue_t * dest, svalue_t * v)
   assign_svalue_no_free (dest, v);
 }
 
-inline void
+void
 push_some_svalues (svalue_t * v, int num)
 {
   STACK_CHECK (num);
@@ -460,14 +460,14 @@ push_some_svalues (svalue_t * v, int num)
  * Copies an array of svalues to another location, which should be
  * free space.
  */
-inline void
+void
 copy_some_svalues (svalue_t * dest, svalue_t * v, int num)
 {
   while (num--)
     assign_svalue_no_free (dest + num, v + num);
 }
 
-inline void
+void
 transfer_push_some_svalues (svalue_t * v, int num)
 {
   STACK_CHECK (num);
@@ -481,7 +481,7 @@ transfer_push_some_svalues (svalue_t * v, int num)
  * Don't do this if it is a value that will be used afterwards, as the
   * data may be sent to FREE(), and destroyed.
   */
-inline void
+void
 pop_stack ()
 {
   DEBUG_CHECK (sp < start_of_stack, "Stack underflow.\n");
@@ -495,7 +495,7 @@ svalue_t global_lvalue_byte = { T_LVALUE_BYTE };
 /*
  * Compute the address of an array element.
  */
-inline void
+void
 push_indexed_lvalue (int code)
 {
   int ind;
@@ -639,7 +639,7 @@ global_lvalue_range;
 
 static svalue_t global_lvalue_range_sv = { T_LVALUE_RANGE };
 
-static inline void
+static void
 push_lvalue_range (int code)
 {
   int ind1, ind2, size = 0;
@@ -693,7 +693,7 @@ push_lvalue_range (int code)
   sp->u.lvalue = &global_lvalue_range_sv;
 }
 
-inline void
+void
 copy_lvalue_range (svalue_t * from)
 {
   int ind1, ind2, size, fsize;
@@ -850,7 +850,7 @@ copy_lvalue_range (svalue_t * from)
     }
 }
 
-inline void
+void
 assign_lvalue_range (svalue_t * from)
 {
   int ind1, ind2, size, fsize;
@@ -984,7 +984,7 @@ assign_lvalue_range (svalue_t * from)
 /*
  * Deallocate 'n' values from the stack.
  */
-inline void
+void
 pop_n_elems (int n)
 {
   DEBUG_CHECK1 (n < 0, "pop_n_elems: %d elements.\n", n);
@@ -998,7 +998,7 @@ pop_n_elems (int n)
 /*
  * Deallocate 2 values from the stack.
  */
-inline void
+void
 pop_2_elems ()
 {
   free_svalue (sp--, "pop_2_elems");
@@ -1010,7 +1010,7 @@ pop_2_elems ()
 /*
  * Deallocate 3 values from the stack.
  */
-inline void
+void
 pop_3_elems ()
 {
   free_svalue (sp--, "pop_3_elems");
@@ -1064,7 +1064,7 @@ bad_argument (svalue_t * val, int type, int arg, int instr)
   error (msg);
 }
 
-inline void
+void
 push_control_stack (int frkind)
 {
   /* �Y control stack �`�׶W�L���\���W��, �������~ */
@@ -1132,7 +1132,7 @@ pop_control_stack ()
  * is incremented. Newly created arrays normally have a reference count
  * initialized to 1.
  */
-inline void
+void
 push_array (array_t * v)
 {
   v->ref++;
@@ -1141,7 +1141,7 @@ push_array (array_t * v)
   sp->u.arr = v;
 }
 
-inline void
+void
 push_refed_array (array_t * v)
 {
   sp++;
@@ -1149,7 +1149,7 @@ push_refed_array (array_t * v)
   sp->u.arr = v;
 }
 
-inline void
+void
 push_buffer (buffer_t * b)
 {
   b->ref++;
@@ -1158,7 +1158,7 @@ push_buffer (buffer_t * b)
   sp->u.buf = b;
 }
 
-inline void
+void
 push_refed_buffer (buffer_t * b)
 {
   sp++;
@@ -1169,7 +1169,7 @@ push_refed_buffer (buffer_t * b)
 /*
  * Push a mapping on the stack.  See push_array(), above.
  */
-inline void
+void
 push_mapping (mapping_t * m)
 {
   m->ref++;
@@ -1178,7 +1178,7 @@ push_mapping (mapping_t * m)
   sp->u.map = m;
 }
 
-inline void
+void
 push_refed_mapping (mapping_t * m)
 {
   sp++;
@@ -1189,7 +1189,7 @@ push_refed_mapping (mapping_t * m)
 /*
  * Push a class on the stack.  See push_array(), above.
  */
-inline void
+void
 push_class (array_t * v)
 {
   v->ref++;
@@ -1198,7 +1198,7 @@ push_class (array_t * v)
   sp->u.arr = v;
 }
 
-inline void
+void
 push_refed_class (array_t * v)
 {
   sp++;
@@ -1209,7 +1209,7 @@ push_refed_class (array_t * v)
 /*
  * Push a string on the stack that is already malloced.
  */
-inline void
+void
 push_malloced_string (char *p)
 {
   sp++;
@@ -1222,7 +1222,7 @@ push_malloced_string (char *p)
  * Pushes a known shared string.  Note that this references, while 
  * push_malloced_string doesn't.
  */
-inline void
+void
 push_shared_string (char *p)
 {
   sp++;
@@ -1235,7 +1235,7 @@ push_shared_string (char *p)
 /*
  * Push a string on the stack that is already constant.
  */
-inline void
+void
 push_constant_string (char *p)
 {
   CHECK_AND_PUSH(1);
@@ -1295,7 +1295,7 @@ setup_varargs_variables (int actual, int local, int num_arg)
 }
 
 
-inline compiler_function_t *
+compiler_function_t *
 setup_new_frame (int index)
 {
   runtime_function_u *func_entry = FIND_FUNC_ENTRY (current_prog, index);
@@ -1334,7 +1334,7 @@ setup_new_frame (int index)
 }
 
 
-inline compiler_function_t *
+compiler_function_t *
 setup_inherited_frame (int index)
 {
   runtime_function_u *func_entry = FIND_FUNC_ENTRY (current_prog, index);
@@ -1682,7 +1682,7 @@ check_for_destr (array_t * v)
    4) while (i < integer_constant) statement;
    */
 
-static inline void
+static void
 do_loop_cond_local ()
 {
   svalue_t *s1, *s2;
@@ -1747,7 +1747,7 @@ do_loop_cond_local ()
 }
 
 
-static inline void
+static void
 do_loop_cond_number ()
 {
   svalue_t *s1;
@@ -3749,7 +3749,7 @@ static cache_entry_t cache[APPLY_CACHE_SIZE];
 
 static program_t *ffbn_recurse (program_t *, char *, int *, int *);
 
-static inline program_t *
+static program_t *
 find_function_by_name (object_t * ob, char *name, int *index,
 		       int *runtime_index)
 {
@@ -3760,7 +3760,7 @@ find_function_by_name (object_t * ob, char *name, int *index,
   return ffbn_recurse (ob->prog, funname, index, runtime_index);
 }
 
-static inline program_t *
+static program_t *
 find_function_by_name2 (object_t * ob, char **name, int *index, int *fio,
 			int *vio)
 {
