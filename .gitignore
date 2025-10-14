@@ -12,5 +12,8 @@ Makefile.in
 *.swp
 *~
 
+# vscode
+/.vscode
+
 # cmake
 /out
