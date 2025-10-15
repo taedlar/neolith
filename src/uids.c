@@ -13,7 +13,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "adt/avltree.h"
+#include "avltree.h"
 #include "lpc/types.h"
 #include "lpc/object.h"
 #include "efuns/operator.h"

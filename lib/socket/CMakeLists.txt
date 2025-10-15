@@ -10,4 +10,4 @@ add_library(socket STATIC ${socket_SOURCES})
 target_include_directories(socket PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
-target_link_libraries(socket PRIVATE port adt efuns)
+target_link_libraries(socket PRIVATE port misc efuns)

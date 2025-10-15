@@ -27,7 +27,7 @@ set(neolith_SOURCES
 )
 
 add_executable(neolith ${neolith_SOURCES} ${BISON_grammar_OUTPUTS})
-target_link_libraries(neolith PRIVATE port logger adt efuns lpc socket -lm -lcrypt)
+target_link_libraries(neolith PRIVATE port logger misc efuns lpc socket -lm -lcrypt)
 target_include_directories(neolith PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}

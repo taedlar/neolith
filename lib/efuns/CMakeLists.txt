@@ -11,7 +11,7 @@ target_include_directories(edit_source PRIVATE
 )
 
 target_compile_definitions(edit_source PRIVATE _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(edit_source PRIVATE port adt)
+target_link_libraries(edit_source PRIVATE port misc)
 
 # preprocessor-only command
 if(MSVC)
@@ -51,4 +51,4 @@ target_include_directories(efuns PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 target_include_directories(efuns PUBLIC ${CMAKE_CURRENT_BINARY_DIR})    # generated efuns tables
-target_link_libraries(efuns PUBLIC port adt logger)
+target_link_libraries(efuns PUBLIC port misc logger)

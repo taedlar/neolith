@@ -51,7 +51,7 @@ add_compile_definitions(HAVE_CONFIG_H)
 # add project components
 add_subdirectory(lib/port)
 add_subdirectory(lib/logger)
-add_subdirectory(lib/adt)
+add_subdirectory(lib/misc)
 add_subdirectory(lib/efuns)
 add_subdirectory(lib/lpc)
 add_subdirectory(lib/socket)
