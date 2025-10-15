@@ -7,7 +7,7 @@
 #include "lpc/array.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"
-#include "program.h"
+#include "lpc/program.h"
 #include "lpc/functional.h"
 #include "lpc/disassemble.h"
 #include "interpret.h"

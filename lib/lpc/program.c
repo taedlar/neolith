@@ -2,7 +2,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "std.h"
+#include "src/std.h"
 #include "program.h"
 
 int total_num_prog_blocks, total_prog_block_size;

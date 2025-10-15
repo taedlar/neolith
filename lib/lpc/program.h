@@ -1,5 +1,5 @@
 #pragma once
-#include "lpc/types.h"
+#include "types.h"
 
 /*
  * A compiled program consists of several data blocks, all allocated

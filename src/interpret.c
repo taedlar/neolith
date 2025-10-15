@@ -5001,8 +5001,6 @@ void
 pop_context (error_context_t * econ)
 {
   current_error_context = econ->save_context;
-
-  /* �M���Ҧ����~���A�X�� */
   error_state = 0;
 }
 

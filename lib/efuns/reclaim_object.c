@@ -13,7 +13,7 @@
 #include "lpc/types.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
-#include "src/program.h"
+#include "lpc/program.h"
 #include "lpc/mapping.h"
 #include "src/interpret.h"
 #include "src/simulate.h"

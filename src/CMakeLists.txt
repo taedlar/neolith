@@ -15,7 +15,6 @@ set(neolith_SOURCES
     lex.c
     main.c
     malloc.c
-    program.c
     rc.c
     regexp.c
     scratchpad.c

@@ -2,7 +2,7 @@
 
 #include "trees.h"
 #include "lex.h"
-#include "program.h"
+#include "lpc/program.h"
 
 #define YYMAXDEPTH    600
 

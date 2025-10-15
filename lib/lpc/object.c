@@ -8,7 +8,7 @@
 #include "class.h"
 #include "object.h"
 #include "mapping.h"
-#include "src/program.h"
+#include "program.h"
 #include "src/simulate.h"
 #include "src/simul_efun.h"
 #include "lpc/include/origin.h"
