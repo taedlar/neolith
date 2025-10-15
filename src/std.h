@@ -36,7 +36,9 @@
 #include "efuns/options.h"
 #endif	/* ! EDIT_SOURCE */
 
-#include "macros.h"
+#include "port/wrapper.h"
+#include "port/byte_code.h"
+#include "port/debug.h"
 
 typedef struct {
     int real_size;
@@ -54,3 +56,5 @@ int outbuf_extend(outbuffer_t *, int);
 #ifndef NO_OPCODES
 #include "efuns_opcode.h"
 #endif
+
+#include "stem.h"

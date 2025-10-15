@@ -11,7 +11,6 @@
 #include "lpc/object.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
-#include "src/stralloc.h"
 #include "socket_err.h"
 #include "socket_efuns.h"
 #include "lpc/include/socket_err.h"

@@ -1,5 +1,4 @@
-#ifndef INTERPRET_H
-#define INTERPRET_H
+#pragma once
 
 #include <setjmp.h>
 #include "lpc/functional.h"
@@ -309,5 +308,3 @@ extern void set_error_state (int flag);
 
 #define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
 #define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */
-
-#endif	/* _INTERPRET_H */

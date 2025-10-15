@@ -678,14 +678,14 @@ i_generate_node (parse_node_t * expr)
 		  {
 		    if (pn->r.number)
 		      {
-			INS_POINTER ((POINTER_INT)
+			ins_intptr ((intptr_t)
 				     PROG_STRING (pn->r.number));
 		      }
 		    else
-		      INS_POINTER ((POINTER_INT) 0);
+		      ins_intptr ((intptr_t) 0);
 		  }
 		else
-		  INS_POINTER ((POINTER_INT) pn->r.expr);
+		  ins_intptr ((intptr_t) pn->r.expr);
 		ins_short ((short) pn->v.number);
 		pn = pn->l.expr;
 		table_size += 1;

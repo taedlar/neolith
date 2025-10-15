@@ -1,4 +1,5 @@
 #pragma once
+
 extern size_t svalue_strlen_size;
 
 typedef struct block_s {
@@ -97,3 +98,8 @@ extern int allocd_strings;
 extern int allocd_bytes;
 extern int overhead_bytes;
 #endif
+
+extern char *int_string_copy(char *);
+extern char *int_string_unlink(char *);
+extern char *int_new_string(int);
+extern char *int_alloc_cstring(char *);

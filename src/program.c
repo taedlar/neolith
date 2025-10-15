@@ -3,9 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "lpc/types.h"
 #include "program.h"
-#include "stralloc.h"
 
 int total_num_prog_blocks, total_prog_block_size;
 

@@ -1,9 +1,4 @@
-/*
- * Defines and types for the compiler parse trees.
- */
-
-#ifndef _TREES_H
-#define _TREES_H
+#pragma once
 
 #define NODES_PER_BLOCK         256
 
@@ -279,5 +274,3 @@ parse_node_t *make_range_node(int, parse_node_t *, parse_node_t *, parse_node_t 
 parse_node_t *insert_pop_value(parse_node_t *);
 parse_node_t *optimize_loop_test(parse_node_t *);
 int is_boolean(parse_node_t *);
-
-#endif

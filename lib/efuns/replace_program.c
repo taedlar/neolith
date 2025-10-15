@@ -10,8 +10,6 @@
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/simul_efun.h"
-#include "src/stralloc.h"
-#include "src/applies.h"
 #include "replace_program.h"
 
 /*

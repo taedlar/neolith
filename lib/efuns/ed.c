@@ -51,7 +51,6 @@
  */
 
 #include "src/std.h"
-#include "src/applies.h"
 #include "lpc/object.h"
 #include "lpc/include/origin.h"
 #include "src/interpret.h"

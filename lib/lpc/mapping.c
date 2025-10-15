@@ -3,7 +3,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "types.h"
 #include "array.h"
 #include "mapping.h"
 #include "object.h"
@@ -12,7 +11,6 @@
 #include "src/rc.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
-#include "src/stralloc.h"
 
 int num_mappings = 0;
 int total_mapping_size = 0;

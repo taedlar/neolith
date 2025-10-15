@@ -1,11 +1,4 @@
-/*
- * applies.h
- *
- * Note: The QGET_* applies from parse.c are not included here.
- */
-
-#ifndef APPLIES_H
-#define APPLIES_H
+#pragma once
 
 /* the folowing must be the first character of __INIT */
 #define APPLY___INIT_SPECIAL_CHAR           '#'
@@ -60,5 +53,3 @@
 #define APPLY_VALID_WRITE                   "valid_write"
 #define APPLY_WINDOW_SIZE                   "set_window_size"
 #define APPLY_WRITE_PROMPT                  "write_prompt"
-
-#endif				/* APPLIES_H */

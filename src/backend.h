@@ -1,6 +1,4 @@
-#ifndef BACKEND_H
-#define BACKEND_H
-
+#pragma once
 #include "interpret.h"
 
 #define NULL_ERROR_CONTEXT       0
@@ -31,5 +29,3 @@ extern void update_load_av(void);
 extern void update_compile_av(int);
 extern char *query_load_av(void);
 extern array_t *get_heart_beats(void);
-
-#endif

@@ -20,7 +20,6 @@
 #include "lpc/include/origin.h"
 #include "src/simulate.h"
 #include "src/interpret.h"
-#include "src/stralloc.h"
 
 /*****************************************************
 

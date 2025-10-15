@@ -3,11 +3,9 @@
 #endif /* HAVE_CONFIG_H */
 
 
-#include "efuns_opcode.h"
 #include "src/std.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
-#include "src/stralloc.h"
 #include "src/rc.h"
 #include "crc32.h"
 #include "lpc/array.h"

@@ -6,14 +6,11 @@
 #include "std.h"
 #include "compiler.h"
 #include "scratchpad.h"
-#include "applies.h"
 #include "simul_efun.h"
 #include "generate.h"
 #include "rc.h"
 #include "simulate.h"
 #include "interpret.h"
-#include "main.h"
-#include "stralloc.h"
 #include "lpc/object.h"
 
 #include "lpc/include/function.h"
@@ -121,7 +118,7 @@ int yyparse(void);
 %union
 
 {
-    POINTER_INT pointer_int;
+    intptr_t pointer_int;
     int number;
     float real;
     char *string;

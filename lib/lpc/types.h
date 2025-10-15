@@ -1,9 +1,9 @@
 #pragma once
+
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
-#endif
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
+    #include <stdint.h>
+#elif HAVE_INTTYPES_H
+    #include <inttypes.h>
 #endif
 
 typedef struct array_s			array_t;
@@ -71,7 +71,7 @@ struct svalue_s {
 #define T_LVALUE_RANGE  0x800
 #define T_ERROR_HANDLER 0x1000
 #define T_ANY T_STRING|T_NUMBER|T_ARRAY|T_OBJECT|T_MAPPING|T_FUNCTION| \
-	T_REAL|T_BUFFER|T_CLASS
+        T_REAL|T_BUFFER|T_CLASS
 
 /* values for subtype field of svalue struct */
 #define STRING_COUNTED  0x1 /* has a length an ref count */

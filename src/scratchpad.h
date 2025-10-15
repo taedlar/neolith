@@ -1,6 +1,4 @@
-#ifndef _SCRATCHPAD_H
-#define _SCRATCHPAD_H
-
+#pragma once
 /* Tim Hollebeek
  *
  * The data must also consist of zero terminated chunks, with lengths in the
@@ -49,6 +47,3 @@ char *scratch_join2(char *, char *);
 char *scratch_realloc(char *, int);
 char *scratch_copy_string(char *);
 char *scratch_large_alloc(int);
-
-#endif
-

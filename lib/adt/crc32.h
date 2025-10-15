@@ -1,4 +1,5 @@
 #pragma once
+
 #ifdef	HAVE_STDINT_H
   /* ISO C99 header, get definition of uint32_t */
   #include <stdint.h>

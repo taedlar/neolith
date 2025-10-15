@@ -12,22 +12,13 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <ctype.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
+#include "std.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
 
-#include "port/wrapper.h"
 #include "rc.h"
 #include "main.h"
 #include "simulate.h"
-#include "macros.h"
 
 /* global declarations */
 

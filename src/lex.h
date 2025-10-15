@@ -1,4 +1,5 @@
 #pragma once
+
 #define DEFMAX 10000
 #define MAXLINE 1024
 #define MLEN 4096

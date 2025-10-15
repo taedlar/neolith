@@ -4,7 +4,6 @@
 
 #include "src/std.h"
 
-#include "types.h"
 #include "array.h"
 #include "class.h"
 #include "object.h"
@@ -12,17 +11,11 @@
 #include "src/program.h"
 #include "src/simulate.h"
 #include "src/simul_efun.h"
-#include "src/stralloc.h"
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
 #include "src/rc.h"
-#include "src/applies.h"
-
-#include "src/backend.h"
 #include "src/comm.h"
 #include "hash.h"
-#include "efuns/call_out.h"
-#include "socket/socket_efuns.h"
 
 #include <sys/stat.h>
 

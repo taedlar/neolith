@@ -1,46 +1,6 @@
-#ifndef MACROS_H
-#define MACROS_H
+#pragma once
 
-#include <stdint.h>
-
-#include "main.h"
-#include "malloc.h"
-#include "logger.h"
-
-#define ALLOCATE(type, tag, desc) ((type *)DXALLOC(sizeof(type), tag, desc))
-#define CALLOCATE(num, type, tag, desc) ((type *)DXALLOC(sizeof(type[1]) * (num), tag, desc))
-#define RESIZE(ptr, num, type, tag, desc) ((type *)DREALLOC((void *)ptr, sizeof(type) * (num), tag, desc))
-
-#if __STDC_VERSION__ >= 199901L
-/* generic loggers */
-#define debug_fatal(...)		debug_message_with_src("FATAL", __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define debug_error(...)		debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define debug_warn(...)			debug_message_with_src("WARN", __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define debug_info(...)			debug_message_with_src("INFO", __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define debug_trace(...)		debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, __VA_ARGS__)
-
-#define opt_error(level, ...)		do{if(SERVER_OPTION(debug_level)>=(level)) \
-                                        debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#define opt_warn(level, ...)		do{if(SERVER_OPTION(debug_level)>=(level)) \
-                                        debug_message_with_src("WARN", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#define opt_info(level, ...)		do{if(SERVER_OPTION(debug_level)>=(level)) \
-                                        debug_message_with_src("INFO", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-/* trace loggers */
-#define opt_trace(tier, ...)		do{if(((SERVER_OPTION(trace_flags)&(tier)&~0170)==((tier)&~0170)) && ((SERVER_OPTION(trace_flags)&0170) >= ((tier)&0170))) \
-                                        debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#define TT_EVAL		0010
-#define TT_COMPILE	0020
-#define TT_SIMUL_EFUN	0040
-#define TT_BACKEND	0100
-#endif /* using C99 */
-
-#define debug_perror(what,file)		debug_perror_with_src(__func__, __FILE__, __LINE__, (what), (file))
-
-#define IF_DEBUG(x) 			x
-#define DEBUG_CHECK(x, y)		if(x) opt_error(1,"%s",(y))
-#define DEBUG_CHECK1(x, y, a)		if(x) opt_error(1,(y),(a))
-#define DEBUG_CHECK2(x, y, a, b)	if(x) opt_error(1,(y),(a),(b))
-
+/* portable wrappers for bytecode manipulation */
 #define COPY2(x, y)      ((char *)(x))[0] = ((char *)(y))[0]; \
                          ((char *)(x))[1] = ((char *)(y))[1]
 #define LOAD2(x, y)      ((char *)&(x))[0] = *y++; \
@@ -109,22 +69,4 @@
 #define STORE_PTR(x, y)		STORE8(x,y)
 #else
 #error only supports pointer size of 4 or 8 bytes
-#endif
-
-#define POINTER_INT		intptr_t
-#define INS_POINTER		ins_intptr
-
-#ifndef _FUNC_SPEC_
-extern char *xalloc(int);
-extern char *int_string_copy(char *);
-extern char *int_string_unlink(char *);
-extern char *int_new_string(int);
-extern char *int_alloc_cstring(char *);
-#endif	/* _FUNC_SPEC_ */
-
-#define string_copy(x,y) int_string_copy(x)
-#define string_unlink(x,y) int_string_unlink(x)
-#define new_string(x,y) int_new_string(x)
-#define alloc_cstring(x,y) int_alloc_cstring(x)
-
 #endif

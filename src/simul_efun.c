@@ -11,12 +11,10 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "main.h"
 #include "lex.h"
 #include "simul_efun.h"
 #include "simulate.h"
 #include "interpret.h"
-#include "stralloc.h"
 #include "lpc/object.h"
 
 /*

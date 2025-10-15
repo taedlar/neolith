@@ -1,5 +1,4 @@
-#ifndef COMM_H
-#define COMM_H
+#pragma once
 
 #ifdef	HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -153,5 +152,3 @@ int new_set_snoop(object_t *, object_t *);
 object_t *query_snoop(object_t *);
 object_t *query_snooping(object_t *);
 void set_notify_fail_function(funptr_t *);
-
-#endif	/* ! COMM_H */
