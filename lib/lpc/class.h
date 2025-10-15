@@ -1,5 +1,5 @@
 #pragma once
-#include "src/compiler.h"
+#include "program.h"
 
 void dealloc_class(array_t *);
 void free_class(array_t *);

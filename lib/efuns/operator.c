@@ -13,7 +13,7 @@
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"
-#include "src/program.h"
+#include "lpc/program.h"
 #include "lpc/functional.h"
 #include "lpc/include/function.h"
 #include "lpc/include/origin.h"

@@ -16,7 +16,7 @@
 #include "lpc/buffer.h"
 #include "lpc/class.h"
 #include "lpc/mapping.h"
-#include "src/program.h"
+#include "lpc/program.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/rc.h"

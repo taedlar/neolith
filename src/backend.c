@@ -8,7 +8,7 @@
 #include "lpc/types.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
-#include "program.h"
+#include "lpc/program.h"
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
 #include "main.h"

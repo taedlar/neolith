@@ -8,7 +8,7 @@
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"
-#include "src/program.h"
+#include "lpc/program.h"
 #include "lpc/include/function.h"
 #include "src/interpret.h"
 #include "src/simulate.h"

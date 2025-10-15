@@ -16,7 +16,6 @@
 #include "interpret.h"
 #include "simulate.h"
 #include "icode.h"
-#include "program.h"
 #include "lpc/object.h"
 #include "lpc/functional.h"
 

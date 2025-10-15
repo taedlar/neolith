@@ -15,7 +15,7 @@
 #include "lpc/object.h"
 #include "lpc/functional.h"
 #include "lpc/mapping.h"
-#include "src/program.h"
+#include "lpc/program.h"
 #include "lpc/include/function.h"
 
 #include "call_out.h"

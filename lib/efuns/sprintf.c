@@ -59,7 +59,7 @@
 #include "lpc/object.h"
 #include "lpc/array.h"
 #include "lpc/mapping.h"
-#include "src/program.h"
+#include "lpc/program.h"
 #include "src/simulate.h"
 #include "src/interpret.h"
 #include "lpc/include/function.h"
