@@ -5,7 +5,7 @@
 #include "efuns_opcode.h"
 #include "src/std.h"
 #include "src/comm.h"
-#include "src/file.h"
+#include "file_utils.h"
 #include "src/interpret.h"
 #include "lpc/otable.h"
 #include "src/backend.h"

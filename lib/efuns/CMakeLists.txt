@@ -35,6 +35,7 @@ set(efuns_SOURCES
     dumpstat.c
     ed.c
     file.c
+    file_utils.c
     math.c
     operator.c
     parse.c

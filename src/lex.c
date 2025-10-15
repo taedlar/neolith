@@ -21,7 +21,6 @@
 #include "scratchpad.h"
 #include "preprocess.h"
 #include "hash.h"
-#include "file.h"
 #include "rc.h"
 #include "simulate.h"
 #include "stralloc.h"

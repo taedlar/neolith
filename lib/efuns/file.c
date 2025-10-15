@@ -6,7 +6,7 @@
 #include "src/std.h"
 #include "src/applies.h"
 #include "src/simulate.h"
-#include "src/file.h"
+#include "file_utils.h"
 #include "src/interpret.h"
 #include "src/stralloc.h"
 #include "lpc/array.h"

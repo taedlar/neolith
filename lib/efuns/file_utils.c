@@ -11,19 +11,18 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-#include "std.h"
+#include "src/std.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"
-#include "rc.h"
-#include "main.h"
-#include "applies.h"
-#include "comm.h"
-#include "stralloc.h"
-#include "simulate.h"
-#include "interpret.h"
-#include "file.h"
-#include "lex.h"
+#include "src/rc.h"
+#include "src/applies.h"
+#include "src/stralloc.h"
+#include "src/simulate.h"
+#include "src/interpret.h"
+#include "src/lex.h"
+
+#include "file_utils.h"
 
 /* see binaries.c.  We don't want no $@$(*)@# system dependent mess of
    includes */

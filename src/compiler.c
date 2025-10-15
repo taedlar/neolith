@@ -12,7 +12,6 @@
 #include "generate.h"
 #include "scratchpad.h"
 #include "qsort.h"
-#include "file.h"
 #include "binaries.h"
 
 #include "interpret.h"
