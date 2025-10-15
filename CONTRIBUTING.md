@@ -2,8 +2,8 @@ Contributing
 ============
 
 The following skills would be required if you are intereseted in contributing:
-- C Language
-- GNU autotools: autoconf, automake, libtool, gettext
+- C/C++ Language
 - LPMud administration and LPC programming
+- CMake scripting
 
 To start contributing, add your self-introduction in the Discussion page and mention [Annihilator](https://github.com/taedlar).
