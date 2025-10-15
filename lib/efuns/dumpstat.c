@@ -13,7 +13,7 @@
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/comm.h"
-#include "src/file.h"
+#include "file_utils.h"
 
 /*
  * Write statistics about objects on file.

@@ -21,7 +21,7 @@
 #include "src/simulate.h"
 #include "src/rc.h"
 #include "src/applies.h"
-#include "src/file.h"
+#include "file_utils.h"
 #include "src/comm.h"
 #include "src/backend.h"
 #include "lpc/otable.h"

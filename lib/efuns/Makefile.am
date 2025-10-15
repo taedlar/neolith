@@ -16,7 +16,7 @@ $(BUILT_SOURCES): edit_source prototype.c
 noinst_LTLIBRARIES = libefuns.la
 libefuns_la_SOURCES = $(BUILT_SOURCES) \
 	operator.c operator.h math.c unsorted.c file.c debug.c \
-	replace_program.c replace_program.h \
+	file_utils.c file_utils.h replace_program.c replace_program.h \
 	call_out.c call_out.h string.c datetime.c \
 	reclaim_object.c reclaim_object.h \
 	sprintf.c sprintf.h \

@@ -1002,17 +1002,17 @@ If you want to include a certain function in many different objects, use the `in
 
 Alternatively,
 ```
-#include <file.h>
+#include <origin.h>
 ```
-Note: the `#include "file.h"` form looks for `file.h` in the current directory.
-The `#include <file.h>` form looks for `file.h` in one of the standard system include directories (on TMI these directories are `/include` and
+Note: the `#include "origin.h"` form looks for `origin.h` in the current directory.
+The `#include <origin.h>` form looks for `origin.h` in one of the standard system include directories (on TMI these directories are `/include` and
 `/local/include`).
 
 For those that know C, the LPC `#include` directive is identical to C's `#include` statement.
 For those that don't know C, the `#include` directive is a way to textually include one file into another.
-Putting a directive `#include "file.h"` in a file gives the same effect as if you had simply typed the contents of `file.h` directly into the file at the point where you had the `#include` directive.
+Putting a directive `#include "origin.h"` in a file gives the same effect as if you had simply typed the contents of `origin.h` directly into the file at the point where you had the `#include` directive.
 Included files are recompiled each time the object that include's them is recompiled.
-If the included file contains variables or functions of the same name as variables in the file doing the including, then a duplicate-name error will occur at compile time (in the same way that the error would occur if you simply typed in `file.h` rather than using `#include`).
+If the included file contains variables or functions of the same name as variables in the file doing the including, then a duplicate-name error will occur at compile time (in the same way that the error would occur if you simply typed in `origin.h` rather than using `#include`).
 
 ### The `#pragma save_binary` directive
 Using the `#pragma save_binary` directive tells the compiler to store the compiled LPC code (in binary) to a file. Every time a LPC file is about to be compiled, it checks if a previously saved binary file exists and up to date. If a saved binary file exists and up to date, the compiler loads the file in order to save the time for compiling.

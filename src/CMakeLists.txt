@@ -9,7 +9,6 @@ set(neolith_SOURCES
     binaries.c
     comm.c
     compiler.c
-    file.c
     generate.c
     icode.c
     interpret.c

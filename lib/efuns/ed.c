@@ -57,7 +57,7 @@
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/comm.h"
-#include "src/file.h"
+#include "file_utils.h"
 #include "ed.h"
 
 /* Regexp is Henry Spencer's package. WARNING: regsub is modified to return

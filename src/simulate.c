@@ -20,7 +20,6 @@
 #include "efuns/operator.h"
 #include "efuns/ed.h"
 #include "efuns/sprintf.h"
-#include "file.h"
 #include "applies.h"
 #include "simulate.h"
 #include "stralloc.h"
