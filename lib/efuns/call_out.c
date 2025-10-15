@@ -4,13 +4,10 @@
 
 #include "src/std.h"
 #include "src/comm.h"
-#include "src/stralloc.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
-#include "src/backend.h"
 #include "src/simulate.h"
 #include "lpc/include/origin.h"
-#include "src/applies.h"
 
 #include "operator.h"
 #include "call_out.h"

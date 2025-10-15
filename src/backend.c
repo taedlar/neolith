@@ -13,7 +13,6 @@
 #include "lpc/include/runtime_config.h"
 #include "main.h"
 #include "rc.h"
-#include "applies.h"
 #include "simulate.h"
 #include "interpret.h"
 #include "backend.h"

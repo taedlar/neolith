@@ -6,7 +6,6 @@
 #include "lpc/array.h"
 #include "lpc/include/localtime.h"
 #include "src/std.h"
-#include "src/backend.h"
 
 #ifdef F_UPTIME
 void

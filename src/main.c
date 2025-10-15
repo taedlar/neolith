@@ -16,19 +16,14 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
-#include "lpc/types.h"
 #include "rc.h"
-#include "stralloc.h"
 #include "lpc/object.h"
 #include "simulate.h"
-#include "applies.h"
-#include "backend.h"
 #include "simul_efun.h"
 #include "binaries.h"
 #include "lpc/otable.h"
 #include "comm.h"
 #include "main.h"
-#include "port/wrapper.h"
 
 const char *argp_program_version = PACKAGE "-" VERSION;
 const char *argp_program_bug_address = "https://github.com/taedlar/neolith";
@@ -37,6 +32,7 @@ server_options_t* g_svropts = NULL;
 
 port_def_t external_port[5];
 
+int slow_shut_down_to_do = 0;
 int g_proceeding_shutdown = 0;
 
 int t_flag = 0;			/* Disable heart beat and reset */
@@ -53,6 +49,7 @@ object_t *master_ob = 0;
 /* prototypes */
 
 static void parse_command_line (int, char **);
+static void init_debug_log();
 
 static RETSIGTYPE sig_fpe (int sig);
 static RETSIGTYPE sig_cld (int sig);
@@ -116,6 +113,7 @@ main (int argc, char **argv)
   fake_prog.program_size = 0;
 
   init_config (SERVER_OPTION(config_file));
+  init_debug_log();
 
   // print a startup banner in the log file (to test if the debug log is created successfully)
   if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
@@ -282,7 +280,21 @@ parse_command_line (int argc, char *argv[])
     snprintf (SERVER_OPTION(config_file), PATH_MAX, "/etc/neolith.conf");
 }
 
-int slow_shut_down_to_do = 0;
+void init_debug_log()
+{
+  char path[PATH_MAX];
+  if (CONFIG_STR (__DEBUG_LOG_FILE__))
+    {
+      if (CONFIG_STR (__LOG_DIR__))
+        snprintf (path, sizeof(path), "%s/%s", CONFIG_STR (__LOG_DIR__), CONFIG_STR (__DEBUG_LOG_FILE__));
+      else
+        snprintf (path, sizeof(path), "%s", CONFIG_STR (__DEBUG_LOG_FILE__));
+    }
+  path[sizeof(path) - 1] = 0;
+  debug_set_log_file (path);
+
+  debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
+}
 
 char *
 xalloc (int size)

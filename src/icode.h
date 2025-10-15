@@ -1,9 +1,4 @@
-/*
- * Defines and types for LPC stackmachine code
- */
-
-#ifndef _ICODE_H
-#define _ICODE_H
+#pragma once
 
 #include "trees.h"
 
@@ -26,5 +21,3 @@ void i_generate_final_program(int);
 void i_generate_inherited_init_call(int, short);
 
 void optimize_icode(char *, char *, char *);
-
-#endif

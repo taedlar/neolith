@@ -20,12 +20,8 @@
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"
 #include "rc.h"
-#include "applies.h"
-#include "stralloc.h"
-#include "main.h"
 #include "simulate.h"
 #include "binaries.h"
-#include "backend.h"
 #include "qsort.h"
 #include "hash.h"
 
@@ -726,9 +722,9 @@ patch_out (program_t * prog, short *patches, int len)
 	       * it's index.
 	       */
 	      if (s == 0)
-		s = (char *) (POINTER_INT) - 1;
+		s = (char *) (intptr_t) - 1;
 	      else
-		s = (char *) (POINTER_INT) store_prog_string (s);
+		s = (char *) (intptr_t) store_prog_string (s);
 	      COPY_PTR (p + offset, &s);
 	      offset += SWITCH_CASE_SIZE;
 	    }
@@ -776,7 +772,7 @@ patch_in (program_t * prog, short *patches, int len)
 	      if (s == (char *) -1)
 		s = 0;
 	      else
-		s = prog->strings[(POINTER_INT) s];
+		s = prog->strings[(intptr_t) s];
 	      COPY_PTR (p + offset, &s);
 	      offset += SWITCH_CASE_SIZE;
 	    }
@@ -838,7 +834,7 @@ crdir_fopen (char *file_name)
  */
 
 #define DIFF(x, y) ((char *)(x) - (char *)(y))
-#define ADD(x, y) (&(((char *)(y))[(POINTER_INT)x]))
+#define ADD(x, y) (&(((char *)(y))[(intptr_t)x]))
 
 static int
 locate_out (program_t * prog)

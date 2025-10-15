@@ -8,8 +8,6 @@
 #include <windows.h>
 #endif
 
-#include "lpc/types.h"
-
 #define PORT_TELNET      1
 #define PORT_BINARY      2
 #define PORT_ASCII       3
@@ -40,9 +38,5 @@ extern int t_flag;
 extern int comp_flag;
 extern int boot_time;
 extern char *reserved_area;
-extern svalue_t const0;
-extern svalue_t const1;
-extern svalue_t const0u;
 extern int st_num_arg;
 extern int slow_shut_down_to_do;
-extern object_t *master_ob;

@@ -1,9 +1,3 @@
-#ifndef QSORT_H
-#define QSORT_H
+#pragma once
 
-/*
- * qsort.c
- */
 void quickSort(void *, int, int, int (*) ());
-
-#endif

@@ -1,4 +1,5 @@
 #pragma once
+
 extern char* xstrdup(const char* s);
 extern void* xcalloc(size_t nmemb, size_t size);
 

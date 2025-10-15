@@ -17,8 +17,6 @@
 #include "lpc/types.h"
 #include "lpc/object.h"
 #include "efuns/operator.h"
-#include "applies.h"
-#include "stralloc.h"
 #include "interpret.h"
 #include "simulate.h"
 #include "main.h"

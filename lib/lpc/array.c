@@ -3,11 +3,9 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "types.h"
 #include "src/rc.h"
 #include "src/simulate.h"
 #include "src/interpret.h"
-#include "src/stralloc.h"
 #include "src/comm.h"
 #include "src/regexp.h"
 #include "qsort.h"

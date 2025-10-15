@@ -2,9 +2,7 @@
 #include <config.h>
 #endif	/* HAVE_CONFIG_H */
 
-#define _FUNC_SPEC_
-
-#include <options.h>
+#include "options.h"
 
 /*
  * The following specifies the operators used by the interpreter.

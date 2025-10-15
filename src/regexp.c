@@ -62,7 +62,6 @@
 #include "std.h"
 #include "regexp.h"
 #include "simulate.h"
-#include "comm.h"
 #include "efuns/ed.h"
 
 /*

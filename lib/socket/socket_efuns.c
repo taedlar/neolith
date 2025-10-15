@@ -17,15 +17,12 @@
 #include <arpa/inet.h>
 
 #include "src/std.h"
-#include "lpc/types.h"
 #include "lpc/array.h"
 #include "lpc/functional.h"
 #include "lpc/buffer.h"
 #include "lpc/object.h"
-#include "src/applies.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
-#include "src/stralloc.h"
 #include "lpc/include/runtime_config.h"
 #include "lpc/include/origin.h"
 #include "src/rc.h"

@@ -3,7 +3,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "applies.h"
 #include "rc.h"
 #include "compiler.h"
 #include "trees.h"
@@ -16,7 +15,6 @@
 
 #include "interpret.h"
 #include "simulate.h"
-#include "stralloc.h"
 #include "icode.h"
 #include "program.h"
 #include "lpc/object.h"

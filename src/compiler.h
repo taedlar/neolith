@@ -1,13 +1,8 @@
-#ifndef COMPILER_H
-#define COMPILER_H
+#pragma once
 
 #include "trees.h"
 #include "lex.h"
 #include "program.h"
-
-#ifdef sun
-#include <malloc.h>
-#endif
 
 #define YYMAXDEPTH    600
 
@@ -281,6 +276,3 @@ insert_in_mem_block(int n, int where, int size)
     mbp->current_size += size;
 }
 #endif	/* ! SUPPRESS_COMPILER_INLINES */
-
-#endif
-

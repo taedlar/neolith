@@ -10,24 +10,20 @@
 #include "lpc/mapping.h"
 #include "lpc/class.h"
 #include "rc.h"
-#include "backend.h"
 #include "simul_efun.h"
 #include "efuns/operator.h"
 #include "efuns/sprintf.h"
 #include "simulate.h"
 #include "interpret.h"
-#include "stralloc.h"
 #include "comm.h"
 #include "qsort.h"
 #include "compiler.h"
-#include "main.h"
 #include "regexp.h"
 #include "uids.h"
 #include "lpc/include/function.h"
 #include "lpc/include/runtime_config.h"
 #include "lpc/include/origin.h"
 #include "rc.h"
-#include "applies.h"
 
 #include "efuns_prototype.h"
 #include "efuns_vector.h"
@@ -3829,8 +3825,8 @@ apply_low (char *fun, object_t * ob, int num_arg)
 #endif
 
   /* compute hash key in APPLY_CACHE */
-  ix = (progp->id_number ^ (POINTER_INT) fun ^
-        ((POINTER_INT) fun >> APPLY_CACHE_BITS)) & cache_mask;
+  ix = (progp->id_number ^ (intptr_t) fun ^
+        ((intptr_t) fun >> APPLY_CACHE_BITS)) & cache_mask;
   entry = &cache[ix];
 
   if ((entry->id == progp->id_number) && (entry->oprogp == progp) &&

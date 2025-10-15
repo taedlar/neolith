@@ -9,7 +9,6 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "src/std.h"
-#include "lpc/types.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
@@ -18,10 +17,8 @@
 #include "lpc/functional.h"
 #include "lpc/include/function.h"
 #include "lpc/include/origin.h"
-#include "src/stralloc.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
-#include "src/backend.h"
 #include "src/simul_efun.h"
 
 #include "operator.h"
@@ -1021,8 +1018,8 @@ f_switch ()
 {
   unsigned short offset, end_off;
   int d;
-  POINTER_INT s = 0;
-  POINTER_INT r = 0;
+  intptr_t s = 0;
+  intptr_t r = 0;
   int i;
   char *l, *end_tab;
   static unsigned short off_tab[] = {
@@ -1049,14 +1046,14 @@ f_switch ()
         {
           if (sp->subtype == STRING_SHARED)
             {
-              s = (POINTER_INT) sp->u.string;
+              s = (intptr_t) sp->u.string;
               opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)s);
               free_string (sp->u.string);
               sp--;
             }
           else
             {
-              s = (POINTER_INT) findstring (sp->u.string);
+              s = (intptr_t) findstring (sp->u.string);
               opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)sp->u.string);
               free_string_svalue (sp--);
             }

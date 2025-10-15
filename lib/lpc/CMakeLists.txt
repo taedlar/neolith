@@ -16,5 +16,6 @@ target_include_directories(lpc PRIVATE
     ${CMAKE_SOURCE_DIR}/lib
 )
 target_link_libraries(lpc PUBLIC
+    logger
     efuns
 )

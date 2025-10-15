@@ -10,9 +10,11 @@
 #include <time.h>
 
 #include "logger.h"
-#include "rc.h"
 
 FILE* current_log_file = NULL;
+
+static char debug_log_file[PATH_MAX] = ""; /* default debug log goes to stderr */
+static int debug_log_with_date = 0; /* prepend date/time to debug messages? */
 
 /**
   @brief Print raw log messages to file or previously opend file (if file is NULL).
@@ -64,28 +66,46 @@ int log_message (const char *file, const char *fmt, ...)
 }
 
 /**
+ * @brief Set the debug log file.
+ * @param filename The path to the log file.
+ */
+void debug_set_log_file (const char* filename)
+{
+  strncpy (debug_log_file, filename, sizeof(debug_log_file) - 1);
+  debug_log_file[sizeof(debug_log_file) - 1] = 0;
+}
+
+/**
+ * @brief Set whether to prepend date/time to debug messages.
+ * @param enable Non-zero to enable date/time prepending, zero to disable.
+ */
+void debug_set_log_with_date (int enable)
+{
+  debug_log_with_date = enable;
+}
+
+/**
  * @brief Log a debug message.
  * @param fmt The format string.
  * @return The number of characters written, or a negative value if an error occurs.
  */
 int debug_message (const char *fmt, ...)
 {
-  static char debug_log_file[PATH_MAX] = "";
   va_list args;
   int n_written = 0;
   char msg[8192];	/* error message cannot exceed this size */
 
-  if (!*debug_log_file) /* first time called */
-    {
-      if (CONFIG_STR (__DEBUG_LOG_FILE__))
-      	{
-	        if (CONFIG_STR (__LOG_DIR__))
-	          snprintf (debug_log_file, sizeof(debug_log_file), "%s/%s", CONFIG_STR (__LOG_DIR__), CONFIG_STR (__DEBUG_LOG_FILE__));
-	        else
-	          snprintf (debug_log_file, sizeof(debug_log_file), "%s", CONFIG_STR (__DEBUG_LOG_FILE__));
-	      }
-      debug_log_file[sizeof(debug_log_file) - 1] = 0;
-    }
+  // if (!*debug_log_file) /* first time called */
+  //   {
+  //     if (CONFIG_STR (__DEBUG_LOG_FILE__))
+  //     	{
+	//         if (CONFIG_STR (__LOG_DIR__))
+	//           snprintf (debug_log_file, sizeof(debug_log_file), "%s/%s", CONFIG_STR (__LOG_DIR__), CONFIG_STR (__DEBUG_LOG_FILE__));
+	//         else
+	//           snprintf (debug_log_file, sizeof(debug_log_file), "%s", CONFIG_STR (__DEBUG_LOG_FILE__));
+	//       }
+  //     debug_log_file[sizeof(debug_log_file) - 1] = 0;
+  //   }
 
   va_start (args, fmt);
   vsnprintf (msg, sizeof(msg), fmt, args); /* truncated if too long */
@@ -98,7 +118,8 @@ int debug_message (const char *fmt, ...)
         msg[i] = ' ';
     }
 
-  if (CONFIG_INT (__ENABLE_LOG_DATE__))
+  // if (CONFIG_INT (__ENABLE_LOG_DATE__))
+  if (debug_log_with_date)
     {
       char time_info[1024];
       time_t t = time(NULL);
@@ -115,11 +136,11 @@ int debug_message (const char *fmt, ...)
 }
 
 int
-debug_message_with_src (const char* _type, const char* func, const char* src, int line, const char *fmt, ...)
+debug_message_with_src (const char* log_type, const char* func, const char* src, int line, const char *fmt, ...)
 {
     va_list args;
     char msg[8192];
-    size_t n = snprintf(msg, sizeof(msg), "[\"%s\",\"%s\",%d,\"%s\"]\t", _type, src, line, func);
+    size_t n = snprintf(msg, sizeof(msg), "[\"%s\",\"%s\",%d,\"%s\"]\t", log_type, src, line, func);
 
     if (n < sizeof(msg)) {
         va_start (args, fmt);

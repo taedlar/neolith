@@ -16,8 +16,6 @@
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"
 #include "src/rc.h"
-#include "src/applies.h"
-#include "src/stralloc.h"
 #include "src/simulate.h"
 #include "src/interpret.h"
 #include "src/lex.h"
