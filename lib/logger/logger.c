@@ -138,20 +138,28 @@ int debug_message (const char *fmt, ...)
 int
 debug_message_with_src (const char* log_type, const char* func, const char* src, int line, const char *fmt, ...)
 {
-    va_list args;
-    char msg[8192];
-    size_t n = snprintf(msg, sizeof(msg), "[\"%s\",\"%s\",%d,\"%s\"]\t", log_type, src, line, func);
+  const char* abbrev_src = strstr(src, "/neolith/");
+  if (abbrev_src)
+    src = abbrev_src + 9; /* length of "/neolith/" */
 
-    if (n < sizeof(msg)) {
+  va_list args;
+  char msg[8192];
+  size_t n = snprintf(msg, sizeof(msg), "[\"%s\",\"%s\",%d,\"%s\"]\t", log_type, src, line, func);
+
+  if (n < sizeof(msg))
+   {
         va_start (args, fmt);
         vsnprintf (msg + n, sizeof(msg) - n, fmt, args);
     }
-    return debug_message ("%s", msg);
+  return debug_message ("%s", msg);
 }
 
 int
 debug_perror_with_src (const char* func, const char* src, int line, const char *what, const char *file)
 {
+  const char* abbrev_src = strstr(src, "/neolith/");
+  if (abbrev_src)
+    src = abbrev_src + 9; /* length of "/neolith/" */
   if (file)
     return debug_message ("[\"ERROR\",\"%s\",%d,\"%s\"]\t%s: [%s] %s\n", src, line, func, what, file, strerror (errno));
   else

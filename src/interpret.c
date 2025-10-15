@@ -3825,8 +3825,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
 #endif
 
   /* compute hash key in APPLY_CACHE */
-  ix = (progp->id_number ^ (intptr_t) fun ^
-        ((intptr_t) fun >> APPLY_CACHE_BITS)) & cache_mask;
+  ix = (progp->id_number ^ (intptr_t) fun ^ ((intptr_t) fun >> APPLY_CACHE_BITS)) & cache_mask;
   entry = &cache[ix];
 
   if ((entry->id == progp->id_number) && (entry->oprogp == progp) &&
@@ -3839,11 +3838,8 @@ apply_low (char *fun, object_t * ob, int num_arg)
 #endif
       if (entry->progp)
         {
-          compiler_function_t *funp =
-            entry->progp->function_table + entry->index;
-          int funflags =
-            entry->oprogp->function_flags[funp->runtime_index +
-                                          entry->function_index_offset];
+          compiler_function_t *funp = entry->progp->function_table + entry->index;
+          int funflags = entry->oprogp->function_flags[funp->runtime_index + entry->function_index_offset];
 
           /* if progp is zero, the cache is telling us the function
            * isn't here */
@@ -3867,11 +3863,9 @@ apply_low (char *fun, object_t * ob, int num_arg)
 #endif
 
               if (funflags & NAME_TRUE_VARARGS)
-                setup_varargs_variables (csp->num_local_variables,
-                                         entry->num_local, entry->num_arg);
+                setup_varargs_variables (csp->num_local_variables, entry->num_local, entry->num_arg);
               else
-                setup_variables (csp->num_local_variables,
-                                 entry->num_local, entry->num_arg);
+                setup_variables (csp->num_local_variables, entry->num_local, entry->num_arg);
 
               previous_ob = current_object;
               current_object = ob;
@@ -3934,12 +3928,9 @@ apply_low (char *fun, object_t * ob, int num_arg)
               entry->variable_index_offset = variable_index_offset = vio;
               entry->function_index_offset = function_index_offset = fio;
               if (funflags & NAME_TRUE_VARARGS)
-                setup_varargs_variables (csp->num_local_variables,
-                                         fundefp->num_local,
-                                         fundefp->num_arg);
+                setup_varargs_variables (csp->num_local_variables, fundefp->num_local, fundefp->num_arg);
               else
-                setup_variables (csp->num_local_variables,
-                                 fundefp->num_local, fundefp->num_arg);
+                setup_variables (csp->num_local_variables, fundefp->num_local, fundefp->num_arg);
               entry->num_arg = fundefp->num_arg;
               entry->num_local = fundefp->num_local;
               entry->progp = current_prog;

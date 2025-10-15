@@ -148,31 +148,31 @@ get_dir (char *path, int flags)
        * If path ends with '/' or "/." remove it
        */
       if ((p = strrchr (temppath, '/')) == 0)
-	p = temppath;
+        p = temppath;
       if (p[0] == '/' && ((p[1] == '.' && p[2] == '\0') || p[1] == '\0'))
-	*p = '\0';
+        *p = '\0';
     }
 
   if (stat (temppath, &st) < 0)
     {
       if (*p == '\0')
-	return 0;
+        return 0;
       if (p != temppath)
-	{
-	  strcpy (regexppath, p + 1);
-	  *p = '\0';
-	}
+        {
+          strcpy (regexppath, p + 1);
+          *p = '\0';
+        }
       else
-	{
-	  strcpy (regexppath, p);
-	  strcpy (temppath, ".");
-	}
+        {
+          strcpy (regexppath, p);
+          strcpy (temppath, ".");
+        }
       do_match = 1;
     }
   else if (*p != '\0' && strcmp (temppath, "."))
     {
       if (*p == '/' && *(p + 1) != '\0')
-	p++;
+        p++;
       v = allocate_empty_array (1);
       encode_stat (&v->item[0], flags, p, &st);
       return v;
@@ -187,13 +187,13 @@ get_dir (char *path, int flags)
     {
       namelen = strlen (de->d_name);
       if (!do_match && (strcmp (de->d_name, ".") == 0 ||
-			strcmp (de->d_name, "..") == 0))
-	continue;
+                        strcmp (de->d_name, "..") == 0))
+        continue;
       if (do_match && !match_string (regexppath, de->d_name))
-	continue;
+        continue;
       count++;
       if (count >= CONFIG_INT (__MAX_ARRAY_SIZE__))
-	break;
+        break;
     }
 
   /*
@@ -214,20 +214,20 @@ get_dir (char *path, int flags)
     {
       namelen = strlen (de->d_name);
       if (!do_match && (strcmp (de->d_name, ".") == 0 ||
-			strcmp (de->d_name, "..") == 0))
-	continue;
+                        strcmp (de->d_name, "..") == 0))
+        continue;
       if (do_match && !match_string (regexppath, de->d_name))
-	continue;
+        continue;
       de->d_name[namelen] = '\0';
       if (flags == -1)
-	{
-	  /*
-	   * We'll have to .... sigh.... stat() the file to get some add'tl
-	   * info.
-	   */
-	  strcpy (endtemp, de->d_name);
-	  stat (temppath, &st);	/* We assume it works. */
-	}
+        {
+          /*
+           * We'll have to .... sigh.... stat() the file to get some add'tl
+           * info.
+           */
+          strcpy (endtemp, de->d_name);
+          stat (temppath, &st);	/* We assume it works. */
+        }
       encode_stat (&v->item[i], flags, de->d_name, &st);
       i++;
     }
@@ -235,7 +235,7 @@ get_dir (char *path, int flags)
 
   /* Sort the names. */
   qsort ((void *) v->item, count, sizeof v->item[0],
-	 (flags == -1) ? parrcmp : pstrcmp);
+         (flags == -1) ? parrcmp : pstrcmp);
   return v;
 }
 
@@ -265,10 +265,10 @@ tail (char *path)
     {
       /* Throw away the first incomplete line. */
       if (NULL == fgets (buff, sizeof buff, f))
-	{
-	  debug_perror ("fgets()", path);
-	  error ("Failed reading file.");
-	}
+        {
+          debug_perror ("fgets()", path);
+          error ("Failed reading file.");
+        }
     }
   while (fgets (buff, sizeof buff, f))
     {
@@ -314,17 +314,17 @@ legal_path (char *path)
   while (p)
     {				/* Zak, 930530 - do better checking */
       if (p[0] == '.')
-	{
-	  if (p[1] == '\0')	/* trailing `.' ok */
-	    break;
-	  if (p[1] == '.')	/* check for `..' or `../' */
-	    p++;
-	  if (p[1] == '/' || p[1] == '\0')
-	    return 0;		/* check for `./', `..', or `../' */
-	}
+        {
+          if (p[1] == '\0')	/* trailing `.' ok */
+            break;
+          if (p[1] == '.')	/* check for `..' or `../' */
+            p++;
+          if (p[1] == '/' || p[1] == '\0')
+            return 0;		/* check for `./', `..', or `../' */
+        }
       p = (char *) strstr (p, "/.");	/* search next component */
       if (p)
-	p++;			/* step over `/' */
+        p++;			/* step over `/' */
     }
 #if defined(AMIGA) || defined(LATTICE) || defined(WIN32)
   /*
@@ -354,8 +354,8 @@ smart_log (char *error_file, int line, char *what, int flag)
   extern int pragmas;
 
   buff = (char *) DMALLOC (strlen (error_file) + strlen (what) +
-	     ((pragmas & PRAGMA_ERROR_CONTEXT) ? 100 : 40), TAG_TEMPORARY,
-	     "smart_log: 1");
+             ((pragmas & PRAGMA_ERROR_CONTEXT) ? 100 : 40), TAG_TEMPORARY,
+             "smart_log: 1");
 
   if (flag)
     sprintf (buff, "%s line %d: Warning: %s", error_file, line, what);
@@ -367,13 +367,13 @@ smart_log (char *error_file, int line, char *what, int flag)
       char *ls = strrchr (buff, '\n');
       char *tmp;
       if (ls)
-	{
-	  tmp = ls + 1;
-	  while (*tmp && isspace (*tmp))
-	    tmp++;
-	  if (!*tmp)
-	    *ls = 0;
-	}
+        {
+          tmp = ls + 1;
+          while (*tmp && isspace (*tmp))
+            tmp++;
+          if (!*tmp)
+            *ls = 0;
+        }
       strcat (buff, show_error_context ());
     }
   else
@@ -381,10 +381,10 @@ smart_log (char *error_file, int line, char *what, int flag)
 
   if (flag)
     sprintf (buff, "%s line %d: Warning: %s%s", error_file, line, what,
-	     (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
+             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
   else
     sprintf (buff, "%s line %d: %s%s", error_file, line, what,
-	     (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
+             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
 
   share_and_push_string (error_file);
   copy_and_push_string (buff);
@@ -411,7 +411,7 @@ write_file (char *file, char *str, int flags)
   if (f == 0)
     {
       error ("Wrong permissions for opening file /%s for %s.\n\"%s\"\n",
-	     file, (flags & 1) ? "overwrite" : "append", strerror (errno));
+             file, (flags & 1) ? "overwrite" : "append", strerror (errno));
     }
   fwrite (str, strlen (str), 1, f);
   fclose (f);
@@ -456,12 +456,12 @@ read_file (char *file, int start, int len)
   if (size > CONFIG_INT (__MAX_READ_FILE_SIZE__))
     {
       if (start || len)
-	size = CONFIG_INT (__MAX_READ_FILE_SIZE__);
+        size = CONFIG_INT (__MAX_READ_FILE_SIZE__);
       else
-	{
-	  fclose (f);
-	  return 0;
-	}
+        {
+          fclose (f);
+          return 0;
+        }
     }
   if (start < 1)
     start = 1;
@@ -479,82 +479,82 @@ read_file (char *file, int start, int len)
   do
     {
       if ((fread (str, size, 1, f) != 1) || !size)
-	{
-	  fclose (f);
-	  FREE_MSTR (str);
-	  return 0;
-	}
+        {
+          fclose (f);
+          FREE_MSTR (str);
+          return 0;
+        }
 
       if (size > st.st_size)
-	{
-	  size = st.st_size;
-	}
+        {
+          size = st.st_size;
+        }
 
       st.st_size -= size;
       end = str + size;
       for (p = str; --start && (p2 = (char *) memchr (p, '\n', end - p));)
-	{
-	  p = p2 + 1;
-	}
+        {
+          p = p2 + 1;
+        }
     }
   while (start > 1);
 
   if (len != CONFIG_INT (__MAX_READ_FILE_SIZE__) || st.st_size)
     {
       for (p2 = str; p != end;)
-	{
-	  char c;
+        {
+          char c;
 
-	  c = *p++;
-	  *p2++ = c;
-	  if (c == '\n')
-	    {
-	      if (!--len)
-		break;
-	    }
-	  else if (c == '\0')
-	    {
-	      fclose (f);
-	      FREE_MSTR (str);
-	      error ("Attempted to read '\\0' into a string!\n");
-	    }
-	}
+          c = *p++;
+          *p2++ = c;
+          if (c == '\n')
+            {
+              if (!--len)
+                break;
+            }
+          else if (c == '\0')
+            {
+              fclose (f);
+              FREE_MSTR (str);
+              error ("Attempted to read '\\0' into a string!\n");
+            }
+        }
       if (len && st.st_size)
-	{
-	  size -= (p2 - str);
+        {
+          size -= (p2 - str);
 
-	  if (size > st.st_size)
-	    size = st.st_size;
+          if (size > st.st_size)
+            size = st.st_size;
 
-	  if ((fread (p2, size, 1, f) != 1) || !size)
-	    {
-	      fclose (f);
-	      FREE_MSTR (str);
-	      return 0;
-	    }
-	  st.st_size -= size;
-	  /* end is same */
-	  for (; p2 != end;)
-	    {
-	      if (*p2 == '\0')
-		{
-		  fclose (f);
-		  FREE_MSTR (str);
-		  error ("Attempted to read '\\0' into a string!\n");
-		}
-	      if (*p2++ == '\n')
-		if (!--len)
-		  break;
-	    }
+          if ((fread (p2, size, 1, f) != 1) || !size)
+            {
+              fclose (f);
+              FREE_MSTR (str);
+              return 0;
+            }
+          st.st_size -= size;
+          /* end is same */
+          for (; p2 != end;)
+            {
+              if (*p2 == '\0')
+                {
+                  fclose (f);
+                  FREE_MSTR (str);
+                  error ("Attempted to read '\\0' into a string!\n");
+                }
+              if (*p2++ == '\n')
+                if (!--len)
+                  break;
+            }
 
-	  if (st.st_size && len)
-	    {
-	      /* tried to read more than READ_MAX_FILE_SIZE */
-	      fclose (f);
-	      FREE_MSTR (str);
-	      return 0;
-	    }
-	}
+          if (st.st_size && len)
+            {
+              /* tried to read more than READ_MAX_FILE_SIZE */
+              fclose (f);
+              FREE_MSTR (str);
+              return 0;
+            }
+        }
       *p2 = '\0';
       str = extend_string (str, p2 - str);
     }
@@ -706,7 +706,7 @@ file_size (char *file)
  */
 char *
 check_valid_path (char *path, object_t * call_object, char *call_fun,
-		  int writeflg)
+                  int writeflg)
 {
   svalue_t *v;
 
@@ -727,21 +727,21 @@ check_valid_path (char *path, object_t * call_object, char *call_fun,
   if (v)
     {
       if (v->type == T_NUMBER && v->u.number == 0)
-	return 0;
+        return 0;
       if (v->type == T_STRING)
-	{
-	  path = v->u.string;
-	}
+        {
+          path = v->u.string;
+        }
       else
-	{
-	  extern svalue_t apply_ret_value;
+        {
+          extern svalue_t apply_ret_value;
 
-	  free_svalue (&apply_ret_value, "check_valid_path");
-	  apply_ret_value.type = T_STRING;
-	  apply_ret_value.subtype = STRING_MALLOC;
-	  path = apply_ret_value.u.string =
-	    string_copy (path, "check_valid_path");
-	}
+          free_svalue (&apply_ret_value, "check_valid_path");
+          apply_ret_value.type = T_STRING;
+          apply_ret_value.subtype = STRING_MALLOC;
+          path = apply_ret_value.u.string =
+            string_copy (path, "check_valid_path");
+        }
     }
 
   if (path[0] == '/')
@@ -749,8 +749,13 @@ check_valid_path (char *path, object_t * call_object, char *call_fun,
   if (path[0] == '\0')
     path = ".";
   if (legal_path (path))
+    {
+      opt_trace(TT_SIMUL_EFUN, "legal path: %s", path);
+      return path;
+    }
     return path;
 
+  opt_trace(TT_SIMUL_EFUN, "not legal path: %s", path);
   return 0;
 }
 
@@ -766,32 +771,32 @@ again:
     {
     case '?':
       if (*str == '\0')
-	return 0;
+        return 0;
       str++;
       match++;
       goto again;
     case '*':
       match++;
       if (*match == '\0')
-	return 1;
+        return 1;
       for (i = 0; str[i] != '\0'; i++)
-	if (match_string (match, str + i))
-	  return 1;
+        if (match_string (match, str + i))
+          return 1;
       return 0;
     case '\0':
       return 0;
     case '\\':
       match++;
       if (*match == '\0')
-	return 0;
+        return 0;
       /* Fall through ! */
     default:
       if (*match == *str)
-	{
-	  match++;
-	  str++;
-	  goto again;
-	}
+        {
+          match++;
+          str++;
+          goto again;
+        }
       return 0;
     }
 }
@@ -867,18 +872,18 @@ copy (char *from, char *to)
       char *bp = buf;
 
       do
-	{
-	  wrote = write (ofd, bp, len);
-	  if (wrote < 0)
-	    {
-	      close (ifd);
-	      close (ofd);
-	      unlink (to);
-	      return -1;
-	    }
-	  bp += wrote;
-	  len -= wrote;
-	}
+        {
+          wrote = write (ofd, bp, len);
+          if (wrote < 0)
+            {
+              close (ifd);
+              close (ofd);
+              unlink (to);
+              return -1;
+            }
+          bp += wrote;
+          len -= wrote;
+        }
       while (len > 0);
     }
   if (len < 0)
@@ -922,7 +927,7 @@ do_move (char *from, char *to, int flag)
 
       /* rename failed on cross-filesystem link.  Copy the file instead. */
       if ((0 == copy (from, to)) && (0 == unlink (from)))
-	return 0;
+        return 0;
 
       error ("cannot copy `/%s' to `/%s'", from, to);
       return 1;
@@ -931,7 +936,7 @@ do_move (char *from, char *to, int flag)
   else if (flag == F_LINK)
     {
       if (symlink (from, to) == 0)	/* symbolic link */
-	return 0;
+        return 0;
       error ("cannot link `/%s' to `/%s'", from, to);
       return 1;
     }
@@ -991,7 +996,7 @@ do_rename (char *fr, char *t, int flag)
       int n;
 
       while (*p == '/' && (p > from))
-	p--;
+        p--;
       n = p - from + 1;
       memcpy (newfrom, from, n);
       newfrom[n] = 0;
@@ -1006,12 +1011,12 @@ do_rename (char *fr, char *t, int flag)
 
       cp = strrchr (from, '/');
       if (cp)
-	cp++;
+        cp++;
       else
-	cp = from;
+        cp = from;
 
       if (snprintf (newto, sizeof(newto), "%s/%s", to, cp) >= sizeof(newto))
-	error("File path too long.");
+        error("File path too long.");
 
       return do_move (from, newto, flag);
     }
@@ -1061,9 +1066,9 @@ copy_file (char *from, char *to)
 
       cp = strrchr (from, '/');
       if (cp)
-	cp++;
+        cp++;
       else
-	cp = from;
+        cp = from;
 
       sprintf (newto, "%s/%s", to, cp);
       to = newto;
@@ -1082,27 +1087,27 @@ copy_file (char *from, char *to)
   while ((num_read = read (from_fd, buf, sizeof (buf))) != 0)
     {
       if (num_read < 0)
-	{
-	  debug_perror ("copy_file: read", from);
-	  close (from_fd);
-	  close (to_fd);
-	  return (-3);
-	}
+        {
+          debug_perror ("copy_file: read", from);
+          close (from_fd);
+          close (to_fd);
+          return (-3);
+        }
 
       write_ptr = buf;
       while (num_read)
-	{
-	  num_written = write (to_fd, write_ptr, num_read);
-	  if (num_written < 0)
-	    {
-	      debug_perror ("copy_file: write", to);
-	      close (from_fd);
-	      close (to_fd);
-	      return (-3);
-	    }
-	  write_ptr += num_written;
-	  num_read -= num_written;
-	}
+        {
+          num_written = write (to_fd, write_ptr, num_read);
+          if (num_written < 0)
+            {
+              debug_perror ("copy_file: write", to);
+              close (from_fd);
+              close (to_fd);
+              return (-3);
+            }
+          write_ptr += num_written;
+          num_read -= num_written;
+        }
     }
 
   close (from_fd);
@@ -1119,20 +1124,20 @@ dump_file_descriptors (outbuffer_t * out)
   struct stat stbuf;
 
   outbuf_add (out,
-	      "Fd  Device Number  Inode   Mode    Uid    Gid      Size\n");
+              "Fd  Device Number  Inode   Mode    Uid    Gid      Size\n");
   outbuf_add (out,
-	      "--  -------------  -----  ------  -----  -----  ----------\n");
+              "--  -------------  -----  ------  -----  -----  ----------\n");
 
   for (i = 0; i < FD_SETSIZE; i++)
     {
       /* bug in NeXT OS 2.1, st_mode == 0 for sockets */
       if (fstat (i, &stbuf) == -1)
-	continue;
+        continue;
 
       if (S_ISCHR (stbuf.st_mode) || S_ISBLK (stbuf.st_mode))
-	dev = stbuf.st_rdev;
+        dev = stbuf.st_rdev;
       else
-	dev = stbuf.st_dev;
+        dev = stbuf.st_dev;
 
       outbuf_addv (out, "%2d", i);
       outbuf_addv (out, "%13lx", dev);
@@ -1140,41 +1145,41 @@ dump_file_descriptors (outbuffer_t * out)
       outbuf_add (out, "  ");
 
       switch (stbuf.st_mode & S_IFMT)
-	{
+        {
 
-	case S_IFDIR:
-	  outbuf_add (out, "d");
-	  break;
-	case S_IFCHR:
-	  outbuf_add (out, "c");
-	  break;
+        case S_IFDIR:
+          outbuf_add (out, "d");
+          break;
+        case S_IFCHR:
+          outbuf_add (out, "c");
+          break;
 #ifdef S_IFBLK
-	case S_IFBLK:
-	  outbuf_add (out, "b");
-	  break;
+        case S_IFBLK:
+          outbuf_add (out, "b");
+          break;
 #endif
-	case S_IFREG:
-	  outbuf_add (out, "f");
-	  break;
+        case S_IFREG:
+          outbuf_add (out, "f");
+          break;
 #ifdef S_IFIFO
-	case S_IFIFO:
-	  outbuf_add (out, "p");
-	  break;
+        case S_IFIFO:
+          outbuf_add (out, "p");
+          break;
 #endif
 #ifdef S_IFLNK
-	case S_IFLNK:
-	  outbuf_add (out, "l");
-	  break;
+        case S_IFLNK:
+          outbuf_add (out, "l");
+          break;
 #endif
 #ifdef S_IFSOCK
-	case S_IFSOCK:
-	  outbuf_add (out, "s");
-	  break;
+        case S_IFSOCK:
+          outbuf_add (out, "s");
+          break;
 #endif
-	default:
-	  outbuf_add (out, "?");
-	  break;
-	}
+        default:
+          outbuf_add (out, "?");
+          break;
+        }
 
       outbuf_addv (out, "%5o", stbuf.st_mode & ~S_IFMT);
       outbuf_addv (out, "%7d", stbuf.st_uid);
