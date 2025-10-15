@@ -1,7 +1,5 @@
+#pragma once
 /* buffer.h by John Garnett, 1993/11/07 */
-
-#ifndef _BUFFER_H_
-#define _BUFFER_H_
 
 struct buffer_s {
     /* first two elements of struct must be 'ref' followed by 'size' */
@@ -23,5 +21,3 @@ void free_buffer(buffer_t *);
 buffer_t *allocate_buffer(int);
 int write_buffer(buffer_t *, int, char *, int);
 char *read_buffer(buffer_t *, int, int, int *);
-
-#endif

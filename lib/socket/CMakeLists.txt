@@ -9,6 +9,5 @@ set(socket_SOURCES
 add_library(socket STATIC ${socket_SOURCES})
 target_include_directories(socket PRIVATE
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/lib
 )
 target_link_libraries(socket PRIVATE port adt efuns)

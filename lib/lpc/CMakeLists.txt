@@ -10,10 +10,13 @@ set(lpc_SOURCES
     otable.c
 )
 add_library(lpc STATIC ${lpc_SOURCES})
-target_include_directories(lpc PUBLIC ${CMAKE_SOURCE_DIR}/lib)
+target_sources(lpc INTERFACE
+    FILE_SET HEADERS
+    BASE_DIRS ..
+    FILES array.h buffer.h class.h functional.h mapping.h object.h types.h
+)
 target_include_directories(lpc PRIVATE
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/lib
 )
 target_link_libraries(lpc PUBLIC
     logger

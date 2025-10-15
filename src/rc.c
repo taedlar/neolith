@@ -13,12 +13,10 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-
 #include "rc.h"
-#include "main.h"
 #include "simulate.h"
+
+#include <sys/stat.h>
 
 /* global declarations */
 

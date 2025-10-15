@@ -1,5 +1,4 @@
-#ifndef MY_MALLOC_H
-#define MY_MALLOC_H
+#pragma once
 
 /*
  * to use sysmalloc or malloc replacements
@@ -41,5 +40,3 @@
 #define DMALLOC(x,tag,desc)     MALLOC(x)
 #define DREALLOC(x,y,tag,desc)  REALLOC(x,y)
 #define DCALLOC(x,y,tag,desc)   CALLOC(x,y)
-
-#endif /* MY_MALLOC_H */

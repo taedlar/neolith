@@ -6,6 +6,7 @@
     #include <inttypes.h>
 #endif
 
+/* forward declarations */
 typedef struct array_s			array_t;
 typedef struct buffer_s			buffer_t;
 typedef struct compiler_function_s	compiler_function_t;

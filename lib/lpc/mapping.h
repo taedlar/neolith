@@ -1,7 +1,5 @@
+#pragma once
 /* mapping.h - 1992/07/19 */
-
-#ifndef _MAPPING_H
-#define _MAPPING_H
 
 #define MAP_POINTER_HASH(x) (((intptr_t)x) >> 4)
 
@@ -98,5 +96,3 @@ void add_mapping_shared_string(mapping_t *, char *, char *);
 
 int growMap (mapping_t * m);
 int restore_hash_string (char **val, svalue_t * sv);
-
-#endif				/* _MAPPING_H */

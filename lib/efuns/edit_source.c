@@ -24,7 +24,6 @@
 #include "src/lex.h"
 #include "src/preprocess.h"
 #include "edit_source.h"
-#include "adt/hash.h"
 #include "port/wrapper.h"
 
 char *outptr;
