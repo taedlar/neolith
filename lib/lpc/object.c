@@ -21,7 +21,7 @@
 
 #define too_deep_save_error() \
     error("Mappings and/or arrays nested too deep (%d) for save_object\n",\
-	  MAX_SAVE_SVALUE_DEPTH);
+          MAX_SAVE_SVALUE_DEPTH);
 
 object_t *previous_ob;
 int tot_alloc_object, tot_alloc_object_size;
@@ -56,93 +56,93 @@ svalue_save_size (svalue_t * v)
     {
     case T_STRING:
       {
-	register char *cp = v->u.string;
-	char c;
-	int size = 0;
+        register char *cp = v->u.string;
+        char c;
+        int size = 0;
 
-	while ((c = *cp++))
-	  {
-	    if (c == '\\' || c == '"')
-	      size++;
-	    size++;
-	  }
-	return 3 + size;
+        while ((c = *cp++))
+          {
+            if (c == '\\' || c == '"')
+              size++;
+            size++;
+          }
+        return 3 + size;
       }
 
     case T_ARRAY:
       {
-	svalue_t *sv = v->u.arr->item;
-	int i = v->u.arr->size, size = 0;
+        svalue_t *sv = v->u.arr->item;
+        int i = v->u.arr->size, size = 0;
 
-	if (++save_svalue_depth > MAX_SAVE_SVALUE_DEPTH)
-	  {
-	    too_deep_save_error ();
-	  }
-	while (i--)
-	  size += svalue_save_size (sv++);
-	save_svalue_depth--;
-	return size + 5;
+        if (++save_svalue_depth > MAX_SAVE_SVALUE_DEPTH)
+          {
+            too_deep_save_error ();
+          }
+        while (i--)
+          size += svalue_save_size (sv++);
+        save_svalue_depth--;
+        return size + 5;
       }
 
     case T_CLASS:
       {
-	svalue_t *sv = v->u.arr->item;
-	int i = v->u.arr->size, size = 0;
+        svalue_t *sv = v->u.arr->item;
+        int i = v->u.arr->size, size = 0;
 
-	if (++save_svalue_depth > MAX_SAVE_SVALUE_DEPTH)
-	  {
-	    too_deep_save_error ();
-	  }
-	while (i--)
-	  size += svalue_save_size (sv++);
-	save_svalue_depth--;
-	return size + 5;
+        if (++save_svalue_depth > MAX_SAVE_SVALUE_DEPTH)
+          {
+            too_deep_save_error ();
+          }
+        while (i--)
+          size += svalue_save_size (sv++);
+        save_svalue_depth--;
+        return size + 5;
       }
 
     case T_MAPPING:
       {
-	mapping_node_t **a = v->u.map->table, *elt;
-	int j = v->u.map->table_size, size = 0;
+        mapping_node_t **a = v->u.map->table, *elt;
+        int j = v->u.map->table_size, size = 0;
 
-	if (++save_svalue_depth > MAX_SAVE_SVALUE_DEPTH)
-	  {
-	    too_deep_save_error ();
-	  }
-	do
-	  {
-	    for (elt = a[j]; elt; elt = elt->next)
-	      {
-		size += svalue_save_size (elt->values) +
-		  svalue_save_size (elt->values + 1);
-	      }
-	  }
-	while (j--);
-	save_svalue_depth--;
-	return size + 5;
+        if (++save_svalue_depth > MAX_SAVE_SVALUE_DEPTH)
+          {
+            too_deep_save_error ();
+          }
+        do
+          {
+            for (elt = a[j]; elt; elt = elt->next)
+              {
+                size += svalue_save_size (elt->values) +
+                  svalue_save_size (elt->values + 1);
+              }
+          }
+        while (j--);
+        save_svalue_depth--;
+        return size + 5;
       }
 
     case T_NUMBER:
       {
-	int res = v->u.number, len;
-	len = res < 0 ? (res = (-res) & 0x7fffffff, 3) : 2;
-	while (res > 9)
-	  {
-	    res /= 10;
-	    len++;
-	  }
-	return len;
+        int res = v->u.number, len;
+        len = res < 0 ? (res = (-res) & 0x7fffffff, 3) : 2;
+        while (res > 9)
+          {
+            res /= 10;
+            len++;
+          }
+        return len;
       }
 
     case T_REAL:
       {
-	char buf[256];
-	sprintf (buf, "%g", v->u.real);
-	return (int) (strlen (buf) + 1);
+        char buf[256];
+        sprintf (buf, "%g", v->u.real);
+        return (int) (strlen (buf) + 1);
       }
 
     default:
       {
-	return 2;
+        return 2;
       }
     }
 }
@@ -154,119 +154,119 @@ save_svalue (svalue_t * v, char **buf)
     {
     case T_STRING:
       {
-	register char *cp = *buf, *str = v->u.string;
-	char c;
+        register char *cp = *buf, *str = v->u.string;
+        char c;
 
-	*cp++ = '"';
-	while ((c = *str++))
-	  {
-	    if (c == '"' || c == '\\')
-	      {
-		*cp++ = '\\';
-		*cp++ = c;
-	      }
-	    else
-	      *cp++ = (c == '\n') ? '\r' : c;
-	  }
+        *cp++ = '"';
+        while ((c = *str++))
+          {
+            if (c == '"' || c == '\\')
+              {
+                *cp++ = '\\';
+                *cp++ = c;
+              }
+            else
+              *cp++ = (c == '\n') ? '\r' : c;
+          }
 
-	*cp++ = '"';
-	*(*buf = cp) = '\0';
-	return;
+        *cp++ = '"';
+        *(*buf = cp) = '\0';
+        return;
       }
 
     case T_ARRAY:
       {
-	int i = v->u.arr->size;
-	svalue_t *sv = v->u.arr->item;
+        int i = v->u.arr->size;
+        svalue_t *sv = v->u.arr->item;
 
-	*(*buf)++ = '(';
-	*(*buf)++ = '{';
-	while (i--)
-	  {
-	    save_svalue (sv++, buf);
-	    *(*buf)++ = ',';
-	  }
-	*(*buf)++ = '}';
-	*(*buf)++ = ')';
-	*(*buf) = '\0';
-	return;
+        *(*buf)++ = '(';
+        *(*buf)++ = '{';
+        while (i--)
+          {
+            save_svalue (sv++, buf);
+            *(*buf)++ = ',';
+          }
+        *(*buf)++ = '}';
+        *(*buf)++ = ')';
+        *(*buf) = '\0';
+        return;
       }
 
     case T_CLASS:
       {
-	int i = v->u.arr->size;
-	svalue_t *sv = v->u.arr->item;
+        int i = v->u.arr->size;
+        svalue_t *sv = v->u.arr->item;
 
-	*(*buf)++ = '(';
-	*(*buf)++ = '/';	/* Why yes, this *is* a kludge! */
-	while (i--)
-	  {
-	    save_svalue (sv++, buf);
-	    *(*buf)++ = ',';
-	  }
-	*(*buf)++ = '/';
-	*(*buf)++ = ')';
-	*(*buf) = '\0';
-	return;
+        *(*buf)++ = '(';
+        *(*buf)++ = '/';	/* Why yes, this *is* a kludge! */
+        while (i--)
+          {
+            save_svalue (sv++, buf);
+            *(*buf)++ = ',';
+          }
+        *(*buf)++ = '/';
+        *(*buf)++ = ')';
+        *(*buf) = '\0';
+        return;
       }
 
     case T_NUMBER:
       {
-	int res = v->u.number, fact, len = 1, neg = 0;
-	register char *cp;
+        int res = v->u.number, fact, len = 1, neg = 0;
+        register char *cp;
 
-	if (res < 0)
-	  {
-	    len++, neg = 1, res = (-res) & 0x7fffffff;
-	  }
-	fact = res;
-	while (fact > 9)
-	  {
-	    fact /= 10;
-	    len++;
-	  }
-	*(cp = (*buf += len)) = '\0';
-	do
-	  {
-	    *--cp = res % 10 + '0';
-	    res /= 10;
-	  }
-	while (res);
-	if (neg)
-	  *(cp - 1) = '-';
-	return;
+        if (res < 0)
+          {
+            len++, neg = 1, res = (-res) & 0x7fffffff;
+          }
+        fact = res;
+        while (fact > 9)
+          {
+            fact /= 10;
+            len++;
+          }
+        *(cp = (*buf += len)) = '\0';
+        do
+          {
+            *--cp = res % 10 + '0';
+            res /= 10;
+          }
+        while (res);
+        if (neg)
+          *(cp - 1) = '-';
+        return;
       }
 
     case T_REAL:
       {
-	sprintf (*buf, "%g", v->u.real);
-	(*buf) += strlen (*buf);
-	return;
+        sprintf (*buf, "%g", v->u.real);
+        (*buf) += strlen (*buf);
+        return;
       }
 
     case T_MAPPING:
       {
-	int j = v->u.map->table_size;
-	mapping_node_t **a = v->u.map->table, *elt;
+        int j = v->u.map->table_size;
+        mapping_node_t **a = v->u.map->table, *elt;
 
-	*(*buf)++ = '(';
-	*(*buf)++ = '[';
-	do
-	  {
-	    for (elt = a[j]; elt; elt = elt = elt->next)
-	      {
-		save_svalue (elt->values, buf);
-		*(*buf)++ = ':';
-		save_svalue (elt->values + 1, buf);
-		*(*buf)++ = ',';
-	      }
-	  }
-	while (j--);
+        *(*buf)++ = '(';
+        *(*buf)++ = '[';
+        do
+          {
+            for (elt = a[j]; elt; elt = elt = elt->next)
+              {
+                save_svalue (elt->values, buf);
+                *(*buf)++ = ':';
+                save_svalue (elt->values + 1, buf);
+                *(*buf)++ = ',';
+              }
+          }
+        while (j--);
 
-	*(*buf)++ = ']';
-	*(*buf)++ = ')';
-	*(*buf) = '\0';
-	return;
+        *(*buf)++ = ']';
+        *(*buf)++ = ')';
+        *(*buf) = '\0';
+        return;
       }
     }
 }
@@ -282,134 +282,134 @@ restore_internal_size (char **str, int is_mapping, int depth)
   while ((c = *cp++))
     {
       switch (c)
-	{
-	case '"':
-	  {
-	    while ((c = *cp++) != '"')
-	      if ((c == '\0') || (c == '\\' && !*cp++))
-		{
-		  return 0;
-		}
-	    if (*cp++ != delim)
-	      return 0;
-	    size++;
-	    break;
-	  }
+        {
+        case '"':
+          {
+            while ((c = *cp++) != '"')
+              if ((c == '\0') || (c == '\\' && !*cp++))
+                {
+                  return 0;
+                }
+            if (*cp++ != delim)
+              return 0;
+            size++;
+            break;
+          }
 
-	case '(':
-	  {
-	    if (*cp == '{')
-	      {
-		*str = ++cp;
-		if (!restore_internal_size (str, 0, save_svalue_depth++))
-		  {
-		    return 0;
-		  }
-	      }
-	    else if (*cp == '[')
-	      {
-		*str = ++cp;
-		if (!restore_internal_size (str, 1, save_svalue_depth++))
-		  {
-		    return 0;
-		  }
-	      }
-	    else if (*cp == '/')
-	      {
-		*str = ++cp;
-		if (!restore_internal_size (str, 0, save_svalue_depth++))
-		  return 0;
-	      }
-	    else
-	      {
-		return 0;
-	      }
+        case '(':
+          {
+            if (*cp == '{')
+              {
+                *str = ++cp;
+                if (!restore_internal_size (str, 0, save_svalue_depth++))
+                  {
+                    return 0;
+                  }
+              }
+            else if (*cp == '[')
+              {
+                *str = ++cp;
+                if (!restore_internal_size (str, 1, save_svalue_depth++))
+                  {
+                    return 0;
+                  }
+              }
+            else if (*cp == '/')
+              {
+                *str = ++cp;
+                if (!restore_internal_size (str, 0, save_svalue_depth++))
+                  return 0;
+              }
+            else
+              {
+                return 0;
+              }
 
-	    if (*(cp = *str) != delim)
-	      {
-		return 0;
-	      }
-	    cp++;
-	    size++;
-	    break;
-	  }
+            if (*(cp = *str) != delim)
+              {
+                return 0;
+              }
+            cp++;
+            size++;
+            break;
+          }
 
-	case ']':
-	  {
-	    if (*cp++ == ')' && is_mapping)
-	      {
-		*str = cp;
-		if (!sizes)
-		  {
-		    max_depth = 128;
-		    while (max_depth <= depth)
-		      max_depth <<= 1;
-		    sizes = CALLOCATE (max_depth, int, TAG_TEMPORARY,
-				       "restore_internal_size");
-		  }
-		else if (depth >= max_depth)
-		  {
-		    while ((max_depth <<= 1) <= depth);
-		    sizes = RESIZE (sizes, max_depth, int, TAG_TEMPORARY,
-				    "restore_internal_size");
-		  }
-		sizes[depth] = size;
-		return 1;
-	      }
-	    else
-	      {
-		return 0;
-	      }
-	  }
+        case ']':
+          {
+            if (*cp++ == ')' && is_mapping)
+              {
+                *str = cp;
+                if (!sizes)
+                  {
+                    max_depth = 128;
+                    while (max_depth <= depth)
+                      max_depth <<= 1;
+                    sizes = CALLOCATE (max_depth, int, TAG_TEMPORARY,
+                                       "restore_internal_size");
+                  }
+                else if (depth >= max_depth)
+                  {
+                    while ((max_depth <<= 1) <= depth);
+                    sizes = RESIZE (sizes, max_depth, int, TAG_TEMPORARY,
+                                    "restore_internal_size");
+                  }
+                sizes[depth] = size;
+                return 1;
+              }
+            else
+              {
+                return 0;
+              }
+          }
 
-	case '/':
-	case '}':
-	  {
-	    if (*cp++ == ')' && !is_mapping)
-	      {
-		*str = cp;
-		if (!sizes)
-		  {
-		    max_depth = 128;
-		    while (max_depth <= depth)
-		      max_depth <<= 1;
-		    sizes = CALLOCATE (max_depth, int, TAG_TEMPORARY,
-				       "restore_internal_size");
-		  }
-		else if (depth >= max_depth)
-		  {
-		    while ((max_depth <<= 1) <= depth);
-		    sizes = RESIZE (sizes, max_depth, int, TAG_TEMPORARY,
-				    "restore_internal_size");
-		  }
-		sizes[depth] = size;
-		return 1;
-	      }
-	    else
-	      {
-		return 0;
-	      }
-	  }
+        case '/':
+        case '}':
+          {
+            if (*cp++ == ')' && !is_mapping)
+              {
+                *str = cp;
+                if (!sizes)
+                  {
+                    max_depth = 128;
+                    while (max_depth <= depth)
+                      max_depth <<= 1;
+                    sizes = CALLOCATE (max_depth, int, TAG_TEMPORARY,
+                                       "restore_internal_size");
+                  }
+                else if (depth >= max_depth)
+                  {
+                    while ((max_depth <<= 1) <= depth);
+                    sizes = RESIZE (sizes, max_depth, int, TAG_TEMPORARY,
+                                    "restore_internal_size");
+                  }
+                sizes[depth] = size;
+                return 1;
+              }
+            else
+              {
+                return 0;
+              }
+          }
 
-	case ':':
-	case ',':
-	  {
-	    if (c != delim)
-	      return 0;
-	    size++;
-	    break;
-	  }
+        case ':':
+        case ',':
+          {
+            if (c != delim)
+              return 0;
+            size++;
+            break;
+          }
 
-	default:
-	  {
-	    if (!(cp = strchr (cp, delim)))
-	      return 0;
-	    cp++;
-	    size++;
-	  }
-	}
+        default:
+          {
+            if (!(cp = strchr (cp, delim)))
+              return 0;
+            cp++;
+            size++;
+          }
+        }
       if (is_mapping)
-	delim = (index ^= 1) ? ',' : ':';
+        delim = (index ^= 1) ? ',' : ':';
     }
   return 0;
 }
@@ -429,117 +429,117 @@ restore_size (char **str, int is_mapping)
     {
       mb_span = mblen (cp, MB_CUR_MAX);
       if (mb_span < 0)
-		    return -1;
+                    return -1;
       cp += mb_span; /* don't check in the middle of a multibyte character */
       switch (c)
-		    {
-		      case '"':
-	  	      {
-	            char* start = cp - 1;
-	            while ((c = *cp) != '"')
-	              {
-		              mb_span = mblen (cp, MB_CUR_MAX);
-              		if (mb_span < 0)
-		                return -1;
-		              cp += mb_span; /* don't check backslash in the middle of a multibyte character */
-		              if ((c == '\0') || (c == '\\' && !*cp++))
-		                return 0;
-	              }
-	            cp++;
+                    {
+                      case '"':
+                        {
+                    char* start = cp - 1;
+                    while ((c = *cp) != '"')
+                      {
+                              mb_span = mblen (cp, MB_CUR_MAX);
+                              if (mb_span < 0)
+                                return -1;
+                              cp += mb_span; /* don't check backslash in the middle of a multibyte character */
+                              if ((c == '\0') || (c == '\\' && !*cp++))
+                                return 0;
+                      }
+                    cp++;
 
-  	          if (*cp++ != delim)
-	              {
-		              debug_error ("corrupted multibyte string: %s", start);
-		              return -1;
-	              }
-	            size++;
-	            break;
-	          }
+                    if (*cp++ != delim)
+                      {
+                              debug_error ("corrupted multibyte string: %s", start);
+                              return -1;
+                      }
+                    size++;
+                    break;
+                  }
 
-      	  case '(':
-	          {
-	            if (*cp == '{')
-	              {
-		              *str = ++cp;
-		              if (!restore_internal_size (str, 0, save_svalue_depth++))
-		                return -1;
-	              }
-	            else if (*cp == '[')
-	              {
-              		*str = ++cp;
-		              if (!restore_internal_size (str, 1, save_svalue_depth++))
-		                return -1;
-	              }
-        	    else if (*cp == '/')
-	              {
-              		*str = ++cp;
-		              if (!restore_internal_size (str, 0, save_svalue_depth++))
-		                return -1;
-	              }
-        	    else
-	              {
-              		return -1;
+                case '(':
+                  {
+                    if (*cp == '{')
+                      {
+                              *str = ++cp;
+                              if (!restore_internal_size (str, 0, save_svalue_depth++))
+                                return -1;
+                      }
+                    else if (*cp == '[')
+                      {
+                              *str = ++cp;
+                              if (!restore_internal_size (str, 1, save_svalue_depth++))
+                                return -1;
+                      }
+                    else if (*cp == '/')
+                      {
+                              *str = ++cp;
+                              if (!restore_internal_size (str, 0, save_svalue_depth++))
+                                return -1;
+                      }
+                    else
+                      {
+                              return -1;
                 }
 
-        	    if (*(cp = *str) != delim)
-	              {
-              		return -1;
-	              }
-        	    cp++;
-	            size++;
-	            break;
-	          }
+                    if (*(cp = *str) != delim)
+                      {
+                              return -1;
+                      }
+                    cp++;
+                    size++;
+                    break;
+                  }
 
-	        case ']':
-	          {
-	            save_svalue_depth = 0;
-	            if (*cp++ == ')' && is_mapping)
-	              {
-		              *str = cp;
-		              return size;
-	              }
-        	    else
-	              {
-              		return -1;
-	              }
-        	  }
+                case ']':
+                  {
+                    save_svalue_depth = 0;
+                    if (*cp++ == ')' && is_mapping)
+                      {
+                              *str = cp;
+                              return size;
+                      }
+                    else
+                      {
+                              return -1;
+                      }
+                  }
 
-	        case '/':
-	        case '}':
-	          {
-	            save_svalue_depth = 0;
-	            if (*cp++ == ')' && !is_mapping)
-	              {
-		              *str = cp;
-		              return size;
-	              }
-	            else
-	              {
-              		return -1;
-	              }
-	          }
+                case '/':
+                case '}':
+                  {
+                    save_svalue_depth = 0;
+                    if (*cp++ == ')' && !is_mapping)
+                      {
+                              *str = cp;
+                              return size;
+                      }
+                    else
+                      {
+                              return -1;
+                      }
+                  }
 
-	        case ':':
-	        case ',':
-	          {
-        	    if (c != delim)
-	              return -1;
-	            size++;
-	            break;
-	          }
+                case ':':
+                case ',':
+                  {
+                    if (c != delim)
+                      return -1;
+                    size++;
+                    break;
+                  }
 
-        	default:
-	          {
-        	    if (!(cp = strchr (cp, delim)))
-	              {
-              		return -1;
-	              }
-        	    cp++;
-	            size++;
-	          }
-	      }
+                default:
+                  {
+                    if (!(cp = strchr (cp, delim)))
+                      {
+                              return -1;
+                      }
+                    cp++;
+                    size++;
+                  }
+              }
       if (is_mapping)
-	      delim = (index ^= 1) ? ',' : ':';
+              delim = (index ^= 1) ? ',' : ':';
     }
   return -1;
 }
@@ -555,55 +555,55 @@ restore_interior_string (char **val, svalue_t * sv)
   while ((c = *cp++) != '"')
     {
       switch (c)
-	{
-	case '\r':
-	  {
-	    *(cp - 1) = '\n';
-	    break;
-	  }
+        {
+        case '\r':
+          {
+            *(cp - 1) = '\n';
+            break;
+          }
 
-	case '\\':
-	  {
-	    char *new = cp - 1;
+        case '\\':
+          {
+            char *new = cp - 1;
 
-	    if ((*new++ = *cp++))
-	      {
-		while ((c = *cp++) != '"')
-		  {
-		    if (c == '\\')
-		      {
-			if (!(*new++ = *cp++))
-			  return ROB_STRING_ERROR;
-		      }
-		    else
-		      {
-			if (c == '\r')
-			  *new++ = '\n';
-			else
-			  *new++ = c;
-		      }
-		  }
-		if (c == '\0')
-		  return ROB_STRING_ERROR;
-		*new = '\0';
-		*val = cp;
-		sv->u.string = new_string (len = (new - start),
-					   "restore_string");
-		strcpy (sv->u.string, start);
-		sv->type = T_STRING;
-		sv->subtype = STRING_MALLOC;
-		return 0;
-	      }
-	    else
-	      return ROB_STRING_ERROR;
-	  }
+            if ((*new++ = *cp++))
+              {
+                while ((c = *cp++) != '"')
+                  {
+                    if (c == '\\')
+                      {
+                        if (!(*new++ = *cp++))
+                          return ROB_STRING_ERROR;
+                      }
+                    else
+                      {
+                        if (c == '\r')
+                          *new++ = '\n';
+                        else
+                          *new++ = c;
+                      }
+                  }
+                if (c == '\0')
+                  return ROB_STRING_ERROR;
+                *new = '\0';
+                *val = cp;
+                sv->u.string = new_string (len = (new - start),
+                                           "restore_string");
+                strcpy (sv->u.string, start);
+                sv->type = T_STRING;
+                sv->subtype = STRING_MALLOC;
+                return 0;
+              }
+            else
+              return ROB_STRING_ERROR;
+          }
 
-	case '\0':
-	  {
-	    return ROB_STRING_ERROR;
-	  }
+        case '\0':
+          {
+            return ROB_STRING_ERROR;
+          }
 
-	}
+        }
     }
 
   *val = cp;
@@ -628,7 +628,7 @@ parse_numeric (char **cpp, char c, svalue_t * dest)
       res = 0;
       c = *cp++;
       if (!isdigit (c))
-	return 0;
+        return 0;
     }
   else
     neg = 0;
@@ -645,41 +645,41 @@ parse_numeric (char **cpp, char c, svalue_t * dest)
 
       c = *cp++;
       if (!isdigit (c))
-	return 0;
+        return 0;
 
       do
-	{
-	  f1 += (c - '0') / f2;
-	  f2 *= 10;
-	}
+        {
+          f1 += (c - '0') / f2;
+          f2 *= 10;
+        }
       while ((c = *cp++) && isdigit (c));
 
       f1 += res;
       if (c == 'e')
-	{
-	  int expo = 0;
+        {
+          int expo = 0;
 
-	  if ((c = *cp++) == '+')
-	    {
-	      while ((c = *cp++) && isdigit (c))
-		{
-		  expo *= 10;
-		  expo += (c - '0');
-		}
-	      f1 *= pow (10.0, expo);
-	    }
-	  else if (c == '-')
-	    {
-	      while ((c = *cp++) && isdigit (c))
-		{
-		  expo *= 10;
-		  expo += (c - '0');
-		}
-	      f1 *= pow (10.0, -expo);
-	    }
-	  else
-	    return 0;
-	}
+          if ((c = *cp++) == '+')
+            {
+              while ((c = *cp++) && isdigit (c))
+                {
+                  expo *= 10;
+                  expo += (c - '0');
+                }
+              f1 *= pow (10.0, expo);
+            }
+          else if (c == '-')
+            {
+              while ((c = *cp++) && isdigit (c))
+                {
+                  expo *= 10;
+                  expo += (c - '0');
+                }
+              f1 *= pow (10.0, -expo);
+            }
+          else
+            return 0;
+        }
 
       dest->type = T_REAL;
       dest->u.real = (neg ? -f1 : f1);
@@ -692,25 +692,25 @@ parse_numeric (char **cpp, char c, svalue_t * dest)
       float f1;
 
       if ((c = *cp++) == '+')
-	{
-	  while ((c = *cp++) && isdigit (c))
-	    {
-	      expo *= 10;
-	      expo += (c - '0');
-	    }
-	  f1 = res * pow (10.0, expo);
-	}
+        {
+          while ((c = *cp++) && isdigit (c))
+            {
+              expo *= 10;
+              expo += (c - '0');
+            }
+          f1 = res * pow (10.0, expo);
+        }
       else if (c == '-')
-	{
-	  while ((c = *cp++) && isdigit (c))
-	    {
-	      expo *= 10;
-	      expo += (c - '0');
-	    }
-	  f1 = res * pow (10.0, -expo);
-	}
+        {
+          while ((c = *cp++) && isdigit (c))
+            {
+              expo *= 10;
+              expo += (c - '0');
+            }
+          f1 = res * pow (10.0, -expo);
+        }
       else
-	return 0;
+        return 0;
 
       dest->type = T_REAL;
       dest->u.real = (neg ? -f1 : f1);
@@ -769,197 +769,197 @@ restore_mapping (char **str, svalue_t * sv)
   while (1)
     {
       switch (c = *cp++)
-	{
-	case '"':
-	  {
-	    *str = cp;
-	    if ((err = restore_hash_string (str, &key)))
-	      goto key_error;
-	    cp = *str;
-	    cp++;
-	    break;
-	  }
+        {
+        case '"':
+          {
+            *str = cp;
+            if ((err = restore_hash_string (str, &key)))
+              goto key_error;
+            cp = *str;
+            cp++;
+            break;
+          }
 
-	case '(':
-	  {
-	    save_svalue_depth++;
-	    if (*cp == '[')
-	      {
-		*str = ++cp;
-		if ((err = restore_mapping (str, &key)))
-		  goto key_error;
-	      }
-	    else if (*cp == '{')
-	      {
-		*str = ++cp;
-		if ((err = restore_array (str, &key)))
-		  goto key_error;
-	      }
-	    else if (*cp == '/')
-	      {
-		*str = ++cp;
-		if ((err = restore_class (str, &key)))
-		  goto key_error;
-	      }
-	    else
-	      goto generic_key_error;
-	    cp = *str;
-	    cp++;
-	    break;
-	  }
+        case '(':
+          {
+            save_svalue_depth++;
+            if (*cp == '[')
+              {
+                *str = ++cp;
+                if ((err = restore_mapping (str, &key)))
+                  goto key_error;
+              }
+            else if (*cp == '{')
+              {
+                *str = ++cp;
+                if ((err = restore_array (str, &key)))
+                  goto key_error;
+              }
+            else if (*cp == '/')
+              {
+                *str = ++cp;
+                if ((err = restore_class (str, &key)))
+                  goto key_error;
+              }
+            else
+              goto generic_key_error;
+            cp = *str;
+            cp++;
+            break;
+          }
 
-	case ':':
-	  {
-	    key.u.number = 0;
-	    key.type = T_NUMBER;
-	    break;
-	  }
+        case ':':
+          {
+            key.u.number = 0;
+            key.type = T_NUMBER;
+            break;
+          }
 
-	case ']':
-	  *str = ++cp;
-	  add_map_stats (m, count);
-	  sv->type = T_MAPPING;
-	  sv->u.map = m;
-	  return 0;
+        case ']':
+          *str = ++cp;
+          add_map_stats (m, count);
+          sv->type = T_MAPPING;
+          sv->u.map = m;
+          return 0;
 
-	case '-':
-	case '0':
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case '5':
-	case '6':
-	case '7':
-	case '8':
-	case '9':
-	  if (!parse_numeric (&cp, c, &key))
-	    goto key_numeral_error;
-	  break;
+        case '-':
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+          if (!parse_numeric (&cp, c, &key))
+            goto key_numeral_error;
+          break;
 
-	default:
-	  goto generic_key_error;
-	}
+        default:
+          goto generic_key_error;
+        }
 
       /* At this point, key is a valid, referenced svalue and we're
          responsible for it */
 
       switch (c = *cp++)
-	{
-	case '"':
-	  {
-	    *str = cp;
-	    if ((err = restore_interior_string (str, &value)))
-	      goto value_error;
-	    cp = *str;
-	    cp++;
-	    break;
-	  }
+        {
+        case '"':
+          {
+            *str = cp;
+            if ((err = restore_interior_string (str, &value)))
+              goto value_error;
+            cp = *str;
+            cp++;
+            break;
+          }
 
-	case '(':
-	  {
-	    save_svalue_depth++;
-	    if (*cp == '[')
-	      {
-		*str = ++cp;
-		if ((err = restore_mapping (str, &value)))
-		  goto value_error;
-	      }
-	    else if (*cp == '{')
-	      {
-		*str = ++cp;
-		if ((err = restore_array (str, &value)))
-		  goto value_error;
-	      }
-	    else if (*cp == '/')
-	      {
-		*str = ++cp;
-		if ((err = restore_class (str, &value)))
-		  goto value_error;
-	      }
-	    else
-	      goto generic_value_error;
-	    cp = *str;
-	    cp++;
-	    break;
-	  }
+        case '(':
+          {
+            save_svalue_depth++;
+            if (*cp == '[')
+              {
+                *str = ++cp;
+                if ((err = restore_mapping (str, &value)))
+                  goto value_error;
+              }
+            else if (*cp == '{')
+              {
+                *str = ++cp;
+                if ((err = restore_array (str, &value)))
+                  goto value_error;
+              }
+            else if (*cp == '/')
+              {
+                *str = ++cp;
+                if ((err = restore_class (str, &value)))
+                  goto value_error;
+              }
+            else
+              goto generic_value_error;
+            cp = *str;
+            cp++;
+            break;
+          }
 
-	case '-':
-	case '0':
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case '5':
-	case '6':
-	case '7':
-	case '8':
-	case '9':
-	  if (!parse_numeric (&cp, c, &value))
-	    goto value_numeral_error;
-	  break;
+        case '-':
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+          if (!parse_numeric (&cp, c, &value))
+            goto value_numeral_error;
+          break;
 
-	case ',':
-	  {
-	    value.u.number = 0;
-	    value.type = T_NUMBER;
-	    break;
-	  }
+        case ',':
+          {
+            value.u.number = 0;
+            value.type = T_NUMBER;
+            break;
+          }
 
-	default:
-	  goto generic_value_error;
-	}
+        default:
+          goto generic_value_error;
+        }
 
       /* both key and value are valid, referenced svalues */
 
       oi = MAP_POINTER_HASH (key.u.number);
       i = oi & mask;
       if ((elt2 = elt = a[i]))
-	{
-	  do
-	    {
-	      /* This should never happen, but don't bail on it */
-	      if (msameval (&key, elt->values))
-		{
-		  free_svalue (&key, "restore_mapping: duplicate key");
-		  free_svalue (elt->values + 1,
-			       "restore_mapping: replaced value");
-		  *(elt->values + 1) = value;
-		  break;
-		}
-	    }
-	  while ((elt = elt->next));
-	  if (elt)
-	    continue;
-	}
+        {
+          do
+            {
+              /* This should never happen, but don't bail on it */
+              if (msameval (&key, elt->values))
+                {
+                  free_svalue (&key, "restore_mapping: duplicate key");
+                  free_svalue (elt->values + 1,
+                               "restore_mapping: replaced value");
+                  *(elt->values + 1) = value;
+                  break;
+                }
+            }
+          while ((elt = elt->next));
+          if (elt)
+            continue;
+        }
       else if (!(--m->unfilled))
-	{
-	  if (growMap (m))
-	    {
-	      a = m->table;
-	      if (oi & ++mask)
-		elt2 = a[i |= mask];
-	      mask <<= 1;
-	      mask--;
-	    }
-	  else
-	    {
-	      add_map_stats (m, count);
-	      free_mapping (m);
-	      free_svalue (&key, "restore_mapping: out of memory");
-	      free_svalue (&value, "restore_mapping: out of memory");
-	      error ("Out of memory\n");
-	    }
-	}
+        {
+          if (growMap (m))
+            {
+              a = m->table;
+              if (oi & ++mask)
+                elt2 = a[i |= mask];
+              mask <<= 1;
+              mask--;
+            }
+          else
+            {
+              add_map_stats (m, count);
+              free_mapping (m);
+              free_svalue (&key, "restore_mapping: out of memory");
+              free_svalue (&value, "restore_mapping: out of memory");
+              error ("Out of memory\n");
+            }
+        }
 
       if (++count > CONFIG_INT (__MAX_MAPPING_SIZE__))
-	{
-	  add_map_stats (m, count - 1);
-	  free_mapping (m);
-	  free_svalue (&key, "restore_mapping: mapping too large");
-	  free_svalue (&value, "restore_mapping: mapping too large");
-	  mapping_too_large ();
-	}
+        {
+          add_map_stats (m, count - 1);
+          free_mapping (m);
+          free_svalue (&key, "restore_mapping: mapping too large");
+          free_svalue (&value, "restore_mapping: mapping too large");
+          mapping_too_large ();
+        }
 
       elt = new_map_node ();
       *elt->values = key;
@@ -1005,75 +1005,75 @@ restore_class (char **str, svalue_t * ret)
     return ROB_CLASS_ERROR;
 
   v = allocate_class_by_size (size);	/* after this point we have to clean up
-					   or we'll leak */
+                                           or we'll leak */
   sv = v->item;
 
   while (size--)
     {
       switch (c = *cp++)
-	{
-	case '"':
-	  *str = cp;
-	  if ((err = restore_interior_string (str, sv)))
-	    goto generic_error;
-	  cp = *str;
-	  cp++;
-	  sv++;
-	  break;
+        {
+        case '"':
+          *str = cp;
+          if ((err = restore_interior_string (str, sv)))
+            goto generic_error;
+          cp = *str;
+          cp++;
+          sv++;
+          break;
 
-	case ',':
-	  sv++;
-	  break;
+        case ',':
+          sv++;
+          break;
 
-	case '(':
-	  {
-	    save_svalue_depth++;
-	    if (*cp == '[')
-	      {
-		*str = ++cp;
-		if ((err = restore_mapping (str, sv)))
-		  goto error;
-	      }
-	    else if (*cp == '{')
-	      {
-		*str = ++cp;
-		if ((err = restore_array (str, sv)))
-		  goto error;
-	      }
-	    else if (*cp == '/')
-	      {
-		*str = ++cp;
-		if ((err = restore_class (str, sv)))
-		  goto error;
-	      }
-	    else
-	      goto generic_error;
-	    sv++;
-	    cp = *str;
-	    cp++;
-	    break;
-	  }
+        case '(':
+          {
+            save_svalue_depth++;
+            if (*cp == '[')
+              {
+                *str = ++cp;
+                if ((err = restore_mapping (str, sv)))
+                  goto error;
+              }
+            else if (*cp == '{')
+              {
+                *str = ++cp;
+                if ((err = restore_array (str, sv)))
+                  goto error;
+              }
+            else if (*cp == '/')
+              {
+                *str = ++cp;
+                if ((err = restore_class (str, sv)))
+                  goto error;
+              }
+            else
+              goto generic_error;
+            sv++;
+            cp = *str;
+            cp++;
+            break;
+          }
 
-	case '-':
-	case '0':
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case '5':
-	case '6':
-	case '7':
-	case '8':
-	case '9':
-	  if (parse_numeric (&cp, c, sv))
-	    sv++;
-	  else
-	    goto numeral_error;
-	  break;
+        case '-':
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+          if (parse_numeric (&cp, c, sv))
+            sv++;
+          else
+            goto numeral_error;
+          break;
 
-	default:
-	  goto generic_error;
-	}
+        default:
+          goto generic_error;
+        }
     }
 
   cp += 2;
@@ -1108,75 +1108,75 @@ restore_array (char **str, svalue_t * ret)
     return ROB_ARRAY_ERROR;
 
   v = allocate_array (size);	/* after this point we have to clean up
-				   or we'll leak */
+                                   or we'll leak */
   sv = v->item;
 
   while (size--)
     {
       switch (c = *cp++)
-	{
-	case '"':
-	  *str = cp;
-	  if ((err = restore_interior_string (str, sv)))
-	    goto generic_error;
-	  cp = *str;
-	  cp++;
-	  sv++;
-	  break;
+        {
+        case '"':
+          *str = cp;
+          if ((err = restore_interior_string (str, sv)))
+            goto generic_error;
+          cp = *str;
+          cp++;
+          sv++;
+          break;
 
-	case ',':
-	  sv++;
-	  break;
+        case ',':
+          sv++;
+          break;
 
-	case '(':
-	  {
-	    save_svalue_depth++;
-	    if (*cp == '[')
-	      {
-		*str = ++cp;
-		if ((err = restore_mapping (str, sv)))
-		  goto error;
-	      }
-	    else if (*cp == '{')
-	      {
-		*str = ++cp;
-		if ((err = restore_array (str, sv)))
-		  goto error;
-	      }
-	    else if (*cp == '/')
-	      {
-		*str = ++cp;
-		if ((err = restore_class (str, sv)))
-		  goto error;
-	      }
-	    else
-	      goto generic_error;
-	    sv++;
-	    cp = *str;
-	    cp++;
-	    break;
-	  }
+        case '(':
+          {
+            save_svalue_depth++;
+            if (*cp == '[')
+              {
+                *str = ++cp;
+                if ((err = restore_mapping (str, sv)))
+                  goto error;
+              }
+            else if (*cp == '{')
+              {
+                *str = ++cp;
+                if ((err = restore_array (str, sv)))
+                  goto error;
+              }
+            else if (*cp == '/')
+              {
+                *str = ++cp;
+                if ((err = restore_class (str, sv)))
+                  goto error;
+              }
+            else
+              goto generic_error;
+            sv++;
+            cp = *str;
+            cp++;
+            break;
+          }
 
-	case '-':
-	case '0':
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case '5':
-	case '6':
-	case '7':
-	case '8':
-	case '9':
-	  if (parse_numeric (&cp, c, sv))
-	    sv++;
-	  else
-	    goto numeral_error;
-	  break;
+        case '-':
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+          if (parse_numeric (&cp, c, sv))
+            sv++;
+          else
+            goto numeral_error;
+          break;
 
-	default:
-	  goto generic_error;
-	}
+        default:
+          goto generic_error;
+        }
     }
 
   cp += 2;
@@ -1206,53 +1206,53 @@ restore_string (char *val, svalue_t * sv)
   while ((c = *cp++) != '"')
     {
       switch (c)
-	{
-	case '\r':
-	  {
-	    *(cp - 1) = '\n';
-	    break;
-	  }
+        {
+        case '\r':
+          {
+            *(cp - 1) = '\n';
+            break;
+          }
 
-	case '\\':
-	  {
-	    char *new = cp - 1;
+        case '\\':
+          {
+            char *new = cp - 1;
 
-	    if ((*new++ = *cp++))
-	      {
-		while ((c = *cp++) != '"')
-		  {
-		    if (c == '\\')
-		      {
-			if (!(*new++ = *cp++))
-			  return ROB_STRING_ERROR;
-		      }
-		    else
-		      {
-			if (c == '\r')
-			  *new++ = '\n';
-			else
-			  *new++ = c;
-		      }
-		  }
-		if ((c == '\0') || (*cp != '\0'))
-		  return ROB_STRING_ERROR;
-		*new = '\0';
-		sv->u.string = new_string (new - start, "restore_string");
-		strcpy (sv->u.string, start);
-		sv->type = T_STRING;
-		sv->subtype = STRING_MALLOC;
-		return 0;
-	      }
-	    else
-	      return ROB_STRING_ERROR;
-	  }
+            if ((*new++ = *cp++))
+              {
+                while ((c = *cp++) != '"')
+                  {
+                    if (c == '\\')
+                      {
+                        if (!(*new++ = *cp++))
+                          return ROB_STRING_ERROR;
+                      }
+                    else
+                      {
+                        if (c == '\r')
+                          *new++ = '\n';
+                        else
+                          *new++ = c;
+                      }
+                  }
+                if ((c == '\0') || (*cp != '\0'))
+                  return ROB_STRING_ERROR;
+                *new = '\0';
+                sv->u.string = new_string (new - start, "restore_string");
+                strcpy (sv->u.string, start);
+                sv->type = T_STRING;
+                sv->subtype = STRING_MALLOC;
+                return 0;
+              }
+            else
+              return ROB_STRING_ERROR;
+          }
 
-	case '\0':
-	  {
-	    return ROB_STRING_ERROR;
-	  }
+        case '\0':
+          {
+            return ROB_STRING_ERROR;
+          }
 
-	}
+        }
     }
 
   if (*cp--)
@@ -1280,29 +1280,29 @@ restore_svalue (char *cp, svalue_t * v)
       return restore_string (cp, v);
     case '(':
       if (*cp == '{')
-	{
-	  cp++;
-	  ret = restore_array (&cp, v);
-	}
+        {
+          cp++;
+          ret = restore_array (&cp, v);
+        }
       else if (*cp == '[')
-	{
-	  cp++;
-	  ret = restore_mapping (&cp, v);
-	}
+        {
+          cp++;
+          ret = restore_mapping (&cp, v);
+        }
       else if (*cp++ == '/')
-	{
-	  ret = restore_class (&cp, v);
-	}
+        {
+          ret = restore_class (&cp, v);
+        }
       else
-	ret = ROB_GENERAL_ERROR;
+        ret = ROB_GENERAL_ERROR;
 
       if (save_svalue_depth)
-	{
-	  save_svalue_depth = max_depth = 0;
-	  if (sizes)
-	    FREE ((char *) sizes);
-	  sizes = (int *) 0;
-	}
+        {
+          save_svalue_depth = max_depth = 0;
+          if (sizes)
+            FREE ((char *) sizes);
+          sizes = (int *) 0;
+        }
       return ret;
 
     case '-':
@@ -1317,7 +1317,7 @@ restore_svalue (char *cp, svalue_t * v)
     case '8':
     case '9':
       if (!parse_numeric (&cp, c, v))
-	return ROB_NUMERAL_ERROR;
+        return ROB_NUMERAL_ERROR;
       break;
 
     default:
@@ -1342,37 +1342,37 @@ safe_restore_svalue (char *cp, svalue_t * v)
     {
     case '"':
       if ((ret = restore_string (cp, &val)))
-	return ret;
+        return ret;
       break;
     case '(':
       {
-	if (*cp == '{')
-	  {
-	    cp++;
-	    ret = restore_array (&cp, &val);
-	  }
-	else if (*cp == '[')
-	  {
-	    cp++;
-	    ret = restore_mapping (&cp, &val);
-	  }
-	else if (*cp++ == '/')
-	  {
-	    ret = restore_class (&cp, &val);
-	  }
-	else
-	  return ROB_GENERAL_ERROR;
+        if (*cp == '{')
+          {
+            cp++;
+            ret = restore_array (&cp, &val);
+          }
+        else if (*cp == '[')
+          {
+            cp++;
+            ret = restore_mapping (&cp, &val);
+          }
+        else if (*cp++ == '/')
+          {
+            ret = restore_class (&cp, &val);
+          }
+        else
+          return ROB_GENERAL_ERROR;
 
-	if (save_svalue_depth)
-	  {
-	    save_svalue_depth = max_depth = 0;
-	    if (sizes)
-	      FREE ((char *) sizes);
-	    sizes = (int *) 0;
-	  }
-	if (ret)
-	  return ret;
-	break;
+        if (save_svalue_depth)
+          {
+            save_svalue_depth = max_depth = 0;
+            if (sizes)
+              FREE ((char *) sizes);
+            sizes = (int *) 0;
+          }
+        if (ret)
+          return ret;
+        break;
       }
 
     case '-':
@@ -1387,7 +1387,7 @@ safe_restore_svalue (char *cp, svalue_t * v)
     case '8':
     case '9':
       if (!parse_numeric (&cp, c, &val))
-	return ROB_NUMERAL_ERROR;
+        return ROB_NUMERAL_ERROR;
       break;
 
     default:
@@ -1406,19 +1406,19 @@ fgv_recurse (program_t * prog, int *idx, char *name, unsigned short *type)
   for (i = 0; i < prog->num_inherited; i++)
     {
       if (fgv_recurse (prog->inherit[i].prog, idx, name, type))
-	{
-	  *type |= prog->inherit[i].type_mod;
-	  return 1;
-	}
+        {
+          *type |= prog->inherit[i].type_mod;
+          return 1;
+        }
     }
   for (i = 0; i < prog->num_variables_defined; i++)
     {
       if (prog->variable_table[i] == name)
-	{
-	  *idx += i;
-	  *type = prog->variable_types[i];
-	  return 1;
-	}
+        {
+          *idx += i;
+          *type = prog->variable_types[i];
+          return 1;
+        }
     }
   *idx += prog->num_variables_defined;
   return 0;
@@ -1433,7 +1433,7 @@ find_global_variable (program_t * prog, char *name, unsigned short *type)
   if (str && fgv_recurse (prog, &idx, str, type))
     {
       if (*type & NAME_PUBLIC)
-	*type &= ~NAME_PRIVATE;
+        *type &= ~NAME_PRIVATE;
       return idx;
     }
   return -1;
@@ -1455,62 +1455,50 @@ restore_object_from_buff (object_t * ob, char *theBuff, int noclear)
       svalue_t *v;
 
       if ((tmp = strchr (buff, '\n')))
-	{
-	  *tmp = '\0';
-	  nextBuff = tmp + 1;
-	}
+        {
+          *tmp = '\0';
+          nextBuff = tmp + 1;
+        }
       else
-	{
-	  nextBuff = 0;
-	}
+        {
+          nextBuff = 0;
+        }
       if (buff[0] == '#')	/* ignore 'comments' in savefiles */
-	continue;
+        continue;
       space = strchr (buff, ' ');
       if (!space || ((space - buff) >= sizeof (var)))
-	{
-	  FREE (theBuff);
-	  error ("restore_object(): Illegal file format.\n");
-	}
+        {
+          FREE (theBuff);
+          error ("restore_object(): Illegal file format.\n");
+        }
       (void) strncpy (var, buff, space - buff);
       var[space - buff] = '\0';
       idx = find_global_variable (current_object->prog, var, &t);
       if (idx == -1 || t & NAME_STATIC)
-	continue;
+        continue;
 
       v = &sv[idx];
       if (noclear)
-	rc = safe_restore_svalue (space + 1, v);
+        rc = safe_restore_svalue (space + 1, v);
       else
-	rc = restore_svalue (space + 1, v);
+        rc = restore_svalue (space + 1, v);
       if (rc & ROB_ERROR)
-	{
-	  FREE (theBuff);
+        {
+          FREE (theBuff);
 
-	  if (rc & ROB_GENERAL_ERROR)
-	    error
-	      ("restore_object(): Illegal general format while restoring %s.\n",
-	       var);
-	  else if (rc & ROB_NUMERAL_ERROR)
-	    error
-	      ("restore_object(): Illegal numeric format while restoring %s.\n",
-	       var);
-	  else if (rc & ROB_ARRAY_ERROR)
-	    error
-	      ("restore_object(): Illegal array format while restoring %s.\n",
-	       var);
-	  else if (rc & ROB_MAPPING_ERROR)
-	    error
-	      ("restore_object(): Illegal mapping format while restoring %s.\n",
-	       var);
-	  else if (rc & ROB_STRING_ERROR)
-	    error
-	      ("restore_object(): Illegal string format while restoring %s.\n",
-	       var);
-	  else if (rc & ROB_CLASS_ERROR)
-	    error
-	      ("restore_object(): Illegal class format while restoring %s.\n",
-	       var);
-	}
+          if (rc & ROB_GENERAL_ERROR)
+            error ("restore_object(): Illegal general format while restoring %s.\n", var);
+          else if (rc & ROB_NUMERAL_ERROR)
+            error ("restore_object(): Illegal numeric format while restoring %s.\n", var);
+          else if (rc & ROB_ARRAY_ERROR)
+            error ("restore_object(): Illegal array format while restoring %s.\n", var);
+          else if (rc & ROB_MAPPING_ERROR)
+            error ("restore_object(): Illegal mapping format while restoring %s.\n", var);
+          else if (rc & ROB_STRING_ERROR)
+            error ("restore_object(): Illegal string format while restoring %s.\n", var);
+          else if (rc & ROB_CLASS_ERROR)
+            error ("restore_object(): Illegal class format while restoring %s.\n", var);
+        }
     }
 }
 
@@ -1522,7 +1510,7 @@ restore_object_from_buff (object_t * ob, char *theBuff, int noclear)
  */
 static int
 save_object_recurse (program_t * prog, svalue_t ** svp, int type,
-		     int save_zeros, FILE * f)
+                     int save_zeros, FILE * f)
 {
   int i;
   int theSize;
@@ -1531,9 +1519,9 @@ save_object_recurse (program_t * prog, svalue_t ** svp, int type,
   for (i = 0; i < prog->num_inherited; i++)
     {
       if (!save_object_recurse (prog->inherit[i].prog, svp,
-				prog->inherit[i].type_mod | type,
-				save_zeros, f))
-	return 0;
+                                prog->inherit[i].type_mod | type,
+                                save_zeros, f))
+        return 0;
     }
   if (type & NAME_STATIC)
     {
@@ -1543,10 +1531,10 @@ save_object_recurse (program_t * prog, svalue_t ** svp, int type,
   for (i = 0; i < prog->num_variables_defined; i++)
     {
       if (prog->variable_types[i] & NAME_STATIC)
-	{
-	  (*svp)++;
-	  continue;
-	}
+        {
+          (*svp)++;
+          continue;
+        }
       save_svalue_depth = 0;
       theSize = svalue_save_size (*svp);
       new_str = (char *) DXALLOC (theSize, TAG_TEMPORARY, "save_object: 2");
@@ -1555,11 +1543,11 @@ save_object_recurse (program_t * prog, svalue_t ** svp, int type,
       save_svalue ((*svp)++, &p);
       /* FIXME: shouldn't use fprintf() */
       if (save_zeros || new_str[0] != '0' || new_str[1] != 0)	/* Armidale */
-	if (fprintf (f, "%s %s\n", prog->variable_table[i], new_str) < 0)
-	  {
-	    debug_perror ("save_object: fprintf", 0);
-	    return 0;
-	  }
+        if (fprintf (f, "%s %s\n", prog->variable_table[i], new_str) < 0)
+          {
+            debug_perror ("save_object: fprintf", 0);
+            return 0;
+          }
       FREE (new_str);
     }
   return 1;
@@ -1633,12 +1621,12 @@ save_object (object_t * ob, char *file, int save_zeros)
       unlink (file);
 #endif
       if (rename (tmp_name, file) < 0)
-	{
-	  debug_perror ("save_object", file);
-	  debug_message ("Failed to rename /%s to /%s\n", tmp_name, file);
-	  debug_message ("Failed to save object!\n");
-	  unlink (tmp_name);
-	}
+        {
+          debug_perror ("save_object", file);
+          debug_message ("Failed to rename /%s to /%s\n", tmp_name, file);
+          debug_message ("Failed to save object!\n");
+          unlink (tmp_name);
+        }
     }
 
   return 1;
@@ -1682,17 +1670,17 @@ cns_recurse (object_t * ob, int *idx, program_t * prog)
   for (i = 0; i < prog->num_inherited; i++)
     {
       if (prog->inherit[i].type_mod & NAME_STATIC)
-	cns_just_count (idx, prog->inherit[i].prog);
+        cns_just_count (idx, prog->inherit[i].prog);
       else
-	cns_recurse (ob, idx, prog->inherit[i].prog);
+        cns_recurse (ob, idx, prog->inherit[i].prog);
     }
   for (i = 0; i < prog->num_variables_defined; i++)
     {
       if (!(prog->variable_types[i] & NAME_STATIC))
-	{
-	  free_svalue (&ob->variables[*idx + i], "cns_recurse");
-	  ob->variables[*idx + i] = const0u;
-	}
+        {
+          free_svalue (&ob->variables[*idx + i], "cns_recurse");
+          ob->variables[*idx + i] = const0u;
+        }
     }
   *idx += prog->num_variables_defined;
 }
@@ -1736,11 +1724,12 @@ restore_object (object_t * ob, char *file, int noclear)
   if (!file)
     error ("Denied read permission in restore_object().\n");
 
+  // opt_trace (TT_SIMUL_EFUN, "opening %s", file);
   f = fopen (file, "r");
   if (!f || fstat (fileno (f), &st) == -1)
     {
       if (f)
-	(void) fclose (f);
+        (void) fclose (f);
       return 0;
     }
 
@@ -1779,15 +1768,15 @@ restore_variable (svalue_t * var, char *str)
     {
       *var = const0;		/* clean up */
       if (rc & ROB_GENERAL_ERROR)
-	error ("restore_object(): Illegal general format.\n");
+        error ("restore_object(): Illegal general format.\n");
       else if (rc & ROB_NUMERAL_ERROR)
-	error ("restore_object(): Illegal numeric format.\n");
+        error ("restore_object(): Illegal numeric format.\n");
       else if (rc & ROB_ARRAY_ERROR)
-	error ("restore_object(): Illegal array format.\n");
+        error ("restore_object(): Illegal array format.\n");
       else if (rc & ROB_MAPPING_ERROR)
-	error ("restore_object(): Illegal mapping format.\n");
+        error ("restore_object(): Illegal mapping format.\n");
       else if (rc & ROB_STRING_ERROR)
-	error ("restore_object(): Illegal string format.\n");
+        error ("restore_object(): Illegal string format.\n");
     }
 }
 
@@ -1841,8 +1830,8 @@ dealloc_object (object_t * ob, char *from)
     {
       /* This is fatal, and should never happen. */
       fatal
-	("FATAL: Object 0x%x /%s ref count 0, but not destructed (from %s).\n",
-	 ob, ob->name, from);
+        ("FATAL: Object 0x%x /%s ref count 0, but not destructed (from %s).\n",
+         ob, ob->name, from);
     }
   DEBUG_CHECK (ob->interactive, "Tried to free an interactive object.\n");
   /*
@@ -1852,8 +1841,8 @@ dealloc_object (object_t * ob, char *from)
   if (ob->prog)
     {
       tot_alloc_object_size -=
-	(ob->prog->num_variables_total - 1) * sizeof (svalue_t) +
-	sizeof (object_t);
+        (ob->prog->num_variables_total - 1) * sizeof (svalue_t) +
+        sizeof (object_t);
       free_prog (ob->prog, 1);
       ob->prog = 0;
     }
@@ -1872,8 +1861,8 @@ dealloc_object (object_t * ob, char *from)
   if (ob->name)
     {
       DEBUG_CHECK1 (lookup_object_hash (ob->name) == ob,
-		    "Freeing object /%s but name still in name table",
-		    ob->name);
+                    "Freeing object /%s but name still in name table",
+                    ob->name);
       FREE (ob->name);
       ob->name = 0;
     }
@@ -1944,16 +1933,16 @@ find_living_object (char *str, int user)
     {
       search_length++;
       if ((*obp)->flags & O_HIDDEN)
-	{
-	  if (!valid_hide (current_object))
-	    continue;
-	}
+        {
+          if (!valid_hide (current_object))
+            continue;
+        }
       if (user && !((*obp)->flags & O_ONCE_INTERACTIVE))
-	continue;
+        continue;
       if (!((*obp)->flags & O_ENABLE_COMMANDS))
-	continue;
+        continue;
       if (strcmp ((*obp)->living_name, str) == 0)
-	break;
+        break;
     }
   if (*obp == 0)
     return 0;
@@ -1997,12 +1986,12 @@ remove_living_name (object_t * ob)
   while (*hl)
     {
       if (*hl == ob)
-	break;
+        break;
       hl = &(*hl)->next_hashed_living;
     }
   DEBUG_CHECK1 (*hl == 0,
-		"remove_living_name: Object named %s no in hash list.\n",
-		ob->living_name);
+                "remove_living_name: Object named %s no in hash list.\n",
+                ob->living_name);
   *hl = ob->next_hashed_living;
   free_string (ob->living_name);
   ob->next_hashed_living = 0;
@@ -2015,7 +2004,7 @@ stat_living_objects (outbuffer_t * out)
   outbuf_add (out, "Hash table of living objects:\n");
   outbuf_add (out, "-----------------------------\n");
   outbuf_addv (out, "%d living named objects, average search length: %4.2f\n",
-	       num_living_names, (double) search_length / num_searches);
+               num_living_names, (double) search_length / num_searches);
 }
 
 void
@@ -2027,7 +2016,7 @@ reset_object (object_t * ob)
     {
       /* Be sure to update time first ! */
       ob->next_reset = current_time + CONFIG_INT (__TIME_TO_RESET__) / 2 +
-	rand () % (CONFIG_INT (__TIME_TO_RESET__) / 2);
+        rand () % (CONFIG_INT (__TIME_TO_RESET__) / 2);
     }
 
   save_command_giver = command_giver;
@@ -2048,7 +2037,7 @@ call_create (object_t * ob, int num_arg)
     {
       /* Be sure to update time first ! */
       ob->next_reset = current_time + CONFIG_INT (__TIME_TO_RESET__) / 2 +
-	rand () % (CONFIG_INT (__TIME_TO_RESET__) / 2);
+        rand () % (CONFIG_INT (__TIME_TO_RESET__) / 2);
     }
 
   call___INIT (ob);
@@ -2070,9 +2059,9 @@ object_visible (object_t * ob)
   if (ob->flags & O_HIDDEN)
     {
       if (current_object->flags & O_HIDDEN)
-	{
-	  return 1;
-	}
+        {
+          return 1;
+        }
       return valid_hide (current_object);
     }
   else
@@ -2114,7 +2103,7 @@ init_objects ()
 {
   hashed_living =
     (object_t **) calloc (CONFIG_INT (__LIVING_HASH_TABLE_SIZE__),
-			  sizeof (object_t *));
+                          sizeof (object_t *));
   if (!hashed_living)
     {
       perror ("init_objects");
