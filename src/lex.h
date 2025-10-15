@@ -1,17 +1,4 @@
-/*  $Id: lex.h,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
-#ifndef LEX_H
-#define LEX_H
-
+#pragma once
 #define DEFMAX 10000
 #define MAXLINE 1024
 #define MLEN 4096
@@ -168,5 +155,3 @@ ident_hash_elem_t *lookup_ident(char *);
 void free_unused_identifiers(void);
 void init_identifiers(void);
 char *show_error_context(void);
-
-#endif	/* LEX_H */

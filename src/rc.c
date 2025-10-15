@@ -1,20 +1,11 @@
-/*  $Id: rc.c,v 1.2 2002/11/25 11:11:05 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
-
+/*
     ORIGINAL AUTHOR
-	erikkay@mit.edu
+        erikkay@mit.edu
 
     MODIFIED BY
-	[Jul  4, 1994] by robo
-	[Mar 26, 1995] by Beek
-	[Jun 13, 2001] by Annihilator <annihilator@muds.net>
+        [Jul  4, 1994] by robo
+        [Mar 26, 1995] by Beek
+        [Jun 13, 2001] by Annihilator <annihilator@muds.net>
 */
 
 #ifdef	HAVE_CONFIG_H
@@ -130,24 +121,24 @@ scan_config (char *config, char *name, int required, char *def)
   for (term = config; term; term = strchr (term, '\n'))
     {
       if (*term == '\n')
-	term++;
+        term++;
       if (strncasecmp (name, term, sz_name) || !isspace (term[sz_name]))
-	continue;
+        continue;
 
       *term = '#';
 
       term += sz_name;
       while (isspace (*term))
-	term++;
+        term++;
 
       if ((p = strchr (term, '\n'))) {
-	while (isspace (*(p-1)))
-	  p--;
-	*p = '\0';
+        while (isspace (*(p-1)))
+          p--;
+        *p = '\0';
       }
       term = xstrdup (term);
       if (p)
-	*p = '\n';
+        *p = '\n';
       return term;
     }
 
@@ -191,11 +182,11 @@ scan_config_b (char *config, char *name, int required, int def)
   while ((p = scan_config (config, name, required, NULL)))
     {
       if (!strcasecmp (p, "yes"))
-	result = 1;
+        result = 1;
       else if (!strcasecmp (p, "no"))
-	result = 0;
+        result = 0;
       else
-	debug_message (_("warnning: %s must be 'Yes' or 'No' [got: %s]\n"), name, p);
+        debug_message (_("warnning: %s must be 'Yes' or 'No' [got: %s]\n"), name, p);
       free (p);
       required = 0;
     }
@@ -218,7 +209,7 @@ init_config (char *filename)
     {
       perror (filename);
       if (errno == ENOENT)
-	fprintf (stderr, _("Use -f option to specify a config file\n"));
+        fprintf (stderr, _("Use -f option to specify a config file\n"));
       exit (EXIT_FAILURE);
     }
 
@@ -255,18 +246,18 @@ init_config (char *filename)
 
       external_port[i].port = strtoul (p, &typ, 0);
       if (!strcasecmp (typ, ":telnet"))
-	external_port[i].kind = PORT_TELNET;
+        external_port[i].kind = PORT_TELNET;
       else if (!strcasecmp (typ, ":binary"))
-	external_port[i].kind = PORT_BINARY;
+        external_port[i].kind = PORT_BINARY;
       else if (!strcasecmp (typ, ":ascii"))
-	external_port[i].kind = PORT_ASCII;
+        external_port[i].kind = PORT_ASCII;
       else if (*typ)
-	{
-	  debug_message (_
-			 ("*Protocol of port %d is invalid, assuming TELNET\n"),
-			 external_port[i].port);
-	  external_port[i].kind = PORT_TELNET;
-	}
+        {
+          debug_message (_
+                         ("*Protocol of port %d is invalid, assuming TELNET\n"),
+                         external_port[i].port);
+          external_port[i].kind = PORT_TELNET;
+        }
       free (p);
     }
   if (i < 1)
@@ -331,8 +322,8 @@ init_config (char *filename)
   if (fatal_config_error)
     {
       debug_message (_("*****Failed loading config (%d error%s): %s\n"),
-		     fatal_config_error, fatal_config_error > 1 ? "s":"",
-		     filename);
+                     fatal_config_error, fatal_config_error > 1 ? "s":"",
+                     filename);
       exit (EXIT_FAILURE);
     }
 }

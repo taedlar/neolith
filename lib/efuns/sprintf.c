@@ -1,14 +1,3 @@
-/*  $Id: sprintf.c,v 1.2 2002/11/25 11:11:05 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
 #ifdef	HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
@@ -659,25 +648,21 @@ add_justified (char *str, int slen, pad_info_t * pad, int fs,
                format_info finfo, short int trailing)
 {
   const char *pstr;
-  /* �վ���e�A�[�W ANSI ����X�Ҧ��Ϊ��r���ơA�p���@�ӹ����ܪ�
-     8 ��e�|���󥿽T����e�C
-     * Added by Annihilator@ES2 (05/18/2000)
-   */
   for (pstr = str; pstr - str < slen;)
     {
       if (*pstr == '\x1B')
-        {			/* ESC �ǦC���}�l�H */
-          pstr++;		/* ���L ESC */
+        {
+          pstr++;
           fs += 2;
           if (*pstr++ == '[')
-            {			/* �t�Ѽƪ��ǦC�H */
+            {
               while (isdigit (*pstr) || *pstr == ';')
                 {
                   pstr++;
-                  fs++;		/* ���L�Ѽ� */
+                  fs++;
                 }
               pstr++;
-              fs++;		/* ���L���O�X */
+              fs++;
             }
           continue;
         }
@@ -687,7 +672,7 @@ add_justified (char *str, int slen, pad_info_t * pad, int fs,
   fs -= slen;
 
   if (fs <= 0)
-    {				/* �r����פj����e�H */
+    {
       add_nstr (str, slen);
     }
   else
@@ -985,7 +970,6 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
           else
             last++;
 
-          /* �p�G�O %%�A�u�L�X % */
           if (format_str[fpos + 1] == '%')
             {
               ADD_CHAR ('%');
@@ -1006,13 +990,11 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                   finfo |= INFO_T_ERROR;
                   break;
                 }
-              /* �ˬd�O�_���w�e�� */
               if (((format_str[fpos] >= '0') && (format_str[fpos] <= '9'))
                   || (format_str[fpos] == '*'))
                 {
                   if (pres == -1)
-                    {		/* ��T�סH */
-                      /* �H�ѼƭȰ��e�סH */
+                    {
                       if (format_str[fpos] == '*')
                         {
                           if (carg->type != T_NUMBER)
@@ -1028,7 +1010,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                         pres = 0;
                     }
                   else
-                    {		/* ��e (�]�i��O��T��) */
+                    {
                       if ((format_str[fpos] == '0')
                           &&
                           (((format_str
