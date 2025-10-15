@@ -6,8 +6,8 @@ The `edit_source` program is used internally to produce several tables (in C dat
 
 The following source files contains the specifications of LPC efuns:
 - `options.h`
-- `prototype.c` (This is a LPC source file, not C)
+- `func_spec.c` (This is a LPC source file, not C)
 
-The `prototype.c` is first processed with C preprocessor (`gcc -E` requires a compatible file extension) to produce the intermediate file `prototype.i`.
+The `func_spec.c` is first processed with C preprocessor (`gcc -E` requires a compatible file extension) to produce the intermediate file `func_spec.i`.
 
-The `edit_source` is invoked to read `prototype.i` and generate the efuns table (`efuns_*.h`) that are included in the efuns library.
+The `edit_source` is invoked to read `func_spec.i` and generate the efuns table (`efuns_*.h`) that are included in the efuns library.

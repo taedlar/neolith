@@ -5,4 +5,8 @@ set(logger_SOURCES
 )
 
 add_library(logger STATIC ${logger_SOURCES})
-target_include_directories(logger PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_sources(logger INTERFACE
+    FILE_SET HEADERS
+    BASE_DIRS ..
+    FILES logger.h
+)

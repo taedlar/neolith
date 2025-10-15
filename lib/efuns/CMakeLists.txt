@@ -7,12 +7,11 @@ add_executable(edit_source ${edit_source_SOURCES} ${BISON_make_func_OUTPUTS})
 
 target_include_directories(edit_source PRIVATE
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/lib
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_compile_definitions(edit_source PRIVATE _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(edit_source PRIVATE adt port)
+target_link_libraries(edit_source PRIVATE port adt)
 
 # preprocessor-only command
 if(MSVC)
@@ -23,8 +22,8 @@ endif()
 
 # generate efun tables
 add_custom_command(TARGET edit_source POST_BUILD
-    COMMAND ${CPP_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/prototype.c > ${CMAKE_CURRENT_BINARY_DIR}/prototype.i
-    COMMAND $<TARGET_FILE:edit_source> ${CMAKE_CURRENT_SOURCE_DIR}/options.h ${CMAKE_CURRENT_BINARY_DIR}/prototype.i
+    COMMAND ${CPP_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/func_spec.c > ${CMAKE_CURRENT_BINARY_DIR}/func_spec.i
+    COMMAND $<TARGET_FILE:edit_source> ${CMAKE_CURRENT_SOURCE_DIR}/options.h ${CMAKE_CURRENT_BINARY_DIR}/func_spec.i
 )
 
 set(efuns_SOURCES
@@ -50,7 +49,6 @@ add_library(efuns STATIC ${efuns_SOURCES})
 add_dependencies(efuns edit_source)
 target_include_directories(efuns PRIVATE
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/lib
 )
 target_include_directories(efuns PUBLIC ${CMAKE_CURRENT_BINARY_DIR})    # generated efuns tables
 target_link_libraries(efuns PUBLIC port adt logger)

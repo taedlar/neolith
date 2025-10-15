@@ -1,5 +1,4 @@
-#ifndef LPC_DISASSEMBLE_H
-#define LPC_DISASSEMBLE_H
+#pragma once
 
 #include <stdio.h>
 
@@ -7,6 +6,3 @@
 
 extern void disassemble (FILE *, char *, int, int, program_t *);
 extern void dump_line_numbers (FILE *, program_t *);
-
-#endif /* ! LPC_DISASSEMBLE_H */
-
