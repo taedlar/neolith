@@ -1,17 +1,4 @@
-/*  $Id: edit_source.h,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
-#ifndef EDIT_SOURCE_H
-#define EDIT_SOURCE_H
-
+#pragma once
 extern FILE *yyin;
 
 #define MAX_FUNC        2048  /* If we need more than this we're in trouble! */
@@ -38,5 +25,3 @@ extern int arg_types[400], last_current_type;
 
 char *ctype(int);
 char *etype(int);
-
-#endif	/* ! EDIT_SOURCE_H */

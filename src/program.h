@@ -1,17 +1,4 @@
-/*  $Id: program.h,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
-#ifndef	_LPC_PROGRAM_H
-#define	_LPC_PROGRAM_H
-
+#pragma once
 #include "lpc/types.h"
 
 /*
@@ -248,5 +235,3 @@ runtime_function_u *find_func_entry(const program_t *, int);
 #else
 #define FIND_FUNC_ENTRY(p, i) FUNC_ENTRY(p, i)
 #endif
-
-#endif	/* ! _LPC_PROGRAM_H */

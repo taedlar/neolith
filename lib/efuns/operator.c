@@ -1,21 +1,10 @@
-/*  $Id: operator.c,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
 #ifdef	HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 /*
-	eoperators.c: this file contains all of the operators called from
-	inside eval_instruction() in interpret.c.
+        eoperators.c: this file contains all of the operators called from
+        inside eval_instruction() in interpret.c.
 */
 
 #define SUPPRESS_COMPILER_INLINES
@@ -48,8 +37,8 @@ dealloc_funp (funptr_t * fp)
     {
       fp->f.functional.prog->func_ref--;
       if (fp->f.functional.prog->func_ref == 0
-	  && fp->f.functional.prog->ref == 0)
-	deallocate_program (fp->f.functional.prog);
+          && fp->f.functional.prog->ref == 0)
+        deallocate_program (fp->f.functional.prog);
     }
   FREE (fp);
 }
@@ -104,45 +93,45 @@ f_div_eq ()
 
     case T_NUMBER:
       {
-	if (!sp->u.number)
-	  error ("Division by 0nn\n");
-	sp->u.number = argp->u.number /= sp->u.number;
-	sp->subtype = 0;
-	break;
+        if (!sp->u.number)
+          error ("Division by 0nn\n");
+        sp->u.number = argp->u.number /= sp->u.number;
+        sp->subtype = 0;
+        break;
       }
 
     case T_REAL:
       {
-	if (sp->u.real == 0.0)
-	  error ("Division by 0rr\n");
-	sp->u.real = argp->u.real /= sp->u.real;
-	break;
+        if (sp->u.real == 0.0)
+          error ("Division by 0rr\n");
+        sp->u.real = argp->u.real /= sp->u.real;
+        break;
       }
 
     case T_NUMBER | T_REAL:
       {
-	if (sp->type == T_NUMBER)
-	  {
-	    if (!sp->u.number)
-	      error ("Division by 0rn\n");
-	    sp->u.real = argp->u.real /= sp->u.number;
-	    sp->type = T_REAL;
-	  }
-	else
-	  {
-	    if (sp->u.real == 0.0)
-	      error ("Division by 0nr\n");
-	    sp->u.real = argp->u.number /= sp->u.real;
-	  }
-	break;
+        if (sp->type == T_NUMBER)
+          {
+            if (!sp->u.number)
+              error ("Division by 0rn\n");
+            sp->u.real = argp->u.real /= sp->u.number;
+            sp->type = T_REAL;
+          }
+        else
+          {
+            if (sp->u.real == 0.0)
+              error ("Division by 0nr\n");
+            sp->u.real = argp->u.number /= sp->u.real;
+          }
+        break;
       }
 
     default:
       {
-	if (!(sp->type & (T_NUMBER | T_REAL)))
-	  error ("Bad right type to /=\n");
-	else
-	  error ("Bad left type to /=\n");
+        if (!(sp->type & (T_NUMBER | T_REAL)))
+          error ("Bad right type to /=\n");
+        else
+          error ("Bad left type to /=\n");
       }
     }
 }
@@ -156,84 +145,84 @@ f_eq ()
     {
     case T_NUMBER:
       {
-	--sp;
-	sp->u.number = sp->u.number == (sp + 1)->u.number;
-	sp->subtype = 0;
-	return;
+        --sp;
+        sp->u.number = sp->u.number == (sp + 1)->u.number;
+        sp->subtype = 0;
+        return;
       }
 
     case T_REAL:
       {
-	--sp;
-	sp->type = T_NUMBER;
-	sp->u.number = sp->u.real == (sp + 1)->u.real;
-	sp->subtype = 0;
-	return;
+        --sp;
+        sp->type = T_NUMBER;
+        sp->u.number = sp->u.real == (sp + 1)->u.real;
+        sp->subtype = 0;
+        return;
       }
 
     case T_NUMBER | T_REAL:
       {
-	if ((--sp)->type == T_NUMBER)
-	  {
-	    sp->u.number = sp->u.number == (sp + 1)->u.real;
-	  }
-	else
-	  {
-	    sp->u.number = sp->u.real == (sp + 1)->u.number;
-	    sp->type = T_NUMBER;
-	  }
-	sp->subtype = 0;
-	return;
+        if ((--sp)->type == T_NUMBER)
+          {
+            sp->u.number = sp->u.number == (sp + 1)->u.real;
+          }
+        else
+          {
+            sp->u.number = sp->u.real == (sp + 1)->u.number;
+            sp->type = T_NUMBER;
+          }
+        sp->subtype = 0;
+        return;
       }
 
     case T_ARRAY:
       {
-	i = (sp - 1)->u.arr == sp->u.arr;
-	free_array ((sp--)->u.arr);
-	free_array (sp->u.arr);
-	break;
+        i = (sp - 1)->u.arr == sp->u.arr;
+        free_array ((sp--)->u.arr);
+        free_array (sp->u.arr);
+        break;
       }
 
     case T_MAPPING:
       {
-	i = (sp - 1)->u.map == sp->u.map;
-	free_mapping ((sp--)->u.map);
-	free_mapping (sp->u.map);
-	break;
+        i = (sp - 1)->u.map == sp->u.map;
+        free_mapping ((sp--)->u.map);
+        free_mapping (sp->u.map);
+        break;
       }
 
     case T_STRING:
       {
-	if (SVALUE_STRLEN_DIFFERS (sp - 1, sp))
-	  i = 0;
-	else
-	  i = !strcmp ((sp - 1)->u.string, sp->u.string);
-	free_string_svalue (sp--);
-	free_string_svalue (sp);
-	break;
+        if (SVALUE_STRLEN_DIFFERS (sp - 1, sp))
+          i = 0;
+        else
+          i = !strcmp ((sp - 1)->u.string, sp->u.string);
+        free_string_svalue (sp--);
+        free_string_svalue (sp);
+        break;
       }
 
     case T_OBJECT:
       {
-	i = (sp - 1)->u.ob == sp->u.ob;
-	free_object ((sp--)->u.ob, "f_eq: 1");
-	free_object (sp->u.ob, "f_eq: 2");
-	break;
+        i = (sp - 1)->u.ob == sp->u.ob;
+        free_object ((sp--)->u.ob, "f_eq: 1");
+        free_object (sp->u.ob, "f_eq: 2");
+        break;
       }
 
     case T_FUNCTION:
       {
-	i = (sp - 1)->u.fp == sp->u.fp;
-	free_funp ((sp--)->u.fp);
-	free_funp (sp->u.fp);
-	break;
+        i = (sp - 1)->u.fp == sp->u.fp;
+        free_funp ((sp--)->u.fp);
+        free_funp (sp->u.fp);
+        break;
       }
     case T_BUFFER:
       {
-	i = (sp - 1)->u.buf == sp->u.buf;
-	free_buffer ((sp--)->u.buf);
-	free_buffer (sp->u.buf);
-	break;
+        i = (sp - 1)->u.buf == sp->u.buf;
+        free_buffer ((sp--)->u.buf);
+        free_buffer (sp->u.buf);
+        break;
       }
     default:
       pop_stack ();
@@ -260,14 +249,14 @@ f_ge ()
       break;
     case T_NUMBER | T_REAL:
       if (i == T_NUMBER)
-	{
-	  sp->type = T_NUMBER;
-	  sp->u.number = sp->u.real >= (sp + 1)->u.number;
-	}
+        {
+          sp->type = T_NUMBER;
+          sp->u.number = sp->u.real >= (sp + 1)->u.number;
+        }
       else
-	{
-	  sp->u.number = sp->u.number >= (sp + 1)->u.real;
-	}
+        {
+          sp->u.number = sp->u.number >= (sp + 1)->u.real;
+        }
       sp->subtype = 0;
       break;
     case T_STRING:
@@ -278,16 +267,16 @@ f_ge ()
       break;
     default:
       {
-	switch ((sp++)->type)
-	  {
-	  case T_NUMBER:
-	  case T_REAL:
-	    bad_argument (sp, T_NUMBER | T_REAL, 2, F_GE);
-	  case T_STRING:
-	    bad_argument (sp, T_STRING, 2, F_GE);
-	  default:
-	    bad_argument (sp - 1, T_NUMBER | T_STRING | T_REAL, 1, F_GE);
-	  }
+        switch ((sp++)->type)
+          {
+          case T_NUMBER:
+          case T_REAL:
+            bad_argument (sp, T_NUMBER | T_REAL, 2, F_GE);
+          case T_STRING:
+            bad_argument (sp, T_STRING, 2, F_GE);
+          default:
+            bad_argument (sp - 1, T_NUMBER | T_STRING | T_REAL, 1, F_GE);
+          }
       }
     }
 }
@@ -309,12 +298,12 @@ f_gt ()
       break;
     case T_NUMBER | T_REAL:
       if (i == T_NUMBER)
-	{
-	  sp->type = T_NUMBER;
-	  sp->u.number = sp->u.real > (sp + 1)->u.number;
-	}
+        {
+          sp->type = T_NUMBER;
+          sp->u.number = sp->u.real > (sp + 1)->u.number;
+        }
       else
-	sp->u.number = sp->u.number > (sp + 1)->u.real;
+        sp->u.number = sp->u.number > (sp + 1)->u.real;
       sp->subtype = 0;
       break;
     case T_STRING:
@@ -325,16 +314,16 @@ f_gt ()
       break;
     default:
       {
-	switch ((sp++)->type)
-	  {
-	  case T_NUMBER:
-	  case T_REAL:
-	    bad_argument (sp, T_NUMBER | T_REAL, 2, F_GT);
-	  case T_STRING:
-	    bad_argument (sp, T_STRING, 2, F_GT);
-	  default:
-	    bad_argument (sp - 1, T_NUMBER | T_REAL | T_STRING, 1, F_GT);
-	  }
+        switch ((sp++)->type)
+          {
+          case T_NUMBER:
+          case T_REAL:
+            bad_argument (sp, T_NUMBER | T_REAL, 2, F_GT);
+          case T_STRING:
+            bad_argument (sp, T_STRING, 2, F_GT);
+          default:
+            bad_argument (sp - 1, T_NUMBER | T_REAL | T_STRING, 1, F_GT);
+          }
       }
     }
 }
@@ -356,12 +345,12 @@ f_le ()
 
     case T_NUMBER | T_REAL:
       if (i == T_NUMBER)
-	{
-	  sp->type = T_NUMBER;
-	  sp->u.number = sp->u.real <= (sp + 1)->u.number;
-	}
+        {
+          sp->type = T_NUMBER;
+          sp->u.number = sp->u.real <= (sp + 1)->u.number;
+        }
       else
-	sp->u.number = sp->u.number <= (sp + 1)->u.real;
+        sp->u.number = sp->u.number <= (sp + 1)->u.real;
       break;
 
     case T_STRING:
@@ -374,18 +363,18 @@ f_le ()
 
     default:
       {
-	switch ((sp++)->type)
-	  {
-	  case T_NUMBER:
-	  case T_REAL:
-	    bad_argument (sp, T_NUMBER | T_REAL, 2, F_LE);
+        switch ((sp++)->type)
+          {
+          case T_NUMBER:
+          case T_REAL:
+            bad_argument (sp, T_NUMBER | T_REAL, 2, F_LE);
 
-	  case T_STRING:
-	    bad_argument (sp, T_STRING, 2, F_LE);
+          case T_STRING:
+            bad_argument (sp, T_STRING, 2, F_LE);
 
-	  default:
-	    bad_argument (sp - 1, T_NUMBER | T_STRING | T_REAL, 1, F_LE);
-	  }
+          default:
+            bad_argument (sp - 1, T_NUMBER | T_STRING | T_REAL, 1, F_LE);
+          }
       }
     }
   sp->subtype = 0;
@@ -406,12 +395,12 @@ f_lt ()
       break;
     case T_NUMBER | T_REAL:
       if (i == T_NUMBER)
-	{
-	  sp->type = T_NUMBER;
-	  sp->u.number = sp->u.real < (sp + 1)->u.number;
-	}
+        {
+          sp->type = T_NUMBER;
+          sp->u.number = sp->u.real < (sp + 1)->u.number;
+        }
       else
-	sp->u.number = sp->u.number < (sp + 1)->u.real;
+        sp->u.number = sp->u.number < (sp + 1)->u.real;
       break;
     case T_STRING:
       i = (strcmp (sp->u.string, (sp + 1)->u.string) < 0);
@@ -422,15 +411,15 @@ f_lt ()
       break;
     default:
       switch ((sp++)->type)
-	{
-	case T_NUMBER:
-	case T_REAL:
-	  bad_argument (sp, T_NUMBER | T_REAL, 2, F_LT);
-	case T_STRING:
-	  bad_argument (sp, T_STRING, 2, F_LT);
-	default:
-	  bad_argument (sp - 1, T_NUMBER | T_STRING | T_REAL, 1, F_LT);
-	}
+        {
+        case T_NUMBER:
+        case T_REAL:
+          bad_argument (sp, T_NUMBER | T_REAL, 2, F_LT);
+        case T_STRING:
+          bad_argument (sp, T_STRING, 2, F_LT);
+        default:
+          bad_argument (sp - 1, T_NUMBER | T_STRING | T_REAL, 1, F_LT);
+        }
     }
   sp->subtype = 0;
 }
@@ -482,49 +471,49 @@ f_mult_eq ()
     {
     case T_NUMBER:
       {
-	sp->u.number = argp->u.number *= sp->u.number;
-	sp->subtype = 0;
-	break;
+        sp->u.number = argp->u.number *= sp->u.number;
+        sp->subtype = 0;
+        break;
       }
 
     case T_REAL:
       {
-	sp->u.real = argp->u.real *= sp->u.real;
-	break;
+        sp->u.real = argp->u.real *= sp->u.real;
+        break;
       }
 
     case T_NUMBER | T_REAL:
       {
-	if (sp->type == T_NUMBER)
-	  {
-	    sp->type = T_REAL;
-	    sp->u.real = argp->u.real *= sp->u.number;
-	  }
-	else
-	  {
-	    sp->u.real = argp->u.number *= sp->u.real;
-	  }
-	break;
+        if (sp->type == T_NUMBER)
+          {
+            sp->type = T_REAL;
+            sp->u.real = argp->u.real *= sp->u.number;
+          }
+        else
+          {
+            sp->u.real = argp->u.number *= sp->u.real;
+          }
+        break;
       }
 
     case T_MAPPING:
       {
-	mapping_t *m = compose_mapping (argp->u.map, sp->u.map, 0);
-	if (argp->u.map != sp->u.map)
-	  {
-	    pop_stack ();
-	    push_mapping (m);
-	  }
-	assign_svalue (argp, sp);
-	break;
+        mapping_t *m = compose_mapping (argp->u.map, sp->u.map, 0);
+        if (argp->u.map != sp->u.map)
+          {
+            pop_stack ();
+            push_mapping (m);
+          }
+        assign_svalue (argp, sp);
+        break;
       }
 
     default:
       {
-	if (!(sp->type & (T_NUMBER | T_REAL | T_MAPPING)))
-	  error ("Bad right type to *=\n");
-	else
-	  error ("Bad left type to *=\n");
+        if (!(sp->type & (T_NUMBER | T_REAL | T_MAPPING)))
+          error ("Bad right type to *=\n");
+        else
+          error ("Bad left type to *=\n");
       }
     }
 }
@@ -539,85 +528,85 @@ f_ne ()
     {
     case T_NUMBER:
       {
-	--sp;
-	sp->u.number = sp->u.number != (sp + 1)->u.number;
-	sp->subtype = 0;
-	return;
+        --sp;
+        sp->u.number = sp->u.number != (sp + 1)->u.number;
+        sp->subtype = 0;
+        return;
       }
 
     case T_REAL:
       {
-	--sp;
-	sp->type = T_NUMBER;
-	sp->u.number = sp->u.real != (sp + 1)->u.real;
-	sp->subtype = 0;
-	return;
+        --sp;
+        sp->type = T_NUMBER;
+        sp->u.number = sp->u.real != (sp + 1)->u.real;
+        sp->subtype = 0;
+        return;
       }
 
     case T_NUMBER | T_REAL:
       {
-	if ((--sp)->type == T_NUMBER)
-	  {
-	    sp->u.number = sp->u.number != (sp + 1)->u.real;
-	  }
-	else
-	  {
-	    sp->u.number = sp->u.real != (sp + 1)->u.number;
-	    sp->type = T_NUMBER;
-	  }
-	sp->subtype = 0;
-	return;
+        if ((--sp)->type == T_NUMBER)
+          {
+            sp->u.number = sp->u.number != (sp + 1)->u.real;
+          }
+        else
+          {
+            sp->u.number = sp->u.real != (sp + 1)->u.number;
+            sp->type = T_NUMBER;
+          }
+        sp->subtype = 0;
+        return;
       }
 
     case T_ARRAY:
       {
-	i = (sp - 1)->u.arr != sp->u.arr;
-	free_array ((sp--)->u.arr);
-	free_array (sp->u.arr);
-	break;
+        i = (sp - 1)->u.arr != sp->u.arr;
+        free_array ((sp--)->u.arr);
+        free_array (sp->u.arr);
+        break;
       }
 
     case T_MAPPING:
       {
-	i = (sp - 1)->u.map != sp->u.map;
-	free_mapping ((sp--)->u.map);
-	free_mapping (sp->u.map);
-	break;
+        i = (sp - 1)->u.map != sp->u.map;
+        free_mapping ((sp--)->u.map);
+        free_mapping (sp->u.map);
+        break;
       }
 
     case T_STRING:
       {
-	if (SVALUE_STRLEN_DIFFERS (sp - 1, sp))
-	  i = 1;
-	else
-	  i = !!strcmp ((sp - 1)->u.string, sp->u.string);
-	free_string_svalue (sp--);
-	free_string_svalue (sp);
-	break;
+        if (SVALUE_STRLEN_DIFFERS (sp - 1, sp))
+          i = 1;
+        else
+          i = !!strcmp ((sp - 1)->u.string, sp->u.string);
+        free_string_svalue (sp--);
+        free_string_svalue (sp);
+        break;
       }
 
     case T_OBJECT:
       {
-	i = (sp - 1)->u.ob != sp->u.ob;
-	free_object ((sp--)->u.ob, "f_ne: 1");
-	free_object (sp->u.ob, "f_ne: 2");
-	break;
+        i = (sp - 1)->u.ob != sp->u.ob;
+        free_object ((sp--)->u.ob, "f_ne: 1");
+        free_object (sp->u.ob, "f_ne: 2");
+        break;
       }
 
     case T_FUNCTION:
       {
-	i = (sp - 1)->u.fp != sp->u.fp;
-	free_funp ((sp--)->u.fp);
-	free_funp (sp->u.fp);
-	break;
+        i = (sp - 1)->u.fp != sp->u.fp;
+        free_funp ((sp--)->u.fp);
+        free_funp (sp->u.fp);
+        break;
       }
 
     case T_BUFFER:
       {
-	i = (sp - 1)->u.buf != sp->u.buf;
-	free_buffer ((sp--)->u.buf);
-	free_buffer (sp->u.buf);
-	break;
+        i = (sp - 1)->u.buf != sp->u.buf;
+        free_buffer ((sp--)->u.buf);
+        free_buffer (sp->u.buf);
+        break;
       }
 
     default:
@@ -683,7 +672,7 @@ f_parse_command ()
   arg = sp;
   *(arg--) = *(fp--);		/* move pattern to top of stack */
   *(arg--) = *(fp--);		/* move source object or array to just below 
-				   the pattern */
+                                   the pattern */
   *(arg) = *(fp);		/* move source string just below the object */
   fp->type = T_NUMBER;
 
@@ -724,103 +713,103 @@ f_range (int code)
     {
     case T_STRING:
       {
-	char *res = sp->u.string;
+        char *res = sp->u.string;
 
-	len = SVALUE_STRLEN (sp);
-	to = (--sp)->u.number;
-	if (code & 0x01)
-	  to = len - to;
+        len = SVALUE_STRLEN (sp);
+        to = (--sp)->u.number;
+        if (code & 0x01)
+          to = len - to;
 #ifdef OLD_RANGE_BEHAVIOR
-	else if (to < 0)
-	  to += len;
+        else if (to < 0)
+          to += len;
 #endif
-	from = (--sp)->u.number;
-	if (code & 0x10)
-	  from = len - from;
+        from = (--sp)->u.number;
+        if (code & 0x10)
+          from = len - from;
 #ifdef OLD_RANGE_BEHAVIOR
-	else if (from < 0)
-	  from += len;
+        else if (from < 0)
+          from += len;
 #endif
-	if (from < 0)
-	  from = 0;
+        if (from < 0)
+          from = 0;
 
-	if (to < from || from >= len)
-	  {
-	    free_string_svalue (sp + 2);
-	    sp->type = T_STRING;
-	    sp->subtype = STRING_CONSTANT;
-	    sp->u.string = "";
-	    return;
-	  }
+        if (to < from || from >= len)
+          {
+            free_string_svalue (sp + 2);
+            sp->type = T_STRING;
+            sp->subtype = STRING_CONSTANT;
+            sp->u.string = "";
+            return;
+          }
 
-	if (to >= len - 1)
-	  {
-	    put_malloced_string (string_copy (res + from, "f_range"));
-	  }
-	else
-	  {
-	    char *tmp;
-	    tmp = new_string (to - from + 1, "f_range");
-	    strncpy (tmp, res + from, to - from + 1);
-	    tmp[to - from + 1] = '\0';
-	    put_malloced_string (tmp);
-	  }
-	free_string_svalue (sp + 2);
-	break;
+        if (to >= len - 1)
+          {
+            put_malloced_string (string_copy (res + from, "f_range"));
+          }
+        else
+          {
+            char *tmp;
+            tmp = new_string (to - from + 1, "f_range");
+            strncpy (tmp, res + from, to - from + 1);
+            tmp[to - from + 1] = '\0';
+            put_malloced_string (tmp);
+          }
+        free_string_svalue (sp + 2);
+        break;
       }
     case T_BUFFER:
       {
-	buffer_t *rbuf = sp->u.buf;
+        buffer_t *rbuf = sp->u.buf;
 
-	len = rbuf->size;
-	to = (--sp)->u.number;
-	if (code & 0x01)
-	  to = len - to;
+        len = rbuf->size;
+        to = (--sp)->u.number;
+        if (code & 0x01)
+          to = len - to;
 #ifdef OLD_RANGE_BEHAVIOR
-	if (to < 0)
-	  to += len;
+        if (to < 0)
+          to += len;
 #endif
-	from = (--sp)->u.number;
-	if (code & 0x10)
-	  from = len - from;
+        from = (--sp)->u.number;
+        if (code & 0x10)
+          from = len - from;
 #ifdef OLD_RANGE_BEHAVIOR
-	if (from < 0)
-	  {
-	    if ((from += len) < 0)
-	      from = 0;
-	  }
+        if (from < 0)
+          {
+            if ((from += len) < 0)
+              from = 0;
+          }
 #else
-	if (from < 0)
-	  from = 0;
+        if (from < 0)
+          from = 0;
 #endif
-	if (to < from || from >= len)
-	  {
-	    free_buffer (rbuf);
-	    put_buffer (null_buffer ());
-	    return;
-	  }
-	if (to >= len)
-	  to = len - 1;
-	{
-	  buffer_t *nbuf = allocate_buffer (to - from + 1);
-	  memcpy (nbuf->item, rbuf->item + from, to - from + 1);
-	  free_buffer (rbuf);
-	  put_buffer (nbuf);
-	}
-	break;
+        if (to < from || from >= len)
+          {
+            free_buffer (rbuf);
+            put_buffer (null_buffer ());
+            return;
+          }
+        if (to >= len)
+          to = len - 1;
+        {
+          buffer_t *nbuf = allocate_buffer (to - from + 1);
+          memcpy (nbuf->item, rbuf->item + from, to - from + 1);
+          free_buffer (rbuf);
+          put_buffer (nbuf);
+        }
+        break;
       }
 
     case T_ARRAY:
       {
-	array_t *v = sp->u.arr;
-	to = (--sp)->u.number;
-	if (code & 0x01)
-	  to = v->size - to;
-	from = (--sp)->u.number;
-	if (code & 0x10)
-	  from = v->size - from;
-	put_array (slice_array (v, from, to));
-	break;
+        array_t *v = sp->u.arr;
+        to = (--sp)->u.number;
+        if (code & 0x01)
+          to = v->size - to;
+        from = (--sp)->u.number;
+        if (code & 0x10)
+          from = v->size - from;
+        put_array (slice_array (v, from, to));
+        break;
       }
 
     default:
@@ -840,70 +829,70 @@ f_extract_range (int code)
     {
     case T_STRING:
       {
-	char *res = sp->u.string;
+        char *res = sp->u.string;
 
-	len = SVALUE_STRLEN (sp);
-	from = (--sp)->u.number;
-	if (code)
-	  from = len - from;
+        len = SVALUE_STRLEN (sp);
+        from = (--sp)->u.number;
+        if (code)
+          from = len - from;
 #ifdef OLD_RANGE_BEHAVIOR
-	if (from < 0)
-	  {
-	    if ((from += len) < 0)
-	      from = 0;
-	  }
+        if (from < 0)
+          {
+            if ((from += len) < 0)
+              from = 0;
+          }
 #else
-	if (from < 0)
-	  from = 0;
+        if (from < 0)
+          from = 0;
 #endif
-	if (from >= len)
-	  {
-	    sp->type = T_STRING;
-	    sp->subtype = STRING_CONSTANT;
-	    sp->u.string = "";
-	  }
-	else
-	  put_malloced_string (string_copy (res + from, "f_extract_range"));
-	free_string_svalue (sp + 1);
-	break;
+        if (from >= len)
+          {
+            sp->type = T_STRING;
+            sp->subtype = STRING_CONSTANT;
+            sp->u.string = "";
+          }
+        else
+          put_malloced_string (string_copy (res + from, "f_extract_range"));
+        free_string_svalue (sp + 1);
+        break;
       }
     case T_BUFFER:
       {
-	buffer_t *rbuf = sp->u.buf;
-	buffer_t *nbuf;
+        buffer_t *rbuf = sp->u.buf;
+        buffer_t *nbuf;
 
 
-	len = rbuf->size;
-	from = (--sp)->u.number;
-	if (code)
-	  from = len - from;
+        len = rbuf->size;
+        from = (--sp)->u.number;
+        if (code)
+          from = len - from;
 #ifdef OLD_RANGE_BEHAVIOR
-	if (from < 0)
-	  {
-	    if ((from += len) < 0)
-	      from = 0;
-	  }
+        if (from < 0)
+          {
+            if ((from += len) < 0)
+              from = 0;
+          }
 #else
-	if (from < 0)
-	  from = 0;
+        if (from < 0)
+          from = 0;
 #endif
-	if (from > len)
-	  from = len;
-	nbuf = allocate_buffer (len - from);
-	memcpy (nbuf->item, rbuf->item + from, len - from);
-	free_buffer (rbuf);
-	put_buffer (nbuf);
-	break;
+        if (from > len)
+          from = len;
+        nbuf = allocate_buffer (len - from);
+        memcpy (nbuf->item, rbuf->item + from, len - from);
+        free_buffer (rbuf);
+        put_buffer (nbuf);
+        break;
       }
 
     case T_ARRAY:
       {
-	array_t *v = sp->u.arr;
-	from = (--sp)->u.number;
-	if (code)
-	  from = v->size - from;
-	put_array (slice_array (v, from, v->size - 1));
-	break;
+        array_t *v = sp->u.arr;
+        from = (--sp)->u.number;
+        if (code)
+          from = v->size - from;
+        put_array (slice_array (v, from, v->size - 1));
+        break;
       }
 
     default:
@@ -942,44 +931,44 @@ f_sub_eq ()
     {
     case T_NUMBER:
       {
-	sp->u.number = argp->u.number -= sp->u.number;
-	sp->subtype = 0;
-	break;
+        sp->u.number = argp->u.number -= sp->u.number;
+        sp->subtype = 0;
+        break;
       }
 
     case T_REAL:
       {
-	sp->u.real = argp->u.real -= sp->u.real;
-	break;
+        sp->u.real = argp->u.real -= sp->u.real;
+        break;
       }
 
     case T_NUMBER | T_REAL:
       {
-	if (sp->type == T_NUMBER)
-	  {
-	    sp->type = T_REAL;
-	    sp->u.real = argp->u.real -= sp->u.number;
-	  }
-	else
-	  sp->u.real = argp->u.number -= sp->u.real;
-	break;
+        if (sp->type == T_NUMBER)
+          {
+            sp->type = T_REAL;
+            sp->u.real = argp->u.real -= sp->u.number;
+          }
+        else
+          sp->u.real = argp->u.number -= sp->u.real;
+        break;
       }
 
     case T_ARRAY:
       {
-	sp->u.arr = argp->u.arr = subtract_array (argp->u.arr, sp->u.arr);
-	sp->u.arr->ref++;
-	break;
+        sp->u.arr = argp->u.arr = subtract_array (argp->u.arr, sp->u.arr);
+        sp->u.arr->ref++;
+        break;
       }
 
     default:
       {
-	if (!(sp->type & (T_NUMBER | T_REAL | T_ARRAY)))
-	  error ("Bad right type to -=\n");
-	else if (!(argp->type & (T_NUMBER | T_REAL | T_ARRAY)))
-	  error ("Bad left type to -=\n");
-	else
-	  error ("Arguments to -= do not match in type.\n");
+        if (!(sp->type & (T_NUMBER | T_REAL | T_ARRAY)))
+          error ("Bad right type to -=\n");
+        else if (!(argp->type & (T_NUMBER | T_REAL | T_ARRAY)))
+          error ("Bad left type to -=\n");
+        else
+          error ("Arguments to -= do not match in type.\n");
       }
     }
 }
@@ -1049,43 +1038,43 @@ f_switch ()
   COPY_SHORT (&end_off, pc + SW_ENDTAB);
   if ((i = EXTRACT_UCHAR (pc) >> 4) != 0xf)
     {				/* String table, find correct
-				 * key */
+                                 * key */
       if (sp->type == T_NUMBER && !sp->u.number)
-	{
-	  /* special case: 0 as a string */
-	  s = 0;
-	  sp--;
-	}
+        {
+          /* special case: 0 as a string */
+          s = 0;
+          sp--;
+        }
       else if (sp->type == T_STRING)
-	{
-	  if (sp->subtype == STRING_SHARED)
-	    {
-	      s = (POINTER_INT) sp->u.string;
-	      opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)s);
-	      free_string (sp->u.string);
-	      sp--;
-	    }
-	  else
-	    {
-	      s = (POINTER_INT) findstring (sp->u.string);
-	      opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)sp->u.string);
-	      free_string_svalue (sp--);
-	    }
-	  if (s == 0)
-	    {
-	      /*
-	       * Take default case now - else we could be get confused with
-	       * ZERO_AS_STR_CASE_LABEL.
-	       */
-	      COPY_SHORT (&offset, pc + SW_DEFAULT);
-	      pc = current_prog->program + offset;
-	      return;
-	    }
-	}
+        {
+          if (sp->subtype == STRING_SHARED)
+            {
+              s = (POINTER_INT) sp->u.string;
+              opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)s);
+              free_string (sp->u.string);
+              sp--;
+            }
+          else
+            {
+              s = (POINTER_INT) findstring (sp->u.string);
+              opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)sp->u.string);
+              free_string_svalue (sp--);
+            }
+          if (s == 0)
+            {
+              /*
+               * Take default case now - else we could be get confused with
+               * ZERO_AS_STR_CASE_LABEL.
+               */
+              COPY_SHORT (&offset, pc + SW_DEFAULT);
+              pc = current_prog->program + offset;
+              return;
+            }
+        }
       else
-	{
-	  bad_argument (sp, T_STRING, 1, F_SWITCH);
-	}
+        {
+          bad_argument (sp, T_STRING, 1, F_SWITCH);
+        }
     }
   else
     {				/* Integer table, check type */
@@ -1102,29 +1091,29 @@ f_switch ()
   if (i >= 14)
     {
       if (i == 14)
-	{
-	  /* fastest switch format : lookup table */
-	  l = current_prog->program + offset;
-	  COPY_INT (&d, end_tab - 4);
-	  /* d is minimum value - see if in range or not */
-	  if (s >= d && l + (s = (s - d) * sizeof (short)) < (end_tab - 4))
-	    {
-	      COPY_SHORT (&offset, &l[s]);
-	      if (offset)
-		{
-		  pc = current_prog->program + offset;
-		  opt_trace (TT_EVAL|1, "jump to %+d", offset);
-		  return;
-		}
-	    }
-	  /* default */
-	  COPY_SHORT (&offset, pc + SW_DEFAULT);
-	  pc = current_prog->program + offset;
-	  opt_trace (TT_EVAL, "jump to %+d", offset);
-	  return;
-	}
+        {
+          /* fastest switch format : lookup table */
+          l = current_prog->program + offset;
+          COPY_INT (&d, end_tab - 4);
+          /* d is minimum value - see if in range or not */
+          if (s >= d && l + (s = (s - d) * sizeof (short)) < (end_tab - 4))
+            {
+              COPY_SHORT (&offset, &l[s]);
+              if (offset)
+                {
+                  pc = current_prog->program + offset;
+                  opt_trace (TT_EVAL|1, "jump to %+d", offset);
+                  return;
+                }
+            }
+          /* default */
+          COPY_SHORT (&offset, pc + SW_DEFAULT);
+          pc = current_prog->program + offset;
+          opt_trace (TT_EVAL, "jump to %+d", offset);
+          return;
+        }
       else
-	fatal ("unsupported switch table format.\n");
+        fatal ("unsupported switch table format.\n");
     }
 
   /*
@@ -1142,116 +1131,116 @@ f_switch ()
       COPY_PTR (&r, l);
       opt_trace (TT_EVAL|1, "comparing %p with %p", s, r);
       if (s < r)
-	{
-	  if (d < SWITCH_CASE_SIZE)
-	    {
-	      /* test if entry is part of a range */
-	      /* Don't worry about reading from F_BREAK (byte before table) */
-	      COPY_SHORT (&offset, l + U_TYPE);
-	      if (offset <= 1)
-		{
-		  COPY_PTR (&r, l + U_LOWER);
-		  if (s >= r)
-		    {
-		      /* s is in the range */
-		      COPY_SHORT (&offset, l + U_ADDR);
-		      if (!offset)
-			{
-			  /* range with lookup table */
-			  l = current_prog->program + offset + (s - r) * sizeof (short);
-			  COPY_SHORT (&offset, l);
-			}	/* else normal range and offset is correct */
-		      break;
-		    }
-		}
-	      /* key not found, use default address */
-	      COPY_SHORT (&offset, pc + SW_DEFAULT);
-	      opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
-	      break;
-	    }
-	  else
-	    {
-	      /* d >= SWITCH_CASE_SIZE */
-	      l -= d;
-	      d >>= 1;
-	    }
-	}
+        {
+          if (d < SWITCH_CASE_SIZE)
+            {
+              /* test if entry is part of a range */
+              /* Don't worry about reading from F_BREAK (byte before table) */
+              COPY_SHORT (&offset, l + U_TYPE);
+              if (offset <= 1)
+                {
+                  COPY_PTR (&r, l + U_LOWER);
+                  if (s >= r)
+                    {
+                      /* s is in the range */
+                      COPY_SHORT (&offset, l + U_ADDR);
+                      if (!offset)
+                        {
+                          /* range with lookup table */
+                          l = current_prog->program + offset + (s - r) * sizeof (short);
+                          COPY_SHORT (&offset, l);
+                        }	/* else normal range and offset is correct */
+                      break;
+                    }
+                }
+              /* key not found, use default address */
+              COPY_SHORT (&offset, pc + SW_DEFAULT);
+              opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
+              break;
+            }
+          else
+            {
+              /* d >= SWITCH_CASE_SIZE */
+              l -= d;
+              d >>= 1;
+            }
+        }
       else if (s > r)
-	{
-	  if (d < SWITCH_CASE_SIZE)
-	    {
-	      /* test if entry is part of a range */
-	      COPY_SHORT (&offset, l + L_TYPE);
-	      if (offset <= 1)
-		{
-		  COPY_PTR (&r, l + L_UPPER);
-		  if (s <= r)
-		    {
-		      /* s is in the range */
-		      COPY_SHORT (&offset, l + L_ADDR);
-		      if (!offset)
-			{
-			  /* range with lookup table */
-			  l = current_prog->program + offset + (s - r) * sizeof (short);
-			  COPY_SHORT (&offset, l);
-			}	/* else normal range and offset is correct */
-		      break;
-		    }
-		}
-	      /* use default address */
-	      COPY_SHORT (&offset, pc + SW_DEFAULT);
-	      opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
-	      break;
-	    }
-	  else
-	    {			/* d >= SWITCH_CASE_SIZE */
-	      l += d;
-	      /* if table isn't a power of 2 in size, fix us up */
-	      while (l >= end_tab)
-		{
-		  d >>= 1;
-		  if (d < SWITCH_CASE_SIZE)
-		    {
-		      d = 0;
-		      break;
-		    }
-		  l -= d;
-		}
-	      if (l == end_tab)
-		{
-		  /* use default address */
-		  COPY_SHORT (&offset, pc + SW_DEFAULT);
-		  opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
-		  break;
-		}
-	      d >>= 1;
-	    }
-	}
+        {
+          if (d < SWITCH_CASE_SIZE)
+            {
+              /* test if entry is part of a range */
+              COPY_SHORT (&offset, l + L_TYPE);
+              if (offset <= 1)
+                {
+                  COPY_PTR (&r, l + L_UPPER);
+                  if (s <= r)
+                    {
+                      /* s is in the range */
+                      COPY_SHORT (&offset, l + L_ADDR);
+                      if (!offset)
+                        {
+                          /* range with lookup table */
+                          l = current_prog->program + offset + (s - r) * sizeof (short);
+                          COPY_SHORT (&offset, l);
+                        }	/* else normal range and offset is correct */
+                      break;
+                    }
+                }
+              /* use default address */
+              COPY_SHORT (&offset, pc + SW_DEFAULT);
+              opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
+              break;
+            }
+          else
+            {			/* d >= SWITCH_CASE_SIZE */
+              l += d;
+              /* if table isn't a power of 2 in size, fix us up */
+              while (l >= end_tab)
+                {
+                  d >>= 1;
+                  if (d < SWITCH_CASE_SIZE)
+                    {
+                      d = 0;
+                      break;
+                    }
+                  l -= d;
+                }
+              if (l == end_tab)
+                {
+                  /* use default address */
+                  COPY_SHORT (&offset, pc + SW_DEFAULT);
+                  opt_trace (TT_EVAL|1, "switch case not found, default offset %+d", offset);
+                  break;
+                }
+              d >>= 1;
+            }
+        }
       else
-	{
-	  /* s == r */
-	  COPY_SHORT (&offset, l + U_ADDR);
-	  /* found the key - but could be part of a range... */
-	  if (!l[U_TYPE] && !l[U_TYPE + 1])
-	    {
-	      /* end of range with lookup table */
-	      COPY_PTR (&r, l + U_LOWER);
-	      l = current_prog->program + offset + (s - r) * sizeof (short);
-	      COPY_SHORT (&offset, l);
-	    }
-	  if (offset <= 1)
-	    {
-	      COPY_SHORT (&offset, l + L_ADDR);
-	      if (!offset)
-		{
-		  /* start of range with lookup table */
-		  l = current_prog->program + offset;
-		  COPY_SHORT (&offset, l);
-		}		/* else normal range, offset is correct */
-	    }
-	  opt_trace (TT_EVAL|1, "switch case is found, offset %+d", offset);
-	  break;
-	}
+        {
+          /* s == r */
+          COPY_SHORT (&offset, l + U_ADDR);
+          /* found the key - but could be part of a range... */
+          if (!l[U_TYPE] && !l[U_TYPE + 1])
+            {
+              /* end of range with lookup table */
+              COPY_PTR (&r, l + U_LOWER);
+              l = current_prog->program + offset + (s - r) * sizeof (short);
+              COPY_SHORT (&offset, l);
+            }
+          if (offset <= 1)
+            {
+              COPY_SHORT (&offset, l + L_ADDR);
+              if (!offset)
+                {
+                  /* start of range with lookup table */
+                  l = current_prog->program + offset;
+                  COPY_SHORT (&offset, l);
+                }		/* else normal range, offset is correct */
+            }
+          opt_trace (TT_EVAL|1, "switch case is found, offset %+d", offset);
+          break;
+        }
     }
   /* now do jump */
   pc = current_prog->program + offset;
@@ -1321,7 +1310,7 @@ make_efun_funp (int opcode, svalue_t * args)
   funptr_t *fp;
 
   fp = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (efun_ptr_t),
-			     TAG_FUNP, "make_efun_funp");
+                             TAG_FUNP, "make_efun_funp");
   fp->hdr.owner = current_object;
   add_ref (current_object, "make_efun_funp");
   fp->hdr.type = FP_EFUN;
@@ -1346,7 +1335,7 @@ make_lfun_funp (int index, svalue_t * args)
   funptr_t *fp;
 
   fp = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (local_ptr_t),
-			     TAG_FUNP, "make_efun_funp");
+                             TAG_FUNP, "make_efun_funp");
   fp->hdr.owner = current_object;
   add_ref (current_object, "make_efun_funp");
   fp->hdr.type = FP_LOCAL | FP_NOT_BINDABLE;
@@ -1371,7 +1360,7 @@ make_simul_funp (int index, svalue_t * args)
   funptr_t *fp;
 
   fp = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (simul_ptr_t),
-			     TAG_FUNP, "make_efun_funp");
+                             TAG_FUNP, "make_efun_funp");
   fp->hdr.owner = current_object;
   add_ref (current_object, "make_efun_funp");
   fp->hdr.type = FP_SIMUL;
@@ -1392,12 +1381,12 @@ make_simul_funp (int index, svalue_t * args)
 
 funptr_t *
 make_functional_funp (short num_arg, short num_local, short len,
-		      svalue_t * args, int flag)
+                      svalue_t * args, int flag)
 {
   funptr_t *fp;
 
   fp = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (functional_t),
-			     TAG_FUNP, "make_functional_funp");
+                             TAG_FUNP, "make_functional_funp");
   fp->hdr.owner = current_object;
   add_ref (current_object, "make_functional_funp");
   fp->hdr.type = FP_FUNCTIONAL + flag;
@@ -1471,28 +1460,28 @@ f_function_constructor ()
     case FP_FUNCTIONAL:
     case FP_FUNCTIONAL | FP_NOT_BINDABLE:
       {
-	int num_arg;
+        int num_arg;
 
-	num_arg = EXTRACT_UCHAR (pc++);	/* number of arguments */
-	LOAD_SHORT (index, pc);	/* length of functional */
-	fp =
-	  make_functional_funp (num_arg, 0, index, sp,
-				kind & FP_NOT_BINDABLE);
-	pop_stack ();
-	break;
+        num_arg = EXTRACT_UCHAR (pc++);	/* number of arguments */
+        LOAD_SHORT (index, pc);	/* length of functional */
+        fp =
+          make_functional_funp (num_arg, 0, index, sp,
+                                kind & FP_NOT_BINDABLE);
+        pop_stack ();
+        break;
       }
     case FP_ANONYMOUS:
     case FP_ANONYMOUS | FP_NOT_BINDABLE:
       {
-	int num_arg, locals;
+        int num_arg, locals;
 
-	num_arg = EXTRACT_UCHAR (pc++);
-	locals = EXTRACT_UCHAR (pc++);
-	LOAD_SHORT (index, pc);	/* length */
-	fp =
-	  make_functional_funp (num_arg, locals, index, 0,
-				kind & FP_NOT_BINDABLE);
-	break;
+        num_arg = EXTRACT_UCHAR (pc++);
+        locals = EXTRACT_UCHAR (pc++);
+        LOAD_SHORT (index, pc);	/* length */
+        fp =
+          make_functional_funp (num_arg, locals, index, 0,
+                                kind & FP_NOT_BINDABLE);
+        break;
       }
     default:
       fatal ("Tried to make unknown type of function pointer.\n");
@@ -1544,10 +1533,10 @@ f_sscanf ()
   sp += num_arg + 1;
   *sp = *(fp--);		/* move format description to top of stack */
   *(sp - 1) = *(fp);		/* move source string just below the format
-				 * desc. */
+                                 * desc. */
   fp->type = T_NUMBER;		/* this svalue isn't invalidated below, and
-				 * if we don't change it to something safe,
-				 * it will get freed twice if an error occurs */
+                                 * if we don't change it to something safe,
+                                 * it will get freed twice if an error occurs */
   /*
    * prep area for rvalues
    */

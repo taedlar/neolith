@@ -1,17 +1,4 @@
-/*  $Id: operator.h,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
-#ifndef	EFUNS_OPERATOR_H
-#define	EFUNS_OPERATOR_H
-
+#pragma once
 void f_ge(void);
 void f_le(void);
 void f_lt(void);
@@ -53,5 +40,3 @@ void call_simul_efun(unsigned short, int);
 funptr_t *make_efun_funp(int, svalue_t *);
 funptr_t *make_lfun_funp(int, svalue_t *);
 funptr_t *make_simul_funp(int, svalue_t *);
-
-#endif	/* ! EFUNS_OPERATOR_H */

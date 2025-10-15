@@ -1,18 +1,9 @@
-/*  $Id: simul_efun.c,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
-
+/*
     ORIGINAL AUTHOR
-	[????-??-??] by Beek, rewritten
+        [????-??-??] by Beek, rewritten
 
     MODIFIED BY
-	[2001-06-28] by Annihilator <annihilator@muds.net>, see CVS log.
+        [2001-06-28] by Annihilator <annihilator@muds.net>, see CVS log.
  */
 
 #ifdef	HAVE_CONFIG_H
@@ -96,12 +87,12 @@ remove_simuls ()
   for (i = 0; i < num_simul_efun; i++)
     {
       if ((ihe = lookup_ident (simul_names[i].name)))
-	{
-	  if (ihe->dn.simul_num != -1)
-	    ihe->sem_value--;
-	  ihe->dn.simul_num = -1;
-	  ihe->token &= ~IHE_SIMUL;
-	}
+        {
+          if (ihe->dn.simul_num != -1)
+            ihe->sem_value--;
+          ihe->dn.simul_num = -1;
+          ihe->token &= ~IHE_SIMUL;
+        }
     }
 }
 
@@ -115,29 +106,29 @@ get_simul_efuns (program_t * prog)
     {
       remove_simuls ();
       if (!num_new)
-	{
-	  FREE (simul_names);
-	  FREE (simuls);
-	}
+        {
+          FREE (simul_names);
+          FREE (simuls);
+        }
       else
-	{
-	  /* will be resized later */
-	  simul_names = RESIZE (simul_names, num_simul_efun + num_new,
-				simul_entry, TAG_SIMULS, "get_simul_efuns");
-	  simuls = RESIZE (simuls, num_simul_efun + num_new,
-			   simul_info_t, TAG_SIMULS, "get_simul_efuns: 2");
-	}
+        {
+          /* will be resized later */
+          simul_names = RESIZE (simul_names, num_simul_efun + num_new,
+                                simul_entry, TAG_SIMULS, "get_simul_efuns");
+          simuls = RESIZE (simuls, num_simul_efun + num_new,
+                           simul_info_t, TAG_SIMULS, "get_simul_efuns: 2");
+        }
     }
   else
     {
       if (num_new)
-	{
-	  simul_names =
-	    CALLOCATE (num_new, simul_entry, TAG_SIMULS, "get_simul_efuns");
-	  simuls =
-	    CALLOCATE (num_new, simul_info_t, TAG_SIMULS,
-		       "get_simul_efuns: 2");
-	}
+        {
+          simul_names =
+            CALLOCATE (num_new, simul_entry, TAG_SIMULS, "get_simul_efuns");
+          simuls =
+            CALLOCATE (num_new, simul_info_t, TAG_SIMULS,
+                       "get_simul_efuns: 2");
+        }
     }
   for (i = 0; i < num_new; i++)
     {
@@ -146,17 +137,17 @@ get_simul_efuns (program_t * prog)
       runtime_function_u *func_entry;
 
       if (prog->function_flags[i] & (NAME_NO_CODE | NAME_STATIC | NAME_PRIVATE))
-	continue;
+        continue;
       nprog = prog;
       index = i;
       func_entry = FIND_FUNC_ENTRY (nprog, index);
 
       while (nprog->function_flags[index] & NAME_INHERITED)
-	{
-	  nprog = nprog->inherit[func_entry->inh.offset].prog;
-	  index = func_entry->inh.function_index_offset;
-	  func_entry = FIND_FUNC_ENTRY (nprog, index);
-	}
+        {
+          nprog = nprog->inherit[func_entry->inh.offset].prog;
+          index = func_entry->inh.function_index_offset;
+          func_entry = FIND_FUNC_ENTRY (nprog, index);
+        }
 
       find_or_add_simul_efun (nprog, func_entry->def.f_index, i);
     }
@@ -165,9 +156,9 @@ get_simul_efuns (program_t * prog)
     {
       /* shrink to fit */
       simul_names = RESIZE (simul_names, num_simul_efun, simul_entry,
-			    TAG_SIMULS, "get_simul_efuns");
+                            TAG_SIMULS, "get_simul_efuns");
       simuls = RESIZE (simuls, num_simul_efun, simul_info_t,
-		       TAG_SIMULS, "get_simul_efuns");
+                       TAG_SIMULS, "get_simul_efuns");
     }
 }
 
@@ -189,15 +180,15 @@ find_simul_efun (char *name)
       j = (first + last) / 2;
       i = compare_addrs (name, simul_names[j].name);
       if (i == -1)
-	{
-	  last = j - 1;
-	}
+        {
+          last = j - 1;
+        }
       else if (i == 1)
-	{
-	  first = j + 1;
-	}
+        {
+          first = j + 1;
+        }
       else
-	return simul_names[j].index;
+        return simul_names[j].index;
     }
   return -1;
 }
@@ -221,23 +212,23 @@ find_or_add_simul_efun (program_t * prog, int index, int runtime_index)
       j = (first + last) / 2;
       i = compare_addrs (funp->name, simul_names[j].name);
       if (i == -1)
-	{
-	  last = j - 1;
-	}
+        {
+          last = j - 1;
+        }
       else if (i == 1)
-	{
-	  first = j + 1;
-	}
+        {
+          first = j + 1;
+        }
       else
-	{
-	  ihe = find_or_add_perm_ident (simul_names[j].name);
-	  ihe->token |= IHE_SIMUL;
-	  ihe->sem_value++;
-	  ihe->dn.simul_num = simul_names[j].index;
-	  simuls[simul_names[j].index].index = runtime_index;
-	  simuls[simul_names[j].index].func = funp;
-	  return;
-	}
+        {
+          ihe = find_or_add_perm_ident (simul_names[j].name);
+          ihe->token |= IHE_SIMUL;
+          ihe->sem_value++;
+          ihe->dn.simul_num = simul_names[j].index;
+          simuls[simul_names[j].index].index = runtime_index;
+          simuls[simul_names[j].index].func = funp;
+          return;
+        }
     }
   for (i = num_simul_efun - 1; i > last; i--)
     simul_names[i + 1] = simul_names[i];

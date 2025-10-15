@@ -1,17 +1,4 @@
-/*  $Id: types.h,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
- */
-
-#ifndef	_LPC_TYPES_H
-#define	_LPC_TYPES_H
-
+#pragma once
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
@@ -95,5 +82,3 @@ struct svalue_s {
 #define STRING_CONSTANT 0
 
 #define T_UNDEFINED     0x4	/* undefinedp() returns true */
-
-#endif	/* ! _LPC_TYPES_H */

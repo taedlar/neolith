@@ -1,20 +1,11 @@
-/*  $Id: uids.c,v 1.1.1.1 2002/11/23 07:57:08 annihilator Exp $
-
-    This program is a part of Neolith project distribution. The Neolith
-    project is based on MudOS v22pre5 LPmud driver. Read doc/Copyright
-    before you try to use, modify or distribute this program.
-
-    For more information about Neolith project, please visit:
-
-    http://www.es2.muds.net/neolith
-
+/* 
     ORIGINAL AUTHOR
-	[1992-11-01] by Erik Kay, initial creation
+        [1992-11-01] by Erik Kay, initial creation
 
     MODIFIED BY
-	[1994-07-14] by Robocoder, replaced linked list with AVL tree, and
-		made uids into shared strings.
-	[2001-06-27] by Annihilator <annihilator@muds.net>. see CVS log.
+        [1994-07-14] by Robocoder, replaced linked list with AVL tree, and
+                made uids into shared strings.
+        [2001-06-27] by Annihilator <annihilator@muds.net>. see CVS log.
  */
 
 #ifdef	HAVE_CONFIG_H
@@ -64,27 +55,27 @@ f_geteuid (void)
     {
       ob = sp->u.ob;
       if (ob->euid)
-	{
-	  put_constant_string (ob->euid->name);
-	  free_object (ob, "f_geteuid:1");
-	  return;
-	}
+        {
+          put_constant_string (ob->euid->name);
+          free_object (ob, "f_geteuid:1");
+          return;
+        }
       else
-	{
-	  free_object (ob, "f_geteuid:2");
-	  *sp = const0;
-	  return;
-	}
+        {
+          free_object (ob, "f_geteuid:2");
+          *sp = const0;
+          return;
+        }
     }
   else if (sp->type & T_FUNCTION)
     {
       funptr_t *fp;
       if ((fp = sp->u.fp)->hdr.owner && fp->hdr.owner->euid)
-	{
-	  put_constant_string (fp->hdr.owner->euid->name);
-	  free_funp (fp);
-	  return;
-	}
+        {
+          put_constant_string (fp->hdr.owner->euid->name);
+          free_funp (fp);
+          return;
+        }
       free_funp (fp);
       *sp = const0;
     }
@@ -113,7 +104,7 @@ f_seteuid (void)
   if (sp->type & T_NUMBER)
     {
       if (sp->u.number)
-	bad_arg (1, F_SETEUID);
+        bad_arg (1, F_SETEUID);
       current_object->euid = NULL;
       sp->u.number = 1;
       return;
