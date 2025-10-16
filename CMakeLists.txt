@@ -56,3 +56,13 @@ add_subdirectory(lib/efuns)
 add_subdirectory(lib/lpc)
 add_subdirectory(lib/socket)
 add_subdirectory(src)
+
+# unit-tests
+include(CTest)
+if(BUILD_TESTING)
+	enable_testing()
+	find_package(GTest)
+	if (GTest_FOUND)
+		add_subdirectory(tests/test_logger)
+	endif()
+endif()
