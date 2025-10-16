@@ -1034,8 +1034,7 @@ f_switch ()
   COPY_SHORT (&offset, pc + SW_TABLE);
   COPY_SHORT (&end_off, pc + SW_ENDTAB);
   if ((i = EXTRACT_UCHAR (pc) >> 4) != 0xf)
-    {				/* String table, find correct
-                                 * key */
+    {				/* String table, find correct key */
       if (sp->type == T_NUMBER && !sp->u.number)
         {
           /* special case: 0 as a string */
@@ -1244,16 +1243,15 @@ f_switch ()
   opt_trace (TT_EVAL, "jump to %+d", offset);
 }
 
-void
-call_simul_efun (unsigned short index, int num_arg)
+void call_simul_efun (unsigned short index, int num_arg)
 {
-  extern object_t *simul_efun_ob;
   compiler_function_t *funp;
 
   opt_trace (TT_SIMUL_EFUN|2, "index %d, num_arg %d", index, num_arg);
 
   if (current_object->flags & O_DESTRUCTED)
     {				/* No external calls allowed */
+      opt_trace (TT_SIMUL_EFUN|1, "simul_efun_on destructed: returning undefined");
       pop_n_elems (num_arg);
       push_undefined ();
       return;
@@ -1272,7 +1270,7 @@ call_simul_efun (unsigned short index, int num_arg)
       funp = setup_new_frame (simuls[index].index);
       previous_ob = current_object;
       current_object = simul_efun_ob;
-      opt_trace (TT_SIMUL_EFUN|1, "call_program: \"%s\" offset %+d", funp->name, funp->address);
+      opt_trace (TT_SIMUL_EFUN, "call_program: \"%s\" num_arg=%d", funp->name, num_arg);
       call_program (current_prog, funp->address);
     }
   else

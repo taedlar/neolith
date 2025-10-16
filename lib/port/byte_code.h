@@ -1,5 +1,11 @@
 #pragma once
 
+#ifdef HAVE_STDINT_H
+    #include <stdint.h>
+#elif HAVE_INTTYPES_H
+    #include <inttypes.h>
+#endif
+
 /* portable wrappers for bytecode manipulation */
 #define COPY2(x, y)      ((char *)(x))[0] = ((char *)(y))[0]; \
                          ((char *)(x))[1] = ((char *)(y))[1]
