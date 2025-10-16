@@ -83,9 +83,9 @@ parse_command (char *str, object_t * ob)
   for (c = str; *c; c++)
     {
       if (*c == 27)
-	{
-	  *c = ' ';		/* replace ESC with ' ' */
-	}
+        {
+          *c = ' ';		/* replace ESC with ' ' */
+        }
     }
 #endif
   command_giver = ob;
@@ -95,8 +95,6 @@ parse_command (char *str, object_t * ob)
 }				/* parse_command() */
 
 /*  backend()
- * 
- *  �o�Ө�ƬO�t�Ϊ��D�j��A�����Өt�Ϊ� I/O polling �M update�C
  */
 int eval_cost;
 
@@ -138,50 +136,42 @@ backend ()
       eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
 
       if (obj_list_replace || obj_list_destruct)
-	remove_destructed_objects ();
+        remove_destructed_objects ();
 
       /*
        * do shutdown if g_proceeding_shutdown is set
        */
       if (g_proceeding_shutdown)
-	do_shutdown (0);
+        do_shutdown (0);
 
       if (slow_shut_down_to_do)
-	{
-	  int tmp = slow_shut_down_to_do;
+        {
+          int tmp = slow_shut_down_to_do;
 
-	  slow_shut_down_to_do = 0;
-	  slow_shut_down (tmp);
-	}
+          slow_shut_down_to_do = 0;
+          slow_shut_down (tmp);
+        }
 
-      /* �ˬd�s�u�ϥΪ̪� I/O �ƥ� */
       make_selectmasks ();
       if (heart_beat_flag)
-	{
-	  /* �p�G�٦� heart_beat �S�������A�� timeout �]�w�� 0�A�ҥH
-	   * select ���|���� I/O ���o�ͦӥߧY��^�A�H�K�ڭ̳B�z�|��
-	   * ������ heart_beat
-	   */
-	  timeout.tv_sec = 0;
-	  timeout.tv_usec = 0;
-	}
+        {
+          timeout.tv_sec = 0;
+          timeout.tv_usec = 0;
+        }
       else
-	{
-	  timeout.tv_sec = 60;
-	  timeout.tv_usec = 0;
-	}
+        {
+          timeout.tv_sec = 60;
+          timeout.tv_usec = 0;
+        }
       nb = get_IO_polling (&timeout);
 
-      /* �p�G�� socket �� I/O �o�͡A�B�z�o�� I/O */
       if (nb > 0)
-	process_io ();
+        process_io ();
 
-      /* �B�z�s�u�ϥΪ̪����O */
       for (i = 0; process_user_command () && i < max_users; i++);
 
-      /* �B�z heart_beat �u�@ */
       if (heart_beat_flag)
-	call_heart_beat ();
+        call_heart_beat ();
     }
 }
 
@@ -218,7 +208,6 @@ look_for_objects_to_swap ()
    */
   next_ob = obj_list;
 
-  /* �Y�o�Ϳ��~�A�| longjump �^��o�̭��s�}�l */
   save_context (&econ);
   if (setjmp (econ.context))
     restore_context (&econ);
@@ -230,7 +219,7 @@ look_for_objects_to_swap ()
       eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
 
       if (ob->flags & O_DESTRUCTED)
-	ob = obj_list;		/* restart */
+        ob = obj_list;		/* restart */
       next_ob = ob->next_all;
 
       /*
@@ -240,48 +229,48 @@ look_for_objects_to_swap ()
 #ifndef LAZY_RESETS
       /* Should this object have reset(1) called ? */
       if ((ob->flags & O_WILL_RESET) && (ob->next_reset < current_time)
-	  && !(ob->flags & O_RESET_STATE))
-	{
-	  reset_object (ob);
-	}
+          && !(ob->flags & O_RESET_STATE))
+        {
+          reset_object (ob);
+        }
 #endif
 
       if (CONFIG_INT (__TIME_TO_CLEAN_UP__) > 0)
-	{
-	  /*
-	   * Has enough time passed, to give the object a chance to
-	   * self-destruct ? Save the O_RESET_STATE, which will be cleared.
-	   * 
-	   * Only call clean_up in objects that has defined such a function.
-	   * 
-	   * Only if the clean_up returns a non-zero value, will it be called
-	   * again.
-	   */
+        {
+          /*
+           * Has enough time passed, to give the object a chance to
+           * self-destruct ? Save the O_RESET_STATE, which will be cleared.
+           * 
+           * Only call clean_up in objects that has defined such a function.
+           * 
+           * Only if the clean_up returns a non-zero value, will it be called
+           * again.
+           */
 
-	  if (current_time - ref_time >
-	      CONFIG_INT (__TIME_TO_CLEAN_UP__)
-	      && (ob->flags & O_WILL_CLEAN_UP))
-	    {
-	      int save_reset_state = ob->flags & O_RESET_STATE;
-	      svalue_t *svp;
+          if (current_time - ref_time >
+              CONFIG_INT (__TIME_TO_CLEAN_UP__)
+              && (ob->flags & O_WILL_CLEAN_UP))
+            {
+              int save_reset_state = ob->flags & O_RESET_STATE;
+              svalue_t *svp;
 
-	      /*
-	       * Supply a flag to the object that says if this program is
-	       * inherited by other objects. Cloned objects might as well
-	       * believe they are not inherited. Swapped objects will not
-	       * have a ref count > 1 (and will have an invalid ob->prog
-	       * pointer).
-	       */
+              /*
+               * Supply a flag to the object that says if this program is
+               * inherited by other objects. Cloned objects might as well
+               * believe they are not inherited. Swapped objects will not
+               * have a ref count > 1 (and will have an invalid ob->prog
+               * pointer).
+               */
 
-	      push_number ((ob->flags & O_CLONE) ? 0 : ob->prog->ref);
-	      svp = apply (APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
-	      if (ob->flags & O_DESTRUCTED)
-		continue;
-	      if (!svp || (svp->type == T_NUMBER && svp->u.number == 0))
-		ob->flags &= ~O_WILL_CLEAN_UP;
-	      ob->flags |= save_reset_state;
-	    }
-	}
+              push_number ((ob->flags & O_CLONE) ? 0 : ob->prog->ref);
+              svp = apply (APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
+              if (ob->flags & O_DESTRUCTED)
+                continue;
+              if (!svp || (svp->type == T_NUMBER && svp->u.number == 0))
+                ob->flags &= ~O_WILL_CLEAN_UP;
+              ob->flags |= save_reset_state;
+            }
+        }
     }
 
   pop_context (&econ);
@@ -353,34 +342,34 @@ call_heart_beat ()
       num_hb_calls++;
       heart_beat_index = 0;
       while (!heart_beat_flag)
-	{
-	  ob = (curr_hb = &heart_beats[heart_beat_index])->ob;
-	  /* is it time to do a heart beat ? */
-	  curr_hb->heart_beat_ticks--;
+        {
+          ob = (curr_hb = &heart_beats[heart_beat_index])->ob;
+          /* is it time to do a heart beat ? */
+          curr_hb->heart_beat_ticks--;
 
-	  if (ob->prog->heart_beat != -1)
-	    {
-	      if (curr_hb->heart_beat_ticks < 1)
-		{
-		  curr_hb->heart_beat_ticks = curr_hb->time_to_heart_beat;
-		  current_heart_beat = ob;
-		  command_giver = ob;
-		  if (!(command_giver->flags & O_ENABLE_COMMANDS))
-		    command_giver = 0;
-		  eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-		  /* this should be looked at ... */
-		  call_function (ob->prog, ob->prog->heart_beat);
-		  command_giver = 0;
-		  current_object = 0;
-		}
-	    }
-	  if (++heart_beat_index == num_hb_to_do)
-	    break;
-	}
+          if (ob->prog->heart_beat != -1)
+            {
+              if (curr_hb->heart_beat_ticks < 1)
+                {
+                  curr_hb->heart_beat_ticks = curr_hb->time_to_heart_beat;
+                  current_heart_beat = ob;
+                  command_giver = ob;
+                  if (!(command_giver->flags & O_ENABLE_COMMANDS))
+                    command_giver = 0;
+                  eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
+                  /* this should be looked at ... */
+                  call_function (ob->prog, ob->prog->heart_beat);
+                  command_giver = 0;
+                  current_object = 0;
+                }
+            }
+          if (++heart_beat_index == num_hb_to_do)
+            break;
+        }
       if (heart_beat_index < num_hb_to_do)
-	perc_hb_probes = 100 * (float) heart_beat_index / num_hb_to_do;
+        perc_hb_probes = 100 * (float) heart_beat_index / num_hb_to_do;
       else
-	perc_hb_probes = 100.0;
+        perc_hb_probes = 100.0;
       heart_beat_index = num_hb_to_do = 0;
     }
   current_prog = 0;
@@ -400,7 +389,7 @@ query_heart_beat (object_t * ob)
   while (index--)
     {
       if (heart_beats[index].ob == ob)
-	return heart_beats[index].time_to_heart_beat;
+        return heart_beats[index].time_to_heart_beat;
     }
   return 0;
 }				/* query_heart_beat() */
@@ -424,24 +413,24 @@ set_heart_beat (object_t * ob, int to)
 
       index = num_hb_objs;
       while (index--)
-	{
-	  if (heart_beats[index].ob == ob)
-	    break;
-	}
+        {
+          if (heart_beats[index].ob == ob)
+            break;
+        }
       if (index < 0)
-	return 0;
+        return 0;
 
       if (num_hb_to_do)
-	{
-	  if (index <= heart_beat_index)
-	    heart_beat_index--;
-	  if (index < num_hb_to_do)
-	    num_hb_to_do--;
-	}
+        {
+          if (index <= heart_beat_index)
+            heart_beat_index--;
+          if (index < num_hb_to_do)
+            num_hb_to_do--;
+        }
 
       if ((num = (num_hb_objs - (index + 1))))
-	memmove (heart_beats + index, heart_beats + (index + 1),
-		 num * sizeof (heart_beat_t));
+        memmove (heart_beats + index, heart_beats + (index + 1),
+                 num * sizeof (heart_beat_t));
 
       num_hb_objs--;
       ob->flags &= ~O_HEART_BEAT;
@@ -451,41 +440,41 @@ set_heart_beat (object_t * ob, int to)
   if (ob->flags & O_HEART_BEAT)
     {
       if (to < 0)
-	return 0;
+        return 0;
 
       index = num_hb_objs;
       while (index--)
-	{
-	  if (heart_beats[index].ob == ob)
-	    {
-	      heart_beats[index].time_to_heart_beat =
-		heart_beats[index].heart_beat_ticks = to;
-	      break;
-	    }
-	}
+        {
+          if (heart_beats[index].ob == ob)
+            {
+              heart_beats[index].time_to_heart_beat =
+                heart_beats[index].heart_beat_ticks = to;
+              break;
+            }
+        }
       DEBUG_CHECK (index < 0,
-		   "Couldn't find enabled object in heart_beat list!\n");
+                   "Couldn't find enabled object in heart_beat list!\n");
     }
   else
     {
       heart_beat_t *hb;
 
       if (!max_heart_beats)
-	heart_beats = CALLOCATE (max_heart_beats = HEART_BEAT_CHUNK,
-				 heart_beat_t, TAG_HEART_BEAT,
-				 "set_heart_beat: 1");
+        heart_beats = CALLOCATE (max_heart_beats = HEART_BEAT_CHUNK,
+                                 heart_beat_t, TAG_HEART_BEAT,
+                                 "set_heart_beat: 1");
       else if (num_hb_objs == max_heart_beats)
-	{
-	  max_heart_beats += HEART_BEAT_CHUNK;
-	  heart_beats = RESIZE (heart_beats, max_heart_beats,
-				heart_beat_t, TAG_HEART_BEAT,
-				"set_heart_beat: 1");
-	}
+        {
+          max_heart_beats += HEART_BEAT_CHUNK;
+          heart_beats = RESIZE (heart_beats, max_heart_beats,
+                                heart_beat_t, TAG_HEART_BEAT,
+                                "set_heart_beat: 1");
+        }
 
       hb = &heart_beats[num_hb_objs++];
       hb->ob = ob;
       if (to < 0)
-	to = 1;
+        to = 1;
       hb->time_to_heart_beat = to;
       hb->heart_beat_ticks = to;
       ob->flags |= O_HEART_BEAT;
@@ -504,13 +493,13 @@ heart_beat_status (outbuffer_t * ob, int verbose)
       outbuf_add (ob, "Heart beat information:\n");
       outbuf_add (ob, "-----------------------\n");
       outbuf_addv (ob, "Number of objects with heart beat: %d, starts: %d\n",
-		   num_hb_objs, num_hb_calls);
+                   num_hb_objs, num_hb_calls);
 
       /* passing floats to varargs isn't highly portable so let sprintf
          handle it */
       sprintf (buf, "%.2f", perc_hb_probes);
       outbuf_addv (ob, "Percentage of HB calls completed last time: %s\n",
-		   buf);
+                   buf);
     }
   return (0);
 }				/* heart_beat_status() */
@@ -561,7 +550,7 @@ preload_objects (int eflag)
   for (; ix < prefiles->size; ix++)
     {
       if (prefiles->item[ix].type != T_STRING)
-	continue;
+        continue;
 
       eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
       /* debug_message(_("preloading %s\n"), prefiles->item[ix].u.string); */

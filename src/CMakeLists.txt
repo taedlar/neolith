@@ -32,3 +32,12 @@ target_include_directories(neolith PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}
 )
+
+# check POSIX realtime extension library
+include(CheckLibraryExists)
+check_library_exists(rt clock_gettime "" HAVE_LIBRT)
+if(HAVE_LIBRT)
+    target_link_libraries(neolith PRIVATE -lrt)
+else()
+    message(WARNING "LIBRT not found, heart_beat() will be disabled.")
+endif()

@@ -1804,7 +1804,6 @@ eval_instruction (char *p)
                          CONFIG_INT (__MAX_EVAL_COST__));
           error_state |= ES_MAX_EVAL_COST;
 
-          /* ���s�]�w eval cost �ѿ��~�B�z�禡����ϥ� */
           eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
           error (_("*Too long evaluation. Execution aborted."));
         }
