@@ -4,13 +4,10 @@ Neolith Developer Reference
 # Documentations
 
 Neolith's documentations are written in [Markdown](https://en.wikipedia.org/wiki/Markdown) format (&ast;.md) for easier reading on github.
-If you have no access to a browser, you may also read these markdown documents with the [mdless](https://github.com/ttscoff/mdless) tool in shell.
+If you use Windows + WSL as your development environment, the Visual Studio Code is a great editor to view these documentations.
+If you use something else, you may also read these markdown documents with the [mdless](https://github.com/ttscoff/mdless) tool in shell.
 
-On Ubuntu, you can install `mdless` by:
-```
-sudo apt install ruby
-sudo gem install mdless
-```
+Note that Neolith documentation may use some Github Flavored Markdown syntax that may not display correctly in other viewers.  
 
 # Debug Logs
 

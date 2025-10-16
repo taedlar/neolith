@@ -68,3 +68,20 @@ Enables trace messages about LPMud driver backend activities (heart beats, call 
 
 Extra verbose level:
 - 0103: heart beat timer, efun `time`
+
+# Running in `gdb`
+A typical usage for trace log is to debug crashing bugs.
+You may do this by using the `gdb` debugger:
+~~~
+gdb /path/to/neolith
+(gdb) run -t 0173 -f /path/to/neolith.conf
+~~~
+
+The trace flag `0173` enables all trace tiers and enables verbose level 3.
+You'll see a lot of trace logs when the LPMud Driver is starting and preloading.
+Now you can connect to the mud from another shell and do any tests.
+
+- If your MUD crashes, the `neolith` process breaks in the debugger and allows you to see what happens.
+- If your LPC code screw up and cannot escape with regular mudlib commands, you can do ctrl-C in the `gdb` session to break the `neolith` process.
+- You can also use the debugger's `kill` command to terminate the `neolith` process to disconnect all MUD connections.
+
