@@ -25,6 +25,7 @@
 #include "simulate.h"
 #include "lpc/include/runtime_config.h"
 #include "lpc/include/function.h"
+#include "efuns/file_utils.h"
 
 #define SKIPWHITE while (isspace(*p) && (*p != '\n')) p++
 

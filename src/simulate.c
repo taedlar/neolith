@@ -18,6 +18,7 @@
 #include "socket/socket_efuns.h"
 #include "efuns/operator.h"
 #include "efuns/ed.h"
+#include "efuns/file_utils.h"
 #include "efuns/sprintf.h"
 #include "simulate.h"
 #include "lpc/include/origin.h"

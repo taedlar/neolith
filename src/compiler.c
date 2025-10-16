@@ -20,6 +20,7 @@
 #include "lpc/functional.h"
 
 #include "lpc/include/runtime_config.h"
+#include "efuns/file_utils.h"
 
 static void clean_parser (void);
 static void prolog (int, char *);
