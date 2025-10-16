@@ -44,7 +44,8 @@
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "GTEST_ROOT": "/usr/src/googletest/googletest"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -119,6 +120,27 @@
             "inherits": ["pr-linux"],
             "targets": ["all"],
             "cleanFirst": true
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "ut-linux-defaults",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "execution": {
+                "noTestsAction": "ignore"
+            }
+        },
+        {
+            "name": "ut-linux",
+            "displayName": "Unit Tests on Linux",
+            "configurePreset": "linux",
+            "configuration": "RelWithDebInfo",
+            "inherits": ["ut-linux-defaults"]
         }
     ]
 }
