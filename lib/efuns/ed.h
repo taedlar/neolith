@@ -1,6 +1,5 @@
-#ifndef ED_H
-#define ED_H
-
+#pragma once
+#include "src/comm.h"
 #include "src/regexp.h"
 
 /* define this if you don't like the ending dollar signs in ed, in n-mode */
@@ -148,6 +147,4 @@ void object_ed_output(char *);
 void object_ed_outputv(char *, ...);
 
 extern outbuffer_t current_ed_results;
-#endif
-
 #endif

@@ -1,4 +1,5 @@
 #pragma once
+#include "hash.h"
 
 #define DEFMAX 10000
 #define MAXLINE 1024

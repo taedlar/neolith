@@ -3,19 +3,22 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-
+#include "hash.h"
 #include "array.h"
 #include "class.h"
 #include "object.h"
+#include "otable.h"
 #include "mapping.h"
 #include "program.h"
+#include "src/comm.h"
+#include "src/rc.h"
 #include "src/simulate.h"
 #include "src/simul_efun.h"
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
-#include "src/rc.h"
-#include "src/comm.h"
-#include "hash.h"
+#include "efuns/call_out.h"
+#include "efuns/file_utils.h"
+#include "socket/socket_efuns.h"
 
 #include <sys/stat.h>
 

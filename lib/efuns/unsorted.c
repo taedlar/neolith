@@ -20,6 +20,7 @@
 #include "src/interpret.h"
 #include "src/simulate.h"
 #include "src/rc.h"
+#include "src/compiler.h"
 #include "file_utils.h"
 #include "src/comm.h"
 #include "lpc/otable.h"
