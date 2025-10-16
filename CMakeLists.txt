@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.28)
 # project configuration
 project(neolith
 	VERSION 1.0.0
-	DESCRIPTION "A lightweight, embeddable scripting language"
+	DESCRIPTION "A minimalist LPMud server based on MudOS v22 and focus on stability and performance."
 	LANGUAGES C CXX
 )
 set(CMAKE_CXX_STANDARD 11)
