@@ -396,13 +396,20 @@ smart_log (char *error_file, int line, char *what, int flag)
   FREE (buff);
 }				/* smart_log() */
 
-/*
- * Append string to file. Return 0 for failure, otherwise 1.
+/**
+ *  @brief Append string to file.
+ *  @param file The file to write to.
+ *  @param str The string to write.
+ *  @param flags If 1, overwrite the file instead of appending.
+ *               If 0, append to the file.
+ *               Other bits are reserved for future use.
+ *  @returns Return 0 for failure, otherwise 1.
+ *  @see docs/efuns/write_file.md
  */
-int
-write_file (char *file, char *str, int flags)
+int write_file (char *file, char *str, int flags)
 {
   FILE *f;
+  size_t n_written;
 
   file = check_valid_path (file, current_object, "write_file", 1);
   if (!file)
@@ -410,12 +417,13 @@ write_file (char *file, char *str, int flags)
   f = fopen (file, (flags & 1) ? "w" : "a");
   if (f == 0)
     {
-      error ("Wrong permissions for opening file /%s for %s.\n\"%s\"\n",
-             file, (flags & 1) ? "overwrite" : "append", strerror (errno));
+      debug_perror ("fopen()", file);
+      /* error ("Wrong permissions for opening file /%s for %s.\n\"%s\"\n", file, (flags & 1) ? "overwrite" : "append", strerror (errno)); */
+      return 0;
     }
-  fwrite (str, strlen (str), 1, f);
+  n_written = fwrite (str, strlen (str), 1, f);
   fclose (f);
-  return 1;
+  return n_written == 1;
 }				/* write_file() */
 
 char *
