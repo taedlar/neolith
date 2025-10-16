@@ -1558,6 +1558,10 @@ save_object_recurse (program_t * prog, svalue_t ** svp, int type,
 
 int sel = -1;
 
+/**
+ * @brief Save an object to a file.
+ * @returns 1 on success, 0 on failure.
+ */
 int
 save_object (object_t * ob, char *file, int save_zeros)
 {
@@ -1589,18 +1593,29 @@ save_object (object_t * ob, char *file, int save_zeros)
   file = check_valid_path (name, ob, "save_object", 1);
   free_string_svalue (sp--);
   if (!file)
-    error ("Denied write permission in save_object().\n");
+    {
+      /* error ("Denied write permission in save_object().\n"); */
+      return 0;
+    }
 
   /*
    * Write the save-files to different directories, just in case
    * they are on different file systems.
    */
-  sprintf (tmp_name, "%.250s.tmp", file);
+  snprintf (tmp_name, sizeof(tmp_name), "%.250s.tmp", file);
+  tmp_name[sizeof(tmp_name) - 1] = '\0';
 
-  if (!(f = fopen (tmp_name, "w"))
-      || fprintf (f, "#/%s\n", ob->prog->name) < 0)
+  f = fopen (tmp_name, "w");
+  if (!f)
     {
-      error ("Could not open /%s for a save.\n", tmp_name);
+      debug_perror ("fopen()", tmp_name);
+      return 0;  
+    }
+
+  if (fprintf (f, "#/%s\n", ob->prog->name) < 0)
+    {
+      debug_perror ("Could not write save_object() header", tmp_name);
+      return 0;
     }
 
   v = ob->variables;
@@ -1608,7 +1623,7 @@ save_object (object_t * ob, char *file, int save_zeros)
 
   if (fclose (f) < 0)
     {
-      debug_perror ("save_object", file);
+      debug_perror ("fclose()", tmp_name);
       success = 0;
     }
 
@@ -1625,14 +1640,13 @@ save_object (object_t * ob, char *file, int save_zeros)
 #endif
       if (rename (tmp_name, file) < 0)
         {
-          debug_perror ("save_object", file);
-          debug_message ("Failed to rename /%s to /%s\n", tmp_name, file);
-          debug_message ("Failed to save object!\n");
+          debug_perror ("rename()", file);
+          debug_message ("save_obecjt(): Failed to rename /%s to /%s", tmp_name, file);
           unlink (tmp_name);
         }
     }
 
-  return 1;
+  return success ? 1 : 0;
 }
 
 
