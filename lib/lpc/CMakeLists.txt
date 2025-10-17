@@ -11,6 +11,7 @@ set(lpc_SOURCES
     program.c
     program/binaries.c
     program/disassemble.c
+    program/generate.c
     program/icode.c
     program/parse_trees.c
 )

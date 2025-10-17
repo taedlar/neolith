@@ -8,7 +8,7 @@
 #include "src/std.h"
 #include "lpc/include/function.h"
 #include "icode.h"
-#include "src/generate.h"
+#include "generate.h"
 #include "src/compiler.h"
 
 static void ins_real (double);

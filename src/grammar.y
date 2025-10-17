@@ -4,12 +4,10 @@
 #endif	/* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "compiler.h"
-#include "scratchpad.h"
-#include "simul_efun.h"
-#include "generate.h"
 #include "rc.h"
-#include "interpret.h"
+#include "scratchpad.h"
+#include "lpc/program/generate.h"
+#include "simul_efun.h"
 #include "lpc/object.h"
 
 #include "lpc/include/function.h"

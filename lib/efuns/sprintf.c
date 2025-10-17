@@ -61,9 +61,9 @@
 #include "lpc/mapping.h"
 #include "lpc/program.h"
 #include "src/interpret.h"
-#include "lpc/include/function.h"
 #include "src/simul_efun.h"
-#include "src/lex.h"
+
+#include "lpc/include/function.h"
 
 #include "sprintf.h"
 

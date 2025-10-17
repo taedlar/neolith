@@ -8,7 +8,6 @@ set(neolith_SOURCES
     backend.c
     comm.c
     compiler.c
-    generate.c
     interpret.c
     lex.c
     main.c
