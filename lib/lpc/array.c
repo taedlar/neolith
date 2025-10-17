@@ -1531,8 +1531,7 @@ subtract_array (array_t * minuend, array_t * subtrahend)
   if (!(size = subtrahend->size))
     {
       subtrahend->ref--;
-      return minuend->ref > 1 ? (minuend->ref--,
-                                 copy_array (minuend)) : minuend;
+      return minuend->ref > 1 ? (minuend->ref--, copy_array (minuend)) : minuend;
     }
   if (!(msize = minuend->size))
     {
@@ -1541,8 +1540,7 @@ subtract_array (array_t * minuend, array_t * subtrahend)
     }
   svt = alist_sort (subtrahend);
   difference = ALLOC_ARRAY (msize);
-  for (source = minuend->item, dest = difference->item, i = msize;
-       i--; source++)
+  for (source = minuend->item, dest = difference->item, i = msize; i--; source++)
     {
 
       l = 0;
@@ -1598,17 +1596,20 @@ subtract_array (array_t * minuend, array_t * subtrahend)
   while (i--)
     free_svalue (svt + i, "subtract_array");
   FREE ((char *) svt);
-  if (subtrahend->ref > 1)
+  if (subtrahend != &the_null_array)
     {
-      subtrahend->ref--;
-    }
-  else
-    {
+      if (subtrahend->ref > 1)
+        {
+          subtrahend->ref--;
+        }
+      else
+        {
 #ifdef ARRAY_STATS
-      num_arrays--;
-      total_array_size -= sizeof (array_t) + sizeof (svalue_t) * (size - 1);
+          num_arrays--;
+          total_array_size -= sizeof (array_t) + sizeof (svalue_t) * (size - 1);
 #endif
-      FREE ((char *) subtrahend);
+          FREE ((char *) subtrahend);
+        }
     }
   free_array (minuend);
   msize = dest - difference->item;
