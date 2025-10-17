@@ -11,7 +11,6 @@
 #include "lpc/program.h"
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
-#include "main.h"
 #include "rc.h"
 #include "simulate.h"
 #include "interpret.h"
@@ -106,12 +105,15 @@ backend ()
   int i;
   error_context_t econ;
 
+  opt_info (1, "Entering backend loop.");
 #ifdef HAVE_LIBRT
   if (-1 == timer_create (CLOCK_REALTIME, NULL, &hb_timerid))
     {
       debug_perror ("timer_create()", NULL);
       return;
     }
+#else
+  opt_warn (0, "Timer functions not available, heart_beat(), call_out() and reset() disabled.");
 #endif /* HAVE_LIBRT */
   init_user_conn ();		/* initialize user connection socket */
 
@@ -334,7 +336,7 @@ call_heart_beat ()
 //#endif /* ! HAVE_UALARM */
 
   current_time = time (NULL);
-  opt_trace (TT_BACKEND|3, "current_time = %ul", current_time);
+  opt_trace (TT_BACKEND|1, "current_time: %ul, num_hb_objs: %d", current_time, num_hb_objs);
   current_interactive = 0;
 
   if ((num_hb_to_do = num_hb_objs))
@@ -358,6 +360,7 @@ call_heart_beat ()
                     command_giver = 0;
                   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
                   /* this should be looked at ... */
+                  opt_trace (TT_BACKEND|2, "total: %d/%d, current: %s", heart_beat_index + 1, num_hb_to_do, ob->name);
                   call_function (ob->prog, ob->prog->heart_beat);
                   command_giver = 0;
                   current_object = 0;
@@ -374,9 +377,9 @@ call_heart_beat ()
     }
   current_prog = 0;
   current_heart_beat = 0;
-  look_for_objects_to_swap ();
-  call_out ();
-}				/* call_heart_beat() */
+  look_for_objects_to_swap (); /* check for LPC object reset() */
+  call_out (); /* check for LPC call_out() */
+}
 
 int
 query_heart_beat (object_t * ob)
@@ -518,6 +521,8 @@ preload_objects (int eflag)
   svalue_t *ret;
   volatile int ix;
   error_context_t econ;
+
+  opt_info (1, "Preloading objects with eflag=%d", eflag);
 
   save_context (&econ);
   if (setjmp (econ.context))
@@ -676,5 +681,5 @@ sigalrm_handler (int sig)
 {
   (void) sig; /* unused */
   heart_beat_flag = 1;
-  opt_trace (TT_BACKEND|3, "SIGALRM");
+  opt_trace (TT_BACKEND|2, "SIGALRM");
 }
