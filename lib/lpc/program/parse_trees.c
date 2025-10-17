@@ -12,9 +12,10 @@
  */
 
 #define SUPPRESS_COMPILER_INLINES
-#include "std.h"
-#include "trees.h"
-#include "compiler.h"
+#include "src/std.h"
+#include "src/compiler.h"
+
+#include "parse_trees.h"
 
 /* our globals */
 static parse_node_block_t *parse_block_list = 0;

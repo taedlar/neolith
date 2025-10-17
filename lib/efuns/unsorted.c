@@ -28,7 +28,7 @@
 #include "lpc/include/origin.h"
 
 #include "sprintf.h"
-#include "operator.h"
+#include "lpc/operator.h"
 #include "parse.h"
 #include "dumpstat.h"
 

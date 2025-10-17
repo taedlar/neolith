@@ -1,6 +1,6 @@
 #pragma once
 
-#include "trees.h"
+#include "lpc/program/parse_trees.h"
 
 void i_generate___INIT(void);
 void i_generate_node(parse_node_t *);

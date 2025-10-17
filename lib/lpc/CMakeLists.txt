@@ -4,11 +4,15 @@ set(lpc_SOURCES
     array.c
     buffer.c
     class.c
-    disassemble.c
     mapping.c
     object.c
+    operator.c
     otable.c
     program.c
+    program/binaries.c
+    program/disassemble.c
+    program/icode.c
+    program/parse_trees.c
 )
 add_library(lpc STATIC ${lpc_SOURCES})
 target_sources(lpc INTERFACE

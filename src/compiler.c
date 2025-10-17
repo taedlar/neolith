@@ -5,15 +5,13 @@
 #include "std.h"
 #include "rc.h"
 #include "compiler.h"
-#include "trees.h"
 #include "lex.h"
 #include "generate.h"
 #include "scratchpad.h"
 #include "qsort.h"
-#include "binaries.h"
+#include "lpc/program/binaries.h"
 
 #include "interpret.h"
-#include "icode.h"
 #include "lpc/object.h"
 #include "lpc/functional.h"
 

@@ -36,7 +36,6 @@ set(efuns_SOURCES
     file.c
     file_utils.c
     math.c
-    operator.c
     parse.c
     reclaim_object.c
     replace_program.c

@@ -10,7 +10,7 @@
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 
-#include "operator.h"
+#include "lpc/operator.h"
 #include "sprintf.h"
 
 

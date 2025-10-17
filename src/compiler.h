@@ -1,7 +1,7 @@
 #pragma once
 
-#include "trees.h"
 #include "lex.h"
+#include "lpc/program/parse_trees.h"
 #include "lpc/program.h"
 
 #define YYMAXDEPTH    600

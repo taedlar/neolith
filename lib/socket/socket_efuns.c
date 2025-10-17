@@ -29,7 +29,7 @@
 #include "socket_err.h"
 #include "socket_ctrl.h"
 #include "lpc/include/socket_err.h"
-#include "efuns/operator.h"
+#include "lpc/operator.h"
 
 #define	socket_errno		errno
 #define socket_perror(x,y)	debug_perror(x,y)
