@@ -592,7 +592,7 @@ init_precomputed_tables ()
 {
   int i;
 
-  for (i = 0; i < sizeof consts / sizeof consts[0]; i++)
+  for (i = 0; i < (int)(sizeof consts / sizeof consts[0]); i++)
     consts[i] = exp (-i / 900.0);
 }
 

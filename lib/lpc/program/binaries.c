@@ -417,7 +417,7 @@ int_load_binary (char *name)
       return OUT_OF_DATE;
     }
   ALLOC_BUF (len);
-  if (fread (buf, sizeof (char), len, f) != len)
+  if (fread (buf, sizeof (char), len, f) != (unsigned int)len)
     {
       opt_trace (TT_COMPILE|1, "failed reading include list.");
       fclose (f);
@@ -446,7 +446,7 @@ int_load_binary (char *name)
   if (len > 0)
     {
       ALLOC_BUF (len + 1);
-      if (fread (buf, sizeof (char), len, f) != len)
+      if (fread (buf, sizeof (char), len, f) != (unsigned int)len)
 	{
 	  opt_trace (TT_COMPILE|1, "failed reading binary name.");
 	  fclose (f);
@@ -491,7 +491,7 @@ int_load_binary (char *name)
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
         {
 	  ALLOC_BUF (len + 1);
-	  if (fread (buf, sizeof (char), len, f) == len)
+	  if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
 	    buf[len] = '\0';
 	}
       if (!buf[0])
@@ -543,7 +543,7 @@ int_load_binary (char *name)
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
         {
 	  ALLOC_BUF (len + 1);
-	  if (fread (buf, sizeof (char), len, f) == len)
+	  if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
 	    {
 	      buf[len] = '\0';
 	      p->strings[i] = make_shared_string (buf);
@@ -565,7 +565,7 @@ int_load_binary (char *name)
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
 	{
 	  ALLOC_BUF (len + 1);
-	  if (fread (buf, sizeof (char), len, f) == len)
+	  if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
 	    {
 	      buf[len] = '\0';
 	      p->variable_table[i] = make_shared_string (buf);
@@ -587,7 +587,7 @@ int_load_binary (char *name)
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
 	{
 	  ALLOC_BUF (len + 1);
-	  if (fread (buf, sizeof (char), len, f) == len)
+	  if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
 	    {
 	      buf[len] = '\0';
 	      p->function_table[i].name = make_shared_string (buf);

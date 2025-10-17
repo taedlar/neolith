@@ -32,9 +32,8 @@ static inline int alist_cmp (svalue_t *, svalue_t *);
  */
 
 array_t the_null_array = {
-  1,				/* Ref count, which will ensure that it will
-				 * never be deallocated */
-  0,				/* size */
+  .ref = 1,	/* Ref count, which will ensure that it will never be deallocated */
+  .size = 0,	/* size */
 };
 
 /*
@@ -144,32 +143,32 @@ explode_string (char *str, int slen, char *del, int len)
 
       if (slen_wcs == (size_t) -1)
         {
-	  error (_("An invalid multibyte sequence is encountered."));
-	  return &the_null_array;
-	}
-      if (slen_wcs > CONFIG_INT (__MAX_ARRAY_SIZE__))
-	{
-	  slen_wcs = CONFIG_INT (__MAX_ARRAY_SIZE__);
-	}
+          error (_("An invalid multibyte sequence is encountered."));
+          return &the_null_array;
+        }
+      if (slen_wcs > (size_t)CONFIG_INT (__MAX_ARRAY_SIZE__))
+        {
+          slen_wcs = (size_t)CONFIG_INT (__MAX_ARRAY_SIZE__);
+        }
       ret = allocate_empty_array (slen_wcs);
-      for (j = 0; j < slen_wcs; j++)
-	{
-	  mb = mblen (str, slen);	/* get length of a multibyte character */
-	  if (-1 == mb)
-	    {
-	      debug_warn ("invalid multibyte character in string");
-	      break;
-	    }
-	  else if (0 == mb)
-	    break;
-	  ret->item[j].type = T_STRING;
-	  ret->item[j].subtype = STRING_MALLOC;
-	  ret->item[j].u.string = tmp = new_string (mb, "explode_string: tmp");
-	  memcpy (tmp, str, mb);
-	  tmp[mb] = '\0';
-	  str += mb;
-	  slen -= mb;
-	}
+      for (j = 0; j < (int)slen_wcs; j++)
+        {
+          mb = mblen (str, slen);	/* get length of a multibyte character */
+          if (-1 == mb)
+            {
+              debug_warn ("invalid multibyte character in string");
+              break;
+            }
+          else if (0 == mb)
+            break;
+          ret->item[j].type = T_STRING;
+          ret->item[j].subtype = STRING_MALLOC;
+          ret->item[j].u.string = tmp = new_string (mb, "explode_string: tmp");
+          memcpy (tmp, str, mb);
+          tmp[mb] = '\0';
+          str += mb;
+          slen -= mb;
+        }
       return ret;
     }
 
@@ -184,9 +183,9 @@ explode_string (char *str, int slen, char *del, int len)
       str += len;
       slen -= len;
       if (str[0] == '\0')
-	{
-	  return &the_null_array;
-	}
+        {
+          return &the_null_array;
+        }
 #  ifdef SANE_EXPLODE_STRING
       break;
 #  endif
@@ -199,19 +198,19 @@ explode_string (char *str, int slen, char *del, int len)
   for (p = str, end = str + slen, num = 0; *p;)
     {
       if (strncmp (p, del, len) == 0)
-	{
-	  num++;
-	  lastdel = p;
-	  p += len;
-	}
+        {
+          num++;
+          lastdel = p;
+          p += len;
+        }
       else
-	{
-	  int mb = mblen (str, end - p);
-	  if (mb > 0)
-	    p += mb;
-	  else
-	    break;
-	}
+        {
+          int mb = mblen (str, end - p);
+          if (mb > 0)
+            p += mb;
+          else
+            break;
+        }
     }
 
   /*
@@ -235,29 +234,29 @@ explode_string (char *str, int slen, char *del, int len)
   for (p = str, beg = str, end = str + slen, num = 0; *p && (num < limit);)
     {
       if (strncmp (p, del, len) == 0)
-	{
-	  if (num >= ret->size)
-	    fatal ("Index out of bounds in explode!\n");
+        {
+          if (num >= ret->size)
+            fatal ("Index out of bounds in explode!\n");
 
-	  ret->item[num].type = T_STRING;
-	  ret->item[num].subtype = STRING_MALLOC;
-	  ret->item[num].u.string = buff = new_string (p - beg,
-						       "explode_string: buff");
+          ret->item[num].type = T_STRING;
+          ret->item[num].subtype = STRING_MALLOC;
+          ret->item[num].u.string = buff = new_string (p - beg,
+                                                       "explode_string: buff");
 
-	  strncpy (buff, beg, p - beg);
-	  buff[p - beg] = '\0';
-	  num++;
-	  beg = p + len;
-	  p = beg;
-	}
+          strncpy (buff, beg, p - beg);
+          buff[p - beg] = '\0';
+          num++;
+          beg = p + len;
+          p = beg;
+        }
       else
-	{
-	  int mb = mblen (str, end - p);
-	  if (mb > 0)
-	    p += mb;
-	  else
-	    break;
-	}
+        {
+          int mb = mblen (str, end - p);
+          if (mb > 0)
+            p += mb;
+          else
+            break;
+        }
     }
 
   /* Copy last occurence, if there was not a 'del' at the end. */
@@ -272,7 +271,7 @@ explode_string (char *str, int slen, char *del, int len)
       ret->item[num].type = T_STRING;
       ret->item[num].subtype = STRING_MALLOC;
       ret->item[num].u.string =
-	string_copy (beg, "explode_string: last, len != 1");
+        string_copy (beg, "explode_string: last, len != 1");
     }
 #endif
   return ret;
@@ -288,10 +287,10 @@ implode_string (array_t * arr, char *del, int del_len)
   for (i = arr->size, size = 0, num = 0; i--;)
     {
       if (sv[i].type == T_STRING)
-	{
-	  size += SVALUE_STRLEN (&sv[i]);
-	  num++;
-	}
+        {
+          size += SVALUE_STRLEN (&sv[i]);
+          num++;
+        }
     }
   if (num == 0)
     return string_copy ("", "implode_string");
@@ -301,17 +300,17 @@ implode_string (array_t * arr, char *del, int del_len)
   for (i = 0, num = 0; i < arr->size; i++)
     {
       if (sv[i].type == T_STRING)
-	{
-	  if (num)
-	    {
-	      strncpy (p, del, del_len);
-	      p += del_len;
-	    }
-	  size = SVALUE_STRLEN (&sv[i]);
-	  strncpy (p, sv[i].u.string, size);
-	  p += size;
-	  num++;
-	}
+        {
+          if (num)
+            {
+              strncpy (p, del, del_len);
+              p += del_len;
+            }
+          size = SVALUE_STRLEN (&sv[i]);
+          strncpy (p, sv[i].u.string, size);
+          p += size;
+          num++;
+        }
     }
   *p = 0;
   return q;
@@ -319,7 +318,7 @@ implode_string (array_t * arr, char *del, int del_len)
 
 void
 implode_array (funptr_t * fp, array_t * arr, svalue_t * dest,
-	       int first_on_stack)
+               int first_on_stack)
 {
   int i = 0, n;
   svalue_t *v;
@@ -327,23 +326,23 @@ implode_array (funptr_t * fp, array_t * arr, svalue_t * dest,
   if (first_on_stack)
     {
       if (!(n = arr->size))
-	{
-	  *dest = *sp--;
-	  return;
-	}
+        {
+          *dest = *sp--;
+          return;
+        }
     }
   else
     {
       if (!(n = arr->size))
-	{
-	  *dest = const0;
-	  return;
-	}
+        {
+          *dest = const0;
+          return;
+        }
       else if (n == 1)
-	{
-	  assign_svalue_no_free (dest, &arr->item[0]);
-	  return;
-	}
+        {
+          assign_svalue_no_free (dest, &arr->item[0]);
+          return;
+        }
     }
 
   if (!first_on_stack)
@@ -355,14 +354,14 @@ implode_array (funptr_t * fp, array_t * arr, svalue_t * dest,
       v = call_function_pointer (fp, 2);
 
       if (!v)
-	{
-	  *dest = const0;
-	  return;
-	}
+        {
+          *dest = const0;
+          return;
+        }
       if (i < n)
-	push_svalue (v);
+        push_svalue (v);
       else
-	break;
+        break;
     }
 
   assign_svalue_no_free (dest, v);
@@ -379,13 +378,13 @@ users ()
   if (num_hidden > 0)
     {
       if (current_object->flags & O_HIDDEN)
-	{
-	  display_hidden = 1;
-	}
+        {
+          display_hidden = 1;
+        }
       else
-	{
-	  display_hidden = valid_hide (current_object);
-	}
+        {
+          display_hidden = valid_hide (current_object);
+        }
     }
 
   ret = allocate_empty_array (num_user - (display_hidden ? 0 : num_hidden));
@@ -393,12 +392,12 @@ users ()
   for (i = j = 0; i < max_users; i++)
     {
       if (!all_users[i])
-	continue;
+        continue;
 
       ob = all_users[i]->ob;
 
       if (!display_hidden && (ob->flags & O_HIDDEN))
-	continue;
+        continue;
 
       ret->item[j].type = T_OBJECT;
       ret->item[j].u.ob = ob;
@@ -435,24 +434,24 @@ slice_array (array_t * p, int from, int to)
       total_array_size += (to - from + 1 - p->size) * sizeof (svalue_t);
 #endif
       if (from)
-	{
-	  sv1 = p->item + from;
-	  cnt = from;
-	  while (cnt--)
-	    free_svalue (--sv1, "slice_array:2");
-	  cnt = to - from + 1;
-	  sv1 = p->item;
-	  sv2 = p->item + from;
-	  while (cnt--)
-	    *sv1++ = *sv2++;
-	}
+        {
+          sv1 = p->item + from;
+          cnt = from;
+          while (cnt--)
+            free_svalue (--sv1, "slice_array:2");
+          cnt = to - from + 1;
+          sv1 = p->item;
+          sv2 = p->item + from;
+          while (cnt--)
+            *sv1++ = *sv2++;
+        }
       else
-	{
-	  sv2 = p->item + to + 1;
-	}
+        {
+          sv2 = p->item + to + 1;
+        }
       cnt = (p->size - 1) - to;
       while (cnt--)
-	free_svalue (sv2++, "slice_array:3");
+        free_svalue (sv2++, "slice_array:3");
       p = RESIZE_ARRAY (p, to - from + 1);
       p->size = to - from + 1;
       p->ref = 1;
@@ -466,7 +465,7 @@ slice_array (array_t * p, int from, int to)
       sv1 = d->item - from;
       sv2 = p->item;
       for (cnt = from; cnt <= to; cnt++)
-	assign_svalue_no_free (sv1 + cnt, sv2 + cnt);
+        assign_svalue_no_free (sv1 + cnt, sv2 + cnt);
       return d;
     }
 }
@@ -500,7 +499,7 @@ commands (object_t * ob)
   for (s = ob->sent; s && s->verb; s = s->next)
     {
       if (++cnt == CONFIG_INT (__MAX_ARRAY_SIZE__))
-	break;
+        break;
     }
   v = allocate_empty_array (cnt);
   sv = v->item;
@@ -517,15 +516,15 @@ commands (object_t * ob)
       p->item[2].u.ob = s->ob;
       p->item[3].type = T_STRING;
       if (s->flags & V_FUNCTION)
-	{
-	  p->item[3].u.string = "<function>";
-	  p->item[3].subtype = STRING_CONSTANT;
-	}
+        {
+          p->item[3].u.string = "<function>";
+          p->item[3].subtype = STRING_CONSTANT;
+        }
       else
-	{
-	  p->item[3].u.string = ref_string (s->function.s);
-	  p->item[3].subtype = STRING_SHARED;
-	}
+        {
+          p->item[3].u.string = ref_string (s->function.s);
+          p->item[3].subtype = STRING_SHARED;
+        }
       add_ref (s->ob, "commands");
     }
   return v;
@@ -564,26 +563,26 @@ filter_array (svalue_t * arg, int num_arg)
       push_malloced_string (flags);
 
       for (cnt = 0; cnt < size; cnt++)
-	{
-	  push_svalue (vec->item + cnt);
-	  v = call_efun_callback (&ftc, 1);
-	  if (!IS_ZERO (v))
-	    {
-	      flags[cnt] = 1;
-	      res++;
-	    }
-	  else
-	    flags[cnt] = 0;
-	}
+        {
+          push_svalue (vec->item + cnt);
+          v = call_efun_callback (&ftc, 1);
+          if (!IS_ZERO (v))
+            {
+              flags[cnt] = 1;
+              res++;
+            }
+          else
+            flags[cnt] = 0;
+        }
       r = allocate_empty_array (res);
       if (res)
-	{
-	  while (cnt--)
-	    {
-	      if (flags[cnt])
-		assign_svalue_no_free (&r->item[--res], vec->item + cnt);
-	    }
-	}
+        {
+          while (cnt--)
+            {
+              if (flags[cnt])
+                assign_svalue_no_free (&r->item[--res], vec->item + cnt);
+            }
+        }
 
       FREE_MSTR (flags);
       sp--;
@@ -632,7 +631,7 @@ sameval (svalue_t * arg1, svalue_t * arg2)
       return arg1->u.arr == arg2->u.arr;
     case T_STRING:
       if (SVALUE_STRLEN_DIFFERS (arg1, arg2))
-	return 0;
+        return 0;
       return !strcmp (arg1->u.string, arg2->u.string);
     case T_OBJECT:
       return arg1->u.ob == arg2->u.ob;
@@ -701,7 +700,7 @@ f_unique_array (void)
   if (!size)
     {				/* �Ű}�C(size=0)���̨ΤơG���� return */
       if (num_arg == 3)
-	free_svalue (sp--, "f_unique_array");
+        free_svalue (sp--, "f_unique_array");
       free_svalue (sp--, "f_unique_array");
       return;
     }
@@ -710,17 +709,17 @@ f_unique_array (void)
     {
       skipval = sp;
       if ((sp - 1)->type == T_FUNCTION)
-	fp = (sp - 1)->u.fp;
+        fp = (sp - 1)->u.fp;
       else
-	func = (sp - 1)->u.string;
+        func = (sp - 1)->u.string;
     }
   else
     {
       skipval = &const0;
       if (sp->type == T_FUNCTION)
-	fp = sp->u.fp;
+        fp = sp->u.fp;
       else
-	func = sp->u.string;
+        func = sp->u.string;
     }
 
   unlist = ALLOCATE (unique_list_t, TAG_TEMPORARY, "f_unique_array:1");
@@ -735,44 +734,44 @@ f_unique_array (void)
   for (i = 0; i < size; i++)
     {
       if (fp)
-	{
-	  push_svalue (v->item + i);
-	  sv = call_function_pointer (fp, 1);
-	}
+        {
+          push_svalue (v->item + i);
+          sv = call_function_pointer (fp, 1);
+        }
       else if ((v->item + i)->type == T_OBJECT)
-	{
-	  sv = apply (func, (v->item + i)->u.ob, 0, ORIGIN_EFUN);
-	}
+        {
+          sv = apply (func, (v->item + i)->u.ob, 0, ORIGIN_EFUN);
+        }
       else
-	sv = 0;
+        sv = 0;
 
       if (sv && !sameval (sv, skipval))
-	{
-	  uptr = *head;
-	  while (uptr)
-	    {
-	      if (sameval (sv, &uptr->mark))
-		{
-		  uptr->indices = RESIZE (uptr->indices, uptr->count + 1, int,
-					  TAG_TEMPORARY, "f_unique_array:2");
-		  uptr->indices[uptr->count++] = i;
-		  break;
-		}
-	      uptr = uptr->next;
-	    }
-	  if (!uptr)
-	    {
-	      numkeys++;
-	      uptr = ALLOCATE (unique_t, TAG_TEMPORARY, "f_unique_array:3");
-	      uptr->indices =
-		ALLOCATE (int, TAG_TEMPORARY, "f_unique_array:4");
-	      uptr->count = 1;
-	      uptr->indices[0] = i;
-	      uptr->next = *head;
-	      assign_svalue_no_free (&uptr->mark, sv);
-	      *head = uptr;
-	    }
-	}
+        {
+          uptr = *head;
+          while (uptr)
+            {
+              if (sameval (sv, &uptr->mark))
+                {
+                  uptr->indices = RESIZE (uptr->indices, uptr->count + 1, int,
+                                          TAG_TEMPORARY, "f_unique_array:2");
+                  uptr->indices[uptr->count++] = i;
+                  break;
+                }
+              uptr = uptr->next;
+            }
+          if (!uptr)
+            {
+              numkeys++;
+              uptr = ALLOCATE (unique_t, TAG_TEMPORARY, "f_unique_array:3");
+              uptr->indices =
+                ALLOCATE (int, TAG_TEMPORARY, "f_unique_array:4");
+              uptr->count = 1;
+              uptr->indices[0] = i;
+              uptr->next = *head;
+              assign_svalue_no_free (&uptr->mark, sv);
+              *head = uptr;
+            }
+        }
     }
 
   ret = allocate_empty_array (numkeys);
@@ -786,9 +785,9 @@ f_unique_array (void)
       skipval = sv->u.arr->item + i;
       ind = uptr->indices;
       while (i--)
-	{
-	  assign_svalue_no_free (--skipval, svp + ind[i]);
-	}
+        {
+          assign_svalue_no_free (--skipval, svp + ind[i]);
+        }
       FREE ((char *) ind);
       free_svalue (&uptr->mark, "f_unique_array");
       FREE ((char *) uptr);
@@ -842,10 +841,10 @@ add_array (array_t * p, array_t * r)
     {
       d = RESIZE_ARRAY (p, res);
       if (!d)
-	fatal ("Out of memory.\n");
+        fatal ("Out of memory.\n");
       /* copy myself */
       for (cnt = d->size; cnt--;)
-	assign_svalue_no_free (&d->item[--res], &d->item[cnt]);
+        assign_svalue_no_free (&d->item[--res], &d->item[cnt]);
 #ifdef ARRAY_STATS
       total_array_size += sizeof (svalue_t) * (d->size);
 #endif
@@ -864,7 +863,7 @@ add_array (array_t * p, array_t * r)
        */
       d = RESIZE_ARRAY (p, res);
       if (!d)
-	fatal ("Out of memory.\n");
+        fatal ("Out of memory.\n");
 
 #ifdef ARRAY_STATS
       total_array_size += sizeof (svalue_t) * (r->size);
@@ -877,7 +876,7 @@ add_array (array_t * p, array_t * r)
       d = allocate_empty_array (res);
 
       for (cnt = p->size; cnt--;)
-	assign_svalue_no_free (&d->item[cnt], &p->item[cnt]);
+        assign_svalue_no_free (&d->item[cnt], &p->item[cnt]);
       p->ref--;
     }
 
@@ -885,18 +884,18 @@ add_array (array_t * p, array_t * r)
   if (r->ref == 1)
     {
       for (cnt = r->size; cnt--;)
-	d->item[--res] = r->item[cnt];
+        d->item[--res] = r->item[cnt];
 #ifdef ARRAY_STATS
       num_arrays--;
       total_array_size -= sizeof (array_t) +
-	sizeof (svalue_t) * (r->size - 1);
+        sizeof (svalue_t) * (r->size - 1);
 #endif
       FREE ((char *) r);
     }
   else
     {
       for (cnt = r->size; cnt--;)
-	assign_svalue_no_free (&d->item[--res], &r->item[cnt]);
+        assign_svalue_no_free (&d->item[--res], &r->item[cnt]);
       r->ref--;
     }
 
@@ -924,16 +923,16 @@ all_inventory (object_t * ob, int override)
   for (cur = ob->contains; cur; cur = cur->next_inv)
     {
       if (cur->flags & O_HIDDEN)
-	{
-	  if (display_hidden == -1)
-	    {
-	      display_hidden = valid_hide (current_object);
-	    }
-	  if (display_hidden)
-	    cnt++;
-	}
+        {
+          if (display_hidden == -1)
+            {
+              display_hidden = valid_hide (current_object);
+            }
+          if (display_hidden)
+            cnt++;
+        }
       else
-	cnt++;
+        cnt++;
     }
 
   if (!cnt)
@@ -945,11 +944,11 @@ all_inventory (object_t * ob, int override)
   for (res = 0; res < cnt; res++)
     {
       if ((cur->flags & O_HIDDEN) && !display_hidden)
-	{
-	  cur = cur->next_inv;
-	  res--;
-	  continue;
-	}
+        {
+          cur = cur->next_inv;
+          res--;
+          continue;
+        }
       d->item[res].type = T_OBJECT;
       d->item[res].u.ob = cur;
       add_ref (cur, "all_inventory");
@@ -985,14 +984,14 @@ map_array (svalue_t * arg, int num_arg)
       sp->u.arr = r;
 
       for (cnt = 0; cnt < size; cnt++)
-	{
-	  push_svalue (arr->item + cnt);
-	  v = call_efun_callback (&ftc, 1);
-	  if (v)
-	    assign_svalue_no_free (&r->item[cnt], v);
-	  else
-	    break;
-	}
+        {
+          push_svalue (arr->item + cnt);
+          v = call_efun_callback (&ftc, 1);
+          if (v)
+            assign_svalue_no_free (&r->item[cnt], v);
+          else
+            break;
+        }
       sp--;
     }
 
@@ -1024,39 +1023,39 @@ map_string (svalue_t * arg, int num_arg)
     {
       fp = arg[1].u.fp;
       if (num_arg > 2)
-	extra = arg + 2, numex = num_arg - 2;
+        extra = arg + 2, numex = num_arg - 2;
     }
   else
     {
       func = arg[1].u.string;
       if (num_arg < 3)
-	ob = current_object;
+        ob = current_object;
       else
-	{
-	  if (arg[2].type == T_OBJECT)
-	    ob = arg[2].u.ob;
-	  else if (arg[2].type == T_STRING)
-	    {
-	      if ((ob = find_object (arg[2].u.string))
-		  && !object_visible (ob))
-		ob = 0;
-	    }
-	  if (num_arg > 3)
-	    extra = arg + 3, numex = num_arg - 3;
-	  if (!ob)
-	    error ("Bad argument 3 to map_string.\n");
-	}
+        {
+          if (arg[2].type == T_OBJECT)
+            ob = arg[2].u.ob;
+          else if (arg[2].type == T_STRING)
+            {
+              if ((ob = find_object (arg[2].u.string))
+                  && !object_visible (ob))
+                ob = 0;
+            }
+          if (num_arg > 3)
+            extra = arg + 3, numex = num_arg - 3;
+          if (!ob)
+            error ("Bad argument 3 to map_string.\n");
+        }
     }
 
   for (p = arr; *p; p++)
     {
       push_number ((unsigned char) *p);
       if (numex)
-	push_some_svalues (extra, numex);
+        push_some_svalues (extra, numex);
       v =
-	fp ? call_function_pointer (fp, numex + 1) : apply (func, ob,
-							    1 + numex,
-							    ORIGIN_EFUN);
+        fp ? call_function_pointer (fp, numex + 1) : apply (func, ob,
+                                                            1 + numex,
+                                                            ORIGIN_EFUN);
       /* no function or illegal return value is unaltered.
        * Anyone got a better idea?  A few idea:
        * (1) insert strings? - algorithm needs changing
@@ -1065,9 +1064,9 @@ map_string (svalue_t * arg, int num_arg)
        * (3) become ' ' or something
        */
       if (!v)
-	break;
+        break;
       if (v->type == T_NUMBER && v->u.number != 0)
-	*p = ((unsigned char) (v->u.number));
+        *p = ((unsigned char) (v->u.number));
     }
 
   pop_n_elems (num_arg - 1);
@@ -1084,8 +1083,8 @@ array_t *
 builtin_sort_array (array_t * inlist, int dir)
 {
   quickSort ((char *) inlist->item, inlist->size, sizeof (inlist->item),
-	     (dir <
-	      0) ? builtin_sort_array_cmp_rev : builtin_sort_array_cmp_fwd);
+             (dir <
+              0) ? builtin_sort_array_cmp_rev : builtin_sort_array_cmp_fwd);
 
   return inlist;
 }
@@ -1097,49 +1096,49 @@ builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2)
     {
     case T_STRING:
       {
-	return strcmp (p1->u.string, p2->u.string);
+        return strcmp (p1->u.string, p2->u.string);
       }
 
     case T_NUMBER:
       {
-	return COMPARE_NUMS (p1->u.number, p2->u.number);
+        return COMPARE_NUMS (p1->u.number, p2->u.number);
       }
 
     case T_REAL:
       {
-	return COMPARE_NUMS (p1->u.real, p2->u.real);
+        return COMPARE_NUMS (p1->u.real, p2->u.real);
       }
 
     case T_ARRAY:
       {
-	array_t *v1 = p1->u.arr, *v2 = p2->u.arr;
-	if (!v1->size || !v2->size)
-	  error ("Illegal to have empty array in array for sort_array()\n");
+        array_t *v1 = p1->u.arr, *v2 = p2->u.arr;
+        if (!v1->size || !v2->size)
+          error ("Illegal to have empty array in array for sort_array()\n");
 
 
-	switch (v1->item->type | v2->item->type)
-	  {
-	  case T_STRING:
-	    {
-	      return strcmp (v1->item->u.string, v2->item->u.string);
-	    }
+        switch (v1->item->type | v2->item->type)
+          {
+          case T_STRING:
+            {
+              return strcmp (v1->item->u.string, v2->item->u.string);
+            }
 
-	  case T_NUMBER:
-	    {
-	      return COMPARE_NUMS (v1->item->u.number, v2->item->u.number);
-	    }
+          case T_NUMBER:
+            {
+              return COMPARE_NUMS (v1->item->u.number, v2->item->u.number);
+            }
 
-	  case T_REAL:
-	    {
-	      return COMPARE_NUMS (v1->item->u.real, v2->item->u.real);
-	    }
-	  default:
-	    {
-	      /* Temp. long err msg till I can think of a better one - Sym */
-	      error
-		("sort_array() cannot handle arrays of arrays whose 1st elems\naren't strings/ints/floats\n");
-	    }
-	  }
+          case T_REAL:
+            {
+              return COMPARE_NUMS (v1->item->u.real, v2->item->u.real);
+            }
+          default:
+            {
+              /* Temp. long err msg till I can think of a better one - Sym */
+              error
+                ("sort_array() cannot handle arrays of arrays whose 1st elems\naren't strings/ints/floats\n");
+            }
+          }
       }
 
     }
@@ -1155,49 +1154,49 @@ builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2)
     {
     case T_STRING:
       {
-	return strcmp (p2->u.string, p1->u.string);
+        return strcmp (p2->u.string, p1->u.string);
       }
 
     case T_NUMBER:
       {
-	return COMPARE_NUMS (p2->u.number, p1->u.number);
+        return COMPARE_NUMS (p2->u.number, p1->u.number);
       }
 
     case T_REAL:
       {
-	return COMPARE_NUMS (p2->u.real, p1->u.real);
+        return COMPARE_NUMS (p2->u.real, p1->u.real);
       }
 
     case T_ARRAY:
       {
-	array_t *v1 = p1->u.arr, *v2 = p2->u.arr;
-	if (!v1->size || !v2->size)
-	  error ("Illegal to have empty array in array for sort_array()\n");
+        array_t *v1 = p1->u.arr, *v2 = p2->u.arr;
+        if (!v1->size || !v2->size)
+          error ("Illegal to have empty array in array for sort_array()\n");
 
 
-	switch (v1->item->type | v2->item->type)
-	  {
-	  case T_STRING:
-	    {
-	      return strcmp (v2->item->u.string, v1->item->u.string);
-	    }
+        switch (v1->item->type | v2->item->type)
+          {
+          case T_STRING:
+            {
+              return strcmp (v2->item->u.string, v1->item->u.string);
+            }
 
-	  case T_NUMBER:
-	    {
-	      return COMPARE_NUMS (v2->item->u.number, v1->item->u.number);
-	    }
+          case T_NUMBER:
+            {
+              return COMPARE_NUMS (v2->item->u.number, v1->item->u.number);
+            }
 
-	  case T_REAL:
-	    {
-	      return COMPARE_NUMS (v2->item->u.real, v1->item->u.real);
-	    }
-	  default:
-	    {
-	      /* Temp. long err msg till I can think of a better one - Sym */
-	      error
-		("sort_array() cannot handle arrays of arrays whose 1st elems\naren't strings/ints/floats\n");
-	    }
-	  }
+          case T_REAL:
+            {
+              return COMPARE_NUMS (v2->item->u.real, v1->item->u.real);
+            }
+          default:
+            {
+              /* Temp. long err msg till I can think of a better one - Sym */
+              error
+                ("sort_array() cannot handle arrays of arrays whose 1st elems\naren't strings/ints/floats\n");
+            }
+          }
       }
 
     }
@@ -1239,32 +1238,32 @@ f_sort_array (void)
     {
     case T_NUMBER:
       {
-	tmp = builtin_sort_array (copy_array (tmp), arg[1].u.number);
-	break;
+        tmp = builtin_sort_array (copy_array (tmp), arg[1].u.number);
+        break;
       }
 
     case T_FUNCTION:
     case T_STRING:
       {
-	/* 
-	 * We use a global to communicate with the comparison function,
-	 * so we have to be careful to make sure we can recurse (the
-	 * callback might call sort_array itself).  For this reason, the
-	 * ftc structure is on the stack, and we just keep a pointer
-	 * to it in a global, being careful to save and restore the old
-	 * value.
-	 */
-	function_to_call_t ftc, *old_ptr;
+        /* 
+         * We use a global to communicate with the comparison function,
+         * so we have to be careful to make sure we can recurse (the
+         * callback might call sort_array itself).  For this reason, the
+         * ftc structure is on the stack, and we just keep a pointer
+         * to it in a global, being careful to save and restore the old
+         * value.
+         */
+        function_to_call_t ftc, *old_ptr;
 
-	old_ptr = sort_array_ftc;
-	sort_array_ftc = &ftc;
-	process_efun_callback (1, &ftc, F_SORT_ARRAY);
+        old_ptr = sort_array_ftc;
+        sort_array_ftc = &ftc;
+        process_efun_callback (1, &ftc, F_SORT_ARRAY);
 
-	tmp = copy_array (tmp);
-	quickSort ((char *) tmp->item, tmp->size, sizeof (tmp->item),
-		   sort_array_cmp);
-	sort_array_ftc = old_ptr;
-	break;
+        tmp = copy_array (tmp);
+        quickSort ((char *) tmp->item, tmp->size, sizeof (tmp->item),
+                   sort_array_cmp);
+        sort_array_ftc = old_ptr;
+        break;
       }
     }
 
@@ -1300,20 +1299,20 @@ deep_inventory_count (object_t * ob)
   for (cur = ob->contains; cur; cur = cur->next_inv)
     {
       if (cur->flags & O_HIDDEN)
-	{
-	  if (!valid_hide_flag)
-	    valid_hide_flag = 1 + (valid_hide (current_object) ? 1 : 0);
-	  if (valid_hide_flag & 2)
-	    {
-	      cnt++;
-	      cnt += deep_inventory_count (cur);
-	    }
-	}
+        {
+          if (!valid_hide_flag)
+            valid_hide_flag = 1 + (valid_hide (current_object) ? 1 : 0);
+          if (valid_hide_flag & 2)
+            {
+              cnt++;
+              cnt += deep_inventory_count (cur);
+            }
+        }
       else
-	{
-	  cnt++;
-	  cnt += deep_inventory_count (cur);
-	}
+        {
+          cnt++;
+          cnt += deep_inventory_count (cur);
+        }
     }
 
   return cnt;
@@ -1328,26 +1327,26 @@ deep_inventory_collect (object_t * ob, array_t * inv, int *i)
   for (cur = ob->contains; cur; cur = cur->next_inv)
     {
       if (cur->flags & O_HIDDEN)
-	{
-	  if (valid_hide_flag & 2)
-	    {
-	      inv->item[*i].type = T_OBJECT;
-	      inv->item[*i].u.ob = cur;
-	      (*i)++;
-	      add_ref (cur, "deep_inventory_collect");
+        {
+          if (valid_hide_flag & 2)
+            {
+              inv->item[*i].type = T_OBJECT;
+              inv->item[*i].u.ob = cur;
+              (*i)++;
+              add_ref (cur, "deep_inventory_collect");
 
-	      deep_inventory_collect (cur, inv, i);
-	    }
-	}
+              deep_inventory_collect (cur, inv, i);
+            }
+        }
       else
-	{
-	  inv->item[*i].type = T_OBJECT;
-	  inv->item[*i].u.ob = cur;
-	  (*i)++;
-	  add_ref (cur, "deep_inventory_collect");
+        {
+          inv->item[*i].type = T_OBJECT;
+          inv->item[*i].u.ob = cur;
+          (*i)++;
+          add_ref (cur, "deep_inventory_collect");
 
-	  deep_inventory_collect (cur, inv, i);
-	}
+          deep_inventory_collect (cur, inv, i);
+        }
     }
 }
 
@@ -1413,79 +1412,79 @@ alist_sort (array_t * inlist)
   if ((flag = (inlist->ref > 1)))
     {
       sv_tab =
-	CALLOCATE (size, svalue_t, TAG_TEMPORARY, "alist_sort: sv_tab");
+        CALLOCATE (size, svalue_t, TAG_TEMPORARY, "alist_sort: sv_tab");
       sv_ptr = inlist->item;
       for (j = 0; j < size; j++)
-	{
-	  if (((tmp = (sv_ptr + j))->type == T_OBJECT)
-	      && (tmp->u.ob->flags & O_DESTRUCTED))
-	    {
-	      free_object (tmp->u.ob, "alist_sort");
-	      sv_tab[j] = *tmp = const0;
-	    }
-	  else if ((tmp->type == T_STRING)
-		   && !(tmp->subtype == STRING_SHARED))
-	    {
-	      sv_tab[j].u.string = make_shared_string (tmp->u.string);
-	      (tmp = sv_tab + j)->subtype = STRING_SHARED;
-	      tmp->type = T_STRING;
-	    }
-	  else
-	    assign_svalue_no_free (sv_tab + j, tmp);
+        {
+          if (((tmp = (sv_ptr + j))->type == T_OBJECT)
+              && (tmp->u.ob->flags & O_DESTRUCTED))
+            {
+              free_object (tmp->u.ob, "alist_sort");
+              sv_tab[j] = *tmp = const0;
+            }
+          else if ((tmp->type == T_STRING)
+                   && !(tmp->subtype == STRING_SHARED))
+            {
+              sv_tab[j].u.string = make_shared_string (tmp->u.string);
+              (tmp = sv_tab + j)->subtype = STRING_SHARED;
+              tmp->type = T_STRING;
+            }
+          else
+            assign_svalue_no_free (sv_tab + j, tmp);
 
-	  if ((curix = j))
-	    {
-	      val = *tmp;
+          if ((curix = j))
+            {
+              val = *tmp;
 
-	      do
-		{
-		  parix = (curix - 1) >> 1;
-		  if (alist_cmp (sv_tab + parix, sv_tab + curix) > 0)
-		    {
-		      sv_tab[curix] = sv_tab[parix];
-		      sv_tab[parix] = val;
-		    }
-		}
-	      while ((curix = parix));
-	    }
-	}
+              do
+                {
+                  parix = (curix - 1) >> 1;
+                  if (alist_cmp (sv_tab + parix, sv_tab + curix) > 0)
+                    {
+                      sv_tab[curix] = sv_tab[parix];
+                      sv_tab[parix] = val;
+                    }
+                }
+              while ((curix = parix));
+            }
+        }
     }
   else
     {
       sv_tab = inlist->item;
       for (j = 0; j < size; j++)
-	{
-	  if (((tmp = (sv_tab + j))->type == T_OBJECT)
-	      && (tmp->u.ob->flags & O_DESTRUCTED))
-	    {
-	      free_object (tmp->u.ob, "alist_sort");
-	      *tmp = const0;
-	    }
-	  else if ((tmp->type == T_STRING)
-		   && !(tmp->subtype == STRING_SHARED))
-	    {
-	      str = make_shared_string (tmp->u.string);
-	      free_string_svalue (tmp);
-	      tmp->u.string = str;
-	      tmp->subtype = STRING_SHARED;
-	    }
+        {
+          if (((tmp = (sv_tab + j))->type == T_OBJECT)
+              && (tmp->u.ob->flags & O_DESTRUCTED))
+            {
+              free_object (tmp->u.ob, "alist_sort");
+              *tmp = const0;
+            }
+          else if ((tmp->type == T_STRING)
+                   && !(tmp->subtype == STRING_SHARED))
+            {
+              str = make_shared_string (tmp->u.string);
+              free_string_svalue (tmp);
+              tmp->u.string = str;
+              tmp->subtype = STRING_SHARED;
+            }
 
-	  if ((curix = j))
-	    {
-	      val = *tmp;
+          if ((curix = j))
+            {
+              val = *tmp;
 
-	      do
-		{
-		  parix = (curix - 1) >> 1;
-		  if (alist_cmp (sv_tab + parix, sv_tab + curix) > 0)
-		    {
-		      sv_tab[curix] = sv_tab[parix];
-		      sv_tab[parix] = val;
-		    }
-		}
-	      while ((curix = parix));
-	    }
-	}
+              do
+                {
+                  parix = (curix - 1) >> 1;
+                  if (alist_cmp (sv_tab + parix, sv_tab + curix) > 0)
+                    {
+                      sv_tab[curix] = sv_tab[parix];
+                      sv_tab[parix] = val;
+                    }
+                }
+              while ((curix = parix));
+            }
+        }
     }
 
   table = CALLOCATE (size, svalue_t, TAG_TEMPORARY, "alist_sort: table");
@@ -1495,24 +1494,24 @@ alist_sort (array_t * inlist)
       table[j] = sv_tab[0];
 
       for (curix = 0;;)
-	{
-	  child1 = (curix << 1) + 1;
-	  child2 = child1 + 1;
+        {
+          child1 = (curix << 1) + 1;
+          child2 = child1 + 1;
 
-	  if (child2 < size && sv_tab[child2].type != T_INVALID &&
-	      (sv_tab[child1].type == T_INVALID ||
-	       alist_cmp (sv_tab + child1, sv_tab + child2) > 0))
-	    {
-	      child1 = child2;
-	    }
-	  if (child1 < size && sv_tab[child1].type != T_INVALID)
-	    {
-	      sv_tab[curix] = sv_tab[child1];
-	      curix = child1;
-	    }
-	  else
-	    break;
-	}
+          if (child2 < size && sv_tab[child2].type != T_INVALID &&
+              (sv_tab[child1].type == T_INVALID ||
+               alist_cmp (sv_tab + child1, sv_tab + child2) > 0))
+            {
+              child1 = child2;
+            }
+          if (child1 < size && sv_tab[child1].type != T_INVALID)
+            {
+              sv_tab[curix] = sv_tab[child1];
+              curix = child1;
+            }
+          else
+            break;
+        }
 
       sv_tab[curix].type = T_INVALID;
     }
@@ -1533,7 +1532,7 @@ subtract_array (array_t * minuend, array_t * subtrahend)
     {
       subtrahend->ref--;
       return minuend->ref > 1 ? (minuend->ref--,
-				 copy_array (minuend)) : minuend;
+                                 copy_array (minuend)) : minuend;
     }
   if (!(msize = minuend->size))
     {
@@ -1550,49 +1549,49 @@ subtract_array (array_t * minuend, array_t * subtrahend)
       o = (h = size - 1) >> 1;
 
       if ((source->type == T_OBJECT) && (source->u.ob->flags & O_DESTRUCTED))
-	{
-	  free_object (source->u.ob, "subtract_array");
-	  *source = const0;
-	}
+        {
+          free_object (source->u.ob, "subtract_array");
+          *source = const0;
+        }
       else if ((source->type == T_STRING)
-	       && !(source->subtype == STRING_SHARED))
-	{
-	  svalue_t stmp = { T_STRING, STRING_SHARED };
+               && !(source->subtype == STRING_SHARED))
+        {
+          svalue_t stmp = { .type = T_STRING, STRING_SHARED };
 
-	  if (!(stmp.u.string = findstring (source->u.string)))
-	    {
-	      assign_svalue_no_free (dest++, source);
-	      continue;
-	    }
-	  while ((d = alist_cmp (&stmp, svt + o)))
-	    {
-	      if (d < 0)
-		h = o - 1;
-	      else
-		l = o + 1;
-	      if (l > h)
-		{
-		  assign_svalue_no_free (dest++, source);
-		  break;
-		}
-	      o = (l + h) >> 1;
-	    }
-	  continue;
-	}
+          if (!(stmp.u.string = findstring (source->u.string)))
+            {
+              assign_svalue_no_free (dest++, source);
+              continue;
+            }
+          while ((d = alist_cmp (&stmp, svt + o)))
+            {
+              if (d < 0)
+                h = o - 1;
+              else
+                l = o + 1;
+              if (l > h)
+                {
+                  assign_svalue_no_free (dest++, source);
+                  break;
+                }
+              o = (l + h) >> 1;
+            }
+          continue;
+        }
 
       while ((d = alist_cmp (source, svt + o)))
-	{
-	  if (d < 0)
-	    h = o - 1;
-	  else
-	    l = o + 1;
-	  if (l > h)
-	    {
-	      assign_svalue_no_free (dest++, source);
-	      break;
-	    }
-	  o = (l + h) >> 1;
-	}
+        {
+          if (d < 0)
+            h = o - 1;
+          else
+            l = o + 1;
+          if (l > h)
+            {
+              assign_svalue_no_free (dest++, source);
+              break;
+            }
+          o = (l + h) >> 1;
+        }
 
     }
   i = size;
@@ -1647,42 +1646,42 @@ intersect_array (array_t * a1, array_t * a2)
   if ((flag = (a2->ref > 1)))
     {
       sv_tab =
-	CALLOCATE (a2s, svalue_t, TAG_TEMPORARY, "intersect_array: sv2_tab");
+        CALLOCATE (a2s, svalue_t, TAG_TEMPORARY, "intersect_array: sv2_tab");
       sv_ptr = a2->item;
       for (j = 0; j < a2s; j++)
-	{
-	  if (((tmp = (sv_ptr + j))->type == T_OBJECT)
-	      && (tmp->u.ob->flags & O_DESTRUCTED))
-	    {
-	      free_object (tmp->u.ob, "intersect_array");
-	      sv_tab[j] = *tmp = const0;
-	    }
-	  else if ((tmp->type == T_STRING)
-		   && !(tmp->subtype == STRING_SHARED))
-	    {
-	      sv_tab[j].u.string = make_shared_string (tmp->u.string);
-	      (tmp = sv_tab + j)->subtype = STRING_SHARED;
-	      tmp->type = T_STRING;
-	    }
-	  else
-	    assign_svalue_no_free (sv_tab + j, tmp);
+        {
+          if (((tmp = (sv_ptr + j))->type == T_OBJECT)
+              && (tmp->u.ob->flags & O_DESTRUCTED))
+            {
+              free_object (tmp->u.ob, "intersect_array");
+              sv_tab[j] = *tmp = const0;
+            }
+          else if ((tmp->type == T_STRING)
+                   && !(tmp->subtype == STRING_SHARED))
+            {
+              sv_tab[j].u.string = make_shared_string (tmp->u.string);
+              (tmp = sv_tab + j)->subtype = STRING_SHARED;
+              tmp->type = T_STRING;
+            }
+          else
+            assign_svalue_no_free (sv_tab + j, tmp);
 
-	  if ((curix = j))
-	    {
-	      val = *tmp;
+          if ((curix = j))
+            {
+              val = *tmp;
 
-	      do
-		{
-		  parix = (curix - 1) >> 1;
-		  if (alist_cmp (sv_tab + parix, sv_tab + curix) > 0)
-		    {
-		      sv_tab[curix] = sv_tab[parix];
-		      sv_tab[parix] = val;
-		    }
-		}
-	      while ((curix = parix));
-	    }
-	}
+              do
+                {
+                  parix = (curix - 1) >> 1;
+                  if (alist_cmp (sv_tab + parix, sv_tab + curix) > 0)
+                    {
+                      sv_tab[curix] = sv_tab[parix];
+                      sv_tab[parix] = val;
+                    }
+                }
+              while ((curix = parix));
+            }
+        }
     }
   else
     {
@@ -1690,38 +1689,38 @@ intersect_array (array_t * a1, array_t * a2)
 
       sv_tab = a2->item;
       for (j = 0; j < a2s; j++)
-	{
-	  if (((tmp = (sv_tab + j))->type == T_OBJECT)
-	      && (tmp->u.ob->flags & O_DESTRUCTED))
-	    {
-	      free_object (tmp->u.ob, "alist_sort");
-	      *tmp = const0;
-	    }
-	  else if ((tmp->type == T_STRING)
-		   && !(tmp->subtype == STRING_SHARED))
-	    {
-	      str = make_shared_string (tmp->u.string);
-	      free_string_svalue (tmp);
-	      tmp->u.string = str;
-	      tmp->subtype = STRING_SHARED;
-	    }
+        {
+          if (((tmp = (sv_tab + j))->type == T_OBJECT)
+              && (tmp->u.ob->flags & O_DESTRUCTED))
+            {
+              free_object (tmp->u.ob, "alist_sort");
+              *tmp = const0;
+            }
+          else if ((tmp->type == T_STRING)
+                   && !(tmp->subtype == STRING_SHARED))
+            {
+              str = make_shared_string (tmp->u.string);
+              free_string_svalue (tmp);
+              tmp->u.string = str;
+              tmp->subtype = STRING_SHARED;
+            }
 
-	  if ((curix = j))
-	    {
-	      val = *tmp;
+          if ((curix = j))
+            {
+              val = *tmp;
 
-	      do
-		{
-		  parix = (curix - 1) >> 1;
-		  if (alist_cmp (sv_tab + parix, sv_tab + curix) > 0)
-		    {
-		      sv_tab[curix] = sv_tab[parix];
-		      sv_tab[parix] = val;
-		    }
-		}
-	      while ((curix = parix));
-	    }
-	}
+              do
+                {
+                  parix = (curix - 1) >> 1;
+                  if (alist_cmp (sv_tab + parix, sv_tab + curix) > 0)
+                    {
+                      sv_tab[curix] = sv_tab[parix];
+                      sv_tab[parix] = val;
+                    }
+                }
+              while ((curix = parix));
+            }
+        }
     }
 
   a3 = ALLOC_ARRAY (a2s);
@@ -1734,40 +1733,40 @@ intersect_array (array_t * a1, array_t * a2)
       val = sv_tab[0];
 
       while ((d = alist_cmp (&val, &svt_1[i])) > 0)
-	{
-	  if (++i >= a1s)
-	    goto settle_business;
-	}
+        {
+          if (++i >= a1s)
+            goto settle_business;
+        }
 
       if (!d)
-	{
-	  ntab[l++] = val;
-	}
+        {
+          ntab[l++] = val;
+        }
       else
-	{
-	  free_svalue (&val, "intersect_array");
-	}
+        {
+          free_svalue (&val, "intersect_array");
+        }
 
       for (curix = 0;;)
-	{
-	  child1 = (curix << 1) + 1;
-	  child2 = child1 + 1;
+        {
+          child1 = (curix << 1) + 1;
+          child2 = child1 + 1;
 
-	  if (child2 < a2s && sv_tab[child2].type != T_INVALID &&
-	      (sv_tab[child1].type == T_INVALID ||
-	       alist_cmp (sv_tab + child1, sv_tab + child2) > 0))
-	    {
-	      child1 = child2;
-	    }
+          if (child2 < a2s && sv_tab[child2].type != T_INVALID &&
+              (sv_tab[child1].type == T_INVALID ||
+               alist_cmp (sv_tab + child1, sv_tab + child2) > 0))
+            {
+              child1 = child2;
+            }
 
-	  if (child1 < a2s && sv_tab[child1].type != T_INVALID)
-	    {
-	      sv_tab[curix] = sv_tab[child1];
-	      curix = child1;
-	    }
-	  else
-	    break;
-	}
+          if (child1 < a2s && sv_tab[child1].type != T_INVALID)
+            {
+              sv_tab[curix] = sv_tab[child1];
+              curix = child1;
+            }
+          else
+            break;
+        }
 
       sv_tab[curix].type = T_INVALID;
     }
@@ -1778,7 +1777,7 @@ settle_business:
   while (curix--)
     {
       if (sv_tab[curix].type != T_INVALID)
-	free_svalue (sv_tab + curix, "intersect_array:2");
+        free_svalue (sv_tab + curix, "intersect_array:2");
     }
 
   i = a1s;
@@ -1856,15 +1855,15 @@ match_regexp (array_t * v, char *pattern, int flag)
   while (size--)
     {
       if (!((--sv1)->type == T_STRING)
-	  || (regexec (reg, sv1->u.string) != match))
-	{
-	  res[size] = 0;
-	}
+          || (regexec (reg, sv1->u.string) != match))
+        {
+          res[size] = 0;
+        }
       else
-	{
-	  res[size] = 1;
-	  num_match++;
-	}
+        {
+          res[size] = 1;
+          num_match++;
+        }
     }
 
   flag &= 1;
@@ -1874,23 +1873,23 @@ match_regexp (array_t * v, char *pattern, int flag)
   while (size--)
     {
       if (res[size])
-	{
-	  if (flag)
-	    {
-	      (--sv2)->type = T_NUMBER;
-	      sv2->u.number = size + 1;
-	    }
-	  (--sv2)->type = T_STRING;
-	  sv1 = v->item + size;
-	  *sv2 = *sv1;
-	  if (sv1->subtype & STRING_COUNTED)
-	    {
-	      INC_COUNTED_REF (sv1->u.string);
-	      ADD_STRING (MSTR_SIZE (sv1->u.string));
-	    }
-	  if (!--num_match)
-	    break;
-	}
+        {
+          if (flag)
+            {
+              (--sv2)->type = T_NUMBER;
+              sv2->u.number = size + 1;
+            }
+          (--sv2)->type = T_STRING;
+          sv1 = v->item + size;
+          *sv2 = *sv1;
+          if (sv1->subtype & STRING_COUNTED)
+            {
+              INC_COUNTED_REF (sv1->u.string);
+              ADD_STRING (MSTR_SIZE (sv1->u.string));
+            }
+          if (!--num_match)
+            break;
+        }
     }
   FREE (res);
   FREE ((char *) reg);
@@ -1918,7 +1917,7 @@ deep_inherit_list (object_t * ob)
     {
       pr = plist[cur];
       for (il2 = 0; il2 < (int) pr->num_inherited; il2++)
-	plist[next++] = pr->inherit[il2].prog;
+        plist[next++] = pr->inherit[il2].prog;
     }
 
   next--;
@@ -1987,37 +1986,37 @@ children (char *str)
   sl = strlen (tmpbuf);
 
   if (!(tmp_children = (object_t **)
-	DMALLOC (sizeof (object_t *) * (t_sz = 50),
-		 TAG_TEMPORARY, "children: tmp_children")))
+        DMALLOC (sizeof (object_t *) * (t_sz = 50),
+                 TAG_TEMPORARY, "children: tmp_children")))
     return &the_null_array;	/* unable to malloc enough temp space */
 
   for (i = 0, ob = obj_list; ob; ob = ob->next_all)
     {
       ol = strlen (ob->name);
       if (((ol == sl) || ((ol > sl) && (ob->name[sl] == '#')))
-	  && !strncmp (tmpbuf, ob->name, sl))
-	{
-	  if (ob->flags & O_HIDDEN)
-	    {
-	      if (display_hidden == -1)
-		{
-		  display_hidden = valid_hide (current_object);
-		}
-	      if (!display_hidden)
-		continue;
-	    }
-	  tmp_children[i] = ob;
-	  if ((++i == t_sz) && (!(tmp_children
-				  =
-				  RESIZE (tmp_children, (t_sz += 50),
-					  object_t *, TAG_TEMPORARY,
-					  "children: tmp_children: realloc"))))
-	    {
-	      /* unable to REALLOC more space 
-	       * (tmp_children is now NULL) */
-	      return &the_null_array;
-	    }
-	}
+          && !strncmp (tmpbuf, ob->name, sl))
+        {
+          if (ob->flags & O_HIDDEN)
+            {
+              if (display_hidden == -1)
+                {
+                  display_hidden = valid_hide (current_object);
+                }
+              if (!display_hidden)
+                continue;
+            }
+          tmp_children[i] = ob;
+          if ((++i == t_sz) && (!(tmp_children
+                                  =
+                                  RESIZE (tmp_children, (t_sz += 50),
+                                          object_t *, TAG_TEMPORARY,
+                                          "children: tmp_children: realloc"))))
+            {
+              /* unable to REALLOC more space 
+               * (tmp_children is now NULL) */
+              return &the_null_array;
+            }
+        }
     }
   if (i > CONFIG_INT (__MAX_ARRAY_SIZE__))
     {
@@ -2047,24 +2046,24 @@ livings ()
 
   obtab =
     CALLOCATE (CONFIG_INT (__MAX_ARRAY_SIZE__), object_t *, TAG_TEMPORARY,
-	       "livings");
+               "livings");
 
   for (ob = obj_list; ob != NULL; ob = ob->next_all)
     {
       if ((ob->flags & O_ENABLE_COMMANDS) == 0)
-	continue;
+        continue;
       if (ob->flags & O_HIDDEN)
-	{
-	  if (apply_valid_hide)
-	    {
-	      apply_valid_hide = 0;
-	      hide_is_valid = valid_hide (current_object);
-	    }
-	  if (!hide_is_valid)
-	    continue;
-	}
+        {
+          if (apply_valid_hide)
+            {
+              apply_valid_hide = 0;
+              hide_is_valid = valid_hide (current_object);
+            }
+          if (!hide_is_valid)
+            continue;
+        }
       if (nob == CONFIG_INT (__MAX_ARRAY_SIZE__))
-	break;
+        break;
       obtab[nob++] = ob;
     }
 
@@ -2101,7 +2100,7 @@ f_objects (void)
     func = sp->u.string;
 
   if (!(tmp = (object_t **) new_string ((t_sz = 1000) * sizeof (object_t *),
-					"TMP: objects: tmp")))
+                                        "TMP: objects: tmp")))
     fatal ("Out of memory!\n");
 
   push_malloced_string ((char *) tmp);
@@ -2109,55 +2108,55 @@ f_objects (void)
   for (i = 0, ob = obj_list; ob; ob = ob->next_all)
     {
       if (ob->flags & O_HIDDEN)
-	{
-	  if (!display_hidden)
-	    display_hidden = 1 + !!valid_hide (current_object);
-	  if (!(display_hidden & 2))
-	    continue;
-	}
+        {
+          if (!display_hidden)
+            display_hidden = 1 + !!valid_hide (current_object);
+          if (!(display_hidden & 2))
+            continue;
+        }
       if (f)
-	{
-	  push_object (ob);
-	  v = call_function_pointer (f, 1);
-	  if (!v)
-	    {
-	      FREE_MSTR ((char *) tmp);
-	      sp--;
-	      free_svalue (sp, "f_objects");
-	      *sp = const0;
-	      return;
-	    }
-	  if (v->type == T_NUMBER && !v->u.number)
-	    continue;
-	}
+        {
+          push_object (ob);
+          v = call_function_pointer (f, 1);
+          if (!v)
+            {
+              FREE_MSTR ((char *) tmp);
+              sp--;
+              free_svalue (sp, "f_objects");
+              *sp = const0;
+              return;
+            }
+          if (v->type == T_NUMBER && !v->u.number)
+            continue;
+        }
       else if (func)
-	{
-	  push_object (ob);
-	  v = apply (func, current_object, 1, ORIGIN_EFUN);
-	  if (!v)
-	    {
-	      FREE_MSTR ((char *) tmp);
-	      sp--;
-	      free_svalue (sp, "f_objects");
-	      *sp = const0;
-	      return;
-	    }
-	  if ((v->type == T_NUMBER) && !v->u.number)
-	    continue;
-	}
+        {
+          push_object (ob);
+          v = apply (func, current_object, 1, ORIGIN_EFUN);
+          if (!v)
+            {
+              FREE_MSTR ((char *) tmp);
+              sp--;
+              free_svalue (sp, "f_objects");
+              *sp = const0;
+              return;
+            }
+          if ((v->type == T_NUMBER) && !v->u.number)
+            continue;
+        }
 
       tmp[i] = ob;
       if (++i == t_sz)
-	{
-	  if (!
-	      (tmp =
-	       (object_t **) extend_string ((char *) tmp,
-					    (t_sz +=
-					     1000) * sizeof (object_t *))))
-	    fatal ("Out of memory!\n");
-	  else
-	    sp->u.string = (char *) tmp;
-	}
+        {
+          if (!
+              (tmp =
+               (object_t **) extend_string ((char *) tmp,
+                                            (t_sz +=
+                                             1000) * sizeof (object_t *))))
+            fatal ("Out of memory!\n");
+          else
+            sp->u.string = (char *) tmp;
+        }
     }
   if (i > CONFIG_INT (__MAX_ARRAY_SIZE__))
     i = CONFIG_INT (__MAX_ARRAY_SIZE__);
@@ -2203,7 +2202,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
   for (i = 0; i < size; i++)
     {
       if (!(pat->item[i].type == T_STRING))
-	error ("Non-string found in pattern array.\n");
+        error ("Non-string found in pattern array.\n");
     }
 
   ret = allocate_empty_array (2);
@@ -2213,9 +2212,9 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
       struct regexp **rgpp;
       struct reg_match
       {
-	int tok_i;
-	char *begin, *end;
-	struct reg_match *next;
+        int tok_i;
+        char *begin, *end;
+        struct reg_match *next;
       }
        *rmp = (struct reg_match *) 0, *rmph = (struct reg_match *) 0;
       int num_match = 0, length;
@@ -2225,78 +2224,78 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
       char *laststart, *currstart;
 
       rgpp =
-	CALLOCATE (size, struct regexp *, TAG_TEMPORARY, "reg_assoc : rgpp");
+        CALLOCATE (size, struct regexp *, TAG_TEMPORARY, "reg_assoc : rgpp");
       for (i = 0; i < size; i++)
-	{
-	  if (!
-	      (rgpp[i] =
-	       regcomp ((unsigned char *) pat->item[i].u.string, 0)))
-	    {
-	      while (i--)
-		FREE ((char *) rgpp[i]);
-	      FREE ((char *) rgpp);
-	      free_empty_array (ret);
-	      error (regexp_error);
-	    }
-	}
+        {
+          if (!
+              (rgpp[i] =
+               regcomp ((unsigned char *) pat->item[i].u.string, 0)))
+            {
+              while (i--)
+                FREE ((char *) rgpp[i]);
+              FREE ((char *) rgpp);
+              free_empty_array (ret);
+              error (regexp_error);
+            }
+        }
 
       tmp = str;
       while (*tmp)
-	{
+        {
 
-	  /* Sigh - need a kludge here - Randor */
-	  /* In the future I may alter regexp.c to include branch info */
-	  /* so as to minimize checks here - Randor 5/30/94 */
+          /* Sigh - need a kludge here - Randor */
+          /* In the future I may alter regexp.c to include branch info */
+          /* so as to minimize checks here - Randor 5/30/94 */
 
-	  laststart = 0;
-	  index = -1;
+          laststart = 0;
+          index = -1;
 
-	  for (i = 0; i < size; i++)
-	    {
-	      if (regexec (tmpreg = rgpp[i], tmp))
-		{
-		  currstart = tmpreg->startp[0];
-		  if (tmp == currstart)
-		    {
-		      index = i;
-		      break;
-		    }
-		  if (!laststart || currstart < laststart)
-		    {
-		      laststart = currstart;
-		      index = i;
-		    }
-		}
-	    }
+          for (i = 0; i < size; i++)
+            {
+              if (regexec (tmpreg = rgpp[i], tmp))
+                {
+                  currstart = tmpreg->startp[0];
+                  if (tmp == currstart)
+                    {
+                      index = i;
+                      break;
+                    }
+                  if (!laststart || currstart < laststart)
+                    {
+                      laststart = currstart;
+                      index = i;
+                    }
+                }
+            }
 
-	  if (index >= 0)
-	    {
-	      num_match++;
-	      if (rmp)
-		{
-		  rmp->next = ALLOCATE (struct reg_match,
-					TAG_TEMPORARY,
-					"reg_assoc : rmp->next");
-		  rmp = rmp->next;
-		}
-	      else
-		rmph = rmp =
-		  ALLOCATE (struct reg_match, TAG_TEMPORARY,
-			    "reg_assoc : rmp");
-	      tmpreg = rgpp[index];
-	      rmp->begin = tmpreg->startp[0];
-	      rmp->end = tmp = tmpreg->endp[0];
-	      rmp->tok_i = index;
-	      rmp->next = (struct reg_match *) 0;
-	    }
-	  else
-	    break;
+          if (index >= 0)
+            {
+              num_match++;
+              if (rmp)
+                {
+                  rmp->next = ALLOCATE (struct reg_match,
+                                        TAG_TEMPORARY,
+                                        "reg_assoc : rmp->next");
+                  rmp = rmp->next;
+                }
+              else
+                rmph = rmp =
+                  ALLOCATE (struct reg_match, TAG_TEMPORARY,
+                            "reg_assoc : rmp");
+              tmpreg = rgpp[index];
+              rmp->begin = tmpreg->startp[0];
+              rmp->end = tmp = tmpreg->endp[0];
+              rmp->tok_i = index;
+              rmp->next = (struct reg_match *) 0;
+            }
+          else
+            break;
 
-	  /* The following is from regexplode, to prevent i guess infinite */
-	  /* loops on "" patterns - Randor 5/29/94 */
-	  if (rmp->begin == tmp && (!*++tmp))
-	    break;
-	}
+          /* The following is from regexplode, to prevent i guess infinite */
+          /* loops on "" patterns - Randor 5/29/94 */
+          if (rmp->begin == tmp && (!*++tmp))
+            break;
+        }
 
       sv = ret->item;
       sv->type = T_ARRAY;
@@ -2311,42 +2310,42 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
       tmp = str;
 
       while (num_match--)
-	{
-	  char *svtmp;
+        {
+          char *svtmp;
 
-	  length = rmp->begin - tmp;
-	  sv1->type = T_STRING;
-	  sv1->subtype = STRING_MALLOC;
-	  svtmp = sv1->u.string = new_string (length, "reg_assoc : sv1");
-	  strncpy (svtmp, tmp, length);
-	  svtmp[length] = 0;
-	  sv1++;
-	  assign_svalue_no_free (sv2++, def);
-	  tmp += length;
-	  length = rmp->end - rmp->begin;
-	  sv1->type = T_STRING;
-	  sv1->subtype = STRING_MALLOC;
-	  svtmp = sv1->u.string = new_string (length, "reg_assoc : sv1");
-	  strncpy (svtmp, tmp, length);
-	  svtmp[length] = 0;
-	  sv1++;
-	  assign_svalue_no_free (sv2++, &tok->item[rmp->tok_i]);
-	  tmp += length;
-	  rmp = rmp->next;
-	}
+          length = rmp->begin - tmp;
+          sv1->type = T_STRING;
+          sv1->subtype = STRING_MALLOC;
+          svtmp = sv1->u.string = new_string (length, "reg_assoc : sv1");
+          strncpy (svtmp, tmp, length);
+          svtmp[length] = 0;
+          sv1++;
+          assign_svalue_no_free (sv2++, def);
+          tmp += length;
+          length = rmp->end - rmp->begin;
+          sv1->type = T_STRING;
+          sv1->subtype = STRING_MALLOC;
+          svtmp = sv1->u.string = new_string (length, "reg_assoc : sv1");
+          strncpy (svtmp, tmp, length);
+          svtmp[length] = 0;
+          sv1++;
+          assign_svalue_no_free (sv2++, &tok->item[rmp->tok_i]);
+          tmp += length;
+          rmp = rmp->next;
+        }
       sv1->type = T_STRING;
       sv1->subtype = STRING_MALLOC;
       sv1->u.string = string_copy (tmp, "reg_assoc");
       assign_svalue_no_free (sv2, def);
       for (i = 0; i < size; i++)
-	FREE ((char *) rgpp[i]);
+        FREE ((char *) rgpp[i]);
       FREE ((char *) rgpp);
 
       while ((rmp = rmph))
-	{
-	  rmph = rmp->next;
-	  FREE ((char *) rmp);
-	}
+        {
+          rmph = rmp->next;
+          FREE ((char *) rmp);
+        }
       return ret;
     }
   else
@@ -2362,7 +2361,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
       sv = &ret->item[1];
       sv->type = T_ARRAY;
       assign_svalue_no_free ((sv->u.arr = allocate_empty_array (1))->item,
-			     def);
+                             def);
       return ret;
     }
 }

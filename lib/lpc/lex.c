@@ -116,48 +116,50 @@ function_context_t *current_function_context = 0;
  * The argument types are currently not checked by the compiler,
  * only by the runtime.
  */
-keyword_t predefs[] =
+
+/* keyword_t predefs[] = */
 #include "efuns_definition.h"
-  char *option_defs[] =
+/* char *option_defs[] = */
 #include "efuns_option.h"
-  static keyword_t reswords[] = {
-  {"asm", 0, 0},
-  {"break", L_BREAK, 0},
-  {"buffer", L_BASIC_TYPE, TYPE_BUFFER},
-  {"case", L_CASE, 0},
-  {"catch", L_CATCH, 0},
-  {"class", L_CLASS, 0},
-  {"continue", L_CONTINUE, 0},
-  {"default", L_DEFAULT, 0},
-  {"do", L_DO, 0},
-  {"efun", L_EFUN, 0},
-  {"else", L_ELSE, 0},
-  {"float", L_BASIC_TYPE, TYPE_REAL},
-  {"for", L_FOR, 0},
-  {"foreach", L_FOREACH, 0},
-  {"function", L_BASIC_TYPE, TYPE_FUNCTION},
-  {"if", L_IF, 0},
-  {"in", L_IN, 0},
-  {"inherit", L_INHERIT, 0},
-  {"int", L_BASIC_TYPE, TYPE_NUMBER},
-  {"mapping", L_BASIC_TYPE, TYPE_MAPPING},
-  {"mixed", L_BASIC_TYPE, TYPE_ANY},
-  {"new", L_NEW, 0},
-  {"nomask", L_TYPE_MODIFIER, NAME_NO_MASK},
-  {"object", L_BASIC_TYPE, TYPE_OBJECT},
-  {"parse_command", L_PARSE_COMMAND, 0},
-  {"private", L_TYPE_MODIFIER, NAME_PRIVATE},
-  {"protected", L_TYPE_MODIFIER, NAME_PROTECTED},
-  {"public", L_TYPE_MODIFIER, NAME_PUBLIC},
-  {"return", L_RETURN, 0},
-  {"sscanf", L_SSCANF, 0},
-  {"static", L_TYPE_MODIFIER, NAME_STATIC},
-  {"string", L_BASIC_TYPE, TYPE_STRING},
-  {"switch", L_SWITCH, 0},
-  {"time_expression", L_TIME_EXPRESSION, 0},
-  {"varargs", L_TYPE_MODIFIER, NAME_VARARGS},
-  {"void", L_BASIC_TYPE, TYPE_VOID},
-  {"while", L_WHILE, 0},
+
+static keyword_t reswords[] = {
+  {.word = "asm", 0, 0},
+  {.word = "break", L_BREAK, 0},
+  {.word = "buffer", L_BASIC_TYPE, TYPE_BUFFER},
+  {.word = "case", L_CASE, 0},
+  {.word = "catch", L_CATCH, 0},
+  {.word = "class", L_CLASS, 0},
+  {.word = "continue", L_CONTINUE, 0},
+  {.word = "default", L_DEFAULT, 0},
+  {.word = "do", L_DO, 0},
+  {.word = "efun", L_EFUN, 0},
+  {.word = "else", L_ELSE, 0},
+  {.word = "float", L_BASIC_TYPE, TYPE_REAL},
+  {.word = "for", L_FOR, 0},
+  {.word = "foreach", L_FOREACH, 0},
+  {.word = "function", L_BASIC_TYPE, TYPE_FUNCTION},
+  {.word = "if", L_IF, 0},
+  {.word = "in", L_IN, 0},
+  {.word = "inherit", L_INHERIT, 0},
+  {.word = "int", L_BASIC_TYPE, TYPE_NUMBER},
+  {.word = "mapping", L_BASIC_TYPE, TYPE_MAPPING},
+  {.word = "mixed", L_BASIC_TYPE, TYPE_ANY},
+  {.word = "new", L_NEW, 0},
+  {.word = "nomask", L_TYPE_MODIFIER, NAME_NO_MASK},
+  {.word = "object", L_BASIC_TYPE, TYPE_OBJECT},
+  {.word = "parse_command", L_PARSE_COMMAND, 0},
+  {.word = "private", L_TYPE_MODIFIER, NAME_PRIVATE},
+  {.word = "protected", L_TYPE_MODIFIER, NAME_PROTECTED},
+  {.word = "public", L_TYPE_MODIFIER, NAME_PUBLIC},
+  {.word = "return", L_RETURN, 0},
+  {.word = "sscanf", L_SSCANF, 0},
+  {.word = "static", L_TYPE_MODIFIER, NAME_STATIC},
+  {.word = "string", L_BASIC_TYPE, TYPE_STRING},
+  {.word = "switch", L_SWITCH, 0},
+  {.word = "time_expression", L_TIME_EXPRESSION, 0},
+  {.word = "varargs", L_TYPE_MODIFIER, NAME_VARARGS},
+  {.word = "void", L_BASIC_TYPE, TYPE_VOID},
+  {.word = "while", L_WHILE, 0},
 };
 
 static ident_hash_elem_t **ident_hash_table;
@@ -184,7 +186,7 @@ typedef struct linked_buf_s
 }
 linked_buf_t;
 
-static linked_buf_t head_lbuf = { NULL, TERM_START };
+static linked_buf_t head_lbuf = { .prev = NULL, TERM_START };
 static linked_buf_t *cur_lbuf;
 
 static void handle_define (char *);
@@ -612,7 +614,7 @@ get_array_block (char *term)
           /*
            * handle lone terminator on line
            */
-          if (strlen (array_line[startchunk] + startpos) == termlen)
+          if (strlen (array_line[startchunk] + startpos) == (unsigned int)termlen)
             {
               current_line++;
               outptr = yyp;
@@ -763,7 +765,7 @@ get_text_block (char *term)
           (!isalnum (*(text_line[startchunk] + startpos + termlen))) &&
           (*(text_line[startchunk] + startpos + termlen) != '_'))
         {
-          if (strlen (text_line[startchunk] + startpos) == termlen)
+          if (strlen (text_line[startchunk] + startpos) == (unsigned int)termlen)
             {
               current_line++;
               outptr = yyp;
@@ -2537,7 +2539,7 @@ init_num_args ()
     {
       instrs[i].ret_type = -1;
     }
-  for (i = 0; i < NELEM (predefs); i++)
+  for (i = 0; i < (int)NELEM (predefs); i++)
     {
       n = predefs[i].token;
       if (n & F_ALIAS_FLAG)
@@ -3713,12 +3715,12 @@ init_identifiers ()
       ident_hash_table[i] = 0;
     }
   /* add the reserved words */
-  for (i = 0; i < NELEM (reswords); i++)
+  for (i = 0; i < (int)NELEM (reswords); i++)
     {
       add_keyword_t (reswords[i].word, &reswords[i]);
     }
   /* add the efuns */
-  for (i = 0; i < NELEM (predefs); i++)
+  for (i = 0; i < (int)NELEM (predefs); i++)
     {
       ihe = find_or_add_perm_ident (predefs[i].word);
       ihe->token |= IHE_EFUN;

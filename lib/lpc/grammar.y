@@ -2083,6 +2083,7 @@ lvalue:
                     break;
                 case NODE_TERNARY_OP:
                     $$->v.number = $$->r.expr->v.number;
+                    /* fall through */
                 case NODE_OPCODE_1:
                 case NODE_UNARY_OP_1:
                 case NODE_BINARY_OP:
@@ -2100,6 +2101,7 @@ lvalue:
                                 break;
                             case NODE_TERNARY_OP:
                                 node->v.number = node->r.expr->v.number;
+                                /* fall through */
                             case NODE_OPCODE_1:
                             case NODE_UNARY_OP_1:
                             case NODE_BINARY_OP:

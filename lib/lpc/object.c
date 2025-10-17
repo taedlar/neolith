@@ -1468,7 +1468,7 @@ restore_object_from_buff (object_t * ob, char *theBuff, int noclear)
       if (buff[0] == '#')	/* ignore 'comments' in savefiles */
         continue;
       space = strchr (buff, ' ');
-      if (!space || ((space - buff) >= sizeof (var)))
+      if (!space || ((space - buff) >= (int)sizeof (var)))
         {
           FREE (theBuff);
           error ("restore_object(): Illegal file format.\n");

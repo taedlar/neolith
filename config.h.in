@@ -28,3 +28,10 @@
 /* C99 standard */
 #define RETSIGTYPE void
 #endif
+
+/* add NO_RETURN to error functions that does longjmp() */
+#if __GNUC__
+#  define NO_RETURN __attribute__((noreturn))
+#else
+#  define NO_RETURN
+#endif

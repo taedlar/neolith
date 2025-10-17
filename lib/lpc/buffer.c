@@ -1,9 +1,9 @@
 /*
     ORIGINAL AUTHOR
-	[1993-11-07] by Garnett for MudOS 0.9.x
+        [1993-11-07] by Garnett for MudOS 0.9.x
 
     MODIFIED BY
-	[2001-06-27] by Annihilator <annihilator@muds.net>
+        [2001-06-27] by Annihilator <annihilator@muds.net>
  */
 
 #ifdef	HAVE_CONFIG_H
@@ -17,9 +17,8 @@
 #include "src/rc.h"
 
 buffer_t null_buf = {
-  1,				/* Ref count, which will ensure that it will
-				 * never be deallocated */
-  0				/* size */
+  .ref = 1,	/* Ref count, which will ensure that it will never be deallocated */
+  .size = 0	/* size */
 };
 
 inline buffer_t *
@@ -57,7 +56,7 @@ allocate_buffer (int size)
     }
   /* using calloc() so that memory will be zero'd out when allocated */
   buf = (buffer_t *) DCALLOC (sizeof (buffer_t) + size - 1, 1,
-			      TAG_BUFFER, "allocate_buffer");
+                              TAG_BUFFER, "allocate_buffer");
   buf->size = size;
   buf->ref = 1;
   return buf;
@@ -76,9 +75,9 @@ write_buffer (buffer_t * buf, int start, char *str, int theLength)
     {
       start = size + start;
       if (start < 0)
-	{
-	  return 0;
-	}
+        {
+          return 0;
+        }
     }
   /*
    * can't write past the end of the buffer since we can't reallocate the
@@ -106,23 +105,23 @@ read_buffer (buffer_t * b, int start, int len, int *rlen)
     {
       start = size + start;
       if (start < 0)
-	{
-	  return 0;
-	}
+        {
+          return 0;
+        }
     }
   if (len == 0)
     {
       len = size;
     }
-  if (start >= size)
+  if (start >= (int)size)
     {
       return 0;
     }
-  if ((start + len) > size)
+  if ((start + len) > (int)size)
     {
       len = (size - start);
     }
-  for (str = (char *) b->item + start, size = 0; *str && size < len;
+  for (str = (char *) b->item + start, size = 0; *str && (int)size < len;
        str++, size++)
     ;
   str = new_string (size, "read_buffer: str");

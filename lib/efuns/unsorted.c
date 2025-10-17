@@ -1213,7 +1213,7 @@ f_member_array (void)
     {
       char *res;
       CHECK_TYPES (sp - 1, T_NUMBER, 1, F_MEMBER_ARRAY);
-      if (i > SVALUE_STRLEN (sp))
+      if (i > (int)SVALUE_STRLEN (sp))
 	error
 	  ("Index to start search from in member_array() is > string length.\n");
       if ((res = strchr (sp->u.string + i, (sp - 1)->u.number)))
@@ -1827,7 +1827,7 @@ void
 f_say (void)
 {
   array_t *avoid;
-  static array_t vtmp = { 1, 1, };
+  static array_t vtmp = { .ref = 1, 1, };
 
   if (st_num_arg == 1)
     {
@@ -2269,7 +2269,7 @@ f_test_bit (void)
 {
   int ind = (sp--)->u.number;
 
-  if (ind / 6 >= SVALUE_STRLEN (sp))
+  if (ind / 6 >= (int)SVALUE_STRLEN (sp))
     {
       free_string_svalue (sp);
       *sp = const0;

@@ -42,7 +42,7 @@ init_otable (size_t sz)
   int x;
 
   /* ensure that otable_size is a power of 2 */
-  for (otable_size = 1; otable_size < sz; otable_size *= 2)
+  for (otable_size = 1; otable_size < (int)sz; otable_size *= 2)
     ;
   otable_size_minus_one = otable_size - 1;
   obj_table = CALLOCATE (otable_size, object_t *, TAG_OBJ_TBL, "init_otable");

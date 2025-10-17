@@ -703,10 +703,9 @@ create_option_defines ()
   int count = 0;
   int i;
 
-  fprintf (stderr, _("Writing option definitions to %s ...\n"),
-           HEADER_OPTION);
+  fprintf (stderr, _("Writing option definitions to %s ...\n"), HEADER_OPTION);
   open_output_file (HEADER_OPTION);
-  fprintf (yyout, "{\n");
+  fprintf (yyout, "char *option_defs[] = {\n");
 
   for (i = 0; i < DEFHASH; i++)
     {
@@ -1206,7 +1205,7 @@ make_efun_tables ()
     }
 
   /* Now display it... */
-  fprintf (files[3], "{\n");
+  fprintf (files[3], "keyword_t predefs[] = {\n");
   for (i = 0; i < num_buff; i++)
     fprintf (files[3], "%s", buf[i]);
   fprintf (files[3], "\n};\nint efun_arg_types[] = {\n");

@@ -188,7 +188,7 @@ static outbuffer_t obuff;
 static int guard = 0;
 cst *csts = 0;
 static int cur_arg;		/* current arg number */
-static svalue_t clean = { T_NUMBER };
+static svalue_t clean = { .type = T_NUMBER };
 
 static void numadd (outbuffer_t *, int num);
 static void add_space (outbuffer_t *, int indent);
@@ -709,7 +709,7 @@ add_column (cst ** column, int trailing)
 {
   register unsigned int done;
   char c;
-  unsigned int space = -1;
+  unsigned int space = (unsigned int)-1;
   int ret;
   cst *col = *column;		/* always holds (*column) */
   char *col_d = col->d.col;	/* always holds (col->d.col) */
@@ -720,9 +720,9 @@ add_column (cst ** column, int trailing)
     {
       if (c == ' ')
         space = done;
-      if (++done == col->pres)
+      if (++done == (unsigned int)col->pres)
         {
-          if (space != -1)
+          if (space != (unsigned int)-1)
             {
               c = col_d[done];
               if (c != '\n' && c != ' ' && c)
@@ -779,7 +779,7 @@ add_table (cst ** table)
 
       for (done = 0; done != end && tab_di[done] != '\n'; done++)
         ;
-      add_justified (tab_di, (done > tab->size ? tab->size : done),
+      add_justified (tab_di, (done > (int)tab->size ? (int)tab->size : done),
                      tab->pad, tab->size, tab->info,
                      tab->pad || (i < tab->nocols - 1) || tab->next);
       if (done >= end - 1)
@@ -909,7 +909,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
         {
           int column_stat = 0;
 
-          if (last != fpos)
+          if (last != (int)fpos)
             {
               add_nstr (format_str + last, fpos - last);
               last = fpos + 1;
@@ -959,7 +959,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
         }
       else if (c == '%')
         {
-          if (last != fpos)
+          if (last != (int)fpos)
             {
               add_nstr (format_str + last, fpos - last);
               last = fpos + 1;
@@ -1271,7 +1271,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                                *
                                */
                               len = (n - 1) / pres + 1;
-                              if (n > pres && n % pres)
+                              if (n > (unsigned int)pres && n % pres)
                                 pres -= (pres - n % pres) / len;
                             }
                           else
@@ -1280,7 +1280,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                             }
                           (*temp)->size = fs / pres;
                           (*temp)->remainder = fs % pres;
-                          if (n < pres)
+                          if (n < (unsigned int)pres)
                             {
                               /* If we have fewer elements than columns,
                                * pretend we are dealing with a smaller
@@ -1317,10 +1317,10 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                                       n = 0;
                                     }
                                 }
-                              for (; i <= pres; i++)
+                              for (; i <= (unsigned int)pres; i++)
                                 (*temp)->d.tab[i].start = ++p1;
                             }
-                          for (i = 0; i < pres; i++)
+                          for (i = 0; i < (unsigned int)pres; i++)
                             (*temp)->d.tab[i].cur = (*temp)->d.tab[i].start;
 
                           add_table (temp);
