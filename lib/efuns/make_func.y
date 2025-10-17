@@ -352,8 +352,8 @@ yylex()
         case '!':
         {
             char buff[2048];
-            fgets(buff, 2047, yyin);
-            fprintf(stderr, "Configuration problem: %s\n", buff);
+            if (fgets(buff, 2047, yyin))
+                fprintf(stderr, "Configuration problem: %s\n", buff);
             exit(-1);
         }
         case '#':
@@ -361,14 +361,17 @@ yylex()
             int line;
 
             char aBuf[2048], fname[2048];
-            fgets(aBuf, 2047, yyin);
-            if (sscanf(aBuf, "%d \"%[^\"]\"", &line, fname)) {
+            if (!fgets(aBuf, 2047, yyin)) {
+                exit(-1);
+            }
+            if (sscanf(aBuf, "%d \"%[^\"]\"", &line, fname) == 2) {
                 current_line = line;
                 if (current_file) free(current_file);
                 current_file = (char*)malloc(strlen(fname) + 1);
                 strcpy(current_file, fname);
-            } else
-            if (sscanf(aBuf, "%d", &line)) current_line = line;
+            } else if (sscanf(aBuf, "%d", &line) == 1) {
+                current_line = line;
+            }
             current_line++;
             continue;
         }

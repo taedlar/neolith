@@ -857,8 +857,7 @@ socket_read_select_handler (int fd)
       return;
 
     case UNBOUND:
-      debug_message
-	("socket_read_select_handler: read on unbound socket %i\n");
+      debug_message ("socket_read_select_handler: read on unbound socket %i\n", fd);
       break;
 
     case BOUND:

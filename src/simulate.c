@@ -1774,16 +1774,13 @@ user_parser (char *buff)
              it moved somewhere or dested itself */
           if (s == save_command_giver->sent)
             {
-              char buf[256];
               if (s->flags & V_FUNCTION)
                 {
-                  sprintf (buf, _("*Verb '%s' bound to uncallable function pointer."), s->verb);
-                  error (buf);
+                  error (_("*Verb '%s' bound to uncallable function pointer."), s->verb);
                 }
               else
                 {
-                  sprintf (buf, _("*Function for verb '%s' not found."), s->verb);
-                  error (buf);
+                  error (_("*Function for verb '%s' not found."), s->verb);
                 }
             }
         }
