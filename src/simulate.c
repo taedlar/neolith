@@ -4,27 +4,28 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
+#include "rc.h"
+#include "comm.h"
+#include "interpret.h"
+#include "simulate.h"
+#include "simul_efun.h"
+#include "uids.h"
 #include "lpc/array.h"
+#include "lpc/functional.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"
-#include "lpc/program.h"
-#include "lpc/functional.h"
-#include "lpc/program/disassemble.h"
-#include "interpret.h"
-#include "simul_efun.h"
-#include "lpc/otable.h"
-#include "comm.h"
-#include "lpc/program/binaries.h"
-#include "socket/socket_efuns.h"
 #include "lpc/operator.h"
+#include "lpc/otable.h"
+#include "lpc/program.h"
+#include "lpc/program/disassemble.h"
+#include "lpc/program/binaries.h"
+#include "lpc/include/origin.h"
+#include "lpc/include/runtime_config.h"
+#include "port/ansi.h"
+#include "socket/socket_efuns.h"
 #include "efuns/ed.h"
 #include "efuns/file_utils.h"
 #include "efuns/sprintf.h"
-#include "simulate.h"
-#include "lpc/include/origin.h"
-#include "lpc/include/runtime_config.h"
-#include "rc.h"
-#include "uids.h"
 
 #include <stdarg.h>
 #include <sys/stat.h>
@@ -64,27 +65,19 @@ static void remove_sent (object_t *, object_t *);
 
 /*************************************************************************
  *  command_giver_stack
- *
- *  �o�Ӱ��|�ΨӼȦs command_giver ���СC�D�n�γ~�O�b�I�s LPC �{�����e�A
- *  �N�ثe�� command_giver ���J���| (�åi�]�w�s�� command_giver)�A�b LPC
- *  �{����^����A�Ѱ��|���X command_giver�C�o�˧Y�� LPC �{���N command_giver
- *  �R���F�A�ڭ̤]����o command_giver �����СC
  */
 
-static object_t *command_giver_stack[1024];	/* ���| */
-static object_t **cgsp = command_giver_stack;	/* ���V���|���� */
+static object_t *command_giver_stack[1024];
+static object_t **cgsp = command_giver_stack;
 
 void
 save_command_giver (object_t * new_command_giver)
 {
-  /* �ˬd���|�O���O���F */
   if (cgsp >= EndOf (command_giver_stack))
     fatal (_("*****Command giver stack overflow!"));
 
-  /* �N�� command_giver ���J���| */
   *(++cgsp) = command_giver;
 
-  /* �]�w�s�� command_giver (�i�H�� NULL), �ñN�Ѧҭp�ƥ[ 1 */
   if (new_command_giver)
     add_ref (new_command_giver, "save_command_giver");
   command_giver = new_command_giver;
@@ -93,15 +86,12 @@ save_command_giver (object_t * new_command_giver)
 void
 restore_command_giver ()
 {
-  /* �N�ثe�� command_giver �Ѧҭp�ƴ� 1 */
   if (command_giver)
     free_object (command_giver, "restore_command_giver");
 
-  /* �ˬd���|�O���O�Ū� */
   if (cgsp == command_giver_stack)
     fatal (_("*****Command giver stack underflow!"));
 
-  /* �q���|���^ command_giver */
   command_giver = *(cgsp--);
 }
 
@@ -561,7 +551,6 @@ clone_object (char *str1, int num_arg)
 
   if (current_object && current_object->euid == 0)
     {
-      /* ���\ master object �b�S�� effective UID ���p�U���J���� */
       if (current_object != master_ob)
         error (_("*Attempt to create object without effective UID."));
     }
@@ -2091,10 +2080,6 @@ dump_trace (int how)
     return 0;
 
   /* control stack */
-#define CSI "\033["
-#define YELLOW CSI "33m"
-#define CYAN CSI "36m"
-#define RESET CSI "0m"
   for (p = &control_stack[0]; p < csp; p++)
     {
       switch (p[0].framekind & FRAME_MASK)
@@ -2103,24 +2088,24 @@ dump_trace (int how)
           get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
           num_arg = ftd.num_arg;
           num_local = ftd.num_local;
-          log_message (NULL, "\t" YELLOW "%s()" RESET " at " CYAN "%s" RESET ", in program /%s (object %s)\n", ftd.name,
+          log_message (NULL, "\t" YEL "%s()" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n", ftd.name,
                        get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
           if (strcmp (ftd.name, "heart_beat") == 0)
             ret = p->ob ? p->ob->name : 0;
           break;
         case FRAME_FUNP:
-          log_message (NULL, "\t" YELLOW "(function)" RESET " at " CYAN "%s" RESET ", in program /%s (object %s)\n",
+          log_message (NULL, "\t" YEL "(function)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
                        get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
           num_arg = p[0].fr.funp->f.functional.num_arg;
           num_local = p[0].fr.funp->f.functional.num_local;
           break;
         case FRAME_FAKE:
-          log_message (NULL, "\t" YELLOW "(function)" RESET " at " CYAN "%s" RESET ", in program /%s (object %s)\n",
+          log_message (NULL, "\t" YEL "(function)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
                        get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
           num_arg = -1;
           break;
         case FRAME_CATCH:
-          log_message (NULL, "\t" YELLOW "(catch)" RESET " at " CYAN "%s" RESET ", in program /%s (object %s)\n",
+          log_message (NULL, "\t" YEL "(catch)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
                        get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
           num_arg = -1;
           break;
@@ -2160,8 +2145,6 @@ dump_trace (int how)
     }
 
   /* current_prog */
-#define BOLD_YELLOW CSI "1;33m"
-#define BOLD_CYAN CSI "1;36m"
   switch (p[0].framekind & FRAME_MASK)
     {
     case FRAME_FUNCTION:
@@ -2169,22 +2152,22 @@ dump_trace (int how)
       //offset = ftd.program_offset;
       num_arg = ftd.num_arg;
       num_local = ftd.num_local;
-      log_message (NULL, "\t" BOLD_YELLOW "%s()" RESET " at " BOLD_CYAN "%s" RESET ", in program /%s (object %s)\n", ftd.name,
+      log_message (NULL, "\t" HIY "%s()" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n", ftd.name,
                    get_line_number (pc, current_prog), current_prog->name, current_object->name);
       break;
     case FRAME_FUNP:
-      log_message (NULL, "\t" BOLD_YELLOW "(function)" RESET " at " BOLD_CYAN "%s" RESET ", in program /%s (object %s)\n",
+      log_message (NULL, "\t" HIY "(function)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
                    get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = p[0].fr.funp->f.functional.num_arg;
       num_local = p[0].fr.funp->f.functional.num_local;
       break;
     case FRAME_FAKE:
-      log_message (NULL, "\t" BOLD_YELLOW "(function)" RESET " at " BOLD_CYAN "%s" RESET ", in program /%s (object %s)\n",
+      log_message (NULL, "\t" HIY "(function)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
                    get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = -1;
       break;
     case FRAME_CATCH:
-      log_message (NULL, "\t" BOLD_YELLOW "(catch)" RESET " at " BOLD_CYAN "%s" RESET ", in program /%s (object %s)\n",
+      log_message (NULL, "\t" HIY "(catch)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
                    get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = -1;
       break;

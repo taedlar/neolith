@@ -16,9 +16,9 @@
 #include <sys/sema.h>
 #endif	/* HAVE_SYS_SEMA_H */
 
-// #ifdef	HAVE_ARPA_TELNET_H
+#ifdef	HAVE_ARPA_TELNET_H
 #include <arpa/telnet.h>
-// #endif	/* HAVE_ARPA_TELNET_H */
+#endif	/* HAVE_ARPA_TELNET_H */
 
 #ifdef	HAVE_SYS_SOCKETVAR_H
 #include <sys/socketvar.h>
