@@ -2,15 +2,13 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "std.h"
-#include "rc.h"
+#include "src/std.h"
+#include "src/rc.h"
 #include "compiler.h"
-#include "lpc/program/generate.h"
 #include "scratchpad.h"
 #include "qsort.h"
-#include "lpc/object.h"
-#include "lpc/functional.h"
 #include "lpc/program/binaries.h"
+#include "lpc/program/generate.h"
 #include "lpc/include/runtime_config.h"
 #include "efuns/file_utils.h"
 

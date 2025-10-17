@@ -17,7 +17,7 @@
 #include "lpc/include/runtime_config.h"
 #include "src/rc.h"
 #include "src/interpret.h"
-#include "src/lex.h"
+#include "lpc/lex.h"
 
 #include "file_utils.h"
 

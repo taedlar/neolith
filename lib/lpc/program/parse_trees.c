@@ -13,7 +13,7 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "src/std.h"
-#include "src/compiler.h"
+#include "lpc/compiler.h"
 
 #include "parse_trees.h"
 

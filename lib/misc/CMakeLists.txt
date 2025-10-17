@@ -5,6 +5,7 @@ set(adt_SOURCES
     crc32.c
     hash.c
     qsort.c
+    scratchpad.c
 )
 add_library(misc STATIC ${adt_SOURCES})
 target_include_directories(misc PRIVATE

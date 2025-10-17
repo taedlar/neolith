@@ -3,12 +3,12 @@
 #include <config.h>
 #endif	/* HAVE_CONFIG_H */
 
-#include "std.h"
-#include "rc.h"
+#include "src/std.h"
+#include "src/rc.h"
 #include "scratchpad.h"
-#include "lpc/program/generate.h"
-#include "simul_efun.h"
+#include "src/simul_efun.h"
 #include "lpc/object.h"
+#include "lpc/program/generate.h"
 
 #include "lpc/include/function.h"
 #include "lpc/include/runtime_config.h"
