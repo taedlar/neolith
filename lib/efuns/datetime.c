@@ -99,7 +99,7 @@ f_localtime (void)
     string_copy (timezone (tz.tz_minuteswest, tm->tm_isdst), "f_localtime");
 #else /* sequent */
 #if (defined(hpux) || defined(_SEQUENT_) || defined(_AIX) || defined(SunOS_5) \
-	|| defined(SVR4) || defined(sgi) || defined(linux) || defined(cray) \
+	|| defined(SVR4) || defined(sgi) || defined(__linux__) || defined(cray) \
 	|| defined(LATTICE) || defined(SCO))
   if (!tm->tm_isdst)
     {
@@ -108,7 +108,7 @@ f_localtime (void)
     }
   else
     {
-#if (defined(_AIX) || defined(hpux) || defined(linux) || defined(cray) \
+#if (defined(_AIX) || defined(hpux) || defined(__linux__) || defined(cray) \
 	|| defined(LATTICE))
       vec->item[LT_GMTOFF].u.number = timezone;
 #else

@@ -40,6 +40,8 @@ check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
 
+check_include_file(arpa/telnet.h HAVE_ARPA_TELNET_H)
+
 # check dependencies
 find_package(BISON REQUIRED)
 
