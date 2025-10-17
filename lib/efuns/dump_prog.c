@@ -5,7 +5,6 @@
 #include "src/std.h"
 #include "file_utils.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 #include "lpc/disassemble.h"
 #include "lpc/object.h"
 #include "lpc/program.h"

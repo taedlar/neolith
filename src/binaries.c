@@ -20,7 +20,6 @@
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"
 #include "rc.h"
-#include "simulate.h"
 #include "binaries.h"
 #include "qsort.h"
 #include "hash.h"

@@ -13,7 +13,6 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
-#include "simulate.h"
 #include "trees.h"
 #include "compiler.h"
 

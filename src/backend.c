@@ -12,7 +12,6 @@
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
 #include "rc.h"
-#include "simulate.h"
 #include "interpret.h"
 #include "backend.h"
 #include "comm.h"

@@ -3,7 +3,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "src/simulate.h"
 #include "file_utils.h"
 #include "src/interpret.h"
 #include "lpc/array.h"

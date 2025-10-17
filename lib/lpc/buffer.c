@@ -15,7 +15,6 @@
 #include "buffer.h"
 #include "lpc/include/runtime_config.h"
 #include "src/rc.h"
-#include "src/simulate.h"
 
 buffer_t null_buf = {
   1,				/* Ref count, which will ensure that it will

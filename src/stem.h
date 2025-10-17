@@ -32,3 +32,4 @@ extern object_t *master_ob;
 /* interfaces to the LPMud virtual machine */
 #include "applies.h"
 #include "backend.h"
+#include "simulate.h"

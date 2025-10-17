@@ -5,7 +5,6 @@
 
 #include "src/std.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 #include "src/rc.h"
 #include "crc32.h"
 #include "lpc/array.h"

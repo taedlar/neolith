@@ -16,7 +16,6 @@
 #include "lpc/program.h"
 #include "lpc/mapping.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 
 #include "reclaim_object.h"
 

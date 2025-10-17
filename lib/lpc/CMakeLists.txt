@@ -14,7 +14,7 @@ add_library(lpc STATIC ${lpc_SOURCES})
 target_sources(lpc INTERFACE
     FILE_SET HEADERS
     BASE_DIRS ..
-    FILES array.h buffer.h class.h functional.h mapping.h object.h program.h types.h
+    FILES array.h buffer.h class.h functional.h mapping.h object.h otable.h program.h types.h
 )
 target_include_directories(lpc PRIVATE
     ${CMAKE_SOURCE_DIR}

@@ -13,7 +13,6 @@
 #include "src/std.h"
 #include "lpc/types.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 
 #ifdef F_COS
 void

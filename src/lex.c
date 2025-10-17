@@ -22,7 +22,6 @@
 #include "preprocess.h"
 #include "hash.h"
 #include "rc.h"
-#include "simulate.h"
 #include "lpc/include/runtime_config.h"
 #include "lpc/include/function.h"
 #include "efuns/file_utils.h"

@@ -60,7 +60,6 @@
 #include "lpc/array.h"
 #include "lpc/mapping.h"
 #include "lpc/program.h"
-#include "src/simulate.h"
 #include "src/interpret.h"
 #include "lpc/include/function.h"
 #include "src/simul_efun.h"

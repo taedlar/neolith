@@ -10,7 +10,6 @@
 #include "lpc/include/runtime_config.h"
 #include "src/rc.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 
 int num_mappings = 0;
 int total_mapping_size = 0;

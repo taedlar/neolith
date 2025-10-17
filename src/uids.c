@@ -18,7 +18,6 @@
 #include "lpc/object.h"
 #include "efuns/operator.h"
 #include "interpret.h"
-#include "simulate.h"
 #include "main.h"
 #include "uids.h"
 
