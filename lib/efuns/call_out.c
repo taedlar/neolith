@@ -77,7 +77,7 @@ free_call (pending_call_t * cop)
  */
 int
 new_call_out (object_t * ob, svalue_t * fun, int delay, int num_args,
-	      svalue_t * arg)
+              svalue_t * arg)
 {
   pending_call_t *cop, **copp;
   int tm;
@@ -93,10 +93,10 @@ new_call_out (object_t * ob, svalue_t * fun, int delay, int num_args,
       int i;
 
       call_list_free = CALLOCATE (CHUNK_SIZE, pending_call_t,
-				  TAG_CALL_OUT,
-				  "new_call_out: call_list_free");
+                                  TAG_CALL_OUT,
+                                  "new_call_out: call_list_free");
       for (i = 0; i < CHUNK_SIZE - 1; i++)
-	call_list_free[i].next = &call_list_free[i + 1];
+        call_list_free[i].next = &call_list_free[i + 1];
       call_list_free[CHUNK_SIZE - 1].next = 0;
       num_call += CHUNK_SIZE;
     }
@@ -136,15 +136,15 @@ new_call_out (object_t * ob, svalue_t * fun, int delay, int num_args,
   for (copp = &call_list[tm]; *copp; copp = &(*copp)->next)
     {
       if ((*copp)->delta >= delay)
-	{
-	  (*copp)->delta -= delay;
-	  cop->delta = delay;
-	  cop->next = *copp;
-	  *copp = cop;
-	  tm += CALLOUT_CYCLE_SIZE * ++unique;
-	  cop->handle = tm;
-	  return tm;
-	}
+        {
+          (*copp)->delta -= delay;
+          cop->delta = delay;
+          cop->next = *copp;
+          *copp = cop;
+          tm += CALLOUT_CYCLE_SIZE * ++unique;
+          cop->handle = tm;
+          return tm;
+        }
       delay -= (*copp)->delta;
     }
   *copp = cop;
@@ -188,81 +188,80 @@ call_out ()
          but we need to use call_out_time + 1 here. */
       tm = (call_out_time + 1) & (CALLOUT_CYCLE_SIZE - 1);
       if (call_list[tm] && --call_list[tm]->delta == 0)
-	do
-	  {
-	    /* Move the first call_out out of the chain. */
-	    cop = call_list[tm];
-	    call_list[tm] = call_list[tm]->next;
-	    if (cop->ob && (cop->ob->flags & O_DESTRUCTED))
-	      {
-		free_call (cop);
-		cop = 0;
-	      }
-	    else
-	      {
-		if (setjmp (econ.context))
-		  {
-		    restore_context (&econ);
-		  }
-		else
-		  {
-		    object_t *ob;
-
-		    ob = cop->ob;
-		    command_giver = 0;
+        do
+          {
+            /* Move the first call_out out of the chain. */
+            cop = call_list[tm];
+            call_list[tm] = call_list[tm]->next;
+            if (cop->ob && (cop->ob->flags & O_DESTRUCTED))
+              {
+                opt_trace (TT_BACKEND, "removing call_out to destructed object %s", cop->ob->name);
+                free_call (cop);
+                cop = 0;
+              }
+            else
+              {
+                opt_trace (TT_BACKEND, "executing call_out to %s \"%s\"",
+                           cop->ob ? cop->ob->name : "(function)",
+                           cop->ob ? cop->function.s : "");
+                if (setjmp (econ.context))
+                  {
+                    restore_context (&econ);
+                  }
+                else
+                  {
+                    object_t *ob = cop->ob;
+                    command_giver = 0;
 #ifdef THIS_PLAYER_IN_CALL_OUT
-		    if (cop->command_giver &&
-			!(cop->command_giver->flags & O_DESTRUCTED))
-		      {
-			command_giver = cop->command_giver;
-		      }
-		    else if (ob && (ob->flags & O_LISTENER))
-		      {
-			command_giver = ob;
-		      }
+                    if (cop->command_giver &&
+                        !(cop->command_giver->flags & O_DESTRUCTED))
+                      {
+                        command_giver = cop->command_giver;
+                      }
+                    else if (ob && (ob->flags & O_LISTENER))
+                      {
+                        command_giver = ob;
+                      }
 #endif
-		    /* current object no longer set */
+                    /* current object no longer set */
 
-		    if (cop->vs)
-		      {
-			array_t *vec = cop->vs;
-			svalue_t *svp = vec->item + vec->size;
+                    if (cop->vs)
+                      {
+                        array_t *vec = cop->vs;
+                        svalue_t *svp = vec->item + vec->size;
 
-			while (svp-- > vec->item)
-			  {
-			    if (svp->type == T_OBJECT &&
-				(svp->u.ob->flags & O_DESTRUCTED))
-			      {
-				free_object (svp->u.ob, "call_out");
-				*svp = const0;
-			      }
-			  }
-			/* cop->vs is ref one */
-			extra = cop->vs->size;
-			transfer_push_some_svalues (cop->vs->item, extra);
-			free_empty_array (cop->vs);
-		      }
-		    else
-		      extra = 0;
+                        while (svp-- > vec->item)
+                          {
+                            if (svp->type == T_OBJECT && (svp->u.ob->flags & O_DESTRUCTED))
+                              {
+                                free_object (svp->u.ob, "call_out");
+                                *svp = const0;
+                              }
+                          }
+                        /* cop->vs is ref one */
+                        extra = cop->vs->size;
+                        transfer_push_some_svalues (cop->vs->item, extra);
+                        free_empty_array (cop->vs);
+                      }
+                    else
+                      extra = 0;
 
-		    if (cop->ob)
-		      {
-			if (cop->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
-			  error ("Illegal function name\n");
-
-			(void) apply (cop->function.s, cop->ob, extra,
-				      ORIGIN_CALL_OUT);
-		      }
-		    else
-		      {
-			(void) call_function_pointer (cop->function.f, extra);
-		      }
-		  }
-		free_called_call (cop);
-		cop = 0;
-	      }
-	  }
-	while (call_list[tm] && call_list[tm]->delta == 0);
+                    if (cop->ob)
+                      {
+                        if (cop->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
+                          error ("Illegal function name\n");
+                        (void) apply (cop->function.s, cop->ob, extra, ORIGIN_CALL_OUT);
+                      }
+                    else
+                      {
+                        (void) call_function_pointer (cop->function.f, extra);
+                      }
+                  }
+                free_called_call (cop);
+                cop = 0;
+              }
+          }
+        while (call_list[tm] && call_list[tm]->delta == 0);
       call_out_time++;
     }
 
@@ -278,12 +277,12 @@ time_left (int slot, int delay)
   if (slot > current_slot)
     {
       return (delay - 1) * CALLOUT_CYCLE_SIZE + (slot - current_slot) +
-	call_out_time - current_time;
+        call_out_time - current_time;
     }
   else
     {
       return delay * CALLOUT_CYCLE_SIZE + (slot - current_slot) +
-	call_out_time - current_time;
+        call_out_time - current_time;
     }
 }
 
@@ -306,18 +305,18 @@ remove_call_out (object_t * ob, char *fun)
     {
       delay = 0;
       for (copp = &call_list[i]; *copp; copp = &(*copp)->next)
-	{
-	  delay += (*copp)->delta;
-	  if ((*copp)->ob == ob && strcmp ((*copp)->function.s, fun) == 0)
-	    {
-	      cop = *copp;
-	      if (cop->next)
-		cop->next->delta += cop->delta;
-	      *copp = cop->next;
-	      free_call (cop);
-	      return time_left (i, delay);
-	    }
-	}
+        {
+          delay += (*copp)->delta;
+          if ((*copp)->ob == ob && strcmp ((*copp)->function.s, fun) == 0)
+            {
+              cop = *copp;
+              if (cop->next)
+                cop->next->delta += cop->delta;
+              *copp = cop->next;
+              free_call (cop);
+              return time_left (i, delay);
+            }
+        }
     }
   return -1;
 }
@@ -333,14 +332,14 @@ remove_call_out_by_handle (int handle)
     {
       delay += (*copp)->delta;
       if ((*copp)->handle == handle)
-	{
-	  cop = *copp;
-	  if (cop->next)
-	    cop->next->delta += cop->delta;
-	  *copp = cop->next;
-	  free_call (cop);
-	  return time_left (handle & (CALLOUT_CYCLE_SIZE - 1), delay);
-	}
+        {
+          cop = *copp;
+          if (cop->next)
+            cop->next->delta += cop->delta;
+          *copp = cop->next;
+          free_call (cop);
+          return time_left (handle & (CALLOUT_CYCLE_SIZE - 1), delay);
+        }
     }
   return -1;
 }
@@ -356,7 +355,7 @@ find_call_out_by_handle (int handle)
     {
       delay += cop->delta;
       if (cop->handle == handle)
-	return time_left (handle & (CALLOUT_CYCLE_SIZE - 1), delay);
+        return time_left (handle & (CALLOUT_CYCLE_SIZE - 1), delay);
     }
   return -1;
 }
@@ -374,11 +373,11 @@ find_call_out (object_t * ob, char *fun)
     {
       delay = 0;
       for (cop = call_list[i]; cop; cop = cop->next)
-	{
-	  delay += cop->delta;
-	  if (cop->ob == ob && strcmp (cop->function.s, fun) == 0)
-	    return time_left (i, delay);
-	}
+        {
+          delay += cop->delta;
+          if (cop->ob == ob && strcmp (cop->function.s, fun) == 0)
+            return time_left (i, delay);
+        }
     }
   return -1;
 }
@@ -398,14 +397,14 @@ print_call_out_usage (outbuffer_t * ob, int verbose)
       outbuf_add (ob, "Call out information:\n");
       outbuf_add (ob, "---------------------\n");
       outbuf_addv (ob, "Number of allocated call outs: %8d, %8d bytes\n",
-		   num_call, num_call * sizeof (pending_call_t));
+                   num_call, num_call * sizeof (pending_call_t));
       outbuf_addv (ob, "Current length: %d\n", i);
     }
   else
     {
       if (verbose != -1)
-	outbuf_addv (ob, "call out:\t\t\t%8d %8d (current length %d)\n",
-		     num_call, num_call * sizeof (pending_call_t), i);
+        outbuf_addv (ob, "call out:\t\t\t%8d %8d (current length %d)\n",
+                     num_call, num_call * sizeof (pending_call_t), i);
     }
   return (int) (num_call * sizeof (pending_call_t));
 }
@@ -427,7 +426,7 @@ get_all_call_outs ()
   for (i = 0, j = 0; j < CALLOUT_CYCLE_SIZE; j++)
     for (cop = call_list[j]; cop; cop = cop->next)
       if (!cop->ob || !(cop->ob->flags & O_DESTRUCTED))
-	i++;
+        i++;
 
   v = allocate_empty_array (i);
   tm = call_out_time & (CALLOUT_CYCLE_SIZE - 1);
@@ -436,48 +435,48 @@ get_all_call_outs ()
     {
       delay = 0;
       for (cop = call_list[j]; cop; cop = cop->next)
-	{
-	  array_t *vv;
+        {
+          array_t *vv;
 
-	  delay += cop->delta;
-	  if (cop->ob && (cop->ob->flags & O_DESTRUCTED))
-	    continue;
-	  vv = allocate_empty_array (3);
-	  if (cop->ob)
-	    {
-	      vv->item[0].type = T_OBJECT;
-	      vv->item[0].u.ob = cop->ob;
-	      add_ref (cop->ob, "get_all_call_outs");
-	      vv->item[1].type = T_STRING;
-	      vv->item[1].subtype = STRING_SHARED;
-	      vv->item[1].u.string = make_shared_string (cop->function.s);
-	    }
-	  else
-	    {
-	      vv->item[0].type = T_OBJECT;
-	      vv->item[0].u.ob = cop->function.f->hdr.owner;
-	      add_ref (cop->function.f->hdr.owner, "get_all_call_outs");
-	      vv->item[1].type = T_STRING;
-	      vv->item[1].subtype = STRING_SHARED;
-	      vv->item[1].u.string = make_shared_string ("<function>");
-	    }
-	  vv->item[2].type = T_NUMBER;
-	  if (j > tm)
-	    {
-	      vv->item[2].u.number =
-		(delay - 1) * CALLOUT_CYCLE_SIZE + (j - tm) + call_out_time -
-		current_time;
-	    }
-	  else
-	    {
-	      vv->item[2].u.number =
-		delay * CALLOUT_CYCLE_SIZE + (j - tm) + call_out_time -
-		current_time;
-	    }
+          delay += cop->delta;
+          if (cop->ob && (cop->ob->flags & O_DESTRUCTED))
+            continue;
+          vv = allocate_empty_array (3);
+          if (cop->ob)
+            {
+              vv->item[0].type = T_OBJECT;
+              vv->item[0].u.ob = cop->ob;
+              add_ref (cop->ob, "get_all_call_outs");
+              vv->item[1].type = T_STRING;
+              vv->item[1].subtype = STRING_SHARED;
+              vv->item[1].u.string = make_shared_string (cop->function.s);
+            }
+          else
+            {
+              vv->item[0].type = T_OBJECT;
+              vv->item[0].u.ob = cop->function.f->hdr.owner;
+              add_ref (cop->function.f->hdr.owner, "get_all_call_outs");
+              vv->item[1].type = T_STRING;
+              vv->item[1].subtype = STRING_SHARED;
+              vv->item[1].u.string = make_shared_string ("<function>");
+            }
+          vv->item[2].type = T_NUMBER;
+          if (j > tm)
+            {
+              vv->item[2].u.number =
+                (delay - 1) * CALLOUT_CYCLE_SIZE + (j - tm) + call_out_time -
+                current_time;
+            }
+          else
+            {
+              vv->item[2].u.number =
+                delay * CALLOUT_CYCLE_SIZE + (j - tm) + call_out_time -
+                current_time;
+            }
 
-	  v->item[i].type = T_ARRAY;
-	  v->item[i++].u.arr = vv;	/* Ref count is already 1 */
-	}
+          v->item[i].type = T_ARRAY;
+          v->item[i++].u.arr = vv;	/* Ref count is already 1 */
+        }
     }
   return v;
 }
@@ -492,23 +491,23 @@ remove_all_call_out (object_t * obj)
     {
       copp = &call_list[i];
       while (*copp)
-	{
-	  if (((*copp)->ob &&
-	       (((*copp)->ob == obj) || ((*copp)->ob->flags & O_DESTRUCTED)))
-	      || (!(*copp)->ob
-		  && ((*copp)->function.f->hdr.owner == obj
-		      || (*copp)->function.f->hdr.owner->
-		      flags & O_DESTRUCTED)))
-	    {
-	      cop = *copp;
-	      if (cop->next)
-		cop->next->delta += cop->delta;
-	      *copp = cop->next;
-	      free_call (cop);
-	    }
-	  else
-	    copp = &(*copp)->next;
-	}
+        {
+          if (((*copp)->ob &&
+               (((*copp)->ob == obj) || ((*copp)->ob->flags & O_DESTRUCTED)))
+              || (!(*copp)->ob
+                  && ((*copp)->function.f->hdr.owner == obj
+                      || (*copp)->function.f->hdr.owner->
+                      flags & O_DESTRUCTED)))
+            {
+              cop = *copp;
+              if (cop->next)
+                cop->next->delta += cop->delta;
+              *copp = cop->next;
+              free_call (cop);
+            }
+          else
+            copp = &(*copp)->next;
+        }
     }
 }
 
@@ -588,16 +587,16 @@ f_remove_call_out (void)
     {
 #ifdef CALLOUT_HANDLES
       if (sp->type == T_STRING)
-	{
+        {
 #endif
-	  i = remove_call_out (current_object, sp->u.string);
-	  free_string_svalue (sp);
+          i = remove_call_out (current_object, sp->u.string);
+          free_string_svalue (sp);
 #ifdef CALLOUT_HANDLES
-	}
+        }
       else
-	{
-	  i = remove_call_out_by_handle (sp->u.number);
-	}
+        {
+          i = remove_call_out_by_handle (sp->u.number);
+        }
 #endif
     }
   else

@@ -43,31 +43,33 @@ Conventionally a trace flag is represented as an octal integer so we use the las
 Enables trace messages about LPC code evaluation.
 
 Extra verbose level:
-- 011: switch statement internals
-- 013: per-instruction program counter change
+- `011`: switch statement internals
+- `013`: per-instruction program counter change
 
 ## Tier 020: TT_COMPILE
 
 Enables trace messages about compiling LPC programs.
 
 Extra verbose level:
-- 021: detailed info of compiled LPC program, save binary
-- 023: header includes
+- `021`: detailed info of compiled LPC program, save binary
+- `023`: header includes
 
 ## Tier 040: TT_SIMUL_EFUN
 
 Enables trace messages about Simul Efuns.
 
 Extra verbose level:
-- 041: calling simul efun
-- 042: number of args when calling simul efun
+- `040`: calling simul efun
+- `042`: number of args when calling simul efun
 
 ## Tier 0100: TT_BACKEND
 
 Enables trace messages about LPMud driver backend activities (heart beats, call out, reset, garbage collection)
 
 Extra verbose level:
-- 0103: heart beat timer, efun `time`
+- `0100`: call_outs
+- `0101`: heart_beat timer and summary
+- `0102`: SIGALRM, individual heart_beats
 
 # Running in `gdb`
 A typical usage for trace log is to debug crashing bugs.
