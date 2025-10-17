@@ -6,11 +6,9 @@ BISON_TARGET(grammar grammar.y ${CMAKE_CURRENT_BINARY_DIR}/grammar.c
 
 set(neolith_SOURCES
     backend.c
-    binaries.c
     comm.c
     compiler.c
     generate.c
-    icode.c
     interpret.c
     lex.c
     main.c
@@ -21,7 +19,6 @@ set(neolith_SOURCES
     simul_efun.c
     simulate.c
     stralloc.c
-    trees.c
     uids.c
 )
 

@@ -5,13 +5,11 @@
 /* 
  * code generator for runtime LPC code
  */
-#include "std.h"
+#include "src/std.h"
 #include "lpc/include/function.h"
-#include "interpret.h"
 #include "icode.h"
-#include "trees.h"
-#include "compiler.h"
-#include "generate.h"
+#include "src/generate.h"
+#include "src/compiler.h"
 
 static void ins_real (double);
 static void ins_short (short);

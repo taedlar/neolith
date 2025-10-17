@@ -8,7 +8,7 @@
 #include "lpc/object.h"
 #include "lpc/include/origin.h"
 
-#include "operator.h"
+#include "lpc/operator.h"
 #include "call_out.h"
 
 #define CHUNK_SIZE	20

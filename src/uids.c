@@ -16,7 +16,7 @@
 #include "avltree.h"
 #include "lpc/types.h"
 #include "lpc/object.h"
-#include "efuns/operator.h"
+#include "lpc/operator.h"
 #include "interpret.h"
 #include "main.h"
 #include "uids.h"

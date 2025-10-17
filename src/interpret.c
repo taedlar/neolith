@@ -11,7 +11,7 @@
 #include "lpc/class.h"
 #include "rc.h"
 #include "simul_efun.h"
-#include "efuns/operator.h"
+#include "lpc/operator.h"
 #include "efuns/sprintf.h"
 #include "interpret.h"
 #include "comm.h"

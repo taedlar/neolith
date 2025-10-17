@@ -253,6 +253,7 @@ char *function_name(program_t *, int);
 void remove_object_from_stack(object_t *);
 void setup_fake_frame(funptr_t *);
 void remove_fake_frame(void);
+int merge_arg_lists(int, array_t *, int);
 void push_indexed_lvalue(int);
 
 void process_efun_callback(int, function_to_call_t *, int);

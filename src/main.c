@@ -19,7 +19,7 @@
 #include "rc.h"
 #include "lpc/object.h"
 #include "simul_efun.h"
-#include "binaries.h"
+#include "lpc/program/binaries.h"
 #include "lpc/otable.h"
 #include "comm.h"
 #include "main.h"

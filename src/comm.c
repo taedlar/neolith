@@ -11,7 +11,7 @@
 #include "interpret.h"
 #include "socket/socket_efuns.h"
 #include "socket/socket_ctrl.h"
-#include "efuns/operator.h"
+#include "lpc/operator.h"
 #include "efuns/ed.h"
 
 #include "lpc/include/runtime_config.h"

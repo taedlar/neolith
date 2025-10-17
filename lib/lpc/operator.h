@@ -1,4 +1,5 @@
 #pragma once
+
 void f_ge(void);
 void f_le(void);
 void f_lt(void);
@@ -34,7 +35,6 @@ void f_sscanf(void);
 funptr_t *make_funp(svalue_t *, svalue_t *);
 void push_funp(funptr_t *);
 void free_funp(funptr_t *);
-int merge_arg_lists(int, array_t *, int);
 void call_simul_efun(unsigned short, int);
 
 funptr_t *make_efun_funp(int, svalue_t *);
