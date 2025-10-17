@@ -51,49 +51,49 @@ add_define (char *name, int nargs, char *exps)
   if (p)
     {
       if (p->flags & DEF_IS_UNDEFINED)
-	{
-	  p->exps =
-	    (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER,
-			       "add_define: redef");
-	  strcpy (p->exps, exps);
-	  p->flags = 0;
-	  p->nargs = nargs;
-	}
+        {
+          p->exps =
+            (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER,
+                               "add_define: redef");
+          strcpy (p->exps, exps);
+          p->flags = 0;
+          p->nargs = nargs;
+        }
       else
-	{
-	  if (p->flags & DEF_IS_PREDEF)
-	    {
-	      yyerror ("Illegal to redefine predefined value.");
-	      return;
-	    }
-	  if (nargs != p->nargs || strcmp (exps, p->exps))
-	    {
-	      char buff[200 + NSIZE];
+        {
+          if (p->flags & DEF_IS_PREDEF)
+            {
+              yyerror ("Illegal to redefine predefined value.");
+              return;
+            }
+          if (nargs != p->nargs || strcmp (exps, p->exps))
+            {
+              char buff[200 + NSIZE];
 
-	      sprintf (buff, "redefinition of #define %s\n", name);
-	      yywarn (buff);
+              sprintf (buff, "redefinition of #define %s\n", name);
+              yywarn (buff);
 
-	      p->exps =
-		(char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER,
-				   "add_define: redef");
-	      strcpy (p->exps, exps);
-	      p->nargs = nargs;
-	    }
+              p->exps =
+                (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER,
+                                   "add_define: redef");
+              strcpy (p->exps, exps);
+              p->nargs = nargs;
+            }
 #ifndef LEXER
-	  p->flags &= ~DEF_IS_NOT_LOCAL;
+          p->flags &= ~DEF_IS_NOT_LOCAL;
 #endif
-	}
+        }
     }
   else
     {
       p = ALLOCATE (defn_t, TAG_COMPILER, "add_define: def");
       p->name =
-	(char *) DXALLOC (strlen (name) + 1, TAG_COMPILER,
-			  "add_define: def name");
+        (char *) DXALLOC (strlen (name) + 1, TAG_COMPILER,
+                          "add_define: def name");
       strcpy (p->name, name);
       p->exps =
-	(char *) DXALLOC (strlen (exps) + 1, TAG_COMPILER,
-			  "add_define: def exps");
+        (char *) DXALLOC (strlen (exps) + 1, TAG_COMPILER,
+                          "add_define: def exps");
       strcpy (p->exps, exps);
       p->flags = 0;
       p->nargs = nargs;
@@ -113,42 +113,42 @@ handle_elif ()
   if (iftop)
     {
       if (iftop->state == EXPECT_ELSE)
-	{
-	  /* last cond was false... */
-	  int cond;
-	  ifstate_t *p = iftop;
+        {
+          /* last cond was false... */
+          int cond;
+          ifstate_t *p = iftop;
 
-	  /* pop previous condition */
-	  iftop = p->next;
-	  FREE ((char *) p);
+          /* pop previous condition */
+          iftop = p->next;
+          FREE ((char *) p);
 
 #ifdef LEXER
-	  *--outptr = '\0';
-	  add_input (sp);
+          *--outptr = '\0';
+          add_input (sp);
 #endif
-	  cond = cond_get_exp (0);
+          cond = cond_get_exp (0);
 #ifdef LEXER
-	  if (*outptr++)
-	    {
-	      yyerror ("Condition too complex in #elif");
-	      while (*outptr++);
+          if (*outptr++)
+            {
+              yyerror ("Condition too complex in #elif");
+              while (*outptr++);
 #else
-	  if (*outptr != '\n')
-	    {
-	      yyerror ("Condition too complex in #elif");
+          if (*outptr != '\n')
+            {
+              yyerror ("Condition too complex in #elif");
 #endif
-	    }
-	  else
-	    handle_cond (cond);
-	}
+            }
+          else
+            handle_cond (cond);
+        }
       else
-	{			/* EXPECT_ENDIF */
-	  /*
-	   * last cond was true...skip to end of
-	   * conditional
-	   */
-	  skip_to ("endif", (char *) 0);
-	}
+        {			/* EXPECT_ENDIF */
+          /*
+           * last cond was true...skip to end of
+           * conditional
+           */
+          skip_to ("endif", (char *) 0);
+        }
     }
   else
     {
@@ -162,13 +162,13 @@ handle_else (void)
   if (iftop)
     {
       if (iftop->state == EXPECT_ELSE)
-	{
-	  iftop->state = EXPECT_ENDIF;
-	}
+        {
+          iftop->state = EXPECT_ENDIF;
+        }
       else
-	{
-	  skip_to ("endif", (char *) 0);
-	}
+        {
+          skip_to ("endif", (char *) 0);
+        }
     }
   else
     {
@@ -256,220 +256,220 @@ cond_get_exp (int priority)
       value = cond_get_exp (0);
 #ifdef LEXER
       do
-	c = exgetc ();
+        c = exgetc ();
       while (is_wspace (c));
       if (c != ')')
-	{
-	  yyerror ("bracket not paired in #if");
-	  if (!c)
-	    *--outptr = '\0';
-	}
+        {
+          yyerror ("bracket not paired in #if");
+          if (!c)
+            *--outptr = '\0';
+        }
 #else
       if ((c = exgetc ()) != ')')
-	yyerrorp ("bracket not paired in %cif");
+        yyerrorp ("bracket not paired in %cif");
 #endif
     }
   else if (ispunct (c))
     {
-	  x = optab1[c];
+          x = optab1[c];
       if (!x) {
-	    yyerrorp ("illegal character in %cif");
-	    return 0;
-	  }
+            yyerrorp ("illegal character in %cif");
+            return 0;
+          }
       value = cond_get_exp (12);
       switch (optab2[x - 1])
-	{
-	case BNOT:
-	  value = ~value;
-	  break;
-	case LNOT:
-	  value = !value;
-	  break;
-	case UMINUS:
-	  value = -value;
-	  break;
-	case UPLUS:
-	  value = value;
-	  break;
-	default:
-	  yyerrorp ("illegal unary operator in %cif");
-	}
+        {
+        case BNOT:
+          value = ~value;
+          break;
+        case LNOT:
+          value = !value;
+          break;
+        case UMINUS:
+          value = -value;
+          break;
+        case UPLUS:
+          value = value;
+          break;
+        default:
+          yyerrorp ("illegal unary operator in %cif");
+        }
     }
   else
     {
       int base;
 
       if (!isdigit (c))
-	{
+        {
 #ifdef LEXER
-	  if (!c)
-	    {
+          if (!c)
+            {
 #else
-	  if (c == '\n')
-	    {
+          if (c == '\n')
+            {
 #endif
-	      yyerrorp ("missing expression in %cif");
-	    }
-	  else
-	    yyerrorp ("illegal character in %cif");
-	  return 0;
-	}
+              yyerrorp ("missing expression in %cif");
+            }
+          else
+            yyerrorp ("illegal character in %cif");
+          return 0;
+        }
       value = 0;
       if (c != '0')
-	base = 10;
+        base = 10;
       else
-	{
-	  c = *outptr++;
-	  if (c == 'x' || c == 'X')
-	    {
-	      base = 16;
-	      c = *outptr++;
-	    }
-	  else
-	    base = 8;
-	}
+        {
+          c = *outptr++;
+          if (c == 'x' || c == 'X')
+            {
+              base = 16;
+              c = *outptr++;
+            }
+          else
+            base = 8;
+        }
       for (;;)
-	{
-	  if (isdigit (c))
-	    x = -'0';
-	  else if (isupper (c))
-	    x = -'A' + 10;
-	  else if (islower (c))
-	    x = -'a' + 10;
-	  else
-	    break;
-	  x += c;
-	  if (x > base)
-	    break;
-	  value = value * base + x;
-	  c = *outptr++;
-	}
+        {
+          if (isdigit (c))
+            x = -'0';
+          else if (isupper (c))
+            x = -'A' + 10;
+          else if (islower (c))
+            x = -'a' + 10;
+          else
+            break;
+          x += c;
+          if (x > base)
+            break;
+          value = value * base + x;
+          c = *outptr++;
+        }
       outptr--;
     }
   for (;;)
     {
 #ifdef LEXER
       do
-	c = exgetc ();
+        c = exgetc ();
       while (is_wspace (c));
       if (!ispunct (c))
-	break;
+        break;
 #else
       if (!ispunct (c = exgetc ()))
-	break;
+        break;
 #endif
       x = optab1[c];
       if (!x)
-	break;
+        break;
       value2 = *outptr++;
       for (;; x += 3)
-	{
-	  if (!optab2[x])
-	    {
-	      outptr--;
-	      if (!optab2[x + 1])
-		{
-		  yyerrorp ("illegal operator use in %cif");
-		  return 0;
-		}
-	      break;
-	    }
-	  if (value2 == optab2[x])
-	    break;
-	}
+        {
+          if (!optab2[x])
+            {
+              outptr--;
+              if (!optab2[x + 1])
+                {
+                  yyerrorp ("illegal operator use in %cif");
+                  return 0;
+                }
+              break;
+            }
+          if (value2 == optab2[x])
+            break;
+        }
       if (priority >= optab2[x + 2])
-	{
-	  if (optab2[x])
-	    *--outptr = (char)value2;
-	  break;
-	}
+        {
+          if (optab2[x])
+            *--outptr = (char)value2;
+          break;
+        }
       value2 = cond_get_exp (optab2[x + 2]);
       switch (optab2[x + 1])
-	{
-	case MULT:
-	  value *= value2;
-	  break;
-	case DIV:
-	  if (value2)
-	    value /= value2;
-	  else
-	    yyerrorp ("division by 0 in %cif");
-	  break;
-	case MOD:
-	  if (value2)
-	    value %= value2;
-	  else
-	    yyerrorp ("modulo by 0 in %cif");
-	  break;
-	case BPLUS:
-	  value += value2;
-	  break;
-	case BMINUS:
-	  value -= value2;
-	  break;
-	case LSHIFT:
-	  value <<= value2;
-	  break;
-	case RSHIFT:
-	  value >>= value2;
-	  break;
-	case LESS:
-	  value = value < value2;
-	  break;
-	case LEQ:
-	  value = value <= value2;
-	  break;
-	case GREAT:
-	  value = value > value2;
-	  break;
-	case GEQ:
-	  value = value >= value2;
-	  break;
-	case EQ:
-	  value = value == value2;
-	  break;
-	case NEQ:
-	  value = value != value2;
-	  break;
-	case BAND:
-	  value &= value2;
-	  break;
-	case XOR:
-	  value ^= value2;
-	  break;
-	case BOR:
-	  value |= value2;
-	  break;
-	case LAND:
-	  value = value && value2;
-	  break;
-	case LOR:
-	  value = value || value2;
-	  break;
-	case QMARK:
+        {
+        case MULT:
+          value *= value2;
+          break;
+        case DIV:
+          if (value2)
+            value /= value2;
+          else
+            yyerrorp ("division by 0 in %cif");
+          break;
+        case MOD:
+          if (value2)
+            value %= value2;
+          else
+            yyerrorp ("modulo by 0 in %cif");
+          break;
+        case BPLUS:
+          value += value2;
+          break;
+        case BMINUS:
+          value -= value2;
+          break;
+        case LSHIFT:
+          value <<= value2;
+          break;
+        case RSHIFT:
+          value >>= value2;
+          break;
+        case LESS:
+          value = value < value2;
+          break;
+        case LEQ:
+          value = value <= value2;
+          break;
+        case GREAT:
+          value = value > value2;
+          break;
+        case GEQ:
+          value = value >= value2;
+          break;
+        case EQ:
+          value = value == value2;
+          break;
+        case NEQ:
+          value = value != value2;
+          break;
+        case BAND:
+          value &= value2;
+          break;
+        case XOR:
+          value ^= value2;
+          break;
+        case BOR:
+          value |= value2;
+          break;
+        case LAND:
+          value = value && value2;
+          break;
+        case LOR:
+          value = value || value2;
+          break;
+        case QMARK:
 #ifdef LEXER
-	  do
-	    c = exgetc ();
-	  while (isspace (c));
-	  if (c != ':')
-	    {
-	      yyerror ("'?' without ':' in #if");
-	      outptr--;
-	      return 0;
-	    }
+          do
+            c = exgetc ();
+          while (isspace (c));
+          if (c != ':')
+            {
+              yyerror ("'?' without ':' in #if");
+              outptr--;
+              return 0;
+            }
 #else
-	  if ((c = exgetc ()) != ':')
-	    yyerrorp ("'?' without ':' in %cif");
+          if ((c = exgetc ()) != ':')
+            yyerrorp ("'?' without ':' in %cif");
 #endif
-	  if (value)
-	    {
-	      cond_get_exp (1);
-	      value = value2;
-	    }
-	  else
-	    value = cond_get_exp (1);
-	  break;
-	}
+          if (value)
+            {
+              cond_get_exp (1);
+              value = value2;
+            }
+          else
+            value = cond_get_exp (1);
+          break;
+        }
     }
   outptr--;
   return value;

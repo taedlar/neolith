@@ -3,9 +3,10 @@
 #endif /* HAVE_CONFIG_H */
 
 #define SUPPRESS_COMPILER_INLINES
-#include "std.h"
+#include "src/std.h"
+#include "src/compiler.h"
+
 #include "generate.h"
-#include "compiler.h"
 
 static parse_node_t *optimize (parse_node_t *);
 static parse_node_t **last_local_refs = 0;
@@ -67,21 +68,21 @@ optimize (parse_node_t * expr)
     case NODE_BINARY_OP:
       OPT (expr->l.expr);
       if (expr->v.number == F_ASSIGN)
-	{
-	  if (IS_NODE (expr->r.expr, NODE_OPCODE_1, F_LOCAL_LVALUE))
-	    {
-	      if (!optimizer_state)
-		{
-		  int x = expr->r.expr->l.number;
+        {
+          if (IS_NODE (expr->r.expr, NODE_OPCODE_1, F_LOCAL_LVALUE))
+            {
+              if (!optimizer_state)
+                {
+                  int x = expr->r.expr->l.number;
 
-		  if (last_local_refs[x])
-		    {
-		      last_local_refs[x]->v.number = F_TRANSFER_LOCAL;
-		      last_local_refs[x] = 0;
-		    }
-		}
-	    }
-	}
+                  if (last_local_refs[x])
+                    {
+                      last_local_refs[x]->v.number = F_TRANSFER_LOCAL;
+                      last_local_refs[x] = 0;
+                    }
+                }
+            }
+        }
       OPT (expr->r.expr);
       break;
     case NODE_UNARY_OP:
@@ -101,27 +102,27 @@ optimize (parse_node_t * expr)
     case NODE_UNARY_OP_1:
       OPT (expr->r.expr);
       if (expr->v.number == F_VOID_ASSIGN_LOCAL)
-	{
-	  if (last_local_refs[expr->l.number] && !optimizer_state)
-	    {
-	      last_local_refs[expr->l.number]->v.number = F_TRANSFER_LOCAL;
-	      last_local_refs[expr->l.number] = 0;
-	    }
-	}
+        {
+          if (last_local_refs[expr->l.number] && !optimizer_state)
+            {
+              last_local_refs[expr->l.number]->v.number = F_TRANSFER_LOCAL;
+              last_local_refs[expr->l.number] = 0;
+            }
+        }
       break;
     case NODE_OPCODE_1:
       if (expr->v.number == F_LOCAL || expr->v.number == F_LOCAL_LVALUE)
-	{
-	  if (expr->v.number == F_LOCAL)
-	    {
-	      if (!optimizer_state)
-		{
-		  last_local_refs[expr->l.number] = expr;
-		  break;
-		}
-	    }
-	  last_local_refs[expr->l.number] = 0;
-	}
+        {
+          if (expr->v.number == F_LOCAL)
+            {
+              if (!optimizer_state)
+                {
+                  last_local_refs[expr->l.number] = expr;
+                  break;
+                }
+            }
+          last_local_refs[expr->l.number] = 0;
+        }
       break;
     case NODE_OPCODE_2:
       break;
@@ -152,26 +153,26 @@ optimize (parse_node_t * expr)
       break;
     case NODE_IF:
       {
-	int in_cond;
-	OPT (expr->v.expr);
-	in_cond = (optimizer_state & OPTIMIZER_IN_COND);
-	optimizer_state |= OPTIMIZER_IN_COND;
-	OPT (expr->l.expr);
-	OPT (expr->r.expr);
-	optimizer_state &= ~OPTIMIZER_IN_COND;
-	optimizer_state |= in_cond;
-	break;
+        int in_cond;
+        OPT (expr->v.expr);
+        in_cond = (optimizer_state & OPTIMIZER_IN_COND);
+        optimizer_state |= OPTIMIZER_IN_COND;
+        OPT (expr->l.expr);
+        OPT (expr->r.expr);
+        optimizer_state &= ~OPTIMIZER_IN_COND;
+        optimizer_state |= in_cond;
+        break;
       }
     case NODE_LOOP:
       {
-	int in_loop = (optimizer_state & OPTIMIZER_IN_LOOP);
-	optimizer_state |= OPTIMIZER_IN_LOOP;
-	OPT (expr->v.expr);
-	OPT (expr->l.expr);
-	OPT (expr->r.expr);
-	optimizer_state &= ~OPTIMIZER_IN_LOOP;
-	optimizer_state |= in_loop;
-	break;
+        int in_loop = (optimizer_state & OPTIMIZER_IN_LOOP);
+        optimizer_state |= OPTIMIZER_IN_LOOP;
+        OPT (expr->v.expr);
+        OPT (expr->l.expr);
+        OPT (expr->r.expr);
+        optimizer_state &= ~OPTIMIZER_IN_LOOP;
+        optimizer_state |= in_loop;
+        break;
       }
     case NODE_FOREACH:
       OPT (expr->l.expr);
@@ -187,14 +188,14 @@ optimize (parse_node_t * expr)
     case NODE_SWITCH_DIRECT:
     case NODE_SWITCH_RANGES:
       {
-	int in_cond;
-	OPT (expr->l.expr);
-	in_cond = (optimizer_state & OPTIMIZER_IN_COND);
-	optimizer_state |= OPTIMIZER_IN_COND;
-	OPT (expr->r.expr);
-	optimizer_state &= ~OPTIMIZER_IN_COND;
-	optimizer_state |= in_cond;
-	break;
+        int in_cond;
+        OPT (expr->l.expr);
+        in_cond = (optimizer_state & OPTIMIZER_IN_COND);
+        optimizer_state |= OPTIMIZER_IN_COND;
+        OPT (expr->r.expr);
+        optimizer_state &= ~OPTIMIZER_IN_COND;
+        optimizer_state |= in_cond;
+        break;
       }
     case NODE_CATCH:
       OPT (expr->r.expr);
@@ -217,7 +218,7 @@ optimize (parse_node_t * expr)
        * use(local); return (: ... $(local) ... :); // construction time
        */
       if (expr->r.expr)
-	optimize_expr_list (expr->r.expr);	/* arguments */
+        optimize_expr_list (expr->r.expr);	/* arguments */
       break;
     case NODE_ANON_FUNC:
       break;
@@ -259,11 +260,11 @@ lpc_tree (parse_node_t * dest, int num)
       dest->r.expr->kind = num--;
       pn = dest->r.expr;
       while (num--)
-	{
-	  pn->r.expr = new_node_no_line ();
-	  pn->type = 0;
-	  pn = pn->r.expr;
-	}
+        {
+          pn->r.expr = new_node_no_line ();
+          pn->type = 0;
+          pn = pn->r.expr;
+        }
       pn->type = 0;
       pn->r.expr = 0;
       dest->r.expr->l.expr = pn;
@@ -498,12 +499,12 @@ optimizer_start_function (int n)
   if (n)
     {
       last_local_refs =
-	CALLOCATE (n, parse_node_t *, TAG_COMPILER, "c_start_function");
+        CALLOCATE (n, parse_node_t *, TAG_COMPILER, "c_start_function");
       optimizer_num_locals = n;
       while (n--)
-	{
-	  last_local_refs[n] = 0;
-	}
+        {
+          last_local_refs[n] = 0;
+        }
     }
   else
     last_local_refs = 0;
@@ -516,10 +517,10 @@ optimizer_end_function (void)
   if (last_local_refs)
     {
       for (i = 0; i < optimizer_num_locals; i++)
-	if (last_local_refs[i])
-	  {
-	    last_local_refs[i]->v.number = F_TRANSFER_LOCAL;
-	  }
+        if (last_local_refs[i])
+          {
+            last_local_refs[i]->v.number = F_TRANSFER_LOCAL;
+          }
       FREE (last_local_refs);
       last_local_refs = 0;
     }
@@ -560,9 +561,9 @@ generate_conditional_branch (parse_node_t * node)
   if (IS_NODE (node, NODE_BINARY_OP, F_NE))
     {
       if (IS_NODE (node->r.expr, NODE_NUMBER, 0))
-	node = node->l.expr;
+        node = node->l.expr;
       else if (IS_NODE (node->l.expr, NODE_NUMBER, 0))
-	node = node->r.expr;
+        node = node->r.expr;
     }
   if (IS_NODE (node, NODE_UNARY_OP, F_NOT))
     {
@@ -573,27 +574,27 @@ generate_conditional_branch (parse_node_t * node)
     {
       branch = F_BBRANCH_WHEN_NON_ZERO;
       if (node->kind == NODE_NUMBER)
-	{
-	  if (node->v.number == 0)
-	    branch = 0;
-	  else
-	    branch = F_BBRANCH;
-	  node = 0;
-	}
+        {
+          if (node->v.number == 0)
+            branch = 0;
+          else
+            branch = F_BBRANCH;
+          node = 0;
+        }
       if (node)
-	{
-	  if (IS_NODE (node, NODE_BINARY_OP, F_LT))
-	    {
-	      generate (node->l.expr);
-	      generate (node->r.expr);
-	      return F_BBRANCH_LT;
-	    }
-	  if (IS_NODE (node, NODE_OPCODE_1, F_WHILE_DEC))
-	    {
-	      generate (node);
-	      return F_WHILE_DEC;
-	    }
-	}
+        {
+          if (IS_NODE (node, NODE_BINARY_OP, F_LT))
+            {
+              generate (node->l.expr);
+              generate (node->r.expr);
+              return F_BBRANCH_LT;
+            }
+          if (IS_NODE (node, NODE_OPCODE_1, F_WHILE_DEC))
+            {
+              generate (node);
+              return F_WHILE_DEC;
+            }
+        }
     }
   generate (node);
   return branch;
@@ -652,14 +653,14 @@ dump_tree (parse_node_t * expr)
       break;
     case NODE_TERNARY_OP_1:
       {
-	int p = expr->type;
-	printf ("(%s ", instrs[expr->r.expr->v.number].name);
-	dump_tree (expr->l.expr);
-	expr = expr->r.expr;
-	dump_tree (expr->l.expr);
-	dump_tree (expr->r.expr);
-	printf (" %i)", p);
-	break;
+        int p = expr->type;
+        printf ("(%s ", instrs[expr->r.expr->v.number].name);
+        dump_tree (expr->l.expr);
+        expr = expr->r.expr;
+        dump_tree (expr->l.expr);
+        dump_tree (expr->r.expr);
+        printf (" %i)", p);
+        break;
       }
     case NODE_BINARY_OP_1:
       printf ("(%s ", instrs[expr->v.number].name);
@@ -677,19 +678,19 @@ dump_tree (parse_node_t * expr)
       break;
     case NODE_OPCODE_2:
       printf ("(%s %i %i)", instrs[expr->v.number].name, expr->l.number,
-	      expr->r.number);
+              expr->r.number);
       break;
     case NODE_RETURN:
       if (expr->r.expr)
-	{
-	  printf ("(return ");
-	  dump_tree (expr->r.expr);
-	  printf (")");
-	}
+        {
+          printf ("(return ");
+          dump_tree (expr->r.expr);
+          printf (")");
+        }
       else
-	{
-	  printf ("(return_zero)");
-	}
+        {
+          printf ("(return_zero)");
+        }
       break;
     case NODE_STRING:
       printf ("(string %i)", expr->v.number);
@@ -702,9 +703,9 @@ dump_tree (parse_node_t * expr)
       break;
     case NODE_LAND_LOR:
       if (expr->v.number == F_LAND)
-	printf ("(&& ");
+        printf ("(&& ");
       else
-	printf ("(|| ");
+        printf ("(|| ");
       dump_tree (expr->l.expr);
       dump_tree (expr->r.expr);
       printf (")");
@@ -717,14 +718,14 @@ dump_tree (parse_node_t * expr)
       break;
     case NODE_CALL_2:
       printf ("(%s %i %i %i ", instrs[expr->v.number].name,
-	      expr->l.number >> 16, expr->l.number & 0xffff,
-	      (expr->r.expr ? expr->r.expr->kind : 0));
+              expr->l.number >> 16, expr->l.number & 0xffff,
+              (expr->r.expr ? expr->r.expr->kind : 0));
       dump_expr_list (expr->r.expr);
       printf (")");
       break;
     case NODE_CALL_1:
       printf ("(%s %i %i ", instrs[expr->v.number].name, expr->l.number,
-	      (expr->r.expr ? expr->r.expr->kind : 0));
+              (expr->r.expr ? expr->r.expr->kind : 0));
       dump_expr_list (expr->r.expr);
       printf (")");
       break;
@@ -740,21 +741,21 @@ dump_tree (parse_node_t * expr)
       break;
     case NODE_CONTROL_JUMP:
       if (expr->v.number == CJ_BREAK_SWITCH)
-	{
-	  printf ("(break_switch)");
-	}
+        {
+          printf ("(break_switch)");
+        }
       else if (expr->v.number == CJ_BREAK)
-	{
-	  printf ("(break)");
-	}
+        {
+          printf ("(break)");
+        }
       else if (expr->v.number == CJ_CONTINUE)
-	{
-	  printf ("(continue)");
-	}
+        {
+          printf ("(continue)");
+        }
       else
-	{
-	  printf ("(UNKNOWN CONTROL JUMP)");
-	}
+        {
+          printf ("(UNKNOWN CONTROL JUMP)");
+        }
       break;
     case NODE_PARAMETER:
       printf ("(parameter %i)", expr->v.number);
@@ -768,10 +769,10 @@ dump_tree (parse_node_t * expr)
       printf ("\n");
       dump_tree (expr->l.expr);
       if (expr->r.expr)
-	{
-	  printf ("\n");
-	  dump_tree (expr->r.expr);
-	}
+        {
+          printf ("\n");
+          dump_tree (expr->r.expr);
+        }
       printf (")\n");
       break;
     case NODE_LOOP:
@@ -820,33 +821,33 @@ dump_tree (parse_node_t * expr)
     case NODE_FUNCTION_CONSTRUCTOR:
       printf ("(function %i ", expr->v.number & 0xff);
       if (expr->r.expr)
-	{
-	  printf ("(array ");
-	  dump_expr_list (expr->r.expr);
-	  printf (")");
-	}
+        {
+          printf ("(array ");
+          dump_expr_list (expr->r.expr);
+          printf (")");
+        }
       else
-	{
-	  printf ("(number 0)");
-	}
+        {
+          printf ("(number 0)");
+        }
       switch (expr->v.number & 0xff)
-	{
-	case FP_SIMUL:
-	  printf ("(fp-simul %i)", expr->v.number >> 8);
-	  break;
-	case FP_LOCAL:
-	  printf ("(fp-local %i)", expr->v.number >> 8);
-	  break;
-	case FP_EFUN:
-	  printf ("(fp-efun %s)", instrs[expr->v.number >> 8].name);
-	  break;
-	case FP_FUNCTIONAL:
-	case FP_FUNCTIONAL | FP_NOT_BINDABLE:
-	  printf ("(fp-functional %i ", expr->v.number >> 8);
-	  dump_tree (expr->l.expr);
-	  printf (")");
-	  break;
-	}
+        {
+        case FP_SIMUL:
+          printf ("(fp-simul %i)", expr->v.number >> 8);
+          break;
+        case FP_LOCAL:
+          printf ("(fp-local %i)", expr->v.number >> 8);
+          break;
+        case FP_EFUN:
+          printf ("(fp-efun %s)", instrs[expr->v.number >> 8].name);
+          break;
+        case FP_FUNCTIONAL:
+        case FP_FUNCTIONAL | FP_NOT_BINDABLE:
+          printf ("(fp-functional %i ", expr->v.number >> 8);
+          dump_tree (expr->l.expr);
+          printf (")");
+          break;
+        }
       printf (" %i)", expr->v.number >> 8);
       break;
     case NODE_ANON_FUNC:

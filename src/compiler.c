@@ -5,16 +5,12 @@
 #include "std.h"
 #include "rc.h"
 #include "compiler.h"
-#include "lex.h"
-#include "generate.h"
+#include "lpc/program/generate.h"
 #include "scratchpad.h"
 #include "qsort.h"
-#include "lpc/program/binaries.h"
-
-#include "interpret.h"
 #include "lpc/object.h"
 #include "lpc/functional.h"
-
+#include "lpc/program/binaries.h"
 #include "lpc/include/runtime_config.h"
 #include "efuns/file_utils.h"
 
