@@ -18,7 +18,6 @@
 #include "lpc/include/function.h"
 #include "lpc/include/origin.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 #include "src/simul_efun.h"
 
 #include "operator.h"

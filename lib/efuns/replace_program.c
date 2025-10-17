@@ -8,7 +8,6 @@
 #include "lpc/program.h"
 #include "lpc/array.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 #include "src/simul_efun.h"
 #include "replace_program.h"
 

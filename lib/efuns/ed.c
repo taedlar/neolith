@@ -54,7 +54,6 @@
 #include "lpc/object.h"
 #include "lpc/include/origin.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 #include "src/comm.h"
 #include "file_utils.h"
 #include "ed.h"

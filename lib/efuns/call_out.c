@@ -6,7 +6,6 @@
 #include "src/comm.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
-#include "src/simulate.h"
 #include "lpc/include/origin.h"
 
 #include "operator.h"

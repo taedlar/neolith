@@ -22,7 +22,6 @@
 #include "lpc/buffer.h"
 #include "lpc/object.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 #include "lpc/include/runtime_config.h"
 #include "lpc/include/origin.h"
 #include "src/rc.h"

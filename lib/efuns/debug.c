@@ -2,13 +2,11 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "efuns_opcode.h"
 #include "src/std.h"
 #include "src/comm.h"
 #include "file_utils.h"
 #include "src/interpret.h"
 #include "lpc/otable.h"
-#include "src/simulate.h"
 #include "src/rc.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"

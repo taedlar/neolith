@@ -9,7 +9,6 @@
 #include "simul_efun.h"
 #include "generate.h"
 #include "rc.h"
-#include "simulate.h"
 #include "interpret.h"
 #include "lpc/object.h"
 

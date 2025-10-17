@@ -18,7 +18,6 @@
 #include "std.h"
 #include "rc.h"
 #include "lpc/object.h"
-#include "simulate.h"
 #include "simul_efun.h"
 #include "binaries.h"
 #include "lpc/otable.h"

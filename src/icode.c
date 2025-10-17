@@ -8,7 +8,6 @@
 #include "std.h"
 #include "lpc/include/function.h"
 #include "interpret.h"
-#include "simulate.h"
 #include "icode.h"
 #include "trees.h"
 #include "compiler.h"

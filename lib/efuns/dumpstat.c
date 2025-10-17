@@ -11,7 +11,6 @@
 #include "lpc/program.h"
 #include "lpc/include/function.h"
 #include "src/interpret.h"
-#include "src/simulate.h"
 #include "src/comm.h"
 #include "file_utils.h"
 

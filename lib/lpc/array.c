@@ -4,7 +4,6 @@
 
 #include "src/std.h"
 #include "src/rc.h"
-#include "src/simulate.h"
 #include "src/interpret.h"
 #include "src/comm.h"
 #include "src/regexp.h"

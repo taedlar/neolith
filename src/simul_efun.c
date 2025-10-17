@@ -13,7 +13,6 @@
 #include "std.h"
 #include "lex.h"
 #include "simul_efun.h"
-#include "simulate.h"
 #include "interpret.h"
 #include "lpc/object.h"
 

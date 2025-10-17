@@ -7,7 +7,6 @@
 #include "lpc/buffer.h"
 #include "comm.h"
 #include "rc.h"
-#include "simulate.h"
 #include "simul_efun.h"
 #include "interpret.h"
 #include "socket/socket_efuns.h"

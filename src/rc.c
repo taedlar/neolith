@@ -14,7 +14,6 @@
 
 #include "std.h"
 #include "rc.h"
-#include "simulate.h"
 
 #include <sys/stat.h>
 
