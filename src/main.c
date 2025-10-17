@@ -220,21 +220,17 @@ parse_command_line (int argc, char *argv[])
 {
 #ifdef	HAVE_ARGP_H
   struct argp_option options[] = {
-    {NULL, 'f', _("config-file"), 0,
-     _("Specifies the file path of the configuration file.")},
-    {NULL, 'D', _("macro[=definition]"), 0,
-     _("Predefines global preprocessor macro for use in mudlib.")},
-    {"debug", 'd', _("debug-level"), 0,
-     _("Specifies the runtime debug level.")},
-    {"trace", 't', _("trace-flags"), 0,
-     _("Specifies an integer of trace flags to enable trace messages in debug log.")},
+    {.name = NULL, 'f', _("config-file"), 0, _("Specifies the file path of the configuration file.")},
+    {.name = NULL, 'D', _("macro[=definition]"), 0, _("Predefines global preprocessor macro for use in mudlib.")},
+    {.name = "debug", 'd', _("debug-level"), 0, _("Specifies the runtime debug level.")},
+    {.name = "trace", 't', _("trace-flags"), 0, _("Specifies an integer of trace flags to enable trace messages in debug log.")},
     {0}
   };
   struct argp parser = {
-    options,
-    parse_argument,
-    NULL,
-    _("\nA lightweight LPMud driver (MudOS fork) for easy extend.")
+    .options = options,
+    .parser = parse_argument,
+    .args_doc = NULL,
+    .doc = _("\nA lightweight LPMud driver (MudOS fork) for easy extend.")
   };
 
   argp_parse (&parser, argc, argv, 0, 0, 0);

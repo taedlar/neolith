@@ -61,10 +61,11 @@ void shout_string(char *);
 #define DUMP_WITH_LOCALVARS	0x0002
 extern char *dump_trace (int);
 extern array_t *get_svalue_trace (int);
-extern void throw_error(void);
-extern void error_handler(char *);
-extern void fatal(char *, ...);
-extern void error(char *, ...);
+
+extern void throw_error(void) NO_RETURN;
+extern void error_handler(char *) NO_RETURN;
+extern void fatal(char *, ...) NO_RETURN;
+extern void error(char *, ...) NO_RETURN;
 
 void do_shutdown (int);
 void slow_shut_down (int);

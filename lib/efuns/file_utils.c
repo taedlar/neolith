@@ -660,12 +660,12 @@ write_bytes (char *file, int start, char *str, int theLength)
   size = st.st_size;
   if (start < 0) /* negative start position means offset from end-of-file */
     start = size + start;
-  if (start < 0 || start > size)
+  if (start < 0 || start > (int)size)
     {
       fclose (fp);
       return 0;
     }
-  if ((size = fseek (fp, start, 0)) < 0)
+  if ((size = fseek (fp, start, 0)) != 0)
     {
       fclose (fp);
       return 0;
@@ -966,8 +966,8 @@ do_rename (char *fr, char *t, int flag)
   char *from, *to, tbuf[3];
   char newfrom[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
   int flen;
-  static svalue_t from_sv = { T_NUMBER };
-  static svalue_t to_sv = { T_NUMBER };
+  static svalue_t from_sv = { .type = T_NUMBER };
+  static svalue_t to_sv = { .type = T_NUMBER };
   extern svalue_t apply_ret_value;
 
   /*
@@ -1022,7 +1022,7 @@ do_rename (char *fr, char *t, int flag)
       else
         cp = from;
 
-      if (snprintf (newto, sizeof(newto), "%s/%s", to, cp) >= sizeof(newto))
+      if (snprintf (newto, sizeof(newto), "%s/%s", to, cp) >= (int)sizeof(newto))
         error("File path too long.");
 
       return do_move (from, newto, flag);
@@ -1040,8 +1040,8 @@ copy_file (char *from, char *to)
   int from_fd, to_fd;
   int num_read, num_written;
   char *write_ptr;
-  static svalue_t from_sv = { T_NUMBER };
-  static svalue_t to_sv = { T_NUMBER };
+  static svalue_t from_sv = { .type = T_NUMBER };
+  static svalue_t to_sv = { .type = T_NUMBER };
   extern svalue_t apply_ret_value;
 
   /* �ˬd�O�_���\Ū�� from */

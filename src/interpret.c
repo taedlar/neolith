@@ -90,10 +90,10 @@ static svalue_t *start_of_stack;
 svalue_t *end_of_stack;
 
 /* Used to throw an error to a catch */
-svalue_t catch_value = { T_NUMBER };
+svalue_t catch_value = { .type = T_NUMBER };
 
 /* used by routines that want to return a pointer to an svalue */
-svalue_t apply_ret_value = { T_NUMBER };
+svalue_t apply_ret_value = { .type = T_NUMBER };
 
 control_stack_t *control_stack;
 control_stack_t *csp;		/* Points to last element pushed */
@@ -472,7 +472,7 @@ pop_stack ()
 }
 
 
-svalue_t global_lvalue_byte = { T_LVALUE_BYTE };
+svalue_t global_lvalue_byte = { .type = T_LVALUE_BYTE };
 
 
 /*
@@ -620,7 +620,7 @@ static struct lvalue_range
 }
 global_lvalue_range;
 
-static svalue_t global_lvalue_range_sv = { T_LVALUE_RANGE };
+static svalue_t global_lvalue_range_sv = { .type = T_LVALUE_RANGE };
 
 static void
 push_lvalue_range (int code)
@@ -1353,7 +1353,7 @@ setup_inherited_frame (int index)
   return &current_prog->function_table[findex];
 }
 
-program_t fake_prog = { "<function>" };
+program_t fake_prog = { .name = "<function>" };
 unsigned char fake_program = F_RETURN;
 
 /*
