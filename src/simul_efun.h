@@ -1,5 +1,5 @@
 #pragma once
-#include "compiler.h"
+#include "lpc/compiler.h"
 
 typedef struct {
     compiler_function_t *func;

@@ -15,16 +15,18 @@
  */
 
 #define SUPPRESS_COMPILER_INLINES
-#include "std.h"
-#include "compiler.h"
-#include "grammar.h"
-#include "scratchpad.h"
-#include "preprocess.h"
+#include "src/std.h"
+#include "src/rc.h"
 #include "hash.h"
-#include "rc.h"
+#include "lex.h"
+#include "compiler.h"
+#include "scratchpad.h"
 #include "lpc/include/runtime_config.h"
 #include "lpc/include/function.h"
 #include "efuns/file_utils.h"
+
+#include "preprocess.h"
+#include "grammar.h"
 
 #define SKIPWHITE while (isspace(*p) && (*p != '\n')) p++
 

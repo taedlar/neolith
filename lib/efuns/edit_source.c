@@ -21,8 +21,8 @@
 #define NO_MALLOC
 #define NO_SOCKETS
 #define NO_OPCODES
-#include "src/lex.h"
-#include "src/preprocess.h"
+#include "lpc/lex.h"
+#include "lpc/preprocess.h"
 #include "edit_source.h"
 #include "port/wrapper.h"
 
@@ -642,7 +642,7 @@ skip_to (char *token, char *atoken)
     }
 }
 
-#include "src/preprocess.c"
+#include "lpc/preprocess.c"
 
 static void
 open_input_file (const char *filename)

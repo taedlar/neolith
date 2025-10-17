@@ -1,6 +1,6 @@
 #pragma once
 #include <stdio.h>
-#include "src/compiler.h"
+#include "lpc/compiler.h"
 
 FILE *crdir_fopen(char *);
 void init_binaries();

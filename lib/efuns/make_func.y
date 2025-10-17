@@ -10,8 +10,8 @@
 
 #define EDIT_SOURCE
 #define NO_OPCODES
-#include "src/lex.h"
-#include "src/preprocess.h"
+#include "lpc/lex.h"
+#include "lpc/preprocess.h"
 
 #include "edit_source.h"
 

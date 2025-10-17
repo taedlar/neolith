@@ -9,7 +9,7 @@
 #include "lpc/include/function.h"
 #include "icode.h"
 #include "generate.h"
-#include "src/compiler.h"
+#include "lpc/compiler.h"
 
 static void ins_real (double);
 static void ins_short (short);

@@ -1,9 +1,15 @@
 # lib/lpc/CMakeLists.txt
 
+BISON_TARGET(grammar grammar.y ${CMAKE_CURRENT_BINARY_DIR}/grammar.c
+    COMPILE_FLAGS --defines=${CMAKE_CURRENT_BINARY_DIR}/grammar.h
+)
+
 set(lpc_SOURCES
     array.c
     buffer.c
     class.c
+    compiler.c
+    lex.c
     mapping.c
     object.c
     operator.c
@@ -15,7 +21,7 @@ set(lpc_SOURCES
     program/icode.c
     program/parse_trees.c
 )
-add_library(lpc STATIC ${lpc_SOURCES})
+add_library(lpc STATIC ${lpc_SOURCES} ${BISON_grammar_OUTPUTS})
 target_sources(lpc INTERFACE
     FILE_SET HEADERS
     BASE_DIRS ..
@@ -23,6 +29,7 @@ target_sources(lpc INTERFACE
 )
 target_include_directories(lpc PRIVATE
     ${CMAKE_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 target_link_libraries(lpc PUBLIC
     logger
