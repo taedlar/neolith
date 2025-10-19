@@ -1,5 +1,5 @@
-#ifndef LPC_RUNTIME_CONFIG_H
-#define LPC_RUNTIME_CONFIG_H
+#ifndef RUNTIME_CONFIG_H
+#define RUNTIME_CONFIG_H
 
 #define BASE_CONFIG_STR			0
 #define CFG_STR(x)			((x) + BASE_CONFIG_STR)

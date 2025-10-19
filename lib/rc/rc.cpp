@@ -12,27 +12,33 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "std.h"
 #include "rc.h"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
 
-/* global declarations */
+#include "port/wrapper.h"
+#include "port/debug.h"
 
 char *config_str[NUM_CONFIG_STRS];
 int config_int[NUM_CONFIG_INTS];
 
-void init_config (char *config_file);
-int get_config_item (svalue_t * res, svalue_t * arg);
+port_def_t external_port[5];
 
 /* static declarations */
 
 static int fatal_config_error = 0;
 
 static char *read_config_malloc (const char *filename);
-static char *scan_config (char *config, char *name, int required, char *def);
-static int scan_config_i (char *config, char *name, int required, int def);
-static int scan_config_b (char *config, char *name, int required, int def);
+static char *scan_config (char *config, const char *name, int required, char *def);
+static int scan_config_i (char *config, const char *name, int required, int def);
+static int scan_config_b (char *config, const char *name, int required, int def);
 
 /* implementations */
 
@@ -99,7 +105,7 @@ read_config_malloc (const char *filename)
 
  */
 static char *
-scan_config (char *config, char *name, int required, char *def)
+scan_config (char *config, const char *name, int required, char *def)
 {
   int sz_name;
   char *term, *p;
@@ -147,7 +153,7 @@ scan_config (char *config, char *name, int required, char *def)
 }
 
 static int
-scan_config_i (char *config, char *name, int required, int def)
+scan_config_i (char *config, const char *name, int required, int def)
 {
   char *term;
   int n;
@@ -162,7 +168,7 @@ scan_config_i (char *config, char *name, int required, int def)
 }
 
 static int
-scan_config_b (char *config, char *name, int required, int def)
+scan_config_b (char *config, const char *name, int required, int def)
 {
   char *p;
   int result = def;
@@ -182,8 +188,7 @@ scan_config_b (char *config, char *name, int required, int def)
   return result;
 }
 
-void
-init_config (char *filename)
+extern "C" void init_config (const char *config_file)
 {
   int i;
   char *config, *p;
@@ -193,40 +198,33 @@ init_config (char *filename)
   for (i = 0; i < NUM_CONFIG_STRS; i++)
     config_str[i] = 0;
 
-  if (NULL == (config = read_config_malloc (filename)))
+  if (NULL == (config = read_config_malloc (config_file)))
     {
-      perror (filename);
+      perror (config_file);
       if (errno == ENOENT)
         fprintf (stderr, _("Use -f option to specify a config file\n"));
       exit (EXIT_FAILURE);
     }
 
   CONFIG_STR (__LOG_DIR__) = scan_config (config, "LogDir", 0, NULL);
-  CONFIG_STR (__DEBUG_LOG_FILE__) =
-    scan_config (config, "DebugLogFile", 0, NULL);
-  CONFIG_INT (__ENABLE_LOG_DATE__) =
-    scan_config_b (config, "LogWithDate", 0, 0);
+  CONFIG_STR (__DEBUG_LOG_FILE__) = scan_config (config, "DebugLogFile", 0, NULL);
+  CONFIG_INT (__ENABLE_LOG_DATE__) = scan_config_b (config, "LogWithDate", 0, 0);
 
   CONFIG_STR (__MUD_LIB_DIR__) = scan_config (config, "MudlibDir", 1, NULL);
   if (NULL == CONFIG_STR (__LOG_DIR__))
     CONFIG_STR (__LOG_DIR__) = CONFIG_STR (__MUD_LIB_DIR__);
 
   CONFIG_STR (__MUD_NAME__) = scan_config (config, "MudName", 0, NULL);
-  CONFIG_STR (__ADDR_SERVER_IP__) =
-    scan_config (config, "AddrServerIP", 0, NULL);
+  CONFIG_STR (__ADDR_SERVER_IP__) = scan_config (config, "AddrServerIP", 0, NULL);
 
-  CONFIG_STR (__GLOBAL_INCLUDE_FILE__) =
-    scan_config (config, "GlobalInclude", 0, NULL);
+  CONFIG_STR (__GLOBAL_INCLUDE_FILE__) = scan_config (config, "GlobalInclude", 0, NULL);
   CONFIG_STR (__BIN_DIR__) = NULL;
   CONFIG_STR (__INCLUDE_DIRS__) = scan_config (config, "IncludeDir", 0, NULL);
   CONFIG_STR (__SAVE_BINARIES_DIR__) = scan_config (config, "SaveBinaryDir", 0, NULL);
   CONFIG_STR (__MASTER_FILE__) = scan_config (config, "MasterFile", 1, NULL);
-  CONFIG_STR (__SIMUL_EFUN_FILE__) =
-    scan_config (config, "SimulEfunFile", 0, NULL);
-  CONFIG_STR (__DEFAULT_ERROR_MESSAGE__) =
-    scan_config (config, "DefaultErrorMsg", 0, NULL);
-  CONFIG_STR (__DEFAULT_FAIL_MESSAGE__) =
-    scan_config (config, "DefaultFailMsg", 0, NULL);
+  CONFIG_STR (__SIMUL_EFUN_FILE__) = scan_config (config, "SimulEfunFile", 0, NULL);
+  CONFIG_STR (__DEFAULT_ERROR_MESSAGE__) = scan_config (config, "DefaultErrorMsg", 0, NULL);
+  CONFIG_STR (__DEFAULT_FAIL_MESSAGE__) = scan_config (config, "DefaultFailMsg", 0, NULL);
 
   for (i = 0; i < 5 && (p = scan_config (config, "Port", 0, NULL)); i++)
     {
@@ -255,43 +253,25 @@ init_config (char *filename)
     }
   CONFIG_INT (__MUD_PORT__) = external_port[0].port;
 
-  CONFIG_INT (__ADDR_SERVER_PORT__) =
-    scan_config_i (config, "AddrServerPort", 0, 0);
-  CONFIG_INT (__TIME_TO_CLEAN_UP__) =
-    scan_config_i (config, "CleanupDuration", 0, 600);
-  CONFIG_INT (__TIME_TO_RESET__) =
-    scan_config_i (config, "ResetDuration", 0, 1800);
-  CONFIG_INT (__INHERIT_CHAIN_SIZE__) =
-    scan_config_i (config, "MaxInheritDepth", 0, 30);
-  CONFIG_INT (__MAX_EVAL_COST__) =
-    scan_config_i (config, "MaxEvaluationCost", 0, 1000000);
-  CONFIG_INT (__MAX_ARRAY_SIZE__) =
-    scan_config_i (config, "MaxArraySize", 0, 15000);
-  CONFIG_INT (__MAX_BUFFER_SIZE__) =
-    scan_config_i (config, "MaxBufferSize", 0, 4000000);
-  CONFIG_INT (__MAX_MAPPING_SIZE__) =
-    scan_config_i (config, "MaxMappingSize", 0, 15000);
-  CONFIG_INT (__MAX_STRING_LENGTH__) =
-    scan_config_i (config, "MaxStringLength", 0, 200000);
-  CONFIG_INT (__MAX_BITFIELD_BITS__) =
-    scan_config_i (config, "MaxBitFieldBits", 0, 1200);
+  CONFIG_INT (__ADDR_SERVER_PORT__) = scan_config_i (config, "AddrServerPort", 0, 0);
+  CONFIG_INT (__TIME_TO_CLEAN_UP__) = scan_config_i (config, "CleanupDuration", 0, 600);
+  CONFIG_INT (__TIME_TO_RESET__) = scan_config_i (config, "ResetDuration", 0, 1800);
+  CONFIG_INT (__INHERIT_CHAIN_SIZE__) = scan_config_i (config, "MaxInheritDepth", 0, 30);
+  CONFIG_INT (__MAX_EVAL_COST__) = scan_config_i (config, "MaxEvaluationCost", 0, 1000000);
+  CONFIG_INT (__MAX_ARRAY_SIZE__) = scan_config_i (config, "MaxArraySize", 0, 15000);
+  CONFIG_INT (__MAX_BUFFER_SIZE__) = scan_config_i (config, "MaxBufferSize", 0, 4000000);
+  CONFIG_INT (__MAX_MAPPING_SIZE__) = scan_config_i (config, "MaxMappingSize", 0, 15000);
+  CONFIG_INT (__MAX_STRING_LENGTH__) = scan_config_i (config, "MaxStringLength", 0, 200000);
+  CONFIG_INT (__MAX_BITFIELD_BITS__) = scan_config_i (config, "MaxBitFieldBits", 0, 1200);
 
-  CONFIG_INT (__MAX_BYTE_TRANSFER__) =
-    scan_config_i (config, "MaxByteTransfer", 0, 10000);
-  CONFIG_INT (__MAX_READ_FILE_SIZE__) =
-    scan_config_i (config, "MaxReadFileSize", 0, 20000);
-  CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__) =
-    scan_config_i (config, "SharedStringHashSize", 0, 20011);
-  CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__) =
-    scan_config_i (config, "ObjectHashSize", 0, 10007);
-  CONFIG_INT (__ENABLE_CRASH_DROP_CORE__) =
-    scan_config_b (config, "CrashDropCore", 0, 1);
-  CONFIG_INT (__EVALUATOR_STACK_SIZE__) =
-    scan_config_i (config, "StackSize", 0, 1000);
-  CONFIG_INT (__MAX_LOCAL_VARIABLES__) =
-    scan_config_i (config, "MaxLocalVariables", 0, 25);
-  CONFIG_INT (__MAX_CALL_DEPTH__) =
-    scan_config_i (config, "MaxCallDepth", 0, 50);
+  CONFIG_INT (__MAX_BYTE_TRANSFER__) = scan_config_i (config, "MaxByteTransfer", 0, 10000);
+  CONFIG_INT (__MAX_READ_FILE_SIZE__) = scan_config_i (config, "MaxReadFileSize", 0, 20000);
+  CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__) = scan_config_i (config, "SharedStringHashSize", 0, 20011);
+  CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__) = scan_config_i (config, "ObjectHashSize", 0, 10007);
+  CONFIG_INT (__ENABLE_CRASH_DROP_CORE__) = scan_config_b (config, "CrashDropCore", 0, 1);
+  CONFIG_INT (__EVALUATOR_STACK_SIZE__) = scan_config_i (config, "StackSize", 0, 1000);
+  CONFIG_INT (__MAX_LOCAL_VARIABLES__) = scan_config_i (config, "MaxLocalVariables", 0, 25);
+  CONFIG_INT (__MAX_CALL_DEPTH__) = scan_config_i (config, "MaxCallDepth", 0, 50);
 
   if (scan_config_b (config, "ArgumentsInTrace", 0, 0))
     g_trace_flag |= DUMP_WITH_ARGS;
@@ -311,13 +291,12 @@ init_config (char *filename)
     {
       debug_message (_("*****Failed loading config (%d error%s): %s\n"),
                      fatal_config_error, fatal_config_error > 1 ? "s":"",
-                     filename);
+                     config_file);
       exit (EXIT_FAILURE);
     }
 }
 
-int
-get_config_item (svalue_t * res, svalue_t * arg)
+extern "C" int get_config_item (svalue_t * res, svalue_t * arg)
 {
   int num;
 

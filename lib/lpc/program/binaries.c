@@ -19,7 +19,7 @@
 #include "src/std.h"
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "binaries.h"
 #include "qsort.h"
 #include "hash.h"

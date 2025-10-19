@@ -50,4 +50,4 @@ target_include_directories(efuns PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 target_include_directories(efuns PUBLIC ${CMAKE_CURRENT_BINARY_DIR})    # generated efuns tables
-target_link_libraries(efuns PUBLIC port misc logger)
+target_link_libraries(efuns PUBLIC port misc logger rc)

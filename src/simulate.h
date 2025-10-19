@@ -8,7 +8,6 @@
 /* The end of a static buffer */
 #define EndOf(x) (x + sizeof(x)/sizeof(x[0]))
 
-extern int g_trace_flag;
 extern int illegal_sentence_action;
 extern object_t *obj_list;
 extern object_t *obj_list_destruct;
@@ -57,8 +56,6 @@ void say(svalue_t *, array_t *);
 void tell_room(object_t *, svalue_t *, array_t *);
 void shout_string(char *);
 
-#define DUMP_WITH_ARGS		0x0001
-#define DUMP_WITH_LOCALVARS	0x0002
 extern char *dump_trace (int);
 extern array_t *get_svalue_trace (int);
 

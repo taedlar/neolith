@@ -29,8 +29,6 @@ const char *argp_program_bug_address = "https://github.com/taedlar/neolith";
 
 server_options_t* g_svropts = NULL;
 
-port_def_t external_port[5];
-
 int slow_shut_down_to_do = 0;
 int g_proceeding_shutdown = 0;
 

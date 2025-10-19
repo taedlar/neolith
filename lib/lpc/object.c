@@ -11,7 +11,7 @@
 #include "mapping.h"
 #include "program.h"
 #include "src/comm.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "src/simul_efun.h"
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"

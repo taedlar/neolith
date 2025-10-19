@@ -8,7 +8,7 @@
 #include "object.h"
 
 #include "lpc/include/runtime_config.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "src/interpret.h"
 
 int num_mappings = 0;

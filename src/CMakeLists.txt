@@ -6,7 +6,6 @@ set(neolith_SOURCES
     interpret.c
     main.c
     malloc.c
-    rc.c
     regexp.c
     simul_efun.c
     simulate.c
@@ -15,7 +14,7 @@ set(neolith_SOURCES
 )
 
 add_executable(neolith ${neolith_SOURCES})
-target_link_libraries(neolith PRIVATE port logger misc efuns lpc socket -lm -lcrypt)
+target_link_libraries(neolith PRIVATE port logger misc efuns lpc rc socket -lm -lcrypt)
 target_include_directories(neolith PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}

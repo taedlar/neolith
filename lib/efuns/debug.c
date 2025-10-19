@@ -7,7 +7,7 @@
 #include "file_utils.h"
 #include "src/interpret.h"
 #include "lpc/otable.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/object.h"
