@@ -34,4 +34,5 @@ target_include_directories(lpc PRIVATE
 target_link_libraries(lpc PUBLIC
     logger
     efuns
+    rc
 )

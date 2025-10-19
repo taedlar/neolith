@@ -4,7 +4,7 @@
 #endif	/* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "scratchpad.h"
 #include "src/simul_efun.h"
 #include "lpc/object.h"

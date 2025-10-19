@@ -18,7 +18,7 @@
 #include "lpc/mapping.h"
 #include "lpc/program.h"
 #include "src/interpret.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "file_utils.h"
 #include "src/comm.h"
 #include "lpc/otable.h"

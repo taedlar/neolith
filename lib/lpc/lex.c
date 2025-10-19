@@ -16,7 +16,7 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "src/std.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "hash.h"
 #include "lex.h"
 #include "compiler.h"

@@ -15,7 +15,7 @@
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "src/interpret.h"
 #include "lpc/lex.h"
 

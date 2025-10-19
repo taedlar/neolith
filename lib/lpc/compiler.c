@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "compiler.h"
 #include "scratchpad.h"
 #include "qsort.h"

@@ -24,7 +24,7 @@
 #include "src/interpret.h"
 #include "lpc/include/runtime_config.h"
 #include "lpc/include/origin.h"
-#include "src/rc.h"
+#include "rc.h"
 #include "socket_efuns.h"
 #include "socket_err.h"
 #include "socket_ctrl.h"

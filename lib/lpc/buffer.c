@@ -14,7 +14,7 @@
 #include "types.h"
 #include "buffer.h"
 #include "lpc/include/runtime_config.h"
-#include "src/rc.h"
+#include "rc.h"
 
 buffer_t null_buf = {
   .ref = 1,	/* Ref count, which will ensure that it will never be deallocated */
