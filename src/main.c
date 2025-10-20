@@ -24,24 +24,10 @@
 #include "comm.h"
 #include "main.h"
 
+#ifdef HAVE_ARGP_H
 const char *argp_program_version = PACKAGE "-" VERSION;
 const char *argp_program_bug_address = "https://github.com/taedlar/neolith";
-
-server_options_t* g_svropts = NULL;
-
-int slow_shut_down_to_do = 0;
-int g_proceeding_shutdown = 0;
-
-int t_flag = 0;			/* Disable heart beat and reset */
-int comp_flag = 0;		/* Trace compilations */
-int boot_time;
-char *reserved_area;		/* reserved for MALLOC() */
-
-svalue_t const0, const1, const0u;
-
-/* -1 indicates that we have never had a master object.  This is so the
- * simul_efun object can load before the master. */
-object_t *master_ob = 0;
+#endif /* HAVE_ARGP_H */
 
 /* prototypes */
 
@@ -289,32 +275,6 @@ void init_debug_log()
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
 }
 
-char *
-xalloc (int size)
-{
-  char *p;
-  static int going_to_exit = 0;
-
-  if (going_to_exit)
-    exit (3);
-  p = (char *) DMALLOC (size, TAG_MISC, "main.c: xalloc");
-  if (p == 0)
-    {
-      if (reserved_area)
-        {
-          FREE (reserved_area);
-          /* after freeing reserved area, we are supposed to be able to write log messages */
-          debug_message ("{}\t***** temporarily out of MEMORY. Freeing reserve.");
-          reserved_area = 0;
-          slow_shut_down_to_do = 6;
-          return xalloc (size);	/* Try again */
-        }
-      going_to_exit = 1;
-      fatal ("Totally out of MEMORY.\n");
-    }
-  return p;
-}
-
 static RETSIGTYPE
 sig_cld (int sig)
 {
@@ -324,7 +284,6 @@ sig_cld (int sig)
   while (wait3 (&status, WNOHANG, NULL) > 0);
 }
 
-
 static RETSIGTYPE
 sig_fpe (int sig)
 {
@@ -332,11 +291,10 @@ sig_fpe (int sig)
   signal (SIGFPE, sig_fpe);
 }
 
-/* send this signal when the machine is about to reboot.  The script
-   which restarts the MUD should take an exit code of 1 to mean don't
+/* send this signal when the machine is about to crash.  The script
+   which restarts the MUD should take an exit code of -1 to mean don't
    restart
  */
-
 static RETSIGTYPE
 sig_usr1 (int sig)
 {
