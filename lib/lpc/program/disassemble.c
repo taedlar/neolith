@@ -60,7 +60,7 @@ static char *pushes[] = { "string", "number", "global", "local" };
 void
 disassemble (FILE * f, char *code, int start, int end, program_t * prog)
 {
-  int i, j, instr, iarg, is_efun;
+  int i, j, instr, iarg /*, is_efun*/;
   unsigned short sarg;
   unsigned short offset;
   char *pc, buff[256];
@@ -109,9 +109,8 @@ disassemble (FILE * f, char *code, int start, int end, program_t * prog)
         }
 
       fprintf (f, "%04x: ", (unsigned) (pc - code));
-
-      is_efun = (instr = EXTRACT_UCHAR (pc)) >= BASE;
-
+      /*is_efun = (instr = EXTRACT_UCHAR (pc)) >= BASE;*/
+      instr = EXTRACT_UCHAR (pc);
       pc++;
       buff[0] = 0;
       sarg = 0;

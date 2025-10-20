@@ -125,11 +125,13 @@ free_empty_array (array_t * p)
 array_t *
 explode_string (char *str, int slen, char *del, int len)
 {
-  char *p, *beg, *end, *lastdel = (char *) NULL;
+  char *p, *beg, *end;
+#ifndef REVERSIBLE_EXPLODE_STRING
+  char *lastdel = (char *) NULL;
+#endif
   int num, j, limit;
   array_t *ret;
   char *buff, *tmp;
-  short sz;
 
   if (!slen)
     return &the_null_array;
@@ -139,7 +141,6 @@ explode_string (char *str, int slen, char *del, int len)
     {
       size_t slen_wcs = mbstowcs (NULL, str, 0);
       int mb;
-      sz = 1;
 
       if (slen_wcs == (size_t) -1)
         {
@@ -200,7 +201,9 @@ explode_string (char *str, int slen, char *del, int len)
       if (strncmp (p, del, len) == 0)
         {
           num++;
+#ifndef REVERSIBLE_EXPLODE_STRING
           lastdel = p;
+#endif
           p += len;
         }
       else
