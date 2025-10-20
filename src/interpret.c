@@ -4,24 +4,23 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
+#include "rc.h"
+#include "comm.h"
+#include "qsort.h"
+#include "regexp.h"
+#include "uids.h"
+#include "interpret.h"
+#include "simul_efun.h"
 #include "lpc/object.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
 #include "lpc/class.h"
-#include "rc.h"
-#include "simul_efun.h"
 #include "lpc/operator.h"
-#include "efuns/sprintf.h"
-#include "interpret.h"
-#include "comm.h"
-#include "qsort.h"
-#include "regexp.h"
-#include "uids.h"
 #include "lpc/include/function.h"
 #include "lpc/include/runtime_config.h"
 #include "lpc/include/origin.h"
-#include "rc.h"
+#include "efuns/sprintf.h"
 
 #include "efuns_prototype.h"
 #include "efuns_vector.h"
@@ -87,7 +86,7 @@ int variable_index_offset;	/* Needed for inheritance */
 int st_num_arg;
 
 static svalue_t *start_of_stack;
-svalue_t *end_of_stack;
+static svalue_t *end_of_stack;
 
 /* Used to throw an error to a catch */
 svalue_t catch_value = { .type = T_NUMBER };
