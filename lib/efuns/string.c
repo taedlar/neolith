@@ -95,6 +95,7 @@ f_strwrap (void)
   width = (sp--)->u.number;
 
   /* TODO: wrap the string in specified width and indent */
+  opt_trace(TT_EVAL|3, "indent=%d, width=%d: strwrap() not implemented yet.\n", indent, width);
 }
 #endif
 

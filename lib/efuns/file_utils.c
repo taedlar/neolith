@@ -1044,19 +1044,16 @@ copy_file (char *from, char *to)
   static svalue_t to_sv = { .type = T_NUMBER };
   extern svalue_t apply_ret_value;
 
-  /* �ˬd�O�_���\Ū�� from */
   from = check_valid_path (from, current_object, "cp", 0);
   if (from == 0)
     return -1;
   assign_svalue (&from_sv, &apply_ret_value);
 
-  /* �ˬd�O�_���\�g�J to */
   to = check_valid_path (to, current_object, "cp", 1);
   if (to == 0)
     return -2;
   assign_svalue (&to_sv, &apply_ret_value);
 
-  /* �}�� from */
   from_fd = open (from, O_RDONLY);
   if (from_fd < 0)
     {
@@ -1064,12 +1061,10 @@ copy_file (char *from, char *to)
       return (-1);
     }
 
-  /* �ˬd to �O�_���ؿ� */
+  char newto[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
   if (0 == stat (to, &st) && (S_IFDIR & st.st_mode))
     {
-      /* to ���ؿ��W�١A�N from �ɦW�[�b�ؿ��W�٫᭱ */
       char *cp;
-      char newto[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
 
       cp = strrchr (from, '/');
       if (cp)
@@ -1081,7 +1076,6 @@ copy_file (char *from, char *to)
       to = newto;
     }
 
-  /* �}�� to */
   to_fd = open (to, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (to_fd < 0)
     {
@@ -1090,7 +1084,6 @@ copy_file (char *from, char *to)
       return (-2);
     }
 
-  /* �ƻs�ɮ� */
   while ((num_read = read (from_fd, buf, sizeof (buf))) != 0)
     {
       if (num_read < 0)
