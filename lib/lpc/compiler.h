@@ -175,6 +175,7 @@ extern short is_type[11];
 char *get_two_types(char *, char *, int, int);
 char *get_type_name(char *, char *, int);
 void init_locals(void);
+void deinit_locals(void);
 
 void save_file_info(int, int);
 int add_program_file(char *, int);
@@ -189,7 +190,6 @@ void clean_up_locals(void);
 void deactivate_current_locals(void);
 int add_local_name(char *, int);
 void reallocate_locals(void);
-void initialize_locals(void);
 int get_id_number(void);
 program_t *compile_file(int, char *);
 void reset_function_blocks(void);

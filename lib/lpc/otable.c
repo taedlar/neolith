@@ -36,14 +36,17 @@ static object_t *find_obj_n (char *);
 
 static object_t **obj_table = 0;
 
-void
-init_otable (size_t sz)
-{
+/**
+ * @brief Initialize the object name hash table.
+ * @param sz Desired size of the hash table; will be rounded up to the next power of two.
+ */
+void init_otable (size_t sz) {
   int x;
 
   /* ensure that otable_size is a power of 2 */
   for (otable_size = 1; otable_size < (int)sz; otable_size *= 2)
     ;
+  opt_trace (TT_COMPILE|1, "Object name hash table size: %d\n", otable_size);
   otable_size_minus_one = otable_size - 1;
   obj_table = CALLOCATE (otable_size, object_t *, TAG_OBJ_TBL, "init_otable");
 
@@ -92,18 +95,15 @@ find_obj_n (char *s)
   return (0);			/* not found */
 }
 
-/*
- * Add an object to the table - can't have duplicate names.
+static int objs_in_table = 0;
+
+/**
+ * @brief Add an object to the table - can't have duplicate names.
  * 
  * Exception: Precompiled objects have a dummy entry here, but it is
  * guaranteed to be behind the real entry if a real entry exists.
  */
-
-static int objs_in_table = 0;
-
-void
-enter_object_hash (object_t * ob)
-{
+void enter_object_hash (object_t * ob) {
   if (!obj_table)
     fatal ("enter_object_hash: object table not initialized.\n");
 
@@ -114,12 +114,13 @@ enter_object_hash (object_t * ob)
   return;
 }
 
-/* for adding a precompiled entry (dynamic loading) since it is possible
+/**
+ * @brief Add an object to the end of the hash chain.
+ * 
+ * This is for adding a precompiled entry (dynamic loading) since it is possible
  * that the real object exists.
  */
-void
-enter_object_hash_at_end (object_t * ob)
-{
+void enter_object_hash_at_end (object_t * ob) {
   object_t **op;
 
   (void)find_obj_n (ob->name);	/* This sets h */
@@ -134,14 +135,11 @@ enter_object_hash_at_end (object_t * ob)
   return;
 }
 
-/*
- * Remove an object from the table - generally called when it
+/**
+ * @brief Remove an object from the table - generally called when it
  * is removed from the next_all list - i.e. in destruct.
  */
-
-void
-remove_object_hash (object_t * ob)
-{
+void remove_object_hash (object_t * ob) {
   object_t *s;
 
   s = find_obj_n (ob->name);	/* this sets h, and cycles the ob to the front */
@@ -152,7 +150,6 @@ remove_object_hash (object_t * ob)
   obj_table[h] = ob->next_hash;
   ob->next_hash = 0;
   objs_in_table--;
-  return;
 }
 
 /*

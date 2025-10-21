@@ -4808,11 +4808,12 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
   return number_of_matches;
 }
 
-/*
- * Reset the virtual stack machine.
+/**
+ * @brief Reset the virtual stack machine.
+ * 
+ * All values on the stack are removed, and the stack pointers
  */
-void reset_machine (void)
-{
+void reset_machine (void) {
   static int _init = 0;
 
   const0.type = T_NUMBER;
@@ -4833,8 +4834,7 @@ void reset_machine (void)
       end_of_stack = start_of_stack + size - 5;
       sp = start_of_stack - 1;
 
-      control_stack =
-        (control_stack_t *) calloc (CONFIG_INT (__MAX_CALL_DEPTH__), sizeof (control_stack_t));
+      control_stack = (control_stack_t *) calloc (CONFIG_INT (__MAX_CALL_DEPTH__), sizeof (control_stack_t));
       csp = control_stack - 1;
 
       if (!start_of_stack || !control_stack)
