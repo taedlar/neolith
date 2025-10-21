@@ -25,7 +25,6 @@
 #include "efuns_prototype.h"
 #include "efuns_vector.h"
 
-
 static char *type_names[] = {
   "int",
   "string",
@@ -97,6 +96,11 @@ svalue_t apply_ret_value = { .type = T_NUMBER };
 control_stack_t *control_stack;
 control_stack_t *csp;		/* Points to last element pushed */
 
+svalue_t const0, const1, const0u;
+
+/* -1 indicates that we have never had a master object.  This is so the
+ * simul_efun object can load before the master. */
+object_t *master_ob = 0;
 
 static int error_state = 0;
 
@@ -1352,7 +1356,7 @@ setup_inherited_frame (int index)
   return &current_prog->function_table[findex];
 }
 
-program_t fake_prog = { .name = "<function>" };
+program_t fake_prog = { .name = "<function>", .program_size = 0 };
 unsigned char fake_program = F_RETURN;
 
 /*
@@ -4807,10 +4811,17 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
 /*
  * Reset the virtual stack machine.
  */
-void
-reset_machine (void)
+void reset_machine (void)
 {
   static int _init = 0;
+
+  const0.type = T_NUMBER;
+  const0.u.number = 0;
+  const1.type = T_NUMBER;
+  const1.u.number = 1;
+  const0u.type = T_NUMBER;
+  const0u.subtype = T_UNDEFINED;
+  const0u.u.number = 0;
 
   csp = control_stack - 1;
 
@@ -4823,8 +4834,7 @@ reset_machine (void)
       sp = start_of_stack - 1;
 
       control_stack =
-        (control_stack_t *) calloc (CONFIG_INT (__MAX_CALL_DEPTH__),
-                                    sizeof (control_stack_t));
+        (control_stack_t *) calloc (CONFIG_INT (__MAX_CALL_DEPTH__), sizeof (control_stack_t));
       csp = control_stack - 1;
 
       if (!start_of_stack || !control_stack)

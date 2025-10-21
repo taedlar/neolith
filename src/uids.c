@@ -18,7 +18,6 @@
 #include "lpc/object.h"
 #include "lpc/operator.h"
 #include "interpret.h"
-#include "main.h"
 #include "uids.h"
 
 static object_t *ob;
