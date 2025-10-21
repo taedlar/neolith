@@ -289,7 +289,9 @@ void do_trace(char *, char *, char *);
 void opcdump(char *);
 int inter_sscanf(svalue_t *, svalue_t *, svalue_t *, int);
 
+extern int get_machine_state();
 extern void reset_machine (void);
+
 void unlink_string_svalue(svalue_t *);
 void copy_lvalue_range(svalue_t *);
 void assign_lvalue_range(svalue_t *);

@@ -8,6 +8,8 @@ extern "C" {
     #include "std.h"
     #include "rc.h"
     #include "src/simul_efun.h"
+    #include "lpc/object.h"
+    #include "lpc/otable.h"
 }
 
 using namespace testing;
@@ -22,11 +24,13 @@ private:
 
 protected:
     void SetUp() override {
-        init_config("m3.conf");
+        setlocale(LC_ALL, "C.UTF-8"); // force UTF-8 locale for consistent string handling
+        init_stem(3, 0177, "m3.conf"); // use highest debug level and enable all trace logs
+        init_config(SERVER_OPTION(config_file));
         ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
 
         namespace fs = std::filesystem;
-        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
+        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relattive to current dir
         if (mudlib_path.is_relative()) {
             mudlib_path = fs::current_path() / mudlib_path;
         }
@@ -34,17 +38,17 @@ protected:
         previous_cwd = fs::current_path();
         fs::current_path(mudlib_path); // change working directory to mudlib
 
-        // init_strings ();
-        // init_objects ();
-        // init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));
-        // init_identifiers ();
-        // init_locals ();
-        // set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
+        init_strings (); // LPC compiler needs this since prolog()
+        init_objects ();
+        init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));
+        init_identifiers ();
+        init_locals ();
+        set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
         // init_precomputed_tables ();
-        // init_num_args ();
-        // reset_machine ();
+        init_num_args ();
+        reset_machine ();
         // init_binaries ();
-        // add_predefines ();
+        add_predefines ();
 
         eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
         error_context_t econ;
@@ -75,6 +79,22 @@ TEST_F(LPCCompilerTest, loadSimulEfun)
     }
     else {
         init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
+    }
+    pop_context (&econ);
+}
+
+TEST_F(LPCCompilerTest, loadMaster)
+{
+    std::cerr << "CTEST_FULL_OUTPUT\n"; // to force showing output even if test passes
+
+    eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        FAIL() << "Failed to load master object.";
+    }
+    else {
+        init_master (CONFIG_STR (__MASTER_FILE__));
     }
     pop_context (&econ);
 }

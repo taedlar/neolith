@@ -361,7 +361,7 @@ load_object (char *lname)
   object_t *ob, *save_command_giver = command_giver;
   svalue_t *mret;
   struct stat c_st;
-  char real_name[200], name[200];
+  char real_name[PATH_MAX], name[PATH_MAX];
 
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
     error (_("*Inherit chain too deep: > %d when trying to load '%s'."), CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
@@ -375,10 +375,11 @@ load_object (char *lname)
   /*
    * First check that the c-file exists.
    */
-  (void) strcpy (real_name, name);
-  (void) strcat (real_name, ".c");
+  memset (real_name, 0, sizeof real_name);
+  (void) strncpy (real_name, name, sizeof(real_name) - 1);
+  (void) strncat (real_name, ".c", sizeof(real_name) - strlen(real_name) - 1);
 
-
+  opt_trace(TT_COMPILE|1, "load_object: \"%s\"", real_name);
   if (stat (real_name, &c_st) == -1)
     {
       svalue_t *v;
@@ -410,9 +411,12 @@ load_object (char *lname)
       error (_("*Illegal path name '/%s'."), real_name);
       return 0;
     }
+  opt_trace (TT_COMPILE|2, "legal_path passed: \"%s\"", real_name);
 
   if (!(prog = load_binary (real_name, lpc_obj)) && !inherit_file)
     {
+      opt_trace (TT_COMPILE|2, "no binary found, compiling: \"%s\"", real_name);
+
       /* maybe move this section into compile_file? */
       f = open (real_name, O_RDONLY);
       if (f == -1)
@@ -497,7 +501,7 @@ load_object (char *lname)
       return ob;
     }
 
-  opt_trace (TT_COMPILE, "creating: /%s", real_name);
+  opt_trace (TT_COMPILE|2, "creating object: \"%s\"", name);
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
   ob->name = alloc_cstring (name, "load_object");
@@ -505,17 +509,25 @@ load_object (char *lname)
   ob->flags |= O_WILL_RESET;	/* must be before reset is first called */
   ob->next_all = obj_list;
   obj_list = ob;
-  enter_object_hash (ob);	/* add name to fast object lookup table */
-  push_object (ob);
-  mret = apply_master_ob (APPLY_VALID_OBJECT, 1);
-  if (mret && !MASTER_APPROVED (mret))
-    {
-      destruct_object (ob);
-      error (_("*master::%s() denied permission to load '/%s'."), APPLY_VALID_OBJECT, name);
-    }
 
-  if (init_object (ob))
-    call_create (ob, 0);
+  opt_trace (TT_COMPILE, "adding to otable: \"%s\"", real_name);
+  enter_object_hash (ob);	/* add name to fast object lookup table */
+
+  if (get_machine_state() >= 0) {
+    opt_trace (TT_COMPILE, "calling master apply: valid_object() for: \"%s\"", name);
+    push_object (ob);
+    mret = apply_master_ob (APPLY_VALID_OBJECT, 1);
+    if (mret && !MASTER_APPROVED (mret))
+      {
+        destruct_object (ob);
+        error (_("*master::%s() denied permission to load '/%s'."), APPLY_VALID_OBJECT, name);
+      }
+
+    if (init_object (ob)) {
+      opt_trace (TT_COMPILE, "calling object create(): \"%s\"", name);
+      call_create (ob, 0);
+    }
+  }
   if (!(ob->flags & O_DESTRUCTED) && function_exists (APPLY_CLEAN_UP, ob, 1))
     {
       ob->flags |= O_WILL_CLEAN_UP;
@@ -815,6 +827,7 @@ init_master (char *file)
       fprintf (stderr, "No master object specified in config file\n");
       exit (-1);
     }
+  opt_info(1, "Loading master object: %s\n", file);
 
   if (!strip_name (file, buf, sizeof buf))
     error (_("*Illegal master file name '%s'"), file);

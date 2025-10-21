@@ -42,3 +42,10 @@ extern char *xalloc(size_t);
 #include "applies.h"
 #include "backend.h"
 #include "simulate.h"
+
+/* stem initialization */
+extern int init_stem(
+    int debug_level,
+    unsigned long trace_flags,
+    const char* config_file
+);
