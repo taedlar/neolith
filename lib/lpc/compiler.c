@@ -72,13 +72,13 @@ static short string_idx[0x100];
 unsigned char string_tags[0x20];
 short freed_string;
 
-unsigned short *type_of_locals;
-ident_hash_elem_t **locals;
-char *runtime_locals;
+unsigned short *type_of_locals = 0;
+ident_hash_elem_t **locals = 0;
+char *runtime_locals = 0;
 
-unsigned short *type_of_locals_ptr;
-ident_hash_elem_t **locals_ptr;
-char *runtime_locals_ptr;
+unsigned short *type_of_locals_ptr = 0;
+ident_hash_elem_t **locals_ptr = 0;
+char *runtime_locals_ptr = 0;
 
 int locals_size = 0;
 int type_of_locals_size = 0;
@@ -98,22 +98,38 @@ get_two_types (char *where, char *end, int type1, int type2)
   return where;
 }
 
-void
-init_locals ()
-{
-  type_of_locals =
-    CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), unsigned short,
-               TAG_LOCALS, "init_locals:1");
-  locals =
-    CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), ident_hash_elem_t *,
-               TAG_LOCALS, "init_locals:2");
-  runtime_locals =
-    CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), char, TAG_LOCALS,
-               "init_locals:3");
+/**
+ * @brief Initialize local variable management structures.
+ */
+void init_locals () {
+  type_of_locals = CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), unsigned short, TAG_LOCALS, "init_locals:1");
+  locals = CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), ident_hash_elem_t *, TAG_LOCALS, "init_locals:2");
+  runtime_locals = CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), char, TAG_LOCALS, "init_locals:3");
   type_of_locals_ptr = type_of_locals;
   locals_ptr = locals;
   runtime_locals_ptr = runtime_locals;
+
   locals_size = type_of_locals_size = CONFIG_INT (__MAX_LOCAL_VARIABLES__);
+  current_number_of_locals = max_num_locals = 0;
+}
+
+/**
+ * @brief Deinitialize local variable management structures.
+ */
+void deinit_locals() {
+  if (type_of_locals) {
+    FREE(type_of_locals);
+    type_of_locals_ptr = type_of_locals = NULL;
+  }
+  if (locals) {
+    FREE(locals);
+    locals_ptr = locals = NULL;
+  }
+  if (runtime_locals) {
+    FREE(runtime_locals);
+    runtime_locals_ptr = runtime_locals = NULL;
+  }
+  locals_size = type_of_locals_size = 0;
   current_number_of_locals = max_num_locals = 0;
 }
 

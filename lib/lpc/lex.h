@@ -110,7 +110,7 @@ extern lpc_predef_t *lpc_predefs;
 
 typedef struct {
     short max_arg, min_arg;  /* Can't use char to represent -1 */
-    short type[4];	     /* need a short to hold the biggest type flag */
+    short type[4];	         /* need a short to hold the biggest type flag */
     short Default;
     short ret_type;
     char *name;
@@ -135,20 +135,22 @@ extern int num_parse_error;
 extern lpc_predef_t *lpc_predefs;
 extern int efun_arg_types[];
 extern char yytext[1024];
-extern instr_t instrs[];
 extern keyword_t predefs[];
 
 void push_function_context(void);
 void pop_function_context(void);
 int yylex(void);
 void init_num_args(void);
+void deinit_num_args(void);
 char *query_instr_name(int);
 char *get_f_name(int);
-void set_inc_list(char *);
+void set_inc_list(const char *);
+void reset_inc_list(void);
 void start_new_file(int);
 void end_new_file(void);
 int lookup_predef(char *);
 void add_predefines(void);
+void free_defines (int include_predefs);
 char *main_file_name(void);
 char *get_defined_name(defined_name_t *);
 ident_hash_elem_t *find_or_add_ident(char *, int);
@@ -156,4 +158,5 @@ ident_hash_elem_t *find_or_add_perm_ident(char *);
 ident_hash_elem_t *lookup_ident(char *);
 void free_unused_identifiers(void);
 void init_identifiers(void);
+void deinit_identifiers(void);
 char *show_error_context(void);

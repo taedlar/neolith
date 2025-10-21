@@ -243,10 +243,15 @@ load_virtual_object (char *name)
   return v;
 }
 
-
-void
-set_master (object_t * ob)
-{
+/**
+ * @brief Set the master object.
+ * 
+ * This function sets the master object for the MUD driver.
+ * It also retrieves and assigns the root and backbone user IDs
+ * 
+ * @param ob The new master object.
+ */
+void set_master (object_t * ob) {
   int first_load = (!master_ob);
   svalue_t *ret;
   char *root_uid = NULL;

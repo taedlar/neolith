@@ -190,7 +190,6 @@ static linked_buf_t head_lbuf = { .prev = NULL, TERM_START };
 static linked_buf_t *cur_lbuf;
 
 static void handle_define (char *);
-static void free_defines (void);
 static void add_define (char *, int, char *);
 static void add_predefine (char *, int, char *);
 static int expand_define (void);
@@ -2395,7 +2394,7 @@ end_new_file ()
     }
   if (defines_need_freed)
     {
-      free_defines ();
+      free_defines (0);
       defines_need_freed = 0;
     }
   if (cur_lbuf != &head_lbuf)
@@ -2455,7 +2454,7 @@ start_new_file (int f)
 {
   if (defines_need_freed)
     {
-      free_defines ();
+      free_defines (0);
     }
   defines_need_freed = 1;
   if (current_file)
@@ -2576,63 +2575,40 @@ init_num_args ()
   add_instr_name ("&=", "f_and_eq();\n", F_AND_EQ, T_NUMBER);
   add_instr_name ("index", "c_index();\n", F_INDEX, T_ANY);
   add_instr_name ("member", "c_member(%i);\n", F_MEMBER, T_ANY);
-  add_instr_name ("new_empty_class", "c_new_class(%i, 0);\n",
-                  F_NEW_EMPTY_CLASS, T_ANY);
+  add_instr_name ("new_empty_class", "c_new_class(%i, 0);\n", F_NEW_EMPTY_CLASS, T_ANY);
   add_instr_name ("new_class", "c_new_class(%i, 1);\n", F_NEW_CLASS, T_ANY);
   add_instr_name ("rindex", "c_rindex();\n", F_RINDEX, T_ANY);
-  add_instr_name ("loop_cond_local", "C_LOOP_COND_LV(%i, %i); if (lpc_int)\n",
-                  F_LOOP_COND_LOCAL, -1);
-  add_instr_name ("loop_cond_number",
-                  "C_LOOP_COND_NUM(%i, %i); if (lpc_int)\n",
-                  F_LOOP_COND_NUMBER, -1);
+  add_instr_name ("loop_cond_local", "C_LOOP_COND_LV(%i, %i); if (lpc_int)\n", F_LOOP_COND_LOCAL, -1);
+  add_instr_name ("loop_cond_number", "C_LOOP_COND_NUM(%i, %i); if (lpc_int)\n", F_LOOP_COND_NUMBER, -1);
   add_instr_name ("loop_incr", "C_LOOP_INCR(%i);\n", F_LOOP_INCR, -1);
   add_instr_name ("foreach", 0, F_FOREACH, -1);
   add_instr_name ("exit_foreach", "c_exit_foreach();\n", F_EXIT_FOREACH, -1);
   add_instr_name ("expand_varargs", 0, F_EXPAND_VARARGS, -1);
   add_instr_name ("next_foreach", "c_next_foreach();\n", F_NEXT_FOREACH, -1);
-  add_instr_name ("member_lvalue", "c_member_lvalue(%i);\n", F_MEMBER_LVALUE,
-                  T_LVALUE);
-  add_instr_name ("index_lvalue", "push_indexed_lvalue(0);\n", F_INDEX_LVALUE,
-                  T_LVALUE | T_LVALUE_BYTE);
-  add_instr_name ("rindex_lvalue", "push_indexed_lvalue(1);\n",
-                  F_RINDEX_LVALUE, T_LVALUE | T_LVALUE_BYTE);
-  add_instr_name ("nn_range_lvalue", "push_lvalue_range(0x00);\n",
-                  F_NN_RANGE_LVALUE, T_LVALUE_RANGE);
-  add_instr_name ("nr_range_lvalue", "push_lvalue_range(0x01);\n",
-                  F_NR_RANGE_LVALUE, T_LVALUE_RANGE);
-  add_instr_name ("rr_range_lvalue", "push_lvalue_range(0x11);\n",
-                  F_RR_RANGE_LVALUE, T_LVALUE_RANGE);
-  add_instr_name ("rn_range_lvalue", "push_lvalue_range(0x10);\n",
-                  F_RN_RANGE_LVALUE, T_LVALUE_RANGE);
-  add_instr_name ("nn_range", "f_range(0x00);\n", F_NN_RANGE,
-                  T_BUFFER | T_ARRAY | T_STRING);
-  add_instr_name ("rr_range", "f_range(0x11);\n", F_RR_RANGE,
-                  T_BUFFER | T_ARRAY | T_STRING);
-  add_instr_name ("nr_range", "f_range(0x01);\n", F_NR_RANGE,
-                  T_BUFFER | T_ARRAY | T_STRING);
-  add_instr_name ("rn_range", "f_range(0x10);\n", F_RN_RANGE,
-                  T_BUFFER | T_ARRAY | T_STRING);
-  add_instr_name ("re_range", "f_extract_range(1);\n", F_RE_RANGE,
-                  T_BUFFER | T_ARRAY | T_STRING);
-  add_instr_name ("ne_range", "f_extract_range(0);\n", F_NE_RANGE,
-                  T_BUFFER | T_ARRAY | T_STRING);
+  add_instr_name ("member_lvalue", "c_member_lvalue(%i);\n", F_MEMBER_LVALUE, T_LVALUE);
+  add_instr_name ("index_lvalue", "push_indexed_lvalue(0);\n", F_INDEX_LVALUE, T_LVALUE | T_LVALUE_BYTE);
+  add_instr_name ("rindex_lvalue", "push_indexed_lvalue(1);\n", F_RINDEX_LVALUE, T_LVALUE | T_LVALUE_BYTE);
+  add_instr_name ("nn_range_lvalue", "push_lvalue_range(0x00);\n", F_NN_RANGE_LVALUE, T_LVALUE_RANGE);
+  add_instr_name ("nr_range_lvalue", "push_lvalue_range(0x01);\n", F_NR_RANGE_LVALUE, T_LVALUE_RANGE);
+  add_instr_name ("rr_range_lvalue", "push_lvalue_range(0x11);\n", F_RR_RANGE_LVALUE, T_LVALUE_RANGE);
+  add_instr_name ("rn_range_lvalue", "push_lvalue_range(0x10);\n", F_RN_RANGE_LVALUE, T_LVALUE_RANGE);
+  add_instr_name ("nn_range", "f_range(0x00);\n", F_NN_RANGE, T_BUFFER | T_ARRAY | T_STRING);
+  add_instr_name ("rr_range", "f_range(0x11);\n", F_RR_RANGE, T_BUFFER | T_ARRAY | T_STRING);
+  add_instr_name ("nr_range", "f_range(0x01);\n", F_NR_RANGE, T_BUFFER | T_ARRAY | T_STRING);
+  add_instr_name ("rn_range", "f_range(0x10);\n", F_RN_RANGE, T_BUFFER | T_ARRAY | T_STRING);
+  add_instr_name ("re_range", "f_extract_range(1);\n", F_RE_RANGE, T_BUFFER | T_ARRAY | T_STRING);
+  add_instr_name ("ne_range", "f_extract_range(0);\n", F_NE_RANGE, T_BUFFER | T_ARRAY | T_STRING);
   add_instr_name ("global", "C_GLOBAL(%i);\n", F_GLOBAL, T_ANY);
   add_instr_name ("local", "C_LOCAL(%i);\n", F_LOCAL, T_ANY);
-  add_instr_name ("transfer_local", "c_transfer_local(%i);\n",
-                  F_TRANSFER_LOCAL, T_ANY);
+  add_instr_name ("transfer_local", "c_transfer_local(%i);\n", F_TRANSFER_LOCAL, T_ANY);
   add_instr_name ("number", 0, F_NUMBER, T_NUMBER);
   add_instr_name ("real", 0, F_REAL, T_REAL);
-  add_instr_name ("local_lvalue", "C_LVALUE(fp + %i);\n", F_LOCAL_LVALUE,
-                  T_LVALUE);
-  add_instr_name ("while_dec", "C_WHILE_DEC(%i); if (lpc_int)\n", F_WHILE_DEC,
-                  -1);
+  add_instr_name ("local_lvalue", "C_LVALUE(fp + %i);\n", F_LOCAL_LVALUE, T_LVALUE);
+  add_instr_name ("while_dec", "C_WHILE_DEC(%i); if (lpc_int)\n", F_WHILE_DEC, -1);
   add_instr_name ("const1", "push_number(1);\n", F_CONST1, T_NUMBER);
-  add_instr_name ("subtract", "c_subtract();\n", F_SUBTRACT,
-                  T_NUMBER | T_REAL | T_ARRAY);
-  add_instr_name ("(void)assign", "c_void_assign();\n", F_VOID_ASSIGN,
-                  T_NUMBER);
-  add_instr_name ("(void)assign_local", "c_void_assign_local(fp + %i);\n",
-                  F_VOID_ASSIGN_LOCAL, T_NUMBER);
+  add_instr_name ("subtract", "c_subtract();\n", F_SUBTRACT, T_NUMBER | T_REAL | T_ARRAY);
+  add_instr_name ("(void)assign", "c_void_assign();\n", F_VOID_ASSIGN, T_NUMBER);
+  add_instr_name ("(void)assign_local", "c_void_assign_local(fp + %i);\n", F_VOID_ASSIGN_LOCAL, T_NUMBER);
   add_instr_name ("assign", "c_assign();\n", F_ASSIGN, T_ANY);
   add_instr_name ("branch", 0, F_BRANCH, -1);
   add_instr_name ("bbranch", 0, F_BBRANCH, -1);
@@ -2661,29 +2637,20 @@ init_num_args ()
 #ifdef F_JUMP
   add_instr_name ("jump", F_JUMP, -1);
 #endif
-  add_instr_name ("return_zero", "c_return_zero();\nreturn;\n", F_RETURN_ZERO,
-                  -1);
+  add_instr_name ("return_zero", "c_return_zero();\nreturn;\n", F_RETURN_ZERO, -1);
   add_instr_name ("return", "c_return();\nreturn;\n", F_RETURN, -1);
   add_instr_name ("sscanf", "c_sscanf(%i);\n", F_SSCANF, T_NUMBER);
-  add_instr_name ("parse_command", "c_parse_command(%i);\n", F_PARSE_COMMAND,
-                  T_NUMBER);
+  add_instr_name ("parse_command", "c_parse_command(%i);\n", F_PARSE_COMMAND, T_NUMBER);
   add_instr_name ("string", 0, F_STRING, T_STRING);
   add_instr_name ("short_string", 0, F_SHORT_STRING, T_STRING);
-  add_instr_name ("call", "c_call(%i, %i);\n", F_CALL_FUNCTION_BY_ADDRESS,
-                  T_ANY);
-  add_instr_name ("call_inherited", "c_call_inherited(%i, %i, %i);\n",
-                  F_CALL_INHERITED, T_ANY);
-  add_instr_name ("aggregate_assoc", "C_AGGREGATE_ASSOC(%i);\n",
-                  F_AGGREGATE_ASSOC, T_MAPPING);
+  add_instr_name ("call", "c_call(%i, %i);\n", F_CALL_FUNCTION_BY_ADDRESS, T_ANY);
+  add_instr_name ("call_inherited", "c_call_inherited(%i, %i, %i);\n", F_CALL_INHERITED, T_ANY);
+  add_instr_name ("aggregate_assoc", "C_AGGREGATE_ASSOC(%i);\n", F_AGGREGATE_ASSOC, T_MAPPING);
   add_instr_name ("aggregate", "C_AGGREGATE(%i);\n", F_AGGREGATE, T_ARRAY);
   add_instr_name ("(::)", 0, F_FUNCTION_CONSTRUCTOR, T_FUNCTION);
   /* sorry about this one */
-  add_instr_name ("simul_efun",
-                  "call_simul_efun(%i, (lpc_int = %i + num_varargs, num_varargs = 0, lpc_int));\n",
-                  F_SIMUL_EFUN, T_ANY);
-  add_instr_name ("global_lvalue",
-                  "C_LVALUE(&current_object->variables[variable_index_offset + %i]);\n",
-                  F_GLOBAL_LVALUE, T_LVALUE);
+  add_instr_name ("simul_efun", "call_simul_efun(%i, (lpc_int = %i + num_varargs, num_varargs = 0, lpc_int));\n", F_SIMUL_EFUN, T_ANY);
+  add_instr_name ("global_lvalue", "C_LVALUE(&current_object->variables[variable_index_offset + %i]);\n", F_GLOBAL_LVALUE, T_LVALUE);
   add_instr_name ("|", "f_or();\n", F_OR, T_NUMBER);
   add_instr_name ("<<", "f_lsh();\n", F_LSH, T_NUMBER);
   add_instr_name (">>", "f_rsh();\n", F_RSH, T_NUMBER);
@@ -2700,10 +2667,8 @@ init_num_args ()
   add_instr_name ("~", "c_compl();\n", F_COMPL, T_NUMBER);
   add_instr_name ("++x", "c_pre_inc();\n", F_PRE_INC, T_NUMBER | T_REAL);
   add_instr_name ("--x", "c_pre_dec();\n", F_PRE_DEC, T_NUMBER | T_REAL);
-  add_instr_name ("*", "c_multiply();\n", F_MULTIPLY,
-                  T_REAL | T_NUMBER | T_MAPPING);
-  add_instr_name ("*=", "f_mult_eq();\n", F_MULT_EQ,
-                  T_REAL | T_NUMBER | T_MAPPING);
+  add_instr_name ("*", "c_multiply();\n", F_MULTIPLY, T_REAL | T_NUMBER | T_MAPPING);
+  add_instr_name ("*=", "f_mult_eq();\n", F_MULT_EQ, T_REAL | T_NUMBER | T_MAPPING);
   add_instr_name ("/", "c_divide();\n", F_DIVIDE, T_REAL | T_NUMBER);
   add_instr_name ("/=", "f_div_eq();\n", F_DIV_EQ, T_NUMBER | T_REAL);
   add_instr_name ("%", "c_mod();\n", F_MOD, T_NUMBER);
@@ -2715,6 +2680,10 @@ init_num_args ()
   add_instr_name ("switch", 0, F_SWITCH, -1);
   add_instr_name ("time_expression", 0, F_TIME_EXPRESSION, -1);
   add_instr_name ("end_time_expression", 0, F_END_TIME_EXPRESSION, T_NUMBER);
+}
+
+void deinit_num_args (void) {
+  memset (instrs, 0, sizeof(instrs));
 }
 
 char *
@@ -3007,26 +2976,19 @@ add_predefine (char *name, int nargs, char *exps)
       if (nargs != p->nargs || strcmp (exps, p->exps))
         {
           char buf[200 + NSIZE];
-
           sprintf (buf, _("redefinition of #define %s\n"), name);
           yywarn (buf);
         }
-      p->exps =
-        (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_PREDEFINES,
-                           "add_define: redef");
+      p->exps = (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_PREDEFINES, "add_define: redef");
       strcpy (p->exps, exps);
       p->nargs = nargs;
     }
   else
     {
       p = ALLOCATE (defn_t, TAG_PREDEFINES, "add_define: def");
-      p->name =
-        (char *) DXALLOC (strlen (name) + 1, TAG_PREDEFINES,
-                          "add_define: def name");
+      p->name = (char *) DXALLOC (strlen (name) + 1, TAG_PREDEFINES, "add_define: def name");
       strcpy (p->name, name);
-      p->exps =
-        (char *) DXALLOC (strlen (exps) + 1, TAG_PREDEFINES,
-                          "add_define: def exps");
+      p->exps = (char *) DXALLOC (strlen (exps) + 1, TAG_PREDEFINES, "add_define: def exps");
       strcpy (p->exps, exps);
       p->flags = DEF_IS_PREDEF;
       p->nargs = nargs;
@@ -3036,9 +2998,11 @@ add_predefine (char *name, int nargs, char *exps)
     }
 }
 
-static void
-free_defines ()
-{
+/**
+ * @brief Free all defines.
+ * @param include_predefs If true, also free predefined macros.
+ */
+void free_defines (int include_predefs) {
   defn_t *p, *q;
   int i;
 
@@ -3047,10 +3011,8 @@ free_defines ()
       for (p = defns[i]; p; p = q)
         {
           /* predefines are at the end of the list */
-          if (p->flags & DEF_IS_PREDEF)
-            {
-              break;
-            }
+          if (!include_predefs && (p->flags & DEF_IS_PREDEF))
+            break;
           q = p->next;
           FREE (p->name);
           FREE (p->exps);
@@ -3060,7 +3022,7 @@ free_defines ()
       /* in case they undefined a predef */
       while (p)
         {
-          p->flags &= ~DEF_IS_UNDEFINED;
+          p->flags &= ~DEF_IS_UNDEFINED; /* clear undefined flag */
           p = p->next;
         }
     }
@@ -3323,13 +3285,15 @@ exgetc ()
   return c;
 }
 
-void
-set_inc_list (char *list)
-{
+/**
+ * @brief Set the include search path.
+ * @param list A colon-separated list of directories.
+ */
+void set_inc_list (const char *list) {
   int i, size;
-  char *p;
+  char *list_copy, *p;
 
-  if (list == 0)
+  if (!list || !*list)
     return; /* it's ok to not having inc_list */
 
   if (mbstowcs (NULL, list, 0) != strlen(list))
@@ -3340,7 +3304,7 @@ set_inc_list (char *list)
   debug_message ("{}\tusing LPC header search path: %s", list);
 
   size = 1;
-  p = list;
+  p = list_copy = xstrdup(list); /* make a copy we can modify */
   while (1)
     {
       p = strchr (p, ':');
@@ -3366,7 +3330,7 @@ set_inc_list (char *list)
               while (i>0)
                 inc_list[i--] = 0;
             }
-          p = list;
+          p = list_copy;
         }
       if (*p == '/')
         p++;
@@ -3378,6 +3342,25 @@ set_inc_list (char *list)
           continue;
         }
       inc_list[i] = make_shared_string (p);
+    }
+  free (list_copy);
+}
+
+/**
+ * @brief Reset the include search path.
+ */
+void reset_inc_list (void) {
+  int i;
+  if (inc_list)
+    {
+      for (i = 0; i < inc_list_size; i++)
+        {
+          if (inc_list[i])
+            free_string (inc_list[i]);
+        }
+      FREE (inc_list);
+      inc_list = NULL;
+      inc_list_size = 0;
     }
 }
 
@@ -3415,7 +3398,7 @@ main_file_name ()
  * ident_hash_tail[hash] points to the last one
  * ident_dirty_list is a linked list of identifiers that need to be cleaned
  * when we're done; this happens if you define a global or function with
- * the same name as an efun or sefun.
+ * the same name (hashed) as an efun or sefun.
  */
 
 #define CHECK_ELEM(x, y, z) if (!strcmp((x)->name, (y))) { \
@@ -3442,9 +3425,10 @@ lookup_ident (char *name)
   return 0;
 }
 
-ident_hash_elem_t *
-find_or_add_perm_ident (char *name)
-{
+/**
+ * @brief Find or add a permanent identifier.
+ */
+ident_hash_elem_t* find_or_add_perm_ident (char *name) {
   int h = IdentHash (name);
   ident_hash_elem_t *hptr, *hptr2;
 
@@ -3459,9 +3443,7 @@ find_or_add_perm_ident (char *name)
             return hptr2;
           hptr2 = hptr2->next;
         }
-      hptr =
-        ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT,
-                  "find_or_add_perm_ident:1");
+      hptr = ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT, "find_or_add_perm_ident:1");
       hptr->next = ident_hash_head[h]->next;
       ident_hash_head[h]->next = hptr;
       if (ident_hash_head[h] == ident_hash_tail[h])
@@ -3469,9 +3451,7 @@ find_or_add_perm_ident (char *name)
     }
   else
     {
-      hptr = (ident_hash_table[h] =
-              ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT,
-                        "find_or_add_perm_ident:2"));
+      hptr = (ident_hash_table[h] = ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT, "find_or_add_perm_ident:2"));
       ident_hash_head[h] = hptr;
       ident_hash_tail[h] = hptr;
       hptr->next = hptr;
@@ -3508,8 +3488,7 @@ alloc_local_name (char *name)
   if (lb_index + len > 4096)
     {
       lname_linked_buf_t *new_buf;
-      new_buf =
-        ALLOCATE (lname_linked_buf_t, TAG_COMPILER, "alloc_local_name");
+      new_buf = ALLOCATE (lname_linked_buf_t, TAG_COMPILER, "alloc_local_name");
       new_buf->next = lnamebuf;
       lnamebuf = new_buf;
       lb_index = 0;
@@ -3595,8 +3574,7 @@ quick_alloc_ident_entry ()
   else
     {
       ident_hash_elem_list_t *ihel;
-      ihel = ALLOCATE (ident_hash_elem_list_t, TAG_COMPILER,
-                       "quick_alloc_ident_entry");
+      ihel = ALLOCATE (ident_hash_elem_list_t, TAG_COMPILER, "quick_alloc_ident_entry");
       ihel->next = ihe_list;
       ihe_list = ihel;
       num_free = 127;
@@ -3615,7 +3593,8 @@ find_or_add_ident (char *name, int flags)
       if (!strcmp (hptr->name, name))
         {
           if ((hptr->token & IHE_PERMANENT) && (flags & FOA_GLOBAL_SCOPE)
-              && (hptr->dn.function_num == -1) && (hptr->dn.global_num == -1)
+              && (hptr->dn.function_num == -1)
+              && (hptr->dn.global_num == -1)
               && (hptr->dn.class_num == -1))
             {
               hptr->next_dirty = ident_dirty_list;
@@ -3673,9 +3652,10 @@ find_or_add_ident (char *name, int flags)
   return hptr;
 }
 
-static void
-add_keyword_t (char *name, keyword_t * entry)
-{
+/**
+ * @brief Add a keyword to the identifier hash table.
+ */
+static void add_keyword_t (char *name, keyword_t * entry) {
   int h = IdentHash (name);
 
   if (ident_hash_table[h])
@@ -3695,19 +3675,18 @@ add_keyword_t (char *name, keyword_t * entry)
   entry->token |= IHE_RESWORD;
 }
 
-void
-init_identifiers ()
-{
+/**
+ * @brief Initialize identifier management structures.
+ */
+void init_identifiers () {
   int i;
   ident_hash_elem_t *ihe;
 
   /* allocate all three tables together */
   ident_hash_table = CALLOCATE (IDENT_HASH_SIZE * 3, ident_hash_elem_t *,
                                 TAG_IDENT_TABLE, "init_identifiers");
-  ident_hash_head =
-    (ident_hash_elem_t **) & ident_hash_table[IDENT_HASH_SIZE];
-  ident_hash_tail =
-    (ident_hash_elem_t **) & ident_hash_table[2 * IDENT_HASH_SIZE];
+  ident_hash_head = (ident_hash_elem_t **) & ident_hash_table[IDENT_HASH_SIZE];
+  ident_hash_tail = (ident_hash_elem_t **) & ident_hash_table[2 * IDENT_HASH_SIZE];
 
   /* clean all three tables */
   for (i = 0; i < IDENT_HASH_SIZE * 3; i++)
@@ -3717,7 +3696,7 @@ init_identifiers ()
   /* add the reserved words */
   for (i = 0; i < (int)NELEM (reswords); i++)
     {
-      add_keyword_t (reswords[i].word, &reswords[i]);
+      add_keyword_t (reswords[i].word, &reswords[i]); /* IHE_RESWORD */
     }
   /* add the efuns */
   for (i = 0; i < (int)NELEM (predefs); i++)
@@ -3727,4 +3706,41 @@ init_identifiers ()
       ihe->sem_value++;
       ihe->dn.efun_num = i;
     }
+}
+
+/**
+ * @brief Deinitialize identifier management structures. All identifiers including permanents are freed.
+ */
+void deinit_identifiers () {
+  int i;
+  for (i = 0; i < IDENT_HASH_SIZE * 3; i++)
+    {
+      ident_hash_table[i] = 0;
+    }
+  free_unused_identifiers ();
+  /* free identifiers with IHE_EFUN flag */
+  for (i = 0; i < IDENT_HASH_SIZE; i++)
+    {
+      ident_hash_elem_t *hptr = ident_hash_table[i];
+      while (hptr)
+        {
+          if (hptr->token & IHE_EFUN)
+            {
+              ident_hash_elem_t *tmp = hptr;
+              hptr = hptr->next;
+              FREE (tmp); /* allocated by find_or_add_perm_ident() */
+            }
+          else
+            {
+              if (!(hptr->token & IHE_RESWORD))
+                debug_warn ("leaked identifier: %s", hptr->name);
+              hptr = hptr->next;
+            }
+        }
+      ident_hash_table[i] = NULL;
+    }
+  FREE (ident_hash_table);
+  ident_hash_table = NULL;
+  ident_hash_head = NULL;
+  ident_hash_tail = NULL;
 }
