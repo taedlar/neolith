@@ -2117,9 +2117,7 @@ reload_object (object_t * obj)
 void
 init_objects ()
 {
-  hashed_living =
-    (object_t **) calloc (CONFIG_INT (__LIVING_HASH_TABLE_SIZE__),
-                          sizeof (object_t *));
+  hashed_living = (object_t **) calloc (CONFIG_INT (__LIVING_HASH_TABLE_SIZE__), sizeof (object_t *));
   if (!hashed_living)
     {
       perror ("init_objects");

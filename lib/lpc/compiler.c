@@ -1820,12 +1820,17 @@ compile_file (int f, char *name)
     error ("Object cannot be loaded during compilation.\n");
   guard = 1;
 
+  opt_trace (TT_COMPILE, "starting compiling: \"%s\"", name);
   prolog (f, name);
+
+  opt_trace (TT_COMPILE, "parsing source...");
   yyparse ();
+
+  opt_trace (TT_COMPILE, "finished parsing.");
   prog = epilog ();
 
   if (prog)
-    opt_trace (TT_COMPILE, "finished compiling: /%s", name);
+    opt_trace (TT_COMPILE, "finished compiling: \"%s\"", name);
 
   guard = 0;
   return prog;
@@ -2366,6 +2371,8 @@ static void
 prolog (int f, char *name)
 {
   int i;
+
+  opt_trace (TT_COMPILE|2, "prolog(): initializing compiler for \"%s\"", name);
 
   function_context.num_parameters = -1;
   num_parse_error = 0;

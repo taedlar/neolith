@@ -84,7 +84,7 @@ int function_index_offset;	/* Needed for inheritance */
 int variable_index_offset;	/* Needed for inheritance */
 int st_num_arg;
 
-static svalue_t *start_of_stack;
+static svalue_t *start_of_stack = 0;
 static svalue_t *end_of_stack;
 
 /* Used to throw an error to a catch */
@@ -93,7 +93,7 @@ svalue_t catch_value = { .type = T_NUMBER };
 /* used by routines that want to return a pointer to an svalue */
 svalue_t apply_ret_value = { .type = T_NUMBER };
 
-control_stack_t *control_stack;
+control_stack_t *control_stack = 0;
 control_stack_t *csp;		/* Points to last element pushed */
 
 svalue_t const0, const1, const0u;
@@ -4849,6 +4849,13 @@ void reset_machine (void)
     {
       pop_n_elems (sp - start_of_stack + 1);
     }
+}
+
+int get_machine_state()
+{
+  if (!start_of_stack || !control_stack)
+    return -1;
+  return 0;
 }
 
 /* If the master object can't be loaded, we return zero. (svalue_t *)-1

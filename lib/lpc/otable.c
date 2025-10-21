@@ -104,10 +104,10 @@ static int objs_in_table = 0;
 void
 enter_object_hash (object_t * ob)
 {
-  object_t *s;
+  if (!obj_table)
+    fatal ("enter_object_hash: object table not initialized.\n");
 
-  s = find_obj_n (ob->name);	/* This sets h */
-
+  (void)find_obj_n (ob->name);	/* This sets h */
   ob->next_hash = obj_table[h];
   obj_table[h] = ob;
   objs_in_table++;
@@ -120,10 +120,9 @@ enter_object_hash (object_t * ob)
 void
 enter_object_hash_at_end (object_t * ob)
 {
-  object_t *s;
   object_t **op;
 
-  s = find_obj_n (ob->name);	/* This sets h */
+  (void)find_obj_n (ob->name);	/* This sets h */
 
   ob->next_hash = 0;
 

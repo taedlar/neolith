@@ -52,9 +52,7 @@ static RETSIGTYPE sig_bus (int sig);
 int
 main (int argc, char **argv)
 {
-  static server_options_t svropts;
   char* locale = NULL;
-  time_t now;
   error_context_t econ;
 
   signal (SIGFPE, sig_fpe);
@@ -75,14 +73,8 @@ main (int argc, char **argv)
 #endif /* ENABLE_NLS */
   }
 
-  memset (&svropts, 0, sizeof (svropts));
-  g_svropts = &svropts;
+  init_stem(0, 0, NULL);
   parse_command_line (argc, argv);
-
-  tzset ();
-  boot_time = current_time = time (&now);
-
-  srand (boot_time);
 
   init_config (SERVER_OPTION(config_file));
   init_debug_log();
