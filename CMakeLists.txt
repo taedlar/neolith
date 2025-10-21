@@ -7,7 +7,7 @@ project(neolith
 	DESCRIPTION "A minimalist LPMud server based on MudOS v22 and focus on stability and performance."
 	LANGUAGES C CXX
 )
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 if(MSVC)
 	option(USE_STATIC_MSVC_RUNTIME "Enable static MSVC Runtime library (-MT/-MD)" ON)

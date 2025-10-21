@@ -5,7 +5,11 @@ extern "C" {
 
 using namespace testing;
 
-TEST(logger, log_message)
+// according to GoogleTest FAQ, the test suite name and test name should not
+// contain underscores to avoid issues on some platforms.
+// https://google.github.io/googletest/faq.html#why-should-test-suite-names-and-test-names-not-contain-underscore
+
+TEST(LoggerTest, logMessage)
 {
     // Test that log_message returns a non-negative value when logging to stderr
     int result = log_message("", "Test log message: %d", 1);

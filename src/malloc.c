@@ -5,8 +5,10 @@
 #define NO_OPCODES
 #include "std.h"
 
+char *reserved_area = NULL;		/* reserved for MALLOC() */
+
 char *
-xalloc (int size)
+xalloc (size_t size)
 {
   char *p;
   static int going_to_exit = 0;

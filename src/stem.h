@@ -1,12 +1,27 @@
 #pragma once
 
-/* configurations and packages initialized in main() */
+/* command line arguments and trace settings*/
 #include "main.h"
 
-extern char *xalloc(int);
+/* stem states */
+extern int g_proceeding_shutdown;
+extern int t_flag;
+extern int comp_flag;
+extern time_t boot_time;
+extern int slow_shut_down_to_do;
 
-/* dynamic LPC memory allocations */
-#include "malloc.h"
+/*  dynamic LPC memory allocations:
+ *
+ *  DXALLOC - allocation that never fails. Exits on failure.
+ *  DMALLOC - generic allocation. Returns NULL on failure.
+ *  DREALLOC - generic re-allocation. Returns NULL on failure.
+ *  DCALLOC - generic cleared-allocation. Returns NULL on failure.
+ *  FREE - free memory allocated by any of the above.
+ */
+extern char *reserved_area;
+extern char *xalloc(size_t);
+
+#include "malloc.h" /* selection of DMALLOC/DXALLOC/DREALLOC/DCALLOC/FREE */
 
 #define ALLOCATE(type, tag, desc) ((type *)DXALLOC(sizeof(type), tag, desc))
 #define CALLOCATE(num, type, tag, desc) ((type *)DXALLOC(sizeof(type[1]) * (num), tag, desc))
@@ -22,12 +37,6 @@ extern char *xalloc(int);
 
 /* LPC types and the LPMud virtual machine */
 #include "lpc/types.h"
-
-extern svalue_t const0;
-extern svalue_t const1;
-extern svalue_t const0u;
-
-extern object_t *master_ob;
 
 /* interfaces to the LPMud virtual machine */
 #include "applies.h"

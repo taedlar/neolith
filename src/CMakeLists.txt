@@ -1,5 +1,13 @@
 # src/CMakeLists.txt
 
+# The "stem" target is the collection of object files (CMake object library)
+# that includes everything we need to build the LPMud driver. It can be linked
+# to an executable entry function (main.c) to build the final neolith server binary.
+#
+# Alternatively, the "stem" object files can be linked to other frontends,
+# such as a unit-test executable or a custom command line interface that functions
+# as a LPC opcode compiler or other tools.
+
 set(stem_SOURCES
     stem.c
     backend.c
@@ -28,6 +36,7 @@ else()
     message(WARNING "LIBRT not found, heart_beat() will be disabled.")
 endif()
 
+# ================================================================
 # build neolith executable
 add_executable(neolith main.c ${neolith_SOURCES})
 target_link_libraries(neolith PRIVATE stem)

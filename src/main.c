@@ -84,21 +84,10 @@ main (int argc, char **argv)
 
   srand (boot_time);
 
-  const0.type = T_NUMBER;
-  const0.u.number = 0;
-  const1.type = T_NUMBER;
-  const1.u.number = 1;
-
-  /* const0u used by undefinedp() */
-  const0u.type = T_NUMBER;
-  const0u.subtype = T_UNDEFINED;
-  const0u.u.number = 0;
-  fake_prog.program_size = 0;
-
   init_config (SERVER_OPTION(config_file));
   init_debug_log();
 
-  // print a startup banner in the log file (to test if the debug log is created successfully)
+  /* print a startup banner in the log file (to test if the debug log is created successfully) */
   if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
     exit (EXIT_FAILURE);
   if (locale)
@@ -112,10 +101,10 @@ main (int argc, char **argv)
     }
 
   init_strings ();		/* stralloc.c */
-  init_objects ();		/* object.c */
-  init_otable (__OBJECT_HASH_TABLE_SIZE__);		/* otable.c */
-  init_identifiers ();		/* lex.c */
-  init_locals ();		/* compiler.c */
+  init_objects ();		/* lib/lpc/object.c */
+  init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
+  init_identifiers ();		/* lib/lpc/lex.c */
+  init_locals ();		/* lib/lpc/compiler.c */
 
   set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
   if (CONFIG_INT (__RESERVED_MEM_SIZE__) > 0)
@@ -123,16 +112,17 @@ main (int argc, char **argv)
                                       TAG_RESERVED, "main.c: reserved_area");
 
   init_precomputed_tables ();
-  init_num_args ();
-  reset_machine ();
+  init_num_args ();             /* lib/lpc/lex.c */
+  reset_machine ();             /* src/interpret.c */
 
-  init_binaries ();
+  init_binaries ();             /* lib/lpc/program/binaries.c */
   add_predefines ();
 
   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
   save_context (&econ);
   if (setjmp (econ.context))
     {
+      /* returned from longjmp() */
       debug_message (_("{}\t***** error occurs in pre-loading stage, shutting down."));
       exit (EXIT_FAILURE);
     }
