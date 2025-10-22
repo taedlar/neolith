@@ -35,6 +35,7 @@ static object_t *find_obj_n (char *);
  */
 
 static object_t **obj_table = 0;
+static int objs_in_table = 0;
 
 /**
  * @brief Initialize the object name hash table.
@@ -52,6 +53,15 @@ void init_otable (size_t sz) {
 
   for (x = 0; x < otable_size; x++)
     obj_table[x] = 0;
+}
+
+void deinit_otable () {
+  if (obj_table) {
+    if (objs_in_table > 0)
+      debug_message ("Warning: deinit_otable with %d objects still in table.\n", objs_in_table);
+    FREE (obj_table);
+    obj_table = NULL;
+  }
 }
 
 /*
@@ -94,8 +104,6 @@ find_obj_n (char *s)
 
   return (0);			/* not found */
 }
-
-static int objs_in_table = 0;
 
 /**
  * @brief Add an object to the table - can't have duplicate names.

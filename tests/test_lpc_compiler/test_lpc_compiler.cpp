@@ -69,9 +69,12 @@ protected:
         reset_inc_list();   // free include path list
         deinit_locals();    // free local variable management structures
         deinit_identifiers(); // free all identifiers
-        // TODO: deinit_otable();
-        // TODO: deinit_objects();
-        // TODO: deinit_strings();
+
+        // TODO: destruct all objects
+
+        deinit_otable();    // free object name hash table
+        deinit_objects();   // free living name hash table
+        deinit_strings();
 
         namespace fs = std::filesystem;
         fs::current_path(previous_cwd);
@@ -112,6 +115,10 @@ TEST_F(LPCCompilerTest, loadMaster)
     else {
         init_master (CONFIG_STR (__MASTER_FILE__));
         ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master.";
+
+        remove_object_hash (master_ob); // remove from object hash
+        free_object (master_ob, "LPCCompilerTest::loadMaster"); // free master object
+        master_ob = nullptr;
     }
     pop_context (&econ);
 }

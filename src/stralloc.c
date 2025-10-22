@@ -90,9 +90,10 @@ static size_t max_string_length;
 
 static inline block_t *alloc_new_string (const char *, int);
 
-void
-init_strings (size_t hash_size, size_t max_len)
-{
+/**
+ * @brief init_strings: Initialize the shared string table.
+ */
+void init_strings (size_t hash_size, size_t max_len) {
   size_t x;
 
   /* ensure that htable size is a power of 2 */
@@ -112,6 +113,16 @@ init_strings (size_t hash_size, size_t max_len)
   max_string_length = max_len;
   //debug_trace ("sizeof malloc_block_t = %d", sizeof(malloc_block_t));
   //debug_trace ("sizeof block_t = %d", sizeof(block_t));
+}
+
+void deinit_strings(void) {
+  if (base_table)
+    {
+      if (num_distinct_strings > 0)
+        debug_message ("Warning: deinit_strings with %d strings still allocated.\n", num_distinct_strings);
+      FREE (base_table);
+      base_table = NULL;
+    }
 }
 
 /*
@@ -208,6 +219,7 @@ char* make_shared_string (const char *str) {
   b = hfindblock (str, h);	/* hfindblock macro sets h = StrHash(s) */
   if (!b)
     {
+      opt_trace (TT_BACKEND|2, "allocating new shared string: \"%s\"", str);
       b = alloc_new_string (str, h);
     }
   else

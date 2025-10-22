@@ -1845,8 +1845,7 @@ dealloc_object (object_t * ob, char *from)
   if (!(ob->flags & O_DESTRUCTED))
     {
       /* This is fatal, and should never happen. */
-      fatal
-        ("FATAL: Object 0x%x /%s ref count 0, but not destructed (from %s).\n",
+      fatal ("FATAL: Object 0x%x /%s ref count 0, but not destructed (from %s).\n",
          ob, ob->name, from);
     }
   DEBUG_CHECK (ob->interactive, "Tried to free an interactive object.\n");
@@ -1856,9 +1855,7 @@ dealloc_object (object_t * ob, char *from)
    */
   if (ob->prog)
     {
-      tot_alloc_object_size -=
-        (ob->prog->num_variables_total - 1) * sizeof (svalue_t) +
-        sizeof (object_t);
+      tot_alloc_object_size -= (ob->prog->num_variables_total - 1) * sizeof (svalue_t) + sizeof (object_t);
       free_prog (ob->prog, 1);
       ob->prog = 0;
     }
@@ -2114,13 +2111,24 @@ reload_object (object_t * obj)
   call_create (obj, 0);
 }
 
-void
-init_objects ()
-{
-  hashed_living = (object_t **) calloc (CONFIG_INT (__LIVING_HASH_TABLE_SIZE__), sizeof (object_t *));
-  if (!hashed_living)
+void init_objects () {
+  hashed_living = (object_t **) DCALLOC (
+    CONFIG_INT (__LIVING_HASH_TABLE_SIZE__), sizeof (object_t *),
+    TAG_LIVING, "init_objects"
+  );
+  if (!hashed_living) 
     {
       perror ("init_objects");
       exit (EXIT_FAILURE);
+    }
+}
+
+void deinit_objects () {
+  if (hashed_living)
+    {
+      if (num_living_names > 0)
+        debug_message ("Warning: deinit_objects with %d living names still set.\n", num_living_names);
+      FREE (hashed_living);
+      hashed_living = NULL;
     }
 }
