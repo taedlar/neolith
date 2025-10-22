@@ -68,6 +68,7 @@ protected:
         free_defines(1);    // free all defines including predefines
         deinit_num_args();  // clear instruction table
         reset_machine ();   // clear stack machine
+        clear_apply_cache(); // clear shared strings referenced by apply cache
         reset_inc_list();   // free include path list
         deinit_locals();    // free local variable management structures
         deinit_identifiers(); // free all identifiers

@@ -4868,7 +4868,6 @@ void reset_machine (void) {
     {
       pop_n_elems (sp - start_of_stack + 1);
     }
-  clear_apply_cache ();
 }
 
 int get_machine_state()

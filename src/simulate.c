@@ -178,7 +178,6 @@ give_uid_to_object (object_t * ob)
     creator_name = ret->u.string;
   else
     creator_name = "NONAME";
-  opt_info (2, "creator of object %s is %s\n", ob->name, creator_name);
 
   /*
    * Now we are sure that we have a creator name. Do not call apply()
@@ -190,6 +189,7 @@ give_uid_to_object (object_t * ob)
        * The loaded object has the same uid as the loader.
        */
       ob->uid = current_object->uid;
+      opt_info (2, "object /%s is granted uid \"%s\" by creator /%s.", ob->name, ob->uid->name, current_object->name);
       return 1;
     }
 
@@ -202,6 +202,7 @@ give_uid_to_object (object_t * ob)
        */
       ob->uid = current_object->euid;
       ob->euid = current_object->euid;
+      opt_info (2, "object /%s is granted uid and euid \"%s\" by backbone.", ob->name, ob->uid->name);
       return 1;
     }
 #endif
@@ -219,6 +220,7 @@ give_uid_to_object (object_t * ob)
   ob->uid = add_uid (creator_name);
   ob->euid = NULL;
 
+  opt_info (2, "object /%s is granted uid \"%s\" by master object.", ob->name, ob->uid->name);
   return 1;
 }
 
