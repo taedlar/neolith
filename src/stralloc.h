@@ -82,9 +82,9 @@ typedef struct malloc_block_s {
 /*
  * stralloc.c
  */
-extern void init_strings(void);
-extern char *findstring(char *);
-extern char *make_shared_string(char *);
+extern void init_strings(size_t hash_size, size_t max_len);
+extern char *findstring(const char *);
+extern char *make_shared_string(const char *);
 extern char *ref_string(char *);
 extern void free_string(char *);
 extern void deallocate_string(char *);

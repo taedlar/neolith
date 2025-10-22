@@ -27,7 +27,7 @@ static int T[] = {
 };
 
 int
-hashstr (char *s,		/* string to hash */
+hashstr (const char *s,		/* string to hash */
 	 int maxn,		/* maximum number of chars to consider */
 	 int hashs)
 {
@@ -64,7 +64,7 @@ hashstr (char *s,		/* string to hash */
  */
 
 int
-whashstr (char *s, int maxn)
+whashstr (const char *s, int maxn)
 {
   register unsigned char oh, h;
   register unsigned char *p;

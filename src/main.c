@@ -92,7 +92,10 @@ main (int argc, char **argv)
       exit (EXIT_FAILURE);
     }
 
-  init_strings ();		/* stralloc.c */
+  init_strings (
+    CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__),
+    CONFIG_INT (__MAX_STRING_LENGTH__)
+  );		/* stralloc.c */
   init_objects ();		/* lib/lpc/object.c */
   init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
   init_identifiers ();		/* lib/lpc/lex.c */
