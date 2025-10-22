@@ -24,7 +24,8 @@ private:
 
 protected:
     void SetUp() override {
-        debug_message("{}\t===== setting up LPCCompilerTest =====");
+        log_message("", "[ SETUP    ]\tsetting up LPCCompilerTest\n");
+        debug_set_log_with_date (1);
         setlocale(LC_ALL, "C.UTF-8"); // force UTF-8 locale for consistent string handling
         init_stem(3, 0177, "m3.conf"); // use highest debug level and enable all trace logs
         init_config(SERVER_OPTION(config_file));
@@ -39,7 +40,7 @@ protected:
         previous_cwd = fs::current_path();
         fs::current_path(mudlib_path); // change working directory to mudlib
 
-        init_strings (); // LPC compiler needs this since prolog()
+        init_strings (8192, 1000000); // LPC compiler needs this since prolog()
         init_objects ();
         init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));
 
@@ -61,7 +62,7 @@ protected:
         pop_context (&econ);
     }
     void TearDown() override {
-        debug_message("{}\t===== tearing down LPCCompilerTest =====");
+        log_message("", "[ TEARDOWN ]\ttearing down LPCCompilerTest\n");
         free_defines(1);    // free all defines including predefines
         deinit_num_args();  // clear instruction table
         reset_machine ();   // clear stack machine

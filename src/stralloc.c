@@ -4,7 +4,6 @@
 
 #include "std.h"
 #include "lpc/include/runtime_config.h"
-#include "rc.h"
 #include "interpret.h"
 #include "stralloc.h"
 #include "hash.h"
@@ -74,7 +73,7 @@ int num_str_searches = 0;
 #define hfindblock(s, h) sfindblock(s, h = StrHash(s))
 #define findblock(s) sfindblock(s, StrHash(s))
 
-static inline block_t *sfindblock (char *, int);
+static inline block_t *sfindblock (const char *s, int h);
 
 /*
  * hash table - list of pointers to heads of string chains.
@@ -85,23 +84,22 @@ static inline block_t *sfindblock (char *, int);
  */
 
 static block_t **base_table = (block_t **) 0;
-static int htable_size;
-static int htable_size_minus_one;
+static size_t htable_size;
+static size_t htable_size_minus_one;
+static size_t max_string_length;
 
-static inline block_t *alloc_new_string (char *, int);
+static inline block_t *alloc_new_string (const char *, int);
 
 void
-init_strings ()
+init_strings (size_t hash_size, size_t max_len)
 {
-  int x, y;
+  size_t x;
 
   /* ensure that htable size is a power of 2 */
-  y = CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__);
-  for (htable_size = 1; htable_size < y; htable_size *= 2)
+  for (htable_size = 1; htable_size < hash_size; htable_size *= 2)
     ;
   htable_size_minus_one = htable_size - 1;
-  base_table = CALLOCATE (htable_size, block_t *,
-                          TAG_STR_TBL, "init_strings");
+  base_table = CALLOCATE (htable_size, block_t *, TAG_STR_TBL, "init_strings");
 #ifdef STRING_STATS
   overhead_bytes += (sizeof (block_t *) * htable_size);
 #endif
@@ -111,6 +109,7 @@ init_strings ()
       base_table[x] = 0;
     }
 
+  max_string_length = max_len;
   //debug_trace ("sizeof malloc_block_t = %d", sizeof(malloc_block_t));
   //debug_trace ("sizeof block_t = %d", sizeof(block_t));
 }
@@ -122,8 +121,8 @@ init_strings ()
  * pointer on the hash chain into fs_prev.
  */
 
-static inline block_t *
-sfindblock (char *s, int h)
+static block_t *
+sfindblock (const char *s, int h)
 {
   block_t *curr, *prev;
 
@@ -156,9 +155,10 @@ sfindblock (char *s, int h)
   return ((block_t *) 0);	/* not found */
 }
 
-char *
-findstring (char *s)
-{
+/**
+ * @brief findstring: Find a shared string in the string table.
+ */
+char* findstring (const char *s) {
   block_t *b;
 
   if ((b = findblock (s)))
@@ -173,15 +173,15 @@ findstring (char *s)
 
 /* alloc_new_string: Make a space for a string.  */
 static block_t *
-alloc_new_string (char *string, int h)
+alloc_new_string (const char *string, int h)
 {
   block_t *b;
-  int len = strlen (string);
-  int size;
+  size_t len = strlen (string);
+  size_t size;
 
-  if (len > CONFIG_INT (__MAX_STRING_LENGTH__))
+  if (len > max_string_length)
     {
-      len = CONFIG_INT (__MAX_STRING_LENGTH__);
+      len = max_string_length;
     }
   size = sizeof (block_t) + len + 1;
   b = (block_t *) DXALLOC (size, TAG_SHARED_STRING, "alloc_new_string");
@@ -198,9 +198,10 @@ alloc_new_string (char *string, int h)
   return (b);
 }
 
-char *
-make_shared_string (char *str)
-{
+/**
+ * @brief make_shared_string: Create a shared string (reference counted).
+ */
+char* make_shared_string (const char *str) {
   block_t *b;
   int h;
 
@@ -218,13 +219,11 @@ make_shared_string (char *str)
   return (STRING (b));
 }
 
-/*
-   ref_string: Fatal to call this function on a string that isn't shared.
-*/
-
-char *
-ref_string (char *str)
-{
+/**
+ * @brief ref_string: Increase the reference count of a shared string.
+ * @details Fatal to call this function on a string that isn't shared.
+ */
+char* ref_string (char *str) {
   block_t *b;
 
   b = BLOCK (str);
@@ -241,15 +240,16 @@ ref_string (char *str)
   return str;
 }
 
-/* free_string: fatal to call free_string on a non-shared string */
-/*
- * free_string - reduce the ref count on a string.  Various sanity
- * checks applied.
+/**
+ *
+ * @brief free_string - reduce the ref count on a string.
+ * Various sanity checks applied.
+ * It's fatal to call free_string on a non-shared string.
+ * 
+ * @details If the ref count goes to zero, the string is removed from the
+ * hash table and the memory is freed.
  */
-
-void
-free_string (char *str)
-{
+void free_string (char *str) {
   block_t **prev, *b;
   int h;
 
@@ -304,10 +304,7 @@ deallocate_string (char *str)
         }
       prev = &(NEXT (b));
     }
-  DEBUG_CHECK1 (!b,
-                "stralloc.c: deallocate_string called on non-shared string: %s.\n",
-                str);
-
+  DEBUG_CHECK1 (!b, "stralloc.c: deallocate_string called on non-shared string: %s.\n", str);
   FREE (b);
 }
 
@@ -413,13 +410,13 @@ char *
 int_string_copy (char *str)
 {
   char *p;
-  int len;
+  size_t len;
 
   DEBUG_CHECK (!str, "Null string passed to string_copy.\n");
   len = strlen (str);
-  if (len > CONFIG_INT (__MAX_STRING_LENGTH__))
+  if (len > max_string_length)
     {
-      len = CONFIG_INT (__MAX_STRING_LENGTH__);
+      len = max_string_length;
       p = new_string (len, desc);
       (void) strncpy (p, str, len);
       p[len] = '\0';

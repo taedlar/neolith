@@ -38,18 +38,18 @@ f_lower_case (void)
   for (; *str; str++)
     {
       if (isupper (*str))
-	{
-	  int l = str - sp->u.string;
-	  unlink_string_svalue (sp);
-	  str = sp->u.string + l;
-	  *str += 'a' - 'A';
-	  for (str++; *str; str++)
-	    {
-	      if (isupper (*str))
-		*str += 'a' - 'A';
-	    }
-	  return;
-	}
+        {
+          int l = str - sp->u.string;
+          unlink_string_svalue (sp);
+          str = sp->u.string + l;
+          *str += 'a' - 'A';
+          for (str++; *str; str++)
+            {
+              if (isupper (*str))
+                *str += 'a' - 'A';
+            }
+          return;
+        }
     }
 }
 #endif
@@ -66,18 +66,18 @@ f_upper_case (void)
   for (; *str; str++)
     {
       if (islower (*str))
-	{
-	  int l = str - sp->u.string;
-	  unlink_string_svalue (sp);
-	  str = sp->u.string + l;
-	  *str -= 'a' - 'A';
-	  for (str++; *str; str++)
-	    {
-	      if (islower (*str))
-		*str -= 'a' - 'A';
-	    }
-	  return;
-	}
+        {
+          int l = str - sp->u.string;
+          unlink_string_svalue (sp);
+          str = sp->u.string + l;
+          *str -= 'a' - 'A';
+          for (str++; *str; str++)
+            {
+              if (islower (*str))
+                *str -= 'a' - 'A';
+            }
+          return;
+        }
     }
 }
 #endif
@@ -122,14 +122,14 @@ f_repeat_string (void)
       str = sp->u.string;
       len = SVALUE_STRLEN (sp);
       if (len * repeat > CONFIG_INT (__MAX_STRING_LENGTH__))
-	error (_("repeat_string: String too large.\n"));
+        error (_("repeat_string: String too large.\n"));
 //      repeat = CONFIG_INT(__MAX_STRING_LENGTH__) / len;
       p = ret = new_string (len * repeat, "f_repeat_string");
       for (i = 0; i < repeat; i++)
-	{
-	  memcpy (p, str, len);
-	  p += len;
-	}
+        {
+          memcpy (p, str, len);
+          p += len;
+        }
       *p = 0;
       free_string_svalue (sp);
       sp->type = T_STRING;
@@ -158,7 +158,7 @@ f_crypt (void)
       int i;
 
       for (i = 0; i < SALT_LEN; i++)
-	salt[i] = choice[rand () % strlen (choice)];
+        salt[i] = choice[rand () % strlen (choice)];
 
       salt[SALT_LEN] = 0;
       p = salt;
@@ -241,8 +241,8 @@ f_implode (void)
     {
       args = (sp - 2);
       if (args[1].type == T_STRING)
-	error
-	  ("Third argument to implode() is illegal with implode(array, string)\n");
+        error
+          ("Third argument to implode() is illegal with implode(array, string)\n");
       flag = 1;
     }
   else
@@ -285,7 +285,7 @@ f_explode (void)
   array_t *vec;
 
   vec = explode_string ((sp - 1)->u.string, SVALUE_STRLEN (sp - 1),
-			sp->u.string, SVALUE_STRLEN (sp));
+                        sp->u.string, SVALUE_STRLEN (sp));
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_array (vec);
@@ -323,7 +323,7 @@ f_reg_assoc (void)
 
   vec =
     reg_assoc (arg[0].u.string, arg[1].u.arr, arg[2].u.arr,
-	       st_num_arg > 3 ? &arg[3] : &const0);
+               st_num_arg > 3 ? &arg[3] : &const0);
 
   if (st_num_arg == 4)
     pop_3_elems ();
@@ -346,9 +346,9 @@ f_regexp (void)
   if (st_num_arg > 2)
     {
       if (!(sp->type == T_NUMBER))
-	error ("Bad argument 3 to regexp()\n");
+        error ("Bad argument 3 to regexp()\n");
       if (sp[-2].type == T_STRING)
-	error ("3rd argument illegal for regexp(string, string)\n");
+        error ("3rd argument illegal for regexp(string, string)\n");
       flag = (sp--)->u.number;
     }
   else
@@ -464,23 +464,22 @@ f_replace_string (void)
   first = 0;
   last = 0;
 
-  /* �ˬd�ǤJ replace_string ���ѼƭӼ� */
   if (st_num_arg >= 4)
     {
       CHECK_TYPES ((arg + 3), T_NUMBER, 4, F_REPLACE_STRING);
       first = (arg + 3)->u.number;
 
       if (st_num_arg == 4)
-	{
-	  last = first;
-	  first = 0;
-	}
+        {
+          last = first;
+          first = 0;
+        }
       else if (st_num_arg == 5)
-	{
-	  CHECK_TYPES ((arg + 4), T_NUMBER, 5, F_REPLACE_STRING);
-	  /* first was set above. */
-	  last = sp->u.number;
-	}
+        {
+          CHECK_TYPES ((arg + 4), T_NUMBER, 5, F_REPLACE_STRING);
+          /* first was set above. */
+          last = sp->u.number;
+        }
     }
 
   if (!last)
@@ -507,8 +506,6 @@ f_replace_string (void)
 
   if (rlen <= plen)
     {
-      /* replace �� pattern �u -> �r����פ��i������A���ݭ��s
-       * �t�m�O���� */
       unlink_string_svalue (arg);
       src = arg->u.string;
     }
@@ -517,9 +514,9 @@ f_replace_string (void)
     {
       /* build skip table */
       for (j = 0; j < 256; j++)
-	skip_table[j] = plen;
+        skip_table[j] = plen;
       for (j = 0; j < plen; j++)
-	skip_table[(unsigned char) pattern[j]] = plen - j - 1;
+        skip_table[(unsigned char) pattern[j]] = plen - j - 1;
 
       slen = SVALUE_STRLEN (arg);
       slimit = src + slen;
@@ -529,222 +526,219 @@ f_replace_string (void)
 
   if (rlen <= plen)
     {
-      /* �r�ꤺ�������N�覡 */
       dst2 = dst1 = arg->u.string;
 
       if (plen > 1)
-	{
-	  /* pattern ���פj�� 1, �ϥ� jump table �t�׸��� */
-	  while (src < flimit)
-	    {
-	      if ((skip = skip_table[(unsigned char) src[probe]]))
-		{
-		  for (climit = dst2 + skip; dst2 < climit; *dst2++ = *src++)
-		    ;
-		}
-	      else if (memcmp (src, pattern, plen) == 0)
-		{
-		  cur++;
-		  if ((cur >= first) && (cur <= last))
-		    {
-		      if (rlen)
-			{
-			  memcpy (dst2, replace, rlen);
-			  dst2 += rlen;
-			}
-		      src += plen;
-		      if (cur == last)
-			break;
-		    }
-		  else
-		    {
-		      memcpy (dst2, src, plen);
-		      dst2 += plen;
-		      src += plen;
-		    }
-		}
-	      else
-		{
-		  *dst2++ = *src++;
-		}
-	    }
-	  memcpy (dst2, src, slimit - src);
-	  dst2 += (slimit - src);
-	  *dst2 = 0;
-	  arg->u.string = extend_string (dst1, dst2 - dst1);
-	}
+        {
+          while (src < flimit)
+            {
+              if ((skip = skip_table[(unsigned char) src[probe]]))
+                {
+                  for (climit = dst2 + skip; dst2 < climit; *dst2++ = *src++)
+                    ;
+                }
+              else if (memcmp (src, pattern, plen) == 0)
+                {
+                  cur++;
+                  if ((cur >= first) && (cur <= last))
+                    {
+                      if (rlen)
+                        {
+                          memcpy (dst2, replace, rlen);
+                          dst2 += rlen;
+                        }
+                      src += plen;
+                      if (cur == last)
+                        break;
+                    }
+                  else
+                    {
+                      memcpy (dst2, src, plen);
+                      dst2 += plen;
+                      src += plen;
+                    }
+                }
+              else
+                {
+                  *dst2++ = *src++;
+                }
+            }
+          memcpy (dst2, src, slimit - src);
+          dst2 += (slimit - src);
+          *dst2 = 0;
+          arg->u.string = extend_string (dst1, dst2 - dst1);
+        }
       else
-	{
-	  /* pattern ���� == 1, �Z�O�k�̧� */
-	  if (rlen)
-	    {			/* �]�� rlen<=plen, �B plen==1, �ҥH rlen==1 */
-	      while (*src)
-		{
-		  if (*src == *pattern)
-		    {
-		      cur++;
-		      if (cur < first)
-			continue;
-		      *src = *replace;
-		      if (cur > last)
-			break;
-		    }
-		  src++;
-		}
-	    }
-	  else
-	    {			/* rlen is zero */
-	      while (*src)
-		{
-		  if (*src++ == *pattern)
-		    {
-		      cur++;
-		      if (cur >= first)
-			{
-			  dst2 = src - 1;
-			  while (*src)
-			    {
-			      if (*src == *pattern)
-				{
-				  cur++;
-				  if (cur <= last)
-				    {
-				      src++;
-				      continue;
-				    }
-				  else
-				    {
-				      while (*src)
-					*dst2++ = *src++;
-				      break;
-				    }
-				}
-			      *dst2++ = *src++;
-			    }
-			  *dst2 = '\0';
-			  arg->u.string = extend_string (dst1, dst2 - dst1);
-			  break;
-			}
-		    }
-		}
-	    }
-	}
+        {
+          if (rlen)
+            {
+              while (*src)
+                {
+                  if (*src == *pattern)
+                    {
+                      cur++;
+                      if (cur < first)
+                        continue;
+                      *src = *replace;
+                      if (cur > last)
+                        break;
+                    }
+                  src++;
+                }
+            }
+          else
+            {			/* rlen is zero */
+              while (*src)
+                {
+                  if (*src++ == *pattern)
+                    {
+                      cur++;
+                      if (cur >= first)
+                        {
+                          dst2 = src - 1;
+                          while (*src)
+                            {
+                              if (*src == *pattern)
+                                {
+                                  cur++;
+                                  if (cur <= last)
+                                    {
+                                      src++;
+                                      continue;
+                                    }
+                                  else
+                                    {
+                                      while (*src)
+                                        *dst2++ = *src++;
+                                      break;
+                                    }
+                                }
+                              *dst2++ = *src++;
+                            }
+                          *dst2 = '\0';
+                          arg->u.string = extend_string (dst1, dst2 - dst1);
+                          break;
+                        }
+                    }
+                }
+            }
+        }
       pop_n_elems (st_num_arg - 1);
     }
   else
     {
       dst2 = dst1 =
-	new_string (CONFIG_INT (__MAX_STRING_LENGTH__),
-		    "f_replace_string: 2");
+        new_string (CONFIG_INT (__MAX_STRING_LENGTH__),
+                    "f_replace_string: 2");
 
       if (plen > 1)
-	{
-	  while (src < flimit)
-	    {
-	      if ((skip = skip_table[(unsigned char) src[probe]]))
-		{
-		  for (climit = dst2 + skip; dst2 < climit; *dst2++ = *src++)
-		    ;
+        {
+          while (src < flimit)
+            {
+              if ((skip = skip_table[(unsigned char) src[probe]]))
+                {
+                  for (climit = dst2 + skip; dst2 < climit; *dst2++ = *src++)
+                    ;
 
-		}
-	      else if (memcmp (src, pattern, plen) == 0)
-		{
-		  cur++;
-		  if ((cur >= first) && (cur <= last))
-		    {
-		      if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= rlen)
-			{
-			  pop_n_elems (st_num_arg);
-			  push_svalue (&const0u);
-			  FREE_MSTR (dst1);
-			  return;
-			}
-		      memcpy (dst2, replace, rlen);
-		      dst2 += rlen;
-		      dlen += rlen;
-		      src += plen;
-		      if (cur == last)
-			break;
-		    }
-		  else
-		    {
-		      dlen += plen;
-		      if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= 0)
-			{
-			  pop_n_elems (st_num_arg);
-			  push_svalue (&const0u);
+                }
+              else if (memcmp (src, pattern, plen) == 0)
+                {
+                  cur++;
+                  if ((cur >= first) && (cur <= last))
+                    {
+                      if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= rlen)
+                        {
+                          pop_n_elems (st_num_arg);
+                          push_svalue (&const0u);
+                          FREE_MSTR (dst1);
+                          return;
+                        }
+                      memcpy (dst2, replace, rlen);
+                      dst2 += rlen;
+                      dlen += rlen;
+                      src += plen;
+                      if (cur == last)
+                        break;
+                    }
+                  else
+                    {
+                      dlen += plen;
+                      if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= 0)
+                        {
+                          pop_n_elems (st_num_arg);
+                          push_svalue (&const0u);
 
-			  FREE_MSTR (dst1);
-			  return;
-			}
-		      memcpy (dst2, src, plen);
-		      dst2 += plen;
-		      src += plen;
-		    }
-		}
-	      else
-		{
-		  if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= 1)
-		    {
-		      pop_n_elems (st_num_arg);
-		      push_svalue (&const0u);
+                          FREE_MSTR (dst1);
+                          return;
+                        }
+                      memcpy (dst2, src, plen);
+                      dst2 += plen;
+                      src += plen;
+                    }
+                }
+              else
+                {
+                  if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= 1)
+                    {
+                      pop_n_elems (st_num_arg);
+                      push_svalue (&const0u);
 
-		      FREE_MSTR (dst1);
-		      return;
-		    }
-		  *dst2++ = *src++;
-		  dlen++;
-		}
-	    }
-	  if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= (slimit - src))
-	    {
-	      pop_n_elems (st_num_arg);
-	      push_svalue (&const0u);
-	      FREE_MSTR (dst1);
-	      return;
-	    }
-	  memcpy (dst2, src, slimit - src);
-	  dst2 += (slimit - src);
-	}
+                      FREE_MSTR (dst1);
+                      return;
+                    }
+                  *dst2++ = *src++;
+                  dlen++;
+                }
+            }
+          if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= (slimit - src))
+            {
+              pop_n_elems (st_num_arg);
+              push_svalue (&const0u);
+              FREE_MSTR (dst1);
+              return;
+            }
+          memcpy (dst2, src, slimit - src);
+          dst2 += (slimit - src);
+        }
       else
-	{			/* plen <= 1 */
-	  /* Beek: plen == 1 */
-	  while (*src != '\0')
-	    {
-	      if (*src == *pattern)
-		{
-		  cur++;
-		  if (cur >= first && cur <= last)
-		    {
-		      if (rlen != 0)
-			{
-			  if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <=
-			      rlen)
-			    {
-			      pop_n_elems (st_num_arg);
-			      push_svalue (&const0u);
-			      FREE_MSTR (dst1);
-			      return;
-			    }
-			  strncpy (dst2, replace, rlen);
-			  dst2 += rlen;
-			  dlen += rlen;
-			}
-		      src++;
-		      continue;
-		    }
-		}
-	      if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= 1)
-		{
-		  pop_n_elems (st_num_arg);
-		  push_svalue (&const0u);
-		  FREE_MSTR (dst1);
-		  return;
-		}
-	      *dst2++ = *src++;
-	      dlen++;
-	    }
-	}
+        {			/* plen <= 1 */
+          /* Beek: plen == 1 */
+          while (*src != '\0')
+            {
+              if (*src == *pattern)
+                {
+                  cur++;
+                  if (cur >= first && cur <= last)
+                    {
+                      if (rlen != 0)
+                        {
+                          if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <=
+                              rlen)
+                            {
+                              pop_n_elems (st_num_arg);
+                              push_svalue (&const0u);
+                              FREE_MSTR (dst1);
+                              return;
+                            }
+                          strncpy (dst2, replace, rlen);
+                          dst2 += rlen;
+                          dlen += rlen;
+                        }
+                      src++;
+                      continue;
+                    }
+                }
+              if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= 1)
+                {
+                  pop_n_elems (st_num_arg);
+                  push_svalue (&const0u);
+                  FREE_MSTR (dst1);
+                  return;
+                }
+              *dst2++ = *src++;
+              dlen++;
+            }
+        }
       *dst2 = '\0';
 
       pop_n_elems (st_num_arg);
@@ -765,7 +759,7 @@ f_sprintf (void)
   int num_arg = st_num_arg;
 
   s = string_print_formatted ((sp - num_arg + 1)->u.string,
-			      num_arg - 1, sp - num_arg + 2);
+                              num_arg - 1, sp - num_arg + 2);
   pop_n_elems (num_arg);
 
   (++sp)->type = T_STRING;
@@ -806,9 +800,9 @@ f_strsrch (void)
     {
       little = buf;
       if ((buf[0] = (char) sp->u.number))
-	llen = 1;
+        llen = 1;
       else
-	llen = 0;
+        llen = 0;
     }
   else
     {
@@ -825,40 +819,40 @@ f_strsrch (void)
   else if (!((sp + 1)->u.number))
     {
       if (!little[1])		/* 1 char srch pattern */
-	pos = strchr (big, (int) little[0]);
+        pos = strchr (big, (int) little[0]);
       else
-	pos = (char *) strstr (big, little);
+        pos = (char *) strstr (big, little);
       /* start at right */
     }
   else
     {				/* XXX: maybe test for -1 */
       if (!little[1])		/* 1 char srch pattern */
-	pos = strrchr (big, (int) little[0]);
+        pos = strrchr (big, (int) little[0]);
       else
-	{
-	  char c = *little;
+        {
+          char c = *little;
 
-	  pos = big + blen;	/* find end */
-	  pos -= llen;		/* find rightmost pos it _can_ be */
-	  do
-	    {
-	      do
-		{
-		  if (*pos == c)
-		    break;
-		}
-	      while (--pos >= big);
-	      if (*pos != c)
-		{
-		  pos = NULL;
-		  break;
-		}
-	      for (i = 1; little[i] && (pos[i] == little[i]); i++);	/* scan all chars */
-	      if (!little[i])
-		break;
-	    }
-	  while (--pos >= big);
-	}
+          pos = big + blen;	/* find end */
+          pos -= llen;		/* find rightmost pos it _can_ be */
+          do
+            {
+              do
+                {
+                  if (*pos == c)
+                    break;
+                }
+              while (--pos >= big);
+              if (*pos != c)
+                {
+                  pos = NULL;
+                  break;
+                }
+              for (i = 1; little[i] && (pos[i] == little[i]); i++);	/* scan all chars */
+              if (!little[i])
+                break;
+            }
+          while (--pos >= big);
+        }
     }
 
   if (!pos)
