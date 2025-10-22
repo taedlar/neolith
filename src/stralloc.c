@@ -274,9 +274,12 @@ void free_string (char *str) {
    * if a string has been ref'd USHRT_MAX times then we assume that its used
    * often enough to justify never freeing it.
    */
-  if (!REFS (b))
+  if (!REFS (b)) {
+    opt_warn (2, "string \"%s\" has ref count 0, could be overflow", str);
     return;
+  }
 
+  opt_trace (TT_EVAL|3, "freeing shared string: \"%s\"", str);
   REFS (b)--;
   SUB_STRING (SIZE (b));
 

@@ -8,6 +8,7 @@ extern "C" {
     #include "std.h"
     #include "rc.h"
     #include "src/simul_efun.h"
+    #include "src/uids.h"
     #include "lpc/object.h"
     #include "lpc/otable.h"
 }
@@ -41,6 +42,7 @@ protected:
         fs::current_path(mudlib_path); // change working directory to mudlib
 
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
+        init_uids();          // uid management
         init_objects ();
         init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));
 
@@ -74,6 +76,7 @@ protected:
 
         deinit_otable();    // free object name hash table
         deinit_objects();   // free living name hash table
+        deinit_uids();      // free all uids
         deinit_strings();
 
         namespace fs = std::filesystem;
@@ -116,7 +119,12 @@ TEST_F(LPCCompilerTest, loadMaster)
         init_master (CONFIG_STR (__MASTER_FILE__));
         ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master.";
 
+        // master_ob should have ref count 2: one from set_master, one from get_empty_object
+        EXPECT_EQ(master_ob->ref, 2) << "master_ob reference count is not 2 after init_master.";
+
         remove_object_hash (master_ob); // remove from object hash
+        master_ob->flags |= O_DESTRUCTED; // mark as destructed to avoid errors in dealloc_object
+        free_object (master_ob, "LPCCompilerTest::loadMaster"); // free master object
         free_object (master_ob, "LPCCompilerTest::loadMaster"); // free master object
         master_ob = nullptr;
     }

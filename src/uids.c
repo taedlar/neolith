@@ -20,12 +20,11 @@
 #include "interpret.h"
 #include "uids.h"
 
-static object_t *ob;
-
 #ifdef F_EXPORT_UID
 void
 f_export_uid (void)
 {
+  object_t *ob;
   if (current_object->euid == NULL)
     error ("Illegal to export uid 0\n");
   ob = sp->u.ob;
@@ -49,6 +48,7 @@ f_geteuid (void)
 {
   if (sp->type & T_OBJECT)
     {
+      object_t *ob;
       ob = sp->u.ob;
       if (ob->euid)
         {
@@ -82,6 +82,7 @@ f_geteuid (void)
 void
 f_getuid (void)
 {
+  object_t *ob;
   ob = sp->u.ob;
 
   DEBUG_CHECK (ob->uid == NULL, "UID is a null pointer\n");
@@ -163,9 +164,11 @@ userid_t *
 set_root_uid (char *name)
 {
   if (!root_uid)
-    return root_uid = add_uid (name);
+    return (root_uid = add_uid (name));
 
   tree_delete (&uids, uidcmp, (char *) root_uid, NULL);
+  if (root_uid->name)
+    free_string (root_uid->name);
   root_uid->name = make_shared_string (name);
   tree_add (&uids, uidcmp, (char *) root_uid, NULL);
   return root_uid;
@@ -175,10 +178,27 @@ userid_t *
 set_backbone_uid (char *name)
 {
   if (!backbone_uid)
-    return backbone_uid = add_uid (name);
+    return (backbone_uid = add_uid (name));
 
   tree_delete (&uids, uidcmp, (char *) backbone_uid, NULL);
+  if (backbone_uid->name)
+    free_string (backbone_uid->name);
   backbone_uid->name = make_shared_string (name);
   tree_add (&uids, uidcmp, (char *) backbone_uid, NULL);
   return backbone_uid;
+}
+
+void init_uids(void) {
+  tree_init(&uids);
+}
+
+static int uid_free (void *p) {
+  userid_t *uid = (userid_t *)p;
+  free_string(uid->name);
+  FREE(uid);
+  return 1;
+}
+
+void deinit_uids(void) {
+  tree_mung(&uids, uid_free);
 }

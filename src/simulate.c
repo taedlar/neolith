@@ -178,6 +178,7 @@ give_uid_to_object (object_t * ob)
     creator_name = ret->u.string;
   else
     creator_name = "NONAME";
+  opt_info (2, "creator of object %s is %s\n", ob->name, creator_name);
 
   /*
    * Now we are sure that we have a creator name. Do not call apply()
@@ -506,7 +507,7 @@ load_object (char *lname)
       return ob;
     }
 
-  opt_trace (TT_COMPILE|2, "creating object: \"%s\"", name);
+  opt_trace (TT_COMPILE|2, "creating object: \"/%s\"", name);
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
   ob->name = alloc_cstring (name, "load_object");

@@ -2204,8 +2204,7 @@ epilog ()
    * overloading during compile time, but here we want to make sure
    * they're all the same again.
    */
-  num_fun =
-    mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u);
+  num_fun = mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u);
   for (i = 0; i < num_fun; i++)
     {
       int funflags = FUNCTION_FLAGS (i);

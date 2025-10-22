@@ -1849,6 +1849,8 @@ dealloc_object (object_t * ob, char *from)
          ob, ob->name, from);
     }
   DEBUG_CHECK (ob->interactive, "Tried to free an interactive object.\n");
+
+  opt_trace (TT_EVAL, "freeing object \"/%s\"", ob->name);
   /*
    * If the program is freed, then we can also free the variable
    * declarations.

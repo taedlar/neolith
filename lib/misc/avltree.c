@@ -468,6 +468,9 @@ tree_trav (tree ** ppr_tree, int (*pfi_uar) (void *))
 }
 
 
+/**
+ * @brief destroy all nodes in the AVL tree.
+ */
 void
 tree_mung (tree ** ppr_tree, int (*pfi_uar) (void *))
 {

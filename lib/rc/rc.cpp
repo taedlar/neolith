@@ -239,9 +239,7 @@ extern "C" void init_config (const char *config_file)
         external_port[i].kind = PORT_ASCII;
       else if (*typ)
         {
-          debug_message (_
-                         ("*Protocol of port %d is invalid, assuming TELNET\n"),
-                         external_port[i].port);
+          debug_message (_("*Protocol of port %d is invalid, assuming TELNET\n"), external_port[i].port);
           external_port[i].kind = PORT_TELNET;
         }
       free (p);

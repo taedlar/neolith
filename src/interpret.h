@@ -35,8 +35,8 @@
 typedef struct {
     short framekind;
     union {
-	int table_index;
-	funptr_t *funp;
+        int table_index;
+        funptr_t *funp;
     } fr;
     object_t *ob;		/* Current object */
     object_t *prev_ob;	/* Save previous object */
@@ -45,7 +45,7 @@ typedef struct {
     char *pc;
     svalue_t *fp;
     int function_index_offset;	/* Used when executing functions in inherited
-				 * programs */
+                                 * programs */
     int variable_index_offset;	/* Same */
     short caller_type;		/* was this a locally called function? */
 } control_stack_t;
@@ -53,8 +53,8 @@ typedef struct {
 typedef struct {
     object_t *ob;
     union {
-	funptr_t *fp;
-	char *str;
+        funptr_t *fp;
+        char *str;
     } f;
     int narg;
     svalue_t *args;
@@ -73,7 +73,7 @@ typedef struct error_context_s {
 
 #define IS_ZERO(x) (!(x) || (((x)->type == T_NUMBER) && ((x)->u.number == 0)))
 #define IS_UNDEFINED(x) (!(x) || (((x)->type == T_NUMBER) && \
-	((x)->subtype == T_UNDEFINED) && ((x)->u.number == 0)))
+        ((x)->subtype == T_UNDEFINED) && ((x)->u.number == 0)))
 
 #define CHECK_TYPES(val, t, arg, inst) \
   if (!((val)->type & (t))) bad_argument(val, t, arg, inst);
@@ -81,40 +81,40 @@ typedef struct error_context_s {
 /* Beek - add some sanity to joining strings */
 /* add to an svalue */
 #define EXTEND_SVALUE_STRING(x, y, z) do {\
-	char *ess_res; \
-	int ess_len; \
-	int ess_r; \
-	ess_len = (ess_r = SVALUE_STRLEN(x)) + strlen(y); \
-	if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
+        char *ess_res; \
+        int ess_len; \
+        int ess_r; \
+        ess_len = (ess_r = SVALUE_STRLEN(x)) + strlen(y); \
+        if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
           ess_res = (char *) extend_string((x)->u.string, ess_len); \
           if (!ess_res) fatal("Out of memory!\n"); \
           strcpy(ess_res + ess_r, (y)); \
-	} else { \
-	  ess_res = new_string(ess_len, z); \
-	  strcpy(ess_res, (x)->u.string); \
-	  strcpy(ess_res + ess_r, (y)); \
-	  free_string_svalue(x); \
-	  (x)->subtype = STRING_MALLOC; \
-	} \
-	(x)->u.string = ess_res;\
-	} while(0)
+        } else { \
+          ess_res = new_string(ess_len, z); \
+          strcpy(ess_res, (x)->u.string); \
+          strcpy(ess_res + ess_r, (y)); \
+          free_string_svalue(x); \
+          (x)->subtype = STRING_MALLOC; \
+        } \
+        (x)->u.string = ess_res;\
+        } while(0)
 
 /* <something that needs no free> + string svalue */
 #define SVALUE_STRING_ADD_LEFT(y, z) do {\
-	char *pss_res; int pss_r; int pss_len; \
+        char *pss_res; int pss_r; int pss_len; \
         pss_len = SVALUE_STRLEN(sp) + (pss_r = strlen(y)); \
         pss_res = new_string(pss_len, z); \
         strcpy(pss_res, y); \
         strcpy(pss_res + pss_r, sp->u.string); \
         free_string_svalue(sp--); \
-	sp->type = T_STRING; \
+        sp->type = T_STRING; \
         sp->u.string = pss_res; \
         sp->subtype = STRING_MALLOC; \
-	} while(0)
+        } while(0)
 
 /* basically, string + string; faster than using extend b/c of SVALUE_STRLEN */
 #define SVALUE_STRING_JOIN(x, y, z) do {\
-	char *ssj_res; int ssj_r; int ssj_len; \
+        char *ssj_res; int ssj_r; int ssj_len; \
         ssj_r = SVALUE_STRLEN(x); \
         ssj_len = ssj_r + SVALUE_STRLEN(y); \
         if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
@@ -124,14 +124,14 @@ typedef struct error_context_s {
             free_string_svalue(y); \
         } else { \
             ssj_res = (char *) new_string(ssj_len, z); \
-	    strcpy(ssj_res, (x)->u.string); \
-	    strcpy(ssj_res + ssj_r, (y)->u.string); \
-	    free_string_svalue(y); \
+            strcpy(ssj_res, (x)->u.string); \
+            strcpy(ssj_res + ssj_r, (y)->u.string); \
+            free_string_svalue(y); \
             free_string_svalue(x); \
             (x)->subtype = STRING_MALLOC; \
         } \
         (x)->u.string = ssj_res; \
-	} while(0)
+        } while(0)
 
 /* macro calls */
 #define call_program(prog, offset) \
@@ -142,61 +142,61 @@ typedef struct error_context_s {
 #define push_svalue(x) assign_svalue_no_free(++sp, x)
 
 #define put_number(x) do {\
-	sp->type = T_NUMBER;\
-	sp->subtype = 0;\
-	sp->u.number = (x);\
-	} while(0)
+        sp->type = T_NUMBER;\
+        sp->subtype = 0;\
+        sp->u.number = (x);\
+        } while(0)
 
 #define put_buffer(x) do {\
-	sp->type = T_BUFFER;\
-	sp->u.buf = (x);\
-	} while(0)
+        sp->type = T_BUFFER;\
+        sp->u.buf = (x);\
+        } while(0)
 
 #define put_undested_object(x) do {\
-	sp->type = T_OBJECT;\
-	sp->u.ob = (x);\
-	} while(0)
+        sp->type = T_OBJECT;\
+        sp->u.ob = (x);\
+        } while(0)
 
 #define put_object(x) do {\
-	if ((x)->flags & O_DESTRUCTED) put_number(0); \
-	else put_undested_object(x);\
-	} while(0)
+        if ((x)->flags & O_DESTRUCTED) put_number(0); \
+        else put_undested_object(x);\
+        } while(0)
 
 #define put_unrefed_undested_object(x, y) {\
-	sp->type = T_OBJECT;\
-	sp->u.ob = (x);\
-	add_ref((x), y);\
-	} while(0)
+        sp->type = T_OBJECT;\
+        sp->u.ob = (x);\
+        add_ref((x), y);\
+        } while(0)
 
 #define put_unrefed_object(x,y) do {\
-	if ((x)->flags & O_DESTRUCTED)\
-	put_number(0);\
-	else put_unrefed_undested_object(x,y);\
-	} while(0)
+        if ((x)->flags & O_DESTRUCTED)\
+        put_number(0);\
+        else put_unrefed_undested_object(x,y);\
+        } while(0)
 
 /* see comments on push_constant_string */
 #define put_constant_string(x) do {\
-	sp->type = T_STRING;\
-	sp->subtype = STRING_SHARED;\
-	sp->u.string = make_shared_string(x);\
-	} while(0)
+        sp->type = T_STRING;\
+        sp->subtype = STRING_SHARED;\
+        sp->u.string = make_shared_string(x);\
+        } while(0)
 
 #define put_malloced_string(x) do {\
-	sp->type = T_STRING;\
-	sp->subtype = STRING_MALLOC;\
-	sp->u.string = (x);\
-	} while(0)
+        sp->type = T_STRING;\
+        sp->subtype = STRING_MALLOC;\
+        sp->u.string = (x);\
+        } while(0)
 
 #define put_array(x) do {\
-	sp->type = T_ARRAY;\
-	sp->u.arr = (x);\
-	} while(0)
+        sp->type = T_ARRAY;\
+        sp->u.arr = (x);\
+        } while(0)
 
 #define put_shared_string(x) do {\
-	sp->type = T_STRING;\
-	sp->subtype = STRING_SHARED;\
-	sp->u.string = (x);\
-	} while(0)
+        sp->type = T_STRING;\
+        sp->subtype = STRING_SHARED;\
+        sp->u.string = (x);\
+        } while(0)
 
 extern program_t *current_prog;
 extern short caller_type;
@@ -269,6 +269,7 @@ void bad_argument(svalue_t *, int, int, int) NO_RETURN;
 void check_for_destr(array_t *);
 int is_static(char *, object_t *);
 int apply_low(char *, object_t *, int);
+void clear_apply_cache(void);
 svalue_t *apply(char *, object_t *, int, int);
 svalue_t *call_function_pointer(funptr_t *, int);
 svalue_t *safe_call_function_pointer(funptr_t *, int);
