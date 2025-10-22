@@ -18,3 +18,6 @@ extern userid_t *root_uid;
 userid_t *add_uid(char *name);
 userid_t *set_root_uid(char *name);
 userid_t *set_backbone_uid(char *name);
+
+void init_uids(void);
+void deinit_uids(void);

@@ -2495,8 +2495,8 @@ start_new_file (int f)
       char gi_file[PATH_MAX];
 
       /* need a writable copy */
-      gi_file[PATH_MAX - 1] = '\0';
       strncpy (gi_file, CONFIG_STR (__GLOBAL_INCLUDE_FILE__), PATH_MAX - 1);
+      gi_file[PATH_MAX - 1] = '\0';
       handle_include (gi_file, 1);
     }
   else

@@ -84,6 +84,7 @@ extern int tot_alloc_object_size;
 extern int save_svalue_depth;
 
 void init_objects();
+void deinit_objects();
 void bufcat(char **, char *);
 int svalue_save_size(svalue_t *);
 void save_svalue(svalue_t *, char **);

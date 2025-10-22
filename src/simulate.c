@@ -189,6 +189,7 @@ give_uid_to_object (object_t * ob)
        * The loaded object has the same uid as the loader.
        */
       ob->uid = current_object->uid;
+      opt_info (2, "object /%s is granted uid \"%s\" by creator /%s.", ob->name, ob->uid->name, current_object->name);
       return 1;
     }
 
@@ -201,6 +202,7 @@ give_uid_to_object (object_t * ob)
        */
       ob->uid = current_object->euid;
       ob->euid = current_object->euid;
+      opt_info (2, "object /%s is granted uid and euid \"%s\" by backbone.", ob->name, ob->uid->name);
       return 1;
     }
 #endif
@@ -218,6 +220,7 @@ give_uid_to_object (object_t * ob)
   ob->uid = add_uid (creator_name);
   ob->euid = NULL;
 
+  opt_info (2, "object /%s is granted uid \"%s\" by master object.", ob->name, ob->uid->name);
   return 1;
 }
 
@@ -506,7 +509,7 @@ load_object (char *lname)
       return ob;
     }
 
-  opt_trace (TT_COMPILE|2, "creating object: \"%s\"", name);
+  opt_trace (TT_COMPILE|2, "creating object: \"/%s\"", name);
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
   ob->name = alloc_cstring (name, "load_object");

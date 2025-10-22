@@ -558,7 +558,6 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
 
         if (!get_error_state (ES_STACK_FULL))
           {
-            /* �I�s master::object_name() ���o����W�� */
             push_object (obj->u.ob);
             guard = 1;
             temp = safe_apply_master_ob (APPLY_OBJECT_NAME, 1);

@@ -3731,7 +3731,7 @@ typedef struct cache_entry_s
 }
 cache_entry_t;
 
-static cache_entry_t cache[APPLY_CACHE_SIZE];
+static cache_entry_t cache[APPLY_CACHE_SIZE] = {0};
 
 static program_t *ffbn_recurse (program_t *, char *, int *, int *);
 
@@ -3964,6 +3964,25 @@ apply_low (char *fun, object_t * ob, int num_arg)
 
   opt_trace (TT_EVAL, "not defined or not visible to caller: \"%s\"", fun);
   return 0;
+}
+
+/**
+ * @brief Clear the apply() cache.
+ */
+void clear_apply_cache (void) {
+  int i;
+
+  for (i = 0; i < APPLY_CACHE_SIZE; i++)
+    {
+      if (cache[i].name)
+        {
+          free_string (cache[i].name);
+        }
+      cache[i].id = 0;
+      cache[i].oprogp = NULL;
+      cache[i].progp = NULL;
+      cache[i].name = NULL;
+    }
 }
 
 /*
