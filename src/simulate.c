@@ -153,7 +153,7 @@ static int
 give_uid_to_object (object_t * ob)
 {
   svalue_t *ret;
-  char *creator_name;
+  char *creator_name = NULL;
 
   /* before master object is loaded */
   if (!master_ob)
@@ -176,14 +176,12 @@ give_uid_to_object (object_t * ob)
 
   if (ret && ret->type == T_STRING)
     creator_name = ret->u.string;
-  else
-    creator_name = "NONAME";
 
   /*
    * Now we are sure that we have a creator name. Do not call apply()
    * again, because creator_name will be lost !
    */
-  if (strcmp (current_object->uid->name, creator_name) == 0)
+  if (creator_name && strcmp (current_object->uid->name, creator_name) == 0)
     {
       /*
        * The loaded object has the same uid as the loader.
@@ -192,6 +190,9 @@ give_uid_to_object (object_t * ob)
       opt_info (2, "object /%s is granted uid \"%s\" by creator /%s.", ob->name, ob->uid->name, current_object->name);
       return 1;
     }
+
+  if (!creator_name)
+    creator_name = "NONAME";
 
 #ifdef AUTO_TRUST_BACKBONE
   if (backbone_uid && !strcmp (backbone_uid->name, creator_name))
@@ -220,7 +221,7 @@ give_uid_to_object (object_t * ob)
   ob->uid = add_uid (creator_name);
   ob->euid = NULL;
 
-  opt_info (2, "object /%s is granted uid \"%s\" by master object.", ob->name, ob->uid->name);
+  opt_info (2, "object /%s is granted uid \"%s\".", ob->name, ob->uid->name);
   return 1;
 }
 
@@ -308,7 +309,7 @@ check_name (char *src)
  * @brief Strip leading slashes and trailing .c extensions from a file name.
  * @returns 1 on success, 0 on failure.
  */
-int strip_name (char *src, char *dest, int size) {
+int strip_name (char *src, char *dest, size_t size) {
   char last_c = 0;
   char *p = dest;
   char *end = dest + size - 1;
@@ -371,7 +372,7 @@ load_object (char *lname)
   object_t *ob, *save_command_giver = command_giver;
   svalue_t *mret;
   struct stat c_st;
-  char real_name[PATH_MAX], name[PATH_MAX];
+  char real_name[PATH_MAX], name[PATH_MAX - 2];
 
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
     error (_("*Inherit chain too deep: > %d when trying to load '%s'."), CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
