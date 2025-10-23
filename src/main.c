@@ -17,11 +17,12 @@
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
 #include "rc.h"
+#include "comm.h"
+#include "uids.h"
 #include "lpc/object.h"
 #include "simul_efun.h"
 #include "lpc/program/binaries.h"
 #include "lpc/otable.h"
-#include "comm.h"
 #include "main.h"
 
 #ifdef HAVE_ARGP_H
@@ -49,12 +50,12 @@ static RETSIGTYPE sig_bus (int sig);
 
 /* implementations */
 
-int
-main (int argc, char **argv)
-{
+int main (int argc, char **argv) {
+
   char* locale = NULL;
   error_context_t econ;
 
+  /* Setup signal handlers */
   signal (SIGFPE, sig_fpe);
   signal (SIGUSR1, sig_usr1);
   signal (SIGUSR2, sig_usr2);
@@ -66,20 +67,20 @@ main (int argc, char **argv)
   signal (SIGILL, sig_ill);
   signal (SIGCHLD, sig_cld);
 
-  if (NULL != (locale = setlocale (LC_ALL, ""))) {
+  /* Initialize LPMud driver runtime environment */
+  if (NULL != (locale = setlocale (LC_ALL, "")))
+    {
 #ifdef	ENABLE_NLS
-    bindtextdomain (PACKAGE, LOCALEDIR);
-    textdomain (PACKAGE);
+      bindtextdomain (PACKAGE, LOCALEDIR);
+      textdomain (PACKAGE);
 #endif /* ENABLE_NLS */
-  }
-
+    }
   init_stem(0, 0, NULL);
   parse_command_line (argc, argv);
-
   init_config (SERVER_OPTION(config_file));
   init_debug_log();
 
-  /* print a startup banner in the log file (to test if the debug log is created successfully) */
+  /* Print startup banner (and smoke-test debug settings) */
   if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
     exit (EXIT_FAILURE);
   if (locale)
@@ -92,27 +93,39 @@ main (int argc, char **argv)
       exit (EXIT_FAILURE);
     }
 
+  /* Initialize resource pools */
+  if (CONFIG_INT (__RESERVED_MEM_SIZE__) > 0)
+    {
+      reserved_area = (char *) DMALLOC (
+        CONFIG_INT (__RESERVED_MEM_SIZE__),
+        TAG_RESERVED, "main.c: reserved_area");
+    } /* malloc.c */
   init_strings (
     CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__),
     CONFIG_INT (__MAX_STRING_LENGTH__)
-  );		/* stralloc.c */
+  );  /* stralloc.c */
   init_objects ();		/* lib/lpc/object.c */
   init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
-  init_identifiers ();		/* lib/lpc/lex.c */
-  init_locals ();		/* lib/lpc/compiler.c */
 
-  set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
-  if (CONFIG_INT (__RESERVED_MEM_SIZE__) > 0)
-    reserved_area = (char *) DMALLOC (CONFIG_INT (__RESERVED_MEM_SIZE__),
-                                      TAG_RESERVED, "main.c: reserved_area");
-
-  init_precomputed_tables ();
-  init_num_args ();             /* lib/lpc/lex.c */
-  reset_machine ();             /* src/interpret.c */
-
-  init_binaries ();             /* lib/lpc/program/binaries.c */
+  /* Initialize the LPC compiler. */
+  init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__)); /* lib/lpc/compiler.c */
   add_predefines ();
+  set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
 
+  /* Initialize backend */
+  init_precomputed_tables ();   /* backend.c */
+  reset_machine ();             /* interpret.c */
+
+  /* Initialize additional packages */
+  init_binaries ();             /* lib/lpc/program/binaries.c */
+  init_uids();                  /* uids.c */
+
+  /* Load and start the mudlib:
+   * 1. Load simul_efun object (if any)
+   * 2. Load master object
+   * 3. Run preload stage (before start listening for connections)
+   * 4. Enter backend loop
+   */
   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
   save_context (&econ);
   if (setjmp (econ.context))
@@ -124,24 +137,39 @@ main (int argc, char **argv)
   else
     {
       debug_message ("{}\t----- loading simul efuns -----");
-      init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
+      init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__)); /* could be NULL */
 
       debug_message ("{}\t----- loading master -----");
       init_master (CONFIG_STR (__MASTER_FILE__));
 
       debug_message ("{}\t----- epilogue -----");
-      preload_objects (0);
+      preload_objects (0); /* do epilog() and preload() master applies */
     }
   pop_context (&econ);
 
   if (g_proceeding_shutdown)
     {
-      /* the mudlib has decided to shutdown in pre-loading stage, exit now. */
+      /* It is possible that the mudlib decided to call shutdown() in the preload stage
+       * for some reason, e.g. started at wrong time or any fatal error occurred).
+       * We should let the mudlib end here gracefully without entering multi-user mode.
+       */
       exit (EXIT_SUCCESS);
     }
 
+  /* Run the infinite backend loop */
   debug_message (_("{}\t----- entering MUD -----"));
   backend ();
+
+  /* NOTE: We do not do active tear down of the runtime environment when running as
+   * a long-lived server process. It is not pratical to require the mudlib to destruct
+   * all loaded objects and free all allocated resources in a clean way upon shutdown.
+   * All allocated resources will be reclaimed by the operating system upon process
+   * termination.
+   *
+   * However, we do call tear down after running unit tests to ensure that there
+   * is no memory leak. The graceful tear down code can be found in various unit-testing
+   * code under the tests/ directory.
+   */
 
   return EXIT_SUCCESS;
 }

@@ -72,6 +72,8 @@ static short string_idx[0x100];
 unsigned char string_tags[0x20];
 short freed_string;
 
+size_t num_local_variables_allowed = 0;
+
 unsigned short *type_of_locals = 0;
 ident_hash_elem_t **locals = 0;
 char *runtime_locals = 0;
@@ -102,14 +104,14 @@ get_two_types (char *where, char *end, int type1, int type2)
  * @brief Initialize local variable management structures.
  */
 void init_locals () {
-  type_of_locals = CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), unsigned short, TAG_LOCALS, "init_locals:1");
-  locals = CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), ident_hash_elem_t *, TAG_LOCALS, "init_locals:2");
-  runtime_locals = CALLOCATE (CONFIG_INT (__MAX_LOCAL_VARIABLES__), char, TAG_LOCALS, "init_locals:3");
+  type_of_locals = CALLOCATE (num_local_variables_allowed, unsigned short, TAG_LOCALS, "init_locals:1");
+  locals = CALLOCATE (num_local_variables_allowed, ident_hash_elem_t *, TAG_LOCALS, "init_locals:2");
+  runtime_locals = CALLOCATE (num_local_variables_allowed, char, TAG_LOCALS, "init_locals:3");
   type_of_locals_ptr = type_of_locals;
   locals_ptr = locals;
   runtime_locals_ptr = runtime_locals;
 
-  locals_size = type_of_locals_size = CONFIG_INT (__MAX_LOCAL_VARIABLES__);
+  locals_size = type_of_locals_size = num_local_variables_allowed;
   current_number_of_locals = max_num_locals = 0;
 }
 
@@ -202,7 +204,7 @@ pop_n_locals (int num)
 int
 add_local_name (char *str, int type)
 {
-  if (max_num_locals == CONFIG_INT (__MAX_LOCAL_VARIABLES__))
+  if ((size_t)max_num_locals >= num_local_variables_allowed)
     {
       yyerror ("Too many local variables");
       return 0;
@@ -224,17 +226,28 @@ void
 reallocate_locals ()
 {
   int offset;
+
   offset = type_of_locals_ptr - type_of_locals;
-  type_of_locals = RESIZE (type_of_locals, type_of_locals_size +=
-                           CONFIG_INT (__MAX_LOCAL_VARIABLES__),
-                           unsigned short, TAG_LOCALS, "reallocate_locals:1");
+  type_of_locals = RESIZE (type_of_locals,
+    type_of_locals_size += num_local_variables_allowed,
+    unsigned short,
+    TAG_LOCALS, "reallocate_locals:1"
+  );
   type_of_locals_ptr = type_of_locals + offset;
+
   offset = locals_ptr - locals;
-  locals = RESIZE (locals, locals_size,
-                   ident_hash_elem_t *, TAG_LOCALS, "reallocate_locals:2");
+  locals = RESIZE (locals,
+    locals_size,
+    ident_hash_elem_t *,
+    TAG_LOCALS, "reallocate_locals:2"
+  );
   locals_ptr = locals + offset;
-  runtime_locals = RESIZE (runtime_locals, locals_size, char,
-                           TAG_LOCALS, "reallocate_locals:3");
+
+  runtime_locals = RESIZE (runtime_locals,
+    locals_size,
+    char,
+    TAG_LOCALS, "reallocate_locals:3"
+  );
   runtime_locals_ptr = runtime_locals + offset;
 }
 
@@ -2630,4 +2643,17 @@ add_program_file (char *name, int top)
   if (!top)
     add_to_mem_block (A_INCLUDES, name, strlen (name) + 1);
   return store_prog_string (name) + 1;
+}
+
+void init_lpc_compiler(size_t max_locals) {
+  num_local_variables_allowed = max_locals;
+  init_num_args ();
+  init_identifiers ();
+  init_locals ();
+}
+
+void deinit_lpc_compiler() {
+  deinit_locals();
+  deinit_identifiers();
+  deinit_num_args();
 }

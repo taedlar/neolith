@@ -2529,9 +2529,10 @@ int_add_instr_name (char *name, int n, short t)
   instrs[n].ret_type = t;
 }
 
-void
-init_num_args ()
-{
+/**
+ * @brief Initialize the number of arguments for LPC eoperators.
+ */
+void init_num_args () {
   int i, n;
 
   for (i = 0; i < BASE; i++)

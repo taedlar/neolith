@@ -2210,7 +2210,7 @@ expr4:
                       p = strput(buf, end, "Undefined variable '");
                       p = strput(p, end, $1->name);
                       p = strput(p, end, "'");
-                      if (current_number_of_locals < CONFIG_INT(__MAX_LOCAL_VARIABLES__)) {
+                      if ((size_t)current_number_of_locals < num_local_variables_allowed) {
                           add_local_name($1->name, TYPE_ANY);
                       }
                       CREATE_OPCODE_1($$, F_LOCAL, TYPE_ANY, 0);
@@ -2226,7 +2226,7 @@ expr4:
                 p = strput(buf, end, "Undefined variable '");
                 p = strput(p, end, $1);
                 p = strput(p, end, "'");
-                if (current_number_of_locals < CONFIG_INT(__MAX_LOCAL_VARIABLES__)) {
+                if ((size_t)current_number_of_locals < num_local_variables_allowed) {
                     add_local_name($1, TYPE_ANY);
                 }
                 CREATE_OPCODE_1($$, F_LOCAL, TYPE_ANY, 0);
@@ -2417,7 +2417,7 @@ expr4:
                 $<func_block>$.context = context;
                 $<func_block>$.save_current_type = current_type;
                 $<func_block>$.save_exact_types = exact_types;
-                if (type_of_locals_ptr + max_num_locals + CONFIG_INT(__MAX_LOCAL_VARIABLES__) >= &type_of_locals[type_of_locals_size])
+                if (type_of_locals_ptr + max_num_locals + num_local_variables_allowed >= &type_of_locals[type_of_locals_size])
                     reallocate_locals();
                 deactivate_current_locals();
                 locals_ptr += current_number_of_locals;
