@@ -9,6 +9,9 @@ extern char *config_str[NUM_CONFIG_STRS];
 #define CONFIG_STR(x)           config_str[(x) - BASE_CONFIG_STR]
 #define CONFIG_INT(x)           config_int[(x) - BASE_CONFIG_INT]
 
+#define CLEAR_CONFIG_STR(x)    \
+    do { if (CONFIG_STR(x)) { free(CONFIG_STR(x)); CONFIG_STR(x) = NULL; } } while(0)
+
 /* global trace flags as specified in runtime configuration */
 extern int g_trace_flag;
 

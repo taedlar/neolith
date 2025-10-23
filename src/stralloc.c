@@ -190,6 +190,7 @@ alloc_new_string (const char *string, int h)
   size_t len = strlen (string);
   size_t size;
 
+  opt_trace (TT_BACKEND|2, "first ref: \"%s\"", string);
   if (len > max_string_length)
     {
       len = max_string_length;
@@ -219,12 +220,11 @@ char* make_shared_string (const char *str) {
   b = hfindblock (str, h);	/* hfindblock macro sets h = StrHash(s) */
   if (!b)
     {
-      opt_trace (TT_BACKEND|2, "allocating new shared string: \"%s\"", str);
       b = alloc_new_string (str, h);
     }
   else
     {
-      if (REFS (b))
+      if (REFS (b)) /* if reference count overflown, let it stay zero ... */
         REFS (b)++;
       ADD_STRING (SIZE (b));
     }
@@ -266,9 +266,7 @@ void free_string (char *str) {
   int h;
 
   b = BLOCK (str);
-  DEBUG_CHECK1 (b != findblock (str),
-                "stralloc.c: free_string called on non-shared string: %s.\n",
-                str);
+  DEBUG_CHECK1 (b != findblock (str), "stralloc.c: free_string called on non-shared string: %s.\n", str);
 
   /*
    * if a string has been ref'd USHRT_MAX times then we assume that its used
@@ -279,7 +277,7 @@ void free_string (char *str) {
     return;
   }
 
-  opt_trace (TT_EVAL|3, "freeing shared string: \"%s\"", str);
+  opt_trace (TT_EVAL|3, "release ref: \"%s\"", str);
   REFS (b)--;
   SUB_STRING (SIZE (b));
 
