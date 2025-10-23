@@ -24,14 +24,27 @@ private:
     std::filesystem::path previous_cwd;
 
 protected:
+    /*  LPCCompilerTest::SetUp()
+     *  --------------------------------
+     *  Initialize the LPC compiler environment for testing.
+     *  This includes setting up logging, locale, configuration,
+     *  string management, UID management, object management,
+     *  and object table.
+     *  Also initializes identifiers, local variable management,
+     *  include paths, instruction table, stack machine,
+     *  and predefines.
+     * 
+     *  The master object and simul_efun object are NOT loaded here.
+     *  --------------------------------
+     */
     void SetUp() override {
-        log_message("", "[ SETUP    ]\tsetting up LPCCompilerTest\n");
-        debug_set_log_with_date (1);
+        debug_set_log_with_date (0);
         setlocale(LC_ALL, "C.UTF-8"); // force UTF-8 locale for consistent string handling
         init_stem(3, 0177, "m3.conf"); // use highest debug level and enable all trace logs
         init_config(SERVER_OPTION(config_file));
-        ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
+        debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
 
+        ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
         namespace fs = std::filesystem;
         auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relattive to current dir
         if (mudlib_path.is_relative()) {
@@ -54,25 +67,24 @@ protected:
         reset_machine ();
         // init_binaries ();
         add_predefines ();
-
         eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-        error_context_t econ;
-        save_context (&econ);
-        // init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
-        // init_master (CONFIG_STR (__MASTER_FILE__));
-        // skip preload_objects();
-        pop_context (&econ);
     }
     void TearDown() override {
-        log_message("", "[ TEARDOWN ]\ttearing down LPCCompilerTest\n");
-
-        // deinit_master();
+        // clear master file config to prevent reloading master_ob in destruct_object()
+        if (master_ob) {
+            CLEAR_CONFIG_STR(__MASTER_FILE__);
+            current_object = master_ob;
+            destruct_object (master_ob);
+            master_ob = nullptr;
+        }
         // deinit_simul_efun();
+
+        remove_destructed_objects(); // actually free destructed objects
+        reset_machine ();   // clear stack machine
+        clear_apply_cache(); // clear shared strings referenced by apply cache
 
         free_defines(1);    // free all defines including predefines
         deinit_num_args();  // clear instruction table
-        reset_machine ();   // clear stack machine
-        clear_apply_cache(); // clear shared strings referenced by apply cache
         reset_inc_list();   // free include path list
         deinit_locals();    // free local variable management structures
         deinit_identifiers(); // free all identifiers
@@ -81,11 +93,12 @@ protected:
         deinit_objects();   // free living name hash table
         deinit_uids();      // free all uids
         deinit_strings();
+        deinit_config();
 
         namespace fs = std::filesystem;
         fs::current_path(previous_cwd);
 
-        // TODO: deinit_config();
+        deinit_config();
     }
 };
 
@@ -96,7 +109,6 @@ TEST_F(LPCCompilerTest, compileFile)
 
 TEST_F(LPCCompilerTest, loadSimulEfun)
 {
-    eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
     error_context_t econ;
     save_context (&econ);
     if (setjmp(econ.context)) {
@@ -110,9 +122,6 @@ TEST_F(LPCCompilerTest, loadSimulEfun)
 
 TEST_F(LPCCompilerTest, loadMaster)
 {
-    debug_message("{}\t----- CTEST_FULL_OUTPUT -----");
-
-    eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
     error_context_t econ;
     save_context (&econ);
     if (setjmp(econ.context)) {
@@ -132,14 +141,6 @@ TEST_F(LPCCompilerTest, loadMaster)
         remove_destructed_objects(); // actually free destructed objects
         EXPECT_NE(master_ob, old_master_ob) << "master_ob was not reloaded after destruct_object(master_ob).";
         EXPECT_EQ(master_ob->ref, 2) << "master_ob reference count is not 2 after destruct_object(master_ob).";
-
-        // clear master file config to prevent reloading master_ob in destruct_object()
-        CLEAR_CONFIG_STR(__MASTER_FILE__);
-        current_object = master_ob;
-        destruct_object (master_ob);
-        master_ob = nullptr;
-
-        remove_destructed_objects(); // actually free destructed objects
     }
     pop_context (&econ);
 }

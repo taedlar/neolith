@@ -13,6 +13,7 @@ protected:
     void SetUp() override {
         // Code here will be called immediately after the constructor (right
         // before each test).
+        debug_set_log_with_date (0);
         setlocale(LC_ALL, "C.UTF-8"); // force UTF-8 locale for consistent string handling
         init_stem(3, 0177, ""); // use highest debug level and enable all trace logs
         init_strings (15000, 1000000);   // will be forced to 16384 inside the function
@@ -20,8 +21,7 @@ protected:
     void TearDown() override {
         // Code here will be called immediately after each test (right
         // before the destructor).
-        log_message("", "[ TEARDOWN ]\tnum_distinct_strings = %d\n", num_distinct_strings);
-        log_message("", "[ TEARDOWN ]\tbytes_distinct_strings = %d\n", bytes_distinct_strings);
+        deinit_strings();
     }
 };
 

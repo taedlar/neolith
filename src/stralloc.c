@@ -277,11 +277,9 @@ void free_string (char *str) {
     return;
   }
 
-  opt_trace (TT_EVAL|3, "release ref: \"%s\"", str);
-  REFS (b)--;
+  opt_trace (TT_EVAL|3, "release ref (was %d): \"%s\"", REFS (b), str);
   SUB_STRING (SIZE (b));
-
-  if (REFS (b) > 0)
+  if (--REFS (b) > 0)
     return;
 
   h = StrHash (str);

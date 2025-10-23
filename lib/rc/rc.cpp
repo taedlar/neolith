@@ -26,7 +26,7 @@
 #include "port/wrapper.h"
 #include "port/debug.h"
 
-char *config_str[NUM_CONFIG_STRS];
+char *config_str[NUM_CONFIG_STRS]; /* NULL or malloc'd strings */
 int config_int[NUM_CONFIG_INTS];
 
 port_def_t external_port[5];
@@ -212,7 +212,7 @@ extern "C" void init_config (const char *config_file)
 
   CONFIG_STR (__MUD_LIB_DIR__) = scan_config (config, "MudlibDir", 1, NULL);
   if (NULL == CONFIG_STR (__LOG_DIR__))
-    CONFIG_STR (__LOG_DIR__) = CONFIG_STR (__MUD_LIB_DIR__);
+    CONFIG_STR (__LOG_DIR__) = xstrdup (CONFIG_STR (__MUD_LIB_DIR__));
 
   CONFIG_STR (__MUD_NAME__) = scan_config (config, "MudName", 0, NULL);
   CONFIG_STR (__ADDR_SERVER_IP__) = scan_config (config, "AddrServerIP", 0, NULL);
@@ -294,6 +294,24 @@ extern "C" void init_config (const char *config_file)
     }
 }
 
+/**
+ * @brief Deinitialize runtime configurations, freeing allocated memory.
+ */
+extern "C" void deinit_config() {
+  int i;
+  /* NOTE: some config_int settings could be changed by LPC programs.
+   * for example, set_eval_limit() changes __MAX_EVAL_COST__.
+   */
+  for (i = 0; i < NUM_CONFIG_INTS; i++)
+    config_int[i] = 0;
+  for (i = 0; i < NUM_CONFIG_STRS; i++)
+    {
+      CLEAR_CONFIG_STR(i);
+    }
+  memset (external_port, 0, sizeof(external_port));
+  g_trace_flag = 0;
+}
+
 extern "C" int get_config_item (svalue_t * res, svalue_t * arg)
 {
   int num;
@@ -311,8 +329,8 @@ extern "C" int get_config_item (svalue_t * res, svalue_t * arg)
   else
     {
       res->type = T_STRING;
-      res->subtype = STRING_CONSTANT;
-      res->u.string = config_str[num];
+      res->subtype = STRING_CONSTANT; /* prevent deallocation */
+      res->u.string = config_str[num] ? config_str[num] : (char*)"";
     }
 
   return 1;

@@ -41,6 +41,8 @@ extern "C" {
  */
 void init_config(const char* config_file);
 
+void deinit_config();
+
 /**
  * @brief Retrieve a runtime configuration item.
  * @param res Pointer to svalue_t where the result will be stored.
