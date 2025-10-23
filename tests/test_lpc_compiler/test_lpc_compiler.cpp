@@ -40,10 +40,10 @@ protected:
     void SetUp() override {
         debug_set_log_with_date (0);
         setlocale(LC_ALL, "C.UTF-8"); // force UTF-8 locale for consistent string handling
-        init_stem(3, 0177, "m3.conf"); // use highest debug level and enable all trace logs
+        init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
+
         init_config(SERVER_OPTION(config_file));
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-
         ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
         namespace fs = std::filesystem;
         auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relattive to current dir
@@ -55,7 +55,6 @@ protected:
         fs::current_path(mudlib_path); // change working directory to mudlib
 
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
-        init_uids();          // uid management
         init_objects ();
         init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));
 
@@ -64,11 +63,13 @@ protected:
         set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
         // init_precomputed_tables ();
         init_num_args ();
+        init_uids();          // uid management
         reset_machine ();
         // init_binaries ();
         add_predefines ();
         eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
     }
+
     void TearDown() override {
         // clear master file config to prevent reloading master_ob in destruct_object()
         if (master_ob) {
@@ -84,6 +85,7 @@ protected:
         clear_apply_cache(); // clear shared strings referenced by apply cache
 
         free_defines(1);    // free all defines including predefines
+        deinit_uids();      // free all uids
         deinit_num_args();  // clear instruction table
         reset_inc_list();   // free include path list
         deinit_locals();    // free local variable management structures
@@ -91,21 +93,14 @@ protected:
 
         deinit_otable();    // free object name hash table
         deinit_objects();   // free living name hash table
-        deinit_uids();      // free all uids
         deinit_strings();
         deinit_config();
 
         namespace fs = std::filesystem;
         fs::current_path(previous_cwd);
-
         deinit_config();
     }
 };
-
-TEST_F(LPCCompilerTest, compileFile)
-{
-    debug_info("mudlib dir: %s", CONFIG_STR(__MUD_LIB_DIR__));
-}
 
 TEST_F(LPCCompilerTest, loadSimulEfun)
 {
@@ -116,6 +111,14 @@ TEST_F(LPCCompilerTest, loadSimulEfun)
     }
     else {
         init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
+        if (CONFIG_STR (__SIMUL_EFUN_FILE__)) {
+            ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
+            // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
+            EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
+        }
+        else {
+            EXPECT_TRUE(simul_efun_ob == nullptr) << "simul_efun_ob is not null when no simul_efun file is specified.";
+        }
     }
     pop_context (&econ);
 }
@@ -143,4 +146,28 @@ TEST_F(LPCCompilerTest, loadMaster)
         EXPECT_EQ(master_ob->ref, 2) << "master_ob reference count is not 2 after destruct_object(master_ob).";
     }
     pop_context (&econ);
+}
+
+TEST_F(LPCCompilerTest, loadObject) {
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        FAIL() << "Failed to load simul efuns.";
+    }
+    else {
+        // require master object to be loaded first
+        init_master (CONFIG_STR (__MASTER_FILE__));
+        ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
+
+        object_t* obj = load_object("nonexistent_file.c");
+        EXPECT_TRUE(obj == nullptr) << "load_object() did not return null for nonexistent file.";
+
+        obj = load_object("user.c");
+        ASSERT_TRUE(obj != nullptr) << "load_object() returned null for user.c.";
+        // the object name removes leading slash and trailing ".c"
+        EXPECT_STREQ(obj->name, "user") << "Loaded object name mismatch.";
+
+        destruct_object(obj);
+        EXPECT_TRUE(obj->flags & O_DESTRUCTED) << "Object not marked destructed after destruct_object().";
+    }
 }

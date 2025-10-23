@@ -9,6 +9,6 @@ typedef struct {
 extern object_t *simul_efun_ob;
 extern simul_info_t *simuls;
 
-extern void init_simul_efun(char *);
+extern void init_simul_efun(const char *);
 extern void set_simul_efun(object_t *);
 extern int find_simul_efun(char *);

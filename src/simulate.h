@@ -36,9 +36,9 @@ int get_char(svalue_t *, int, int, svalue_t *);
 extern void save_command_giver (object_t*);
 extern void restore_command_giver (void);
 
-int strip_name(char *, char *, size_t);
+int strip_name(const char* src, char* dest, size_t dest_size);
 char *check_name(char *);
-extern object_t *load_object(char *);
+extern object_t *load_object(const char *);
 object_t *clone_object(char *, int);
 object_t *environment(svalue_t *);
 object_t *first_inventory(svalue_t *);
