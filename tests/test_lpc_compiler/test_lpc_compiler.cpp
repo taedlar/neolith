@@ -60,11 +60,15 @@ protected:
         save_context (&econ);
         // init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
         // init_master (CONFIG_STR (__MASTER_FILE__));
-        // preload_objects (0);
+        // skip preload_objects();
         pop_context (&econ);
     }
     void TearDown() override {
         log_message("", "[ TEARDOWN ]\ttearing down LPCCompilerTest\n");
+
+        // deinit_master();
+        // deinit_simul_efun();
+
         free_defines(1);    // free all defines including predefines
         deinit_num_args();  // clear instruction table
         reset_machine ();   // clear stack machine
@@ -72,8 +76,6 @@ protected:
         reset_inc_list();   // free include path list
         deinit_locals();    // free local variable management structures
         deinit_identifiers(); // free all identifiers
-
-        // TODO: destruct all objects
 
         deinit_otable();    // free object name hash table
         deinit_objects();   // free living name hash table
@@ -118,16 +120,26 @@ TEST_F(LPCCompilerTest, loadMaster)
     }
     else {
         init_master (CONFIG_STR (__MASTER_FILE__));
-        ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master.";
-
+        ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
         // master_ob should have ref count 2: one from set_master, one from get_empty_object
-        EXPECT_EQ(master_ob->ref, 2) << "master_ob reference count is not 2 after init_master.";
+        EXPECT_EQ(master_ob->ref, 2) << "master_ob reference count is not 2 after init_master().";
 
-        remove_object_hash (master_ob); // remove from object hash
-        master_ob->flags |= O_DESTRUCTED; // mark as destructed to avoid errors in dealloc_object
-        free_object (master_ob, "LPCCompilerTest::loadMaster"); // free master object
-        free_object (master_ob, "LPCCompilerTest::loadMaster"); // free master object
+        // calling destruct_object() on master_ob or simul_efun_ob effectively destroys currently
+        // loaded master/simul_efun object and reloads the latest one from the file.
+        object_t* old_master_ob = master_ob;
+        current_object = master_ob;
+        destruct_object (master_ob);
+        remove_destructed_objects(); // actually free destructed objects
+        EXPECT_NE(master_ob, old_master_ob) << "master_ob was not reloaded after destruct_object(master_ob).";
+        EXPECT_EQ(master_ob->ref, 2) << "master_ob reference count is not 2 after destruct_object(master_ob).";
+
+        // clear master file config to prevent reloading master_ob in destruct_object()
+        CLEAR_CONFIG_STR(__MASTER_FILE__);
+        current_object = master_ob;
+        destruct_object (master_ob);
         master_ob = nullptr;
+
+        remove_destructed_objects(); // actually free destructed objects
     }
     pop_context (&econ);
 }

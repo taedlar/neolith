@@ -304,9 +304,11 @@ check_name (char *src)
   return src;
 }
 
-int
-strip_name (char *src, char *dest, int size)
-{
+/**
+ * @brief Strip leading slashes and trailing .c extensions from a file name.
+ * @returns 1 on success, 0 on failure.
+ */
+int strip_name (char *src, char *dest, int size) {
   char last_c = 0;
   char *p = dest;
   char *end = dest + size - 1;
@@ -317,7 +319,7 @@ strip_name (char *src, char *dest, int size)
   while (*src && p < end)
     {
       if (last_c == '/' && *src == '/')
-        return 0;
+        return 0; /* double slash */
       last_c = (*p++ = *src++);
     }
 
@@ -824,36 +826,46 @@ object_present2 (char *str, object_t * ob)
   return 0;
 }
 
-void
-init_master (char *file)
-{
-  char buf[512];
+/**
+ * @brief Initialize the master object.
+ * 
+ * If error occurs, print error messages to standard error and exit with failure.
+ * @param master_file The path to the master object file.
+ */
+void init_master (char *master_file) {
+  char buf[PATH_MAX];
   object_t *new_ob;
 
-  if (!file || !file[0])
+  if (!master_file || !master_file[0])
     {
-      fprintf (stderr, "No master object specified in config file\n");
+      /* If master file was not specified correctly, we don't expect the logger would
+       * work either, so print to stderr instead.
+       */
+      fprintf (stderr, "No master object specified in config file.\n");
       exit (-1);
     }
-  opt_info(1, "Loading master object: %s\n", file);
+  opt_info(1, "Loading master object: %s\n", master_file);
 
-  if (!strip_name (file, buf, sizeof buf))
-    error (_("*Illegal master file name '%s'"), file);
+  if (!strip_name (master_file, buf, sizeof (buf)))
+    {
+      fprintf (stderr, "Illegal master file name '%s'", master_file);
+      exit(-1);
+    }
 
-  if (file[strlen (file) - 2] != '.')
-    strcat (buf, ".c");
+  if (master_file[strlen (master_file) - 2] != '.')
+    strncat (buf, ".c", sizeof(buf) - strlen(buf) - 1);
 
-  new_ob = load_object (file);
+  new_ob = load_object (buf);
   if (new_ob == 0)
     {
-      fprintf (stderr, "The master file %s was not loaded.\n", file);
+      fprintf (stderr, "The master file %s was not loaded.\n", master_file);
       exit (-1);
     }
   set_master (new_ob);
 }
 
-static char *saved_master_name;
-static char *saved_simul_name;
+static char *saved_master_name = "";
+static char *saved_simul_name = "";
 
 static void
 fix_object_names ()
@@ -874,6 +886,7 @@ destruct_object (object_t * ob)
   object_t *super;
   object_t *save_restrict_destruct = restrict_destruct;
 
+  opt_trace (TT_EVAL|1, "start destructing: /%s", ob->name);
   if (restrict_destruct && restrict_destruct != ob)
     error (_("*Only this_object() can be destructed from move_or_destruct."));
 
@@ -894,37 +907,44 @@ destruct_object (object_t * ob)
 #endif
 
   if (ob->flags & O_DESTRUCTED)
-    return;
+    {
+      opt_trace (TT_EVAL|1, "object /%s already destructed", ob->name);
+      return;
+    }
 
   remove_object_from_stack (ob);
 
   /* try to move our contents somewhere */
   super = ob->super;
 
-  while (ob->contains)
+  if (ob->contains)
     {
-      object_t *otmp;
+      while (ob->contains)
+        {
+          object_t *otmp;
 
-      otmp = ob->contains;
-      /*
-       * An error here will not leave destruct() in an inconsistent
-       * stage.
-       */
-      if (super && !(super->flags & O_DESTRUCTED))
-        push_object (super);
-      else
-        push_number (0);
+          otmp = ob->contains;
+          /*
+          * An error here will not leave destruct() in an inconsistent
+          * stage.
+          */
+          if (super && !(super->flags & O_DESTRUCTED))
+            push_object (super);
+          else
+            push_number (0);
 
-      restrict_destruct = ob->contains;
-      (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
-      restrict_destruct = save_restrict_destruct;
+          restrict_destruct = ob->contains;
+          (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
+          restrict_destruct = save_restrict_destruct;
 
-      /* OUCH! we could be dested by this. -Beek */
-      if (ob->flags & O_DESTRUCTED)
-        return;
+          /* OUCH! we could be dested by this. -Beek */
+          if (ob->flags & O_DESTRUCTED)
+            return;
 
-      if (otmp == ob->contains)
-        destruct_object (otmp);
+          if (otmp == ob->contains)
+            destruct_object (otmp); /* see move_or_destruct() apply*/
+        }
+      opt_trace (TT_EVAL|1, "all contents of /%s moved or destructed", ob->name);
     }
 
 #ifdef OLD_ED
@@ -938,49 +958,71 @@ destruct_object (object_t * ob)
     }
 #endif
 
-  /*
-   * Remove us out of this current room (if any). Remove all sentences
-   * defined by this object from all objects here.
-   */
   if (ob->super)
     {
-      if (ob->super->flags & O_ENABLE_COMMANDS)
-        remove_sent (ob, ob->super);
-
-      for (pp = &ob->super->contains; *pp;)
+      /*
+      * Remove us out of this current room (if any). Remove all sentences
+      * defined by this object from all objects here.
+      */
+      if (ob->super)
         {
-          if ((*pp)->flags & O_ENABLE_COMMANDS)
-            remove_sent (ob, *pp);
+          if (ob->super->flags & O_ENABLE_COMMANDS)
+            remove_sent (ob, ob->super);
 
-          if (*pp != ob)
-            pp = &(*pp)->next_inv;
-          else
-            *pp = (*pp)->next_inv;
+          for (pp = &ob->super->contains; *pp;)
+            {
+              if ((*pp)->flags & O_ENABLE_COMMANDS)
+                remove_sent (ob, *pp);
+
+              if (*pp != ob)
+                pp = &(*pp)->next_inv;
+              else
+                *pp = (*pp)->next_inv;
+            }
         }
+      opt_trace (TT_EVAL|1, "moved /%s out of environment", ob->name);
     }
 
   /* At this point, we can still back out, but this is the very last
    * minute we can do so.  Make sure we have a new object to replace
    * us if this is a vital object.
    */
-  if (ob == master_ob || ob == simul_efun_ob)
+  if ((ob == master_ob) || (ob == simul_efun_ob))
     {
-      object_t *new_ob;
-      char *tmp = ob->name;
+      object_t *new_ob = NULL;
+      char *tmp = ob->name; /* a shared string */
+      char *vital_obj_name = NULL;
 
+      /* this could be called before set_master() or set_simul_efun() returns */
       (++sp)->type = T_ERROR_HANDLER;
       sp->u.error_handler = fix_object_names;
-      if (master_ob)		/* this could be called before init_master() returns */
-        saved_master_name = master_ob->name;
-      saved_simul_name = simul_efun_ob->name;
+      saved_master_name = master_ob ? master_ob->name : "";
+      saved_simul_name = simul_efun_ob ? simul_efun_ob->name : "";
 
       /* hack to make sure we don't find ourselves at several points
          in the following process */
       ob->name = "";
 
+      /* get current setting of the vital object name */
+      if (ob == master_ob)
+        vital_obj_name = CONFIG_STR (__MASTER_FILE__);
+      else if (ob == simul_efun_ob)
+        vital_obj_name = CONFIG_STR (__SIMUL_EFUN_FILE__);
+      if (vital_obj_name)
+        {
+          char new_name[PATH_MAX];
+          if (!strip_name (vital_obj_name, new_name, sizeof (new_name)))
+            {
+              ob->name = tmp;
+              sp--;
+              error (_("*Destruction of vital object rejected due to invalid config setting (\"%s\")."), vital_obj_name);
+            }
+          opt_trace (TT_EVAL|1, "reloading vital object: /%s", tmp);
+          new_ob = load_object (tmp);
+        }
+
       /* handle these two carefully, since they are rather vital */
-      new_ob = load_object (tmp);
-      if (!new_ob)
+      if (vital_obj_name && !new_ob)
         {
           ob->name = tmp;
           sp--;
@@ -988,23 +1030,31 @@ destruct_object (object_t * ob)
         }
 
       free_object (ob, "vital object reference");
-      if (ob == master_ob)
-        set_master (new_ob);
-      if (ob == simul_efun_ob)
-        set_simul_efun (new_ob);
+      if (new_ob)
+        {
+          if (ob == master_ob)
+            set_master (new_ob);
+          if (ob == simul_efun_ob)
+            set_simul_efun (new_ob);
+        }
 
       /* Set the name back so we can remove it from the hash table.
          Also be careful not to remove the new object, which has
          the same name. */
       sp--;			/* error handler */
       ob->name = tmp;
-      tmp = new_ob->name;
-      new_ob->name = "";
+      if (new_ob)
+        {
+          tmp = new_ob->name; /* could be different */
+          new_ob->name = "";
+        }
       remove_object_hash (ob);
-      new_ob->name = tmp;
+      if (new_ob)
+        new_ob->name = tmp;
     }
   else
     remove_object_hash (ob);
+  opt_trace (TT_EVAL|1, "removed /%s from object name hash table", ob->name);
 
   /*
    * Now remove us out of the list of all objects. This must be done last,
@@ -1020,9 +1070,13 @@ destruct_object (object_t * ob)
       break;
     }
   DEBUG_CHECK (!removed, "Failed to delete object.\n");
+  opt_trace (TT_EVAL|1, "removed /%s from all objects list", ob->name);
 
   if (ob->living_name)
-    remove_living_name (ob);
+    {
+      opt_trace (TT_EVAL|1, "removing /%s (%s) from living objects list", ob->name, ob->living_name);
+      remove_living_name (ob);
+    }
 
   ob->flags &= ~O_ENABLE_COMMANDS;
   ob->super = 0;
@@ -1030,13 +1084,18 @@ destruct_object (object_t * ob)
   ob->contains = 0;
   ob->next_all = obj_list_destruct;
   obj_list_destruct = ob;
+  opt_trace (TT_EVAL|1, "added /%s to destruct list", ob->name);
 
   set_heart_beat (ob, 0);
-  ob->flags |= O_DESTRUCTED;
+  ob->flags |= O_DESTRUCTED; /* mark as destructed */
 
   /* moved this here from destruct2() -- see comments in destruct2() */
   if (ob->interactive)
-    remove_interactive (ob, 1);
+    {
+      opt_trace (TT_EVAL|1, "disconnecting /%s as interactive object", ob->name);
+      remove_interactive (ob, 1);
+    }
+  opt_trace (TT_EVAL|1, "finished destructing: /%s", ob->name);
 }
 
 

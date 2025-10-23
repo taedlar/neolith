@@ -1837,9 +1837,15 @@ tell_object (object_t * ob, char *str)
     tell_npc (ob, str);
 }
 
-void
-dealloc_object (object_t * ob, char *from)
-{
+/**
+ * @brief Deallocate an object structure.
+ * 
+ * This function is called when the reference count of an object
+ * reaches zero.
+ * @param ob The object to deallocate.
+ * @param from A string indicating where the deallocation was initiated from.
+ */
+void dealloc_object (object_t * ob, const char *from) {
   sentence_t *s;
 
   if (!(ob->flags & O_DESTRUCTED))
@@ -1885,9 +1891,12 @@ dealloc_object (object_t * ob, char *from)
   FREE ((char *) ob);
 }
 
-void
-free_object (object_t * ob, char *from)
-{
+/**
+ * @brief Decrease the reference count of an object, and deallocate it if it reaches zero.
+ * @param ob The object to free.
+ * @param from A string indicating where the free was initiated from.
+ */
+void free_object (object_t * ob, const char *from) {
   ob->ref--;
 
   if (ob->ref > 0)
