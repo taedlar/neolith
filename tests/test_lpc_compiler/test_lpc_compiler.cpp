@@ -46,7 +46,7 @@ protected:
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
         ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
         namespace fs = std::filesystem;
-        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relattive to current dir
+        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relative to cwd
         if (mudlib_path.is_relative()) {
             mudlib_path = fs::current_path() / mudlib_path;
         }
@@ -58,15 +58,14 @@ protected:
         init_objects ();
         init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));
 
-        init_identifiers ();
-        init_locals ();
+        init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__));
+        add_predefines ();
         set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
         // init_precomputed_tables ();
-        init_num_args ();
+
+        // init_binaries ();
         init_uids();          // uid management
         reset_machine ();
-        // init_binaries ();
-        add_predefines ();
         eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
     }
 
@@ -86,10 +85,9 @@ protected:
 
         free_defines(1);    // free all defines including predefines
         deinit_uids();      // free all uids
-        deinit_num_args();  // clear instruction table
+
         reset_inc_list();   // free include path list
-        deinit_locals();    // free local variable management structures
-        deinit_identifiers(); // free all identifiers
+        deinit_lpc_compiler();
 
         deinit_otable();    // free object name hash table
         deinit_objects();   // free living name hash table

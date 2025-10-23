@@ -165,8 +165,6 @@ extern char *runtime_locals_ptr;
 
 extern int type_of_locals_size;
 extern int locals_size;
-extern int current_number_of_locals;
-extern int max_num_locals;
 extern unsigned short a_functions_root;
 extern mem_block_t type_of_arguments;
 extern short compatible[11];
@@ -174,7 +172,7 @@ extern short is_type[11];
 
 char *get_two_types(char *, char *, int, int);
 char *get_type_name(char *, char *, int);
-void init_locals(void);
+void init_locals();
 void deinit_locals(void);
 
 void save_file_info(int, int);
@@ -276,3 +274,7 @@ insert_in_mem_block(int n, int where, int size)
     mbp->current_size += size;
 }
 #endif	/* ! SUPPRESS_COMPILER_INLINES */
+
+extern size_t num_local_variables_allowed;
+extern void init_lpc_compiler(size_t max_locals);
+extern void deinit_lpc_compiler(void);
