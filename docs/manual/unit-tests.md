@@ -83,3 +83,28 @@ And of course, on Windows WSL.
 This makes **Windows WSL + VS Code + CMake** a ideal cross-platform development environment for the Neolith LPMud Driver.
 
 The unit-tests added this way can be found in the **Testing** panel on VS Code and provides an easy to use IDE for the Neolith project.
+
+### Debugging with CTest and VSCode
+You can run individual unit-test by clicking the **Run Test** icon from the "Testing" tab of VSCode.
+
+When an unit-test fails, it is desirable to run the unit-test in debugger to find out what goes wrong.
+
+Add a configuration like below in your `.vscode/launch.json`:
+~~~json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "CTest Debug Test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${cmake.testProgram}",
+            "args": ["${cmake.testArgs}"],
+            "cwd": "${cmake.testWorkingDirectory}"
+        }
+    ]
+}
+~~~
+
+This will further enable the **Debug Test** icon to let you debug a failed unit-test.
+ 
