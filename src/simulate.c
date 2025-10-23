@@ -309,7 +309,7 @@ check_name (char *src)
  * @brief Strip leading slashes and trailing .c extensions from a file name.
  * @returns 1 on success, 0 on failure.
  */
-int strip_name (char *src, char *dest, size_t size) {
+int strip_name (const char *src, char *dest, size_t size) {
   char last_c = 0;
   char *p = dest;
   char *end = dest + size - 1;
@@ -364,9 +364,7 @@ int strip_name (char *src, char *dest, size_t size) {
  * it.
  *
  */
-object_t *
-load_object (char *lname)
-{
+object_t* load_object (const char *lname) {
   int f;
   program_t *prog;
   object_t *ob, *save_command_giver = command_giver;

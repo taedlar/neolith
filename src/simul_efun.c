@@ -51,7 +51,7 @@ static void remove_simuls (void);
  * information we need.
  */
 void
-init_simul_efun (char *file)
+init_simul_efun (const char *file)
 {
   object_t *new_ob;
 
