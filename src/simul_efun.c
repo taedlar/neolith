@@ -88,6 +88,7 @@ remove_simuls ()
             ihe->sem_value--;
           ihe->dn.simul_num = -1;
           ihe->token &= ~IHE_SIMUL;
+          free_string (simul_names[i].name); /* ref by find_or_add_simul_efun */
         }
     }
 }
@@ -96,13 +97,14 @@ static void
 get_simul_efuns (program_t * prog)
 {
   int i;
-  int num_new = prog->num_functions_total;
+  int num_new = prog ? prog->num_functions_total : 0;
 
   if (num_simul_efun)
     {
       remove_simuls ();
       if (!num_new)
         {
+          opt_trace (TT_SIMUL_EFUN|2, "no new simul_efuns, removing all");
           FREE (simul_names);
           FREE (simuls);
         }
@@ -246,4 +248,12 @@ set_simul_efun (object_t * ob)
 
   simul_efun_ob = ob;
   add_ref (simul_efun_ob, "set_simul_efun");
+}
+
+void unset_simul_efun () {
+  get_simul_efuns (NULL);
+  if (simul_efun_ob) {
+    free_object (simul_efun_ob, "unset_simul_efun");
+    simul_efun_ob = NULL;
+  }
 }

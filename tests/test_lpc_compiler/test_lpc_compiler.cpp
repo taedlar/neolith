@@ -65,6 +65,7 @@ protected:
 
         // init_binaries ();
         init_uids();          // uid management
+
         reset_machine ();
         eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
     }
@@ -77,10 +78,16 @@ protected:
             destruct_object (master_ob);
             master_ob = nullptr;
         }
-        // deinit_simul_efun();
+        if (simul_efun_ob) {
+            CLEAR_CONFIG_STR(__SIMUL_EFUN_FILE__);
+            object_t* old_simul_efun_ob = simul_efun_ob;
+            unset_simul_efun();
+            current_object = old_simul_efun_ob;
+            destruct_object (old_simul_efun_ob);
+        }
+        reset_machine ();   // clear stack machine
 
         remove_destructed_objects(); // actually free destructed objects
-        reset_machine ();   // clear stack machine
         clear_apply_cache(); // clear shared strings referenced by apply cache
 
         free_defines(1);    // free all defines including predefines
@@ -153,7 +160,8 @@ TEST_F(LPCCompilerTest, loadObject) {
         FAIL() << "Failed to load simul efuns.";
     }
     else {
-        // require master object to be loaded first
+        init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
+        ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
         init_master (CONFIG_STR (__MASTER_FILE__));
         ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
 

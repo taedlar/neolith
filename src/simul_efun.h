@@ -11,4 +11,5 @@ extern simul_info_t *simuls;
 
 extern void init_simul_efun(const char *);
 extern void set_simul_efun(object_t *);
+extern void unset_simul_efun();
 extern int find_simul_efun(char *);

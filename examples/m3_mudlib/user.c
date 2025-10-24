@@ -2,7 +2,7 @@
 private void
 logon()
 {
-  write("Welcome to M3!\nUmm ... but the only thing you can do is 'quit'.\n");
+  hello_world(); // a simul_efun call
   enable_commands();
   add_action("cmd_quit", "quit");
 }
