@@ -13,7 +13,7 @@
 #include "efuns/file_utils.h"
 
 static void clean_parser (void);
-static void prolog (int, char *);
+static void prolog (int, const char *);
 static program_t *epilog (void);
 static void show_overload_warnings (void);
 
@@ -25,8 +25,7 @@ extern int yyparse (void);
 short compatible[11] = {
   /* UNKNOWN */ 0,
   /* ANY */ 0xfff,
-  /* NOVALUE to */
-  CT_SIMPLE (TYPE_NOVALUE) | CT (TYPE_VOID) | CT (TYPE_NUMBER),
+  /* NOVALUE to */ CT_SIMPLE (TYPE_NOVALUE) | CT (TYPE_VOID) | CT (TYPE_NUMBER),
   /* VOID to */ CT_SIMPLE (TYPE_VOID) | CT (TYPE_NUMBER),
   /* NUMBER to */ CT_SIMPLE (TYPE_NUMBER) | CT (TYPE_REAL),
   /* STRING */ CT_SIMPLE (TYPE_STRING),
@@ -64,7 +63,7 @@ int current_block;
 char *prog_code;
 char *prog_code_max;
 
-program_t NULL_program;
+static program_t NULL_program;
 
 program_t *prog;
 
@@ -86,6 +85,12 @@ int locals_size = 0;
 int type_of_locals_size = 0;
 int current_number_of_locals = 0;
 int max_num_locals = 0;
+
+static void init_locals();
+static void deinit_locals(void);
+static void clean_up_locals(void);
+
+static int define_variable(char *, int, int);
 
 /* This function has strput() semantics; see comments in simulate.c */
 char *
@@ -1216,13 +1221,13 @@ get_type_name (char *where, char *end, int type)
     var = (var ^ var >> 8) & 0xff;
 
 short
-store_prog_string (char *str)
+store_prog_string (const char *string_data)
 {
   short i, next, *next_tab, *idxp;
-  char **p;
+  char **p, *str;
   unsigned char hash, mask, *tagp;
 
-  str = make_shared_string (str);
+  str = make_shared_string (string_data);
   STRING_HASH (hash, str);
   idxp = &string_idx[hash];
 
@@ -1835,9 +1840,8 @@ yywarn (char *str)
 /*
  * Compile an LPC file.
  */
-program_t *
-compile_file (int f, char *name)
-{
+program_t *compile_file (int f, const char *name) {
+
   static int guard = 0;
   program_t *prog;
 
@@ -2396,7 +2400,7 @@ epilog ()
  * Initialize the environment that the compiler needs.
  */
 static void
-prolog (int f, char *name)
+prolog (int f, const char *name)
 {
   int i;
 
@@ -2638,7 +2642,7 @@ save_file_info (int file_id, int lines)
 }
 
 int
-add_program_file (char *name, int top)
+add_program_file (const char *name, int top)
 {
   if (!top)
     add_to_mem_block (A_INCLUDES, name, strlen (name) + 1);

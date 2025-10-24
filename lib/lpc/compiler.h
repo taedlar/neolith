@@ -151,7 +151,6 @@ extern int current_type;
 extern int current_block;
 extern char *prog_code;
 extern char *prog_code_max;
-extern program_t NULL_program;
 extern unsigned char string_tags[0x20];
 extern short freed_string;
 extern ident_hash_elem_t **locals;
@@ -172,11 +171,9 @@ extern short is_type[11];
 
 char *get_two_types(char *, char *, int, int);
 char *get_type_name(char *, char *, int);
-void init_locals();
-void deinit_locals(void);
 
 void save_file_info(int, int);
-int add_program_file(char *, int);
+int add_program_file(const char *, int);
 void yyerror(char *);
 void yywarn(char *);
 void switch_to_block(int);
@@ -184,13 +181,11 @@ char *the_file_name(char *);
 void free_all_local_names(void);
 void pop_n_locals(int);
 void reactivate_current_locals(void);
-void clean_up_locals(void);
 void deactivate_current_locals(void);
 int add_local_name(char *, int);
 void reallocate_locals(void);
 int get_id_number(void);
-program_t *compile_file(int, char *);
-void reset_function_blocks(void);
+program_t *compile_file(int, const char *);
 void copy_variables(program_t *, int);
 void copy_structures(program_t *);
 int copy_functions(program_t *, int);
@@ -198,11 +193,9 @@ void type_error(char *, int);
 int compatible_types(int, int);
 int compatible_types2(int, int);
 void arrange_call_inherited(char *, parse_node_t *);
-void add_arg_type(unsigned short);
 int define_new_function(char *, int, int, int, int);
-int define_variable(char *, int, int);
 int define_new_variable(char *, int);
-short store_prog_string(char *);
+short store_prog_string(const char *);
 void free_prog_string(short);
 void prepare_cases(parse_node_t *, int);
 void push_func_block(void);
@@ -220,7 +213,7 @@ parse_node_t *throw_away_mapping(parse_node_t *);
 #ifndef SUPPRESS_COMPILER_INLINES
 /* inlines - if we're lucky, they'll get honored. */
 static inline void realloc_mem_block(mem_block_t *, int);
-static inline void add_to_mem_block(int, char *, int);
+static inline void add_to_mem_block(int, const char *, size_t);
 static inline void insert_in_mem_block(int, int, int);
 static inline char *allocate_in_mem_block(int, int);
 
@@ -235,11 +228,11 @@ realloc_mem_block(mem_block_t* m, int size)
 }
 
 static inline void
-add_to_mem_block(int n, char* data, int size)
+add_to_mem_block(int n, const char* data, size_t size)
 {
     mem_block_t *mbp = &mem_block[n];
 
-    if (mbp->current_size + size > mbp->max_size)
+    if (mbp->current_size + size > (size_t)mbp->max_size)
         realloc_mem_block(mbp, mbp->current_size + size);
     if (data)
         memcpy(mbp->block + mbp->current_size, data, size);
