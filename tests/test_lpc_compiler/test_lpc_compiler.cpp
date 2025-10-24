@@ -107,6 +107,27 @@ protected:
     }
 };
 
+TEST_F(LPCCompilerTest, compileFile) {
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        FAIL() << "Failed to compile test_file.c.";
+    }
+    else {
+        // compile a simple test file
+        int fd = open("master.c", O_RDONLY);
+        ASSERT_NE(fd, -1) << "Failed to open master.c for reading.";
+        program_t* prog = compile_file(fd, "master.c");
+        ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
+        total_lines = 0;
+        close(fd);
+
+        // free the compiled program
+        free_prog(prog, 1);
+    }
+    pop_context (&econ);
+}
+
 TEST_F(LPCCompilerTest, loadSimulEfun)
 {
     error_context_t econ;
