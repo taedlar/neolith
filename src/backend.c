@@ -21,7 +21,7 @@
 error_context_t *current_error_context = 0;
 
 /* The 'current_time' is updated at every heart beat. */
-time_t current_time;
+time_t current_time = 0;
 
 int heart_beat_flag = 0;
 

@@ -104,21 +104,13 @@ int main (int argc, char **argv) {
     CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__),
     CONFIG_INT (__MAX_STRING_LENGTH__)
   );  /* stralloc.c */
-  init_objects ();		/* lib/lpc/object.c */
-  init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
 
   /* Initialize the LPC compiler. */
   init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__)); /* lib/lpc/compiler.c */
-  add_predefines ();
   set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
 
-  /* Initialize backend */
-  init_precomputed_tables ();   /* backend.c */
-  reset_machine ();             /* interpret.c */
-
-  /* Initialize additional packages */
-  init_binaries ();             /* lib/lpc/program/binaries.c */
-  init_uids();                  /* uids.c */
+  /* Initialize the world simulation machine */
+  init_simulate();
 
   /* Load and start the mudlib:
    * 1. Load simul_efun object (if any)

@@ -55,18 +55,13 @@ protected:
         fs::current_path(mudlib_path); // change working directory to mudlib
 
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
-        init_objects ();
-        init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));
 
         init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__));
-        add_predefines ();
         set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
         // init_precomputed_tables ();
-
         // init_binaries ();
-        init_uids();          // uid management
 
-        reset_machine ();
+        init_simulate();
         eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
     }
 
@@ -85,19 +80,16 @@ protected:
             current_object = old_simul_efun_ob;
             destruct_object (old_simul_efun_ob);
         }
-        reset_machine ();   // clear stack machine
-
         remove_destructed_objects(); // actually free destructed objects
         clear_apply_cache(); // clear shared strings referenced by apply cache
+        reset_machine ();   // clear stack machine
 
-        free_defines(1);    // free all defines including predefines
         deinit_uids();      // free all uids
+        deinit_objects();   // free living name hash table
+        deinit_otable();    // free object name hash table
 
-        reset_inc_list();   // free include path list
         deinit_lpc_compiler();
 
-        deinit_otable();    // free object name hash table
-        deinit_objects();   // free living name hash table
         deinit_strings();
         deinit_config();
 

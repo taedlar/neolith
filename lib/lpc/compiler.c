@@ -2650,13 +2650,18 @@ add_program_file (const char *name, int top)
 }
 
 void init_lpc_compiler(size_t max_locals) {
-  num_local_variables_allowed = max_locals;
   init_num_args ();
   init_identifiers ();
+  num_local_variables_allowed = max_locals;
   init_locals ();
+
+  add_predefines ();
 }
 
 void deinit_lpc_compiler() {
+  free_defines(1);    // free all defines including predefines
+  reset_inc_list();   // free include path list
+
   deinit_locals();
   deinit_identifiers();
   deinit_num_args();
