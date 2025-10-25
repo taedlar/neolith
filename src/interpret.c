@@ -4873,8 +4873,12 @@ void reset_machine (void) {
 int get_machine_state()
 {
   if (!start_of_stack || !control_stack)
-    return -1;
-  return 0;
+    return -1; /* stack machine not yet initialized */
+  if (!master_ob)
+    return MS_PRE_MUDLIB;
+  if (current_time == 0)
+    return MS_MUDLIB_LIMBO;
+  return MS_MUDLIB_INTERACTIVE;
 }
 
 /* If the master object can't be loaded, we return zero. (svalue_t *)-1

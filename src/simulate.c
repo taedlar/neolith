@@ -522,21 +522,23 @@ object_t* load_object (const char *lname) {
   opt_trace (TT_COMPILE, "adding to otable: \"%s\"", real_name);
   enter_object_hash (ob);	/* add name to fast object lookup table */
 
-  if (get_machine_state() >= 0) {
-    opt_trace (TT_COMPILE, "calling master apply: valid_object() for: \"%s\"", name);
-    push_object (ob);
-    mret = apply_master_ob (APPLY_VALID_OBJECT, 1);
-    if (mret && !MASTER_APPROVED (mret))
-      {
-        destruct_object (ob);
-        error (_("*master::%s() denied permission to load '/%s'."), APPLY_VALID_OBJECT, name);
-      }
+  if (get_machine_state() >= MS_MUDLIB_LIMBO)
+    {
+      opt_trace (TT_COMPILE, "calling master apply: valid_object() for: \"%s\"", name);
+      push_object (ob);
+      mret = apply_master_ob (APPLY_VALID_OBJECT, 1);
+      if (mret && !MASTER_APPROVED (mret))
+        {
+          destruct_object (ob);
+          error (_("*master::%s() denied permission to load '/%s'."), APPLY_VALID_OBJECT, name);
+        }
 
-    if (init_object (ob)) {
-      opt_trace (TT_COMPILE, "calling object create(): \"%s\"", name);
-      call_create (ob, 0);
+      if (init_object (ob))
+        {
+          opt_trace (TT_COMPILE, "calling object create(): \"%s\"", name);
+          call_create (ob, 0);
+        }
     }
-  }
   if (!(ob->flags & O_DESTRUCTED) && function_exists (APPLY_CLEAN_UP, ob, 1))
     {
       ob->flags |= O_WILL_CLEAN_UP;
@@ -831,7 +833,7 @@ object_present2 (char *str, object_t * ob)
  * If error occurs, print error messages to standard error and exit with failure.
  * @param master_file The path to the master object file.
  */
-void init_master (char *master_file) {
+void init_master (const char *master_file) {
   char buf[PATH_MAX];
   object_t *new_ob;
 
@@ -2897,4 +2899,14 @@ origin_name (int orig)
     default:
       return "(unknown)";
     };
+}
+
+void init_simulate() {
+  init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
+  init_objects ();              /* lib/lpc/object.c */
+  init_precomputed_tables ();   /* backend.c */
+  init_binaries ();             /* lib/lpc/program/binaries.c */
+  init_uids();                  /* uids.c */
+  reset_machine ();             /* interpret.c */
+  current_time = time (NULL);
 }

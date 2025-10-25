@@ -68,3 +68,5 @@ void do_shutdown (int);
 void slow_shut_down (int);
 
 char* origin_name (int);
+
+extern void init_simulate(void);
