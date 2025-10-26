@@ -177,36 +177,39 @@ give_uid_to_object (object_t * ob)
   if (ret && ret->type == T_STRING)
     creator_name = ret->u.string;
 
+  if (!creator_name)
+    creator_name = "NONAME";
+
   /*
    * Now we are sure that we have a creator name. Do not call apply()
    * again, because creator_name will be lost !
    */
-  if (creator_name && strcmp (current_object->uid->name, creator_name) == 0)
+  if (current_object)
     {
-      /*
-       * The loaded object has the same uid as the loader.
-       */
-      ob->uid = current_object->uid;
-      opt_info (2, "object /%s is granted uid \"%s\" by creator /%s.", ob->name, ob->uid->name, current_object->name);
-      return 1;
-    }
-
-  if (!creator_name)
-    creator_name = "NONAME";
+      if (current_object->uid && strcmp (current_object->uid->name, creator_name) == 0)
+        {
+          /*
+          * The loaded object has the same uid as the loader.
+          */
+          ob->uid = current_object->uid;
+          opt_info (2, "object /%s is granted uid \"%s\" by creator /%s.", ob->name, ob->uid->name, current_object->name);
+          return 1;
+        }
 
 #ifdef AUTO_TRUST_BACKBONE
-  if (backbone_uid && !strcmp (backbone_uid->name, creator_name))
-    {
-      /*
-       * The object is loaded from backbone. This is trusted, so we let it
-       * inherit the value of eff_user.
-       */
-      ob->uid = current_object->euid;
-      ob->euid = current_object->euid;
-      opt_info (2, "object /%s is granted uid and euid \"%s\" by backbone.", ob->name, ob->uid->name);
-      return 1;
-    }
+      if (backbone_uid && !strcmp (backbone_uid->name, creator_name))
+        {
+          /*
+          * The object is loaded from backbone. This is trusted, so we let it
+          * inherit the value of eff_user.
+          */
+          ob->uid = current_object->euid;
+          ob->euid = current_object->euid;
+          opt_info (2, "object /%s is granted uid and euid \"%s\" by backbone.", ob->name, ob->uid->name);
+          return 1;
+        }
 #endif
+    }
 
   /*
    * The object is not loaded from backbone, nor from from the loading
@@ -2909,4 +2912,28 @@ void init_simulate() {
   init_uids();                  /* uids.c */
   reset_machine ();             /* interpret.c */
   current_time = time (NULL);
+}
+
+void tear_down_simulate() {
+  // clear master file config to prevent reloading master_ob in destruct_object()
+  if (master_ob) {
+      CLEAR_CONFIG_STR(__MASTER_FILE__);
+      current_object = master_ob;
+      destruct_object (master_ob);
+      master_ob = NULL;
+  }
+  if (simul_efun_ob) {
+      CLEAR_CONFIG_STR(__SIMUL_EFUN_FILE__);
+      object_t* old_simul_efun_ob = simul_efun_ob;
+      unset_simul_efun();
+      current_object = old_simul_efun_ob;
+      destruct_object (old_simul_efun_ob);
+  }
+  remove_destructed_objects(); // actually free destructed objects
+  clear_apply_cache(); // clear shared strings referenced by apply cache
+  reset_machine ();   // clear stack machine
+
+  deinit_uids();      // free all uids
+  deinit_objects();   // free living name hash table
+  deinit_otable();    // free object name hash table
 }

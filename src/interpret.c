@@ -3736,8 +3736,7 @@ static cache_entry_t cache[APPLY_CACHE_SIZE] = {0};
 static program_t *ffbn_recurse (program_t *, char *, int *, int *);
 
 static program_t *
-find_function_by_name (object_t * ob, char *name, int *index,
-                       int *runtime_index)
+find_function_by_name (object_t * ob, char *name, int *index, int *runtime_index)
 {
   char *funname = findstring (name);
 
@@ -3747,10 +3746,9 @@ find_function_by_name (object_t * ob, char *name, int *index,
 }
 
 static program_t *
-find_function_by_name2 (object_t * ob, char **name, int *index, int *fio,
-                        int *vio)
+find_function_by_name2 (object_t * ob, char **name, int *index, int *fio, int *vio)
 {
-  *name = findstring (*name);
+  *name = findstring (*name); /* shared string */
 
   if (!*name)
     return 0;
@@ -3832,6 +3830,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
       (strcmp (entry->name, fun) == 0))
     {
       /* function entry is found in APPLY_CACHE */
+      opt_trace (TT_EVAL, "apply_low: APPLY_CACHE hit for \"%s\"", fun);
 
 #ifdef CACHE_STATS
       apply_low_cache_hits++;
@@ -3881,8 +3880,10 @@ apply_low (char *fun, object_t * ob, int num_arg)
   else
     {
       /* entry is not found in APPLY_CACHE  */
-
       int index;
+
+      opt_trace (TT_EVAL, "apply_low: APPLY_CACHE miss for \"%s\"", fun);
+
       /* we have to search the function
        * The old entry was for a nonexistent function and had to
        * be allocated
@@ -3917,10 +3918,10 @@ apply_low (char *fun, object_t * ob, int num_arg)
               current_prog = prog;
               caller_type = local_call_origin;
 
-              /* The searched function is found */
+              /* The searched function is found, add to APPLY_CACHE */
               entry->oprogp = ob->prog;
               entry->id = progp->id_number;
-              entry->name = sfun;
+              entry->name = ref_string (sfun);
               entry->index = index;
 
               csp->fr.table_index = index;

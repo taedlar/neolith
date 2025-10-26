@@ -12,7 +12,7 @@
 extern time_t current_time;
 extern int heart_beat_flag;
 extern object_t *current_heart_beat;
-extern int eval_cost;
+extern size_t eval_cost;
 extern error_context_t *current_error_context;
 
 extern void init_precomputed_tables(void);

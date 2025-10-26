@@ -2404,7 +2404,7 @@ prolog (int f, const char *name)
 {
   int i;
 
-  opt_trace (TT_COMPILE|2, "prolog(): initializing compiler for \"%s\"", name);
+  opt_trace (TT_COMPILE|2, "initializing parser for \"%s\"", name);
 
   function_context.num_parameters = -1;
   num_parse_error = 0;

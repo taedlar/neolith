@@ -162,6 +162,12 @@ int main (int argc, char **argv) {
    * is no memory leak. The graceful tear down code can be found in various unit-testing
    * code under the tests/ directory.
    */
+#if 0
+  tear_down_simulate();
+  deinit_lpc_compiler();
+  deinit_strings();
+  deinit_config();  
+#endif
 
   return EXIT_SUCCESS;
 }
