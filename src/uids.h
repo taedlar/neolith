@@ -15,7 +15,7 @@ struct userid_s {
 extern userid_t *backbone_uid;
 extern userid_t *root_uid;
 
-userid_t *add_uid(char *name);
+userid_t *add_uid(const char *name);
 userid_t *set_root_uid(char *name);
 userid_t *set_backbone_uid(char *name);
 
