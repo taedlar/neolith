@@ -146,8 +146,10 @@ strput_int (char *x, char *limit, int num)
 }
 
 
-/*
- * Give the correct uid and euid to a created object.
+/**
+ *  @brief Give the correct uid and euid to a created object.
+ * 
+ *  An object must have a uid. The euid may be NULL.
  */
 static int
 give_uid_to_object (object_t * ob)
@@ -535,13 +537,14 @@ object_t* load_object (const char *lname) {
           destruct_object (ob);
           error (_("*master::%s() denied permission to load '/%s'."), APPLY_VALID_OBJECT, name);
         }
-
-      if (init_object (ob))
-        {
-          opt_trace (TT_COMPILE, "calling object create(): \"%s\"", name);
-          call_create (ob, 0);
-        }
     }
+
+  if (init_object (ob))
+    {
+      opt_trace (TT_COMPILE, "calling object create(): \"%s\"", name);
+      call_create (ob, 0);
+    }
+
   if (!(ob->flags & O_DESTRUCTED) && function_exists (APPLY_CLEAN_UP, ob, 1))
     {
       ob->flags |= O_WILL_CLEAN_UP;
