@@ -139,9 +139,14 @@ uidcmp (userid_t * uid1, userid_t * uid2)
   return (name1 < name2 ? -1 : (name1 > name2 ? 1 : 0));
 }
 
-userid_t *
-add_uid (char *name)
-{
+/**
+ * @brief Adds a new user ID or retrieves an existing one by name.
+ * 
+ * FIXME: An uid can be assigned by its userid_t pointer directly (no reference counting).
+ * The userid_t remains in the AVL tree even if no objects reference it.
+ * This can be a potential memory leak if objects are assigned randomly generated uids.
+ */
+userid_t *add_uid (const char *name) {
   userid_t *uid, t_uid;
   char *sname;
 
@@ -149,7 +154,7 @@ add_uid (char *name)
   t_uid.name = sname;
   if ((uid = (userid_t *) tree_srch (uids, uidcmp, (char *) &t_uid)))
     {
-      free_string (sname);
+      free_string (sname); /* only 1 reference is kept for each unique uid name */
     }
   else
     {
@@ -188,6 +193,9 @@ set_backbone_uid (char *name)
   return backbone_uid;
 }
 
+/**
+ * @brief Initialize the UID management system.
+ */
 void init_uids(void) {
   tree_init(&uids);
 }
@@ -199,6 +207,9 @@ static int uid_free (void *p) {
   return 1;
 }
 
+/**
+ * @brief Deinitialize the UID management system.
+ */
 void deinit_uids(void) {
   tree_mung(&uids, uid_free);
 }

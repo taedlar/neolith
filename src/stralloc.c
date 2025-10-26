@@ -225,7 +225,10 @@ char* make_shared_string (const char *str) {
   else
     {
       if (REFS (b)) /* if reference count overflown, let it stay zero ... */
-        REFS (b)++;
+        {
+          opt_trace (TT_EVAL|3, "add ref (was %d): \"%s\"", REFS (b), str);
+          REFS (b)++;
+        }
       ADD_STRING (SIZE (b));
     }
   return (STRING (b));
@@ -246,8 +249,11 @@ char* ref_string (char *str) {
              str);
     }
 #endif /* defined(DEBUG) */
-  if (REFS (b))
-    REFS (b)++;
+  if (REFS (b)) /* if reference count overflown, let it stay zero ... */
+    {
+      opt_trace (TT_EVAL|3, "add ref (was %d): \"%s\"", REFS (b), str);
+      REFS (b)++;
+    }
   ADD_STRING (SIZE (b));
   return str;
 }
