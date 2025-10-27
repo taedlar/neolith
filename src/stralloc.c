@@ -370,9 +370,7 @@ int_new_string (int size)
 {
   malloc_block_t *mbt;
 
-  mbt =
-    (malloc_block_t *) DXALLOC (size + sizeof (malloc_block_t) + 1,
-                                TAG_MALLOC_STRING, tag);
+  mbt = (malloc_block_t *) DXALLOC (size + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, tag);
   if (size < USHRT_MAX)
     {
       mbt->size = size;

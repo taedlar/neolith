@@ -18,10 +18,10 @@ extern char *inherit_file;
 extern char *last_verb;
 extern int tot_alloc_sentence;
 
-char *strput(char *, char *, char *);
+char *strput(char *dest, char *end, const char *src);
 char *strput_int(char *, char *, int);
 
-void check_legal_string(char *);
+void check_legal_string(const char *);
 
 int user_parser(char *);
 int command_for_object(char *);
@@ -37,14 +37,13 @@ extern void save_command_giver (object_t*);
 extern void restore_command_giver (void);
 
 int strip_name(const char* src, char* dest, size_t dest_size);
-char *check_name(char *);
 extern object_t *load_object(const char *);
-object_t *clone_object(char *, int);
+object_t *clone_object(const char *, int);
 object_t *environment(svalue_t *);
 object_t *first_inventory(svalue_t *);
 object_t *object_present(svalue_t *, object_t *);
-object_t *find_object(char *);
-object_t *find_object2(char *);
+object_t *find_object(const char *);
+object_t *find_object2(const char *);
 void move_object(object_t *, object_t *);
 void destruct_object(object_t *);
 void destruct2(object_t *);
@@ -67,7 +66,7 @@ extern void error(char *, ...) NO_RETURN;
 void do_shutdown (int);
 void slow_shut_down (int);
 
-char* origin_name (int);
+const char* origin_name (int);
 
 extern void init_simulate(void);
 extern void tear_down_simulate(void);

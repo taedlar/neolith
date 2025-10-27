@@ -114,13 +114,13 @@ f_call_stack (void)
     case 3:
       ret->item[0].type = T_STRING;
       ret->item[0].subtype = STRING_CONSTANT;
-      ret->item[0].u.string = origin_name (caller_type);
+      ret->item[0].u.const_string = origin_name (caller_type);
 
       for (i = 1; i < n; i++)
 	{
 	  ret->item[i].type = T_STRING;
 	  ret->item[i].subtype = STRING_CONSTANT;
-	  ret->item[i].u.string = origin_name ((csp - i + 1)->caller_type);
+	  ret->item[i].u.const_string = origin_name ((csp - i + 1)->caller_type);
 	}
       break;
     }
