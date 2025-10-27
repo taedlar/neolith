@@ -1,7 +1,5 @@
 #pragma once
 
-extern size_t svalue_strlen_size;
-
 typedef struct block_s {
     struct block_s *next;	/* next block in the hash chain */
     /* these two must be last */
@@ -20,19 +18,18 @@ typedef struct malloc_block_s {
 #define MSTR_REF(x) (MSTR_BLOCK(x)->ref)
 #define MSTR_SIZE(x) (MSTR_BLOCK(x)->size)
 #define MSTR_UPDATE_SIZE(x, y) do {\
-	ADD_STRING_SIZE(y - MSTR_SIZE(x));\
-	MSTR_BLOCK(x)->size = \
-	(y > USHRT_MAX ? USHRT_MAX : y);\
-	} while(0)
+        ADD_STRING_SIZE(y - MSTR_SIZE(x));\
+        MSTR_BLOCK(x)->size = \
+        (y > USHRT_MAX ? USHRT_MAX : y);\
+        } while(0)
 
 #define FREE_MSTR(x) do {\
-	DEBUG_CHECK(MSTR_REF(x) != 1, "FREE_MSTR used on a multiply referenced string\n");\
-        svalue_strlen_size = MSTR_SIZE(x);\
-	SUB_NEW_STRING(svalue_strlen_size, \
-	sizeof(malloc_block_t));\
-	FREE(MSTR_BLOCK(x));\
-	SUB_STRING(svalue_strlen_size);\
-	} while(0)
+        unsigned short size = MSTR_SIZE(x);\
+        DEBUG_CHECK(MSTR_REF(x) != 1, "FREE_MSTR used on a multiply referenced string\n");\
+        SUB_NEW_STRING(size, sizeof(malloc_block_t));\
+        FREE(MSTR_BLOCK(x));\
+        SUB_STRING(size);\
+        } while(0)
 
 #ifdef STRING_STATS
 #define ADD_NEW_STRING(len, overhead) num_distinct_strings++; bytes_distinct_strings += len + 1; overhead_bytes += overhead
@@ -54,8 +51,6 @@ typedef struct malloc_block_s {
  * block_t.  COUNTED_STRLEN(x) is the same as strlen(sv->u.string) when
  * sv->subtype is STRING_MALLOC or STRING_SHARED, and runs significantly
  * faster.
-
-   #define COUNTED_STRLEN(x) ((svalue_strlen_size = MSTR_SIZE(x)), svalue_strlen_size != USHRT_MAX ? svalue_strlen_size : strlen((x)+USHRT_MAX)+USHRT_MAX)
  */
 #define COUNTED_STRLEN(x) ((MSTR_SIZE(x) == USHRT_MAX) ? (strlen((x)+USHRT_MAX)+USHRT_MAX) : MSTR_SIZE(x))
 
@@ -73,14 +68,14 @@ typedef struct malloc_block_s {
 #define SHARED_STRLEN(x) COUNTED_STRLEN(x)
 
 #define SVALUE_STRLEN(x) (((x)->subtype & STRING_COUNTED) ? \
-			  COUNTED_STRLEN((x)->u.string) : \
-			  strlen((x)->u.string))
+                          COUNTED_STRLEN((x)->u.string) : \
+                          strlen((x)->u.string))
 
 /* For quick checks.  Avoid strlen(), etc.  This is  */
 #define SVALUE_STRLEN_DIFFERS(x, y) ((((x)->subtype & STRING_COUNTED) && \
-				     ((y)->subtype & STRING_COUNTED)) ? \
-				     MSTR_SIZE((x)->u.string) != \
-				     MSTR_SIZE((y)->u.string) : 0)
+                                     ((y)->subtype & STRING_COUNTED)) ? \
+                                     MSTR_SIZE((x)->u.string) != \
+                                     MSTR_SIZE((y)->u.string) : 0)
 
 /*
  * stralloc.c

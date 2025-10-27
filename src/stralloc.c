@@ -15,9 +15,6 @@
 #define BLOCK(x)	(((block_t *)(x)) - 1)	/* pointer arithmetic */
 #define STRING(x)	((char *)(x + 1))
 
-/* used temporarily by SVALUE_STRLEN() */
-size_t svalue_strlen_size;
-
 /*
    this code is not the same as the original code.  I cleaned it up to
    use structs to: 1) make it easier to check the driver for memory leaks
