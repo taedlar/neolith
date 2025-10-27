@@ -1021,7 +1021,7 @@ f_switch ()
   intptr_t r = 0;
   int i;
   char *l, *end_tab;
-  static unsigned short off_tab[] = {
+  static size_t off_tab[] = {
     0 * SWITCH_CASE_SIZE, 1 * SWITCH_CASE_SIZE, 3 * SWITCH_CASE_SIZE,
     7 * SWITCH_CASE_SIZE, 15 * SWITCH_CASE_SIZE, 31 * SWITCH_CASE_SIZE,
     63 * SWITCH_CASE_SIZE, 127 * SWITCH_CASE_SIZE,

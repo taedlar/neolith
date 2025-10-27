@@ -2161,6 +2161,7 @@ lvalue:
                                     node = node->r.expr->r.expr;
                                     continue;
                                 }
+                                /* fall through */
                             default:
                                 yyerror("Illegal lvalue");
                                 flag = LV_ILLEGAL;
@@ -2331,6 +2332,7 @@ expr4:
                     switch($1->type) {
                     case TYPE_MAPPING:
                         yyerror("Illegal index for mapping.");
+                        /* fall through */
                     case TYPE_ANY:
                         $$->type = TYPE_ANY;
                         break;
