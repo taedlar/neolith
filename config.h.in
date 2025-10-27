@@ -13,6 +13,9 @@
 #cmakedefine HAVE_UNISTD_H
 #cmakedefine HAVE_ARPA_TELNET_H
 
+#cmakedefine HAVE_STPCPY
+#cmakedefine HAVE_STPNCPY
+
 #cmakedefine HAVE_LIBRT
 
 #define PACKAGE "@CMAKE_PROJECT_NAME@"

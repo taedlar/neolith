@@ -39,8 +39,12 @@ check_include_file(sys/time.h HAVE_SYS_TIME_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
-
 check_include_file(arpa/telnet.h HAVE_ARPA_TELNET_H)
+
+# check for standard functions
+include(CheckSymbolExists)
+check_symbol_exists(stpcpy string.h HAVE_STPCPY)
+check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
 
 # check dependencies
 find_package(BISON REQUIRED)

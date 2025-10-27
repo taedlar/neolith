@@ -127,9 +127,10 @@ void check_legal_string (const char *s) {
  * p = strput(p, end, ...);
  * p = strput(p, end, ...);
  */
-char *
-strput (char *x, char *limit, const char *y)
-{
+char *strput (char *x, char *limit, const char *y) {
+#ifdef HAVE_STPNCPY
+  return stpncpy(x, y, limit - x);
+#else
   while ((*x++ = *y++))
     {
       if (x == limit)
@@ -139,6 +140,7 @@ strput (char *x, char *limit, const char *y)
         }
     }
   return x - 1;
+#endif
 }
 
 char *
