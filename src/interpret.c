@@ -3831,7 +3831,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
       (strcmp (entry->name, fun) == 0))
     {
       /* function entry is found in APPLY_CACHE */
-      opt_trace (TT_EVAL, "apply_low: APPLY_CACHE hit for \"%s\"", fun);
+      opt_trace (TT_EVAL, "APPLY_CACHE hit for \"%s\"", fun);
 
 #ifdef CACHE_STATS
       apply_low_cache_hits++;
@@ -3869,21 +3869,20 @@ apply_low (char *fun, object_t * ob, int num_arg)
 
               previous_ob = current_object;
               current_object = ob;
-              opt_trace (TT_EVAL, "call_program (APPLY_CACHE) \"%s\": offset %+d", fun, funp->address);
+              opt_trace (TT_EVAL, "(cached) calling \"%s\": offset %+d", fun, funp->address);
               call_program (current_prog, funp->address);
 
               return 1;
             }
-        }			/* when we come here, the cache has told us
-                                 * that the function isn't defined in the
-                                 * object */
+        }
+       /* when we come here, the cache has told us that the function isn't defined in the object */
     }
   else
     {
       /* entry is not found in APPLY_CACHE  */
       int index;
 
-      opt_trace (TT_EVAL, "apply_low: APPLY_CACHE miss for \"%s\"", fun);
+      opt_trace (TT_EVAL, "APPLY_CACHE miss for \"%s\"", fun);
 
       /* we have to search the function
        * The old entry was for a nonexistent function and had to
@@ -3938,7 +3937,7 @@ apply_low (char *fun, object_t * ob, int num_arg)
               entry->progp = current_prog;
               previous_ob = current_object;
               current_object = ob;
-              opt_trace (TT_EVAL, "call_program \"%s\": offset %+d", fun, funp->address);
+              opt_trace (TT_EVAL, "calling \"%s\": offset %+d", fun, funp->address);
               call_program (current_prog, funp->address);
 
               /*
@@ -4049,7 +4048,7 @@ call___INIT (object_t * ob)
   previous_ob = current_object;
 
   current_object = ob;
-  opt_trace (TT_EVAL, "call_program: __INIT");
+  opt_trace (TT_EVAL, "(obsoleted) calling __INIT");
   call_program (current_prog, cfp->address);
   sp--;
 }
@@ -4352,7 +4351,7 @@ call_function (program_t * progp, int offset)
   previous_ob = current_object;
   current_object = current_heart_beat;
   tracedepth = 0;
-  opt_trace (TT_EVAL, "call_program: (function)");
+  opt_trace (TT_EVAL, "function address: %d", funp->address);
   call_program (current_prog, funp->address);
   pop_stack ();
 }

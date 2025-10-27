@@ -32,10 +32,8 @@ void f_sscanf(void);
 /*
  * eoperators.c
  */
-funptr_t *make_funp(svalue_t *, svalue_t *);
 void push_funp(funptr_t *);
 void free_funp(funptr_t *);
-void call_simul_efun(unsigned short, int);
 
 funptr_t *make_efun_funp(int, svalue_t *);
 funptr_t *make_lfun_funp(int, svalue_t *);

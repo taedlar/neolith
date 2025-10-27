@@ -14,6 +14,7 @@
 #include "simul_efun.h"
 #include "interpret.h"
 #include "lpc/object.h"
+#include "lpc/include/origin.h"
 
 /*
  * This file rewritten by Beek because it was inefficient and slow.  We
@@ -256,4 +257,38 @@ void unset_simul_efun () {
     free_object (simul_efun_ob, "unset_simul_efun");
     simul_efun_ob = NULL;
   }
+}
+
+void call_simul_efun (unsigned short index, int num_arg)
+{
+  compiler_function_t *funp;
+
+  opt_trace (TT_SIMUL_EFUN|2, "index %d, num_arg %d", index, num_arg);
+
+  if (current_object->flags & O_DESTRUCTED)
+    {				/* No external calls allowed */
+      opt_trace (TT_SIMUL_EFUN|1, "simul_efun_on destructed: returning undefined");
+      pop_n_elems (num_arg);
+      push_undefined ();
+      return;
+    }
+
+  if (simuls[index].func)
+    {
+      /* Don't need to use apply() since we have the pointer directly;
+       * this saves function lookup.
+       */
+      simul_efun_ob->time_of_ref = current_time;
+      push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
+      caller_type = ORIGIN_SIMUL_EFUN;
+      csp->num_local_variables = num_arg;
+      current_prog = simul_efun_ob->prog;
+      funp = setup_new_frame (simuls[index].index);
+      previous_ob = current_object;
+      current_object = simul_efun_ob;
+      opt_trace (TT_SIMUL_EFUN, "func: \"%s\" num_arg=%d", funp->name, num_arg);
+      call_program (current_prog, funp->address);
+    }
+  else
+    error ("Function is no longer a simul_efun.\n");
 }

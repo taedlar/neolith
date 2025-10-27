@@ -13,3 +13,5 @@ extern void init_simul_efun(const char *);
 extern void set_simul_efun(object_t *);
 extern void unset_simul_efun();
 extern int find_simul_efun(char *);
+
+extern void call_simul_efun(unsigned short, int);
