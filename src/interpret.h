@@ -139,7 +139,7 @@ typedef struct error_context_s {
 
 #define free_svalue(x,y) int_free_svalue(x)
 
-#define push_svalue(x) assign_svalue_no_free(++sp, x)
+#define push_svalue(x) do{++sp;assign_svalue_no_free(sp, (x));}while(0)
 
 #define put_number(x) do {\
         sp->type = T_NUMBER;\

@@ -54,8 +54,11 @@ typedef struct malloc_block_s {
  * block_t.  COUNTED_STRLEN(x) is the same as strlen(sv->u.string) when
  * sv->subtype is STRING_MALLOC or STRING_SHARED, and runs significantly
  * faster.
+
+   #define COUNTED_STRLEN(x) ((svalue_strlen_size = MSTR_SIZE(x)), svalue_strlen_size != USHRT_MAX ? svalue_strlen_size : strlen((x)+USHRT_MAX)+USHRT_MAX)
  */
-#define COUNTED_STRLEN(x) ((svalue_strlen_size = MSTR_SIZE(x)), svalue_strlen_size != USHRT_MAX ? svalue_strlen_size : strlen((x)+USHRT_MAX)+USHRT_MAX)
+#define COUNTED_STRLEN(x) ((MSTR_SIZE(x) == USHRT_MAX) ? (strlen((x)+USHRT_MAX)+USHRT_MAX) : MSTR_SIZE(x))
+
 /* return the number of references to a STRING_MALLOC or STRING_SHARED 
    string */
 #define COUNTED_REF(x)    MSTR_REF(x)

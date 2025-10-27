@@ -17,6 +17,7 @@
 #include "lpc/class.h"
 #include "lpc/mapping.h"
 #include "lpc/program.h"
+#include "lpc/compiler.h"
 #include "src/interpret.h"
 #include "rc.h"
 #include "file_utils.h"

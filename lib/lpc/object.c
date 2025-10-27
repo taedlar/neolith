@@ -255,7 +255,7 @@ save_svalue (svalue_t * v, char **buf)
         *(*buf)++ = '[';
         do
           {
-            for (elt = a[j]; elt; elt = elt = elt->next)
+            for (elt = a[j]; elt; elt = elt->next)
               {
                 save_svalue (elt->values, buf);
                 *(*buf)++ = ':';
@@ -1716,6 +1716,7 @@ restore_object (object_t * ob, char *file, int noclear)
   FILE *f;
   object_t *save = current_object;
   struct stat st;
+  size_t n_read;
 
   if (ob->flags & O_DESTRUCTED)
     return 0;
@@ -1755,8 +1756,14 @@ restore_object (object_t * ob, char *file, int noclear)
       return 0;
     }
   theBuff = DXALLOC (i + 1, TAG_TEMPORARY, "restore_object: 4");
-  fread (theBuff, 1, i, f);
+  n_read =fread (theBuff, 1, i, f);
   fclose (f);
+  if (n_read != (size_t)i)
+    {
+      FREE (theBuff);
+      debug_perror ("restore_object()", file);
+      error ("restore_object(): Read error.\n");
+    }
   theBuff[i] = '\0';
   current_object = ob;
 
