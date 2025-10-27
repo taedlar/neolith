@@ -2,7 +2,7 @@
 private void
 logon()
 {
-  hello_world(); // a simul_efun call
+  write("Welcome to the M3 Mud!\n");
   enable_commands();
   add_action("cmd_quit", "quit");
 }

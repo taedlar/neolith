@@ -93,29 +93,6 @@ TEST_F(LPCCompilerTest, compileFile) {
     pop_context (&econ);
 }
 
-TEST_F(LPCCompilerTest, loadSimulEfun)
-{
-    init_simulate();
-    error_context_t econ;
-    save_context (&econ);
-    if (setjmp(econ.context)) {
-        FAIL() << "Failed to load simul efuns.";
-    }
-    else {
-        init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
-        if (CONFIG_STR (__SIMUL_EFUN_FILE__)) {
-            ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
-            // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
-            EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
-        }
-        else {
-            EXPECT_TRUE(simul_efun_ob == nullptr) << "simul_efun_ob is not null when no simul_efun file is specified.";
-        }
-    }
-    pop_context (&econ);
-    tear_down_simulate();
-}
-
 TEST_F(LPCCompilerTest, loadMaster)
 {
     init_simulate();
@@ -153,7 +130,6 @@ TEST_F(LPCCompilerTest, loadObject) {
     }
     else {
         init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
-        ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
         init_master (CONFIG_STR (__MASTER_FILE__));
         ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
 

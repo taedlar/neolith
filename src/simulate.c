@@ -393,11 +393,14 @@ object_t* load_object (const char *lname) {
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
     error (_("*Inherit chain too deep: > %d when trying to load '%s'."), CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
 
-  if (current_object && current_object!=master_ob && current_object->euid == NULL)
-    error (_("*Can't load objects when no effective user."));
-
   if (!strip_name (lname, name, sizeof name))
     error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."), lname);
+
+  if (get_machine_state() >= MS_MUDLIB_LIMBO)
+    {
+      if (current_object && current_object!=master_ob && current_object->euid == NULL)
+        error (_("*Can't load objects when no effective user."));
+    }
 
   /*
    * First check that the c-file exists.
@@ -901,9 +904,7 @@ fix_object_names ()
  * Remove an object. It is first moved into the destruct list, and
  * not really destructed until later. (see destruct2()).
  */
-void
-destruct_object (object_t * ob)
-{
+void destruct_object (object_t * ob) {
   object_t **pp;
   int removed;
   object_t *super;
@@ -1053,11 +1054,18 @@ destruct_object (object_t * ob)
         }
 
       free_object (ob, "vital object reference");
-      if (new_ob)
+      if (ob == master_ob)
         {
-          if (ob == master_ob)
-            set_master (new_ob);
-          if (ob == simul_efun_ob)
+          if (new_ob)
+            set_master(new_ob);
+          else
+            master_ob = NULL;
+        }
+      else if (ob == simul_efun_ob)
+        {
+          simul_efun_ob = NULL; /* prevents recursively calling destruct_object() on simul_efun_ob*/
+          unset_simul_efun ();
+          if (new_ob)
             set_simul_efun (new_ob);
         }
 
