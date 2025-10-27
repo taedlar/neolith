@@ -213,7 +213,6 @@ extern unsigned int apply_low_cache_hits;
 extern unsigned int apply_low_slots_used;
 extern unsigned int apply_low_collisions;
 extern int function_index_offset;
-extern int simul_efun_is_loading;
 extern svalue_t const0;
 extern svalue_t const1;
 extern svalue_t const0u;

@@ -32,13 +32,12 @@
  * table is used at compile time.
  */
 
-typedef struct
-{
+typedef struct simul_entry_s {
   char *name;
   short index;
-}
-simul_entry;
+} simul_entry;
 
+int simul_efun_is_loading = 0;
 simul_entry *simul_names = 0;
 simul_info_t *simuls = 0;
 static int num_simul_efun = 0;
@@ -62,11 +61,14 @@ init_simul_efun (const char *file)
       return;
     }
 
+  simul_efun_is_loading = 1;
   if (NULL == (new_ob = load_object (file)))
     {
+      simul_efun_is_loading = 0;
       debug_error (_("failed loading simul_efun file"));
       return;
     }
+  simul_efun_is_loading = 0;
   set_simul_efun (new_ob);
 }
 
