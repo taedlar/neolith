@@ -815,6 +815,8 @@ call_callback (int fd, int what, int num_arg)
     case S_CLOSE_FP:
       callback = lpc_socks[fd].close_callback;
       break;
+    default:
+      return;
     }
 
   if (lpc_socks[fd].flags & what)

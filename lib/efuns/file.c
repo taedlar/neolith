@@ -296,18 +296,23 @@ void
 f_link (void)
 {
   svalue_t *ret;
-  int i;
+  int i = 0;
 
-  push_svalue (sp - 1);
-  push_svalue (sp);
-  ret = apply_master_ob (APPLY_VALID_LINK, 2);
-  if (MASTER_APPROVED (ret))
-    i = do_rename ((sp - 1)->u.string, sp->u.string, F_LINK);
-  else
-    i = 0;
-  (--sp)->type = T_NUMBER;
-  sp->u.number = i;
-  sp->subtype = 0;
+  if (get_machine_state() < MS_MUDLIB_LIMBO)
+    error ("link() efun called before master object is set up.\n");
+  if (sp)
+    {
+      push_svalue (sp - 1);
+      push_svalue (sp);
+      ret = apply_master_ob (APPLY_VALID_LINK, 2);
+      if (MASTER_APPROVED (ret))
+        i = do_rename ((sp - 1)->u.string, sp->u.string, F_LINK);
+      else
+        i = 0;
+      (--sp)->type = T_NUMBER;
+      sp->u.number = i;
+      sp->subtype = 0;
+    }
 }
 #endif /* F_LINK */
 

@@ -121,15 +121,13 @@ yyerrorp (char *str)
   exit (1);
 }
 
-static void
-add_input (char *p)
-{
-  size_t l = strlen (p);
+static void add_input (char *p) {
+  size_t len = strlen (p);
 
-  if (outptr - l < defbuf)
+  if (outptr - len < defbuf)
     yyerror ("Macro expansion buffer overflow.\n");
-  strncpy (outptr - l, p, l);
-  outptr -= l;
+  memcpy (outptr - len, p, len);
+  outptr -= len;
 }
 
 #define SKIPW(foo) while (isspace(*foo)) foo++;

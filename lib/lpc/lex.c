@@ -2916,18 +2916,23 @@ handle_define (char *yyt)
 }
 
 /* IDEA: linked buffers, to allow "unlimited" buffer expansion */
-static void
-add_input (char *p)
-{
-  int l = strlen (p);
+/**
+ * @brief Add input to the macro expansion buffer.
+ *
+ * cur_lbuf is a linked list of buffers used for macro expansion.
+ * It is extended as needed to allow for large macro expansions.
+ * @param p The string to add.
+ */
+static void add_input (char *p) {
+  size_t len = strlen (p);
 
-  if (l >= DEFMAX - 10)
+  if (len >= DEFMAX - 10)
     {
       lexerror (_("Macro expansion buffer overflow"));
       return;
     }
 
-  if (outptr < l + 5 + cur_lbuf->buf)
+  if (outptr < len + 5 + cur_lbuf->buf)
     {
       /* Not enough space, so let's move it up another linked_buf */
       linked_buf_t *new_lbuf;
@@ -2939,12 +2944,12 @@ add_input (char *p)
       while (*q != '\n' && *q != LEX_EOF)
         q++;
       /* Incorporate EOF later */
-      if (*q != '\n' || ((q - outptr) + l) >= DEFMAX - 11)
+      if (*q != '\n' || ((q - outptr) + len) >= DEFMAX - 11)
         {
           lexerror (_("Macro expansion buffer overflow"));
           return;
         }
-      size = (q - outptr) + l + 1;
+      size = (q - outptr) + len + 1; /* remaining of current line of source code */
       cur_lbuf->outptr = q + 1;
       cur_lbuf->last_nl = last_nl;
 
@@ -2955,15 +2960,15 @@ add_input (char *p)
       cur_lbuf = new_lbuf;
       last_nl = (new_lbuf->buf_end = buf + DEFMAX - 2) - 1;
       new_outp = new_lbuf->outptr = buf + DEFMAX - 2 - size;
-      memcpy (new_outp, p, l);
-      memcpy (new_outp + l, outptr, (q - outptr) + 1);
+      memcpy (new_outp, p, len);
+      memcpy (new_outp + len, outptr, (q - outptr) + 1);
       outptr = new_outp;
       *(last_nl + 1) = 0;
       return;
     }
 
-  outptr -= l;
-  strncpy (outptr, p, l);
+  outptr -= len;
+  memcpy (outptr, p, len);
 }
 
 static void
