@@ -134,8 +134,7 @@ typedef struct error_context_s {
         } while(0)
 
 /* macro calls */
-#define call_program(prog, offset) \
-        eval_instruction ((prog)->program + (offset))
+#define call_program(prog, offset) eval_instruction ((prog)->program + (offset))
 
 #define free_svalue(x,y) int_free_svalue(x)
 
