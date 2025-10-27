@@ -385,12 +385,13 @@ free_some_svalues (svalue_t * v, int num)
 }
 
 
-/*
- * Prepend a slash in front of a string.
+/**
+ * @brief Add a leading slash to a file name.
+ * The string is allocated with new_string().
+ * @param str The file name.
+ * @return A new string with a leading slash.
  */
-char *
-add_slash (char *str)
-{
+char *add_slash (const char *str) {
   char *tmp;
 
   tmp = new_string (strlen (str) + 1, "add_slash");
@@ -1222,12 +1223,12 @@ push_shared_string (char *p)
  * Push a string on the stack that is already constant.
  */
 void
-push_constant_string (char *p)
+push_constant_string (const char *p)
 {
   CHECK_AND_PUSH(1);
   sp->type = T_STRING;
   sp->subtype = STRING_CONSTANT;
-  sp->u.string = p;
+  sp->u.const_string = p;
 }
 
 

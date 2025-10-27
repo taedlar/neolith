@@ -56,8 +56,8 @@ object_t *current_interactive;	/* The user who caused this execution */
 
 static int give_uid_to_object (object_t *);
 static int init_object (object_t *);
-static svalue_t *load_virtual_object (char *);
-static char *make_new_name (char *);
+static svalue_t *load_virtual_object (const char *);
+static char *make_new_name (const char *);
 static void send_say (object_t *, char *, array_t *);
 static sentence_t *alloc_sentence (void);
 static void remove_sent (object_t *, object_t *);
@@ -97,9 +97,13 @@ restore_command_giver ()
 
 /*********************************************************************/
 
-inline void
-check_legal_string (char *s)
-{
+/**
+ * @brief Check that a string is legal for printing.
+ * 
+ * If the string is too long, an error is raised.
+ * @param s The string to check.
+ */
+void check_legal_string (const char *s) {
   if (strlen (s) >= LARGEST_PRINTABLE_STRING)
     {
       error (_("*Printable strings limited to length of %d.\n"),
@@ -124,7 +128,7 @@ check_legal_string (char *s)
  * p = strput(p, end, ...);
  */
 char *
-strput (char *x, char *limit, char *y)
+strput (char *x, char *limit, const char *y)
 {
   while ((*x++ = *y++))
     {
@@ -158,7 +162,7 @@ give_uid_to_object (object_t * ob)
   char *creator_name = NULL;
 
   /* before master object is loaded */
-  if (!master_ob)
+  if (get_machine_state() < MS_MUDLIB_LIMBO)
     {
       ob->uid = add_uid ("NONAME");
       ob->euid = NULL;
@@ -238,12 +242,10 @@ init_object (object_t * ob)
 }
 
 
-static svalue_t *
-load_virtual_object (char *name)
-{
+static svalue_t *load_virtual_object (const char *name) {
   svalue_t *v;
 
-  if (!master_ob)
+  if (get_machine_state() < MS_MUDLIB_LIMBO)
     return 0;
   push_malloced_string (add_slash (name));
   v = apply_master_ob (APPLY_COMPILE_OBJECT, 1);
@@ -282,6 +284,14 @@ void set_master (object_t * ob) {
           master_ob->euid = master_ob->uid;
         }
 
+      /* The backbone UID is set only when the master object is first loaded.
+       * If the master object changes later, the backbone UID remains the same
+       * because there could be already objects created with that UID.
+       * 
+       * Retain the original backbone UID to allow new objects created by
+       * backbone (as indicated by creator_file) to receive UID and EUID of
+       * current_object.
+       */
       ret = apply_master_ob (APPLY_GET_BACKBONE_UID, 0);
       if (ret && (ret->type == T_STRING))
         set_backbone_uid (ret->u.string);
@@ -294,17 +304,18 @@ void set_master (object_t * ob) {
 }
 
 
-char *
-check_name (char *src)
-{
-  char *p;
+/**
+ * @brief Strip leading slashes and check for double slashes in a file name.
+ */
+static const char *strip_and_check_name (const char *src) {
+  const char *p;
   while (*src == '/')
-    src++;
+    src++; /* strip leading slashes */
   p = src;
   while (*p)
     {
       if (*p == '/' && *(p + 1) == '/')
-        return 0;
+        return 0; /* double slash not allowed */
       p++;
     }
   return src;
@@ -556,10 +567,15 @@ object_t* load_object (const char *lname) {
 }
 
 
-static char *
-make_new_name (char *str)
-{
-  static int i;
+/**
+ * @brief Create a new name for a cloned object by appending #number to the original name.
+ * 
+ * The number is incremented with each call to this function.
+ * @param str The original object name.
+ * @return A new string with the cloned object name.
+ */
+static char *make_new_name (const char *str) {
+  static int i = 1;
   char *p = DXALLOC (strlen (str) + 10, TAG_OBJ_NAME, "make_new_name");
 
   (void) sprintf (p, "%s#%d", str, i);
@@ -572,9 +588,8 @@ make_new_name (char *str)
  * Save the command_giver, because reset() in the new object might change
  * it.
  */
-object_t *
-clone_object (char *str1, int num_arg)
-{
+object_t *clone_object (const char *str1, int num_arg) {
+
   object_t *ob, *new_ob;
   object_t *save_command_giver = command_giver;
 
@@ -615,9 +630,8 @@ clone_object (char *str1, int num_arg)
              in clones of virtual objects.
              -Beek */
 
-          if (!(str1 = check_name (str1)))
-            error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."),
-               str1);
+          if (!(str1 = strip_and_check_name (str1)))
+            error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."), str1);
 
           if (ob->ref == 1 && !ob->super && !ob->contains)
             {
@@ -1508,9 +1522,7 @@ do_write (svalue_t * arg)
  * returned.
  */
 
-object_t *
-find_object (char *str)
-{
+object_t *find_object (const char *str) {
   object_t *ob;
   char tmpbuf[MAX_OBJECT_NAME_SIZE];
 
@@ -1529,7 +1541,7 @@ find_object (char *str)
 
 /* Look for a loaded object. Return 0 if non found. */
 object_t *
-find_object2 (char *str)
+find_object2 (const char *str)
 {
   register object_t *ob;
   char p[MAX_OBJECT_NAME_SIZE];
@@ -2881,9 +2893,7 @@ first_inventory (svalue_t * arg)
 #endif
 
 
-char *
-origin_name (int orig)
-{
+const char *origin_name (int orig) {
   switch (orig)
     {
     case ORIGIN_DRIVER:

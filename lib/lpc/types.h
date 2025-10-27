@@ -24,6 +24,7 @@ typedef struct {
 
 union u {
     char *string;
+    const char *const_string;
     intptr_t number;
     float real;
 

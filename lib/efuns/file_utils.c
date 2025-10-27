@@ -711,10 +711,8 @@ file_size (char *file)
  * Otherwise, the returned path is temporarily allocated by apply(), which
  * means it will be deallocated at next apply().
  */
-char *
-check_valid_path (char *path, object_t * call_object, char *call_fun,
-                  int writeflg)
-{
+char *check_valid_path (char *path, object_t * call_object, const char *call_fun, int writeflg) {
+
   svalue_t *v;
 
   if (call_object == 0 || call_object->flags & O_DESTRUCTED)

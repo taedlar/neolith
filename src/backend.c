@@ -94,7 +94,7 @@ parse_command (char *str, object_t * ob)
 
 /*  backend()
  */
-size_t eval_cost;
+size_t eval_cost = 0;
 
 void
 backend ()

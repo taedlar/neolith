@@ -248,7 +248,7 @@ void push_class(array_t *);
 void push_refed_class(array_t *);
 void push_malloced_string(char *);
 void push_shared_string(char *);
-void push_constant_string(char *);
+void push_constant_string(const char *);
 void pop_stack(void);
 void pop_n_elems(int);
 void pop_2_elems(void);
@@ -283,7 +283,7 @@ svalue_t *safe_apply_master_ob(char *, int);
 void init_master(const char *);
 void mark_apply_low_cache(void);
 int translate_absolute_line(int, unsigned short *, size_t, int *, int *);
-char *add_slash(char *);
+char *add_slash(const char *);
 int strpref(char *, char *);
 void do_trace(char *, char *, char *);
 
