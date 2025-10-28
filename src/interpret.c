@@ -5008,46 +5008,97 @@ _strtof (char *nptr, char **endptr)
   return acc;
 }
 
-/* Be careful.  This assumes there will be a frame pushed right after this,
-   as we use econ->save_csp + 1 to restore */
-int
-save_context (error_context_t * econ)
-{
+/**
+ * @brief Save the current virtual machine execution context as current error
+ * handling context (after push previous error handling context onto the stack).
+ * 
+ * Be careful. This assumes there will be a frame pushed right after this,
+ * as we use econ->save_csp + 1 to restore.
+ * 
+ * This is also followed by a setjmp(), so it must not be inlined.
+ * Previous error context is pushed and MUST be restored by a pop_context() after
+ * current error handling context has finished, no matter if longjmp() occurs or not.
+ * 
+ * The save_context() and restore_context() function provides a try/catch-like
+ * mechanism for LPC runtime errors.
+ * 
+ * If any LPC runtime error occurs, the error handler does a longjmp() to the
+ * saved context (next instruction after the setjmp()), which calls the
+ * restore_context() to restore the virtual machine state to the saved one.
+ * 
+ * @param econ The error context structure to fill in.
+ * @return Depth of saved context (non-zero) on success, 0 on failure (too deep recursion).
+ */
+int save_context (error_context_t * econ) {
+
+  int depth = 0;
+  error_context_t* ec;
+
   if (csp == &control_stack[CONFIG_INT (__MAX_CALL_DEPTH__) - 1])
     {
-      /* Attempting to push the frame will give Too deep recursion.
-         fail now. */
+      /* Attempting to push the frame will give Too deep recursion fail now. */
       return 0;
     }
   econ->save_command_giver = command_giver;
-  econ->save_sp = sp;				/* stack pointer */
-  econ->save_csp = csp;				/* control stack pointer */
+  econ->save_sp = sp;           /* stack pointer */
+  econ->save_csp = csp;         /* control stack pointer */
   econ->save_context = current_error_context;
 
   current_error_context = econ;
-  return 1;
+  ec = current_error_context;
+  while(ec) {
+    depth++;
+    ec = ec->save_context;
+  }
+  opt_trace (TT_EVAL, "depth %d", depth);
+
+  return depth;
 }
 
-void
-pop_context (error_context_t * econ)
-{
+/**
+ * @brief Pop the current error handling context off the stack of error
+ * handling contexts.
+ * 
+ * This function must be called after save_context() when the saved context
+ * is no longer needed, to restore the previous error handling context.
+ * 
+ * Failing to do so will result in a bad current_error_context pointing to
+ * a dangling structure that may have been deallocated from the stack.
+ * 
+ * @param econ The error context structure to pop.
+ */
+void pop_context (error_context_t * econ) {
+  int depth = 0;
+  error_context_t* ec;
+
   current_error_context = econ->save_context;
   error_state = 0;
+
+  ec = current_error_context;
+  while(ec) {
+    depth++;
+    ec = ec->save_context;
+  }
+  opt_trace (TT_EVAL, "depth %d", depth);
 }
 
-/* can the error handler do this ? */
-void
-restore_context (error_context_t * econ)
-{
+/**
+ * @brief Restore the LPC virtual machine execution context from a saved error
+ * handling context.
+ * 
+ * This function is called after a longjmp() to the saved context in
+ * save_context().
+ * 
+ * @param econ The error context structure to restore from.
+ */
+void restore_context (error_context_t * econ) {
+
   command_giver = econ->save_command_giver;
-  DEBUG_CHECK (csp < econ->save_csp,
-               "csp is below econ->csp before unwinding.\n");
+  DEBUG_CHECK (csp < econ->save_csp, "csp is below econ->csp before unwinding.\n");
   if (csp > econ->save_csp)
     {
-      /* Unwind the control stack to the saved position */
 #ifdef PROFILE_FUNCTIONS
-      /* PROFILE_FUNCTIONS needs current_prog to be correct in 
-         pop_control_stack() */
+      /* PROFILE_FUNCTIONS needs current_prog to be correct in pop_control_stack() */
       if (csp > econ->save_csp + 1)
         {
           csp = econ->save_csp + 1;
@@ -5055,7 +5106,7 @@ restore_context (error_context_t * econ)
         }
       else
 #endif
-        csp = econ->save_csp + 1;
+        csp = econ->save_csp + 1; /* Unwind the control stack to the saved position */
       pop_control_stack ();
     }
   pop_n_elems (sp - econ->save_sp);

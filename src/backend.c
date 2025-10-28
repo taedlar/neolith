@@ -174,6 +174,7 @@ backend ()
       if (heart_beat_flag)
         call_heart_beat ();
     }
+  pop_context (&econ);
 }
 
 /*
@@ -211,7 +212,7 @@ look_for_objects_to_swap ()
 
   save_context (&econ);
   if (setjmp (econ.context))
-    restore_context (&econ);
+    restore_context (&econ); /* catch errors in reset() or clean_up() */
 
   while ((ob = (object_t *) next_ob))
     {
@@ -526,7 +527,7 @@ preload_objects (int eflag)
   save_context (&econ);
   if (setjmp (econ.context))
     {
-      restore_context (&econ);
+      restore_context (&econ); /* catch errors in master apply epilog() */
       pop_context (&econ);
       return;
     }
@@ -534,6 +535,7 @@ preload_objects (int eflag)
   push_number (eflag);
   ret = apply_master_ob (APPLY_EPILOG, 1);
   pop_context (&econ);
+
   if ((ret == 0) || (ret == (svalue_t *) - 1) || (ret->type != T_ARRAY))
     return;
   else
@@ -548,7 +550,7 @@ preload_objects (int eflag)
   save_context (&econ);
   if (setjmp (econ.context))
     {
-      restore_context (&econ);
+      restore_context (&econ); /* catch errors in master apply preload() */
       ix++;
     }
   for (; ix < prefiles->size; ix++)

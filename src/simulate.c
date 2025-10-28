@@ -2510,6 +2510,7 @@ fatal (char *fmt, ...)
       save_context (&econ);
       if (setjmp (econ.context))
         {
+          restore_context (&econ);
           debug_message (_("{}\t***** error in master::%s(), shutdown now."), APPLY_CRASH);
         }
       else
@@ -2534,6 +2535,7 @@ fatal (char *fmt, ...)
               debug_message (_("{}\t----- mudlib crash handler finished, shutdown now."));
             }
         }
+      pop_context (&econ);
     }
 
   free (msg);

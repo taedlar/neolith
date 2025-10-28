@@ -972,7 +972,7 @@ preprocess ()
             }
           else
             {
-              char buff[200];
+              char buff[DEFMAX + 20];
               sprintf (buff, "Unrecognised %c directive : %s\n", ppchar, yyp);
               yyerror (buff);
             }
