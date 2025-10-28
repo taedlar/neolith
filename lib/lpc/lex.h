@@ -155,7 +155,7 @@ char *main_file_name(void);
 char *get_defined_name(defined_name_t *);
 ident_hash_elem_t *find_or_add_ident(char *, int);
 ident_hash_elem_t *find_or_add_perm_ident(char *);
-ident_hash_elem_t *lookup_ident(char *);
+ident_hash_elem_t *lookup_ident(const char *);
 void free_unused_identifiers(void);
 void init_identifiers(void);
 void deinit_identifiers(void);

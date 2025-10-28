@@ -3411,9 +3411,7 @@ main_file_name ()
       if (((x)->token & IHE_RESWORD) || ((x)->sem_value)) { z } \
       else return 0; }
 
-ident_hash_elem_t *
-lookup_ident (char *name)
-{
+ident_hash_elem_t *lookup_ident (const char *name) {
   int h = IdentHash (name);
   ident_hash_elem_t *hptr, *hptr2;
 
@@ -3433,6 +3431,8 @@ lookup_ident (char *name)
 
 /**
  * @brief Find or add a permanent identifier.
+ * @param name The name of the identifier. No reference is made to the string after this call.
+ * @return A pointer to the identifier hash element.
  */
 ident_hash_elem_t* find_or_add_perm_ident (char *name) {
   int h = IdentHash (name);
@@ -3441,14 +3441,15 @@ ident_hash_elem_t* find_or_add_perm_ident (char *name) {
   if ((hptr = ident_hash_table[h]))
     {
       if (!strcmp (hptr->name, name))
-        return hptr;
+        return hptr; /* found */
       hptr2 = hptr->next;
       while (hptr2 != hptr)
         {
           if (!strcmp (hptr2->name, name))
-            return hptr2;
+            return hptr2; /* found */
           hptr2 = hptr2->next;
         }
+      /* collision, add to slot, a circular linked list */
       hptr = ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT, "find_or_add_perm_ident:1");
       hptr->next = ident_hash_head[h]->next;
       ident_hash_head[h]->next = hptr;
@@ -3457,11 +3458,14 @@ ident_hash_elem_t* find_or_add_perm_ident (char *name) {
     }
   else
     {
+      /* no collision, add to hash table */
       hptr = (ident_hash_table[h] = ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT, "find_or_add_perm_ident:2"));
       ident_hash_head[h] = hptr;
       ident_hash_tail[h] = hptr;
       hptr->next = hptr;
     }
+  
+  /* a new permanent identifier is added */
   hptr->name = name;
   hptr->token = 0;
   hptr->sem_value = 0;
@@ -3588,9 +3592,8 @@ quick_alloc_ident_entry ()
     }
 }
 
-ident_hash_elem_t *
-find_or_add_ident (char *name, int flags)
-{
+ident_hash_elem_t *find_or_add_ident (char *name, int flags) {
+
   int h = IdentHash (name);
   ident_hash_elem_t *hptr, *hptr2;
 
@@ -3598,6 +3601,7 @@ find_or_add_ident (char *name, int flags)
     {
       if (!strcmp (hptr->name, name))
         {
+          /* found */
           if ((hptr->token & IHE_PERMANENT) && (flags & FOA_GLOBAL_SCOPE)
               && (hptr->dn.function_num == -1)
               && (hptr->dn.global_num == -1)
@@ -3613,6 +3617,7 @@ find_or_add_ident (char *name, int flags)
         {
           if (!strcmp (hptr2->name, name))
             {
+              /* found */
               if ((hptr2->token & IHE_PERMANENT) && (flags & FOA_GLOBAL_SCOPE)
                   && (hptr2->dn.function_num == -1)
                   && (hptr2->dn.global_num == -1)
@@ -3631,10 +3636,12 @@ find_or_add_ident (char *name, int flags)
   hptr = quick_alloc_ident_entry ();
   if (!(hptr2 = ident_hash_tail[h]) && !(hptr2 = ident_hash_table[h]))
     {
+      /* empty slot */
       ident_hash_table[h] = hptr->next = hptr;
     }
   else
     {
+      /* collision, insert to the circular linked list */
       hptr->next = hptr2->next;
       hptr2->next = hptr;
     }
@@ -3718,23 +3725,20 @@ void init_identifiers () {
  * @brief Deinitialize identifier management structures. All identifiers including permanents are freed.
  */
 void deinit_identifiers () {
-  int i;
-  for (i = 0; i < IDENT_HASH_SIZE * 3; i++)
-    {
-      ident_hash_table[i] = 0;
-    }
+  int i, n = 0;
   free_unused_identifiers ();
   /* free identifiers with IHE_EFUN flag */
   for (i = 0; i < IDENT_HASH_SIZE; i++)
     {
-      ident_hash_elem_t *hptr = ident_hash_table[i];
-      while (hptr)
+      ident_hash_elem_t *head, *hptr = head = ident_hash_table[i];
+      while (hptr && (hptr->next != head))
         {
           if (hptr->token & IHE_EFUN)
             {
               ident_hash_elem_t *tmp = hptr;
               hptr = hptr->next;
               FREE (tmp); /* allocated by find_or_add_perm_ident() */
+              n++;
             }
           else
             {
@@ -3749,4 +3753,5 @@ void deinit_identifiers () {
   ident_hash_table = NULL;
   ident_hash_head = NULL;
   ident_hash_tail = NULL;
+  opt_trace (TT_BACKEND|3, "freed %d identifiers", n);
 }
