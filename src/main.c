@@ -123,6 +123,8 @@ int main (int argc, char **argv) {
   if (setjmp (econ.context))
     {
       /* returned from longjmp() */
+      restore_context (&econ);
+      pop_context (&econ);
       debug_message (_("{}\t***** error occurs in pre-loading stage, shutting down."));
       exit (EXIT_FAILURE);
     }

@@ -1901,8 +1901,8 @@ indent (char *buf)
 static int
 indent_code ()
 {
-  char s[STACKSZ];
-  int i[STACKSZ];
+  static char s[STACKSZ];
+  static int i[STACKSZ];
   int last;
 
   /* setup stacks */
