@@ -914,6 +914,9 @@ void destruct_object (object_t * ob) {
   if (restrict_destruct && restrict_destruct != ob)
     error (_("*Only this_object() can be destructed from move_or_destruct."));
 
+  if (ob == simul_efun_ob && master_ob)
+    error ("*Cannot destruct simul_efun_object while master_object exists.");
+
   /*
    * check if object has an efun socket referencing it for a callback. if
    * so, close the efun socket.
@@ -2940,15 +2943,20 @@ void init_simulate() {
 }
 
 void tear_down_simulate() {
-  // clear master file config to prevent reloading master_ob in destruct_object()
+  opt_trace (TT_BACKEND, "Tearing down simulated virtual world...\n");
+
   if (master_ob) {
-      CLEAR_CONFIG_STR(__MASTER_FILE__);
+      CLEAR_CONFIG_STR(__MASTER_FILE__); /* do not reload master_ob */
       current_object = master_ob;
       destruct_object (master_ob);
       master_ob = NULL;
   }
+  /* simul_efun_ob, if loaded, must be the LAST object to be destructed in the simulated virtual world
+   * because the LPC compiler uses index of simul_efuns in the generated opcode. The program_t of
+   * simul_efun_ob must remain unchanged or the generated opcode will be corrupted.
+   */
   if (simul_efun_ob) {
-      CLEAR_CONFIG_STR(__SIMUL_EFUN_FILE__);
+      CLEAR_CONFIG_STR(__SIMUL_EFUN_FILE__); /* do not reload simul_efun_ob */
       object_t* old_simul_efun_ob = simul_efun_ob;
       unset_simul_efun();
       current_object = old_simul_efun_ob;

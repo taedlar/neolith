@@ -8,6 +8,7 @@ extern "C" {
     #include "rc.h"
     #include "src/simul_efun.h"
     #include "src/uids.h"
+    #include "lpc/lex.h"
     #include "lpc/object.h"
 }
 
@@ -80,18 +81,64 @@ TEST_F(SimulEfunsTest, loadSimulEfun)
         // simul_efun_ob should be granted NONAME uid without master object.
         EXPECT_STREQ(simul_efun_ob->uid->name, "NONAME");
 
-        // m3.conf does not specify SimulEfunFile, destructing simul_efun_ob does not reload it.
-        current_object = simul_efun_ob;
-        EXPECT_FALSE(current_object->euid); // euid is not required to load objects at MS_PRE_MUDLIB
-        object_t* old_simul_efun_ob = simul_efun_ob;
-        destruct_object (simul_efun_ob);
-        EXPECT_TRUE (old_simul_efun_ob->flags & O_DESTRUCTED) << "simul_efun_ob not marked destructed after destruct_object().";
-        EXPECT_FALSE(simul_efun_ob);
-
         // simul_efun_base should still be loaded
         object_t* base_ob = find_object("/simul_efun_base");;
         EXPECT_TRUE(base_ob != nullptr) << "simul_efun_base object not found after destructing simul_efun_ob.";
         destruct_object(base_ob);
+    }
+    pop_context (&econ);
+}
+
+TEST_F(SimulEfunsTest, protectSimulEfun)
+{
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+    }
+    else {
+        ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+        init_simul_efun ("/simul_efun_test.c");
+        ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
+        // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
+        EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
+
+        init_master ("/master.c");
+        ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
+
+        current_object = master_ob;
+        destruct_object (simul_efun_ob); // should raise error
+        FAIL() << "Simul efun object was destructed while master object exists.";
+    }
+    pop_context (&econ);
+}
+
+TEST_F(SimulEfunsTest, findSimulEfun)
+{
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+        // FAIL() << "Failed to load simul efuns.";
+    }
+    else {
+        ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+        init_simul_efun ("/simul_efun_test.c");
+        ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
+        // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
+        EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
+
+        char* func_name = findstring("sum");
+        ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'sum'.";
+        EXPECT_NE(find_simul_efun(func_name), -1) << "find_simul_efun failed to find 'sum'.";
+
+        ident_hash_elem_t* ihe = lookup_ident(func_name);
+        ASSERT_TRUE(ihe != nullptr) << "lookup_ident failed to find 'sum'.";
+        EXPECT_TRUE(ihe->token & IHE_SIMUL) << "'sum' ident_hash_elem_t does not have IHE_SIMUL flag set.";
+
+        func_name = findstring("create"); // create() is always attempted when loading an object
+        ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'create'.";
+        EXPECT_EQ(find_simul_efun(func_name), -1);
     }
     pop_context (&econ);
 }

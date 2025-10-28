@@ -32,16 +32,17 @@
  * table is used at compile time.
  */
 
+int simul_efun_is_loading = 0;
+simul_info_t *simuls = 0;
+object_t *simul_efun_ob;
+
 typedef struct simul_entry_s {
   char *name;
-  short index;
+  short index; /* index in the simuls table */
 } simul_entry;
 
-int simul_efun_is_loading = 0;
-simul_entry *simul_names = 0;
-simul_info_t *simuls = 0;
-static int num_simul_efun = 0;
-object_t *simul_efun_ob;
+static simul_entry *simul_names = 0;
+static int num_simul_efun = 0; /* number of entries in simul_names and simuls */
 
 static void find_or_add_simul_efun (program_t *, int, int);
 static void remove_simuls (void);
@@ -72,9 +73,10 @@ init_simul_efun (const char *file)
   set_simul_efun (new_ob);
 }
 
-static void
-remove_simuls ()
-{
+/**
+ * @brief Remove all old simul_efuns from the tables and identifier hash.
+ */
+static void remove_simuls () {
   int i;
   ident_hash_elem_t *ihe;
   /* inactivate all old simul_efuns */
@@ -124,11 +126,8 @@ get_simul_efuns (program_t * prog)
     {
       if (num_new)
         {
-          simul_names =
-            CALLOCATE (num_new, simul_entry, TAG_SIMULS, "get_simul_efuns");
-          simuls =
-            CALLOCATE (num_new, simul_info_t, TAG_SIMULS,
-                       "get_simul_efuns: 2");
+          simul_names = CALLOCATE (num_new, simul_entry, TAG_SIMULS, "get_simul_efuns");
+          simuls = CALLOCATE (num_new, simul_info_t, TAG_SIMULS, "get_simul_efuns: 2");
         }
     }
   for (i = 0; i < num_new; i++)
@@ -156,10 +155,8 @@ get_simul_efuns (program_t * prog)
   if (num_simul_efun)
     {
       /* shrink to fit */
-      simul_names = RESIZE (simul_names, num_simul_efun, simul_entry,
-                            TAG_SIMULS, "get_simul_efuns");
-      simuls = RESIZE (simuls, num_simul_efun, simul_info_t,
-                       TAG_SIMULS, "get_simul_efuns");
+      simul_names = RESIZE (simul_names, num_simul_efun, simul_entry, TAG_SIMULS, "get_simul_efuns");
+      simuls = RESIZE (simuls, num_simul_efun, simul_info_t, TAG_SIMULS, "get_simul_efuns");
     }
 }
 
@@ -169,16 +166,14 @@ get_simul_efuns (program_t * prog)
  * Test if 'name' is a simul_efun. The string pointer MUST be a pointer to
  * a shared string.
  */
-int
-find_simul_efun (char *name)
-{
+int find_simul_efun (const char *name) {
   int first = 0;
   int last = num_simul_efun - 1;
   int i, j;
 
   while (first <= last)
     {
-      j = (first + last) / 2;
+      j = (first + last) / 2; /* binary search */
       i = compare_addrs (name, simul_names[j].name);
       if (i == -1)
         {
@@ -197,18 +192,20 @@ find_simul_efun (char *name)
 /*
  * Define a new simul_efun
  */
-static void
-find_or_add_simul_efun (program_t * prog, int index, int runtime_index)
-{
+static void find_or_add_simul_efun (program_t * prog, int index, int runtime_index) {
+
   ident_hash_elem_t *ihe;
   int first = 0;
   int last = num_simul_efun - 1;
   int i, j;
   compiler_function_t *funp = &prog->function_table[index];
 
+  /* funp->name is a shared string but can be considered permanent as long as the
+   * object (simul_efun_on) is loaded. 
+   */
   opt_trace (TT_SIMUL_EFUN, "%s: runtime_index=%d", funp->name, runtime_index);
 
-  while (first <= last)
+  while (first <= last) /* binary search in simul_names */
     {
       j = (first + last) / 2;
       i = compare_addrs (funp->name, simul_names[j].name);
@@ -220,7 +217,7 @@ find_or_add_simul_efun (program_t * prog, int index, int runtime_index)
         {
           first = j + 1;
         }
-      else
+      else /* found: funp->name == simul_names[j].name */
         {
           ihe = find_or_add_perm_ident (simul_names[j].name);
           ihe->token |= IHE_SIMUL;
