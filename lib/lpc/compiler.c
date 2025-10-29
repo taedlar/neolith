@@ -2631,22 +2631,30 @@ prepare_cases (parse_node_t * pn, int start)
   mem_block[A_CASES].current_size = start;
 }
 
-void
-save_file_info (int file_id, int lines)
-{
+/**
+ * @brief Save file information for error reporting to mem_block A_FILE_INFO.
+ */
+void save_file_info (int file_id, int lines) {
+  opt_trace (TT_COMPILE|2, "file_id: %d, lines: %d", file_id, lines);
   short fi[2];
 
   fi[0] = lines;
   fi[1] = file_id;
-  add_to_mem_block (A_FILE_INFO, (char *) &fi[0], sizeof (fi));
+  if (mem_block[A_FILE_INFO].block)
+    add_to_mem_block (A_FILE_INFO, (char *) &fi[0], sizeof (fi));
 }
 
-int
-add_program_file (const char *name, int top)
-{
-  if (!top)
+/**
+ * @brief Add program file name to mem_block A_INCLUDES and A_STRINGS.
+ * @param name The name of the file.
+ * @param top If non-zero, do not add to A_INCLUDES.
+ * @return The index in A_STRINGS where the name is stored + 1. The returned value is used as file ID.
+ */
+int add_program_file (const char *name, int top) {
+  opt_trace (TT_COMPILE|2, "includes \"%s\"", name);
+  if (!top && mem_block[A_INCLUDES].block)
     add_to_mem_block (A_INCLUDES, name, strlen (name) + 1);
-  return store_prog_string (name) + 1;
+  return mem_block[A_STRINGS].block ? store_prog_string (name) + 1 : 0;
 }
 
 void init_lpc_compiler(size_t max_locals) {

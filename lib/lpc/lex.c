@@ -195,12 +195,12 @@ static void add_predefine (char *, int, char *);
 static int expand_define (void);
 static void add_input (char *);
 static int cond_get_exp (int);
-static void merge (char *name, char *dest);
+static void inc_lexically_normal (const char* abs_base, const char *name, char *dest);
 static void add_quoted_predefine (char *, char *);
 static void lexerror (char *);
 static int skip_to (char *, char *);
 static void handle_cond (int);
-static int inc_open (char *, char *);
+static int inc_open (char *, const char *);
 static void handle_include (const char *, int);
 static int get_terminator (char *);
 static int get_array_block (char *);
@@ -220,14 +220,13 @@ static void yyerrorp (char *);
 #define LEXER
 #include "preprocess.c"
 
-static void
-merge (char *name, char *dest)
-{
-  char *from;
+static void inc_lexically_normal (const char* abs_base, const char *name, char *dest) {
+  char* slash;
+  const char *from;
 
-  strcpy (dest, current_file);
-  if ((from = strrchr (dest, '/')))	/* strip filename */
-    *from = 0;
+  strcpy (dest, abs_base);
+  if ((slash = strrchr (dest, '/')))	/* strip filename */
+    *slash = 0;
   else
     /* current_file was the file_name */
     /* include from the root directory */
@@ -240,19 +239,18 @@ merge (char *name, char *dest)
       *dest = 0;		/* absolute path */
     }
 
+  /* process .. and . in the include header name */
   while (*from)
     {
       if (!strncmp (from, "../", 3))
         {
-          char *tmp;
-
           if (*dest == 0)	/* including from above mudlib is NOT allowed */
             break;
-          tmp = strrchr (dest, '/');
-          if (tmp == NULL)	/* 1 component in dest */
+          slash = strrchr (dest, '/');
+          if (slash == NULL)	/* 1 component in dest */
             *dest = 0;
           else
-            *tmp = 0;
+            *slash = 0;
           from += 3;		/* skip "../" */
         }
       else if (!strncmp (from, "./", 2))
@@ -261,18 +259,16 @@ merge (char *name, char *dest)
         }
       else
         {			/* append first component to dest */
-          char *q;
-
           if (*dest)
             strcat (dest, "/");	/* only if dest is not empty !! */
-          q = strchr (from, '/');
+          slash = strchr (from, '/');
 
-          if (q)
+          if (slash)
             {			/* from has 2 or more components */
               while (*from == '/')	/* find the start */
                 from++;
-              strncat (dest, from, q - from);
-              for (from = q + 1; *from == '/'; from++);
+              strncat (dest, from, slash - from);
+              for (from = slash + 1; *from == '/'; from++);
             }
           else
             {
@@ -375,13 +371,19 @@ skip_to (char *token, char *atoken)
     }
 }
 
-static int
-inc_open (char *buf, char *name)
-{
+/**
+ * @brief Try to open an include file.
+ * @param buf Buffer to store the normalized path.
+ * @param name Argument of the #include directive.
+ *             If it contains dot or dot-dot in the path, it is normalized using current_file as the base.
+ * @return File descriptor, or -1 on failure.
+ */
+static int inc_open (char *buf, const char *name) {
+
   int i, f;
   char *p;
 
-  merge (name, buf);
+  inc_lexically_normal (current_file, name, buf);
   if ((f = open (buf, O_RDONLY)) != -1)
     {
       opt_trace (TT_COMPILE|3, "%s", buf);
@@ -439,7 +441,7 @@ handle_include (const char *inc_name, int optional)
         {
           char *q;
 
-          q = d->exps;
+          q = d->exps; /* #include MACRO */
           while (isspace (*q))
             q++;
           handle_include (q, optional);
@@ -451,6 +453,7 @@ handle_include (const char *inc_name, int optional)
       return;
     }
 
+  /* convert "header" or <header> to header */
   delim = (*name++ == '"') ? '"' : '>';
   for (p = name; *p && *p != delim; p++);
   if (!*p)
@@ -470,7 +473,7 @@ handle_include (const char *inc_name, int optional)
     {
       include_error (_("Maximum include depth exceeded"));
     }
-  else if ((f = inc_open (buf, name)) != -1)
+  else if ((f = inc_open (buf, name)) != -1) /* open header file */
     {
       is = ALLOCATE (incstate_t, TAG_COMPILER, "handle_include: 1");
       is->yyin_desc = yyin_desc;
@@ -480,7 +483,7 @@ handle_include (const char *inc_name, int optional)
       is->last_nl = last_nl;
       is->next = inctop;
       is->outptr = outptr;
-      inctop = is;
+      inctop = is; /* push new include state */
       current_line--;
       save_file_info (current_file_id, current_line - current_line_saved);
       current_line_base += current_line;
@@ -1077,8 +1080,7 @@ refill_buffer ()
     {
       if (outptr >= cur_lbuf->buf_end && cur_lbuf->term_type == TERM_ADD_INPUT)
         {
-          /* In this case it cur_lbuf cannot have been 
-             allocated due to #include */
+          /* In this case it cur_lbuf cannot have been allocated due to #include */
           linked_buf_t *prev_lbuf = cur_lbuf->prev;
 
           FREE (cur_lbuf);
@@ -1116,9 +1118,9 @@ refill_buffer ()
             p = outptr + size - 1;
           }
 
-        size = correct_read (yyin_desc, p, MAXLINE);
+        size = correct_read (yyin_desc, p, MAXLINE); /* append up to MAXLINE characters at cul_lbuf->buf_end */
         cur_lbuf->buf_end = p += size;
-        if (size < MAXLINE)
+        if (size < MAXLINE) /* EOF? */
           {
             *(last_nl = p) = LEX_EOF;
             return;
@@ -1130,7 +1132,7 @@ refill_buffer ()
             *(last_nl = cur_lbuf->buf_end - 1) = '\n';
             return;
           }
-        last_nl = p;
+        last_nl = p; /* last newline */
         return;
       }
     else
@@ -1247,9 +1249,11 @@ old_func ()
 #define return_assign(opcode) { yylval.number = opcode; return L_ASSIGN; }
 #define return_order(opcode) { yylval.number = opcode; return L_ORDER; }
 
-int
-yylex ()
-{
+/**
+ * @brief The lexical analyzer.
+ * @return The next token, or -1 on end of file or fatal error.
+ */
+int yylex () {
   static char partial[MAXLINE + 5];	/* extra 5 for safety buffer */
   static char terminator[MAXLINE + 5];
   int is_float;
@@ -2449,9 +2453,10 @@ add_predefines ()
     }
 }
 
-void
-start_new_file (int f)
-{
+/**
+ * @brief Start lexing a new file.
+ */
+void start_new_file (int f) {
   if (defines_need_freed)
     {
       free_defines (0);
@@ -2477,19 +2482,21 @@ start_new_file (int f)
       add_define ("__DIR__", -1, dir);
       FREE (dir);
     }
-  yyin_desc = f;
+  yyin_desc = f; /* lexer input file descriptor */
   lex_fatal = 0;
   last_function_context = -1;
   current_function_context = 0;
   cur_lbuf = &head_lbuf;
   cur_lbuf->outptr = cur_lbuf->buf_end = outptr = cur_lbuf->buf + (DEFMAX >> 1);
   *(last_nl = outptr - 1) = '\n';
+
   pragmas = DEFAULT_PRAGMAS;
   nexpands = 0;
   incnum = 0;
   current_line = 1;
   current_line_base = 0;
   current_line_saved = 0;
+
   if (CONFIG_STR (__GLOBAL_INCLUDE_FILE__))
     {
       char gi_file[PATH_MAX];
