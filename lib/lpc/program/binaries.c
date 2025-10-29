@@ -24,10 +24,11 @@
 #include "qsort.h"
 #include "hash.h"
 
-static char *magic_id = "NEOLITH";
-static time_t driver_id = 0;
+static char *magic_id = "NEOL";
+static unsigned int driver_id = 0x20251029; /* increment when driver changes */
 static time_t config_id = 0;
 
+static FILE *crdir_fopen(char *);
 static void patch_out (program_t *, short *, int);
 static void patch_in (program_t *, short *, int);
 static int str_case_cmp (char *, char *);
@@ -52,11 +53,18 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   if (!CONFIG_STR (__SAVE_BINARIES_DIR__))
     return; /* do not allow save binary */
 
-  nm = add_slash (prog->name);
-  push_malloced_string (nm);
-  ret = safe_apply_master_ob (APPLY_VALID_SAVE_BINARY, 1);
-  if (!MASTER_APPROVED (ret))
-    return;
+  /* NEOLITH-ONLY: Allows save_binary without initialization of virtual stack machine. */
+  if (get_machine_state() >= MS_MUDLIB_LIMBO)
+    {
+      nm = add_slash (prog->name);
+      push_malloced_string (nm);
+      ret = safe_apply_master_ob (APPLY_VALID_SAVE_BINARY, 1);
+      if (!MASTER_APPROVED (ret))
+        {
+          opt_trace (TT_COMPILE|1, "not approved");
+          return;
+        }
+    }
   if (prog->total_size > (int) USHRT_MAX ||
       includes->current_size > (int) USHRT_MAX)
     /* assume all other sizes ok */
@@ -65,17 +73,23 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   strcpy (file_name, CONFIG_STR (__SAVE_BINARIES_DIR__));
   if (file_name[0] == '/')
     file_name++;
-  if (stat (file_name, &st) == -1)
-    return;
+  if ((-1 == stat (file_name, &st)) && (ENOENT != errno))
+    {
+      debug_perror ("stat() failed on save binaries dir", file_name);
+      return;
+    }
   strcat (file_name, "/");
   strcat (file_name, prog->name);
   len = strlen (file_name);
   file_name[len - 1] = 'b';	/* change .c ending to .b */
 
+  opt_trace (TT_COMPILE|1, "writing to: /%s", file_name);
   if (!(f = crdir_fopen (file_name)))
-    return;
+    {
+      debug_perror ("crdir_fopen() failed", file_name);
+      return;
+    }
 
-  opt_trace (TT_COMPILE|1, "saving binary: /%s", file_name);
   /*
    * Write out preamble.  Includes magic number, etc, all of which must
    * match while loading.
@@ -116,8 +130,6 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   len = SHARED_STRLEN (p->name);
   fwrite ((char *) &len, sizeof len, 1, f);
   fwrite (p->name, sizeof (char), len, f);
-  opt_trace (TT_COMPILE|1, "binary name: [%d]%s", len, p->name);
-
   fwrite ((char *) &p->total_size, sizeof p->total_size, 1, f);
   fwrite ((char *) p, p->total_size, 1, f);
   FREE (p);
@@ -136,11 +148,11 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
     {
       tmp = SHARED_STRLEN (p->strings[i]);
       if (tmp > (int) USHRT_MAX)
-	{			/* possible? */
-	  fclose (f);
-	  error ("String too long for save_binary.\n");
-	  return;
-	}
+        {			/* possible? */
+          fclose (f);
+          error ("String too long for save_binary.\n");
+          return;
+        }
       len = tmp;
       fwrite ((char *) &len, sizeof len, 1, f);
       fwrite (p->strings[i], sizeof (char), len, f);
@@ -178,6 +190,7 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   fwrite (patches->block, patches->current_size, 1, f);
 
   fclose (f);
+  opt_trace (TT_COMPILE|1, "done: /%s", file_name);
 }				/* save_binary() */
 
 static program_t *comp_prog;
@@ -192,7 +205,7 @@ compare_compiler_funcs (int *x, int *y)
   if (n1[0] == '#')
     {
       if (n2[0] == '#')
-	return 0;
+        return 0;
       return 1;
     }
   if (n2[0] == '#')
@@ -247,12 +260,12 @@ sort_function_table (program_t * prog)
 
   for (i = 0; i < num - 1; i++)
     {				/* moving n-1 of them puts the last one
-				   in place too */
+                                   in place too */
       compiler_function_t cft;
       int where = sorttmp[i];
 
       if (i == where)		/* Already in the right spot */
-	continue;
+        continue;
 
       cft = prog->function_table[i];
       prog->function_table[i] = prog->function_table[where];
@@ -273,26 +286,26 @@ sort_function_table (program_t * prog)
 
     for (i = 0; i < n_ov; i++)
       {
-	int j = cftp->index[i];
-	int ri = f_ov + i;
-	if (j == 255)
-	  continue;
-	if (!(prog->function_flags[ri] & NAME_INHERITED))
-	  {
-	    int oldix = prog->function_offsets[j].def.f_index;
-	    DEBUG_CHECK (oldix >= num, "Function index out of range");
-	    prog->function_offsets[j].def.f_index = inverse[oldix];
-	  }
+        int j = cftp->index[i];
+        int ri = f_ov + i;
+        if (j == 255)
+          continue;
+        if (!(prog->function_flags[ri] & NAME_INHERITED))
+          {
+            int oldix = prog->function_offsets[j].def.f_index;
+            DEBUG_CHECK (oldix >= num, "Function index out of range");
+            prog->function_offsets[j].def.f_index = inverse[oldix];
+          }
       }
     for (i = 0; i < n_def; i++)
       {
-	int ri = f_def + i;
-	if (!(prog->function_flags[ri] & NAME_INHERITED))
-	  {
-	    int oldix = prog->function_offsets[n_real + i].def.f_index;
-	    DEBUG_CHECK (oldix >= num, "Function index out of range");
-	    prog->function_offsets[n_real + i].def.f_index = inverse[oldix];
-	  }
+        int ri = f_def + i;
+        if (!(prog->function_flags[ri] & NAME_INHERITED))
+          {
+            int oldix = prog->function_offsets[n_real + i].def.f_index;
+            DEBUG_CHECK (oldix >= num, "Function index out of range");
+            prog->function_offsets[n_real + i].def.f_index = inverse[oldix];
+          }
       }
   }
 #else
@@ -300,12 +313,12 @@ sort_function_table (program_t * prog)
     int num_runtime = prog->num_functions_total;
     for (i = 0; i < num_runtime; i++)
       {
-	if (!(prog->function_flags[i] & NAME_INHERITED))
-	  {
-	    int oldix = prog->function_offsets[i].def.f_index;
-	    DEBUG_CHECK (oldix >= num, "Function index out of range");
-	    prog->function_offsets[i].def.f_index = inverse[oldix];
-	  }
+        if (!(prog->function_flags[i] & NAME_INHERITED))
+          {
+            int oldix = prog->function_offsets[i].def.f_index;
+            DEBUG_CHECK (oldix >= num, "Function index out of range");
+            prog->function_offsets[i].def.f_index = inverse[oldix];
+          }
       }
   }
 #endif
@@ -313,7 +326,7 @@ sort_function_table (program_t * prog)
   if (prog->type_start)
     {
       for (i = 0; i < num; i++)
-	prog->type_start[i] = prog->type_start[temp[i]];
+        prog->type_start[i] = prog->type_start[temp[i]];
     }
 
   FREE (sorttmp);
@@ -337,7 +350,8 @@ int_load_binary (char *name)
   int fd;
   FILE *f;
   int i, buf_size, ilen;
-  time_t bin_id, mtime;
+  unsigned int bin_driver_id;
+  time_t bin_config_id, mtime;
   short len;
   program_t *p, *prog;
   object_t *ob;
@@ -392,14 +406,14 @@ int_load_binary (char *name)
       FREE (buf);
       return OUT_OF_DATE;
     }
-  if ((fread ((char *) &bin_id, sizeof bin_id, 1, f) != 1 || driver_id != bin_id))
+  if ((fread ((char *) &bin_driver_id, sizeof bin_driver_id, 1, f) != 1 || driver_id != bin_driver_id))
     {
       opt_trace (TT_COMPILE|1, "out of date. (driver changed)\n");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
-  if (fread ((char *) &bin_id, sizeof bin_id, 1, f) != 1 || config_id != bin_id)
+  if (fread ((char *) &bin_config_id, sizeof bin_config_id, 1, f) != 1 || config_id != bin_config_id)
     {
       opt_trace (TT_COMPILE|1, "out of date. (config file changed)\n");
       fclose (f);
@@ -427,12 +441,12 @@ int_load_binary (char *name)
   for (iname = buf; iname < buf + len; iname += strlen (iname) + 1)
     {
       if (check_times (mtime, iname) <= 0)
-	{
-	  opt_trace (TT_COMPILE|1, "out of date (include file is newer).");
-	  fclose (f);
-	  FREE (buf);
-	  return OUT_OF_DATE;
-	}
+        {
+          opt_trace (TT_COMPILE|1, "out of date (include file is newer).");
+          fclose (f);
+          FREE (buf);
+          return OUT_OF_DATE;
+        }
     }
 
   /* check program name */
@@ -447,20 +461,20 @@ int_load_binary (char *name)
     {
       ALLOC_BUF (len + 1);
       if (fread (buf, sizeof (char), len, f) != (unsigned int)len)
-	{
-	  opt_trace (TT_COMPILE|1, "failed reading binary name.");
-	  fclose (f);
-	  FREE (buf);
-	  return OUT_OF_DATE;
-	}
+        {
+          opt_trace (TT_COMPILE|1, "failed reading binary name.");
+          fclose (f);
+          FREE (buf);
+          return OUT_OF_DATE;
+        }
       buf[len] = '\0';
       if (strcmp (name, buf) != 0)
-	{
-	  opt_trace (TT_COMPILE|1, "binary name [%d]%s inconsistent with file (%s).", (unsigned int)len, buf, name);
-	  fclose (f);
-	  FREE (buf);
-	  return OUT_OF_DATE;
-	}
+        {
+          opt_trace (TT_COMPILE|1, "binary name [%d]%s inconsistent with file (%s).", (unsigned int)len, buf, name);
+          fclose (f);
+          FREE (buf);
+          return OUT_OF_DATE;
+        }
     }
 
   /*
@@ -490,19 +504,19 @@ int_load_binary (char *name)
       buf[0] = '\0';
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
         {
-	  ALLOC_BUF (len + 1);
-	  if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
-	    buf[len] = '\0';
-	}
+          ALLOC_BUF (len + 1);
+          if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
+            buf[len] = '\0';
+        }
       if (!buf[0])
         {
-	  opt_trace (TT_COMPILE|1, "inherited program name corrupted.");
-	  fclose (f);
-	  free_string (p->name);
-	  FREE (p);
-	  FREE (buf);
-	  return OUT_OF_DATE;
-	}
+          opt_trace (TT_COMPILE|1, "inherited program name corrupted.");
+          fclose (f);
+          free_string (p->name);
+          FREE (p);
+          FREE (buf);
+          return OUT_OF_DATE;
+        }
 
       /*
        * Check times against inherited source.  If saved binary of
@@ -510,30 +524,30 @@ int_load_binary (char *name)
        */
       sprintf (file_name_two, "%s/%s", CONFIG_STR (__SAVE_BINARIES_DIR__), buf);
       if (file_name_two[0] == '/')
-	file_name_two++;
+        file_name_two++;
       len = strlen (file_name_two);
       file_name_two[len - 1] = 'b';
       if (check_times (mtime, buf) <= 0 ||
-	  check_times (mtime, file_name_two) == 0)
-	{			/* ok if -1 */
-	  opt_trace (TT_COMPILE|1, "out of date (inherited source is newer).");
-	  fclose (f);
-	  free_string (p->name);
-	  FREE (p);
-	  FREE (buf);
-	  return OUT_OF_DATE;
-	}
+          check_times (mtime, file_name_two) == 0)
+        {			/* ok if -1 */
+          opt_trace (TT_COMPILE|1, "out of date (inherited source is newer).");
+          fclose (f);
+          free_string (p->name);
+          FREE (p);
+          FREE (buf);
+          return OUT_OF_DATE;
+        }
       /* find inherited program (maybe load it here?) */
       ob = find_object2 (buf);
       if (!ob)
-	{
-	  opt_trace (TT_COMPILE|1, "saved binary inherits: /%s", buf);
-	  fclose (f);
-	  free_string (p->name);
-	  FREE (p);
-	  inherit_file = buf;	/* freed elsewhere */
-	  return 0;
-	}
+        {
+          opt_trace (TT_COMPILE|1, "saved binary inherits: /%s", buf);
+          fclose (f);
+          free_string (p->name);
+          FREE (p);
+          inherit_file = buf;	/* freed elsewhere */
+          return 0;
+        }
       p->inherit[i].prog = ob->prog;
     }
 
@@ -542,14 +556,14 @@ int_load_binary (char *name)
     {
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
         {
-	  ALLOC_BUF (len + 1);
-	  if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
-	    {
-	      buf[len] = '\0';
-	      p->strings[i] = make_shared_string (buf);
-	      continue;
-	    }
-	}
+          ALLOC_BUF (len + 1);
+          if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
+            {
+              buf[len] = '\0';
+              p->strings[i] = make_shared_string (buf);
+              continue;
+            }
+        }
       opt_trace (TT_COMPILE|1, "string table corrupted.");
       fclose (f);
       free_string (p->name);
@@ -563,15 +577,15 @@ int_load_binary (char *name)
   for (i = 0; i < (int) p->num_variables_defined; i++)
     {
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
-	{
-	  ALLOC_BUF (len + 1);
-	  if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
-	    {
-	      buf[len] = '\0';
-	      p->variable_table[i] = make_shared_string (buf);
-	      continue;
-	    }
-	}
+        {
+          ALLOC_BUF (len + 1);
+          if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
+            {
+              buf[len] = '\0';
+              p->variable_table[i] = make_shared_string (buf);
+              continue;
+            }
+        }
       opt_trace (TT_COMPILE|1, "variable table corrupted.");
       fclose (f);
       free_string (p->name);
@@ -585,15 +599,15 @@ int_load_binary (char *name)
   for (i = 0; i < (int) p->num_functions_defined; i++)
     {
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
-	{
-	  ALLOC_BUF (len + 1);
-	  if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
-	    {
-	      buf[len] = '\0';
-	      p->function_table[i].name = make_shared_string (buf);
-	      continue;
-	    }
-	}
+        {
+          ALLOC_BUF (len + 1);
+          if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
+            {
+              buf[len] = '\0';
+              p->function_table[i].name = make_shared_string (buf);
+              continue;
+            }
+        }
       opt_trace (TT_COMPILE|1, "function table corrupted.");
       fclose (f);
       free_string (p->name);
@@ -609,16 +623,16 @@ int_load_binary (char *name)
     {
       p->file_info = (unsigned short *) DXALLOC (len, TAG_LINENUMBERS, "load binary");
       if (fread ((char *) p->file_info, len, 1, f) != 1)
-	{
-	  opt_trace (TT_COMPILE|1, "line number info corrupted.");
-	  fclose (f);
-	  free_string (p->name);
-	  FREE (p->file_info);
-	  FREE (p);
-	  FREE (buf);
-	  /* TODO: free shared strings */
-	  return OUT_OF_DATE;
-	}
+        {
+          opt_trace (TT_COMPILE|1, "line number info corrupted.");
+          fclose (f);
+          free_string (p->name);
+          FREE (p->file_info);
+          FREE (p);
+          FREE (buf);
+          /* TODO: free shared strings */
+          return OUT_OF_DATE;
+        }
       p->line_info = (unsigned char *) &p->file_info[p->file_info[1]];
     }
 
@@ -628,10 +642,10 @@ int_load_binary (char *name)
     {
       ALLOC_BUF (len);
       if (fread (buf, len, 1, f) == 1)
-	{
-	  /* fix up some stuff */
-	  patch_in (p, (short *) buf, len / sizeof (short));
-	}
+        {
+          /* fix up some stuff */
+          patch_in (p, (short *) buf, len / sizeof (short));
+        }
     }
 
   fclose (f);
@@ -652,7 +666,7 @@ int_load_binary (char *name)
       reference_prog (prog->inherit[i].prog, "inheritance");
     }
 
-  opt_trace (TT_COMPILE, "loaded saved binary: %s", file_name);
+  opt_trace (TT_COMPILE|1, "loaded successfully: %s", file_name);
   return prog;
 }
 
@@ -661,7 +675,23 @@ init_binaries ()
 {
   if (CONFIG_STR(__SAVE_BINARIES_DIR__))
     {
+      /* The compiled LPC program contains opcode that uses simul_efun indexes.
+       * So we use the modification time of the simul_efun file as part of
+       * the config_id to ensure that binaries are recompiled when the
+       * simul_efun definitions change.
+       */
+      if (CONFIG_STR(__SIMUL_EFUN_FILE__))
+        {
+          struct stat st;
+          if (0 == stat (CONFIG_STR(__SIMUL_EFUN_FILE__), &st))
+            {
+              config_id = st.st_mtime;
+            }
+        }
       debug_message ("{}\tusing #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
+      opt_trace (TT_COMPILE|1, "magic id: \"%s\" (len=%d)", magic_id, (int)strlen(magic_id));
+      opt_trace (TT_COMPILE|1, "driver id: %u (len=%d)", driver_id, sizeof(driver_id));
+      opt_trace (TT_COMPILE|1, "config id: %lu (len=%d)", config_id, sizeof(config_id));
     }
   else
     {
@@ -705,29 +735,29 @@ patch_out (program_t * prog, short *patches, int len)
     {
       i = patches[--len];
       if (p[i] == F_SWITCH && p[i + 1] >> 4 != 0xf)
-	{			/* string switch */
-	  short offset, break_addr;
-	  char *s;
+        {			/* string switch */
+          short offset, break_addr;
+          char *s;
 
-	  /* replace strings in table with string table indices */
-	  COPY_SHORT (&offset, p + i + 2);
-	  COPY_SHORT (&break_addr, p + i + 4);
+          /* replace strings in table with string table indices */
+          COPY_SHORT (&offset, p + i + 2);
+          COPY_SHORT (&break_addr, p + i + 4);
 
-	  while (offset < break_addr)
-	    {
-	      COPY_PTR (&s, p + offset);
-	      /*
-	       * take advantage of fact that s is in strings table to find
-	       * it's index.
-	       */
-	      if (s == 0)
-		s = (char *) (intptr_t) - 1;
-	      else
-		s = (char *) (intptr_t) store_prog_string (s);
-	      COPY_PTR (p + offset, &s);
-	      offset += SWITCH_CASE_SIZE;
-	    }
-	}
+          while (offset < break_addr)
+            {
+              COPY_PTR (&s, p + offset);
+              /*
+               * take advantage of fact that s is in strings table to find
+               * it's index.
+               */
+              if (s == 0)
+                s = (char *) (intptr_t) - 1;
+              else
+                s = (char *) (intptr_t) store_prog_string (s);
+              COPY_PTR (p + offset, &s);
+              offset += SWITCH_CASE_SIZE;
+            }
+        }
     }
 }				/* patch_out() */
 
@@ -753,32 +783,32 @@ patch_in (program_t * prog, short *patches, int len)
     {
       i = patches[--len];
       if (p[i] == F_SWITCH && p[i + 1] >> 4 != 0xf)
-	{			/* string switch */
-	  short offset, start, break_addr;
-	  char *s;
+        {			/* string switch */
+          short offset, start, break_addr;
+          char *s;
 
-	  /* replace string indices with string pointers */
-	  COPY_SHORT (&offset, p + i + 2);
-	  COPY_SHORT (&break_addr, p + i + 4);
+          /* replace string indices with string pointers */
+          COPY_SHORT (&offset, p + i + 2);
+          COPY_SHORT (&break_addr, p + i + 4);
 
-	  start = offset;
-	  while (offset < break_addr)
-	    {
-	      COPY_PTR (&s, p + offset);
-	      /*
-	       * get real pointer from strings table
-	       */
-	      if (s == (char *) -1)
-		s = 0;
-	      else
-		s = prog->strings[(intptr_t) s];
-	      COPY_PTR (p + offset, &s);
-	      offset += SWITCH_CASE_SIZE;
-	    }
-	  /* sort so binary search still works */
-	  quickSort (&p[start], (break_addr - start) / SWITCH_CASE_SIZE,
-		     SWITCH_CASE_SIZE, str_case_cmp);
-	}
+          start = offset;
+          while (offset < break_addr)
+            {
+              COPY_PTR (&s, p + offset);
+              /*
+               * get real pointer from strings table
+               */
+              if (s == (char *) -1)
+                s = 0;
+              else
+                s = prog->strings[(intptr_t) s];
+              COPY_PTR (p + offset, &s);
+              offset += SWITCH_CASE_SIZE;
+            }
+          /* sort so binary search still works */
+          quickSort (&p[start], (break_addr - start) / SWITCH_CASE_SIZE,
+                     SWITCH_CASE_SIZE, str_case_cmp);
+        }
     }
 }				/* patch_in() */
 
@@ -806,14 +836,14 @@ crdir_fopen (char *file_name)
     {
       *p = '\0';
       if (stat (file_name, &st) == -1)
-	{
-	  /* make this dir */
-	  if (mkdir (file_name, 0770) == -1)
-	    {
-	      *p = '/';
-	      return (FILE *) 0;
-	    }
-	}
+        {
+          /* make this dir */
+          if (mkdir (file_name, 0770) == -1)
+            {
+              *p = '/';
+              return (FILE *) 0;
+            }
+        }
       *p = '/';
       p++;
     }
@@ -860,7 +890,7 @@ locate_out (program_t * prog)
   if (prog->type_start)
     {
       prog->argument_types =
-	(unsigned short *) DIFF (prog->argument_types, prog);
+        (unsigned short *) DIFF (prog->argument_types, prog);
       prog->type_start = (unsigned short *) DIFF (prog->type_start, prog);
     }
   return 1;
@@ -902,7 +932,7 @@ locate_in (program_t * prog)
   if (prog->type_start)
     {
       prog->argument_types =
-	(unsigned short *) ADD (prog->argument_types, prog);
+        (unsigned short *) ADD (prog->argument_types, prog);
       prog->type_start = (unsigned short *) ADD (prog->type_start, prog);
     }
   return 1;
