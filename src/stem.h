@@ -1,6 +1,6 @@
 #pragma once
 
-/* command line arguments and trace settings*/
+/* command line arguments and trace settings */
 #include "main.h"
 
 /* stem states */

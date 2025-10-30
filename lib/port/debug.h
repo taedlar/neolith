@@ -10,11 +10,11 @@
 #define debug_info(...)			debug_message_with_src("INFO", __func__, __FILE__, __LINE__, __VA_ARGS__)
 #define debug_trace(...)		debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, __VA_ARGS__)
 
-#define opt_error(level, ...)		do{if(SERVER_OPTION(debug_level)>=(level)) \
+#define opt_error(level, ...)		do{if(MAIN_OPTION(debug_level)>=(level)) \
                                         debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#define opt_warn(level, ...)		do{if(SERVER_OPTION(debug_level)>=(level)) \
+#define opt_warn(level, ...)		do{if(MAIN_OPTION(debug_level)>=(level)) \
                                         debug_message_with_src("WARN", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#define opt_info(level, ...)		do{if(SERVER_OPTION(debug_level)>=(level)) \
+#define opt_info(level, ...)		do{if(MAIN_OPTION(debug_level)>=(level)) \
                                         debug_message_with_src("INFO", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
 
 /*
@@ -46,8 +46,8 @@
  *             to log the message.
  * @param ... The format string and additional arguments for the log message.
  */
-#define opt_trace(tier, ...)		do{if((SERVER_OPTION(trace_flags)&(tier)&~TT_LEVEL_MASK) \
-                                           && ((SERVER_OPTION(trace_flags)&TT_LEVEL_MASK) + 1) > ((tier)&TT_LEVEL_MASK)) \
+#define opt_trace(tier, ...)		do{if((MAIN_OPTION(trace_flags)&(tier)&~TT_LEVEL_MASK) \
+                                           && ((MAIN_OPTION(trace_flags)&TT_LEVEL_MASK) + 1) > ((tier)&TT_LEVEL_MASK)) \
                                         debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
 #endif /* using C99 */
 

@@ -9,13 +9,14 @@
 #define PATH_MAX MAX_PATH
 #endif
 
-typedef struct server_options
+typedef struct main_options
 {
   char config_file[PATH_MAX];
   int debug_level;
-  unsigned long trace_flags;  
-} server_options_t;
+  unsigned long trace_flags;    /* Trace flags for debugging */
+} main_options_t;
 
-extern server_options_t* g_svropts;
+extern main_options_t* g_main_options;
 
-#define SERVER_OPTION(x)	(g_svropts->x)
+/* Macros for accessing main options */
+#define MAIN_OPTION(x)	(g_main_options->x)
