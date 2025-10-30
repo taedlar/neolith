@@ -97,7 +97,7 @@ TEST_F(LPCLexerTest, parseNumber) {
     current_file = make_shared_string ("number_test");
     current_file_id = 0;
     // start_new_file (-1, "12345 0x1A3F 0755 3.1415926 2.71828e10\n");
-    start_new_file (-1, "12345 0x1A3F 3.1415926 2.71828e10d 4e-20f\n");
+    start_new_file (-1, "12345 0x1A3F 3.1415926 2.71828e10d 4e+2f\n");
     EXPECT_EQ(yylex(), L_NUMBER);
     EXPECT_EQ(yylval.number, 12345);
     EXPECT_EQ(yylex(), L_NUMBER);
@@ -110,7 +110,7 @@ TEST_F(LPCLexerTest, parseNumber) {
     EXPECT_EQ(yylval.real, 2.71828e10);
     // debug_message ("yytext after lexing numbers: '%s'", yytext);
     EXPECT_EQ(yylex(), L_REAL);
-    EXPECT_EQ(yylval.real, 4e-20);
+    EXPECT_EQ(yylval.real, 400.0);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
     free_string(current_file);

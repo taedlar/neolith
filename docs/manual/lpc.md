@@ -107,17 +107,33 @@ For modern
 In original LPMud and MudOS, a **float** type is equivalent to the C language float (32-bits). In Neolith, the **float** is equivalent to C language double.
  
 Declare variables like this:
-```
+~~~cxx
 float pi;
-```
+~~~
 In general the same operations are supported for floats as are for integers.
 Floating point constants may contain decimal points e.g.
-```
+~~~cxx
 pi = 3.14159265;
-```
-The LPC float type is based on the single precision floating point type
+~~~
+Original LPC float type is based on the single precision floating point type
 provided by C.  On most machines this will give about seven (7) digits
-of precision (in base 10).
+of precision (in base 10). Neolith has extended to use the double precision
+floating point (64-bits).
+
+### `double`
+In Neolith, the name **double** is also a reserved word.
+
+Like in C++, the optional `f` or `d` suffix for a floating point is also recognized by Neolith.
+~~~cxx
+double r; // equivalent to float r;
+r = 0.3f;
+~~~
+
+Neolith also supports exponents, which is not in original LPC language:
+~~~cxx
+float r;
+r = 3e+4d; // == 30000.0
+~~~
 
 ### `string`
 An unlimited string of characters (no '\0' allowed tho). 
