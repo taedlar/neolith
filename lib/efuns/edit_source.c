@@ -67,7 +67,8 @@ static incstate *inctop = 0;
 #define CHAR_QUOTE 1
 #define STRING_QUOTE 2
 
-static void add_define (char *, int, char *);
+static void add_define (const char *, int, const char *); /* implementation in preprocess.c */
+
 int yyparse (void);
 static void handle_options (char *fname);
 static void handle_build_efuns (const char *efun_spec);

@@ -190,7 +190,7 @@ static linked_buf_t head_lbuf = { .prev = NULL, TERM_START };
 static linked_buf_t *cur_lbuf;
 
 static void handle_define (char *);
-static void add_define (char *, int, char *);
+static void add_define (const char *, int, const char *); /* implementation in preprocess.c */
 static void add_predefine (char *, int, char *);
 static int expand_define (void);
 static void add_input (char *);
@@ -2455,8 +2455,15 @@ add_predefines ()
 
 /**
  * @brief Start lexing a new file.
+ * 
+ * Upon return, the lexer is ready to read from the new file.
+ * yylex() can be called to get tokens from the new file.
+ * Preprocessor directives such as #include and #define will work
+ * as expected.
+ * 
+ * @param f The file descriptor of the new file.
  */
-void start_new_file (int f) {
+void start_new_file (int fd) {
   if (defines_need_freed)
     {
       free_defines (0);
@@ -2482,7 +2489,7 @@ void start_new_file (int f) {
       add_define ("__DIR__", -1, dir);
       FREE (dir);
     }
-  yyin_desc = f; /* lexer input file descriptor */
+  yyin_desc = fd; /* lexer input file descriptor */
   lex_fatal = 0;
   last_function_context = -1;
   current_function_context = 0;
@@ -3026,6 +3033,7 @@ void free_defines (int include_predefs) {
           /* predefines are at the end of the list */
           if (!include_predefs && (p->flags & DEF_IS_PREDEF))
             break;
+          opt_trace (TT_COMPILE|2, "Freeing define %s\n", p->name);
           q = p->next;
           FREE (p->name);
           FREE (p->exps);

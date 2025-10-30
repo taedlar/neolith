@@ -2,4 +2,4 @@
 
 #include "lex.h"
 
-defn_t *lookup_define(char *);
+defn_t *lookup_define(const char *);
