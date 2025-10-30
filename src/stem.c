@@ -4,7 +4,7 @@
 
 #include "std.h"
 
-server_options_t* g_svropts = NULL;
+main_options_t* g_main_options = NULL;
 
 int g_proceeding_shutdown = 0;
 
@@ -16,7 +16,7 @@ int slow_shut_down_to_do = 0;
 
 int init_stem (int debug_level, unsigned long trace_flags, const char* config_file)
 {
-    static server_options_t stem_opts;
+    static main_options_t stem_opts;
 
     tzset ();
     current_time = boot_time = time(NULL);
@@ -28,6 +28,6 @@ int init_stem (int debug_level, unsigned long trace_flags, const char* config_fi
     if (config_file)
         strncpy(stem_opts.config_file, config_file, PATH_MAX - 1);
 
-    g_svropts = &stem_opts; /* this is required throughout the code*/
+    g_main_options = &stem_opts; /* this is required throughout the code*/
     return 0;
 }

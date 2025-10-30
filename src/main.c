@@ -77,7 +77,7 @@ int main (int argc, char **argv) {
     }
   init_stem(0, 0, NULL);
   parse_command_line (argc, argv);
-  init_config (SERVER_OPTION(config_file));
+  init_config (MAIN_OPTION(config_file));
   init_debug_log();
 
   /* Print startup banner (and smoke-test debug settings) */
@@ -183,7 +183,7 @@ parse_argument (int key, char *arg, struct argp_state *state)
   switch (key)
     {
     case 'f':
-      if (NULL == realpath (arg, SERVER_OPTION(config_file)))
+      if (NULL == realpath (arg, MAIN_OPTION(config_file)))
         {
           perror (arg);
           exit (EXIT_FAILURE);
@@ -200,10 +200,10 @@ parse_argument (int key, char *arg, struct argp_state *state)
         break;
       }
     case 'd':
-      SERVER_OPTION(debug_level) = atoi (arg);
+      MAIN_OPTION(debug_level) = atoi (arg);
       break;
     case 't':
-      SERVER_OPTION(trace_flags) = strtoul (arg, NULL, 0);
+      MAIN_OPTION(trace_flags) = strtoul (arg, NULL, 0);
       break;
     default:
       return ARGP_ERR_UNKNOWN;
@@ -239,14 +239,14 @@ parse_command_line (int argc, char *argv[])
       switch (c)
         {
         case 'f':
-          if (!realpath (optarg, SERVER_OPTION(config_file)))
+          if (!realpath (optarg, MAIN_OPTION(config_file)))
             {
               perror (optarg);
               exit (0);
             }
           break;
         case 'd':
-          SERVER_OPTION(debug_level) = atoi (optarg);
+          MAIN_OPTION(debug_level) = atoi (optarg);
           break;
         case 'D':
           {
@@ -259,7 +259,7 @@ parse_command_line (int argc, char *argv[])
             break;
           }
         case 't':
-          SERVER_OPTION(trace_flags) = strtoul (optarg, NULL, 0);
+          MAIN_OPTION(trace_flags) = strtoul (optarg, NULL, 0);
           break;
         case '?':
         default:
@@ -268,8 +268,8 @@ parse_command_line (int argc, char *argv[])
     }
 #endif /* ! HAVE_ARGP_H */
 
-  if (!*SERVER_OPTION(config_file))
-    snprintf (SERVER_OPTION(config_file), PATH_MAX, "/etc/neolith.conf");
+  if (!*MAIN_OPTION(config_file))
+    snprintf (MAIN_OPTION(config_file), PATH_MAX, "/etc/neolith.conf");
 }
 
 void init_debug_log()

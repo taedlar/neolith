@@ -31,7 +31,7 @@ protected:
         setlocale(LC_ALL, "C.UTF-8"); // force UTF-8 locale for consistent string handling
         init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
 
-        init_config(SERVER_OPTION(config_file));
+        init_config(MAIN_OPTION(config_file));
 
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
         ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
