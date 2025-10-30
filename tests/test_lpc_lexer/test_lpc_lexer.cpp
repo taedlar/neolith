@@ -112,3 +112,59 @@ TEST_F(LPCLexerTest, parseNumber) {
     free_string(current_file);
     current_file = 0;
 }
+
+TEST_F(LPCLexerTest, parseStringLiteral) {
+    current_file = make_shared_string ("string_test");
+    current_file_id = 0;
+    start_new_file (-1, "\"Hello world\" \"你好\" \"こんにちは\"\n");
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_STREQ(yylval.string, "Hello world");
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_STREQ(yylval.string, "你好");
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_STREQ(yylval.string, "こんにちは");
+    EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(current_file);
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, skipComments) {
+    current_file = make_shared_string ("comment_test");
+    current_file_id = 0;
+    start_new_file (-1, "// cxx comments\n/* c comments\n still work */\n\"Hello world\"\n");
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_STREQ(yylval.string, "Hello world");
+    EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(current_file);
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseReservedWords) {
+    current_file = make_shared_string ("reserved_word_test");
+    current_file_id = 0;
+    start_new_file (-1, "for\nwhile\nif\nelse\nreturn\n");
+    EXPECT_EQ(yylex(), L_FOR);
+    EXPECT_EQ(yylex(), L_WHILE);
+    EXPECT_EQ(yylex(), L_IF);
+    EXPECT_EQ(yylex(), L_ELSE);
+    EXPECT_EQ(yylex(), L_RETURN);
+    EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(current_file);
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseEfuns) {
+    current_file = make_shared_string ("efun_test");
+    current_file_id = 0;
+    start_new_file (-1, "call_other\nfoobar\n");
+    EXPECT_EQ(yylex(), L_DEFINED_NAME);
+    EXPECT_EQ(yylval.ihe->token & IHE_EFUN, IHE_EFUN);
+    EXPECT_EQ(yylex(), L_IDENTIFIER);
+    EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(current_file);
+    current_file = 0;
+}
