@@ -135,6 +135,7 @@ static keyword_t reswords[] = {
   {.word = "efun", L_EFUN, 0},
   {.word = "else", L_ELSE, 0},
   {.word = "float", L_BASIC_TYPE, TYPE_REAL},
+  {.word = "double", L_BASIC_TYPE, TYPE_REAL},
   {.word = "for", L_FOR, 0},
   {.word = "foreach", L_FOREACH, 0},
   {.word = "function", L_BASIC_TYPE, TYPE_FUNCTION},
@@ -1270,7 +1271,7 @@ int yylex () {
   static char partial[MAXLINE + 5];	/* extra 5 for safety buffer */
   static char terminator[MAXLINE + 5];
   int is_float;
-  float myreal;
+  double myreal;
   char *partp;
 
   register char *yyp;		/* Xeno */
@@ -2232,6 +2233,28 @@ int yylex () {
                       break;
                     }
                 }
+              else if (c == 'e' || c == 'E')
+                {
+                  is_float = 1;
+                  SAVEC;
+                  c = *outptr++;
+                  if (c == '+' || c == '-')
+                    {
+                      SAVEC;
+                    }
+                  else
+                    {
+                      outptr--;
+                    }
+                  continue;
+                }
+              else if (c == 'f' || c == 'F' || c == 'd' || c == 'D') /* optional 'f' or 'd' suffix */
+                {
+                  is_float = 1;
+                  SAVEC;
+                  c = *outptr++;
+                  break;
+                }
               else if (!isdigit (c))
                 break;
               SAVEC;
@@ -2240,8 +2263,8 @@ int yylex () {
           *yyp = 0;
           if (is_float)
             {
-              sscanf (yytext, "%f", &myreal);
-              yylval.real = (float) myreal;
+              sscanf (yytext, "%lf", &myreal);
+              yylval.real = myreal;
               return L_REAL;
             }
           else

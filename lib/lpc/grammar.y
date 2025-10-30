@@ -118,7 +118,7 @@ int yyparse(void);
 {
     intptr_t pointer_int;
     int number;
-    float real;
+    double real;
     char *string;
     int type;
     struct { short num_arg; char flags; } argument;
