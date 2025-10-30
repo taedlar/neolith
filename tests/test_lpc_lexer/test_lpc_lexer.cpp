@@ -8,6 +8,8 @@ extern "C" {
     #include "std.h"
     #include "rc.h"
     #include "lpc/lex.h"
+    #include "lpc/compiler.h"
+    #include "grammar.h"
 }
 
 using namespace testing;
@@ -39,6 +41,8 @@ protected:
         init_num_args();
         init_identifiers();
         set_inc_list (CONFIG_STR (__INCLUDE_DIRS__)); // automatically freed in deinit_lpc_compiler()
+
+        // predefs are not added here; each test should add them as needed
     }
 
     void TearDown() override {
@@ -59,17 +63,13 @@ TEST_F(LPCLexerTest, startNewFile) {
     current_file_id = 0;
 
     // run lexer until EOF
-    start_new_file (fd);
+    start_new_file (fd, 0); // adds __FILE__ and __DIR__
     int n = 0;
     while (yylex() != -1) n++;
     debug_message("Lexed %d tokens from master.c", n);
-
-    // close(fd);
-    // if (pragmas & PRAGMA_WARNINGS)
-    //     show_overload_warnings ();
-    // clean_parser ();
     end_new_file ();
 
+    close(fd);
     free_string(current_file);
     current_file = 0;
 }
@@ -81,14 +81,34 @@ TEST_F(LPCLexerTest, handleInclude) {
     current_file_id = 0;
 
     // run lexer until EOF, which will process #include directives
-    start_new_file (fd);
+    start_new_file (fd, 0);
     int n = 0;
     while (yylex() != -1) n++;
     debug_message("Lexed %d tokens from user.c", n);
-
-    // close(fd);
     end_new_file ();
 
+    close(fd);
+    free_string(current_file);
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseNumber) {
+    current_file = make_shared_string ("number_test");
+    current_file_id = 0;
+    // start_new_file (-1, "12345 0x1A3F 0755 3.14159 2.71828e10\n");
+    start_new_file (-1, "12345 0x1A3F 3.14159\n");
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, 12345);
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, 0x1A3F);
+    // EXPECT_EQ(yylex(), L_NUMBER);
+    // EXPECT_EQ(yylval.number, 0755); // LPC does not support octal literals
+    EXPECT_EQ(yylex(), L_REAL);
+    EXPECT_EQ(yylval.real, 3.14159f);
+    // EXPECT_EQ(yylex(), L_REAL);
+    // EXPECT_EQ(yylval.real, 2.71828e10); // LPC does not support double precision literals
+    EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
     free_string(current_file);
     current_file = 0;
 }

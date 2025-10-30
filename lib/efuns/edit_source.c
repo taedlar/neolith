@@ -122,7 +122,7 @@ yyerrorp (char *str)
   exit (1);
 }
 
-static void add_input (char *p) {
+static void add_input (const char *p) {
   size_t len = strlen (p);
 
   if (outptr - len < defbuf)

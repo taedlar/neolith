@@ -27,7 +27,7 @@ target_sources(lpc INTERFACE
     BASE_DIRS ..
     FILES array.h buffer.h class.h functional.h mapping.h object.h otable.h program.h types.h
 )
-target_include_directories(lpc PRIVATE
+target_include_directories(lpc PUBLIC
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
 )

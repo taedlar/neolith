@@ -123,7 +123,7 @@ typedef struct {
 /*
  * lex.c
  */
-extern instr_t instrs[512];
+extern instr_t instrs[MAX_INSTRS];
 extern int current_line;
 extern int current_line_base;
 extern int current_line_saved;
@@ -134,7 +134,7 @@ extern int pragmas;
 extern int num_parse_error;
 extern lpc_predef_t *lpc_predefs;
 extern int efun_arg_types[];
-extern char yytext[1024];
+extern char yytext[MAXLINE];
 extern keyword_t predefs[];
 
 void push_function_context(void);
@@ -146,12 +146,12 @@ char *query_instr_name(int);
 char *get_f_name(int);
 void set_inc_list(const char *);
 void reset_inc_list(void);
-void start_new_file(int fd);
+void start_new_file(int fd, const char* pre_text);
 void end_new_file(void);
 int lookup_predef(char *);
 void add_predefines(void);
 void free_defines (int include_predefs);
-char *main_file_name(void);
+const char *main_file_name(void);
 char *get_defined_name(defined_name_t *);
 ident_hash_elem_t *find_or_add_ident(char *, int);
 ident_hash_elem_t *find_or_add_perm_ident(char *);
