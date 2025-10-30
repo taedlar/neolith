@@ -19,7 +19,7 @@ static defn_t *defns[DEFHASH];
 static ifstate_t *iftop = 0;
 
 defn_t *
-lookup_definition (char *s)
+lookup_definition (const char *s)
 {
   defn_t *p;
   int h;
@@ -32,7 +32,7 @@ lookup_definition (char *s)
 }
 
 defn_t *
-lookup_define (char *s)
+lookup_define (const char *s)
 {
   defn_t *p = lookup_definition (s);
 
@@ -43,7 +43,7 @@ lookup_define (char *s)
 }
 
 static void
-add_define (char *name, int nargs, char *exps)
+add_define (const char *name, int nargs, const char *exps)
 {
   defn_t *p = lookup_definition (name);
   int h;

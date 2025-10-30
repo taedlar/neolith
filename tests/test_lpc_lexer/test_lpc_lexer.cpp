@@ -64,8 +64,14 @@ TEST_F(LPCLexerTest, startNewFile) {
     while (yylex() != -1) n++;
     debug_message("Lexed %d tokens from master.c", n);
 
-    close(fd);
+    // close(fd);
+    // if (pragmas & PRAGMA_WARNINGS)
+    //     show_overload_warnings ();
+    // clean_parser ();
+    end_new_file ();
+
     free_string(current_file);
+    current_file = 0;
 }
 
 TEST_F(LPCLexerTest, handleInclude) {
@@ -80,6 +86,9 @@ TEST_F(LPCLexerTest, handleInclude) {
     while (yylex() != -1) n++;
     debug_message("Lexed %d tokens from user.c", n);
 
-    close(fd);
+    // close(fd);
+    end_new_file ();
+
     free_string(current_file);
+    current_file = 0;
 }

@@ -146,7 +146,7 @@ char *query_instr_name(int);
 char *get_f_name(int);
 void set_inc_list(const char *);
 void reset_inc_list(void);
-void start_new_file(int);
+void start_new_file(int fd);
 void end_new_file(void);
 int lookup_predef(char *);
 void add_predefines(void);
