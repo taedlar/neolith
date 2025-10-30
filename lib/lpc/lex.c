@@ -1824,8 +1824,7 @@ int yylex () {
                   if (!isxdigit (*outptr))
                     {
                       yylval.number = 'x';
-                      yywarn (_
-                              ("\\x must be followed by a valid hex value; interpreting as 'x' instead."));
+                      yywarn (_("\\x must be followed by a valid hex value; interpreting as 'x' instead."));
                     }
                   else
                     {
@@ -2039,12 +2038,10 @@ int yylex () {
                           break;
                         }
                       default:
-                        /* Add backslash as well, Big5 uses it, don't warn
-                         * By Annihilator (05/15/2000)
-                         */
+                        /* Add backslash as well */
                         *to++ = '\\';
                         *to++ = *(outptr - 1);
-                        /* yywarn(_("Unknown \\ escape.")); */
+                        yywarn(_("Unknown \\ escape."));
                       }
                     break;
                   default:
@@ -2068,11 +2065,8 @@ int yylex () {
                     {
                       char *res;
                       *yyp++ = '\0';
-                      res =
-                        scratch_large_alloc ((yyp - yytext) +
-                                             (to - scr_tail) - 1);
-                      strncpy (res, (char *) (scr_tail + 1),
-                               (to - scr_tail) - 1);
+                      res = scratch_large_alloc ((yyp - yytext) + (to - scr_tail) - 1);
+                      strncpy (res, (char *) (scr_tail + 1), (to - scr_tail) - 1);
                       strcpy (res + (to - scr_tail) - 1, yytext);
                       yylval.string = res;
                       return L_STRING;
@@ -2184,8 +2178,7 @@ int yylex () {
             *yyp++ = '\0';
             {
               char *res;
-              res =
-                scratch_large_alloc ((yyp - yytext) + (to - scr_tail) - 1);
+              res = scratch_large_alloc ((yyp - yytext) + (to - scr_tail) - 1);
               strncpy (res, (char *) (scr_tail + 1), (to - scr_tail) - 1);
               strcpy (res + (to - scr_tail) - 1, yytext);
               yylval.string = res;
@@ -2257,7 +2250,7 @@ int yylex () {
               return L_NUMBER;
             }
         default:
-          if (isalpha (c) || c == '_')
+          if (isalpha (c) || c == '_') /* identifier */
             {
               int r;
 
@@ -2274,8 +2267,7 @@ int yylex () {
               if (c == '#')
                 {
                   if (*outptr++ != '#')
-                    lexerror (_
-                              ("Single '#' in identifier -- use '##' for token pasting"));
+                    lexerror (_("Single '#' in identifier -- use '##' for token pasting"));
                   outptr -= 2;
                   if (!expand_define ())
                     {
@@ -2311,7 +2303,7 @@ int yylex () {
                       ident_hash_elem_t *ihe;
                       if ((ihe = lookup_ident (yytext)))
                         {
-                          if (ihe->token & IHE_RESWORD)
+                          if (ihe->token & IHE_RESWORD) /* reserved word? */
                             {
                               if (function_flag)
                                 {
