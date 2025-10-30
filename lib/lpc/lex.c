@@ -193,7 +193,7 @@ static void handle_define (char *);
 static void add_define (const char *, int, const char *); /* implementation in preprocess.c */
 static void add_predefine (char *, int, char *);
 static int expand_define (void);
-static void add_input (char *);
+static void add_input (const char *);
 static int cond_get_exp (int);
 static void inc_lexically_normal (const char* abs_base, const char *name, char *dest);
 static void add_quoted_predefine (char *, char *);
@@ -380,14 +380,14 @@ skip_to (char *token, char *atoken)
  */
 static int inc_open (char *buf, const char *name) {
 
-  int i, f;
+  int i, fd;
   char *p;
 
   inc_lexically_normal (current_file, name, buf);
-  if ((f = open (buf, O_RDONLY)) != -1)
+  if ((fd = open (buf, O_RDONLY)) != -1)
     {
-      opt_trace (TT_COMPILE|3, "%s", buf);
-      return f;
+      opt_trace (TT_COMPILE|3, "opened (fd %d): \"%s\"", fd, buf);
+      return fd;
     }
   /*
    * Search all include dirs specified.
@@ -404,10 +404,10 @@ static int inc_open (char *buf, const char *name) {
       if (inc_list[i] == 0)
         continue;
       sprintf (buf, "%s/%s", inc_list[i], name);
-      if ((f = open (buf, O_RDONLY)) != -1)
+      if ((fd = open (buf, O_RDONLY)) != -1)
         {
-          opt_trace (TT_COMPILE|3, "%s", buf);
-          return f;
+          opt_trace (TT_COMPILE|3, "opened (fd %d): \"%s\"", fd, buf);
+          return fd;
         }
     }
   return -1;
@@ -426,12 +426,13 @@ handle_include (const char *inc_name, int optional)
   char fname[PATH_MAX];
   static char buf[1024];
   incstate_t *is;
-  int delim, f;
+  int delim, fd;
 
   /* need a writable copy */
   fname[sizeof(fname)-1] = 0;
   strncpy (fname, inc_name, sizeof(fname)-1);
   name = fname;
+  opt_trace (TT_COMPILE|2, "header: %s", name);
 
   if (*name != '"' && *name != '<')
     {
@@ -473,7 +474,7 @@ handle_include (const char *inc_name, int optional)
     {
       include_error (_("Maximum include depth exceeded"));
     }
-  else if ((f = inc_open (buf, name)) != -1) /* open header file */
+  else if ((fd = inc_open (buf, name)) != -1) /* open header file */
     {
       is = ALLOCATE (incstate_t, TAG_COMPILER, "handle_include: 1");
       is->yyin_desc = yyin_desc;
@@ -491,7 +492,7 @@ handle_include (const char *inc_name, int optional)
       current_line = 1;
       current_file = make_shared_string (buf);
       current_file_id = add_program_file (buf, 0);
-      yyin_desc = f;
+      yyin_desc = fd;
       refill_buffer ();
     }
   else if (!optional)
@@ -1073,9 +1074,7 @@ show_error_context ()
 
 #define correct_read read
 
-static void
-refill_buffer ()
-{
+static void refill_buffer () {
   if (cur_lbuf != &head_lbuf)
     {
       if (outptr >= cur_lbuf->buf_end && cur_lbuf->term_type == TERM_ADD_INPUT)
@@ -1118,8 +1117,15 @@ refill_buffer ()
             p = outptr + size - 1;
           }
 
-        size = correct_read (yyin_desc, p, MAXLINE); /* append up to MAXLINE characters at cul_lbuf->buf_end */
-        cur_lbuf->buf_end = p += size;
+        if (yyin_desc != -1)
+          {
+            size = correct_read (yyin_desc, p, MAXLINE); /* append up to MAXLINE characters at cul_lbuf->buf_end */
+            cur_lbuf->buf_end = p += size;
+          }
+        else
+          {
+            size = 0;
+          }
         if (size < MAXLINE) /* EOF? */
           {
             *(last_nl = p) = LEX_EOF;
@@ -1182,10 +1188,17 @@ refill_buffer ()
             flag = 1;
           }
 
-        size = correct_read (yyin_desc, p, MAXLINE);
-        end = p += size;
-        if (flag)
-          cur_lbuf->buf_end = p;
+        if (yyin_desc != -1)
+          {
+            size = correct_read (yyin_desc, p, MAXLINE);
+            end = p += size;
+            if (flag)
+              cur_lbuf->buf_end = p;
+          }
+        else
+          {
+            size = 0;
+          }
         if (size < MAXLINE)
           {
             *(last_nl = p) = LEX_EOF;
@@ -1283,8 +1296,9 @@ int yylex () {
 
               p = inctop;
               close (yyin_desc);
-              save_file_info (current_file_id,
-                              current_line - current_line_saved);
+              opt_trace (TT_COMPILE, "closed (fd %d): \"%s\"", yyin_desc,
+                         current_file ? current_file : "<unknown>");
+              save_file_info (current_file_id, current_line - current_line_saved);
               current_line_saved = p->line - 1;
               /* add the lines from this file, and readjust to be relative
                  to the file we're returning to */
@@ -1320,8 +1334,7 @@ int yylex () {
             {
               ifstate_t *p = iftop;
 
-              yyerror (p->state == EXPECT_ENDIF ?
-                       _("Missing #endif") : _("Missing #else/#elif"));
+              yyerror (p->state == EXPECT_ENDIF ? _("Missing #endif") : _("Missing #else/#elif"));
               while (iftop)
                 {
                   p = iftop;
@@ -2381,6 +2394,7 @@ end_new_file ()
 
       p = inctop;
       close (yyin_desc);
+      opt_trace (TT_COMPILE, "closed fd = %d (%s)\n", yyin_desc, current_file);
       free_string (current_file);
       current_file = p->file;
       yyin_desc = p->yyin_desc;
@@ -2461,9 +2475,9 @@ add_predefines ()
  * Preprocessor directives such as #include and #define will work
  * as expected.
  * 
- * @param f The file descriptor of the new file.
+ * @param fd The file descriptor of the new file.
  */
-void start_new_file (int fd) {
+void start_new_file (int fd, const char* pre_text) {
   if (defines_need_freed)
     {
       free_defines (0);
@@ -2503,6 +2517,12 @@ void start_new_file (int fd) {
   current_line = 1;
   current_line_base = 0;
   current_line_saved = 0;
+
+  if (pre_text)
+    {
+      /* insert any text before the actual file contents */
+      add_input (pre_text);
+    }
 
   if (CONFIG_STR (__GLOBAL_INCLUDE_FILE__))
     {
@@ -2937,7 +2957,7 @@ handle_define (char *yyt)
  * It is extended as needed to allow for large macro expansions.
  * @param p The string to add.
  */
-static void add_input (char *p) {
+static void add_input (const char *p) {
   size_t len = strlen (p);
 
   if (len >= DEFMAX - 10)
@@ -3033,7 +3053,7 @@ void free_defines (int include_predefs) {
           /* predefines are at the end of the list */
           if (!include_predefs && (p->flags & DEF_IS_PREDEF))
             break;
-          opt_trace (TT_COMPILE|2, "Freeing define %s\n", p->name);
+          opt_trace (TT_COMPILE|2, "predef: %s\n", p->name);
           q = p->next;
           FREE (p->name);
           FREE (p->exps);
@@ -3385,9 +3405,7 @@ void reset_inc_list (void) {
     }
 }
 
-char *
-main_file_name ()
-{
+const char* main_file_name () {
   incstate_t *is;
 
   if (inctop == 0)

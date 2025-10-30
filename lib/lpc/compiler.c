@@ -2427,7 +2427,7 @@ prolog (int f, const char *name)
 
   current_file = make_shared_string (name);
   current_file_id = add_program_file (name, 1);
-  start_new_file (f);
+  start_new_file (f, 0);
 }
 
 /*
@@ -2651,9 +2651,11 @@ void save_file_info (int file_id, int lines) {
  * @return The index in A_STRINGS where the name is stored + 1. The returned value is used as file ID.
  */
 int add_program_file (const char *name, int top) {
-  opt_trace (TT_COMPILE|2, "includes \"%s\"", name);
   if (!top && mem_block[A_INCLUDES].block)
-    add_to_mem_block (A_INCLUDES, name, strlen (name) + 1);
+    {
+      opt_trace (TT_COMPILE|2, "adding: \"%s\"", name);
+      add_to_mem_block (A_INCLUDES, name, strlen (name) + 1);
+    }
   return mem_block[A_STRINGS].block ? store_prog_string (name) + 1 : 0;
 }
 
