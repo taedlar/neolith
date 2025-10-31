@@ -2440,7 +2440,7 @@ notify_no_command ()
         }
       else
         {
-          tell_object (command_giver, _("What?\n"));
+          tell_object (command_giver, "What?\n");
         }
     }
 }				/* notify_no_command() */

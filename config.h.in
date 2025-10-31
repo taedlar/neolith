@@ -21,12 +21,6 @@
 #define PACKAGE "@CMAKE_PROJECT_NAME@"
 #define VERSION "@CMAKE_PROJECT_VERSION@"
 
-#ifdef HAVE_GETTEXT
-#include "gettext.h"
-#else
-#define _(str) (str)
-#endif
-
 #ifndef RETSIGTYPE
 /* C99 standard */
 #define RETSIGTYPE void

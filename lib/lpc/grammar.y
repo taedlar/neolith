@@ -202,7 +202,7 @@ possible_semi_colon
     :	/* empty */
     |   ';'
         {
-            yywarn(_("Extra ';' ignored."));
+            yywarn("Extra ';' ignored.");
         }
     ;
 
@@ -217,7 +217,7 @@ inheritance
             $1 |= global_modifiers;
 
             if (var_defined)
-                yyerror(_("Invalid inherit clause after variables declarations."));
+                yyerror("Invalid inherit clause after variables declarations.");
             ob = find_object2($3);
             if (ob == 0) {
                 inherit_file = alloc_cstring($3, "inherit");
@@ -290,7 +290,7 @@ def
             } else {
                 if (pragmas & PRAGMA_STRICT_TYPES) {
                     if (strcmp($3, "create") != 0)
-                        yyerror(_("\"#pragma strict_types\" requires type of function"));
+                        yyerror("\"#pragma strict_types\" requires type of function");
                     else
                         exact_types = TYPE_VOID; /* default for create() */
                 } else

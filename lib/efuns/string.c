@@ -122,7 +122,7 @@ f_repeat_string (void)
       str = sp->u.string;
       len = SVALUE_STRLEN (sp);
       if (len * repeat > CONFIG_INT (__MAX_STRING_LENGTH__))
-        error (_("repeat_string: String too large.\n"));
+        error ("repeat_string: String too large.\n");
 //      repeat = CONFIG_INT(__MAX_STRING_LENGTH__) / len;
       p = ret = new_string (len * repeat, "f_repeat_string");
       for (i = 0; i < repeat; i++)
