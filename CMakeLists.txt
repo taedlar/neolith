@@ -46,6 +46,10 @@ include(CheckSymbolExists)
 check_symbol_exists(stpcpy string.h HAVE_STPCPY)
 check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
 
+# check for libraries
+include(CheckLibraryExists)
+check_library_exists(rt clock_gettime "" HAVE_LIBRT)
+
 # check dependencies
 find_package(BISON REQUIRED)
 
