@@ -702,7 +702,7 @@ create_option_defines ()
   int count = 0;
   int i;
 
-  fprintf (stderr, _("Writing option definitions to %s ...\n"), HEADER_OPTION);
+  fprintf (stderr, "Writing option definitions to %s ...\n", HEADER_OPTION);
   open_output_file (HEADER_OPTION);
   fprintf (yyout, "char *option_defs[] = {\n");
 

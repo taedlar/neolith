@@ -154,9 +154,9 @@ f_bind (void)
     }
 
   if (old_fp->hdr.type == (FP_LOCAL | FP_NOT_BINDABLE))
-    error (_("Local function is not bindable.\n"));
+    error ("Local function is not bindable.\n");
   if (old_fp->hdr.type & FP_NOT_BINDABLE)
-    error (_("Function that references global variables is not bindable.\n"));
+    error ("Function that references global variables is not bindable.\n");
 
   /* the object doing the binding */
   if (current_object->flags & O_DESTRUCTED)
@@ -175,7 +175,7 @@ f_bind (void)
 
   res = apply_master_ob (APPLY_VALID_BIND, 3);
   if (!MASTER_APPROVED (res))
-    error (_("Permission of binding denied by master object.\n"));
+    error ("Permission of binding denied by master object.\n");
 
   new_fp = ALLOCATE (funptr_t, TAG_FUNP, "f_bind");
   *new_fp = *old_fp;

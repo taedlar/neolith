@@ -362,7 +362,7 @@ call_efun_callback (function_to_call_t * ftc, int n)
   if (ftc->ob)
     {
       if (ftc->ob->flags & O_DESTRUCTED)
-        error (_("*Object destructed during efun callback."));
+        error ("*Object destructed during efun callback.");
       v = apply (ftc->f.str, ftc->ob, n + ftc->narg, ORIGIN_EFUN);
     }
   else
@@ -530,7 +530,7 @@ push_indexed_lvalue (int code)
             if (code)
               ind = lv->u.buf->size - ind;
             if (ind >= (int)lv->u.buf->size || ind < 0)
-              error (_("*Buffer index out of bounds."));
+              error ("*Buffer index out of bounds.");
             sp->type = T_LVALUE;
             sp->u.lvalue = &global_lvalue_byte;
             global_lvalue_byte.u.lvalue_byte = &lv->u.buf->item[ind];
@@ -542,7 +542,7 @@ push_indexed_lvalue (int code)
             if (code)
               ind = lv->u.arr->size - ind;
             if (ind >= lv->u.arr->size || ind < 0)
-              error (_("*Array index out of bounds."));
+              error ("*Array index out of bounds.");
             sp->type = T_LVALUE;
             sp->u.lvalue = lv->u.arr->item + ind;
             break;
@@ -550,8 +550,8 @@ push_indexed_lvalue (int code)
 
         default:
           if (lv->type == T_NUMBER && !lv->u.number)
-            error (_("*Value being indexed is zero."));
-          error (_("*Cannot index value of type '%s'."), type_name (lv->type));
+            error ("*Value being indexed is zero.");
+          error ("*Cannot index value of type '%s'.", type_name (lv->type));
         }
     }
   else
@@ -572,7 +572,7 @@ push_indexed_lvalue (int code)
         }
 
       if (!((sp - 1)->type == T_NUMBER))
-        error (_("*Illegal type of index."));
+        error ("*Illegal type of index.");
 
       ind = (sp - 1)->u.number;
 
@@ -580,7 +580,7 @@ push_indexed_lvalue (int code)
         {
         case T_STRING:
           {
-            error (_("*Illegal to make char lvalue from assigned string."));
+            error ("*Illegal to make char lvalue from assigned string.");
             break;
           }
 
@@ -589,7 +589,7 @@ push_indexed_lvalue (int code)
             if (code)
               ind = sp->u.buf->size - ind;
             if (ind >= (int)sp->u.buf->size || ind < 0)
-              error (_("*Buffer index out of bounds."));
+              error ("*Buffer index out of bounds.");
             sp->u.buf->ref--;
             (--sp)->type = T_LVALUE;
             sp->u.lvalue = &global_lvalue_byte;
@@ -602,7 +602,7 @@ push_indexed_lvalue (int code)
             if (code)
               ind = sp->u.arr->size - ind;
             if (ind >= sp->u.arr->size || ind < 0)
-              error (_("*Array index out of bounds."));
+              error ("*Array index out of bounds.");
             sp->u.arr->ref--;
             (--sp)->type = T_LVALUE;
             sp->u.lvalue = (sp + 1)->u.arr->item + ind;
@@ -611,8 +611,8 @@ push_indexed_lvalue (int code)
 
         default:
           if (sp->type == T_NUMBER && !sp->u.number)
-            error (_("*Value being indexed is zero."));
-          error (_("*Cannot index value of type '%s'."), type_name (sp->type));
+            error ("*Value being indexed is zero.");
+          error ("*Cannot index value of type '%s'.", type_name (sp->type));
         }
     }
 }
@@ -649,29 +649,27 @@ push_lvalue_range (int code)
           size = lv->u.buf->size;
           break;
         default:
-          error (_("*Range lvalue on illegal type."));
+          error ("*Range lvalue on illegal type.");
           IF_DEBUG (size = 0);
         }
     }
   else
-    error (_("*Range lvalue on illegal type."));
+    error ("*Range lvalue on illegal type.");
 
   if (!((--sp)->type == T_NUMBER))
-    error (_("*Illegal 2nd index type to range lvalue."));
+    error ("*Illegal 2nd index type to range lvalue.");
 
   ind2 = (code & 0x01) ? (size - sp->u.number) : sp->u.number;
   if (++ind2 < 0 || (ind2 > size))
-    error (_
-      ("*The 2nd index to range lvalue must be >= -1 and < sizeof(indexed value)"));
+    error ("*The 2nd index to range lvalue must be >= -1 and < sizeof(indexed value)");
 
   if (!((--sp)->type == T_NUMBER))
-    error (_("*Illegal 1st index type to range lvalue"));
+    error ("*Illegal 1st index type to range lvalue");
 
   ind1 = (code & 0x10) ? (size - sp->u.number) : sp->u.number;
 
   if (ind1 < 0 || ind1 > size)
-    error (_
-      ("*The 1st index to range lvalue must be >= 0 and <= sizeof(indexed value)"));
+    error ("*The 1st index to range lvalue must be >= 0 and <= sizeof(indexed value)");
 
   global_lvalue_range.ind1 = ind1;
   global_lvalue_range.ind2 = ind2;
@@ -698,7 +696,7 @@ copy_lvalue_range (svalue_t * from)
         array_t *fv, *dv;
         svalue_t *fptr, *dptr;
         if (from->type != T_ARRAY)
-          error (_("*Illegal rhs to array range lvalue."));
+          error ("*Illegal rhs to array range lvalue.");
 
         fv = from->u.arr;
         fptr = fv->item;
@@ -766,7 +764,7 @@ copy_lvalue_range (svalue_t * from)
     case T_STRING:
       {
         if (from->type != T_STRING)
-          error (_("*Illegal rhs to string range lvalue."));
+          error ("*Illegal rhs to string range lvalue.");
 
         if ((fsize = SVALUE_STRLEN (from)) == ind2 - ind1)
           {
@@ -804,7 +802,7 @@ copy_lvalue_range (svalue_t * from)
     case T_BUFFER:
       {
         if (from->type != T_BUFFER)
-          error (_("*Illegal rhs to buffer range lvalue."));
+          error ("*Illegal rhs to buffer range lvalue.");
 
         if ((fsize = from->u.buf->size) == ind2 - ind1)
           {
@@ -855,7 +853,7 @@ assign_lvalue_range (svalue_t * from)
         array_t *fv, *dv;
         svalue_t *fptr, *dptr;
         if (from->type != T_ARRAY)
-          error (_("*Illegal rhs to array range lvalue."));
+          error ("*Illegal rhs to array range lvalue.");
 
         fv = from->u.arr;
         fptr = fv->item;
@@ -898,7 +896,7 @@ assign_lvalue_range (svalue_t * from)
     case T_STRING:
       {
         if (from->type != T_STRING)
-          error (_("*Illegal rhs to string range lvalue."));
+          error ("*Illegal rhs to string range lvalue.");
 
         if ((fsize = SVALUE_STRLEN (from)) == ind2 - ind1)
           {
@@ -935,7 +933,7 @@ assign_lvalue_range (svalue_t * from)
     case T_BUFFER:
       {
         if (from->type != T_BUFFER)
-          error (_("*Illegal rhs to buffer range lvalue."));
+          error ("*Illegal rhs to buffer range lvalue.");
 
         if ((fsize = from->u.buf->size) == ind2 - ind1)
           {
@@ -1010,7 +1008,7 @@ pop_3_elems ()
 void
 bad_arg (int arg, int instr)
 {
-  error (_("*Bad argument %d to %s()"), arg, get_f_name (instr));
+  error ("*Bad argument %d to %s()", arg, get_f_name (instr));
 }
 
 void
@@ -1023,7 +1021,7 @@ bad_argument (svalue_t * val, int type, int arg, int instr)
   char msg[8192];
 
   outbuf_zero (&outbuf);
-  outbuf_addv (&outbuf, _("Bad argument %d to %s%s, Expected: "), arg,
+  outbuf_addv (&outbuf, "Bad argument %d to %s%s, Expected: ", arg,
                get_f_name (instr), (instr < BASE ? "" : "()"));
 
   do
@@ -1054,11 +1052,10 @@ bad_argument (svalue_t * val, int type, int arg, int instr)
 void
 push_control_stack (int frkind)
 {
-  /* �Y control stack �`�׶W�L���\���W��, �������~ */
   if (csp == &control_stack[CONFIG_INT (__MAX_CALL_DEPTH__) - 1])
     {
       error_state |= ES_STACK_FULL;
-      error (_("***Too deep recursion."));
+      error ("***Too deep recursion.");
     }
   csp++;
   csp->caller_type = caller_type;
@@ -1079,8 +1076,7 @@ push_control_stack (int frkind)
 void
 pop_control_stack ()
 {
-  DEBUG_CHECK (csp == (control_stack - 1),
-               _("Popped out of the control stack\n"));
+  DEBUG_CHECK (csp == (control_stack - 1), "Popped out of the control stack\n");
 #ifdef PROFILE_FUNCTIONS
   if ((csp->framekind & FRAME_MASK) == FRAME_FUNCTION)
     {
@@ -1371,11 +1367,10 @@ unsigned char fake_program = F_RETURN;
 void
 setup_fake_frame (funptr_t * fun)
 {
-  /* �p�G control stack �`�׶W�L���\���W��, �������~ */
   if (csp == &control_stack[CONFIG_INT (__MAX_CALL_DEPTH__) - 1])
     {
       error_state |= ES_STACK_FULL;
-      error (_("***Too deep recursion."));
+      error ("***Too deep recursion.");
     }
 
   csp++;
@@ -1462,7 +1457,7 @@ svalue_t *
 call_function_pointer (funptr_t * funp, int num_arg)
 {
   if (funp->hdr.owner->flags & O_DESTRUCTED)
-    error (_("*Owner (/%s) of function pointer is destructed."),
+    error ("*Owner (/%s) of function pointer is destructed.",
            funp->hdr.owner->name);
 
   setup_fake_frame (funp);
@@ -1507,11 +1502,11 @@ call_function_pointer (funptr_t * funp, int num_arg)
           }
         else if (num_arg < instrs[i].min_arg)
           {
-            error (_("*Too few arguments to efun %s in efun pointer."), instrs[i].name);
+            error ("*Too few arguments to efun %s in efun pointer.", instrs[i].name);
           }
         else if (num_arg > instrs[i].max_arg && instrs[i].max_arg != -1)
           {
-            error (_("*Too many arguments to efun %s in efun pointer."), instrs[i].name);
+            error ("*Too many arguments to efun %s in efun pointer.", instrs[i].name);
           }
         /* possibly we should add TRACE, OPC, etc here;
            also on eval_cost here, which is ok for just 1 efun */
@@ -1544,8 +1539,7 @@ call_function_pointer (funptr_t * funp, int num_arg)
 
         if (current_object->prog->
             function_flags[funp->f.local.index] & NAME_UNDEFINED)
-          error (_("*Undefined function: %s"),
-                 function_name (current_object->prog, funp->f.local.index));
+          error ("*Undefined function: %s", function_name (current_object->prog, funp->f.local.index));
 
         push_control_stack (FRAME_FUNCTION);
         current_prog = funp->hdr.owner->prog;
@@ -1594,7 +1588,7 @@ call_function_pointer (funptr_t * funp, int num_arg)
         break;
       }
     default:
-      error (_("*Unsupported function pointer type."));
+      error ("*Unsupported function pointer type.");
     }
   free_svalue (&apply_ret_value, "call_function_pointer");
   apply_ret_value = *sp--;
@@ -1714,11 +1708,11 @@ do_loop_cond_local ()
         {
         case T_NUMBER:
         case T_REAL:
-          error (_("*2nd argument to < is not numeric when the 1st is."));
+          error ("*2nd argument to < is not numeric when the 1st is.");
         case T_STRING:
-          error (_("*2nd argument to < is not string when the 1st is."));
+          error ("*2nd argument to < is not string when the 1st is.");
         default:
-          error (_("*Bad 1st argument to <."));
+          error ("*Bad 1st argument to <.");
         }
       i = 0;
     }
@@ -1767,7 +1761,7 @@ do_loop_cond_number ()
         pc += 2;
     }
   else
-    error (_("*Right side of < is a number, left side is not."));
+    error ("*Right side of < is a number, left side is not.");
 }
 
 
@@ -1807,7 +1801,7 @@ eval_instruction (char *p)
           error_state |= ES_MAX_EVAL_COST;
 
           eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-          error (_("*Too long evaluation. Execution aborted."));
+          error ("*Too long evaluation. Execution aborted.");
         }
       /*
        * Execute current instruction. Note that all functions callable from
@@ -1872,11 +1866,11 @@ eval_instruction (char *p)
               break;
             case T_LVALUE_BYTE:
               if (*global_lvalue_byte.u.lvalue_byte == (unsigned char) 255)
-                error (_("*Strings cannot contain 0 bytes."));
+                error ("*Strings cannot contain 0 bytes.");
               ++*global_lvalue_byte.u.lvalue_byte;
               break;
             default:
-              error (_("*Increment (++) on non-numeric argument."));
+              error ("*Increment (++) on non-numeric argument.");
             }
           break;
         case F_WHILE_DEC:
@@ -1894,7 +1888,7 @@ eval_instruction (char *p)
               }
             else
               {
-                error (_("*Decrement (--) on non-numeric argument."));
+                error ("*Decrement (--) on non-numeric argument.");
               }
             if (i)
               {
@@ -2105,7 +2099,7 @@ eval_instruction (char *p)
               }
             else
               {
-                error (_("*Increment (++) on non-numeric argument."));
+                error ("*Increment (++) on non-numeric argument.");
               }
           }
           if (*pc == F_LOOP_COND_LOCAL)
@@ -2180,7 +2174,7 @@ eval_instruction (char *p)
                 {
                   if (!((sp - 1)->type == T_BUFFER))
                     {
-                      error (_("*Bad type argument to +. Had %s and %s."),
+                      error ("*Bad type argument to +. Had %s and %s.",
                              type_name ((sp - 1)->type),
                              type_name (sp->type));
                     }
@@ -2221,7 +2215,7 @@ eval_instruction (char *p)
                         break;
                       }
                     default:
-                      error (_("*Bad type argument to +.  Had %s and %s."),
+                      error ("*Bad type argument to +.  Had %s and %s.",
                              type_name (sp->type),
                              type_name ((sp + 1)->type));
                     }
@@ -2247,7 +2241,7 @@ eval_instruction (char *p)
                         break;
                       }
                     default:
-                      error (_("*Bad type argument to +. Had %s and %s"),
+                      error ("*Bad type argument to +. Had %s and %s",
                              type_name (sp->type),
                              type_name ((sp + 1)->type));
                     }
@@ -2257,7 +2251,7 @@ eval_instruction (char *p)
                 {
                   if (!((sp - 1)->type == T_ARRAY))
                     {
-                      error (_("*Bad type argument to +. Had %s and %s"),
+                      error ("*Bad type argument to +. Had %s and %s",
                              type_name ((sp - 1)->type),
                              type_name (sp->type));
                     }
@@ -2283,7 +2277,7 @@ eval_instruction (char *p)
                       break;
                     }
                   else
-                    error (_("*Bad type argument to +. Had %s and %s"),
+                    error ("*Bad type argument to +. Had %s and %s",
                            type_name ((sp - 1)->type), type_name (sp->type));
                 }		/* end of x + T_MAPPING */
               case T_STRING:
@@ -2313,7 +2307,7 @@ eval_instruction (char *p)
                         break;
                       }		/* end of T_STRING + T_STRING */
                     default:
-                      error (_("*Bad type argument to +. Had %s and %s."),
+                      error ("*Bad type argument to +. Had %s and %s.",
                              type_name ((sp - 1)->type),
                              type_name (sp->type));
                     }
@@ -2321,7 +2315,7 @@ eval_instruction (char *p)
                 }		/* end of x + T_STRING */
 
               default:
-                error (_("*Bad type argument to +.  Had %s and %s."),
+                error ("*Bad type argument to +.  Had %s and %s.",
                        type_name ((sp - 1)->type), type_name (sp->type));
               }
             break;
@@ -2371,8 +2365,7 @@ eval_instruction (char *p)
                 }
               else
                 {
-                  error (_
-                    ("*Left hand side of += is a number (or zero); right side is not a number."));
+                  error ("*Left hand side of += is a number (or zero); right side is not a number.");
                 }
               break;
             case T_REAL:
@@ -2388,8 +2381,7 @@ eval_instruction (char *p)
                 }
               else
                 {
-                  error (_
-                    ("*Left hand side of += is a number (or zero); right side is not a number."));
+                  error ("*Left hand side of += is a number (or zero); right side is not a number.");
                 }
               break;
             case T_BUFFER:
@@ -2434,12 +2426,12 @@ eval_instruction (char *p)
                 char c;
 
                 if (sp->type != T_NUMBER)
-                  error (_("*Bad right type to += of char lvalue."));
+                  error ("*Bad right type to += of char lvalue.");
 
                 c = *global_lvalue_byte.u.lvalue_byte + sp->u.number;
 
                 if (c == '\0')
-                  error (_("*Strings cannot contain 0 bytes."));
+                  error ("*Strings cannot contain 0 bytes.");
                 *global_lvalue_byte.u.lvalue_byte = c;
               }
               break;
@@ -2584,7 +2576,7 @@ eval_instruction (char *p)
             s = sp - i;
 
             if (s->type != T_ARRAY)
-              error (_("*Item being expanded with ... is not an array."));
+              error ("*Item being expanded with ... is not an array.");
 
             arr = s->u.arr;
             n = arr->size;
@@ -2688,13 +2680,13 @@ eval_instruction (char *p)
 
                 if ((sp - 1)->type != T_NUMBER)
                   {
-                    error (_("*Illegal to assign a non-numeric value to char lvalue."));
+                    error ("*Illegal to assign a non-numeric value to char lvalue.");
                   }
                 else
                   {
                     c = ((sp - 1)->u.number & 0xff);
                     if (c == '\0')
-                      error (_("*Strings cannot contain NUL character."));
+                      error ("*Strings cannot contain NUL character.");
                     *global_lvalue_byte.u.lvalue_byte = c;
                   }
                 break;
@@ -2732,13 +2724,13 @@ eval_instruction (char *p)
                   {
                     if (sp->type != T_NUMBER)
                       {
-                        error (_("*Illegal rhs to char lvalue"));
+                        error ("*Illegal rhs to char lvalue");
                       }
                     else
                       {
                         char c = (sp--)->u.number & 0xff;
                         if (c == '\0')
-                          error (_("*Strings cannot contain 0 bytes."));
+                          error ("*Strings cannot contain 0 bytes.");
                         *global_lvalue_byte.u.lvalue_byte = c;
                       }
                     break;
@@ -2825,7 +2817,7 @@ eval_instruction (char *p)
           break;
         case F_COMPL:
           if (sp->type != T_NUMBER)
-            error (_("*Bad argument to ~"));
+            error ("*Bad argument to ~");
           sp->u.number = ~sp->u.number;
           sp->subtype = 0;
           break;
@@ -2851,13 +2843,13 @@ eval_instruction (char *p)
               break;
             case T_LVALUE_BYTE:
               if (*global_lvalue_byte.u.lvalue_byte == '\x1')
-                error (_("*Strings cannot contain 0 bytes."));
+                error ("*Strings cannot contain 0 bytes.");
               sp->type = T_NUMBER;
               sp->subtype = 0;
               sp->u.number = --(*global_lvalue_byte.u.lvalue_byte);
               break;
             default:
-              error (_("Decrement (--) on non-numeric argument"));
+              error ("Decrement (--) on non-numeric argument");
             }
           break;
         case F_DEC:
@@ -2873,11 +2865,11 @@ eval_instruction (char *p)
               break;
             case T_LVALUE_BYTE:
               if (*global_lvalue_byte.u.lvalue_byte == '\x1')
-                error (_("*Strings cannot contain NUL char."));
+                error ("*Strings cannot contain NUL char.");
               --(*global_lvalue_byte.u.lvalue_byte);
               break;
             default:
-              error (_("Decrement (--) on non-numeric argument"));
+              error ("Decrement (--) on non-numeric argument");
             }
           break;
         case F_DIVIDE:
@@ -2888,7 +2880,7 @@ eval_instruction (char *p)
               case T_NUMBER:
                 {
                   if (!(sp--)->u.number)
-                    error (_("*Division by zero."));
+                    error ("*Division by zero.");
                   sp->u.number /= (sp + 1)->u.number;
                   break;
                 }
@@ -2896,7 +2888,7 @@ eval_instruction (char *p)
               case T_REAL:
                 {
                   if ((sp--)->u.real == 0.0)
-                    error (_("*Division by zero."));
+                    error ("*Division by zero.");
                   sp->u.real /= (sp + 1)->u.real;
                   break;
                 }
@@ -2906,13 +2898,13 @@ eval_instruction (char *p)
                   if ((sp--)->type == T_NUMBER)
                     {
                       if (!((sp + 1)->u.number))
-                        error (_("*Division by zero."));
+                        error ("*Division by zero.");
                       sp->u.real /= (sp + 1)->u.number;
                     }
                   else
                     {
                       if ((sp + 1)->u.real == 0.0)
-                        error (_("*Division by 0.0"));
+                        error ("*Division by 0.0");
                       sp->type = T_REAL;
                       sp->u.real = sp->u.number / (sp + 1)->u.real;
                     }
@@ -2980,13 +2972,13 @@ eval_instruction (char *p)
               break;
             case T_LVALUE_BYTE:
               if (*global_lvalue_byte.u.lvalue_byte == (unsigned char) 255)
-                error (_("*Strings cannot contain NUL char."));
+                error ("*Strings cannot contain NUL char.");
               sp->type = T_NUMBER;
               sp->subtype = 0;
               sp->u.number = ++*global_lvalue_byte.u.lvalue_byte;
               break;
             default:
-              error (_("Increment (++) on non-numeric argument."));
+              error ("Increment (++) on non-numeric argument.");
             }
           break;
         case F_MEMBER:
@@ -2994,12 +2986,11 @@ eval_instruction (char *p)
             array_t *arr;
 
             if (sp->type != T_CLASS)
-              error(_
-                ("*Tried to take a member of something that isn't a class."));
+              error("*Tried to take a member of something that isn't a class.");
             i = EXTRACT_UCHAR (pc++);
             arr = sp->u.arr;
             if (i >= arr->size)
-              error (_("*Class has no corresponding member."));
+              error ("*Class has no corresponding member.");
             assign_svalue_no_free (sp, &arr->item[i]);
             free_class (arr);
 
@@ -3021,12 +3012,11 @@ eval_instruction (char *p)
             array_t *arr;
 
             if (sp->type != T_CLASS)
-              error (_
-                ("*Tried to take a member of something that isn't a class."));
+              error ("*Tried to take a member of something that isn't a class.");
             i = EXTRACT_UCHAR (pc++);
             arr = sp->u.arr;
             if (i >= arr->size)
-              error (_("*Class has no corresponding member."));
+              error ("*Class has no corresponding member.");
             sp->type = T_LVALUE;
             sp->u.lvalue = arr->item + i;
             free_class (arr);
@@ -3049,11 +3039,11 @@ eval_instruction (char *p)
             case T_BUFFER:
               {
                 if ((sp - 1)->type != T_NUMBER)
-                  error (_("*Buffer indexes must be integers."));
+                  error ("*Buffer indexes must be integers.");
 
                 i = (sp - 1)->u.number;
                 if ((i > (int)sp->u.buf->size) || (i < 0))
-                  error (_("*Buffer index out of bounds."));
+                  error ("*Buffer index out of bounds.");
                 i = sp->u.buf->item[i];
                 free_buffer (sp->u.buf);
                 (--sp)->u.number = i;
@@ -3064,11 +3054,11 @@ eval_instruction (char *p)
               {
                 if ((sp - 1)->type != T_NUMBER)
                   {
-                    error (_("*String indexes must be integers."));
+                    error ("*String indexes must be integers.");
                   }
                 i = (sp - 1)->u.number;
                 if ((i > (int)SVALUE_STRLEN (sp)) || (i < 0))
-                  error (_("*String index out of bounds."));
+                  error ("*String index out of bounds.");
                 i = (unsigned char) sp->u.string[i];
                 free_string_svalue (sp);
                 (--sp)->u.number = i;
@@ -3079,21 +3069,21 @@ eval_instruction (char *p)
                 array_t *arr;
 
                 if ((sp - 1)->type != T_NUMBER)
-                  error (_("*Array indexes must be integers."));
+                  error ("*Array indexes must be integers.");
                 i = (sp - 1)->u.number;
                 if (i < 0)
-                  error (_("*Array index must be positive or zero."));
+                  error ("*Array index must be positive or zero.");
                 arr = sp->u.arr;
                 if (i >= arr->size)
-                  error (_("*Array index out of bounds."));
+                  error ("*Array index out of bounds.");
                 assign_svalue_no_free (--sp, &arr->item[i]);
                 free_array (arr);
                 break;
               }
             default:
               if (sp->type == T_NUMBER && !sp->u.number)
-                error (_("*Value being indexed is zero."));
-              error (_("*Cannot index value of type '%s'."),
+                error ("*Value being indexed is zero.");
+              error ("*Cannot index value of type '%s'.",
                      type_name (sp->type));
             }
 
@@ -3115,11 +3105,11 @@ eval_instruction (char *p)
             case T_BUFFER:
               {
                 if ((sp - 1)->type != T_NUMBER)
-                  error (_("*Indexing a buffer with an illegal type."));
+                  error ("*Indexing a buffer with an illegal type.");
 
                 i = sp->u.buf->size - (sp - 1)->u.number;
                 if ((i > (int)sp->u.buf->size) || (i < 0))
-                  error (_("*Buffer index out of bounds."));
+                  error ("*Buffer index out of bounds.");
 
                 i = sp->u.buf->item[i];
                 free_buffer (sp->u.buf);
@@ -3132,11 +3122,11 @@ eval_instruction (char *p)
                 int len = SVALUE_STRLEN (sp);
                 if ((sp - 1)->type != T_NUMBER)
                   {
-                    error (_("*Indexing a string with an illegal type."));
+                    error ("*Indexing a string with an illegal type.");
                   }
                 i = len - (sp - 1)->u.number;
                 if ((i > len) || (i < 0))
-                  error (_("*String index out of bounds."));
+                  error ("*String index out of bounds.");
                 i = (unsigned char) sp->u.string[i];
                 free_string_svalue (sp);
                 (--sp)->u.number = i;
@@ -3147,18 +3137,18 @@ eval_instruction (char *p)
                 array_t *arr = sp->u.arr;
 
                 if ((sp - 1)->type != T_NUMBER)
-                  error (_("*Indexing an array with an illegal type."));
+                  error ("*Indexing an array with an illegal type.");
                 i = arr->size - (sp - 1)->u.number;
                 if (i < 0 || i >= arr->size)
-                  error (_("*Array index out of bounds."));
+                  error ("*Array index out of bounds.");
                 assign_svalue_no_free (--sp, &arr->item[i]);
                 free_array (arr);
                 break;
               }
             default:
               if (sp->type == T_NUMBER && !sp->u.number)
-                error (_("*Value being indexed is zero."));
-              error (_("*Cannot index value of type '%s'."),
+                error ("*Value being indexed is zero.");
+              error ("*Cannot index value of type '%s'.",
                      type_name (sp->type));
             }
 
@@ -3216,7 +3206,7 @@ eval_instruction (char *p)
             CHECK_TYPES (sp - 1, T_NUMBER, 1, instruction);
             CHECK_TYPES (sp, T_NUMBER, 2, instruction);
             if ((sp--)->u.number == 0)
-              error (_("*Modulus by zero."));
+              error ("*Modulus by zero.");
             sp->u.number %= (sp + 1)->u.number;
           }
           break;
@@ -3271,7 +3261,7 @@ eval_instruction (char *p)
                   if (!(sp->type & (T_NUMBER | T_REAL | T_MAPPING)))
                     bad_argument (sp, T_NUMBER | T_REAL | T_MAPPING, 2,
                                   instruction);
-                  error (_("*Args to * are not compatible."));
+                  error ("*Args to * are not compatible.");
                 }
               }
           }
@@ -3291,7 +3281,7 @@ eval_instruction (char *p)
           else if (sp->type == T_REAL)
             sp->u.real = -sp->u.real;
           else
-            error (_("*Bad argument to unary minus"));
+            error ("*Bad argument to unary minus");
           break;
         case F_NOT:
           if (sp->type == T_NUMBER)
@@ -3331,11 +3321,11 @@ eval_instruction (char *p)
             case T_LVALUE_BYTE:
               sp->type = T_NUMBER;
               if (*global_lvalue_byte.u.lvalue_byte == '\x1')
-                error (_("*Strings cannot contain NUL char."));
+                error ("*Strings cannot contain NUL char.");
               sp->u.number = (*global_lvalue_byte.u.lvalue_byte)--;
               break;
             default:
-              error (_("DEcrement (--) on non-numeric argument."));
+              error ("DEcrement (--) on non-numeric argument.");
             }
           break;
         case F_POST_INC:
@@ -3354,12 +3344,12 @@ eval_instruction (char *p)
               break;
             case T_LVALUE_BYTE:
               if (*global_lvalue_byte.u.lvalue_byte == (unsigned char) 255)
-                error (_("*Strings cannot contain NUL char."));
+                error ("*Strings cannot contain NUL char.");
               sp->type = T_NUMBER;
               sp->u.number = (*global_lvalue_byte.u.lvalue_byte)++;
               break;
             default:
-              error (_("Increment (++) on non-numeric argument."));
+              error ("Increment (++) on non-numeric argument.");
             }
           break;
         case F_GLOBAL_LVALUE:
@@ -3497,11 +3487,11 @@ eval_instruction (char *p)
 
               default:
                 if (!((sp++)->type & (T_NUMBER | T_REAL | T_ARRAY)))
-                  error (_("*Bad left type to -."));
+                  error ("*Bad left type to -.");
                 else if (!(sp->type & (T_NUMBER | T_REAL | T_ARRAY)))
-                  error (_("*Bad right type to -."));
+                  error ("*Bad right type to -.");
                 else
-                  error (_("*Arguments to - do not have compatible types."));
+                  error ("*Arguments to - do not have compatible types.");
               }
             break;
           }
@@ -3643,7 +3633,7 @@ do_catch (char *pc, unsigned short new_pc_offset)
    * longjmp. The stack will have to be manually popped all the way.
    */
   if (!save_context (&econ))
-    error (_("*Can't catch too deep recursion error."));
+    error ("*Can't catch too deep recursion error.");
 
   push_control_stack (FRAME_CATCH);
 
@@ -3662,12 +3652,12 @@ do_catch (char *pc, unsigned short new_pc_offset)
       if (get_error_state (ES_MAX_EVAL_COST))
         {
           pop_context (&econ);
-          error (_("*Can't catch eval cost too big error."));
+          error ("*Can't catch eval cost too big error.");
         }
       if (get_error_state (ES_STACK_FULL))
         {
           pop_context (&econ);
-          error (_("*Can't catch too deep recursion error."));
+          error ("*Can't catch too deep recursion error.");
         }
     }
   else
@@ -4449,7 +4439,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
                   continue;
                 }
               if (!*fmt)
-                error (_("*Format string end in '%%' in sscanf()"));
+                error ("*Format string end in '%%' in sscanf()");
               break;
             }
           if (*fmt++ != *in_string++)
@@ -4480,7 +4470,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
            * Hmm ... maybe we should return number_of_matches here instead
            * of an error
            */
-          error (_("*Too few arguments to sscanf()"));
+          error ("*Too few arguments to sscanf()");
         }
 
       switch (*fmt++)
@@ -4533,7 +4523,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
                       }
                     /* fall through */
                   case '\0':
-                    error (_("*Bad regexp format: '%%%s' in sscanf format string"), fmt);
+                    error ("*Bad regexp format: '%%%s' in sscanf format string", fmt);
                   case '(':
                     num++;
                     /* fall through */
@@ -4579,7 +4569,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
         case 's':
           break;
         default:
-          error (_("*Bad type : '%%%c' in sscanf() format string."), fmt[-1]);
+          error ("*Bad type : '%%%c' in sscanf() format string.", fmt[-1]);
         }
 
       /*
@@ -4612,15 +4602,14 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
           if ((skipme2 = (*fmt == '*')))
             fmt++;
           if (num_arg < (!skipme + !skipme2) && *fmt != '%')
-            error (_("*Too few arguments to sscanf()."));
+            error ("*Too few arguments to sscanf().");
 
           number_of_matches++;
 
           switch (*fmt++)
             {
             case 's':
-              error (_
-                ("*Illegal to have 2 adjacent %%s's in format string in sscanf()"));
+              error ("*Illegal to have 2 adjacent %%s's in format string in sscanf()");
             case 'x':
               do
                 {
@@ -4667,7 +4656,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
                           }
                         /* fall through */
                       case '\0':
-                        error (_("*Bad regexp format : '%%%s' in sscanf format string."), fmt);
+                        error ("*Bad regexp format : '%%%s' in sscanf format string.", fmt);
                       case '(':
                         num++;
                         /* fall through */
@@ -4734,10 +4723,9 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
               }
 
             case 0:
-              error (_("*Format string can't end in '%%'."));
+              error ("*Format string can't end in '%%'.");
             default:
-              error (_("*Bad type : '%%%c' in sscanf() format string."),
-                     fmt[-1]);
+              error ("*Bad type : '%%%c' in sscanf() format string.", fmt[-1]);
             }
 
           if (!skipme)
