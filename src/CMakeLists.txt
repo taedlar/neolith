@@ -28,8 +28,6 @@ target_include_directories(stem PUBLIC
 )
 
 # check POSIX realtime extension library
-include(CheckLibraryExists)
-check_library_exists(rt clock_gettime "" HAVE_LIBRT)
 if(HAVE_LIBRT)
     target_link_libraries(stem PUBLIC -lrt)
 else()
