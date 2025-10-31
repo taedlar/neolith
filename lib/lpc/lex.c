@@ -1260,8 +1260,15 @@ old_func ()
   return L_FUNCTION_OPEN;
 }
 
+static void ensure_valid_wide_string(const char* mbs) {
+  if (mbstowcs(NULL, mbs, 0) == (size_t)-1)
+    lexerror(_("Invalid wide string literal."));
+}
+
 #define return_assign(opcode) { yylval.number = opcode; return L_ASSIGN; }
 #define return_order(opcode) { yylval.number = opcode; return L_ORDER; }
+
+static int wide_char_literal = 0;
 
 /**
  * @brief The lexical analyzer.
@@ -1274,13 +1281,13 @@ int yylex () {
   double myreal;
   char *partp;
 
-  register char *yyp;		/* Xeno */
-  register char c;		/* Xeno */
+  register char *yyp;
+  register char c;
 
   yytext[0] = 0;
 
-  partp = partial;		/* Xeno */
-  partial[0] = 0;		/* Xeno */
+  partp = partial;
+  partial[0] = 0;
 
   for (;;)
     {
@@ -1770,6 +1777,22 @@ int yylex () {
             }
           else
             goto badlex;
+        case 'L':
+          /* wide character literal, see https://en.cppreference.com/w/cpp/language/character_literal.html */
+          if (*outptr == '"')
+            {
+              wide_char_literal = 1;
+              c = *outptr++;
+              goto case_string;
+            }
+          else if (*outptr != '\'')
+            {
+              wide_char_literal = 0;
+              goto parse_identifier;
+            }
+          wide_char_literal = 1;
+          outptr++;
+          /* fall through */
         case '\'':
 
           if (*outptr++ == '\\')
@@ -1852,7 +1875,35 @@ int yylex () {
             }
           else
             {
-              yylval.number = *(outptr - 1);
+              if (wide_char_literal)
+                {
+                  /* For wide char literals, we accept multi-byte characters */
+                  wchar_t wc = 0;
+                  int bytes = mblen (outptr - 1, MB_CUR_MAX);
+                  if (bytes < 1)
+                    {
+                      yywarn (_("Illegal wide character constant"));
+                      yylval.number = 'x';
+                    }
+                  else
+                    {
+                      if (bytes != mbtowc (&wc, outptr - 1, bytes))
+                        {
+                          yywarn (_("Illegal wide character constant"));
+                          yylval.number = 'x';
+                        }
+                      else
+                        {
+                          yylval.number = wc;
+                        }
+                      outptr += bytes - 1;
+                    }
+                }
+              else
+                {
+                  /* ordinary single character literal */
+                  yylval.number = *(outptr - 1);
+                }
             }
 
           if (*outptr++ != '\'')
@@ -1930,8 +1981,10 @@ int yylex () {
         case '"':
           {
             int l;
-            register unsigned char *to = scr_tail + 1;
+            register unsigned char *to;
 
+case_string:
+            to = scr_tail + 1; /* scratchpad.c */
             if ((l = scratch_end - 1 - to) > 255)
               l = 255;
             while (l-- > 0)
@@ -1948,6 +2001,8 @@ int yylex () {
                     scr_tail = to;
                     *to = to - scr_last;
                     yylval.string = (char *) scr_last;
+                    if (wide_char_literal)
+                      ensure_valid_wide_string (yylval.string);
                     return L_STRING;
 
                   case '\n':
@@ -2070,6 +2125,8 @@ int yylex () {
                       strncpy (res, (char *) (scr_tail + 1), (to - scr_tail) - 1);
                       strcpy (res + (to - scr_tail) - 1, yytext);
                       yylval.string = res;
+                      if (wide_char_literal)
+                        ensure_valid_wide_string (yylval.string);
                       return L_STRING;
                     }
 
@@ -2135,8 +2192,7 @@ int yylex () {
                           tmp = strtol (outptr, &outptr, 8);
                           if (tmp > 255)
                             {
-                              yywarn (_
-                                      ("Illegal character constant in string."));
+                              yywarn (_("Illegal character constant in string."));
                               tmp = 'x';
                             }
                           *yyp++ = tmp;
@@ -2148,8 +2204,7 @@ int yylex () {
                           if (!isxdigit (*outptr))
                             {
                               *yyp++ = 'x';
-                              yywarn (_
-                                      ("\\x must be followed by a valid hex value; interpreting as 'x' instead."));
+                              yywarn (_("\\x must be followed by a valid hex value; interpreting as 'x' instead."));
                             }
                           else
                             {
@@ -2183,6 +2238,8 @@ int yylex () {
               strncpy (res, (char *) (scr_tail + 1), (to - scr_tail) - 1);
               strcpy (res + (to - scr_tail) - 1, yytext);
               yylval.string = res;
+              if (wide_char_literal)
+                ensure_valid_wide_string (yylval.string);
               return L_STRING;
             }
           }
@@ -2277,7 +2334,7 @@ int yylex () {
             {
               int r;
 
-            parse_identifier:
+parse_identifier:
               yyp = yytext;
               *yyp++ = c;
               for (;;)
