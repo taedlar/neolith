@@ -205,7 +205,6 @@ f_call_other (void)
   char *funcname;
   int num_arg = st_num_arg;
 
-  // �Y this_object() �w�g�D��R��, �T��Ҧ��� call_other
   if (current_object->flags & O_DESTRUCTED)
     {
       pop_n_elems (num_arg);
