@@ -174,6 +174,11 @@ explode_string (char *str, int slen, char *del, int len)
     }
 
   /* length of delimiter > 0 */
+  if (mblen(del, len) == -1)
+    {
+      debug_warn ("An invalid multibyte sequence is encountered in delimiter.");
+      // return &the_null_array;
+    }
 
 #ifndef REVERSIBLE_EXPLODE_STRING
   /*
@@ -198,7 +203,10 @@ explode_string (char *str, int slen, char *del, int len)
    */
   for (p = str, end = str + slen, num = 0; *p;)
     {
-      if (strncmp (p, del, len) == 0)
+      /* Advance one multibyte character, don't compare with
+          delimiter in the middle of a multibyte character */
+      int mb = mblen (p, end - p);
+      if ((len >= mb) && (strncmp (p, del, len) == 0))
         {
           num++;
 #ifndef REVERSIBLE_EXPLODE_STRING
@@ -208,7 +216,6 @@ explode_string (char *str, int slen, char *del, int len)
         }
       else
         {
-          int mb = mblen (str, end - p);
           if (mb > 0)
             p += mb;
           else
@@ -236,15 +243,17 @@ explode_string (char *str, int slen, char *del, int len)
   limit = CONFIG_INT (__MAX_ARRAY_SIZE__) - 1;	/* extra element can be added after loop */
   for (p = str, beg = str, end = str + slen, num = 0; *p && (num < limit);)
     {
-      if (strncmp (p, del, len) == 0)
+      /* Advance one multibyte character, don't compare with
+          delimiter in the middle of a multibyte character */
+      int mb = mblen (p, end - p);
+      if ((len >= mb) && (strncmp (p, del, len) == 0))
         {
           if (num >= ret->size)
             fatal ("Index out of bounds in explode!\n");
 
           ret->item[num].type = T_STRING;
           ret->item[num].subtype = STRING_MALLOC;
-          ret->item[num].u.string = buff = new_string (p - beg,
-                                                       "explode_string: buff");
+          ret->item[num].u.string = buff = new_string (p - beg, "explode_string: buff");
 
           strncpy (buff, beg, p - beg);
           buff[p - beg] = '\0';
@@ -254,7 +263,6 @@ explode_string (char *str, int slen, char *del, int len)
         }
       else
         {
-          int mb = mblen (str, end - p);
           if (mb > 0)
             p += mb;
           else

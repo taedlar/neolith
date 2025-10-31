@@ -3125,7 +3125,7 @@ void free_defines (int include_predefs) {
           /* predefines are at the end of the list */
           if (!include_predefs && (p->flags & DEF_IS_PREDEF))
             break;
-          opt_trace (TT_COMPILE|2, "predef: %s\n", p->name);
+          // opt_trace (TT_COMPILE|2, "predef: %s\n", p->name);
           q = p->next;
           FREE (p->name);
           FREE (p->exps);
