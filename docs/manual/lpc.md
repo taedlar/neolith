@@ -101,10 +101,20 @@ That has the very important implication that the expression `({ 1 }) == ({ 1 })`
 
 ### `int`
 In original LPMud and MudOS, an **int** type is a 32-bits integer number. In Neolith, an **int** type is defined to an integer number as wide as pointers.
-For modern
+
+LPC treats character literals (single-quoted character) as integers. For example:
+~~~cxx
+c = 'a'; // c is an integer
+~~~
+
+Neolith extends LPC to support wide character literals is in C++:
+~~~cxx
+c = L'酷';
+~~~
+The above statement gives you the integer value of a `wchar_t` represented by the wide character literal.
 
 ### `float`
-In original LPMud and MudOS, a **float** type is equivalent to the C language float (32-bits). In Neolith, the **float** is equivalent to C language double.
+In original LPMud and MudOS, a **float** type is equivalent to the C language float (32-bits). In Neolith, the **float** is equivalent to C language **double**.
  
 Declare variables like this:
 ~~~cxx
@@ -138,24 +148,41 @@ r = 3e+4d; // == 30000.0
 ### `string`
 An unlimited string of characters (no '\0' allowed tho). 
 
-You can take a substring from a variable by using the substring operation (str[n1..n2]).
+You can take a substring from a variable by using the substring operation (`str[n1..n2]`).
 Positive values are taken from the left and negative values from the right.
 If a value is greater than the length of the string it will be treated as being equal to the length of the string.
 
-If the two values are equal (str[n1..n1]) then the character at that position (n1) is returned.
-If both values point to positions beyond the same end of the string the null string ( "" ) is returned.
+If the two values are equal (`str[n1..n1]`) then the character at that position (n1) is returned.
+If both values point to positions beyond the same end of the string the null string (`""`) is returned.
 If the position pointed to by the first value is after the one pointed to by the second then the null string is also returned.
 
 Examples:
-```
+~~~cxx
 str = "abcdefg";
-```
+~~~
 - str[0..0] == "a"
 - str[0..-1] == "abcdefg"
 - str[-4..-2] == "def"
 - str[-7..6] == "abcdefg"
 - str[3..2] == ""
- 
+
+Wide character strings are supported in Neolith as an extension to original LPC.
+Unlinke in C, the `string` type in LPC is not a primitive character array, but a high level abstract data type more similar to modern C++'s `std::string`.
+
+Neolith allows LPC program to assign a wide character string literal using C++'s `wchar_t` syntax:
+~~~cxx
+str = L"こんにちは";
+~~~
+The `L` prefix requires the lexial parser to **verify** if the literl string is a valid wide character string in current locale at compile time.
+If the string contains any illegal multi-byte sequence, a compile time error is raised.
+
+> [!IMPORTANT]
+> Neolith always store a LPC string in multi-byte encoding internally (i.e. UTF-8). The `L` prefix only affects compile time validation.
+>
+> Neolith may work under some legacy multi-byte encoding (such as Big-5 Chinese).
+> But these encoding may conflict with the backslash escape sequence like `\n` in string literals and causes many problems.
+> It is strongly recommended to always set your locale to UTF-8 encoding to ensure best compatibility with LPC.
+
 ### `buffer`
 
 - `buffer` is a cross between the LPC array type and the LPC string type.  

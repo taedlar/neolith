@@ -120,14 +120,31 @@ TEST_F(LPCLexerTest, parseNumber) {
 TEST_F(LPCLexerTest, parseStringLiteral) {
     current_file = make_shared_string ("string_test");
     current_file_id = 0;
-    start_new_file (-1, "\"Hello world\" \"你好\" \"こんにちは\"\n");
+    start_new_file (-1, "\"Hello world\" \"你好\" L\"こんにちは\"\n");
     EXPECT_EQ(yylex(), L_STRING);
     EXPECT_STREQ(yylval.string, "Hello world");
     EXPECT_EQ(yylex(), L_STRING);
     EXPECT_STREQ(yylval.string, "你好");
     EXPECT_EQ(yylex(), L_STRING);
-    EXPECT_STREQ(yylval.string, "こんにちは");
+    EXPECT_STREQ(yylval.string, "こんにちは"); // wide string literal (Neolith extension to LPC)
     EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(current_file);
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseCharLiteral) {
+    current_file = make_shared_string ("char_test");
+    current_file_id = 0;
+    start_new_file (-1, "'c' '\\n' '\\\\' L'は'\n");
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, 'c');
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, '\n');
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, '\\');
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, L'は'); // wide character literal (Neolith extension to LPC)
     end_new_file ();
     free_string(current_file);
     current_file = 0;
