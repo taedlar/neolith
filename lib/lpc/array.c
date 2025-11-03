@@ -144,7 +144,7 @@ explode_string (char *str, int slen, char *del, int len)
 
       if (slen_wcs == (size_t) -1)
         {
-          error (_("An invalid multibyte sequence is encountered."));
+          error ("An invalid multibyte sequence is encountered.");
           return &the_null_array;
         }
       if (slen_wcs > (size_t)CONFIG_INT (__MAX_ARRAY_SIZE__))

@@ -649,7 +649,7 @@ query_load_av ()
 {
   static char buff[100];
 
-  sprintf (buff, _("%.2f cmds/s, %.2f comp lines/s"), load_av, compile_av);
+  sprintf (buff, "%.2f cmds/s, %.2f comp lines/s", load_av, compile_av);
   return (buff);
 }				/* query_load_av() */
 

@@ -170,7 +170,6 @@ static ident_hash_elem_t **ident_hash_tail;
 static ident_hash_elem_t *ident_dirty_list = 0;
 
 instr_t instrs[MAX_INSTRS];
-static char num_buf[20];
 
 #define TERM_ADD_INPUT 1
 #define TERM_INCLUDE 2
@@ -281,9 +280,7 @@ static void inc_lexically_normal (const char* abs_base, const char *name, char *
     }
 }
 
-static void
-yyerrorp (char *s)
-{
+static void yyerrorp (char *s) {
   char buf[200];
 
   sprintf (buf, s, '#');
@@ -291,9 +288,7 @@ yyerrorp (char *s)
   lex_fatal++;
 }
 
-static void
-lexerror (char *s)
-{
+static void lexerror (char *s) {
   yyerror (s);
   lex_fatal++;
 }
@@ -357,7 +352,7 @@ skip_to (char *token, char *atoken)
         c = *yyp++;
       if (c == LEX_EOF)
         {
-          lexerror (_("Unexpected end of file while skipping"));
+          lexerror ("Unexpected end of file while skipping");
           outptr = yyp - 1;
           return 1;
         }
@@ -450,7 +445,7 @@ handle_include (const char *inc_name, int optional)
         }
       else
         {
-          include_error (_("Missing leading \" or < in #include"));
+          include_error ("Missing leading \" or < in #include");
         }
       return;
     }
@@ -460,20 +455,20 @@ handle_include (const char *inc_name, int optional)
   for (p = name; *p && *p != delim; p++);
   if (!*p)
     {
-      include_error (_("Missing trailing \" or > in #include"));
+      include_error ("Missing trailing \" or > in #include");
       return;
     }
 
   if (strlen (name) > sizeof (buf) - 100)
     {
-      include_error (_("Include name too long"));
+      include_error ("Include name too long");
       return;
     }
   *p = 0;
 
   if (++incnum == MAX_INCLUDE_DEPTH)
     {
-      include_error (_("Maximum include depth exceeded"));
+      include_error ("Maximum include depth exceeded");
     }
   else if ((fd = inc_open (buf, name)) != -1) /* open header file */
     {
@@ -498,7 +493,7 @@ handle_include (const char *inc_name, int optional)
     }
   else if (!optional)
     {
-      sprintf (buf, _("Cannot #include %s"), name);
+      sprintf (buf, "Cannot #include %s", name);
       include_error (buf);
     }
   else
@@ -919,7 +914,7 @@ skip_comment ()
           if (c == LEX_EOF)
             {
               outptr = --yyp;
-              lexerror (_("End of file in a comment"));
+              lexerror ("End of file in a comment");
               return;
             }
           if (c == '\n')
@@ -935,7 +930,7 @@ skip_comment ()
             }
         }
       if (*(yyp - 2) == '/')
-        yywarn (_("/* found in comment."));
+        yywarn ("/* found in comment.");
       do
         {
           if ((c = *yyp++) == '/')
@@ -967,7 +962,7 @@ deltrail (char *sp)
   p = sp;
   if (!*p)
     {
-      lexerror (_("Illegal # command"));
+      lexerror ("Illegal # command");
     }
   else
     {
@@ -981,7 +976,7 @@ deltrail (char *sp)
     if (yyp < yytext+MAXLINE-5)\
        *yyp++ = c;\
     else {\
-       lexerror(_("Line too long"));\
+       lexerror("Line too long");\
        break;\
     }
 
@@ -1031,7 +1026,7 @@ handle_pragma (char *str)
           return;
         }
     }
-  yywarn (_("Unknown #pragma, ignored."));
+  yywarn ("Unknown #pragma, ignored.");
 }
 
 char *
@@ -1135,7 +1130,7 @@ static void refill_buffer () {
         while (*--p != '\n');
         if (p == outptr - 1)
           {
-            lexerror (_("Line too long"));
+            lexerror ("Line too long");
             *(last_nl = cur_lbuf->buf_end - 1) = '\n';
             return;
           }
@@ -1174,7 +1169,7 @@ static void refill_buffer () {
                 (new_lbuf =
                  ALLOCATE (linked_buf_t, TAG_COMPILER, "refill_bufer")))
               {
-                lexerror (_("Out of memory when allocating new buffer\n"));
+                lexerror ("Out of memory when allocating new buffer\n");
                 return;
               }
             cur_lbuf->last_nl = last_nl;
@@ -1228,7 +1223,7 @@ push_function_context ()
 
   if (last_function_context == MAX_FUNCTION_DEPTH - 1)
     {
-      yyerror (_("Function pointers nested too deep"));
+      yyerror ("Function pointers nested too deep");
       return;
     }
   fc = &function_context_stack[++last_function_context];
@@ -1262,7 +1257,7 @@ old_func ()
 
 static void ensure_valid_wide_string(const char* mbs) {
   if (mbstowcs(NULL, mbs, 0) == (size_t)-1)
-    lexerror(_("Invalid wide string literal."));
+    lexerror("Invalid wide string literal.");
 }
 
 #define return_assign(opcode) { yylval.number = opcode; return L_ASSIGN; }
@@ -1342,7 +1337,7 @@ int yylex () {
             {
               ifstate_t *p = iftop;
 
-              yyerror (p->state == EXPECT_ENDIF ? _("Missing #endif") : _("Missing #else/#elif"));
+              yyerror (p->state == EXPECT_ENDIF ? "Missing #endif" : "Missing #else/#elif");
               while (iftop)
                 {
                   p = iftop;
@@ -1575,12 +1570,12 @@ int yylex () {
         case '$':
           if (!current_function_context)
             {
-              yyerror (_("$var illegal outside of function pointer"));
+              yyerror ("$var illegal outside of function pointer");
               return '$';
             }
           if (current_function_context->num_parameters == -2)
             {
-              yyerror (_("$var illegal inside anonymous function pointer"));
+              yyerror ("$var illegal inside anonymous function pointer");
               return '$';
             }
           else
@@ -1602,9 +1597,9 @@ int yylex () {
               *yyp = 0;
               yylval.number = atoi (yytext) - 1;
               if (yylval.number < 0)
-                yyerror (_("In function parameter $num, num must be >= 1"));
+                yyerror ("In function parameter $num, num must be >= 1");
               else if (yylval.number > 255)
-                yyerror (_("only 256 parameters allowed"));
+                yyerror ("only 256 parameters allowed");
               else if (yylval.number >=
                        current_function_context->num_parameters)
                 current_function_context->num_parameters = yylval.number + 1;
@@ -1717,7 +1712,7 @@ int yylex () {
                       cond = cond_get_exp (0);
                       if (*outptr++)
                         {
-                          yyerror (_("Condition too complex in #if"));
+                          yyerror ("Condition too complex in #if");
                           while (*outptr++);
                         }
                       else
@@ -1753,8 +1748,7 @@ int yylex () {
                       if ((d = lookup_define (sp)))
                         {
                           if (d->flags & DEF_IS_PREDEF)
-                            yyerror (_
-                                     ("Illegal to #undef a predefined value."));
+                            yyerror ("Illegal to #undef a predefined value.");
                           else
                             d->flags |= DEF_IS_UNDEFINED;
                         }
@@ -1769,7 +1763,7 @@ int yylex () {
                     }
                   else
                     {
-                      yyerror (_("Unrecognised # directive"));
+                      yyerror ("Unrecognised # directive");
                     }
                   *--outptr = '\n';
                   break;
@@ -1840,7 +1834,7 @@ int yylex () {
                   yylval.number = strtol (outptr, &outptr, 8);
                   if (yylval.number > 255)
                     {
-                      yywarn (_("Illegal character constant"));
+                      yywarn ("Illegal character constant");
                       yylval.number = 'x';
                     }
                   break;
@@ -1848,14 +1842,14 @@ int yylex () {
                   if (!isxdigit (*outptr))
                     {
                       yylval.number = 'x';
-                      yywarn (_("\\x must be followed by a valid hex value; interpreting as 'x' instead."));
+                      yywarn ("\\x must be followed by a valid hex value; interpreting as 'x' instead.");
                     }
                   else
                     {
                       yylval.number = strtol (outptr, &outptr, 16);
                       if (yylval.number > 255)
                         {
-                          yywarn (_("Illegal character constant"));
+                          yywarn ("Illegal character constant");
                           yylval.number = 'x';
                         }
                     }
@@ -1868,7 +1862,7 @@ int yylex () {
                     refill_buffer ();
                   break;
                 default:
-                  yywarn (_("Unknown \\ escape"));
+                  yywarn ("Unknown \\ escape");
                   yylval.number = *(outptr - 1);
                   break;
                 }
@@ -1882,14 +1876,14 @@ int yylex () {
                   int bytes = mblen (outptr - 1, MB_CUR_MAX);
                   if (bytes < 1)
                     {
-                      yywarn (_("Illegal wide character constant"));
+                      yywarn ("Illegal wide character constant");
                       yylval.number = 'x';
                     }
                   else
                     {
                       if (bytes != mbtowc (&wc, outptr - 1, bytes))
                         {
-                          yywarn (_("Illegal wide character constant"));
+                          yywarn ("Illegal wide character constant");
                           yylval.number = 'x';
                         }
                       else
@@ -1909,7 +1903,7 @@ int yylex () {
           if (*outptr++ != '\'')
             {
               outptr--;
-              yyerror (_("Illegal character constant"));
+              yyerror ("Illegal character constant");
               yylval.number = 0;
             }
           return L_NUMBER;
@@ -1925,7 +1919,7 @@ int yylex () {
               }
             if (!get_terminator (terminator))
               {
-                lexerror (_("Illegal terminator"));
+                lexerror ("Illegal terminator");
                 break;
               }
             if (tmp == '@')
@@ -1940,12 +1934,12 @@ int yylex () {
                   }
                 else if (rc == -1)
                   {
-                    lexerror (_("End of file in array block"));
+                    lexerror ("End of file in array block");
                     return LEX_EOF;
                   }
                 else
                   {		/* if rc == -2 */
-                    yyerror (_("Array block exceeded maximum length"));
+                    yyerror ("Array block exceeded maximum length");
                   }
               }
             else
@@ -1968,12 +1962,12 @@ int yylex () {
                   }
                 else if (rc == -1)
                   {
-                    lexerror (_("End of file in text block"));
+                    lexerror ("End of file in text block");
                     return LEX_EOF;
                   }
                 else
                   {		/* if (rc == -2) */
-                    yyerror (_("Text block exceeded maximum length"));
+                    yyerror ("Text block exceeded maximum length");
                   }
               }
           }
@@ -1992,7 +1986,7 @@ case_string:
                 switch (c = *outptr++)
                   {
                   case LEX_EOF:
-                    lexerror (_("End of file in string"));
+                    lexerror ("End of file in string");
                     return LEX_EOF;
 
                   case '"':
@@ -2025,7 +2019,7 @@ case_string:
                         l++;	/* Nothing is copied */
                         break;
                       case LEX_EOF:
-                        lexerror (_("End of file in string"));
+                        lexerror ("End of file in string");
                         return LEX_EOF;
                       case 'n':
                         *to++ = '\n';
@@ -2067,7 +2061,7 @@ case_string:
                           tmp = strtol (outptr, &outptr, 8);
                           if (tmp > 255)
                             {
-                              yywarn (_("Illegal character constant in string."));
+                              yywarn ("Illegal character constant in string.");
                               tmp = 'x';
                             }
                           *to++ = tmp;
@@ -2079,14 +2073,14 @@ case_string:
                           if (!isxdigit (*outptr))
                             {
                               *to++ = 'x';
-                              yywarn (_("\\x must be followed by a valid hex value; interpreting as 'x' instead."));
+                              yywarn ("\\x must be followed by a valid hex value; interpreting as 'x' instead.");
                             }
                           else
                             {
                               tmp = strtol (outptr, &outptr, 16);
                               if (tmp > 255)
                                 {
-                                  yywarn (_("Illegal character constant."));
+                                  yywarn ("Illegal character constant.");
                                   tmp = 'x';
                                 }
                               *to++ = tmp;
@@ -2097,7 +2091,7 @@ case_string:
                         /* Add backslash as well */
                         *to++ = '\\';
                         *to++ = *(outptr - 1);
-                        yywarn(_("Unknown \\ escape."));
+                        yywarn("Unknown \\ escape.");
                       }
                     break;
                   default:
@@ -2114,7 +2108,7 @@ case_string:
                 switch (c = *outptr++)
                   {
                   case LEX_EOF:
-                    lexerror (_("End of file in string"));
+                    lexerror ("End of file in string");
                     return LEX_EOF;
 
                   case '"':
@@ -2150,7 +2144,7 @@ case_string:
                         l++;	/* Nothing is copied */
                         break;
                       case LEX_EOF:
-                        lexerror (_("End of file in string"));
+                        lexerror ("End of file in string");
                         return LEX_EOF;
                       case 'n':
                         *yyp++ = '\n';
@@ -2192,7 +2186,7 @@ case_string:
                           tmp = strtol (outptr, &outptr, 8);
                           if (tmp > 255)
                             {
-                              yywarn (_("Illegal character constant in string."));
+                              yywarn ("Illegal character constant in string.");
                               tmp = 'x';
                             }
                           *yyp++ = tmp;
@@ -2204,14 +2198,14 @@ case_string:
                           if (!isxdigit (*outptr))
                             {
                               *yyp++ = 'x';
-                              yywarn (_("\\x must be followed by a valid hex value; interpreting as 'x' instead."));
+                              yywarn ("\\x must be followed by a valid hex value; interpreting as 'x' instead.");
                             }
                           else
                             {
                               tmp = strtol (outptr, &outptr, 16);
                               if (tmp > 255)
                                 {
-                                  yywarn (_("Illegal character constant."));
+                                  yywarn ("Illegal character constant.");
                                   tmp = 'x';
                                 }
                               *yyp++ = tmp;
@@ -2230,7 +2224,7 @@ case_string:
               }
 
             /* Not even enough length, declare too long string error */
-            lexerror (_("String too long"));
+            lexerror ("String too long");
             *yyp++ = '\0';
             {
               char *res;
@@ -2347,13 +2341,13 @@ parse_identifier:
               if (c == '#')
                 {
                   if (*outptr++ != '#')
-                    lexerror (_("Single '#' in identifier -- use '##' for token pasting"));
+                    lexerror ("Single '#' in identifier -- use '##' for token pasting");
                   outptr -= 2;
                   if (!expand_define ())
                     {
                       if (partp + (r = strlen (yytext)) +
                           (function_flag ? 3 : 0) - partial > MAXLINE)
-                        lexerror (_("Pasted token is too long"));
+                        lexerror ("Pasted token is too long");
                       if (function_flag)
                         {
                           strcpy (partp, "(: ");
@@ -2609,23 +2603,6 @@ void start_new_file (int fd, const char* pre_text) {
     refill_buffer ();
 }
 
-char *
-query_instr_name (int instr)
-{
-  char *name;
-
-  name = instrs[instr].name;
-  if (name)
-    {
-      return name;
-    }
-  else
-    {
-      sprintf (num_buf, "%d", instr);
-      return num_buf;
-    }
-}
-
 #define add_instr_name(w, x, y, z) int_add_instr_name(w, y, z)
 
 static void
@@ -2815,7 +2792,7 @@ get_f_name (int n)
         if (q < (m))\
             q++;\
         else {\
-            lexerror(_("Name too long"));\
+            lexerror("Name too long");\
             return;\
         }\
     }\
@@ -2828,7 +2805,7 @@ get_f_name (int n)
        if (q < (m)) \
            q++; \
        else { \
-           lexerror(_("Name too long")); \
+           lexerror("Name too long"); \
            return; \
        } \
     } \
@@ -2878,7 +2855,7 @@ refill ()
         *p++ = c;
       else
         {
-          lexerror (_("Line too long"));
+          lexerror ("Line too long");
           break;
         }
     }
@@ -2927,14 +2904,14 @@ handle_define (char *yyt)
                 break;
               if (*p++ != ',')
                 {
-                  yyerror (_("Missing ',' in #define parameter list"));
+                  yyerror ("Missing ',' in #define parameter list");
                   return;
                 }
               SKIPWHITE;
             }
           if (arg == NARGS)
             {
-              lexerror (_("Too many macro arguments"));
+              lexerror ("Too many macro arguments");
               return;
             }
         }
@@ -2979,7 +2956,7 @@ handle_define (char *yyt)
             q++;
           else
             {
-              lexerror (_("Macro text too long"));
+              lexerror ("Macro text too long");
               return;
             }
           if (!*p && p[-2] == '\\')
@@ -3001,7 +2978,7 @@ handle_define (char *yyt)
             q++;
           else
             {
-              lexerror (_("Macro text too long"));
+              lexerror ("Macro text too long");
               return;
             }
           if (!*p && p[-2] == '\\')
@@ -3016,7 +2993,7 @@ handle_define (char *yyt)
     }
   else
     {
-      lexerror (_("Illegal macro symbol"));
+      lexerror ("Illegal macro symbol");
     }
   return;
 }
@@ -3034,7 +3011,7 @@ static void add_input (const char *p) {
 
   if (len >= DEFMAX - 10)
     {
-      lexerror (_("Macro expansion buffer overflow"));
+      lexerror ("Macro expansion buffer overflow");
       return;
     }
 
@@ -3052,7 +3029,7 @@ static void add_input (const char *p) {
       /* Incorporate EOF later */
       if (*q != '\n' || ((q - outptr) + len) >= DEFMAX - 11)
         {
-          lexerror (_("Macro expansion buffer overflow"));
+          lexerror ("Macro expansion buffer overflow");
           return;
         }
       size = (q - outptr) + len + 1; /* remaining of current line of source code */
@@ -3088,7 +3065,7 @@ add_predefine (char *name, int nargs, char *exps)
       if (nargs != p->nargs || strcmp (exps, p->exps))
         {
           char buf[200 + NSIZE];
-          sprintf (buf, _("redefinition of #define %s\n"), name);
+          sprintf (buf, "redefinition of #define %s\n", name);
           yywarn (buf);
         }
       p->exps = (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_PREDEFINES, "add_define: redef");
@@ -3160,7 +3137,7 @@ expand_define ()
 
   if (nexpands++ > EXPANDMAX)
     {
-      lexerror (_("Too many macro expansions"));
+      lexerror ("Too many macro expansions");
       return 0;
     }
   p = lookup_define (yytext);
@@ -3180,7 +3157,7 @@ expand_define ()
       SKIPW;
       if (c != '(')
         {
-          yyerror (_("Missing '(' in macro call"));
+          yyerror ("Missing '(' in macro call");
           if (c == '\n' && outptr == last_nl + 1)
             refill_buffer ();
           return 0;
@@ -3218,7 +3195,7 @@ expand_define ()
                       *q++ = c;
                       if (*outptr++ != '#')
                         {
-                          lexerror (_("'#' expected"));
+                          lexerror ("'#' expected");
                           return 0;
                         }
                     }
@@ -3235,7 +3212,7 @@ expand_define ()
                     refill_buffer ();
                   if (squote || dquote)
                     {
-                      lexerror (_("Newline in string"));
+                      lexerror ("Newline in string");
                       return 0;
                     }
                   /* Change this to a space so we don't count it a variable
@@ -3261,12 +3238,12 @@ expand_define ()
                 {
                   if (c == LEX_EOF)
                     {
-                      lexerror (_("Unexpected end of file"));
+                      lexerror ("Unexpected end of file");
                       return 0;
                     }
                   if (q >= expbuf + DEFMAX - 5)
                     {
-                      lexerror (_("Macro argument overflow"));
+                      lexerror ("Macro argument overflow");
                       return 0;
                     }
                   else
@@ -3283,13 +3260,13 @@ expand_define ()
             }
           if (n == NARGS)
             {
-              lexerror (_("Maximum macro argument count exceeded"));
+              lexerror ("Maximum macro argument count exceeded");
               return 0;
             }
         }
       if (n != p->nargs)
         {
-          yyerror (_("Wrong number of macro arguments"));
+          yyerror ("Wrong number of macro arguments");
           return 0;
         }
       /* Do expansion */
@@ -3310,7 +3287,7 @@ expand_define ()
                       *b++ = *q++;
                       if (b >= buf + DEFMAX)
                         {
-                          lexerror (_("Macro expansion overflow"));
+                          lexerror ("Macro expansion overflow");
                           return 0;
                         }
                     }
@@ -3321,7 +3298,7 @@ expand_define ()
               *b++ = *e++;
               if (b >= buf + DEFMAX)
                 {
-                  lexerror (_("Macro expansion overflow"));
+                  lexerror ("Macro expansion overflow");
                   return 0;
                 }
             }
@@ -3335,7 +3312,7 @@ expand_define ()
 /* Stuff to evaluate expression.  I havn't really checked it. /LA
 ** Written by "J\"orn Rennecke" <amylaar@cs.tu-berlin.de>
 */
-#define SKPW 	do c = *outptr++; while(is_wspace(c)); outptr--
+#define SKPW 	do{c=*outptr++;}while(is_wspace(c)); outptr--
 
 static int
 exgetc ()
@@ -3362,7 +3339,7 @@ exgetc ()
           while (is_wspace (c));
           if (c != '(')
             {
-              yyerror (_("Missing ( in defined"));
+              yyerror ("Missing ( in defined");
               continue;
             }
           do
@@ -3379,7 +3356,7 @@ exgetc ()
             c = *outptr++;
           if (c != ')')
             {
-              yyerror (_("Missing ) in defined"));
+              yyerror ("Missing ) in defined");
               continue;
             }
           SKPW;

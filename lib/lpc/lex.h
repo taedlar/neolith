@@ -76,16 +76,15 @@ typedef struct {
     short sem_value;            /* semantic value for predefined tokens */
     ident_hash_elem_t *next;
 /* the fields above must correspond to struct ident_hash_elem */
-    short min_args;		/* Minimum number of arguments. */
-    short max_args;		/* Maximum number of arguments. */
-    short ret_type;		/* The return type used by the compiler. */
-    unsigned short arg_type1;	/* Type of argument 1 */
-    unsigned short arg_type2;	/* Type of argument 2 */
-    unsigned short arg_type3;	/* Type of argument 1 */
-    unsigned short arg_type4;	/* Type of argument 2 */
-    short arg_index;		/* Index pointing to where to find arg type */
-    short Default;		/* an efun to use as default for last
-				 * argument */
+    short min_args;             /* Minimum number of arguments. */
+    short max_args;             /* Maximum number of arguments. */
+    short ret_type;             /* The return type used by the compiler. */
+    unsigned short arg_type1;   /* Type of argument 1 */
+    unsigned short arg_type2;   /* Type of argument 2 */
+    unsigned short arg_type3;   /* Type of argument 3 */
+    unsigned short arg_type4;   /* Type of argument 4 */
+    short arg_index;            /* Index pointing to where to find arg type */
+    short Default;              /* an efun to use as default for last argument */
 } keyword_t;
 
 typedef struct lpc_predef_s {
@@ -109,8 +108,8 @@ extern lpc_predef_t *lpc_predefs;
 #define F_ALIAS_FLAG 1024
 
 typedef struct {
-    short max_arg, min_arg;  /* Can't use char to represent -1 */
-    short type[4];	         /* need a short to hold the biggest type flag */
+    short max_arg, min_arg;     /* Can't use char to represent -1 */
+    short type[4];              /* need a short to hold the biggest type flag */
     short Default;
     short ret_type;
     char *name;
@@ -142,7 +141,6 @@ void pop_function_context(void);
 int yylex(void);
 void init_num_args(void);
 void deinit_num_args(void);
-char *query_instr_name(int);
 char *get_f_name(int);
 void set_inc_list(const char *);
 void reset_inc_list(void);

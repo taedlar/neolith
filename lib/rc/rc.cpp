@@ -180,7 +180,7 @@ scan_config_b (char *config, const char *name, int required, int def)
       else if (!strcasecmp (p, "no"))
         result = 0;
       else
-        debug_message (_("warnning: %s must be 'Yes' or 'No' [got: %s]\n"), name, p);
+        debug_message ("warnning: %s must be 'Yes' or 'No' [got: %s]\n", name, p);
       free (p);
       required = 0;
     }
@@ -202,7 +202,7 @@ extern "C" void init_config (const char *config_file)
     {
       perror (config_file);
       if (errno == ENOENT)
-        fprintf (stderr, _("Use -f option to specify a config file\n"));
+        fprintf (stderr, "Use -f option to specify a config file\n");
       exit (EXIT_FAILURE);
     }
 
@@ -239,14 +239,14 @@ extern "C" void init_config (const char *config_file)
         external_port[i].kind = PORT_ASCII;
       else if (*typ)
         {
-          debug_message (_("*Protocol of port %d is invalid, assuming TELNET\n"), external_port[i].port);
+          debug_message ("*Protocol of port %d is invalid, assuming TELNET\n", external_port[i].port);
           external_port[i].kind = PORT_TELNET;
         }
       free (p);
     }
   if (i < 1)
     {
-      debug_message (_("*****No user-accessible ports assigned\n"));
+      debug_message ("*****No user-accessible ports assigned\n");
       fatal_config_error++;
     }
   CONFIG_INT (__MUD_PORT__) = external_port[0].port;
@@ -287,7 +287,7 @@ extern "C" void init_config (const char *config_file)
 
   if (fatal_config_error)
     {
-      debug_message (_("*****Failed loading config (%d error%s): %s\n"),
+      debug_message ("*****Failed loading config (%d error%s): %s\n",
                      fatal_config_error, fatal_config_error > 1 ? "s":"",
                      config_file);
       exit (EXIT_FAILURE);

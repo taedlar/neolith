@@ -74,7 +74,7 @@ void
 save_command_giver (object_t * new_command_giver)
 {
   if (cgsp >= EndOf (command_giver_stack))
-    fatal (_("*****Command giver stack overflow!"));
+    fatal ("*****Command giver stack overflow!");
 
   *(++cgsp) = command_giver;
 
@@ -90,7 +90,7 @@ restore_command_giver ()
     free_object (command_giver, "restore_command_giver");
 
   if (cgsp == command_giver_stack)
-    fatal (_("*****Command giver stack underflow!"));
+    fatal ("*****Command giver stack underflow!");
 
   command_giver = *(cgsp--);
 }
@@ -106,7 +106,7 @@ restore_command_giver ()
 void check_legal_string (const char *s) {
   if (strlen (s) >= LARGEST_PRINTABLE_STRING)
     {
-      error (_("*Printable strings limited to length of %d.\n"),
+      error ("*Printable strings limited to length of %d.\n",
              LARGEST_PRINTABLE_STRING);
     }
 }
@@ -178,7 +178,7 @@ give_uid_to_object (object_t * ob)
   if (ret == (svalue_t *) - 1)
     {
       destruct_object (ob);
-      error (_("*Can't load objects without a master object."));
+      error ("*Can't load objects without a master object.");
       return 1;
     }
 
@@ -391,15 +391,15 @@ object_t* load_object (const char *lname) {
   char real_name[PATH_MAX], name[PATH_MAX - 2];
 
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
-    error (_("*Inherit chain too deep: > %d when trying to load '%s'."), CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
+    error ("*Inherit chain too deep: > %d when trying to load '%s'.", CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
 
   if (!strip_name (lname, name, sizeof name))
-    error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."), lname);
+    error ("*Filenames with consecutive /'s in them aren't allowed (%s).", lname);
 
   if (get_machine_state() >= MS_MUDLIB_LIMBO)
     {
       if (current_object && current_object!=master_ob && current_object->euid == NULL)
-        error (_("*Can't load objects when no effective user."));
+        error ("*Can't load objects when no effective user.");
     }
 
   /*
@@ -438,7 +438,7 @@ object_t* load_object (const char *lname) {
   if (!legal_path (real_name))
     {
       debug_message ("Illegal pathname: /%s\n", real_name);
-      error (_("*Illegal path name '/%s'."), real_name);
+      error ("*Illegal path name '/%s'.", real_name);
       return 0;
     }
   opt_trace (TT_COMPILE|2, "legal_path passed: \"%s\"", real_name);
@@ -452,7 +452,7 @@ object_t* load_object (const char *lname) {
       if (f == -1)
         {
           debug_perror ("open()", real_name);
-          error (_("*Could not read the file '/%s'."), real_name);
+          error ("*Could not read the file '/%s'.", real_name);
         }
       prog = compile_file (f, real_name);
 
@@ -467,8 +467,8 @@ object_t* load_object (const char *lname) {
       if (prog)
         free_prog (prog, 1);
       if (num_parse_error == 0 && prog == 0)
-        error (_("*No program in object '/%s'!"), name);
-      error (_("*Error in loading object '/%s':"), name);
+        error ("*No program in object '/%s'!", name);
+      error ("*Error in loading object '/%s':", name);
     }
 
   /*
@@ -495,7 +495,7 @@ object_t* load_object (const char *lname) {
         }
       if (strcmp (inhbuf, name) == 0)
         {
-          error (_("*Illegal to inherit self."));
+          error ("*Illegal to inherit self.");
         }
 
       if ((inh_obj = lookup_object_hash (inhbuf)))
@@ -508,7 +508,7 @@ object_t* load_object (const char *lname) {
           inh_obj = load_object (inhbuf);
         }
       if (!inh_obj)
-        error (_("*Inherited file '/%s' does not exist!"), inhbuf);
+        error ("*Inherited file '/%s' does not exist!", inhbuf);
 
       /*
        * Yes, the following is necessary.  It is possible that when we
@@ -551,7 +551,7 @@ object_t* load_object (const char *lname) {
       if (mret && !MASTER_APPROVED (mret))
         {
           destruct_object (ob);
-          error (_("*master::%s() denied permission to load '/%s'."), APPLY_VALID_OBJECT, name);
+          error ("*master::%s() denied permission to load '/%s'.", APPLY_VALID_OBJECT, name);
         }
     }
 
@@ -601,7 +601,7 @@ object_t *clone_object (const char *str1, int num_arg) {
   if (current_object && current_object->euid == 0)
     {
       if (current_object != master_ob)
-        error (_("*Attempt to create object without effective UID."));
+        error ("*Attempt to create object without effective UID.");
     }
   num_objects_this_thread = 0;
   ob = find_object (str1);
@@ -618,7 +618,7 @@ object_t *clone_object (const char *str1, int num_arg) {
   if (ob->flags & O_CLONE)
     {
       if (!(ob->flags & O_VIRTUAL) || strrchr (str1, '#'))
-        error (_("*Cannot clone from a clone!"));
+        error ("*Cannot clone from a clone!");
       else
         {
           /*
@@ -636,7 +636,7 @@ object_t *clone_object (const char *str1, int num_arg) {
              -Beek */
 
           if (!(str1 = strip_and_check_name (str1)))
-            error (_("*Filenames with consecutive /'s in them aren't allowed (%s)."), str1);
+            error ("*Filenames with consecutive /'s in them aren't allowed (%s).", str1);
 
           if (ob->ref == 1 && !ob->super && !ob->contains)
             {
@@ -704,7 +704,7 @@ environment (svalue_t * arg)
   if (ob == 0 || ob->super == 0 || (ob->flags & O_DESTRUCTED))
     return 0;
   if (ob->flags & O_DESTRUCTED)
-    error (_("*environment() of destructed object."));
+    error ("*environment() of destructed object.");
   return ob->super;
 }
 
@@ -724,7 +724,7 @@ command_for_object (char *str)
   int save_eval_cost = eval_cost;
 
   if (strlen (str) > sizeof (buff) - 1)
-    error (_("*Too long command."));
+    error ("*Too long command.");
   else if (current_object->flags & O_DESTRUCTED)
     return 0;
   strncpy (buff, str, sizeof buff);
@@ -912,7 +912,7 @@ void destruct_object (object_t * ob) {
 
   opt_trace (TT_EVAL|1, "start destructing: /%s", ob->name);
   if (restrict_destruct && restrict_destruct != ob)
-    error (_("*Only this_object() can be destructed from move_or_destruct."));
+    error ("*Only this_object() can be destructed from move_or_destruct.");
 
   if (ob == simul_efun_ob && master_ob)
     error ("*Cannot destruct simul_efun_object while master_object exists.");
@@ -1042,7 +1042,7 @@ void destruct_object (object_t * ob) {
             {
               ob->name = tmp;
               sp--;
-              error (_("*Destruction of vital object rejected due to invalid config setting (\"%s\")."), vital_obj_name);
+              error ("*Destruction of vital object rejected due to invalid config setting (\"%s\").", vital_obj_name);
             }
           opt_trace (TT_EVAL|1, "reloading vital object: /%s", tmp);
           new_ob = load_object (tmp);
@@ -1053,7 +1053,7 @@ void destruct_object (object_t * ob) {
         {
           ob->name = tmp;
           sp--;
-          error (_("*Destruct on vital object failed: new copy failed to reload."));
+          error ("*Destruct on vital object failed: new copy failed to reload.");
         }
 
       free_object (ob, "vital object reference");
@@ -1583,7 +1583,7 @@ move_object (object_t * item, object_t * dest)
   /* Recursive moves are not allowed. */
   for (ob = dest; ob; ob = ob->super)
     if (ob == item)
-      error (_("*Can't move object inside itself."));
+      error ("*Can't move object inside itself.");
 
 #ifdef LAZY_RESETS
   try_reset (dest);
@@ -1649,7 +1649,7 @@ move_object (object_t * item, object_t * dest)
         continue;
 
       if (ob->flags & O_DESTRUCTED)
-        error (_("*An object was destructed at call of " APPLY_INIT "()"));
+        error ("*An object was destructed at call of " APPLY_INIT "()");
 
       if (ob->flags & O_ENABLE_COMMANDS)
         {
@@ -1663,8 +1663,7 @@ move_object (object_t * item, object_t * dest)
         }
 
       if (item->flags & O_DESTRUCTED)	/* marion */
-        error (_("*The object to be moved was destructed at call of " APPLY_INIT
-               "()!"));
+        error ("*The object to be moved was destructed at call of " APPLY_INIT "()!");
 
       if (item->flags & O_ENABLE_COMMANDS)
         {
@@ -1679,8 +1678,7 @@ move_object (object_t * item, object_t * dest)
     }
 
   if (dest->flags & O_DESTRUCTED)	/* marion */
-    error (_("*The destination to move to was destructed at call of " APPLY_INIT
-           "()!"));
+    error ("*The destination to move to was destructed at call of " APPLY_INIT "()!");
 
   if (dest->flags & O_ENABLE_COMMANDS)
     {
@@ -1867,7 +1865,7 @@ user_parser (char *buff)
       else
         {
           if (s->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
-            error (_("*Illegal function name."));
+            error ("*Illegal function name.");
           ret = apply (s->function.s, s->ob, 1, where);
 //        ret = apply (s->function.s, s->ob, 1, ORIGIN_DRIVER);
         }
@@ -1887,11 +1885,11 @@ user_parser (char *buff)
             {
               if (s->flags & V_FUNCTION)
                 {
-                  error (_("*Verb '%s' bound to uncallable function pointer."), s->verb);
+                  error ("*Verb '%s' bound to uncallable function pointer.", s->verb);
                 }
               else
                 {
-                  error (_("*Function for verb '%s' not found."), s->verb);
+                  error ("*Function for verb '%s' not found.", s->verb);
                 }
             }
         }
@@ -1908,9 +1906,9 @@ user_parser (char *buff)
           switch (illegal_sentence_action)
             {
             case 1:
-              error (_("*Illegal to call remove_action() from a verb returning zero."));
+              error ("*Illegal to call remove_action() from a verb returning zero.");
             case 2:
-              error (_("*Illegal to move or destruct an object defining actions from a verb function which returns zero."));
+              error ("*Illegal to move or destruct an object defining actions from a verb function which returns zero.");
             }
         }
     }
@@ -2482,16 +2480,16 @@ fatal (char *fmt, ...)
 
   va_start (args, fmt);
   if (-1 == vasprintf (&msg, fmt, args)) {
-    debug_message(_("{}\t***** failed to format fatal error message \"%s\"."), fmt);
+    debug_message("{}\t***** failed to format fatal error message \"%s\".", fmt);
     exit (EXIT_FAILURE);
   }
   va_end (args);
 
-  debug_message (_("{}\t***** %s"), msg);
+  debug_message ("{}\t***** %s", msg);
 
   if (proceeding_fatal_error)
     {
-      debug_message (_("{}\t***** fatal error occured while another proceeding, shutdown immediately."));
+      debug_message ("{}\t***** fatal error occured while another proceeding, shutdown immediately.");
     }
   else
     {
@@ -2501,19 +2499,19 @@ fatal (char *fmt, ...)
       proceeding_fatal_error = 1;
 
       if (current_file)
-        debug_message (_("{}\t----- compiling %s at line %d"), current_file, current_line);
+        debug_message ("{}\t----- compiling %s at line %d", current_file, current_line);
 
       if (current_object)
-        debug_message (_("{}\t----- current object was /%s"), current_object->name);
+        debug_message ("{}\t----- current object was /%s", current_object->name);
 
       if ((ob_name = dump_trace (DUMP_WITH_ARGS | DUMP_WITH_LOCALVARS)))
-        debug_message (_("{}\t----- in heart beat of /%s"), ob_name);
+        debug_message ("{}\t----- in heart beat of /%s", ob_name);
 
       save_context (&econ);
       if (setjmp (econ.context))
         {
           restore_context (&econ);
-          debug_message (_("{}\t***** error in master::%s(), shutdown now."), APPLY_CRASH);
+          debug_message ("{}\t***** error in master::%s(), shutdown now.", APPLY_CRASH);
         }
       else
         {
@@ -2534,7 +2532,7 @@ fatal (char *fmt, ...)
           ret = apply_master_ob (APPLY_CRASH, 3);
           if (ret && ret != (svalue_t*)-1)
             {
-              debug_message (_("{}\t----- mudlib crash handler finished, shutdown now."));
+              debug_message ("{}\t----- mudlib crash handler finished, shutdown now.");
             }
         }
       pop_context (&econ);
@@ -2574,7 +2572,7 @@ throw_error ()
       longjmp (current_error_context->context, 1);
       fatal ("Failed longjmp() in throw_error()!");
     }
-  error (_("*Throw with no catch."));
+  error ("*Throw with no catch.");
 }
 
 static void
@@ -2650,7 +2648,7 @@ error_handler (char *err)
 #ifdef LOG_CATCHES
       if (in_mudlib_error_handler)
         {
-          debug_message (_("{}\t***** error in mudlib error handler (caught)"));
+          debug_message ("{}\t***** error in mudlib error handler (caught)");
           debug_message_with_location (err);
           dump_trace (g_trace_flag);
           in_mudlib_error_handler = 0;
@@ -2678,7 +2676,7 @@ error_handler (char *err)
 
   if (in_error)
     {
-      debug_message (_("{}\t***** New error occured while generating error trace!"));
+      debug_message ("{}\t***** New error occured while generating error trace!");
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
 
@@ -2691,7 +2689,7 @@ error_handler (char *err)
 
   if (in_mudlib_error_handler)
     {
-      debug_message (_("{}\t***** error in mudlib error handler"));
+      debug_message ("{}\t***** error in mudlib error handler");
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
       in_mudlib_error_handler = 0;
@@ -2708,7 +2706,7 @@ error_handler (char *err)
   if (current_heart_beat)
     {
       set_heart_beat (current_heart_beat, 0);
-      debug_message (_("{}\t----- heart beat in %s turned off\n"),
+      debug_message ("{}\t----- heart beat in %s turned off\n",
                      current_heart_beat->name);
 #if 0
       if (current_heart_beat->interactive)
@@ -2721,7 +2719,7 @@ error_handler (char *err)
 
   if (current_error_context)
     longjmp (current_error_context->context, 1);
-  fatal (_("failed longjmp() or no error context for error."));
+  fatal ("failed longjmp() or no error context for error.");
 }
 
 void

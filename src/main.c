@@ -125,7 +125,7 @@ int main (int argc, char **argv) {
       /* returned from longjmp() */
       restore_context (&econ);
       pop_context (&econ);
-      debug_message (_("{}\t***** error occurs in pre-loading stage, shutting down."));
+      debug_message ("{}\t***** error occurs in pre-loading stage, shutting down.");
       exit (EXIT_FAILURE);
     }
   else
@@ -151,7 +151,7 @@ int main (int argc, char **argv) {
     }
 
   /* Run the infinite backend loop */
-  debug_message (_("{}\t----- entering MUD -----"));
+  debug_message ("{}\t----- entering MUD -----");
   backend ();
 
   /* NOTE: We do not do active tear down of the runtime environment when running as
@@ -217,17 +217,17 @@ parse_command_line (int argc, char *argv[])
 {
 #ifdef	HAVE_ARGP_H
   struct argp_option options[] = {
-    {.name = NULL, 'f', _("config-file"), 0, _("Specifies the file path of the configuration file.")},
-    {.name = NULL, 'D', _("macro[=definition]"), 0, _("Predefines global preprocessor macro for use in mudlib.")},
-    {.name = "debug", 'd', _("debug-level"), 0, _("Specifies the runtime debug level.")},
-    {.name = "trace", 't', _("trace-flags"), 0, _("Specifies an integer of trace flags to enable trace messages in debug log.")},
+    {.name = NULL, 'f', "config-file", 0, "Specifies the file path of the configuration file."},
+    {.name = NULL, 'D', "macro[=definition]", 0, "Predefines global preprocessor macro for use in mudlib."},
+    {.name = "debug", 'd', "debug-level", 0, "Specifies the runtime debug level."},
+    {.name = "trace", 't', "trace-flags", 0, "Specifies an integer of trace flags to enable trace messages in debug log."},
     {0}
   };
   struct argp parser = {
     .options = options,
     .parser = parse_argument,
     .args_doc = NULL,
-    .doc = _("\nA lightweight LPMud driver (MudOS fork) for easy extend.")
+    .doc = "\nA lightweight LPMud driver (MudOS fork) for easy extend."
   };
 
   argp_parse (&parser, argc, argv, 0, 0, 0);

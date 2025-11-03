@@ -93,7 +93,7 @@ f_call_stack (void)
   array_t *ret;
 
   if (sp->u.number < 0 || sp->u.number > 3)
-    error (_("First argument of call_stack() must be 0, 1, 2, or 3.\n"));
+    error ("First argument of call_stack() must be 0, 1, 2, or 3.\n");
 
   ret = allocate_empty_array (n);
 
