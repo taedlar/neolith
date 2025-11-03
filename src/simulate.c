@@ -1336,16 +1336,15 @@ shout_string (char *str)
     }
 }
 
-/*
- * This will enable an object to use commands normally only
- * accessible by interactive users.
- * Also check if the user is a wizard. Wizards must not affect the
- * value of the wizlist ranking.
+/**
+ *  @brief This will enable an object to use commands normally only
+ *      accessible by interactive users.
+ *      Also check if the user is a wizard. Wizards must not affect the
+ *      value of the wizlist ranking.
+ *  @param num If non-zero, enable commands, else disable commands.
  */
 
-void
-enable_commands (int num)
-{
+void enable_commands (int num) {
   if (current_object->flags & O_DESTRUCTED)
     return;
 

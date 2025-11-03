@@ -21,6 +21,39 @@
 #include "dumpstat.h"
 
 
+#ifdef F_ERROR
+void
+f_error (void)
+{
+  int l = SVALUE_STRLEN (sp);
+  char err_buf[2048];
+
+  if (sp->u.string[l - 1] == '\n')
+    l--;
+  if (l > 2045)
+    l = 2045;
+
+  err_buf[0] = '*';
+  strncpy (err_buf + 1, sp->u.string, l);
+  err_buf[l + 1] = '\n';
+  err_buf[l + 2] = 0;
+
+  error_handler (err_buf);
+}
+#endif
+
+
+#ifdef F_THROW
+void
+f_throw (void)
+{
+  free_svalue (&catch_value, "f_throw");
+  catch_value = *sp--;
+  throw_error ();		/* do the longjump, with extra checks... */
+}
+#endif
+
+
 #ifdef F_CACHE_STATS
 static void
 print_cache_stats (outbuffer_t * ob)

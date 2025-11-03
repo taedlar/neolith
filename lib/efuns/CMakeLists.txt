@@ -27,7 +27,9 @@ add_custom_command(TARGET edit_source POST_BUILD
 )
 
 set(efuns_SOURCES
+    call_other.c
     call_out.c
+    command.c
     datetime.c
     debug.c
     dump_prog.c
@@ -35,19 +37,26 @@ set(efuns_SOURCES
     ed.c
     file.c
     file_utils.c
+    heart_beat.c
+    interactive.c
+    inventory.c
+    maps.c
     math.c
     parse.c
     reclaim_object.c
     replace_program.c
+    sockets.c
     sprintf.c
     string.c
+    uids.c
     unsorted.c
 )
 
 add_library(efuns STATIC ${efuns_SOURCES})
 add_dependencies(efuns edit_source)
+target_include_directories(efuns PUBLIC ${CMAKE_CURRENT_BINARY_DIR})    # generated efuns tables
+target_include_directories(efuns INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}) # efun headers
 target_include_directories(efuns PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
-target_include_directories(efuns PUBLIC ${CMAKE_CURRENT_BINARY_DIR})    # generated efuns tables
-target_link_libraries(efuns PUBLIC port misc logger rc lpc)
+target_link_libraries(efuns PUBLIC port misc logger lpc rc socket)

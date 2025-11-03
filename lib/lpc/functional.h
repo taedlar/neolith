@@ -47,3 +47,9 @@ typedef union {
 
 void dealloc_funp(funptr_t *);
 void push_refed_funp(funptr_t *);
+
+/*
+ * eoperators.c
+ */
+void push_funp(funptr_t *);
+void free_funp(funptr_t *);

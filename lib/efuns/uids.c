@@ -12,13 +12,13 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "std.h"
+#include "src/std.h"
+#include "uids.h"
 #include "avltree.h"
 #include "lpc/types.h"
 #include "lpc/object.h"
 #include "lpc/operator.h"
-#include "interpret.h"
-#include "uids.h"
+#include "src/interpret.h"
 
 #ifdef F_EXPORT_UID
 void

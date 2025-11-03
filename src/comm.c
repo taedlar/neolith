@@ -2693,3 +2693,4 @@ outbuf_push (outbuffer_t * outbuf)
       sp->u.string = "";
     }
 }
+

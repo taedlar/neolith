@@ -29,11 +29,6 @@ void f_function_constructor(void);
 void f_evaluate(void);
 void f_sscanf(void);
 
-/*
- * eoperators.c
- */
-void push_funp(funptr_t *);
-void free_funp(funptr_t *);
 
 funptr_t *make_efun_funp(int, svalue_t *);
 funptr_t *make_lfun_funp(int, svalue_t *);

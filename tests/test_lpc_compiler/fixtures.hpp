@@ -10,7 +10,7 @@ extern "C" {
     #include "std.h"
     #include "rc.h"
     #include "src/simul_efun.h"
-    #include "src/uids.h"
+    #include "uids.h"
     #include "lpc/object.h"
     #include "lpc/otable.h"
 }

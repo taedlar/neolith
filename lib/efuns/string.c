@@ -751,32 +751,6 @@ f_replace_string (void)
 #endif
 
 
-#ifdef F_SPRINTF
-void
-f_sprintf (void)
-{
-  char *s;
-  int num_arg = st_num_arg;
-
-  s = string_print_formatted ((sp - num_arg + 1)->u.string,
-                              num_arg - 1, sp - num_arg + 2);
-  pop_n_elems (num_arg);
-
-  (++sp)->type = T_STRING;
-  if (!s)
-    {
-      sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
-    }
-  else
-    {
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = s;
-    }
-}
-#endif
-
-
 #ifdef F_STRSRCH
 /*
  * int strsrch(string big, string little, [ int flag ])

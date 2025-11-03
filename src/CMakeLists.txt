@@ -18,7 +18,6 @@ set(stem_SOURCES
     simul_efun.c
     simulate.c
     stralloc.c
-    uids.c
 )
 add_library(stem OBJECT ${stem_SOURCES})
 target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket -lm -lcrypt)

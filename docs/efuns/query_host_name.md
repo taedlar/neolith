@@ -1,20 +1,23 @@
 # query_host_name
 ## NAME
-          query_host_name() - return the host name
+query_host_name() - return the host name
 
 ## SYNOPSIS
-          string query_host_name( void );
+~~~cxx
+string query_host_name( void );
+~~~
 
 ## DESCRIPTION
-          query_host_name() returns the name of the host.
+query_host_name() returns the name of the host.
 
 ## RETURN VALUE
-          query_host_name() returns:
+query_host_name() returns:
 
-               a string hostname on success.
-
-               an empty string on failure.
+- a string hostname on success.
+- an empty string on failure.
 
 ## SEE ALSO
-          resolve(3), socket_address(3), query_ip_name(3),
-          query_ip_number(3)
+[resolve()](resolve.md),
+[socket_address()](socket_address.md),
+[query_ip_name()](query_ip_name.md),
+[query_ip_number()](query_ip_number.md)
