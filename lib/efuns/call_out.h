@@ -11,3 +11,6 @@ int find_call_out(object_t *, char *);
 array_t *get_all_call_outs(void);
 int print_call_out_usage(outbuffer_t *, int);
 void mark_call_outs(void);
+
+void f_call_out(void);
+void f_remove_call_out(void);

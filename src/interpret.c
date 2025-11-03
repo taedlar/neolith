@@ -40,7 +40,7 @@ static char *type_names[] = {
 #define TYPE_CODES_END 0x400
 #define TYPE_CODES_START 0x2
 
-extern int call_origin;
+int call_origin;
 
 void push_indexed_lvalue (int);
 void break_point (void);
@@ -4052,6 +4052,7 @@ call___INIT (object_t * ob)
   call_program (current_prog, cfp->address);
   sp--;
 }
+
 
 /*
  * this is a "safe" version of apply

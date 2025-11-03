@@ -197,6 +197,7 @@ typedef struct error_context_s {
         sp->u.string = (x);\
         } while(0)
 
+extern int call_origin;
 extern program_t *current_prog;
 extern short caller_type;
 extern char *pc;

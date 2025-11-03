@@ -1518,3 +1518,83 @@ f_sscanf ()
   fp->u.number = i;
   fp->subtype = 0;
 }
+
+
+#ifdef F_FUNCTIONP
+void
+f_functionp (void)
+{
+  int i;
+
+  if (sp->type == T_FUNCTION)
+    {
+      i = sp->u.fp->hdr.type;
+      if (sp->u.fp->hdr.args)
+        i |= FP_HAS_ARGUMENTS;
+      if (sp->u.fp->hdr.owner->flags & O_DESTRUCTED)
+        i |= FP_OWNER_DESTED;
+      free_funp (sp->u.fp);
+      put_number (i);
+      return;
+    }
+  assign_svalue (sp, &const0);
+}
+#endif
+
+
+#ifdef F_BIND
+void
+f_bind (void)
+{
+  object_t *ob = sp->u.ob;
+  funptr_t *old_fp = (sp - 1)->u.fp;
+  funptr_t *new_fp;
+  svalue_t *res;
+
+  if (ob == old_fp->hdr.owner)
+    {
+      /* no change */
+      free_object (ob, "bind nop");
+      sp--;
+      return;
+    }
+
+  if (old_fp->hdr.type == (FP_LOCAL | FP_NOT_BINDABLE))
+    error (_("Local function is not bindable.\n"));
+  if (old_fp->hdr.type & FP_NOT_BINDABLE)
+    error (_("Function that references global variables is not bindable.\n"));
+
+  /* the object doing the binding */
+  if (current_object->flags & O_DESTRUCTED)
+    push_number (0);
+  else
+    push_object (current_object);
+
+  /* the old owner */
+  if (old_fp->hdr.owner->flags & O_DESTRUCTED)
+    push_number (0);
+  else
+    push_object (old_fp->hdr.owner);
+
+  /* the new owner */
+  push_object (ob);
+
+  res = apply_master_ob (APPLY_VALID_BIND, 3);
+  if (!MASTER_APPROVED (res))
+    error (_("Permission of binding denied by master object.\n"));
+
+  new_fp = ALLOCATE (funptr_t, TAG_FUNP, "f_bind");
+  *new_fp = *old_fp;
+  new_fp->hdr.owner = ob;	/* one ref from being on stack */
+  if (new_fp->hdr.args)
+    new_fp->hdr.args->ref++;
+  if ((old_fp->hdr.type & 0x0f) == FP_FUNCTIONAL)
+    {
+      new_fp->f.functional.prog->func_ref++;
+    }
+
+  free_funp (old_fp);
+  sp--;
+  sp->u.fp = new_fp;
+}
+#endif

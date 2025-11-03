@@ -78,35 +78,35 @@ enum msgtypes {
 #define	USING_LINEMODE		0x0800
 
 typedef struct interactive_s {
-    object_t *ob;		/* points to the associated object         */
-    sentence_t *input_to;	/* to be called with next input line       */
+    object_t *ob;               /* points to the associated object         */
+    sentence_t *input_to;       /* to be called with next input line       */
     int connection_type;        /* the type of connection this is          */
-    int fd;			/* file descriptor for interactive object  */
-    struct sockaddr_in addr;	/* socket address of interactive object    */
+    int fd;                     /* file descriptor for interactive object  */
+    struct sockaddr_in addr;    /* socket address of interactive object    */
 #ifdef F_QUERY_IP_PORT
-    int local_port;		/* which of our ports they connected to    */
+    int local_port;             /* which of our ports they connected to    */
 #endif
-    char *prompt;		/* prompt string for interactive object    */
-    char text[MAX_TEXT];	/* input buffer for interactive object     */
-    int text_end;		/* first free char in buffer               */
-    int text_start;		/* where we are up to in user command buffer */
+    char *prompt;               /* prompt string for interactive object    */
+    char text[MAX_TEXT];        /* input buffer for interactive object     */
+    int text_end;               /* first free char in buffer               */
+    int text_start;             /* where we are up to in user command buffer */
     struct interactive_s *snoop_on;
     struct interactive_s *snoop_by;
-    int last_time;		/* time of last command executed           */
+    int last_time;               /* time of last command executed           */
     string_or_func_t default_err_message;
 #ifdef OLD_ED
     struct ed_buffer_s *ed_buffer;  /* local ed                        */
 #endif
-    int message_producer;	/* message buffer producer index */
-    int message_consumer;	/* message buffer consumer index */
-    int message_length;		/* message buffer length */
-    char message_buf[MESSAGE_BUF_SIZE];	/* message buffer */
+    int message_producer;       /* message buffer producer index */
+    int message_consumer;       /* message buffer consumer index */
+    int message_length;         /* message buffer length */
+    char message_buf[MESSAGE_BUF_SIZE]; /* message buffer */
     int iflags;                 /* interactive flags */
-    svalue_t *carryover;	/* points to args for input_to             */
-    int num_carry;		/* number of args for input_to             */
-    int out_of_band;		/* Send a telnet sync operation            */
-    int state;			/* Current telnet state.  Bingly wop       */
-    int sb_pos;			/* Telnet suboption negotiation stuff      */
+    svalue_t *carryover;        /* points to args for input_to             */
+    int num_carry;              /* number of args for input_to             */
+    int out_of_band;            /* Send a telnet sync operation            */
+    int state;                  /* Current telnet state.  Bingly wop       */
+    int sb_pos;                 /* Telnet suboption negotiation stuff      */
     char sb_buf[SB_SIZE];
 } interactive_t;
 
@@ -147,6 +147,7 @@ int query_addr_number(char *, char *);
 char *query_ip_name(object_t *);
 char *query_ip_number(object_t *);
 char *query_host_name(void);
+int query_ip_port (object_t *);
 int query_idle(object_t *);
 int new_set_snoop(object_t *, object_t *);
 object_t *query_snoop(object_t *);
