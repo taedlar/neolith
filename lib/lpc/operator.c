@@ -21,6 +21,7 @@
 
 #include "operator.h"
 #include "efuns/parse.h"
+#include "efuns/sscanf.h"
 
 void
 dealloc_funp (funptr_t * fp)
@@ -636,63 +637,6 @@ f_or_eq ()
   sp->subtype = 0;
 }
 
-void
-f_parse_command ()
-{
-  svalue_t *arg;
-  svalue_t *fp;
-  int i;
-  int num_arg;
-
-  /*
-   * get number of lvalue args
-   */
-  num_arg = EXTRACT_UCHAR (pc);
-  pc++;
-
-  /*
-   * type checking on first three required parameters to parse_command()
-   */
-  arg = sp - 2;
-  CHECK_TYPES (&arg[0], T_STRING, 1, F_PARSE_COMMAND);
-  CHECK_TYPES (&arg[1], T_OBJECT | T_ARRAY, 2, F_PARSE_COMMAND);
-  CHECK_TYPES (&arg[2], T_STRING, 3, F_PARSE_COMMAND);
-
-  /*
-   * allocate stack frame for rvalues and return value (number of matches);
-   * perform some stack manipulation;
-   */
-  fp = sp;
-  sp += num_arg + 1;
-  arg = sp;
-  *(arg--) = *(fp--);		/* move pattern to top of stack */
-  *(arg--) = *(fp--);		/* move source object or array to just below 
-                                   the pattern */
-  *(arg) = *(fp);		/* move source string just below the object */
-  fp->type = T_NUMBER;
-
-  /*
-   * prep area for rvalues
-   */
-  for (i = 1; i <= num_arg; i++)
-    fp[i].type = T_INVALID;
-
-  /*
-   * do it...
-   */
-  i = parse (arg[0].u.string, &arg[1], arg[2].u.string, &fp[1], num_arg);
-
-  /*
-   * remove mandatory parameters
-   */
-  pop_3_elems ();
-
-  /*
-   * save return value on stack
-   */
-  fp->u.number = i;
-  fp->subtype = 0;
-}
 
 void
 f_range (int code)
@@ -1468,55 +1412,6 @@ f_evaluate (void)
   v = call_function_pointer (arg->u.fp, st_num_arg - 1);
   free_funp (arg->u.fp);
   assign_svalue_no_free (sp, v);
-}
-
-void
-f_sscanf ()
-{
-  svalue_t *fp;
-  int i;
-  int num_arg;
-
-  /*
-   * get number of lvalue args
-   */
-  num_arg = EXTRACT_UCHAR (pc);
-  pc++;
-
-  /*
-   * allocate stack frame for rvalues and return value (number of matches);
-   * perform some stack manipulation; note: source and template strings are
-   * already on the stack by this time
-   */
-  fp = sp;
-  sp += num_arg + 1;
-  *sp = *(fp--);		/* move format description to top of stack */
-  *(sp - 1) = *(fp);		/* move source string just below the format
-                                 * desc. */
-  fp->type = T_NUMBER;		/* this svalue isn't invalidated below, and
-                                 * if we don't change it to something safe,
-                                 * it will get freed twice if an error occurs */
-  /*
-   * prep area for rvalues
-   */
-  for (i = 1; i <= num_arg; i++)
-    fp[i].type = T_INVALID;
-
-  /*
-   * do it...
-   */
-  i = inter_sscanf (sp - 2, sp - 1, sp, num_arg);
-
-  /*
-   * remove source & template strings from top of stack
-   */
-  pop_2_elems ();
-
-  /*
-   * save number of matches on stack
-   */
-  fp->u.number = i;
-  fp->subtype = 0;
 }
 
 

@@ -15,7 +15,6 @@ void f_mult_eq(void);
 void f_ne(void);
 void f_or(void);
 void f_or_eq(void);
-void f_parse_command(void);
 void f_range(int);
 void f_extract_range(int);
 void f_rsh(void);
@@ -27,7 +26,6 @@ void f_xor(void);
 void f_xor_eq(void);
 void f_function_constructor(void);
 void f_evaluate(void);
-void f_sscanf(void);
 
 
 funptr_t *make_efun_funp(int, svalue_t *);

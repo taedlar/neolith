@@ -354,21 +354,6 @@ f_mud_status (void)
 #endif
 
 
-#ifdef F_OPCPROF
-void
-f_opcprof (void)
-{
-  if (st_num_arg == 1)
-    {
-      opcdump (sp->u.string);
-      free_string_svalue (sp--);
-    }
-  else
-    opcdump ("/OPCPROF");
-}
-#endif
-
-
 #ifdef F_DUMP_FILE_DESCRIPTORS
 void
 f_dump_file_descriptors (void)

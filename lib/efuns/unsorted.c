@@ -1504,7 +1504,7 @@ f_to_int (void)
 void
 f_typeof (void)
 {
-  char *t = type_name (sp->type);
+  const char *t = type_name (sp->type);
 
   free_svalue (sp, "f_typeof");
   put_constant_string (t);

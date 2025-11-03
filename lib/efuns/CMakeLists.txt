@@ -47,6 +47,7 @@ set(efuns_SOURCES
     replace_program.c
     sockets.c
     sprintf.c
+    sscanf.c
     string.c
     uids.c
     unsorted.c
