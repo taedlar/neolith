@@ -209,10 +209,12 @@ extern control_stack_t *csp;
 extern int function_index_offset;
 extern int variable_index_offset;
 extern int st_num_arg;
+#ifdef CACHE_STATS
 extern unsigned int apply_low_call_others;
 extern unsigned int apply_low_cache_hits;
 extern unsigned int apply_low_slots_used;
 extern unsigned int apply_low_collisions;
+#endif
 extern int function_index_offset;
 extern svalue_t const0;
 extern svalue_t const1;
@@ -262,7 +264,7 @@ void push_indexed_lvalue(int);
 
 void process_efun_callback(int, function_to_call_t *, int);
 svalue_t *call_efun_callback(function_to_call_t *, int);
-char *type_name(int c);
+const char *type_name(int c);
 void bad_arg(int, int) NO_RETURN;
 void bad_argument(svalue_t *, int, int, int) NO_RETURN;
 void check_for_destr(array_t *);
@@ -283,11 +285,8 @@ void init_master(const char *);
 void mark_apply_low_cache(void);
 int translate_absolute_line(int, unsigned short *, size_t, int *, int *);
 char *add_slash(const char *);
-int strpref(char *, char *);
 void do_trace(char *, char *, char *);
 
-void opcdump(char *);
-int inter_sscanf(svalue_t *, svalue_t *, svalue_t *, int);
 
 /**
  * @brief Get the current machine state.

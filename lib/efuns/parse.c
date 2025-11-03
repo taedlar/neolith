@@ -1718,3 +1718,63 @@ parse_one_plural (char *str)
    End of Parser
 
 ***************************************************************/
+
+#ifdef F_PARSE_COMMAND
+void
+f_parse_command ()
+{
+  svalue_t *arg;
+  svalue_t *fp;
+  int i;
+  int num_arg;
+
+  /*
+   * get number of lvalue args
+   */
+  num_arg = EXTRACT_UCHAR (pc);
+  pc++;
+
+  /*
+   * type checking on first three required parameters to parse_command()
+   */
+  arg = sp - 2;
+  CHECK_TYPES (&arg[0], T_STRING, 1, F_PARSE_COMMAND);
+  CHECK_TYPES (&arg[1], T_OBJECT | T_ARRAY, 2, F_PARSE_COMMAND);
+  CHECK_TYPES (&arg[2], T_STRING, 3, F_PARSE_COMMAND);
+
+  /*
+   * allocate stack frame for rvalues and return value (number of matches);
+   * perform some stack manipulation;
+   */
+  fp = sp;
+  sp += num_arg + 1;
+  arg = sp;
+  *(arg--) = *(fp--);		/* move pattern to top of stack */
+  *(arg--) = *(fp--);		/* move source object or array to just below 
+                                   the pattern */
+  *(arg) = *(fp);		/* move source string just below the object */
+  fp->type = T_NUMBER;
+
+  /*
+   * prep area for rvalues
+   */
+  for (i = 1; i <= num_arg; i++)
+    fp[i].type = T_INVALID;
+
+  /*
+   * do it...
+   */
+  i = parse (arg[0].u.string, &arg[1], arg[2].u.string, &fp[1], num_arg);
+
+  /*
+   * remove mandatory parameters
+   */
+  pop_3_elems ();
+
+  /*
+   * save return value on stack
+   */
+  fp->u.number = i;
+  fp->subtype = 0;
+}
+#endif
