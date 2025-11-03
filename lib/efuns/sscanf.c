@@ -6,7 +6,11 @@
 #include "src/regexp.h"
 #include "sscanf.h"
 
-static float _strtof (char *, char **);
+#ifdef HAVE_STRTOD
+#include <stdlib.h>
+#else
+double strtod (const char *, char **);
+#endif
 
 #define SSCANF_ASSIGN_SVALUE_STRING(S) \
         arg->type = T_STRING; \
@@ -28,14 +32,15 @@ static float _strtof (char *, char **);
         arg--; \
         num_arg--
 
-/* arg points to the same place it used to */
-int
-inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
-{
-  char *fmt;			/* Format description */
-  char *in_string;		/* The string to be parsed. */
+/**
+ * @brief The internal sscanf function.
+ */
+int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
+
+  char *fmt;            /* Format description */
+  char *in_string;      /* The string to be parsed. */
   int number_of_matches;
-  int skipme;			/* Encountered a '*' ? */
+  int skipme;           /* Encountered a '*' ? */
   int base = 10;
   int num;
   char *match, old_char;
@@ -124,10 +129,10 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
           }
         case 'f':
           {
-            float tmp_num;
+            double tmp_num;
 
             tmp = in_string;
-            tmp_num = _strtof (in_string, &in_string);
+            tmp_num = strtod (in_string, &in_string);
             if (tmp == in_string)
               return number_of_matches;
             if (!skipme)
@@ -169,8 +174,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
                   }
                 {
                   int n = tmp - fmt;
-                  char *buf = (char *) DXALLOC (n + 1, TAG_TEMPORARY,
-                                                "sscanf regexp");
+                  char *buf = (char *) DXALLOC (n + 1, TAG_TEMPORARY, "sscanf regexp");
                   memcpy (buf, fmt, n);
                   buf[n] = 0;
                   regexp_user = EFUN_REGEXP;
@@ -178,8 +182,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
                   FREE (buf);
                   if (!reg)
                     error (regexp_error);
-                  if (!regexec (reg, in_string)
-                      || (in_string != reg->startp[0]))
+                  if (!regexec (reg, in_string) || (in_string != reg->startp[0]))
                     return number_of_matches;
                   if (!skipme)
                     {
@@ -261,8 +264,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
                 tmp++;
               break;
             case 'f':
-              while (*tmp && !isdigit (*tmp) &&
-                     (*tmp != '.' || !isdigit (tmp[1])))
+              while (*tmp && !isdigit (*tmp) && (*tmp != '.' || !isdigit (tmp[1])))
                 tmp++;
               break;
             case '%':
@@ -303,8 +305,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
                       }
                     {
                       int n = tmp - fmt;
-                      char *buf = (char *) DXALLOC (n + 1, TAG_TEMPORARY,
-                                                    "sscanf regexp");
+                      char *buf = (char *) DXALLOC (n + 1, TAG_TEMPORARY, "sscanf regexp");
                       memcpy (buf, fmt, n);
                       buf[n] = 0;
                       regexp_user = EFUN_REGEXP;
@@ -380,7 +381,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
               }
             case 'f':
               {
-                float tmp_num = _strtof (in_string, &in_string);
+                double tmp_num = strtod (in_string, &in_string);
                 if (!skipme2)
                   {
                     SSCANF_ASSIGN_SVALUE (T_REAL, u.real, tmp_num);
@@ -417,8 +418,7 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
                 {
                   char *newmatch;
 
-                  newmatch = new_string (skipme =
-                                         (in_string - match), "inter_sscanf");
+                  newmatch = new_string (skipme = (in_string - match), "inter_sscanf");
                   memcpy (newmatch, match, skipme);
                   newmatch[skipme] = 0;
                   SSCANF_ASSIGN_SVALUE_STRING (newmatch);
@@ -441,11 +441,11 @@ inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg)
   return number_of_matches;
 }
 
-static float
-_strtof (char *nptr, char **endptr)
+#ifndef HAVE_STRTOD
+double strtod (const char *nptr, char **endptr)
 {
-  register char *s = nptr;
-  register float acc;
+  register const char *s = nptr;
+  register double acc;
   register int neg, c, any, div;
 
   div = 1;
@@ -479,12 +479,12 @@ _strtof (char *nptr, char **endptr)
         break;
       if (div == 1)
         {
-          acc *= (float) 10;
-          acc += (float) c;
+          acc *= (double) 10;
+          acc += (double) c;
         }
       else
         {
-          acc += (float) c / (float) div;
+          acc += (double) c / (double) div;
           div *= 10;
         }
       any = 1;
@@ -498,6 +498,7 @@ _strtof (char *nptr, char **endptr)
 
   return acc;
 }
+#endif /* !HAVE_STRTOD */
 
 #ifdef F_SSCANF
 void f_sscanf () {
@@ -518,12 +519,11 @@ void f_sscanf () {
    */
   fp = sp;
   sp += num_arg + 1;
-  *sp = *(fp--);		/* move format description to top of stack */
-  *(sp - 1) = *(fp);		/* move source string just below the format
-                                 * desc. */
-  fp->type = T_NUMBER;		/* this svalue isn't invalidated below, and
-                                 * if we don't change it to something safe,
-                                 * it will get freed twice if an error occurs */
+  *sp = *(fp--);        /* move format description to top of stack */
+  *(sp - 1) = *(fp);    /* move source string just below the format desc. */
+  fp->type = T_NUMBER;  /* this svalue isn't invalidated below, and
+                         * if we don't change it to something safe,
+                         * it will get freed twice if an error occurs */
   /*
    * prep area for rvalues
    */

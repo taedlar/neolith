@@ -45,6 +45,7 @@ check_include_file(arpa/telnet.h HAVE_ARPA_TELNET_H)
 include(CheckSymbolExists)
 check_symbol_exists(stpcpy string.h HAVE_STPCPY)
 check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
+check_symbol_exists(strtod stdlib.h HAVE_STRTOD)
 
 # check for libraries
 include(CheckLibraryExists)
