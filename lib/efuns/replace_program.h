@@ -1,5 +1,4 @@
-#ifndef _REPLACE_PROGRAM_H_
-#define _REPLACE_PROGRAM_H_
+#pragma once
 
 void replace_programs(void);
 
@@ -11,5 +10,3 @@ typedef struct replace_ob_s {
 } replace_ob_t;
 
 extern replace_ob_t *obj_list_replace;
-
-#endif

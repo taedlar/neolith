@@ -512,9 +512,7 @@ remove_all_call_out (object_t * obj)
 
 
 #ifdef F_CALL_OUT
-void
-f_call_out (void)
-{
+void f_call_out (void) {
   svalue_t *arg = sp - st_num_arg + 1;
   int num = st_num_arg - 2;
 #ifdef CALLOUT_HANDLES
@@ -554,9 +552,7 @@ f_call_out (void)
 
 
 #ifdef F_FIND_CALL_OUT
-void
-f_find_call_out (void)
-{
+void f_find_call_out (void) {
   int i;
 #ifdef CALLOUT_HANDLES
   if (sp->type == T_NUMBER)
@@ -577,9 +573,7 @@ f_find_call_out (void)
 
 
 #ifdef F_REMOVE_CALL_OUT
-void
-f_remove_call_out (void)
-{
+void f_remove_call_out (void) {
   int i;
 
   if (st_num_arg)
@@ -610,9 +604,7 @@ f_remove_call_out (void)
 
 
 #ifdef F_CALL_OUT_INFO
-void
-f_call_out_info (void)
-{
+void f_call_out_info (void) {
   push_refed_array (get_all_call_outs ());
 }
 #endif

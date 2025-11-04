@@ -126,9 +126,7 @@ reclaim_objects ()
 }
 
 #ifdef F_RECLAIM_OBJECTS
-void
-f_reclaim_objects (void)
-{
+void f_reclaim_objects (void) {
   push_number (reclaim_objects ());
 }
 #endif

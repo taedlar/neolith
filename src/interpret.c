@@ -3708,7 +3708,7 @@ function_visible (int origin, int func_flags)
  */
 
 int
-apply_low (char *fun, object_t * ob, int num_arg)
+apply_low (const char *fun, object_t * ob, int num_arg)
 {
   char *sfun;
   cache_entry_t *entry;
@@ -3818,14 +3818,13 @@ apply_low (char *fun, object_t * ob, int num_arg)
           apply_low_collisions++;
         }
 #endif
-      sfun = fun;
+      sfun = (char *) fun;
       prog = find_function_by_name2 (ob, &sfun, &index, &fio, &vio);
 
       if (prog)
         {
           compiler_function_t *funp = &prog->function_table[index];
-          runtime_defined_t *fundefp =
-            &(FIND_FUNC_ENTRY (prog, funp->runtime_index)->def);
+          runtime_defined_t *fundefp = &(FIND_FUNC_ENTRY (prog, funp->runtime_index)->def);
           int funflags = ob->prog->function_flags[funp->runtime_index + fio];
 
           //if (!(funflags & (NAME_STATIC | NAME_PRIVATE))

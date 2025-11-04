@@ -27,6 +27,7 @@ add_custom_command(TARGET edit_source POST_BUILD
 )
 
 set(efuns_SOURCES
+    bits.c
     call_other.c
     call_out.c
     command.c
@@ -49,6 +50,7 @@ set(efuns_SOURCES
     sprintf.c
     sscanf.c
     string.c
+    tell_object.c
     uids.c
     unsorted.c
 )

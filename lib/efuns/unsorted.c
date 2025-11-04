@@ -84,34 +84,6 @@ f_classp (void)
 #endif
 
 
-#ifdef F_CLEAR_BIT
-void
-f_clear_bit (void)
-{
-  char *str;
-  int len, ind, bit;
-
-  if (sp->u.number > CONFIG_INT (__MAX_BITFIELD_BITS__))
-    error ("clear_bit() bit requested : %d > maximum bits: %d\n",
-           sp->u.number, CONFIG_INT (__MAX_BITFIELD_BITS__));
-  bit = (sp--)->u.number;
-  if (bit < 0)
-    error ("Bad argument 2 (negative) to clear_bit().\n");
-  ind = bit / 6;
-  bit %= 6;
-  len = SVALUE_STRLEN (sp);
-  if (ind >= len)
-    return;			/* return first arg unmodified */
-  unlink_string_svalue (sp);
-  str = sp->u.string;
-
-  if (str[ind] > 0x3f + ' ' || str[ind] < ' ')
-    error ("Illegal bit pattern in clear_bit character %d\n", ind);
-  str[ind] = ((str[ind] - ' ') & ~(1 << bit)) + ' ';
-}
-#endif
-
-
 #ifdef F_CLONEP
 void
 f_clonep (void)
@@ -910,38 +882,6 @@ f_save_variable (void)
 #endif
 
 
-#ifdef F_SAY
-void
-f_say (void)
-{
-  array_t *avoid;
-  static array_t vtmp = { .ref = 1, 1, };
-
-  if (st_num_arg == 1)
-    {
-      avoid = &the_null_array;
-      say (sp, avoid);
-      pop_stack ();
-    }
-  else
-    {
-      if (sp->type == T_OBJECT)
-        {
-          vtmp.item[0].type = T_OBJECT;
-          vtmp.item[0].u.ob = sp->u.ob;
-          avoid = &vtmp;
-        }
-      else
-        {			/* must be a array... */
-          avoid = sp->u.arr;
-        }
-      say (sp - 1, avoid);
-      pop_2_elems ();
-    }
-}
-#endif
-
-
 #ifdef F_SET_EVAL_LIMIT
 /* warning: do not enable this without using valid_override() in the master
    object and a set_eval_limit() simul_efun to restrict access.
@@ -964,49 +904,6 @@ f_set_eval_limit (void)
       CONFIG_INT (__MAX_EVAL_COST__) = sp->u.number;
       break;
     }
-}
-#endif
-
-
-#ifdef F_SET_BIT
-void
-f_set_bit (void)
-{
-  char *str;
-  int len, old_len, ind, bit;
-
-  if (sp->u.number > CONFIG_INT (__MAX_BITFIELD_BITS__))
-    error ("set_bit() bit requested: %d > maximum bits: %d\n", sp->u.number,
-           CONFIG_INT (__MAX_BITFIELD_BITS__));
-  bit = (sp--)->u.number;
-  if (bit < 0)
-    error ("Bad argument 2 (negative) to set_bit().\n");
-  ind = bit / 6;
-  bit %= 6;
-  old_len = len = SVALUE_STRLEN (sp);
-  if (ind >= len)
-    len = ind + 1;
-  if (ind < old_len)
-    {
-      unlink_string_svalue (sp);
-      str = sp->u.string;
-    }
-  else
-    {
-      str = new_string (len, "f_set_bit: str");
-      str[len] = '\0';
-      if (old_len)
-        memcpy (str, sp->u.string, old_len);
-      if (len > old_len)
-        memset (str + old_len, ' ', len - old_len);
-      free_string_svalue (sp);
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = str;
-    }
-
-  if (str[ind] > 0x3f + ' ' || str[ind] < ' ')
-    error ("Illegal bit pattern in set_bit character %d\n", ind);
-  str[ind] = ((str[ind] - ' ') | (1 << bit)) + ' ';
 }
 #endif
 
@@ -1128,16 +1025,6 @@ f_shadow (void)
 #endif
 
 
-#ifdef F_SHOUT
-void
-f_shout (void)
-{
-  shout_string (sp->u.string);
-  free_string_svalue (sp--);
-}
-#endif
-
-
 #ifdef F_SHUTDOWN
 void
 f_shutdown (void)
@@ -1217,177 +1104,6 @@ f_bufferp (void)
       free_svalue (sp, "f_bufferp");
       *sp = const0;
     }
-}
-#endif
-
-
-#ifdef F_TAIL
-void
-f_tail (void)
-{
-  if (tail (sp->u.string))
-    {
-      free_string_svalue (sp);
-      *sp = const1;
-    }
-  else
-    {
-      free_string_svalue (sp);
-      *sp = const0;
-    }
-}
-#endif
-
-
-#ifdef F_TELL_OBJECT
-void
-f_tell_object (void)
-{
-  tell_object ((sp - 1)->u.ob, sp->u.string);
-  free_string_svalue (sp--);
-  pop_stack ();
-}
-#endif
-
-
-#ifdef F_TELL_ROOM
-void
-f_tell_room (void)
-{
-  object_t *ob;
-  array_t *avoid;
-  int num_arg = st_num_arg;
-  svalue_t *arg = sp - num_arg + 1;
-
-  if (arg->type == T_OBJECT)
-    {
-      ob = arg[0].u.ob;
-    }
-  else
-    {				/* must be a string... */
-      ob = find_object (arg[0].u.string);
-      if (!ob || !object_visible (ob))
-        error ("Bad argument 1 to tell_room()\n");
-    }
-
-  if (num_arg == 2)
-    {
-      avoid = &the_null_array;
-    }
-  else
-    {
-      avoid = arg[2].u.arr;
-    }
-
-  tell_room (ob, &arg[1], avoid);
-  free_array (avoid);
-  free_svalue (arg + 1, "f_tell_room");
-  free_svalue (arg, "f_tell_room");
-  sp = arg - 1;
-}
-#endif
-
-
-#ifdef F_TEST_BIT
-void
-f_test_bit (void)
-{
-  int ind = (sp--)->u.number;
-
-  if (ind / 6 >= (int)SVALUE_STRLEN (sp))
-    {
-      free_string_svalue (sp);
-      *sp = const0;
-      return;
-    }
-  if (ind < 0)
-    error ("Bad argument 2 (negative) to test_bit().\n");
-  if ((sp->u.string[ind / 6] - ' ') & (1 << (ind % 6)))
-    {
-      free_string_svalue (sp);
-      *sp = const1;
-    }
-  else
-    {
-      free_string_svalue (sp);
-      *sp = const0;
-    }
-}
-#endif
-
-
-#ifdef F_NEXT_BIT
-void
-f_next_bit (void)
-{
-  int start = (sp--)->u.number;
-  int len = SVALUE_STRLEN (sp);
-  int which, bit = 0, value;
-
-  if (!len || start / 6 >= len)
-    {
-      free_string_svalue (sp);
-      put_number (-1);
-      return;
-    }
-  /* Find the next bit AFTER start */
-  if (start > 0)
-    {
-      if (start % 6 == 5)
-        {
-          which = (start / 6) + 1;
-          value = sp->u.string[which] - ' ';
-        }
-      else
-        {
-          /* we have a partial byte to check */
-          which = start / 6;
-          bit = 0x3f - ((1 << ((start % 6) + 1)) - 1);
-          value = (sp->u.string[which] - ' ') & bit;
-        }
-    }
-  else
-    {
-      which = 0;
-      value = *sp->u.string - ' ';
-    }
-
-  while (1)
-    {
-      if (value)
-        {
-          if (value & 0x07)
-            {
-              if (value & 0x01)
-                bit = which * 6;
-              else if (value & 0x02)
-                bit = which * 6 + 1;
-              else if (value & 0x04)
-                bit = which * 6 + 2;
-              break;
-            }
-          else if (value & 0x38)
-            {
-              if (value & 0x08)
-                bit = which * 6 + 3;
-              else if (value & 0x10)
-                bit = which * 6 + 4;
-              else if (value & 0x20)
-                bit = which * 6 + 5;
-              break;
-            }
-        }
-      which++;
-      if (which == len)
-        {
-          bit = -1;
-          break;
-        }
-      value = sp->u.string[which] - ' ';
-    }
-
-  free_string_svalue (sp);
-  put_number (bit);
 }
 #endif
 
@@ -1543,16 +1259,6 @@ f_virtualp (void)
   i = (int) sp->u.ob->flags & O_VIRTUAL;
   free_object (sp->u.ob, "f_virtualp");
   put_number (i != 0);
-}
-#endif
-
-
-#ifdef F_WRITE
-void
-f_write (void)
-{
-  do_write (sp);
-  pop_stack ();
 }
 #endif
 

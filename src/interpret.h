@@ -269,7 +269,7 @@ void bad_arg(int, int) NO_RETURN;
 void bad_argument(svalue_t *, int, int, int) NO_RETURN;
 void check_for_destr(array_t *);
 int is_static(char *, object_t *);
-int apply_low(char *, object_t *, int);
+int apply_low(const char *, object_t *, int);
 void clear_apply_cache(void);
 svalue_t *apply(char *, object_t *, int, int);
 svalue_t *call_function_pointer(funptr_t *, int);
@@ -285,7 +285,6 @@ void init_master(const char *);
 void mark_apply_low_cache(void);
 int translate_absolute_line(int, unsigned short *, size_t, int *, int *);
 char *add_slash(const char *);
-void do_trace(char *, char *, char *);
 
 
 /**

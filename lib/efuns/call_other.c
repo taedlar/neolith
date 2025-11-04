@@ -63,12 +63,6 @@ f_call_other (void)
     }
 
   /* Send the remaining arguments to the function. */
-#ifdef TRACE
-  if (TRACEP (TRACE_CALL_OTHER))
-    {
-      do_trace ("Call other ", funcname, "\n");
-    }
-#endif
   call_origin = ORIGIN_CALL_OTHER;
   if (apply_low (funcname, ob, num_arg - 2) == 0)
     {				/* Function not found */

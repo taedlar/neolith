@@ -16,9 +16,7 @@
 
 
 #ifdef F_CP
-void
-f_cp (void)
-{
+void f_cp (void) {
   int i;
 
   i = copy_file (sp[-1].u.string, sp[0].u.string);
@@ -30,9 +28,7 @@ f_cp (void)
 
 
 #ifdef F_RENAME
-void
-f_rename (void)
-{
+void f_rename (void) {
   int i;
 
   i = do_rename ((sp - 1)->u.string, sp->u.string, F_RENAME);
@@ -44,9 +40,7 @@ f_rename (void)
 
 
 #ifdef F_RM
-void
-f_rm (void)
-{
+void f_rm (void) {
   int i;
 
   i = remove_file (sp->u.string);
@@ -57,9 +51,7 @@ f_rm (void)
 
 
 #ifdef F_MKDIR
-void
-f_mkdir (void)
-{
+void f_mkdir (void) {
   char *path;
 
   path = check_valid_path (sp->u.string, current_object, "mkdir", 1);
@@ -78,9 +70,7 @@ f_mkdir (void)
 
 
 #ifdef F_RMDIR
-void
-f_rmdir (void)
-{
+void f_rmdir (void) {
   char *path;
 
   path = check_valid_path (sp->u.string, current_object, "rmdir", 1);
@@ -99,9 +89,7 @@ f_rmdir (void)
 
 
 #ifdef F_STAT
-void
-f_stat (void)
-{
+void f_stat (void) {
   struct stat buf;
   char *path;
   array_t *v;
@@ -149,9 +137,7 @@ f_stat (void)
 
 
 #ifdef F_READ_FILE
-void
-f_read_file (void)
-{
+void f_read_file (void) {
   char *str;
   int start, len;
 
@@ -180,9 +166,7 @@ f_read_file (void)
 
 
 #ifdef F_WRITE_FILE
-void
-f_write_file (void)
-{
+void f_write_file (void) {
   int flags = 0;
 
   if (st_num_arg == 3)
@@ -197,9 +181,7 @@ f_write_file (void)
 #endif
 
 #ifdef F_FILE_SIZE
-void
-f_file_size (void)
-{
+void f_file_size (void) {
   int i = file_size (sp->u.string);
   free_string_svalue (sp);
   put_number (i);
@@ -261,9 +243,7 @@ file_length (char *file)
   return ret;
 }				/* end of file_length() */
 
-void
-f_file_length (void)
-{
+void f_file_length (void) {
   int l;
 
   l = file_length (sp->u.string);
@@ -274,9 +254,7 @@ f_file_length (void)
 
 
 #ifdef F_GET_DIR
-void
-f_get_dir (void)
-{
+void f_get_dir (void) {
   array_t *vec;
 
   vec = get_dir ((sp - 1)->u.string, sp->u.number);
@@ -292,9 +270,7 @@ f_get_dir (void)
 
 
 #ifdef F_LINK
-void
-f_link (void)
-{
+void f_link (void) {
   svalue_t *ret;
   int i = 0;
 
@@ -318,9 +294,7 @@ f_link (void)
 
 
 #ifdef F_READ_BYTES
-void
-f_read_bytes (void)
-{
+void f_read_bytes (void) {
   char *str;
   int start = 0, len = 0, rlen = 0, num_arg = st_num_arg;
   svalue_t *arg;
@@ -345,9 +319,7 @@ f_read_bytes (void)
 
 
 #ifdef F_READ_BUFFER
-void
-f_read_buffer (void)
-{
+void f_read_buffer (void) {
   char *str;
   int start = 0, len = 0, rlen = 0, num_arg = st_num_arg;
   int from_file = 0;		/* new line */
@@ -394,9 +366,7 @@ f_read_buffer (void)
 
 
 #ifdef F_WRITE_BYTES
-void
-f_write_bytes (void)
-{
+void f_write_bytes (void) {
   int i = 0;
 
   switch (sp->type)
@@ -434,9 +404,7 @@ f_write_bytes (void)
 #endif
 
 #ifdef F_WRITE_BUFFER
-void
-f_write_buffer (void)
-{
+void f_write_buffer (void) {
   int i = 0;
 
   if ((sp - 2)->type == T_STRING)
@@ -479,9 +447,7 @@ f_write_buffer (void)
 
 
 #ifdef F_RESTORE_OBJECT
-void
-f_restore_object (void)
-{
+void f_restore_object (void) {
   int flag;
 
   flag = (st_num_arg > 1) ? (sp--)->u.number : 0;
@@ -493,9 +459,7 @@ f_restore_object (void)
 
 
 #ifdef F_SAVE_OBJECT
-void
-f_save_object (void)
-{
+void f_save_object (void) {
   int flag;
 
   flag = (st_num_arg == 2) && (sp--)->u.number;
