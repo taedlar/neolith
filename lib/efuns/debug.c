@@ -22,9 +22,7 @@
 
 
 #ifdef F_ERROR
-void
-f_error (void)
-{
+void f_error (void) {
   int l = SVALUE_STRLEN (sp);
   char err_buf[2048];
 
@@ -44,9 +42,7 @@ f_error (void)
 
 
 #ifdef F_THROW
-void
-f_throw (void)
-{
+void f_throw (void) {
   free_svalue (&catch_value, "f_throw");
   catch_value = *sp--;
   throw_error ();		/* do the longjump, with extra checks... */
@@ -73,9 +69,7 @@ print_cache_stats (outbuffer_t * ob)
                100 * ((double) apply_low_collisions / apply_low_call_others));
 }
 
-void
-f_cache_stats (void)
-{
+void f_cache_stats (void) {
   outbuffer_t ob;
 
   outbuf_zero (&ob);
@@ -86,9 +80,7 @@ f_cache_stats (void)
 
 
 #ifdef F_CALL_STACK
-void
-f_call_stack (void)
-{
+void f_call_stack (void) {
   int i, n = csp - &control_stack[0] + 1;
   array_t *ret;
 

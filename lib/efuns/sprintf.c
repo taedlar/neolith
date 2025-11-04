@@ -1439,9 +1439,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
 
 
 #ifdef F_SPRINTF
-void
-f_sprintf (void)
-{
+void f_sprintf (void) {
   char *s;
   int num_arg = st_num_arg;
 

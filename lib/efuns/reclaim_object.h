@@ -1,9 +1,6 @@
-#ifndef RECLAIM_H
-#define RECLAIM_H
+#pragma once
 
 /*
  * reclaim.c
  */
 int reclaim_objects(void);
-
-#endif
