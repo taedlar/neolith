@@ -758,13 +758,15 @@ f_replace_string (void)
  *   return int offset of little, -1 if not found
  *
  * Written 930706 by Luke Mewburn <zak@rmit.edu.au>
+ * Added support for unicode character by Annihilator.
  */
 
 void
 f_strsrch (void)
 {
   register char *big, *little, *pos;
-  static char buf[2];		/* should be initialized to 0 */
+  wchar_t wch[2];
+  char mbs[10];
   int i, blen, llen;
 
   sp--;
@@ -772,11 +774,13 @@ f_strsrch (void)
   blen = SVALUE_STRLEN (sp - 1);
   if (sp->type == T_NUMBER)
     {
-      little = buf;
-      if ((buf[0] = (char) sp->u.number))
-        llen = 1;
-      else
-        llen = 0;
+      /* search for single (wide) character */
+      wch[0] = (wchar_t) sp->u.number;
+      wch[1] = 0;
+      llen = wcstombs (mbs, wch, sizeof (mbs));
+      little = mbs;
+      if (llen < 1)
+        error ("strsrch: invalid wide character\n");
     }
   else
     {
@@ -787,18 +791,15 @@ f_strsrch (void)
   if (!llen || blen < llen)
     {
       pos = NULL;
-
-      /* start at left */
     }
-  else if (!((sp + 1)->u.number))
+  else if (!((sp + 1)->u.number)) /* start at left */
     {
       if (!little[1])		/* 1 char srch pattern */
         pos = strchr (big, (int) little[0]);
       else
         pos = (char *) strstr (big, little);
-      /* start at right */
     }
-  else
+  else /* start at right */
     {				/* XXX: maybe test for -1 */
       if (!little[1])		/* 1 char srch pattern */
         pos = strrchr (big, (int) little[0]);

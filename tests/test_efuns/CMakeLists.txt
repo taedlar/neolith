@@ -3,6 +3,7 @@
 add_executable(test_efuns
     test_efuns.cpp
     test_sscanf.cpp
+    test_strsrch.cpp
 )
 target_link_libraries(test_efuns PRIVATE stem GTest::gtest_main)
 
