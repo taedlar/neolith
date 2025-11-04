@@ -53,6 +53,7 @@ set(efuns_SOURCES
     tell_object.c
     uids.c
     unsorted.c
+    variable.c
 )
 
 add_library(efuns STATIC ${efuns_SOURCES})
