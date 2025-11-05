@@ -1480,16 +1480,16 @@ add_error:
                     if ($3->kind == NODE_STRING) {
                         /* Combine strings */
                         int n1, n2;
-                        char *new, *s1, *s2;
+                        char *s_new, *s1, *s2;
                         int l;
 
                         n1 = $1->v.number;
                         n2 = $3->v.number;
                         s1 = PROG_STRING(n1);
                         s2 = PROG_STRING(n2);
-                        new = (char *)DXALLOC( (l = strlen(s1))+strlen(s2)+1, TAG_COMPILER, "combine string" );
-                        strcpy(new, s1);
-                        strcat(new + l, s2);
+                        s_new = (char *)DXALLOC( (l = strlen(s1))+strlen(s2)+1, TAG_COMPILER, "combine string" );
+                        strcpy(s_new, s1);
+                        strcat(s_new + l, s2);
                         /* free old strings (ordering may help shrink table) */
                         if (n1 > n2) {
                             free_prog_string(n1); free_prog_string(n2);
@@ -1497,8 +1497,8 @@ add_error:
                             free_prog_string(n2); free_prog_string(n1);
                         }
                         $$ = $1;
-                        $$->v.number = store_prog_string(new);
-                        FREE(new);
+                        $$->v.number = store_prog_string(s_new);
+                        FREE(s_new);
                         break;
                     }
                     CREATE_BINARY_OP($$, F_ADD, result_type, $1, $3);

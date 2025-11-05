@@ -2595,7 +2595,7 @@ debug_message_with_location (char *err)
 
 
 static void
-mudlib_error_handler (char *err, int catch)
+mudlib_error_handler (char *err, int catch_flag)
 {
   mapping_t *m;
   char *file;
@@ -2614,7 +2614,7 @@ mudlib_error_handler (char *err, int catch)
   add_mapping_pair (m, "line", line);
 
   push_refed_mapping (m);
-  if (catch)
+  if (catch_flag)
     {
       push_number (1);
       mret = apply_master_ob (APPLY_ERROR_HANDLER, 2);
@@ -2804,7 +2804,7 @@ slow_shut_down (int minutes)
 
 
 void
-do_message (svalue_t * class, svalue_t * msg, array_t * scope,
+do_message (svalue_t * msg_class, svalue_t * msg, array_t * scope,
             array_t * exclude, int recurse)
 {
   int i, j, valid;
@@ -2839,7 +2839,7 @@ do_message (svalue_t * class, svalue_t * msg, array_t * scope,
             }
           if (valid)
             {
-              push_svalue (class);
+              push_svalue (msg_class);
               push_svalue (msg);
               apply (APPLY_RECEIVE_MESSAGE, ob, 2, ORIGIN_DRIVER);
             }
@@ -2849,7 +2849,7 @@ do_message (svalue_t * class, svalue_t * msg, array_t * scope,
           array_t *tmp;
 
           tmp = all_inventory (ob, 1);
-          do_message (class, msg, tmp, exclude, 0);
+          do_message (msg_class, msg, tmp, exclude, 0);
           free_array (tmp);
         }
     }

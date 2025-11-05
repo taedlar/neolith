@@ -566,30 +566,30 @@ restore_interior_string (char **val, svalue_t * sv)
 
         case '\\':
           {
-            char *new = cp - 1;
+            char *newp = cp - 1;
 
-            if ((*new++ = *cp++))
+            if ((*newp++ = *cp++))
               {
                 while ((c = *cp++) != '"')
                   {
                     if (c == '\\')
                       {
-                        if (!(*new++ = *cp++))
+                        if (!(*newp++ = *cp++))
                           return ROB_STRING_ERROR;
                       }
                     else
                       {
                         if (c == '\r')
-                          *new++ = '\n';
+                          *newp++ = '\n';
                         else
-                          *new++ = c;
+                          *newp++ = c;
                       }
                   }
                 if (c == '\0')
                   return ROB_STRING_ERROR;
-                *new = '\0';
+                *newp = '\0';
                 *val = cp;
-                sv->u.string = new_string (len = (new - start),
+                sv->u.string = new_string (len = (newp - start),
                                            "restore_string");
                 strcpy (sv->u.string, start);
                 sv->type = T_STRING;
@@ -1217,29 +1217,29 @@ restore_string (char *val, svalue_t * sv)
 
         case '\\':
           {
-            char *new = cp - 1;
+            char *newp = cp - 1;
 
-            if ((*new++ = *cp++))
+            if ((*newp++ = *cp++))
               {
                 while ((c = *cp++) != '"')
                   {
                     if (c == '\\')
                       {
-                        if (!(*new++ = *cp++))
+                        if (!(*newp++ = *cp++))
                           return ROB_STRING_ERROR;
                       }
                     else
                       {
                         if (c == '\r')
-                          *new++ = '\n';
+                          *newp++ = '\n';
                         else
-                          *new++ = c;
+                          *newp++ = c;
                       }
                   }
                 if ((c == '\0') || (*cp != '\0'))
                   return ROB_STRING_ERROR;
-                *new = '\0';
-                sv->u.string = new_string (new - start, "restore_string");
+                *newp = '\0';
+                sv->u.string = new_string (newp - start, "restore_string");
                 strcpy (sv->u.string, start);
                 sv->type = T_STRING;
                 sv->subtype = STRING_MALLOC;

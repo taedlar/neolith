@@ -638,8 +638,8 @@ regatom (int *flagp)
       break;
     case LSQBRAC:
       {
-        register int class;
-        register int classend;
+        register int char_cls;
+        register int char_cls_end;
 
         if (*regparse == CARET)
           {			/* Complement of range. */
@@ -659,12 +659,12 @@ regatom (int *flagp)
                   regc ('-');
                 else
                   {
-                    class = (CHARBITS & *(regparse - 2)) + 1;
-                    classend = (CHARBITS & *(regparse));
-                    if (class > classend + 1)
+                    char_cls = (CHARBITS & *(regparse - 2)) + 1;
+                    char_cls_end = (CHARBITS & *(regparse));
+                    if (char_cls > char_cls_end + 1)
                       FAIL ("invalid [] range\n");
-                    for (; class <= classend; class++)
-                      regc (class);
+                    for (; char_cls <= char_cls_end; char_cls++)
+                      regc (char_cls);
                     regparse++;
                   }
               }
