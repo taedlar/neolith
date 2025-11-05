@@ -13,7 +13,6 @@
 - [atan](/docs/efuns/atan.md)
 ### b
 - [bind](/docs/efuns/bind.md)
-- [break_string](/docs/efuns/break_string.md)
 - [bufferp](/docs/efuns/bufferp.md)
 ### c
 - [cache_stats](/docs/efuns/cache_stats.md)
@@ -138,8 +137,6 @@
 - [present](/docs/efuns/present.md)
 - [previous_object](/docs/efuns/previous_object.md)
 - [printf](/docs/efuns/printf.md)
-- [process_string](/docs/efuns/process_string.md)
-- [process_value](/docs/efuns/process_value.md)
 ### q
 - [query_ed_mode](/docs/efuns/query_ed_mode.md)
 - [query_heart_beat](/docs/efuns/query_heart_beat.md)

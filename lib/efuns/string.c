@@ -293,22 +293,6 @@ f_explode (void)
 #endif
 
 
-#ifdef F_PROCESS_STRING
-void
-f_process_string (void)
-{
-  char *str;
-
-  str = process_string (sp->u.string);
-  if (str != sp->u.string)
-    {
-      free_string_svalue (sp);
-      put_malloced_string (str);
-    }
-}
-#endif
-
-
 #ifdef F_REG_ASSOC
 void
 f_reg_assoc (void)
@@ -368,22 +352,6 @@ f_regexp (void)
       free_array (sp->u.arr);
       sp->u.arr = v;
     }
-}
-#endif
-
-
-#ifdef F_PROCESS_VALUE
-void
-f_process_value (void)
-{
-  svalue_t *ret;
-
-  ret = process_value (sp->u.string);
-  free_string_svalue (sp);
-  if (ret)
-    assign_svalue_no_free (sp, ret);
-  else
-    *sp = const0;
 }
 #endif
 
