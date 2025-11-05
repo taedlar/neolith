@@ -915,14 +915,14 @@ add_array (array_t * p, array_t * r)
 
 /* Returns an array of all objects contained in 'ob' */
 array_t *
-all_inventory (object_t * ob, int override)
+all_inventory (object_t * ob, int override_master)
 {
   array_t *d;
   object_t *cur;
   int cnt, res;
   int display_hidden;
 
-  if (override)
+  if (override_master)
     {
       display_hidden = 1;
     }

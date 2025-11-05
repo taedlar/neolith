@@ -1064,7 +1064,7 @@ static int
 ins (char *str)
 {
   char *cp;
-  ed_line_t *new, *nxt;
+  ed_line_t *new_ln, *nxt;
   int len;
 
   do
@@ -1073,19 +1073,19 @@ ins (char *str)
       len = cp - str;
       /* cp now points to end of first or only line */
 
-      if ((new = (ed_line_t *) DXALLOC (sizeof (ed_line_t) + len,
+      if ((new_ln = (ed_line_t *) DXALLOC (sizeof (ed_line_t) + len,
                                         TAG_ED, "ins: new")) == NULL)
         return (MEM_FAIL);	/* no memory */
 
-      new->l_stat = 0;
-      strncpy (new->l_buff, str, len);	/* build new line */
-      new->l_buff[len] = EOS;
+      new_ln->l_stat = 0;
+      strncpy (new_ln->l_buff, str, len);	/* build new line */
+      new_ln->l_buff[len] = EOS;
       nxt = getnextptr (P_CURPTR);	/* get next line */
-      relink (P_CURPTR, new, new, nxt);	/* add to linked list */
-      relink (new, nxt, P_CURPTR, new);
+      relink (P_CURPTR, new_ln, new_ln, nxt);	/* add to linked list */
+      relink (new_ln, nxt, P_CURPTR, new_ln);
       P_LASTLN++;
       P_CURLN++;
-      P_CURPTR = new;
+      P_CURPTR = new_ln;
       str = cp + 1;
     }
   while (*cp != EOS);
@@ -1324,7 +1324,7 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
 {
   int nchngd = 0;
   char *txtptr;
-  char *new, *old, buf[ED_MAXLINE];
+  char *newp, *old, buf[ED_MAXLINE];
   int space;			/* amylaar */
   int still_running = 1;
   ed_line_t *lastline = getptr (P_LINE2);
@@ -1336,7 +1336,7 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
   for (setCurLn (prevln (P_LINE1)); still_running;)
     {
       nextCurLn ();
-      new = buf;
+      newp = buf;
       space = ED_MAXLINE;	/* amylaar */
       if (P_CURPTR == lastline)
         still_running = 0;
@@ -1349,12 +1349,12 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
 
               if ((space -= diff) < 0)	/* amylaar */
                 return SUB_FAIL;
-              strncpy (new, txtptr, diff);
-              new += diff;
+              strncpy (newp, txtptr, diff);
+              newp += diff;
               /* Do substitution */
-              old = new;
-              new = regsub (pat, sub, new, space);
-              if (!new || (space -= new - old) < 0)	/* amylaar */
+              old = newp;
+              newp = regsub (pat, sub, newp, space);
+              if (!newp || (space -= newp - old) < 0)	/* amylaar */
                 return SUB_FAIL;
               if (txtptr == pat->endp[0])
                 {		/* amylaar : prevent infinite
@@ -1363,7 +1363,7 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
                     break;
                   if (--space < 0)
                     return SUB_FAIL;
-                  *new++ = *txtptr++;
+                  *newp++ = *txtptr++;
                 }
               else
                 txtptr = pat->endp[0];
@@ -1377,7 +1377,7 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
            */
           if ((space -= strlen (txtptr) + 1) < 0)
             return SUB_FAIL;
-          strcpy (new, txtptr);
+          strcpy (newp, txtptr);
           del (P_CURLN, P_CURLN);
           if (ins (buf) < 0)
             return MEM_FAIL;

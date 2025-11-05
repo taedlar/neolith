@@ -45,7 +45,7 @@ this code, please leave my name (and Wirth's) in the comments.
 
 /* prototypes for local functions */
 static void sprout (tree **, char *, int *, int (*)(), int (*)());
-static int delete (tree **, int (*)(), char *, int (*)(), int *, int *);
+static int recursive_delete (tree **, int (*)(), char *, int (*)(), int *, int *);
 static void del (tree **, int *, tree **, int (*)(), int *);
 static void balanceL (tree **, int *);
 static void balanceR (tree **, int *);
@@ -250,13 +250,13 @@ tree_delete (tree ** ppr_p, int (*pfi_compare) (), char *pc_user,
 {
   int i_balance = 0, i_uar_called = 0;
 
-  return delete (ppr_p, pfi_compare, pc_user, pfi_uar,
+  return recursive_delete (ppr_p, pfi_compare, pc_user, pfi_uar,
                  &i_balance, &i_uar_called);
 }
 
 
 static int
-delete (tree ** ppr_p, int (*pfi_compare) (void *, void *), char *pc_user,
+recursive_delete (tree ** ppr_p, int (*pfi_compare) (void *, void *), char *pc_user,
         int (*pfi_uar) (void *), int *pi_balance, int *pi_uar_called)
 {
   tree *pr_q;
@@ -269,14 +269,14 @@ delete (tree ** ppr_p, int (*pfi_compare) (void *, void *), char *pc_user,
   i_comp = (*pfi_compare) ((*ppr_p)->tree_p, pc_user);
   if (i_comp > 0)
     {
-      i_ret = delete (&(*ppr_p)->tree_l, pfi_compare, pc_user, pfi_uar,
+      i_ret = recursive_delete (&(*ppr_p)->tree_l, pfi_compare, pc_user, pfi_uar,
                       pi_balance, pi_uar_called);
       if (*pi_balance)
         balanceL (ppr_p, pi_balance);
     }
   else if (i_comp < 0)
     {
-      i_ret = delete (&(*ppr_p)->tree_r, pfi_compare, pc_user, pfi_uar,
+      i_ret = recursive_delete (&(*ppr_p)->tree_r, pfi_compare, pc_user, pfi_uar,
                       pi_balance, pi_uar_called);
       if (*pi_balance)
         balanceR (ppr_p, pi_balance);

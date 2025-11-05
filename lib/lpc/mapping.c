@@ -324,28 +324,28 @@ restore_hash_string (char **val, svalue_t * sv)
 
 	case '\\':
 	  {
-	    char *new = cp - 1;
+	    char *newp = cp - 1;
 
-	    if ((c = *new++ = *cp++))
+	    if ((c = *newp++ = *cp++))
 	      {
 		while ((c = *cp++) != '"')
 		  {
 		    if (c == '\\')
 		      {
-			if (!(c = *new++ = *cp++))
+			if (!(c = *newp++ = *cp++))
 			  return ROB_STRING_ERROR;
 		      }
 		    else
 		      {
 			if (c == '\r')
-			  c = *new++ = '\n';
+			  c = *newp++ = '\n';
 			else
-			  *new++ = c;
+			  *newp++ = c;
 		      }
 		  }
 		if (!c)
 		  return ROB_STRING_ERROR;
-		*new = '\0';
+		*newp = '\0';
 		*val = cp;
 		sv->u.string = make_shared_string (start);
 		sv->type = T_STRING;
