@@ -1,14 +1,15 @@
 # restore_variable
 ## NAME
-          restore_variable() - restore value of a variable from a
-          string
+restore_variable() - restore value of a variable from a string
 
 ## SYNOPSIS
-          mixed restore_variable( string value );
+~~~cxx
+mixed restore_variable (string value);
+~~~
 
 ## DESCRIPTION
-          Restore values of a variable from a string.  The format used
-          is the same format as save/restore_object.
+Restore values of a variable from a string.
+The format used is the same format as save/restore_object.
 
 ## SEE ALSO
-          restore_object(3)
+[restore_object()](restore_object.md)

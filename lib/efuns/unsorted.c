@@ -66,42 +66,6 @@ f_children (void)
 #endif
 
 
-#ifdef F_CLASSP
-void
-f_classp (void)
-{
-  if (sp->type == T_CLASS)
-    {
-      free_class (sp->u.arr);
-      *sp = const1;
-    }
-  else
-    {
-      free_svalue (sp, "f_classp");
-      *sp = const0;
-    }
-}
-#endif
-
-
-#ifdef F_CLONEP
-void
-f_clonep (void)
-{
-  if ((sp->type == T_OBJECT) && (sp->u.ob->flags & O_CLONE))
-    {
-      free_object (sp->u.ob, "f_clonep");
-      *sp = const1;
-    }
-  else
-    {
-      free_svalue (sp, "f_clonep");
-      *sp = const0;
-    }
-}
-#endif
-
-
 #ifdef F_CLONE_OBJECT
 void
 f_clone_object (void)
@@ -389,7 +353,6 @@ f_get_config (void)
 #endif
 
 
-
 #ifdef F_IN_EDIT
 void
 f_in_edit (void)
@@ -470,21 +433,6 @@ f_shallow_inherit_list (void)
 #endif
 
 
-#ifdef F_INTP
-void
-f_intp (void)
-{
-  if (sp->type == T_NUMBER)
-    sp->u.number = 1;
-  else
-    {
-      free_svalue (sp, "f_intp");
-      put_number (0);
-    }
-}
-#endif
-
-
 #ifdef F_MASTER
 void
 f_master (void)
@@ -495,7 +443,6 @@ f_master (void)
     push_object (master_ob);
 }
 #endif
-
 
 
 #ifdef F_MEMBER_ARRAY
@@ -665,42 +612,6 @@ f_message (void)
 #endif
 
 
-#ifdef F_OBJECTP
-void
-f_objectp (void)
-{
-  if (sp->type == T_OBJECT)
-    {
-      free_object (sp->u.ob, "f_objectp");
-      *sp = const1;
-    }
-  else
-    {
-      free_svalue (sp, "f_objectp");
-      *sp = const0;
-    }
-}
-#endif
-
-
-#ifdef F_POINTERP
-void
-f_pointerp (void)
-{
-  if (sp->type == T_ARRAY)
-    {
-      free_array (sp->u.arr);
-      *sp = const1;
-    }
-  else
-    {
-      free_svalue (sp, "f_pointerp");
-      *sp = const0;
-    }
-}
-#endif
-
-
 #ifdef F_PREVIOUS_OBJECT
 void
 f_previous_object (void)
@@ -853,35 +764,6 @@ f_random (void)
 #endif
 
 
-#ifdef F_RESTORE_VARIABLE
-void
-f_restore_variable (void)
-{
-  svalue_t v;
-
-  unlink_string_svalue (sp);
-  v.type = T_NUMBER;
-
-  restore_variable (&v, sp->u.string);
-  FREE_MSTR (sp->u.string);
-  *sp = v;
-}
-#endif
-
-
-#ifdef F_SAVE_VARIABLE
-void
-f_save_variable (void)
-{
-  char *p;
-
-  p = save_variable (sp);
-  pop_stack ();
-  push_malloced_string (p);
-}
-#endif
-
-
 #ifdef F_SET_EVAL_LIMIT
 /* warning: do not enable this without using valid_override() in the master
    object and a set_eval_limit() simul_efun to restrict access.
@@ -929,23 +811,6 @@ f_set_hide (void)
         num_hidden--;
       current_object->flags &= ~O_HIDDEN;
     }
-}
-#endif
-
-
-#ifdef F_SET_LIGHT
-void
-f_set_light (void)
-{
-  object_t *o1;
-
-  add_light (current_object, sp->u.number);
-  o1 = current_object;
-#ifndef NO_ENVIRONMENT
-  while (o1->super)
-    o1 = o1->super;
-#endif
-  sp->u.number = o1->total_light;
 }
 #endif
 
@@ -1072,42 +937,6 @@ f_sizeof (void)
 #endif
 
 
-#ifdef F_STRINGP
-void
-f_stringp (void)
-{
-  if (sp->type == T_STRING)
-    {
-      free_string_svalue (sp);
-      *sp = const1;
-    }
-  else
-    {
-      free_svalue (sp, "f_stringp");
-      *sp = const0;
-    }
-}
-#endif
-
-
-#ifdef F_BUFFERP
-void
-f_bufferp (void)
-{
-  if (sp->type == T_BUFFER)
-    {
-      free_buffer (sp->u.buf);
-      *sp = const1;
-    }
-  else
-    {
-      free_svalue (sp, "f_bufferp");
-      *sp = const0;
-    }
-}
-#endif
-
-
 #ifdef F_THIS_OBJECT
 void
 f_this_object (void)
@@ -1228,41 +1057,6 @@ f_typeof (void)
 #endif
 
 
-#ifdef F_UNDEFINEDP
-void
-f_undefinedp (void)
-{
-  if (sp->type == T_NUMBER)
-    {
-      if (!sp->u.number && (sp->subtype == T_UNDEFINED))
-        {
-          *sp = const1;
-        }
-      else
-        *sp = const0;
-    }
-  else
-    {
-      free_svalue (sp, "f_undefinedp");
-      *sp = const0;
-    }
-}
-#endif
-
-
-#ifdef F_VIRTUALP
-void
-f_virtualp (void)
-{
-  int i;
-
-  i = (int) sp->u.ob->flags & O_VIRTUAL;
-  free_object (sp->u.ob, "f_virtualp");
-  put_number (i != 0);
-}
-#endif
-
-
 #ifdef F_RELOAD_OBJECT
 void
 f_reload_object (void)
@@ -1307,24 +1101,6 @@ f_set_reset (void)
       sp->u.ob->next_reset = current_time + CONFIG_INT (__TIME_TO_RESET__) / 2
         + rand () % (CONFIG_INT (__TIME_TO_RESET__) / 2);
       free_object ((sp--)->u.ob, "f_set_reset:2");
-    }
-}
-#endif
-
-
-#ifdef F_FLOATP
-void
-f_floatp (void)
-{
-  if (sp->type == T_REAL)
-    {
-      sp->type = T_NUMBER;
-      sp->u.number = 1;
-    }
-  else
-    {
-      free_svalue (sp, "f_floatp");
-      *sp = const0;
     }
 }
 #endif
