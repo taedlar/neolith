@@ -391,10 +391,7 @@ extend_string (char *str, int len)
   int oldsize = MSTR_SIZE (str);
 #endif
 
-  mbt =
-    (malloc_block_t *) DREALLOC (MSTR_BLOCK (str),
-                                 len + sizeof (malloc_block_t) + 1,
-                                 TAG_MALLOC_STRING, "extend_string");
+  mbt = (malloc_block_t *) DREALLOC (MSTR_BLOCK (str), len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "extend_string");
   if (len < USHRT_MAX)
     {
       mbt->size = len;
@@ -419,7 +416,7 @@ int_alloc_cstring (char *str)
 }
 
 char *
-int_string_copy (char *str)
+int_string_copy (const char *str)
 {
   char *p;
   size_t len;

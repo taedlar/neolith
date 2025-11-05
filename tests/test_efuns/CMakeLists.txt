@@ -2,6 +2,7 @@
 
 add_executable(test_efuns
     test_efuns.cpp
+    test_replace_string.cpp
     test_sscanf.cpp
     test_strsrch.cpp
 )
