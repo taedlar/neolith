@@ -9,15 +9,15 @@ When the LPMud Driver process is started, it goes through the follow steps in se
 
 1. Process command line arguments
 2. Process configuration file
-3. Initialize LPC virtual machine
-4. Initialize LPC compiler
+3. Initialize LPC compiler
+4. Initialize LPC virtual machine
 5. Load simul efun object (optional)
 6. Load master object
 7. Do epilogue
 
-# Backend Mode
+# Backend Loop
 
-After done start up, the LPMud Driver goes into backend mode that **accepts user connections** while doing necessary house keep tasks in the background.
+After done start up, the LPMud Driver run an infinite backend loop that **accepts user connections** while doing necessary housekeeping tasks in the background.
 
 In the backend mode, the LPMud driver provides:
 - Accept connections on the TCP port specified in configuration file.
@@ -34,5 +34,5 @@ The LPMud Driver stays in backend mode forever, until `shutdown()` is called or 
 > Anything in the world of a LPMud is a **LPC object**, which is created from a LPC program file. In fact, a LPC object is named using
 > the filename (local to Mudlib directory) internally in the LPMud driver.
 
-Once the LPMud Driver has entered backend mode, you have at least one LPC object created: the master object. Depend on the mudlib's design,
-it may load more objects in `epilog` before it is ready to accept user connections.
+When the LPMud Driver is running backend loop, you have at least one LPC object created: the master object. Depend on the mudlib's design,
+it may load more objects in `epilog()` before it is ready to accept user connections.

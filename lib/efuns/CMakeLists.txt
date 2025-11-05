@@ -44,6 +44,7 @@ set(efuns_SOURCES
     maps.c
     math.c
     parse.c
+    prop.c
     reclaim_object.c
     replace_program.c
     sockets.c

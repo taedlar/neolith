@@ -47,6 +47,35 @@ f_fetch_variable (void)
 #endif
 
 
+#ifdef F_RESTORE_VARIABLE
+void
+f_restore_variable (void)
+{
+  svalue_t v;
+
+  unlink_string_svalue (sp);
+  v.type = T_NUMBER;
+
+  restore_variable (&v, sp->u.string);
+  FREE_MSTR (sp->u.string);
+  *sp = v;
+}
+#endif
+
+
+#ifdef F_SAVE_VARIABLE
+void
+f_save_variable (void)
+{
+  char *p;
+
+  p = save_variable (sp);
+  pop_stack ();
+  push_malloced_string (p);
+}
+#endif
+
+
 /* Beek */
 #ifdef F_VARIABLES
 static void

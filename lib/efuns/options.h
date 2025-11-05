@@ -152,11 +152,6 @@
  */
 #undef NONINTERACTIVE_STDERR_WRITE
 
-/* NO_LIGHT: define this to disable the set_light() and driver maintenance
- *   of light levels in objects.  You can simulate it via LPC if you want...
- */
-#define NO_LIGHT
-
 /* NO_ADD_ACTION: define this to remove add_action, commands, livings, etc.
    process_input() then becomes the only way to deal with player input. */
 #undef NO_ADD_ACTION
@@ -320,18 +315,6 @@
  */
 #define NO_ANSI
 #define STRIP_BEFORE_PROCESS_INPUT
-
-/* OPCPROF: define this if you wish to enable OPC profiling. Allows a dump
- *   of the # of times each efun is invoked (via the opcprof() efun).
- */
-#undef OPCPROF
-
-/* OPCPROF_2D: define this if you wish to enable 2-D OPC profiling. Allows a 
- *   dump of the # of times each *pair* of eoperators is invoked.
- *
- * You can't use this and OPCPROF at the same time.
- */
-#undef OPCPROF_2D
 
 /* TRAP_CRASHES:  define this if you want MudOS to call crash() in master.c
  *   and then shutdown when signals are received that would normally crash the
