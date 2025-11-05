@@ -237,7 +237,7 @@ void push_object(object_t *);
 void push_number(int);
 void push_real(double);
 void push_undefined(void);
-void copy_and_push_string(char *);
+void copy_and_push_string(const char *);
 void share_and_push_string(char *);
 void push_array(array_t *);
 void push_refed_array(array_t *);

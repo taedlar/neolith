@@ -233,7 +233,7 @@ static program_t *ffbn_recurse (program_t *, char *, int *, int *);
 static program_t *ffbn_recurse2 (program_t *, char *, int *, int *, int *);
 
 void
-copy_and_push_string (char *p)
+copy_and_push_string (const char *p)
 {
   CHECK_AND_PUSH(1);
   sp->type = T_STRING;

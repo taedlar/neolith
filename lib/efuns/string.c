@@ -461,6 +461,7 @@ f_replace_string (void)
     }
   arg = sp - st_num_arg + 1;
   src = arg->u.string;
+  opt_trace (TT_EVAL|3, "src ='%s'\n", src);
   first = 0;
   last = 0;
 
@@ -493,6 +494,7 @@ f_replace_string (void)
 
   pattern = (arg + 1)->u.string;
   plen = SVALUE_STRLEN (arg + 1);
+  opt_trace (TT_EVAL|3, "pattern ='%s' (%d)\n", pattern, plen);
   if (plen < 1)
     {
       pop_n_elems (st_num_arg - 1);	/* just return it */
@@ -501,6 +503,7 @@ f_replace_string (void)
 
   replace = (arg + 2)->u.string;
   rlen = SVALUE_STRLEN (arg + 2);
+  opt_trace (TT_EVAL|3, "replace ='%s' (%d)\n", replace, rlen);
   dlen = 0;
   cur = 0;
 
@@ -627,9 +630,7 @@ f_replace_string (void)
     }
   else
     {
-      dst2 = dst1 =
-        new_string (CONFIG_INT (__MAX_STRING_LENGTH__),
-                    "f_replace_string: 2");
+      dst2 = dst1 = new_string (CONFIG_INT (__MAX_STRING_LENGTH__), "f_replace_string: 2");
 
       if (plen > 1)
         {
