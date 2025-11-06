@@ -37,14 +37,14 @@ block
         xalloc
     end
     Simulate["Stack Machine\nSimulator"]:4
-    style Efuns fill:#626
-    style SimulEfuns fill:#753
-    style Master fill:#903,stroke-width:4px
-    style Backend fill:#363
-    style LPCC fill:#449
-    style Objects fill:#611
-    style Programs fill:#355
-    style Simulate fill:#777
+    style Efuns fill:#626,color:#fff
+    style SimulEfuns fill:#753,color:#fff
+    style Master fill:#903,stroke-width:4px,color:#fff
+    style Backend fill:#363,color:#fff
+    style LPCC fill:#449,color:#fff
+    style Objects fill:#611,color:#fff
+    style Programs fill:#355,color:#fff
+    style Simulate fill:#777,color:#fff
 ~~~
 
 ## How To Build
