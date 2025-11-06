@@ -9,21 +9,43 @@ Most of the efforts are to improve the code quality, code stytle consistency, po
 
 The priject goal is to provide LPMud builders a **minimalist code base** with concise design and easy-to-read coding style.
 
-## Credits & License
-Neolith is a LPMud Driver that run the [Eastern Stories 2 MUD](https://zh.wikipedia.org/wiki/%E6%9D%B1%E6%96%B9%E6%95%85%E4%BA%8B2_%E5%A4%A9%E6%9C%9D%E5%B8%9D%E5%9C%8B) (up since 1995).
-The code was modified from MudOS v22pre5 which is derived from the original LPMud by Lars Pensjö.
-Credits to original authors can be found in [Credits.LPmud](docs/Credits.LPmud) and [Credits.MudOS](docs/Credits.MudOS).
-
-The Neolith project is intended to be distributed under [GPLv2](docs/GPLv2_LICENSE), with the copyright notices from original authors of LPMud and MudOS still applies.
-
-> [!IMPORTANT]
-> Although GPLv2 allows commercial use, this project contains additional restrictions from original authors.
-> - "May not be used in any way whatsoever for monetary gain" (restriction by Lars Pensjö, origin of LPMud)
-> - GPLv2 (open source required, must comply all restrictions from all authors)
->
-> With all these terms combined, **Commercial Use is NOT ALLOWED**.
-
-See [Copyright](Copyright) for details.
+## Architecture
+A LPMud Driver can be illustrated as below architecture:
+~~~mermaid
+block
+    columns 5
+    Mudlib:5
+    style Mudlib stroke-dasharray: 5 5
+    block:group1:3
+        columns auto
+        Efuns
+        SimulEfuns["Simul Efuns"]
+        Master["Master\nObject"]
+    end
+    Backend["Backend Loop"]:2    
+    block:group2:3
+        columns 1
+        LPCC["LPC Compiler"]
+        Lexer["LPC Lexer"]
+        Preprocessor
+    end
+    Programs["LPC\nPrograms"]
+    Objects["LPC\nObjects"]
+    block:group4
+        columns 1
+        stralloc
+        xalloc
+    end
+    Simulate["Stack Machine\nSimulator"]:4
+    style Efuns fill:#626
+    style SimulEfuns fill:#753
+    style Master fill:#903,stroke-width:4px
+    style Backend fill:#363
+    style LPCC fill:#449
+    style Objects fill:#611
+    style Programs fill:#355
+    style Simulate fill:#777
+~~~
 
 ## How To Build
 
@@ -60,3 +82,20 @@ Neolith project intended to make a good minimalist LPMud code base where open so
 Please take a look into the following documents before you jump in:
 - [Neolith LPMud Driver Internals](docs/manual/internals.md)
 - [Neolith Developor Reference](docs/manual/dev.md)
+
+## Credits & License
+Neolith is a LPMud Driver that run the [Eastern Stories 2 MUD](https://zh.wikipedia.org/wiki/%E6%9D%B1%E6%96%B9%E6%95%85%E4%BA%8B2_%E5%A4%A9%E6%9C%9D%E5%B8%9D%E5%9C%8B) (up since 1995).
+The code was modified from MudOS v22pre5 which is derived from the original LPMud by Lars Pensjö.
+Credits to original authors can be found in [Credits.LPmud](docs/Credits.LPmud) and [Credits.MudOS](docs/Credits.MudOS).
+
+The Neolith project is intended to be distributed under [GPLv2](docs/GPLv2_LICENSE), with the copyright notices from original authors of LPMud and MudOS still applies.
+
+> [!IMPORTANT]
+> Although GPLv2 allows commercial use, this project contains additional restrictions from original authors.
+> - "May not be used in any way whatsoever for monetary gain" (restriction by Lars Pensjö, origin of LPMud)
+> - GPLv2 (open source required, must comply all restrictions from all authors)
+>
+> With all these terms combined, **Commercial Use is NOT ALLOWED**.
+
+See [Copyright](Copyright) for details.
+
