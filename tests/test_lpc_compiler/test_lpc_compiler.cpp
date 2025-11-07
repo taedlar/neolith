@@ -49,7 +49,6 @@ TEST_F(LPCCompilerTest, loadMaster)
         object_t* old_master_ob = master_ob;
         current_object = master_ob;
         destruct_object (master_ob);
-        remove_destructed_objects(); // actually free destructed objects
         EXPECT_NE(master_ob, old_master_ob) << "master_ob was not reloaded after destruct_object(master_ob).";
         EXPECT_EQ(master_ob->ref, 2) << "master_ob reference count is not 2 after destruct_object(master_ob).";
     }

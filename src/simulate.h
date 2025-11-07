@@ -47,6 +47,7 @@ object_t *find_object2(const char *);
 void move_object(object_t *, object_t *);
 void destruct_object(object_t *);
 void destruct2(object_t *);
+void remove_destructed_objects(void);
 
 void print_svalue(svalue_t *);
 void do_write(svalue_t *);

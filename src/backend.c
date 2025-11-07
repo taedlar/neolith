@@ -15,7 +15,6 @@
 #include "interpret.h"
 #include "backend.h"
 #include "comm.h"
-#include "efuns/replace_program.h"
 #include "efuns/call_out.h"
 
 error_context_t *current_error_context = 0;
@@ -43,9 +42,7 @@ static RETSIGTYPE sigalrm_handler (int);
  * This routine must only be called from top level, not from inside
  * stack machine execution (as stack will be cleared).
  */
-void
-clear_state ()
-{
+static void clear_state () {
   current_object = 0;
   command_giver = 0;
   current_interactive = 0;
@@ -53,7 +50,7 @@ clear_state ()
   current_prog = 0;
   caller_type = 0;
   reset_machine ();		/* Pop down the stack. */
-}				/* clear_state() */
+}
 
 void
 logon (object_t * ob)
@@ -136,8 +133,7 @@ backend ()
       current_interactive = 0;
       eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
 
-      if (obj_list_replace || obj_list_destruct)
-        remove_destructed_objects ();
+      remove_destructed_objects ();
 
       /*
        * do shutdown if g_proceeding_shutdown is set
@@ -567,24 +563,6 @@ preload_objects (int eflag)
   free_array (prefiles);
   pop_context (&econ);
 }				/* preload_objects() */
-
-/* All destructed objects are moved into a sperate linked list,
- * and deallocated after program execution.  */
-
-void
-remove_destructed_objects ()
-{
-  object_t *ob, *next;
-
-  if (obj_list_replace)
-    replace_programs ();
-  for (ob = obj_list_destruct; ob; ob = next)
-    {
-      next = ob->next_all;
-      destruct2 (ob);
-    }
-  obj_list_destruct = 0;
-}				/* remove_destructed_objects() */
 
 #define NUM_CONSTS 5
 static double consts[NUM_CONSTS];
