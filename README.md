@@ -13,38 +13,40 @@ The priject goal is to provide LPMud builders a **minimalist code base** with co
 A LPMud Driver can be illustrated as below architecture:
 ~~~mermaid
 block
-    columns 5
-    Mudlib:5
+    columns 6
+    Mudlib("Mudlib"):6
     style Mudlib stroke-dasharray: 5 5
-    block:group1:3
-        columns auto
-        Efuns
-        SimulEfuns["Simul Efuns"]
-        Master["Master\nObject"]
+    block:group1:2
+        SimulEfuns("Simul Efuns\n(Kernel)")
+        Master("Master\n(Policy)")
     end
-    Backend["Backend Loop"]:2    
+    Objects("LPC Objects\n(Programs)"):3
+    Backend["Backend\n(Clock & I/O)"]
     block:group2:3
         columns 1
         LPCC["LPC Compiler"]
         Lexer["LPC Lexer"]
         Preprocessor
     end
-    Programs["LPC\nPrograms"]
-    Objects["LPC\nObjects"]
+    block:group3:3
+        columns 2
+        LPCI["LPC Interpreter"]
+        Efuns
+    end
     block:group4
         columns 1
         stralloc
         xalloc
     end
-    Simulate["Stack Machine\nSimulator"]:4
-    style Efuns fill:#626,color:#fff
-    style SimulEfuns fill:#753,color:#fff
-    style Master fill:#903,stroke-width:4px,color:#fff
-    style Backend fill:#363,color:#fff
-    style LPCC fill:#449,color:#fff
-    style Objects fill:#611,color:#fff
-    style Programs fill:#355,color:#fff
-    style Simulate fill:#777,color:#fff
+    Simulate["Stack Machine\nSimulator"]:5
+    style SimulEfuns fill:#474,color:#fff,stroke-dasharray:2
+    style Master fill:#291,color:#fff,stroke-dasharray:2
+    style Objects fill:#a21,color:#fff,stroke-dasharray:2
+    style Backend fill:#d92,color:#fff
+    style LPCC fill:#228,color:#fff
+    style LPCI fill:#228,color:#fff
+    style Efuns fill:#66f,color:#fff
+    style Simulate fill:#666,color:#fff
 ~~~
 
 ## How To Build
