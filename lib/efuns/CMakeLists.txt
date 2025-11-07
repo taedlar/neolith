@@ -46,6 +46,7 @@ set(efuns_SOURCES
     parse.c
     prop.c
     reclaim_object.c
+    regexp.c
     replace_program.c
     sockets.c
     sprintf.c

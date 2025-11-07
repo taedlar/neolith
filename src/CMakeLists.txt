@@ -14,7 +14,6 @@ set(stem_SOURCES
     comm.c
     interpret.c
     malloc.c
-    regexp.c
     simul_efun.c
     simulate.c
     stralloc.c

@@ -59,7 +59,7 @@
 
 /* Headers */
 
-#include "std.h"
+#include "src/std.h"
 #include "regexp.h"
 #include "efuns/ed.h"
 

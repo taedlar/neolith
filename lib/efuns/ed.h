@@ -1,6 +1,6 @@
 #pragma once
 #include "src/comm.h"
-#include "src/regexp.h"
+#include "regexp.h"
 
 /* define this if you don't like the ending dollar signs in ed, in n-mode */
 #undef NO_END_DOLLAR_SIGN
