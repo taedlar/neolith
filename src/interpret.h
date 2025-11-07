@@ -238,7 +238,7 @@ void push_number(int);
 void push_real(double);
 void push_undefined(void);
 void copy_and_push_string(const char *);
-void share_and_push_string(char *);
+void share_and_push_string(const char *);
 void push_array(array_t *);
 void push_refed_array(array_t *);
 void push_buffer(buffer_t *);
@@ -283,7 +283,11 @@ svalue_t *apply_master_ob(char *, int);
 svalue_t *safe_apply_master_ob(char *, int);
 void init_master(const char *);
 void mark_apply_low_cache(void);
+
 int translate_absolute_line(int, unsigned short *, size_t, int *, int *);
+char* get_line_number (const char *p, const program_t * progp);
+void get_line_number_info (char **ret_file, int *ret_line);
+
 char *add_slash(const char *);
 
 
@@ -314,7 +318,6 @@ compiler_function_t *setup_new_frame(int);
 void push_control_stack(int);
 
 void break_point(void);
-
 
 extern int get_error_state (int mask);
 extern void set_error_state (int flag);
