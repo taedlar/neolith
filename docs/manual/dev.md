@@ -1,6 +1,59 @@
 Neolith Developer Reference
 ===========================
 
+# Coding Style
+## Indention
+There was no consistent indention style in the original code base of LPMud and MudOS.
+You may find different part of code using different style of indention.
+
+Neolith uses a relaxed version of **GNU style** indention, with some modifications to prevent extra line-of-code:
+- Indention with space only. No tabs.
+- Function definitions open curly brace at the same line of function name.<br/>
+  This is from K&R style, but it allows finding function implementations much easier with `grep` or text editor's search tools.
+- Function return type and function name at the same line.<br/>
+  For the same reason as above.
+
+## Balance between line-of-code and readability
+Modern text editors are flexible at automatically wrapping text lines.
+It is not necessary for programmers to wrap code lines just to make it look pretty with the assumption on width of display.
+
+You can still do line wrapping, but only for readability reason.
+And it is ok to not doing line wrapping at all.
+
+Use the command to have an estimation on line-of-code:
+~~~shell
+git ls-files | egrep -v '^(docs|examples)' | xargs wc -l
+~~~
+
+## Function and variable naming
+- C functions and variables are in all lower case (aka. [snake case](https://en.wikipedia.org/wiki/Snake_case)).
+
+- Avoid abbreviations and always choose an **unique** name for any global symbol name.
+
+- C++ code uses [CamelCase](https://en.wikipedia.org/wiki/Camel_case) for classes and methods.<br/>
+  For unit-testing code, underscore is forbidden by Googletest.
+
+## Code Modularity
+The original LPMud code base uses a lot of **global variables** in C code, making it difficult to refactor or extend the driver code.
+Neolith tried to enhance code modularity by removing unnecessary global variables or make them static whenever possible.
+
+Some MudOS-forked projects such as [FluffOS](https://github.com/fluffos/fluffos) has managed to build the driver's C code with C++ compiler.
+However, the problem of lacking modularity still exists.
+
+In Neolith, we take another bottom-up approach:
+- Start with improving **C code modularity** by separating the driver code into smaller static libraries.
+  - Clarify dependencies of each static libraries.
+  - Re-organize C code to create small modules with clear boundaries and exposes just-enough interfaces.
+- Fortify the **architecture** of driver by cascading `init_*()`/`deinit_*()` sequence.
+  - Introduce of `get_machine_state()` to indicate availability of essential modules.
+  - Add **tear down** code for essential modules and verify graceful tear down with trace logs.
+- Add C++ unit-testing code using Googletest framework.
+  - Test modularity by creating "stem" (minimal runtime setup for testee) as **test fixtures**.
+  - Refactor rarely used code, merge or remove redundant code to minimize module interfaces.
+  - Add documentations for essential functions.
+
+Eventually, as the name "Neolith" implies, we shall migrate LPMud Driver to **modern C++** constructs and take advantage of new language features and more advanced compilers. (Not simply compile C code with C++ compiler)
+
 # Documentations
 
 Neolith's documentations are written in [Markdown](https://en.wikipedia.org/wiki/Markdown) format (&ast;.md) for easier reading on github.
@@ -8,6 +61,23 @@ If you use Windows + WSL as your development environment, the Visual Studio Code
 If you use something else, you may also read these markdown documents with the [mdless](https://github.com/ttscoff/mdless) tool in shell.
 
 Note that Neolith documentation may use some Github Flavored Markdown syntax that may not display correctly in other viewers.  
+
+## Inline Function Documentations
+Neolith prefers adding doxygen-style inline function documentations within the source code.
+It enables modern code editors like Visual Studio Code to show brief function descriptions when moving your mouse cursor over the function name.
+
+Below is an example of inline function documentation:
+~~~cxx
+/**
+ * @brief Sum two integers.
+ * @param a first number.
+ * @param b second number.
+ * @returns Returns sum of a and b.
+ */
+int sum (int a, int b) {
+    return a + b;
+}
+~~~
 
 # Debug Logs
 
