@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "src/regexp.h"
+#include "regexp.h"
 #include "sscanf.h"
 
 #ifdef HAVE_STRTOD
