@@ -2,12 +2,12 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "disassemble.h"
+#include "src/std.h"
 #include "lpc/program.h"
 #include "lpc/include/function.h"
-#include "src/std.h"
 #include "src/interpret.h"
 #include "src/simul_efun.h"
+#include "disassemble.h"
 
 static char *
 disassem_string (char *str)
@@ -38,8 +38,8 @@ disassem_string (char *str)
   return buf;
 }
 
-#define NUM_FUNS prog->num_functions_total
-#define NUM_FUNS_D prog->num_functions_defined
+#define NUM_FUNS(pp)    ((pp)->num_functions_total)
+#define NUM_FUNS_D(pp)  ((pp)->num_functions_defined)
 #define VARS     prog->variable_names
 #define NUM_VARS prog->num_variables_total
 #define STRS     prog->strings
@@ -67,12 +67,15 @@ disassemble (FILE * f, char *code, int start, int end, program_t * prog)
   int next_func;
 
   short *offsets;
+  size_t offsets_tbl_size = NUM_FUNS_D(prog) * 2 * sizeof (short);
 
+  if (!NUM_FUNS_D(prog))
+    return;
   if (start == 0)
     {
       /* sort offsets of functions */
-      offsets = (short *) malloc (NUM_FUNS_D * 2 * sizeof (short));
-      for (i = 0; i < (int) NUM_FUNS_D; i++)
+      offsets = (short *) malloc (offsets_tbl_size);
+      for (i = 0; i < (int) NUM_FUNS_D(prog); i++)
         {
           if (prog->function_flags[prog->function_table[i].runtime_index]
               & (NAME_INHERITED | NAME_NO_CODE))
@@ -82,11 +85,10 @@ disassemble (FILE * f, char *code, int start, int end, program_t * prog)
           offsets[i * 2 + 1] = i;
         }
 #ifdef _SEQUENT_
-      qsort ((void *) &offsets[0],
+      qsort ((void *) &offsets[0], NUM_FUNS_D(prog), sizeof (short) * 2, short_compare);
 #else
-      qsort ((char *) &offsets[0],
+      qsort ((char *) &offsets[0], NUM_FUNS_D(prog), sizeof (short) * 2, short_compare);
 #endif
-             NUM_FUNS_D, sizeof (short) * 2, short_compare);
       next_func = 0;
     }
   else
@@ -104,7 +106,7 @@ disassemble (FILE * f, char *code, int start, int end, program_t * prog)
           fprintf (f, "\n;; Function %s\n",
                    prog->function_table[offsets[next_func + 1]].name);
           next_func += 2;
-          if (next_func >= ((int) NUM_FUNS_D * 2))
+          if (next_func >= ((int) NUM_FUNS_D(prog)) * 2)
             next_func = -1;
         }
 
@@ -234,7 +236,7 @@ disassemble (FILE * f, char *code, int start, int end, program_t * prog)
         case F_CALL_FUNCTION_BY_ADDRESS:
           COPY_SHORT (&sarg, pc);
           pc += 3;
-          if (sarg < NUM_FUNS)
+          if (sarg < NUM_FUNS(prog))
             sprintf (buff, "%-12s %5d", function_name (prog, sarg),
                      (int) sarg);
           else
@@ -337,7 +339,7 @@ disassemble (FILE * f, char *code, int start, int end, program_t * prog)
               break;
             case FP_LOCAL:
               LOAD_SHORT (sarg, pc);
-              if (sarg < NUM_FUNS)
+              if (sarg < NUM_FUNS(prog))
                 sprintf (buff, "<local_fun> %s", function_name (prog, sarg));
               else
                 sprintf (buff, "<local_fun> <out of range %d>", (int) sarg);
