@@ -25,6 +25,7 @@
 #include "socket/socket_efuns.h"
 #include "efuns/ed.h"
 #include "efuns/file_utils.h"
+#include "efuns/replace_program.h"
 #include "efuns/sprintf.h"
 
 #include <stdarg.h>
@@ -1165,6 +1166,22 @@ destruct2 (object_t * ob)
     }
   free_object (ob, "destruct_object");
 }
+
+/* All destructed objects are moved into a sperate linked list,
+ * and deallocated after program execution.  */
+
+void remove_destructed_objects () {
+  object_t *ob, *next;
+
+  if (obj_list_replace)
+    replace_programs ();
+  for (ob = obj_list_destruct; ob; ob = next)
+    {
+      next = ob->next_all;
+      destruct2 (ob);
+    }
+  obj_list_destruct = 0;
+}				/* remove_destructed_objects() */
 
 /*
  * say() efun - send a message to:
