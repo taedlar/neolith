@@ -22,7 +22,7 @@
 static int otable_size;
 static int otable_size_minus_one;
 
-static object_t *find_obj_n (char *);
+static object_t *find_obj_n (const char *);
 
 /*
  * Object hash function, ripped off from stralloc.c.
@@ -73,8 +73,7 @@ static int obj_searches = 0, obj_probes = 0, objs_found = 0;
 /* A global.  *shhhh* don't tell. */
 static int h;
 
-static object_t *
-find_obj_n (char *s)
+static object_t *find_obj_n (const char *s)
 {
   object_t *curr, *prev;
 

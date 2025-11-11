@@ -16,21 +16,20 @@ typedef struct mapping_node_block_s {
 } mapping_node_block_t;
 
 #define MAX_TABLE_SIZE 32768
-#define MAP_HASH_TABLE_SIZE 8	/* must be a power of 2 */
-#define FILL_PERCENT 80		/* must not be larger than 99 */
+#define MAP_HASH_TABLE_SIZE 8   /* must be a power of 2 */
+#define FILL_PERCENT 80         /* must not be larger than 99 */
 
 #define MAPSIZE(size) sizeof(mapping_t)
 
 struct mapping_s {
-    unsigned short ref;		/* how many times this map has been
-				 * referenced */
+    unsigned short ref;         /* how many times this map has been referenced */
 #ifdef DEBUG
     int extra_ref;
 #endif
-    mapping_node_t **table;	/* the hash table */
-    unsigned short table_size;	/* # of buckets in hash table == power of 2 */
-    unsigned short unfilled;	/* # of buckets among 80% of total buckets that do not have entries */
-    int count;			/* total # of nodes actually in mapping  */
+    mapping_node_t **table;     /* the hash table */
+    unsigned short table_size;  /* # of buckets in hash table == power of 2 */
+    unsigned short unfilled;    /* # of buckets among 80% of total buckets that do not have entries */
+    int count;                  /* total # of nodes actually in mapping  */
 };
 
 typedef struct finfo_s {
@@ -49,8 +48,7 @@ typedef struct minfo_s {
     mapping_t *map, *newmap;
 }       minfo_t;
 
-#define mapping_too_large() \
-    error("Mapping too large.\n");
+#define mapping_too_large()     error("Mapping too large.\n");
 
 #ifndef max
 #define max(x,y) ((x) > (y)) ? (x) : (y)

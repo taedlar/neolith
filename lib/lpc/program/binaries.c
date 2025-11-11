@@ -32,7 +32,7 @@ static FILE *crdir_fopen(char *);
 static void patch_out (program_t *, short *, int);
 static void patch_in (program_t *, short *, int);
 static int str_case_cmp (char *, char *);
-static int check_times (time_t, char *);
+static int check_times (time_t, const char *);
 static int locate_in (program_t *);
 static int locate_out (program_t *);
 
@@ -341,8 +341,7 @@ sort_function_table (program_t * prog)
 /* crude hack to check both .B and .b */
 #define OUT_OF_DATE 0
 
-program_t *
-int_load_binary (char *name)
+program_t *int_load_binary (const char *name)
 {
   char file_name_buf[400];
   char *buf, *iname, *file_name = file_name_buf, *file_name_two =
@@ -704,7 +703,7 @@ init_binaries ()
  * 0 if out of date, and 1 if it's ok.
  */
 static int
-check_times (time_t mtime, char *nm)
+check_times (time_t mtime, const char *nm)
 {
   struct stat st;
 

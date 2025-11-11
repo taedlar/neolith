@@ -23,32 +23,32 @@ typedef struct {
 /* NUMPAREAS ares are saved with the program code after compilation,
  * the rest are only temporary.
  */
-#define A_PROGRAM		0	/* executable code */
-#define A_RUNTIME_FUNCTIONS	1	/* table of functions */
+#define A_PROGRAM               0	/* executable code */
+#define A_RUNTIME_FUNCTIONS     1	/* table of functions */
 #define A_COMPILER_FUNCTIONS    2
-#define A_RUNTIME_COMPRESSED	3
-#define A_FUNCTION_FLAGS	4
-#define A_STRINGS		5	/* table of strings */
-#define A_VAR_NAME		6
-#define A_VAR_TYPE		7
-#define A_LINENUMBERS		8	/* linenumber information */
-#define A_FILE_INFO             9       /* start of file line nos */
-#define A_INHERITS		10	/* table of inherited progs */
+#define A_RUNTIME_COMPRESSED    3
+#define A_FUNCTION_FLAGS        4
+#define A_STRINGS               5	/* table of strings */
+#define A_VAR_NAME              6
+#define A_VAR_TYPE              7
+#define A_LINENUMBERS           8	/* linenumber information */
+#define A_FILE_INFO             9   /* start of file line nos */
+#define A_INHERITS              10	/* table of inherited progs */
 #define A_CLASS_DEF             11
 #define A_CLASS_MEMBER          12
-#define A_ARGUMENT_TYPES	13	/* */
-#define A_ARGUMENT_INDEX	14	/* */
-#define NUMPAREAS		15
-#define A_CASES                 15      /* keep track of cases */
-#define A_STRING_NEXT		16	/* next prog string in hash chain */
-#define A_STRING_REFS		17	/* reference count of prog string */
-#define A_INCLUDES		18	/* list of included files */
-#define A_PATCH			19	/* for save_binary() */
+#define A_ARGUMENT_TYPES        13	/* */
+#define A_ARGUMENT_INDEX        14	/* */
+#define NUMPAREAS               15
+#define A_CASES                 15  /* keep track of cases */
+#define A_STRING_NEXT           16	/* next prog string in hash chain */
+#define A_STRING_REFS           17	/* reference count of prog string */
+#define A_INCLUDES              18	/* list of included files */
+#define A_PATCH                 19	/* for save_binary() */
 #define A_INITIALIZER           20
 #define A_FUNCTIONALS           21
-#define A_FUNCTION_DEFS		22
-#define A_VAR_TEMP	        23	/* table of variables */
-#define NUMAREAS		24
+#define A_FUNCTION_DEFS         22
+#define A_VAR_TEMP              23	/* table of variables */
+#define NUMAREAS                24
 
 #define CURRENT_PROGRAM_SIZE (prog_code - mem_block[current_block].block)
 #define UPDATE_PROGRAM_SIZE mem_block[current_block].current_size = CURRENT_PROGRAM_SIZE
@@ -81,7 +81,7 @@ extern char *compiler_type_names[];
 #define SWITCH_DEFAULT          0x10
 #define SWITCH_RANGES           0x20
 #define LOOP_FOREACH            0x40
-#define SPECIAL_CONTEXT		0x80
+#define SPECIAL_CONTEXT         0x80
 
 typedef struct function_context_s {
     parse_node_t *values_list;
@@ -123,11 +123,11 @@ extern int var_defined;
 
 #define NUM_INHERITS (mem_block[A_INHERITS].current_size / sizeof(inherit_t))
 
-#define INHERIT(n)  ((inherit_t *)mem_block[A_INHERITS].block + (n))
-#define VAR_TEMP(n) ((variable_t *)mem_block[A_VAR_TEMP].block + (n))
-#define SIMUL(n)    (simuls[n].func)
-#define PROG_STRING(n)   (((char **)mem_block[A_STRINGS].block)[n])
-#define CLASS(n)    ((class_def_t *)mem_block[A_CLASS_DEF].block + (n))
+#define INHERIT(n)      ((inherit_t *)mem_block[A_INHERITS].block + (n))
+#define VAR_TEMP(n)     ((variable_t *)mem_block[A_VAR_TEMP].block + (n))
+#define SIMUL(n)        (simuls[n].func)
+#define PROG_STRING(n)  (((char **)mem_block[A_STRINGS].block)[n])
+#define CLASS(n)        ((class_def_t *)mem_block[A_CLASS_DEF].block + (n))
 
 #if !defined(__alpha) && !defined(cray)
 #define align(x) (((x) + 3) & ~3)
@@ -151,8 +151,6 @@ extern int current_type;
 extern int current_block;
 extern char *prog_code;
 extern char *prog_code_max;
-extern unsigned char string_tags[0x20];
-extern short freed_string;
 extern ident_hash_elem_t **locals;
 extern unsigned short *type_of_locals;
 extern char *runtime_locals;
@@ -164,8 +162,6 @@ extern char *runtime_locals_ptr;
 
 extern int type_of_locals_size;
 extern int locals_size;
-extern unsigned short a_functions_root;
-extern mem_block_t type_of_arguments;
 extern short compatible[11];
 extern short is_type[11];
 

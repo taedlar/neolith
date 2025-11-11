@@ -3571,8 +3571,7 @@ lname_linked_buf_t *lnamebuf = 0;
 
 int lb_index = 4096;
 
-static char *
-alloc_local_name (char *name)
+static char *alloc_local_name (const char *name)
 {
   int len = strlen (name) + 1;
   char *res;
@@ -3582,7 +3581,7 @@ alloc_local_name (char *name)
       lname_linked_buf_t *new_buf;
       new_buf = ALLOCATE (lname_linked_buf_t, TAG_COMPILER, "alloc_local_name");
       new_buf->next = lnamebuf;
-      lnamebuf = new_buf;
+      lnamebuf = new_buf; /* add to head of list */
       lb_index = 0;
     }
   res = &(lnamebuf->block[lb_index]);
