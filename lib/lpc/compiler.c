@@ -68,8 +68,8 @@ static program_t NULL_program;
 program_t *prog;
 
 static short string_idx[0x100];
-unsigned char string_tags[0x20];
-short freed_string;
+static unsigned char string_tags[0x20];
+static short freed_string;
 
 size_t num_local_variables_allowed = 0;
 

@@ -52,21 +52,21 @@
  * NAME_ALIAS     - This entry refers us to another entry, usually because
                     this function was overloaded by that function
  */
-#define NAME_INHERITED		0x1
-#define NAME_UNDEFINED		0x2
-#define NAME_STRICT_TYPES	0x4
-#define NAME_PROTOTYPE		0x8
-#define NAME_DEF_BY_INHERIT     0x10
-#define NAME_ALIAS              0x20
-#define NAME_TRUE_VARARGS       0x40
+#define NAME_INHERITED      0x1
+#define NAME_UNDEFINED      0x2
+#define NAME_STRICT_TYPES   0x4
+#define NAME_PROTOTYPE      0x8
+#define NAME_DEF_BY_INHERIT 0x10
+#define NAME_ALIAS          0x20
+#define NAME_TRUE_VARARGS   0x40
 
 #define NAME_HIDDEN	        0x0100  /* used by private vars */
-#define NAME_STATIC		0x0200	/* Static function or variable */
-#define NAME_NO_MASK		0x0400	/* The nomask => not redefineable */
-#define NAME_PRIVATE		0x0800	/* Can't be inherited */
-#define NAME_PROTECTED		0x1000
-#define NAME_PUBLIC		0x2000	/* Force inherit through private */
-#define NAME_VARARGS		0x4000	/* Used for type checking */
+#define NAME_STATIC	        0x0200	/* Static function or variable */
+#define NAME_NO_MASK        0x0400	/* The nomask => not redefineable */
+#define NAME_PRIVATE        0x0800	/* Can't be inherited */
+#define NAME_PROTECTED      0x1000
+#define NAME_PUBLIC         0x2000	/* Force inherit through private */
+#define NAME_VARARGS        0x4000	/* Used for type checking */
 
 #define NAME_TYPE_MOD		(NAME_HIDDEN | NAME_STATIC | NAME_NO_MASK | NAME_PRIVATE | NAME_PROTECTED | NAME_PUBLIC | NAME_VARARGS)
 /* only the flags that should be copied up through inheritance levels */
@@ -78,8 +78,8 @@
 /*
  * These are or'ed in on top of the basic type.
  */
-#define TYPE_MOD_ARRAY   	0x0020	/* Pointer to a basic type */
-#define TYPE_MOD_CLASS          0x0040  /* a class */
+#define TYPE_MOD_ARRAY      0x0020	/* Pointer to a basic type */
+#define TYPE_MOD_CLASS      0x0040  /* a class */
 
 typedef struct
 {
@@ -168,12 +168,12 @@ inherit_t;
 
 struct program_s
 {
-    char *name;			/* Name of file that defined prog */
+    char *name;	                /* Name of file that defined prog */
     int flags;
-    unsigned short ref;			/* Reference count */
+    unsigned short ref;	        /* Reference count */
     unsigned short func_ref;
-    char *program;		/* The binary instructions */
-    int id_number;		/* used to associate information with this
+    char *program;              /* The binary instructions */
+    int id_number;              /* used to associate information with this
                                  * prog block without needing to increase the
                                  * reference count     */
     unsigned char *line_info;   /* Line number information */
@@ -186,13 +186,12 @@ struct program_s
 #endif
     class_def_t *classes;
     class_member_entry_t *class_members;
-    char **strings;		/* All strings uses by the program */
-    char **variable_table;	/* variables defined by this program */
+    char **strings;	        /* All strings uses by the program */
+    char **variable_table;  /* variables defined by this program */
     unsigned short *variable_types;	/* variables defined by this program */
-    inherit_t *inherit;	/* List of inherited prgms */
-    int total_size;		/* Sum of all data in this struct */
-    int heart_beat;		/* Index of the heart beat function. -1 means
-                                 * no heart beat */
+    inherit_t *inherit;     /* List of inherited prgms */
+    int total_size;	        /* Sum of all data in this struct */
+    int heart_beat;	        /* Index of the heart beat function. -1 means no heart beat */
     /*
      * The types of function arguments are saved where 'argument_types'
      * points. It can be a variable number of arguments, so allocation is
@@ -204,12 +203,12 @@ struct program_s
      * length (16 bits) of 'type_start' (sorry !).
      */
     unsigned short *argument_types;
-#define INDEX_START_NONE		65535
+#define INDEX_START_NONE    65535
     unsigned short *type_start;
     /*
      * And now some general size information.
      */
-    unsigned short program_size;/* size of this instruction code */
+    unsigned short program_size;    /* size of this instruction code */
     unsigned short num_classes;
     unsigned short num_functions_total;
     unsigned short num_functions_defined;

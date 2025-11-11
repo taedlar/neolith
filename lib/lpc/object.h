@@ -13,20 +13,20 @@
  *		for a number of reset periods.
  */
 
-#define MAX_OBJECT_NAME_SIZE	2048
+#define MAX_OBJECT_NAME_SIZE    2048
 
-#define O_HEART_BEAT		0x0001	/* Does it have an heart beat ?      */
-#define O_IS_WIZARD		0x0002	/* used to be O_IS_WIZARD            */
+#define O_HEART_BEAT            0x0001	/* Does it have an heart beat ?      */
+#define O_IS_WIZARD             0x0002	/* used to be O_IS_WIZARD            */
 #define O_LISTENER              0x0004	/* can hear say(), etc */
-#define O_ENABLE_COMMANDS	0x0004	/* Can it execute commands ?         */
-#define O_CLONE			0x0008	/* Is it cloned from a master copy ? */
-#define O_DESTRUCTED		0x0010	/* Is it destructed ?                */
+#define O_ENABLE_COMMANDS       0x0004	/* Can it execute commands ?         */
+#define O_CLONE                 0x0008	/* Is it cloned from a master copy ? */
+#define O_DESTRUCTED            0x0010	/* Is it destructed ?                */
 /* #define O_SWAPPED		0x0020	   Is it swapped to file             */
-#define O_ONCE_INTERACTIVE	0x0040	/* Has it ever been interactive ?    */
-#define O_RESET_STATE		0x0080	/* Object in a 'reset':ed state ?    */
-#define O_WILL_CLEAN_UP		0x0100	/* clean_up will be called next time */
-#define O_VIRTUAL		0x0200	/* We're a virtual object            */
-#define O_HIDDEN		0x0400	/* We're hidden from nonprived objs  */
+#define O_ONCE_INTERACTIVE      0x0040	/* Has it ever been interactive ?    */
+#define O_RESET_STATE           0x0080	/* Object in a 'reset':ed state ?    */
+#define O_WILL_CLEAN_UP         0x0100	/* clean_up will be called next time */
+#define O_VIRTUAL               0x0200	/* We're a virtual object            */
+#define O_HIDDEN                0x0400	/* We're hidden from nonprived objs  */
 #define O_EFUN_SOCKET           0x0800	/* efun socket references object     */
 #define O_WILL_RESET            0x1000	/* reset will be called next time    */
 #define O_UNUSED                0x8000
@@ -38,8 +38,8 @@
 struct sentence_s {
     char *verb;
     struct sentence_s *next;
-    object_t		*ob;
-    string_or_func_t	function;
+    object_t *ob;
+    string_or_func_t function;
     int flags;
 };
 
