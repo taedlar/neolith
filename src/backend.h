@@ -16,7 +16,6 @@ extern void preload_objects(int);
 extern void backend(void);
 
 extern void logon(object_t *);
-extern int parse_command(char *, object_t *);
 
 extern int set_heart_beat(object_t *, int);
 extern int query_heart_beat(object_t *);

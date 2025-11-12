@@ -29,6 +29,7 @@ void enable_commands(int);
 void add_action(svalue_t *, char *, int);
 int remove_action(char *, char *);
 void free_sentence(sentence_t *);
+int process_comand(char *, object_t *);
 
 int input_to(svalue_t *, int, int, svalue_t *);
 int get_char(svalue_t *, int, int, svalue_t *);

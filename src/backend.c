@@ -60,35 +60,6 @@ logon (object_t * ob)
   /* function not existing is no longer fatal */
 }
 
-/*
- * Take a user command and parse it.
- * The command can also come from a NPC.
- * Beware that 'str' can be modified and extended !
- */
-int
-parse_command (char *str, object_t * ob)
-{
-  object_t *save = command_giver;
-  int res;
-
-  /* disallow users to issue commands containing ansi escape codes */
-#if defined(NO_ANSI) && !defined(STRIP_BEFORE_PROCESS_INPUT)
-  char *c;
-
-  for (c = str; *c; c++)
-    {
-      if (*c == 27)
-        {
-          *c = ' ';		/* replace ESC with ' ' */
-        }
-    }
-#endif
-  command_giver = ob;
-  res = user_parser (str);
-  command_giver = save;
-  return (res);
-}				/* parse_command() */
-
 /*  backend()
  */
 size_t eval_cost = 0;
