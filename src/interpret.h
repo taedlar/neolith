@@ -268,19 +268,21 @@ const char *type_name(int c);
 void bad_arg(int, int) NO_RETURN;
 void bad_argument(svalue_t *, int, int, int) NO_RETURN;
 void check_for_destr(array_t *);
-int is_static(char *, object_t *);
+#ifndef NO_SHADOWS
+int is_static(const char *, object_t *);
+#endif
 int apply_low(const char *, object_t *, int);
 void clear_apply_cache(void);
-svalue_t *apply(char *, object_t *, int, int);
+svalue_t *apply(const char *, object_t *, int, int);
 svalue_t *call_function_pointer(funptr_t *, int);
 svalue_t *safe_call_function_pointer(funptr_t *, int);
-svalue_t *safe_apply(char *, object_t *, int, int);
+svalue_t *safe_apply(const char *, object_t *, int, int);
 void call___INIT(object_t *);
-array_t *call_all_other(array_t *, char *, int);
-char *function_exists(char *, object_t *, int);
+array_t *call_all_other(array_t *, const char *, int);
+char *function_exists(const char *, object_t *, int);
 void call_function(program_t *, int);
-svalue_t *apply_master_ob(char *, int);
-svalue_t *safe_apply_master_ob(char *, int);
+svalue_t *apply_master_ob(const char *, int);
+svalue_t *safe_apply_master_ob(const char *, int);
 void init_master(const char *);
 void mark_apply_low_cache(void);
 

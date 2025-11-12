@@ -1191,15 +1191,15 @@ process_user_command ()
                   if (ret && ret->type == T_STRING)
                     {
                       strncpy (buf, ret->u.string, MAX_TEXT - 1);
-                      parse_command (buf, command_giver);
+                      process_comand (buf, command_giver);
                     }
                   else if (!ret || ret->type != T_NUMBER || !ret->u.number)
                     {
-                      parse_command (tbuf + 1, command_giver);
+                      process_comand (tbuf + 1, command_giver);
                     }
                 }
               else
-                parse_command (tbuf + 1, command_giver);
+                process_comand (tbuf + 1, command_giver);
             }
 #ifdef OLD_ED
         }
@@ -1230,15 +1230,15 @@ process_user_command ()
               if (ret && ret->type == T_STRING)
                 {
                   strncpy (buf, ret->u.string, MAX_TEXT - 1);
-                  parse_command (buf, command_giver);
+                  process_comand (buf, command_giver);
                 }
               else if (!ret || ret->type != T_NUMBER || !ret->u.number)
                 {
-                  parse_command (tbuf, command_giver);
+                  process_comand (tbuf, command_giver);
                 }
             }
           else
-            parse_command (tbuf, command_giver);
+            process_comand (tbuf, command_giver);
         }
       VALIDATE_IP (ip, command_giver);
       /*

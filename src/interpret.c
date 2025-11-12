@@ -4071,7 +4071,7 @@ static cache_entry_t cache[APPLY_CACHE_SIZE] = {0};
 static program_t *ffbn_recurse (program_t *, char *, int *, int *);
 
 static program_t *
-find_function_by_name (object_t * ob, char *name, int *index, int *runtime_index)
+find_function_by_name (object_t * ob, const char *name, int *index, int *runtime_index)
 {
   char *funname = findstring (name);
 
@@ -4328,8 +4328,7 @@ void clear_apply_cache (void) {
  * are deallocated.
  */
 
-svalue_t *
-apply (char *fun, object_t * ob, int num_arg, int where)
+svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
 {
   IF_DEBUG (svalue_t * expected_sp);
 
@@ -4396,8 +4395,7 @@ call___INIT (object_t * ob)
  * compared to a normal apply().  Use sparingly.
  */
 
-svalue_t *
-safe_apply (char *fun, object_t * ob, int num_arg, int where)
+svalue_t *safe_apply (const char *fun, object_t * ob, int num_arg, int where)
 {
   svalue_t *ret;
   error_context_t econ;
@@ -4426,8 +4424,7 @@ safe_apply (char *fun, object_t * ob, int num_arg, int where)
 /*
  * Call a function in all objects in an array.
  */
-array_t *
-call_all_other (array_t * v, char *func, int numargs)
+array_t *call_all_other (array_t * v, const char *func, int numargs)
 {
   int size;
   svalue_t *tmp, *vptr, *rptr;
@@ -4602,7 +4599,7 @@ function_name (program_t * prog, int index)
  * it's faster to just try to call it and check if apply() returns zero.
  */
 char *
-function_exists (char *fun, object_t * ob, int flag)
+function_exists (const char *fun, object_t * ob, int flag)
 {
   int index, runtime_index;
   program_t *prog;
@@ -4633,7 +4630,7 @@ function_exists (char *fun, object_t * ob, int flag)
    0 otherwise.
    */
 int
-is_static (char *fun, object_t * ob)
+is_static (const char *fun, object_t * ob)
 {
   int index;
   int runtime_index;
@@ -4778,8 +4775,7 @@ int get_machine_state()
  * means that we haven't gotten to loading the master object yet in main.c.
  * In that case, the check should succeed.
  */
-svalue_t *
-apply_master_ob (char *fun, int num_arg)
+svalue_t *apply_master_ob (const char *fun, int num_arg)
 {
   if (NULL == master_ob)
     {
@@ -4798,8 +4794,7 @@ apply_master_ob (char *fun, int num_arg)
   return &apply_ret_value;
 }
 
-svalue_t *
-safe_apply_master_ob (char *fun, int num_arg)
+svalue_t *safe_apply_master_ob (const char *fun, int num_arg)
 {
   if (!master_ob)
     {
