@@ -137,7 +137,7 @@ int main (int argc, char **argv) {
       init_master (CONFIG_STR (__MASTER_FILE__));
 
       debug_message ("{}\t----- epilogue -----");
-      preload_objects (0); /* do epilog() and preload() master applies */
+      preload_objects (MAIN_OPTION(epilog_level)); /* do epilog() and preload() master applies */
     }
   pop_context (&econ);
 
@@ -202,6 +202,9 @@ parse_argument (int key, char *arg, struct argp_state *state)
     case 'd':
       MAIN_OPTION(debug_level) = atoi (arg);
       break;
+    case 'e':
+      MAIN_OPTION(epilog_level) = atoi (arg);
+      break;
     case 't':
       MAIN_OPTION(trace_flags) = strtoul (arg, NULL, 0);
       break;
@@ -220,6 +223,7 @@ parse_command_line (int argc, char *argv[])
     {.name = NULL, 'f', "config-file", 0, "Specifies the file path of the configuration file."},
     {.name = NULL, 'D', "macro[=definition]", 0, "Predefines global preprocessor macro for use in mudlib."},
     {.name = "debug", 'd', "debug-level", 0, "Specifies the runtime debug level."},
+    {.name = "epilog", 'e', "epilog-level", 0, "Specifies the epilog level to be passed to the master object."},
     {.name = "trace", 't', "trace-flags", 0, "Specifies an integer of trace flags to enable trace messages in debug log."},
     {0}
   };
@@ -234,7 +238,7 @@ parse_command_line (int argc, char *argv[])
 #else /* ! HAVE_ARGP_H */
   int c;
 
-  while ((c = getopt (argc, argv, "f:d:D:t:")) != -1)
+  while ((c = getopt (argc, argv, "f:d:D:t:e:")) != -1)
     {
       switch (c)
         {
@@ -247,6 +251,9 @@ parse_command_line (int argc, char *argv[])
           break;
         case 'd':
           MAIN_OPTION(debug_level) = atoi (optarg);
+          break;
+        case 'e':
+          MAIN_OPTION(epilog_level) = atoi (optarg);
           break;
         case 'D':
           {

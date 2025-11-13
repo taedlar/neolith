@@ -55,17 +55,9 @@ protected:
 };
 
 TEST_F(BackendTest, preload) {
-    error_context_t econ;
-    save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        FAIL() << "Failed to preload objects.";
-    }
-    else {
-        ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
-        init_master ("/master.c");
-        preload_objects (0);
-        destruct_object(master_ob);
-    }
-    pop_context (&econ);
+    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    init_master ("/master.c");
+    // any error during preload_objects() will be caught.
+    EXPECT_NO_THROW(preload_objects (0)) << "preload_objects() threw an exception";
+    destruct_object(master_ob);
 }

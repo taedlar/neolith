@@ -26,7 +26,9 @@ int heart_beat_flag = 0;
 
 object_t *current_heart_beat;
 
+#ifdef HAVE_LIBRT
 static timer_t hb_timerid = 0; /* heart beat timer id */
+#endif
 
 static void look_for_objects_to_swap (void);
 static void call_heart_beat (void);
@@ -144,57 +146,57 @@ backend ()
   pop_context (&econ);
 }
 
-/*
- * Despite the name, this routine takes care of several things.
- * It will loop through all objects once every 15 minutes.
+/**
+ *  @brief Despite the name, this routine takes care of several things.
+ *      It will loop through all objects once every 15 minutes.
  *
- * If an object is found in a state of not having done reset, and the
- * delay to next reset has passed, then reset() will be done.
+ *      If an object is found in a state of not having done reset, and the
+ *      delay to next reset has passed, then reset() will be done.
  *
- * If the object has a existed more than the time limit given for swapping,
- * then 'clean_up' will first be called in the object, after which it will
- * be swapped out if it still exists.
+ *      If the object has a existed more than the time limit given for swapping,
+ *      then 'clean_up' will first be called in the object, after which it will
+ *      be swapped out if it still exists.
  *
- * There are some problems if the object self-destructs in clean_up, so
- * special care has to be taken of how the linked list is used.
-*/
-static void
-look_for_objects_to_swap ()
-{
+ *      There are some problems if the object self-destructs in clean_up, so
+ *      special care has to be taken of how the linked list is used.
+ */
+static void look_for_objects_to_swap () {
   static time_t next_time;
+  object_t* next_ob;
   object_t *ob;
-  static object_t *next_ob;
   error_context_t econ;
 
   if (current_time < next_time)	/* Not time to look yet */
     return;
   next_time = current_time + 15 * 60;	/* Next time is in 15 minutes */
 
-  /*
-   * Objects can be destructed, which means that next object to
-   * look at is saved in next_ob. If very unlucky, that object can be
-   * destructed too. In that case, the loop is simply restarted.
-   */
-  next_ob = obj_list;
 
   save_context (&econ);
   if (setjmp (econ.context))
     restore_context (&econ); /* catch errors in reset() or clean_up() */
 
-  while ((ob = (object_t *) next_ob))
+  for (ob = obj_list; ob; ob = next_ob)
     {
-      int ref_time = ob->time_of_ref;
+      int ref_time;
 
-      eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-
+      /*
+       * Objects can be destructed, which means that next object to
+       * look at (saved in next_ob) may be removed from obj_list.
+       * In that case, the loop is simply restarted.
+       */
       if (ob->flags & O_DESTRUCTED)
-        ob = obj_list;		/* restart */
+        {
+          ob = obj_list;
+          if (!ob)
+            break;
+        }
       next_ob = ob->next_all;
+      ref_time = ob->time_of_ref;
+      eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
 
       /*
        * Check reference time before reset() is called.
        */
-
 #ifndef LAZY_RESETS
       /* Should this object have reset(1) called ? */
       if ((ob->flags & O_WILL_RESET) && (ob->next_reset < current_time)
@@ -216,8 +218,7 @@ look_for_objects_to_swap ()
            * again.
            */
 
-          if (current_time - ref_time >
-              CONFIG_INT (__TIME_TO_CLEAN_UP__)
+          if (current_time - ref_time > CONFIG_INT (__TIME_TO_CLEAN_UP__)
               && (ob->flags & O_WILL_CLEAN_UP))
             {
               int save_reset_state = ob->flags & O_RESET_STATE;
@@ -230,7 +231,6 @@ look_for_objects_to_swap ()
                * have a ref count > 1 (and will have an invalid ob->prog
                * pointer).
                */
-
               push_number ((ob->flags & O_CLONE) ? 0 : ob->prog->ref);
               svp = apply (APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
               if (ob->flags & O_DESTRUCTED)
@@ -474,16 +474,15 @@ heart_beat_status (outbuffer_t * ob, int verbose)
   return (0);
 }				/* heart_beat_status() */
 
-/* New version used when not in -o mode. The epilog() in master.c is
- * supposed to return an array of files (castles in 2.4.5) to load. The array
- * returned by apply() will be freed at next call of apply(), which means that
- * the ref count has to be incremented to protect against deallocation.
- *
- * The master object is asked to do the actual loading.
- */
-void
-preload_objects (int eflag)
-{
+/**
+  * @brief New version used when not in -o mode. The epilog() in master.c is
+  *     supposed to return an array of files (castles in 2.4.5) to load. The array
+  *     returned by apply() will be freed at next call of apply(), which means that
+  *     the ref count has to be incremented to protect against deallocation.
+  *
+  *     The master object is asked to do the actual loading.
+  */
+void preload_objects (int eflag) {
   array_t *prefiles;
   svalue_t *ret;
   volatile int ix;
@@ -525,8 +524,7 @@ preload_objects (int eflag)
       if (prefiles->item[ix].type != T_STRING)
         continue;
 
-      eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-      /* debug_message(_("preloading %s\n"), prefiles->item[ix].u.string); */
+      eval_cost = CONFIG_INT (__MAX_EVAL_COST__);   /* prevents infinite loops */
 
       push_svalue (prefiles->item + ix);
       (void) apply_master_ob (APPLY_PRELOAD, 1);
