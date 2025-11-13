@@ -33,21 +33,20 @@
 #define FRAME_EXTERNAL     8
 
 typedef struct {
-    short framekind;
+    short framekind;            /* see above FRAME_**/
     union {
         int table_index;
         funptr_t *funp;
     } fr;
-    object_t *ob;		/* Current object */
-    object_t *prev_ob;	/* Save previous object */
-    program_t *prog;	/* Current program */
-    int num_local_variables;	/* Local + arguments */
-    char *pc;
-    svalue_t *fp;
-    int function_index_offset;	/* Used when executing functions in inherited
-                                 * programs */
-    int variable_index_offset;	/* Same */
-    short caller_type;		/* was this a locally called function? */
+    object_t *ob;               /* Current object */
+    object_t *prev_ob;          /* Save previous object */
+    program_t *prog;            /* Current program */
+    int num_local_variables;    /* Local + arguments */
+    const char *pc;             /* Program counter for LPC opcodes */
+    svalue_t *fp;               /* Frame pointer */
+    int function_index_offset;  /* Used when executing functions in inherited programs */
+    int variable_index_offset;  /* Same */
+    short caller_type;          /* was this a locally called function? */
 } control_stack_t;
 
 typedef struct {
@@ -200,7 +199,7 @@ typedef struct error_context_s {
 extern int call_origin;
 extern program_t *current_prog;
 extern short caller_type;
-extern char *pc;
+extern const char *pc;
 extern svalue_t *sp;
 extern svalue_t *fp;
 extern svalue_t catch_value;
@@ -224,7 +223,7 @@ extern program_t fake_prog;
 extern svalue_t global_lvalue_byte;
 extern int num_varargs;
 
-void eval_instruction(char *p);
+void eval_instruction(const char *p);
 void assign_svalue(svalue_t *, svalue_t *);
 void assign_svalue_no_free(svalue_t *, svalue_t *);
 void copy_some_svalues(svalue_t *, svalue_t *, int);
@@ -292,7 +291,6 @@ void get_line_number_info (char **ret_file, int *ret_line);
 
 char *add_slash(const char *);
 
-
 /**
  * @brief Get the current machine state.
  * @returns Returns one of the MS_* values defined below, or -1 before the machine is initialized.
@@ -314,8 +312,6 @@ void try_reset(object_t *);
 void pop_control_stack(void);
 compiler_function_t *setup_new_frame(int);
 void push_control_stack(int);
-
-void break_point(void);
 
 extern int get_error_state (int mask);
 extern void set_error_state (int flag);
