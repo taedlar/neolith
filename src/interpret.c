@@ -8,6 +8,7 @@
 #include "comm.h"
 #include "qsort.h"
 #include "interpret.h"
+#include "error_context.h"
 #include "simul_efun.h"
 #include "lpc/object.h"
 #include "lpc/array.h"
@@ -81,9 +82,6 @@ int st_num_arg;
 
 static svalue_t *start_of_stack = 0;
 static svalue_t *end_of_stack;
-
-/* Used to throw an error to a catch */
-svalue_t catch_value = { .type = T_NUMBER };
 
 /* used by routines that want to return a pointer to an svalue */
 svalue_t apply_ret_value = { .type = T_NUMBER };

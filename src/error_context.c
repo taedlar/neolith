@@ -12,6 +12,9 @@
 
 #include <stdarg.h>
 
+/* Used to throw an error to a catch */
+svalue_t catch_value = { .type = T_NUMBER };
+
 static error_context_t *current_error_context = 0;
 
 /**
@@ -118,25 +121,17 @@ void restore_context (error_context_t * econ) {
   pop_n_elems (sp - econ->save_sp);
 }
 
-/*
- * Error() has been "fixed" so that users can catch and throw them.
+/**
+ * @brief error() has been "fixed" so that users can catch and throw them.
  * To catch them nicely, we really have to provide decent error information.
- * Hence, all errors that are to be caught
- * (error_recovery_context_exists == 2) construct a string containing
- * the error message, which is returned as the
- * thrown value.  Users can throw their own error values however they choose.
+ * Hence, all errors that are to be caught construct a string containing
+ * the error message, which is returned as the thrown value.
+ * Users can throw their own error values however they choose.
  */
-
-/*
- * This is here because throw constructs its own return value; we dont
- * want to replace it with the system's error string.
- */
-
-void
-throw_error ()
-{
+void throw_error () {
   if (((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH)
     {
+      /* error string in catch_value */
       longjmp (current_error_context->context, 1);
       fatal ("Failed longjmp() in throw_error()!");
     }
@@ -202,11 +197,13 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
 }
 
 void error_handler (const char *err) {
-  /* in case we're going to jump out of load_object */
+  /* in case we're going to longjmp() from load_object or destruct_object */
   reset_destruct_object_limits();
   reset_load_object_limits();
 
-  if (((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH && !in_fatal_error())
+  if (current_error_context &&
+      ((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH &&
+      !in_fatal_error())
     {
 #ifdef LOG_CATCHES
       if (in_mudlib_error_handler)
@@ -269,8 +266,7 @@ void error_handler (const char *err) {
   if (current_heart_beat)
     {
       set_heart_beat (current_heart_beat, 0);
-      debug_message ("{}\t----- heart beat in %s turned off\n",
-                     current_heart_beat->name);
+      debug_message ("{}\t----- heart beat in %s turned off\n", current_heart_beat->name);
 #if 0
       if (current_heart_beat->interactive)
         add_message (current_heart_beat, _("Your heart beat stops!\n"));

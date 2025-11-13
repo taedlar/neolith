@@ -1,6 +1,5 @@
 #pragma once
 
-#include <setjmp.h>
 #include "lpc/functional.h"
 
 #define PUSH_STRING    (0 << 6)
@@ -58,14 +57,6 @@ typedef struct {
     int narg;
     svalue_t *args;
 } function_to_call_t;
-
-typedef struct error_context_s {
-    jmp_buf context;
-    control_stack_t *save_csp;
-    object_t *save_command_giver; 
-    svalue_t *save_sp;
-    struct error_context_s *save_context;
-} error_context_t;
 
 /* for apply_master_ob */
 #define MASTER_APPROVED(x) (((x)==(svalue_t *)-1) || ((x) && (((x)->type != T_NUMBER) || (x)->u.number))) 
@@ -202,7 +193,6 @@ extern short caller_type;
 extern const char *pc;
 extern svalue_t *sp;
 extern svalue_t *fp;
-extern svalue_t catch_value;
 extern control_stack_t* control_stack;
 extern control_stack_t *csp;
 extern int function_index_offset;
