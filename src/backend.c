@@ -17,8 +17,6 @@
 #include "comm.h"
 #include "efuns/call_out.h"
 
-error_context_t *current_error_context = 0;
-
 /* The 'current_time' is updated at every heart beat. */
 time_t current_time = 0;
 

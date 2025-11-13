@@ -9,13 +9,14 @@
 # as a LPC opcode compiler or other tools.
 
 set(stem_SOURCES
-    stem.c
     backend.c
     comm.c
+    error_context.c
     interpret.c
     malloc.c
     simul_efun.c
     simulate.c
+    stem.c
     stralloc.c
 )
 add_library(stem OBJECT ${stem_SOURCES})

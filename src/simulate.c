@@ -37,12 +37,6 @@
  */
 char *inherit_file;
 
-/* prevents infinite inherit loops.
-   No, mark-and-sweep solution won't work.  Exercise for reader.  */
-static int num_objects_this_thread = 0;
-
-static object_t *restrict_destruct;
-
 char *last_verb = 0;
 
 int g_trace_flag = 0;
@@ -362,6 +356,13 @@ int strip_name (const char *src, char *dest, size_t size) {
   return 1;
 }
 
+/* prevents infinite inherit loops.
+   No, mark-and-sweep solution won't work.  Exercise for reader.  */
+static int num_objects_this_thread = 0;
+
+void reset_load_object_limits() {
+  num_objects_this_thread = 0;
+}
 
 /*
  * Load an object definition from file. If the object wants to inherit
@@ -926,6 +927,12 @@ fix_object_names ()
 {
   master_ob->name = saved_master_name;
   simul_efun_ob->name = saved_simul_name;
+}
+
+static object_t *restrict_destruct;
+
+void reset_destruct_object_limits() {
+  restrict_destruct = NULL;
 }
 
 /*
@@ -2092,6 +2099,10 @@ remove_sent (object_t * ob, object_t * user)
  * */
 static int proceeding_fatal_error = 0;
 
+int in_fatal_error() {
+  return (proceeding_fatal_error != 0);
+}
+
 void
 fatal (char *fmt, ...)
 {
@@ -2165,202 +2176,6 @@ fatal (char *fmt, ...)
   else
     exit (EXIT_FAILURE);
 }
-
-static volatile int in_error = 0;
-static volatile int in_mudlib_error_handler = 0;
-
-/*
- * Error() has been "fixed" so that users can catch and throw them.
- * To catch them nicely, we really have to provide decent error information.
- * Hence, all errors that are to be caught
- * (error_recovery_context_exists == 2) construct a string containing
- * the error message, which is returned as the
- * thrown value.  Users can throw their own error values however they choose.
- */
-
-/*
- * This is here because throw constructs its own return value; we dont
- * want to replace it with the system's error string.
- */
-
-void
-throw_error ()
-{
-  if (((current_error_context->save_csp + 1)->framekind & FRAME_MASK) ==
-      FRAME_CATCH)
-    {
-      longjmp (current_error_context->context, 1);
-      fatal ("Failed longjmp() in throw_error()!");
-    }
-  error ("*Throw with no catch.");
-}
-
-static void
-debug_message_with_location (char *err)
-{
-  if (current_object && current_prog)
-    {
-      debug_message ("{\"object\":\"%s\",\"program\":\"%s\",\"line\":\"%s\"}\t%s",
-                       current_object->name, current_prog->name, get_line_number (pc, current_prog), err);
-    }
-  else if (current_object)
-    {
-      debug_message ("{\"object\":\"%s\"}\t%s", current_object->name, err);
-    }
-  else
-    {
-      debug_message ("{}\t%s", err);
-    }
-}
-
-
-static void
-mudlib_error_handler (char *err, int catch_flag)
-{
-  mapping_t *m;
-  char *file;
-  int line;
-  svalue_t *mret;
-
-  m = allocate_mapping (6);
-  add_mapping_string (m, "error", err);
-  if (current_prog)
-    add_mapping_string (m, "program", current_prog->name);
-  if (current_object)
-    add_mapping_object (m, "object", current_object);
-  add_mapping_array (m, "trace", get_svalue_trace (0));
-  get_line_number_info (&file, &line);
-  add_mapping_string (m, "file", file);
-  add_mapping_pair (m, "line", line);
-
-  push_refed_mapping (m);
-  if (catch_flag)
-    {
-      push_number (1);
-      mret = apply_master_ob (APPLY_ERROR_HANDLER, 2);
-    }
-  else
-    {
-      mret = apply_master_ob (APPLY_ERROR_HANDLER, 1);
-    }
-
-  if ((svalue_t *) - 1 == mret || NULL == mret)
-    {
-      debug_message_with_location (err);
-      dump_trace (g_trace_flag);
-    }
-  else if (mret->type == T_STRING && *mret->u.string)
-    {
-      debug_message ("%s", mret->u.string);
-    }
-}
-
-void
-error_handler (char *err)
-{
-  /* in case we're going to jump out of load_object */
-  restrict_destruct = 0;
-  num_objects_this_thread = 0;	/* reset the count */
-
-  if (((current_error_context->save_csp + 1)->framekind & FRAME_MASK)
-      == FRAME_CATCH && !proceeding_fatal_error)
-    {
-#ifdef LOG_CATCHES
-      if (in_mudlib_error_handler)
-        {
-          debug_message ("{}\t***** error in mudlib error handler (caught)");
-          debug_message_with_location (err);
-          dump_trace (g_trace_flag);
-          in_mudlib_error_handler = 0;
-        }
-      else
-        {
-          in_mudlib_error_handler = 1;
-          mudlib_error_handler (err, 1);
-          in_mudlib_error_handler = 0;
-        }
-#endif	/* LOG_CATCHES */
-
-      /* free catch_value allocated in last catch if any */
-      free_svalue (&catch_value, "caught error");
-
-      /* allocate new catch_value */
-      catch_value.type = T_STRING;
-      catch_value.subtype = STRING_MALLOC;
-      catch_value.u.string = string_copy (err, "caught error");
-
-      /* jump to do_catch */
-      longjmp (current_error_context->context, 1);
-      fatal ("catch() longjump failed");
-    }
-
-  if (in_error)
-    {
-      debug_message ("{}\t***** New error occured while generating error trace!");
-      debug_message_with_location (err);
-      dump_trace (g_trace_flag);
-
-      if (current_error_context)
-        longjmp (current_error_context->context, 1);
-      fatal ("failed longjmp() or no error context for error.");
-    }
-
-  in_error = 1;
-
-  if (in_mudlib_error_handler)
-    {
-      debug_message ("{}\t***** error in mudlib error handler");
-      debug_message_with_location (err);
-      dump_trace (g_trace_flag);
-      in_mudlib_error_handler = 0;
-    }
-  else
-    {
-      in_mudlib_error_handler = 1;
-      in_error = 0;
-      mudlib_error_handler (err, 0);
-      in_error = 1;
-      in_mudlib_error_handler = 0;
-    }
-
-  if (current_heart_beat)
-    {
-      set_heart_beat (current_heart_beat, 0);
-      debug_message ("{}\t----- heart beat in %s turned off\n",
-                     current_heart_beat->name);
-#if 0
-      if (current_heart_beat->interactive)
-        add_message (current_heart_beat, _("Your heart beat stops!\n"));
-#endif
-      current_heart_beat = 0;
-    }
-
-  in_error = 0;
-
-  if (current_error_context)
-    longjmp (current_error_context->context, 1);
-  fatal ("failed longjmp() or no error context for error.");
-}
-
-void
-error (char *fmt, ...)
-{
-  char msg[8192];
-  int len;
-  va_list args;
-
-  va_start (args, fmt);
-  len = vsnprintf (msg, sizeof(msg)-1, fmt, args);
-  if (len > 0 && msg[len-1] != '\n')
-    {
-      msg[len] = '\n';
-      msg[len+1] = 0;
-    }
-  va_end (args);
-
-  error_handler (msg);
-}
-
 
 /*
  * This one is called from the command "shutdown".
