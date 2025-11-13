@@ -739,7 +739,6 @@ char *check_valid_path (char *path, object_t * call_object, const char *call_fun
         }
       else
         {
-          extern svalue_t apply_ret_value;
 
           free_svalue (&apply_ret_value, "check_valid_path");
           apply_ret_value.type = T_STRING;

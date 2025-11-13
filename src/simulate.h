@@ -68,7 +68,5 @@ int in_fatal_error(void);
 void do_shutdown (int);
 void slow_shut_down (int);
 
-const char* origin_name (int);
-
 extern void init_simulate(void);
 extern void tear_down_simulate(void);

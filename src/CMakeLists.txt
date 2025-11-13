@@ -9,6 +9,7 @@
 # as a LPC opcode compiler or other tools.
 
 set(stem_SOURCES
+    apply.c
     backend.c
     comm.c
     error_context.c

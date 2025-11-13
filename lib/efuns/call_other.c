@@ -8,7 +8,50 @@
 #include "lpc/object.h"
 #include "lpc/include/origin.h"
 
-extern int call_origin;
+/*
+ * Call a function in all objects in an array.
+ */
+static array_t *call_all_other (array_t * v, const char *func, int numargs)
+{
+  int size;
+  svalue_t *tmp, *vptr, *rptr;
+  array_t *ret;
+  object_t *ob;
+  int i;
+
+  tmp = sp;
+  (++sp)->type = T_ARRAY;
+  sp->u.arr = ret = allocate_array (size = v->size);
+  if (size)
+    STACK_CHECK (numargs);
+
+  for (vptr = v->item, rptr = ret->item; size--; vptr++, rptr++)
+    {
+      if (vptr->type == T_OBJECT)
+        {
+          ob = vptr->u.ob;
+        }
+      else if (vptr->type == T_STRING)
+        {
+          ob = find_object (vptr->u.string);
+          if (!ob || !object_visible (ob))
+            continue;
+        }
+      else
+        continue;
+      if (ob->flags & O_DESTRUCTED)
+        continue;
+      i = numargs;
+      while (i--)
+        push_svalue (tmp - i);
+      call_origin = ORIGIN_CALL_OTHER;
+      if (apply_low (func, ob, numargs))
+        *rptr = *sp--;
+    }
+  sp--;
+  pop_n_elems (numargs);
+  return ret;
+}
 
 #ifdef F_CALL_OTHER
  /* enhanced call_other written 930314 by Luke Mewburn <zak@rmit.edu.au> */
@@ -82,7 +125,6 @@ f_call_other (void)
 }
 #endif
 
-
 #ifdef F_ORIGIN
 void
 f_origin (void)
@@ -90,4 +132,3 @@ f_origin (void)
   push_constant_string (origin_name (caller_type));
 }
 #endif
-
