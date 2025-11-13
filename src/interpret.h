@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lpc/functional.h"
+#include "apply.h"
 
 #define PUSH_STRING    (0 << 6)
 #define PUSH_NUMBER    (1 << 6)
@@ -11,8 +12,6 @@
 #define PUSH_MASK      (0xff ^ (PUSH_WHAT))
 
 #define SWITCH_CASE_SIZE ((int)(2 + sizeof(char *)))
-
-#define APPLY_CACHE_SIZE (1 << APPLY_CACHE_BITS)
 
 #define EXTRACT_UCHAR(p) (*(unsigned char *)(p))
 
@@ -57,9 +56,6 @@ typedef struct {
     int narg;
     svalue_t *args;
 } function_to_call_t;
-
-/* for apply_master_ob */
-#define MASTER_APPROVED(x) (((x)==(svalue_t *)-1) || ((x) && (((x)->type != T_NUMBER) || (x)->u.number))) 
 
 #define IS_ZERO(x) (!(x) || (((x)->type == T_NUMBER) && ((x)->u.number == 0)))
 #define IS_UNDEFINED(x) (!(x) || (((x)->type == T_NUMBER) && \
@@ -122,6 +118,15 @@ typedef struct {
         } \
         (x)->u.string = ssj_res; \
         } while(0)
+
+#define CHECK_AND_PUSH(n)	do {\
+        if ((sp += n) >= end_of_stack) \
+          { sp -= n; set_error_state(ES_STACK_FULL); error("***Stack overflow!"); } \
+        } while (0)
+#define STACK_CHECK(n)		do {\
+        if (sp + n >= end_of_stack) \
+          { set_error_state(ES_STACK_FULL); error("***Stack overflow!"); } \
+        } while (0)
 
 /* macro calls */
 #define call_program(prog, offset) eval_instruction ((prog)->program + (offset))
@@ -187,7 +192,9 @@ typedef struct {
         sp->u.string = (x);\
         } while(0)
 
-extern int call_origin;
+extern svalue_t *start_of_stack;
+extern svalue_t *end_of_stack;
+
 extern program_t *current_prog;
 extern short caller_type;
 extern const char *pc;
@@ -198,12 +205,6 @@ extern control_stack_t *csp;
 extern int function_index_offset;
 extern int variable_index_offset;
 extern int st_num_arg;
-#ifdef CACHE_STATS
-extern unsigned int apply_low_call_others;
-extern unsigned int apply_low_cache_hits;
-extern unsigned int apply_low_slots_used;
-extern unsigned int apply_low_collisions;
-#endif
 extern int function_index_offset;
 extern svalue_t const0;
 extern svalue_t const1;
@@ -251,6 +252,9 @@ void remove_fake_frame(void);
 int merge_arg_lists(int, array_t *, int);
 void push_indexed_lvalue(int);
 
+void setup_variables (int actual, int local, int num_arg);
+void setup_varargs_variables (int actual, int local, int num_arg);
+
 void process_efun_callback(int, function_to_call_t *, int);
 svalue_t *call_efun_callback(function_to_call_t *, int);
 const char *type_name(int c);
@@ -260,20 +264,12 @@ void check_for_destr(array_t *);
 #ifndef NO_SHADOWS
 int is_static(const char *, object_t *);
 #endif
-int apply_low(const char *, object_t *, int);
-void clear_apply_cache(void);
-svalue_t *apply(const char *, object_t *, int, int);
 svalue_t *call_function_pointer(funptr_t *, int);
 svalue_t *safe_call_function_pointer(funptr_t *, int);
-svalue_t *safe_apply(const char *, object_t *, int, int);
 void call___INIT(object_t *);
-array_t *call_all_other(array_t *, const char *, int);
 char *function_exists(const char *, object_t *, int);
 void call_function(program_t *, int);
-svalue_t *apply_master_ob(const char *, int);
-svalue_t *safe_apply_master_ob(const char *, int);
 void init_master(const char *);
-void mark_apply_low_cache(void);
 
 int translate_absolute_line(int, unsigned short *, size_t, int *, int *);
 char* get_line_number (const char *p, const program_t * progp);

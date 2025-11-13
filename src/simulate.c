@@ -2339,31 +2339,6 @@ first_inventory (svalue_t * arg)
 }
 #endif
 
-
-const char *origin_name (int orig) {
-  switch (orig)
-    {
-    case ORIGIN_DRIVER:
-      return "driver";
-    case ORIGIN_LOCAL:
-      return "local";
-    case ORIGIN_CALL_OTHER:
-      return "call_other";
-    case ORIGIN_SIMUL_EFUN:
-      return "simul";
-    case ORIGIN_CALL_OUT:
-      return "call_out";
-    case ORIGIN_EFUN:
-      return "efun";
-    case ORIGIN_FUNCTION_POINTER:
-      return "function pointer";
-    case ORIGIN_FUNCTIONAL:
-      return "functional";
-    default:
-      return "(unknown)";
-    };
-}
-
 void init_simulate() {
   init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
   init_objects ();              /* lib/lpc/object.c */
