@@ -478,3 +478,97 @@ svalue_t *safe_apply_master_ob (const char *fun, int num_arg)
     }
   return safe_apply (fun, master_ob, num_arg, ORIGIN_DRIVER);
 }
+
+/*
+ * May current_object shadow object 'ob' ? We rely heavily on the fact that
+ * function names are pointers to shared strings, which means that equality
+ * can be tested simply through pointer comparison.
+ */
+static program_t *ffbn_recurse (program_t * prog, char *name, int *index, int *runtime_index)
+{
+  int high = prog->num_functions_defined - 1;
+  int low = 0;
+  int i;
+
+  /* Search our function table */
+  while (high >= low)
+    {
+      int mid = (high + low) / 2;
+      char *p = prog->function_table[mid].name;
+
+      if (name < p)
+        high = mid - 1;
+      else if (name > p)
+        low = mid + 1;
+      else
+        {
+          int ridx = prog->function_table[mid].runtime_index;
+          int flags = prog->function_flags[ridx];
+          if (flags & (NAME_UNDEFINED | NAME_PROTOTYPE))
+            {
+              if (flags & NAME_INHERITED)
+                break;
+              return 0;
+            }
+          *index = mid;
+          *runtime_index = prog->function_table[mid].runtime_index;
+          return prog;
+        }
+    }
+
+  /* Search inherited function tables */
+  i = prog->num_inherited;
+  while (i--)
+    {
+      program_t *ret =
+        ffbn_recurse (prog->inherit[i].prog, name, index, runtime_index);
+      if (ret)
+        {
+          *runtime_index += prog->inherit[i].function_index_offset;
+          return ret;
+        }
+    }
+  return 0;
+}
+
+static program_t *find_function_by_name (object_t * ob, const char *name, int *index, int *runtime_index)
+{
+  char *funname = findstring (name);
+
+  if (!funname)
+    return 0;
+  return ffbn_recurse (ob->prog, funname, index, runtime_index);
+}
+
+/*
+ * This function is similar to apply(), except that it will not
+ * call the function, only return object name if the function exists,
+ * or 0 otherwise.  If flag is nonzero, then we admit static and private
+ * functions exist.  Note that if you actually intend to call the function,
+ * it's faster to just try to call it and check if apply() returns zero.
+ */
+char *
+function_exists (const char *fun, object_t * ob, int flag)
+{
+  int index, runtime_index;
+  program_t *prog;
+  //compiler_function_t *cfp;
+
+  DEBUG_CHECK (ob->flags & O_DESTRUCTED, "function_exists() on destructed object\n");
+
+  if (fun[0] == APPLY___INIT_SPECIAL_CHAR)
+    return 0;
+
+  prog = find_function_by_name (ob, fun, &index, &runtime_index);
+  if (!prog)
+    return 0;
+
+  //cfp = prog->function_table + index;
+
+  if ((ob->prog->function_flags[runtime_index] & NAME_UNDEFINED) ||
+      ((ob->prog->function_flags[runtime_index] & (NAME_STATIC | NAME_PRIVATE))
+       && current_object != ob && !flag))
+    return 0;
+
+  return prog->name;
+}

@@ -1,4 +1,8 @@
 #pragma once
+
+int strip_name(const char* src, char* dest, size_t dest_size);
+char *add_slash(const char *);
+
 /*
  * otable.c
  */

@@ -18,6 +18,7 @@
 #define SUPPRESS_COMPILER_INLINES
 #include "src/std.h"
 #include "lpc/object.h"
+#include "lpc/otable.h"
 #include "lpc/include/runtime_config.h"
 #include "rc.h"
 #include "binaries.h"

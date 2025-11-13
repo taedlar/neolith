@@ -5,10 +5,11 @@
 #include "std.h"
 #include "rc.h"
 #include "error_context.h"
+#include "lpc/lex.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"
 #include "lpc/program.h"
-#include "logger/logger.h"
+#include "efuns/sprintf.h"
 
 #include <stdarg.h>
 
@@ -296,4 +297,88 @@ void error (const char *fmt, ...) {
   va_end (args);
 
   error_handler (msg);
+}
+
+
+void bad_arg (int arg, int instr) {
+  error ("*Bad argument %d to %s()", arg, get_f_name (instr));
+}
+
+static char *type_names[] = {
+  "int",
+  "string",
+  "array",
+  "object",
+  "mapping",
+  "function",
+  "float",
+  "buffer",
+  "class"
+};
+
+#define TYPE_CODES_END 0x400
+#define TYPE_CODES_START 0x2
+
+const char *type_name (int c) {
+  int j = 0;
+  int limit = TYPE_CODES_START;
+
+  do 
+    {
+      if (c & limit)
+        return type_names[j];
+      j++;
+    }
+  while (!((limit <<= 1) & TYPE_CODES_END));
+  /* Oh crap.  Take some time and figure out what we have. */
+  switch (c)
+    {
+    case T_INVALID:
+      return "*invalid*";
+    case T_LVALUE:
+      return "*lvalue*";
+    case T_LVALUE_BYTE:
+      return "*lvalue_byte*";
+    case T_LVALUE_RANGE:
+      return "*lvalue_range*";
+    case T_ERROR_HANDLER:
+      return "*error_handler*";
+    }
+  return "*unknown*";
+}
+
+void bad_argument (svalue_t * val, int type, int arg, int instr) {
+  outbuffer_t outbuf;
+  int flag = 0;
+  int j = TYPE_CODES_START;
+  int k = 0;
+  char msg[8192];
+
+  outbuf_zero (&outbuf);
+  outbuf_addv (&outbuf, "Bad argument %d to %s%s, Expected: ", arg,
+               get_f_name (instr), (instr < BASE ? "" : "()"));
+
+  do
+    {
+      if (type & j)
+        {
+          if (flag)
+            outbuf_add (&outbuf, " or ");
+          else
+            flag = 1;
+          outbuf_add (&outbuf, type_names[k]);
+        }
+      k++;
+    }
+  while (!((j <<= 1) & TYPE_CODES_END));
+
+  outbuf_add (&outbuf, " Got: ");
+  svalue_to_string (val, &outbuf, 0, 0, SV2STR_NOINDENT|SV2STR_NONEWLINE);
+  outbuf_add (&outbuf, ".\n");
+  outbuf_fix (&outbuf);
+  msg[sizeof(msg)-1] = 0;
+  strncpy (msg, outbuf.buffer, sizeof(msg)-1);
+  FREE_MSTR (outbuf.buffer);
+
+  error (msg);
 }

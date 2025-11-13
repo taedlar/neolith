@@ -8,6 +8,7 @@
 #include "scratchpad.h"
 #include "src/simul_efun.h"
 #include "lpc/object.h"
+#include "lpc/otable.h"
 #include "lpc/program/parse_trees.h"
 #include "lpc/program/generate.h"
 
