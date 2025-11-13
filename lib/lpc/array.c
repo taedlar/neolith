@@ -11,6 +11,7 @@
 
 #include "array.h"
 #include "object.h"
+#include "otable.h"
 #include "program.h"
 #include "lpc/include/origin.h"
 

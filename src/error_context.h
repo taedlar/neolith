@@ -26,3 +26,8 @@ extern svalue_t catch_value;
 void error_handler(const char *) NO_RETURN;
 void error(const char *, ...) NO_RETURN;
 void throw_error(void) NO_RETURN;
+
+/* stock error throwing function */
+const char *type_name(int c);
+void bad_arg(int, int) NO_RETURN;
+void bad_argument(svalue_t *, int, int, int) NO_RETURN;

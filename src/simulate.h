@@ -9,6 +9,7 @@
 #define EndOf(x) (x + sizeof(x)/sizeof(x[0]))
 
 extern int illegal_sentence_action;
+extern object_t *master_ob;
 extern object_t *obj_list;
 extern object_t *obj_list_destruct;
 extern object_t *current_object;
@@ -34,10 +35,9 @@ int process_comand(char *, object_t *);
 int input_to(svalue_t *, int, int, svalue_t *);
 int get_char(svalue_t *, int, int, svalue_t *);
 
-extern void save_command_giver (object_t*);
-extern void restore_command_giver (void);
+void save_command_giver (object_t*);
+void restore_command_giver (void);
 
-int strip_name(const char* src, char* dest, size_t dest_size);
 object_t *load_object(const char *);
 void reset_load_object_limits();
 object_t *clone_object(const char *, int);
@@ -59,14 +59,21 @@ void say(svalue_t *, array_t *);
 void tell_room(object_t *, svalue_t *, array_t *);
 void shout_string(char *);
 
-extern char *dump_trace (int);
-extern array_t *get_svalue_trace (int);
+#ifdef LAZY_RESETS
+void try_reset(object_t *);
+#endif
+
+char* get_line_number (const char *p, const program_t * progp);
+void get_line_number_info (char **ret_file, int *ret_line);
+char *dump_trace (int);
+array_t *get_svalue_trace (int);
+
+void init_master(const char *);
+void init_simulate(void);
+void tear_down_simulate(void);
 
 void fatal(char *, ...) NO_RETURN;
 int in_fatal_error(void);
 
 void do_shutdown (int);
 void slow_shut_down (int);
-
-extern void init_simulate(void);
-extern void tear_down_simulate(void);

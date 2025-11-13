@@ -7,16 +7,12 @@
 
 int total_num_prog_blocks, total_prog_block_size;
 
-void
-reference_prog (program_t * progp, char *from)
-{
+void reference_prog (program_t * progp, char *from) {
   (void) from;		/* unused */
   progp->ref++;
 }
 
-void
-deallocate_program (program_t * progp)
-{
+void deallocate_program (program_t * progp) {
   int i;
 
   total_prog_block_size -= progp->total_size;
@@ -50,9 +46,7 @@ deallocate_program (program_t * progp)
  * as we want to be able to read the program in again from the swap area.
  * That means that strings are not swapped.
  */
-void
-free_prog (program_t * progp, int free_sub_strings)
-{
+void free_prog (program_t * progp, int free_sub_strings) {
   progp->ref--;
   if (progp->ref > 0)
     return;
@@ -69,9 +63,7 @@ free_prog (program_t * progp, int free_sub_strings)
     }
 }
 
-char *
-variable_name (program_t * prog, int idx)
-{
+char *variable_name (program_t * prog, int idx) {
   int i = prog->num_inherited - 1;
   int first;
 
@@ -86,16 +78,27 @@ variable_name (program_t * prog, int idx)
   while (idx < prog->inherit[i].variable_index_offset)
     i--;
   return variable_name (prog->inherit[i].prog,
-			idx - prog->inherit[i].variable_index_offset);
+            idx - prog->inherit[i].variable_index_offset);
+}
+
+char *function_name (program_t * prog, int index) {
+  runtime_function_u *func_entry = FIND_FUNC_ENTRY (prog, index);
+
+  while (prog->function_flags[index] & NAME_INHERITED)
+    {
+      prog = prog->inherit[func_entry->inh.offset].prog;
+      index = func_entry->inh.function_index_offset;
+      func_entry = FIND_FUNC_ENTRY (prog, index);
+    }
+
+  return prog->function_table[func_entry->def.f_index].name;
 }
 
 #ifdef COMPRESS_FUNCTION_TABLES
 /* Warning: sometimes returns a pointer to a static object.  So don't
    hold the returned pointers too long; it will be invalidated on the
    next call to this function */
-runtime_function_u *
-find_func_entry (const program_t * prog, int index)
-{
+runtime_function_u *find_func_entry (const program_t * prog, int index) {
   static runtime_function_u ret;
 
   int f_ov = prog->function_compressed->first_overload;
@@ -111,16 +114,16 @@ find_func_entry (const program_t * prog, int index)
       int first = 0, last = prog->num_inherited - 1;
       /* The entry was omitted.  Remake it */
       while (last > first)
-	{
-	  int mid = (last + first + 1) / 2;
-	  if (prog->inherit[mid].function_index_offset > index)
-	    last = mid - 1;
-	  else
-	    first = mid;
-	}
+    {
+      int mid = (last + first + 1) / 2;
+      if (prog->inherit[mid].function_index_offset > index)
+        last = mid - 1;
+      else
+        first = mid;
+    }
       ret.inh.offset = first;
       ret.inh.function_index_offset =
-	index - prog->inherit[first].function_index_offset;
+    index - prog->inherit[first].function_index_offset;
       return &ret;
     }
   else
@@ -129,3 +132,32 @@ find_func_entry (const program_t * prog, int index)
     }
 }
 #endif
+
+int translate_absolute_line (int abs_line, unsigned short *file_info, size_t block_size, int *ret_file, int *ret_line) {
+  unsigned short *p1, *p2, *end = file_info + (block_size / sizeof(unsigned short));
+  int file;
+  int line_tmp = abs_line;
+
+  /* two passes: first, find out what file we're interested in */
+  p1 = file_info;
+  while (line_tmp > *p1)
+    {
+      line_tmp -= *p1;
+      p1 += 2;
+      if (p1 >= end)
+        return -1; /* file info block corrupted */
+    }
+  file = p1[1];
+
+  /* now correct the line number for that file */
+  p2 = file_info;
+  while (p2 < p1)
+    {
+      if (p2[1] == file)
+        line_tmp += *p2;
+      p2 += 2;
+    }
+  *ret_line = line_tmp;
+  *ret_file = file;
+  return 0;
+}

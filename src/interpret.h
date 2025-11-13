@@ -194,27 +194,28 @@ typedef struct {
 
 extern svalue_t *start_of_stack;
 extern svalue_t *end_of_stack;
+extern control_stack_t* control_stack;
 
 extern program_t *current_prog;
 extern short caller_type;
 extern const char *pc;
 extern svalue_t *sp;
 extern svalue_t *fp;
-extern control_stack_t* control_stack;
 extern control_stack_t *csp;
 extern int function_index_offset;
 extern int variable_index_offset;
 extern int st_num_arg;
-extern int function_index_offset;
+
 extern svalue_t const0;
 extern svalue_t const1;
 extern svalue_t const0u;
-extern object_t *master_ob;
 extern program_t fake_prog;
 extern svalue_t global_lvalue_byte;
 extern int num_varargs;
 
+/* A giant switch() statement for instruction evaluation */
 void eval_instruction(const char *p);
+
 void assign_svalue(svalue_t *, svalue_t *);
 void assign_svalue_no_free(svalue_t *, svalue_t *);
 void copy_some_svalues(svalue_t *, svalue_t *, int);
@@ -244,61 +245,45 @@ void pop_stack(void);
 void pop_n_elems(int);
 void pop_2_elems(void);
 void pop_3_elems(void);
+
+void unlink_string_svalue(svalue_t *);
+void copy_lvalue_range(svalue_t *);
+void assign_lvalue_range(svalue_t *);
+
+compiler_function_t *setup_new_frame(int);
 compiler_function_t *setup_inherited_frame(int);
-char *function_name(program_t *, int);
-void remove_object_from_stack(object_t *);
 void setup_fake_frame(funptr_t *);
 void remove_fake_frame(void);
-int merge_arg_lists(int, array_t *, int);
-void push_indexed_lvalue(int);
-
 void setup_variables (int actual, int local, int num_arg);
 void setup_varargs_variables (int actual, int local, int num_arg);
+void pop_control_stack(void);
+void push_control_stack(int);
+
+void check_for_destr(array_t *);
+void remove_object_from_stack(object_t *);
+int merge_arg_lists(int, array_t *, int);
 
 void process_efun_callback(int, function_to_call_t *, int);
 svalue_t *call_efun_callback(function_to_call_t *, int);
-const char *type_name(int c);
-void bad_arg(int, int) NO_RETURN;
-void bad_argument(svalue_t *, int, int, int) NO_RETURN;
-void check_for_destr(array_t *);
 #ifndef NO_SHADOWS
 int is_static(const char *, object_t *);
 #endif
 svalue_t *call_function_pointer(funptr_t *, int);
 svalue_t *safe_call_function_pointer(funptr_t *, int);
 void call___INIT(object_t *);
-char *function_exists(const char *, object_t *, int);
 void call_function(program_t *, int);
-void init_master(const char *);
-
-int translate_absolute_line(int, unsigned short *, size_t, int *, int *);
-char* get_line_number (const char *p, const program_t * progp);
-void get_line_number_info (char **ret_file, int *ret_line);
-
-char *add_slash(const char *);
 
 /**
  * @brief Get the current machine state.
  * @returns Returns one of the MS_* values defined below, or -1 before the machine is initialized.
  */
 extern int get_machine_state();
-#define MS_PRE_MUDLIB           0     /* The LPMUD driver has started successfully and ready to compile mudlib's LPC code. */
+#define MS_PRE_MUDLIB           0     /* The LPMUD driver has started successfully and ready to compile/run LPC code. */
 #define MS_MUDLIB_LIMBO         1     /* The mudlib is in limbo, vital objects (master_ob and simul_efun_on) were loaded successfully. */
 #define MS_MUDLIB_INTERACTIVE   2     /* The mudlib is ready for human interactions, master_ob has finished epilog() successfully. */
 extern void reset_machine (void);
 
-void unlink_string_svalue(svalue_t *);
-void copy_lvalue_range(svalue_t *);
-void assign_lvalue_range(svalue_t *);
-
-#ifdef LAZY_RESETS
-void try_reset(object_t *);
-#endif
-
-void pop_control_stack(void);
-compiler_function_t *setup_new_frame(int);
-void push_control_stack(int);
-
+/* LPC interpreter error states */
 extern int get_error_state (int mask);
 extern void set_error_state (int flag);
 extern void clear_error_state ();

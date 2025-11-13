@@ -224,6 +224,7 @@ void reference_prog(program_t *, char *);
 void free_prog(program_t *, int);
 void deallocate_program(program_t *);
 char *variable_name(program_t *, int);
+char *function_name(program_t *, int);
 runtime_function_u *find_func_entry(const program_t *, int);
 
 /* the simple version */
@@ -234,3 +235,5 @@ runtime_function_u *find_func_entry(const program_t *, int);
 #else
 #define FIND_FUNC_ENTRY(p, i) FUNC_ENTRY(p, i)
 #endif
+
+int translate_absolute_line(int, unsigned short *, size_t, int *, int *);

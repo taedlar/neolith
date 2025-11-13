@@ -19,11 +19,12 @@ extern unsigned int apply_low_cache_hits;
 extern unsigned int apply_low_slots_used;
 extern unsigned int apply_low_collisions;
 #endif
-
-int apply_low(const char *, object_t *, int);
+int apply_low(const char *fun, object_t *ob, int num_arg);
 svalue_t *apply(const char *, object_t *, int, int);
 svalue_t *safe_apply(const char *, object_t *, int, int);
 svalue_t *apply_master_ob(const char *, int);
 svalue_t *safe_apply_master_ob(const char *, int);
 
 void clear_apply_cache(void);
+
+char *function_exists(const char *, object_t *, int);

@@ -9,7 +9,6 @@
 #include "qsort.h"
 #include "apply.h"
 #include "interpret.h"
-#include "error_context.h"
 #include "simul_efun.h"
 #include "lpc/object.h"
 #include "lpc/array.h"
@@ -20,27 +19,10 @@
 #include "lpc/include/function.h"
 #include "lpc/include/origin.h"
 #include "efuns/parse.h"
-#include "efuns/sprintf.h"
 #include "efuns/sscanf.h"
-#include "port/ansi.h"
 
 #include "efuns_prototype.h"
 #include "efuns_vector.h"
-
-static char *type_names[] = {
-  "int",
-  "string",
-  "array",
-  "object",
-  "mapping",
-  "function",
-  "float",
-  "buffer",
-  "class"
-};
-
-#define TYPE_CODES_END 0x400
-#define TYPE_CODES_START 0x2
 
 int num_varargs;
 short caller_type;
@@ -142,18 +124,14 @@ push_object (object_t * ob)
 /*
  * Push a number on the value stack.
  */
-void
-push_number (int n)
-{
+void push_number (int n) {
   CHECK_AND_PUSH(1);
   sp->type = T_NUMBER;
   sp->subtype = 0;
   sp->u.number = n;
 }
 
-void
-push_real (double n)
-{
+void push_real (double n) {
   CHECK_AND_PUSH(1);
   sp->type = T_REAL;
   sp->u.real = n;
@@ -162,58 +140,16 @@ push_real (double n)
 /*
  * Push undefined (const0u) onto the value stack.
  */
-void
-push_undefined ()
-{
+void push_undefined () {
   CHECK_AND_PUSH(1);
   *sp = const0u;
 }
 
-void
-push_undefineds (int num)
-{
+void push_undefineds (int num) {
   STACK_CHECK(num);
   while (num--)
     *++sp = const0u;
 }
-
-const char *
-type_name (int c)
-{
-  int j = 0;
-  int limit = TYPE_CODES_START;
-
-  do 
-    {
-      if (c & limit)
-        return type_names[j];
-      j++;
-    }
-  while (!((limit <<= 1) & TYPE_CODES_END));
-  /* Oh crap.  Take some time and figure out what we have. */
-  switch (c)
-    {
-    case T_INVALID:
-      return "*invalid*";
-    case T_LVALUE:
-      return "*lvalue*";
-    case T_LVALUE_BYTE:
-      return "*lvalue_byte*";
-    case T_LVALUE_RANGE:
-      return "*lvalue_range*";
-    case T_ERROR_HANDLER:
-      return "*error_handler*";
-    }
-  return "*unknown*";
-}
-
-
-/*
- * May current_object shadow object 'ob' ? We rely heavily on the fact that
- * function names are pointers to shared strings, which means that equality
- * can be tested simply through pointer comparison.
- */
-static program_t *ffbn_recurse (program_t *, char *, int *, int *);
 
 void copy_and_push_string (const char *p) {
   CHECK_AND_PUSH(1);
@@ -358,22 +294,6 @@ free_some_svalues (svalue_t * v, int num)
   FREE (v);
 }
 
-
-/**
- * @brief Add a leading slash to a file name.
- * The string is allocated with new_string().
- * @param str The file name.
- * @return A new string with a leading slash.
- */
-char *add_slash (const char *str) {
-  char *tmp;
-
-  tmp = new_string (strlen (str) + 1, "add_slash");
-  *tmp = '/';
-  strcpy (tmp + 1, str);
-  return tmp;
-}
-
 /*
  * Assign to a svalue.
  * This is done either when element in array, or when to an identifier
@@ -456,9 +376,7 @@ svalue_t global_lvalue_byte = { .type = T_LVALUE_BYTE };
 /*
  * Compute the address of an array element.
  */
-void
-push_indexed_lvalue (int code)
-{
+static void push_indexed_lvalue (int code) {
   int ind;
   svalue_t *lv;
 
@@ -977,51 +895,6 @@ pop_3_elems ()
   free_svalue (sp--, "pop_3_elems");
 }
 
-
-void
-bad_arg (int arg, int instr)
-{
-  error ("*Bad argument %d to %s()", arg, get_f_name (instr));
-}
-
-void
-bad_argument (svalue_t * val, int type, int arg, int instr)
-{
-  outbuffer_t outbuf;
-  int flag = 0;
-  int j = TYPE_CODES_START;
-  int k = 0;
-  char msg[8192];
-
-  outbuf_zero (&outbuf);
-  outbuf_addv (&outbuf, "Bad argument %d to %s%s, Expected: ", arg,
-               get_f_name (instr), (instr < BASE ? "" : "()"));
-
-  do
-    {
-      if (type & j)
-        {
-          if (flag)
-            outbuf_add (&outbuf, " or ");
-          else
-            flag = 1;
-          outbuf_add (&outbuf, type_names[k]);
-        }
-      k++;
-    }
-  while (!((j <<= 1) & TYPE_CODES_END));
-
-  outbuf_add (&outbuf, " Got: ");
-  svalue_to_string (val, &outbuf, 0, 0, SV2STR_NOINDENT|SV2STR_NONEWLINE);
-  outbuf_add (&outbuf, ".\n");
-  outbuf_fix (&outbuf);
-  msg[sizeof(msg)-1] = 0;
-  strncpy (msg, outbuf.buffer, sizeof(msg)-1);
-  FREE_MSTR (outbuf.buffer);
-
-  error (msg);
-}
-
 void
 push_control_stack (int frkind)
 {
@@ -1246,7 +1119,6 @@ void setup_varargs_variables (int actual, int local, int num_arg) {
   fp = sp - (csp->num_local_variables = local + num_arg) + 1;
 }
 
-
 compiler_function_t *
 setup_new_frame (int index)
 {
@@ -1281,7 +1153,6 @@ setup_new_frame (int index)
     setup_variables (csp->num_local_variables, func_entry->def.num_local, func_entry->def.num_arg);
   return &current_prog->function_table[findex];
 }
-
 
 compiler_function_t *
 setup_inherited_frame (int index)
@@ -1720,424 +1591,6 @@ do_loop_cond_number ()
     }
   else
     error ("*Right side of < is a number, left side is not.");
-}
-
-static int
-find_line (const char *p, const program_t * progp, char **ret_file, int *ret_line)
-{
-  int offset;
-  unsigned char *lns;
-  short abs_line;
-  int file_idx;
-
-  *ret_file = "";
-  *ret_line = 0;
-
-  if (!progp)
-    return 1;
-  if (progp == &fake_prog)
-    return 2;
-
-  /*
-   * Load line numbers from swap if necessary.  Leave them in memory until
-   * look_for_objects_to_swap() swaps them back out, since more errors are
-   * likely.
-   */
-  if (!progp->line_info)
-    return 4;
-
-  offset = p - progp->program;
-  if (offset > (int) progp->program_size)
-    {
-      opt_warn (1, "illegal offset %+d in object /%s", offset, progp->name);
-      return 4;
-    }
-
-  lns = progp->line_info;
-  while (offset > *lns)
-    {
-      offset -= *lns;
-      lns += 3;
-    }
-
-  COPY_SHORT (&abs_line, lns + 1);
-
-  if (0 == translate_absolute_line (abs_line, &progp->file_info[2], (progp->file_info[1] - 2) * sizeof(short), &file_idx, ret_line))
-    {
-      *ret_file = progp->strings[file_idx - 1];
-      return 0;
-    }
-
-  return 4;
-}
-
-static void get_explicit_line_number_info (const char *p, program_t * prog, char **ret_file, int *ret_line)
-{
-  find_line (p, prog, ret_file, ret_line);
-  if (!(*ret_file))
-    *ret_file = prog->name;
-}
-
-void get_line_number_info (char **ret_file, int *ret_line) {
-  find_line (pc, current_prog, ret_file, ret_line);
-  if (!(*ret_file))
-    *ret_file = current_prog->name;
-}
-
-char* get_line_number (const char *p, const program_t * progp) {
-  static char buf[256];
-  int i;
-  char *file = "???";
-  int line = -1;
-
-  i = find_line (p, progp, &file, &line);
-
-  switch (i)
-    {
-    case 1:
-      strcpy (buf, "(no program)");
-      return buf;
-    case 2:
-      *buf = 0;
-      return buf;
-    case 3:
-      strcpy (buf, "(compiled program)");
-      return buf;
-    case 4:
-      strcpy (buf, "(no line numbers)");
-      return buf;
-    case 5:
-      strcpy (buf, "(includes too deep)");
-      return buf;
-    }
-  if (!file)
-    file = progp->name;
-  sprintf (buf, "/%s:%d", file, line);
-  return buf;
-}
-
-typedef struct function_trace_details_s {
-        char* name;
-        int num_arg;
-        int num_local;
-        int program_offset;
-} function_trace_details_t;
-
-static void
-get_trace_details (const program_t* prog, int index, function_trace_details_t* ftd)
-{
-  compiler_function_t *cfp = &prog->function_table[index];
-  runtime_function_u *func_entry = FIND_FUNC_ENTRY (prog, cfp->runtime_index);
-
-  if (ftd)
-    {
-      ftd->name = cfp->name;
-      ftd->program_offset = cfp->address;
-      ftd->num_arg = func_entry->def.num_arg;
-      ftd->num_local = func_entry->def.num_local;
-    }
-}
-
-/*
- * Write out a trace. If there is a heart_beat(), then return the
- * object that had that heart beat.
- */
-char *
-dump_trace (int how)
-{
-  const control_stack_t *p;
-  char *ret = 0;
-  int num_arg = -1, num_local = -1;
-  svalue_t *ptr;
-  int i;
-  //int offset = 0;
-  function_trace_details_t ftd;
-
-  if (current_prog == 0)
-    return 0;
-
-  if (csp < &control_stack[0])
-    return 0;
-
-  /* control stack */
-  for (p = &control_stack[0]; p < csp; p++)
-    {
-      switch (p[0].framekind & FRAME_MASK)
-        {
-        case FRAME_FUNCTION:
-          get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
-          num_arg = ftd.num_arg;
-          num_local = ftd.num_local;
-          log_message (NULL, "\t" YEL "%s()" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n", ftd.name,
-                       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-          if (strcmp (ftd.name, "heart_beat") == 0)
-            ret = p->ob ? p->ob->name : 0;
-          break;
-        case FRAME_FUNP:
-          log_message (NULL, "\t" YEL "(function)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
-                       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-          num_arg = p[0].fr.funp->f.functional.num_arg;
-          num_local = p[0].fr.funp->f.functional.num_local;
-          break;
-        case FRAME_FAKE:
-          log_message (NULL, "\t" YEL "(function)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
-                       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-          num_arg = -1;
-          break;
-        case FRAME_CATCH:
-          log_message (NULL, "\t" YEL "(catch)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
-                       get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
-          num_arg = -1;
-          break;
-        }
-
-      if ((how & DUMP_WITH_ARGS) && (num_arg != -1))
-        {
-          outbuffer_t outbuf;
-
-          outbuf_zero (&outbuf);
-          ptr = p[1].fp;
-          outbuf_add (&outbuf, "\t\targuments: ");
-          for (i = 0; i < num_arg; i++)
-            {
-              svalue_to_string (&ptr[i], &outbuf, 0, (i==num_arg-1) ? 0 :',',
-                                SV2STR_NOINDENT | SV2STR_NONEWLINE);
-            }
-          log_message (NULL, "%s\n", outbuf.buffer);
-          FREE_MSTR (outbuf.buffer);
-        }
-
-      if ((how & DUMP_WITH_LOCALVARS) && num_local > 0 && num_arg != -1)
-        {
-          outbuffer_t outbuf;
-
-          outbuf_zero (&outbuf);
-          ptr = p[1].fp + num_arg;
-          outbuf_add (&outbuf, "\t\tlocal variables: ");
-          for (i = 0; i < num_local; i++)
-            {
-              svalue_to_string (&ptr[i], &outbuf, 0, (i==num_local-1) ? 0 : ',',
-                                SV2STR_NOINDENT | SV2STR_NONEWLINE);
-            }
-          log_message (NULL, "%s\n", outbuf.buffer);
-          FREE_MSTR (outbuf.buffer);
-        }
-    }
-
-  /* current_prog */
-  switch (p[0].framekind & FRAME_MASK)
-    {
-    case FRAME_FUNCTION:
-      get_trace_details (current_prog, p[0].fr.table_index, &ftd);
-      //offset = ftd.program_offset;
-      num_arg = ftd.num_arg;
-      num_local = ftd.num_local;
-      log_message (NULL, "\t" HIY "%s()" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n", ftd.name,
-                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
-      break;
-    case FRAME_FUNP:
-      log_message (NULL, "\t" HIY "(function)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
-                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
-      num_arg = p[0].fr.funp->f.functional.num_arg;
-      num_local = p[0].fr.funp->f.functional.num_local;
-      break;
-    case FRAME_FAKE:
-      log_message (NULL, "\t" HIY "(function)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
-                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
-      num_arg = -1;
-      break;
-    case FRAME_CATCH:
-      log_message (NULL, "\t" HIY "(catch)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
-                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
-      num_arg = -1;
-      break;
-    }
-
-  if ((how & DUMP_WITH_ARGS) && (num_arg != -1))
-    {
-      outbuffer_t outbuf;
-
-      outbuf_zero (&outbuf);
-      outbuf_add (&outbuf, "\t\targuments: ");
-      for (i = 0; i < num_arg; i++)
-        {
-          svalue_to_string (&fp[i], &outbuf, 0, (i == num_arg - 1) ? 0 : ',',
-                            SV2STR_NOINDENT|SV2STR_NONEWLINE);
-        }
-      log_message (NULL, "%s\n", outbuf.buffer);
-      FREE_MSTR (outbuf.buffer);
-    }
-
-  if ((how & DUMP_WITH_LOCALVARS) && num_local > 0 && num_arg != -1)
-    {
-      outbuffer_t outbuf;
-
-      outbuf_zero (&outbuf);
-      ptr = fp + num_arg;
-      outbuf_add (&outbuf, "\t\tlocal variables: ");
-      for (i = 0; i < num_local; i++)
-        {
-          svalue_to_string (&ptr[i], &outbuf, 0, (i == num_local - 1) ? 0 : ',',
-                            SV2STR_NOINDENT|SV2STR_NONEWLINE);
-        }
-      log_message (NULL, "%s\n", outbuf.buffer);
-      FREE_MSTR (outbuf.buffer);
-    }
-
-  //log_message (NULL, "\tdisassembly:\n");
-  //disassemble (current_log_file, current_prog->program, offset, offset + 30, current_prog);
-  fflush (current_log_file);
-  return ret;
-}
-
-array_t *
-get_svalue_trace (int how)
-{
-  control_stack_t *p;
-  array_t *v;
-  mapping_t *m;
-  char *file;
-  int line;
-  int num_arg = 0, num_local = 0;
-  svalue_t *ptr;
-  int i, n, n2;
-  function_trace_details_t ftd;
-
-  if (current_prog == 0)
-    return &the_null_array;
-  if (csp < &control_stack[0])
-    {
-      return &the_null_array;
-    }
-  v = allocate_empty_array ((csp - &control_stack[0]) + 1);
-  for (p = &control_stack[0]; p < csp; p++)
-    {
-      m = allocate_mapping (6);
-      switch (p[0].framekind & FRAME_MASK)
-        {
-        case FRAME_FUNCTION:
-          get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
-          num_arg = ftd.num_arg;
-          num_local = ftd.num_local;
-          add_mapping_string (m, "function", ftd.name);
-          break;
-        case FRAME_CATCH:
-          add_mapping_string (m, "function", "CATCH");
-          num_arg = -1;
-          break;
-        case FRAME_FAKE:
-          add_mapping_string (m, "function", "<function>");
-          num_arg = -1;
-          break;
-        case FRAME_FUNP:
-          add_mapping_string (m, "function", "<function>");
-          num_arg = p[0].fr.funp->f.functional.num_arg;
-          num_local = p[0].fr.funp->f.functional.num_local;
-          break;
-        }
-      add_mapping_string (m, "program", p[1].prog->name);
-      add_mapping_object (m, "object", p[1].ob);
-      get_explicit_line_number_info (p[1].pc, p[1].prog, &file, &line);
-      add_mapping_string (m, "file", file);
-      add_mapping_pair (m, "line", line);
-
-      if ((how & DUMP_WITH_ARGS) && (num_arg != -1))
-        {
-          array_t *v2;
-
-          n = num_arg;
-          ptr = p[1].fp;
-          v2 = allocate_empty_array (n);
-          for (i = 0; i < n; i++)
-            {
-              assign_svalue_no_free (&v2->item[i], &ptr[i]);
-            }
-          add_mapping_array (m, "arguments", v2);
-          v2->ref--;
-        }
-
-      if ((how & DUMP_WITH_LOCALVARS) && num_local > 0 && num_arg != -1)
-        {
-          array_t *v2;
-
-          n = num_arg;
-          n2 = num_local;
-          ptr = p[1].fp;
-          v2 = allocate_empty_array (n2);
-          for (i = 0; i < n2; i++)
-            {
-              assign_svalue_no_free (&v2->item[i], &ptr[i + n]);
-            }
-          add_mapping_array (m, "locals", v2);
-          v2->ref--;
-        }
-
-      v->item[(p - &control_stack[0])].type = T_MAPPING;
-      v->item[(p - &control_stack[0])].u.map = m;
-    }
-  m = allocate_mapping (6);
-  switch (p[0].framekind & FRAME_MASK)
-    {
-    case FRAME_FUNCTION:
-      get_trace_details (current_prog, p[0].fr.table_index, &ftd);
-      num_arg = ftd.num_arg;
-      num_local = ftd.num_local;
-      add_mapping_string (m, "function", ftd.name);
-      break;
-    case FRAME_CATCH:
-      add_mapping_string (m, "function", "CATCH");
-      num_arg = -1;
-      break;
-    case FRAME_FAKE:
-      add_mapping_string (m, "function", "<function>");
-      num_arg = -1;
-      break;
-    case FRAME_FUNP:
-      add_mapping_string (m, "function", "<function>");
-      num_arg = p[0].fr.funp->f.functional.num_arg;
-      num_local = p[0].fr.funp->f.functional.num_local;
-      break;
-    }
-  add_mapping_string (m, "program", current_prog->name);
-  add_mapping_object (m, "object", current_object);
-  get_line_number_info (&file, &line);
-  add_mapping_string (m, "file", file);
-  add_mapping_pair (m, "line", line);
-
-  if ((how & DUMP_WITH_ARGS) && (num_arg != -1))
-    {
-      array_t *v2;
-
-      n = num_arg;
-      v2 = allocate_empty_array (n);
-      for (i = 0; i < n; i++)
-        {
-          assign_svalue_no_free (&v2->item[i], &fp[i]);
-        }
-      add_mapping_array (m, "arguments", v2);
-      v2->ref--;
-    }
-
-  if ((how & DUMP_WITH_LOCALVARS) && num_local > 0 && num_arg != -1)
-    {
-      array_t *v2;
-
-      n = num_arg;
-      n2 = num_local;
-      v2 = allocate_empty_array (n2);
-      for (i = 0; i < n2; i++)
-        {
-          assign_svalue_no_free (&v2->item[i], &fp[i + n]);
-        }
-      add_mapping_array (m, "locals", v2);
-      v2->ref--;
-    }
-
-  v->item[(csp - &control_stack[0])].type = T_MAPPING;
-  v->item[(csp - &control_stack[0])].u.map = m;
-  /* return a reference zero array */
-  v->ref--;
-  return v;
 }
 
 /*
@@ -3990,18 +3443,6 @@ do_catch (const char *pc, unsigned short new_pc_offset)
   pop_context (&econ);
 }
 
-static program_t *ffbn_recurse (program_t *, char *, int *, int *);
-
-static program_t *
-find_function_by_name (object_t * ob, const char *name, int *index, int *runtime_index)
-{
-  char *funname = findstring (name);
-
-  if (!funname)
-    return 0;
-  return ffbn_recurse (ob->prog, funname, index, runtime_index);
-}
-
 /* Reason for the following 1. save cache space 2. speed :) */
 /* The following is to be called only from reset_object for */
 /* otherwise extra checks are needed - Sym                  */
@@ -4038,103 +3479,6 @@ call___INIT (object_t * ob)
   opt_trace (TT_EVAL, "(obsoleted) calling __INIT");
   call_program (current_prog, cfp->address);
   sp--;
-}
-
-
-static program_t *
-ffbn_recurse (program_t * prog, char *name, int *index, int *runtime_index)
-{
-  int high = prog->num_functions_defined - 1;
-  int low = 0;
-  int i;
-
-  /* Search our function table */
-  while (high >= low)
-    {
-      int mid = (high + low) / 2;
-      char *p = prog->function_table[mid].name;
-
-      if (name < p)
-        high = mid - 1;
-      else if (name > p)
-        low = mid + 1;
-      else
-        {
-          int ridx = prog->function_table[mid].runtime_index;
-          int flags = prog->function_flags[ridx];
-          if (flags & (NAME_UNDEFINED | NAME_PROTOTYPE))
-            {
-              if (flags & NAME_INHERITED)
-                break;
-              return 0;
-            }
-          *index = mid;
-          *runtime_index = prog->function_table[mid].runtime_index;
-          return prog;
-        }
-    }
-
-  /* Search inherited function tables */
-  i = prog->num_inherited;
-  while (i--)
-    {
-      program_t *ret =
-        ffbn_recurse (prog->inherit[i].prog, name, index, runtime_index);
-      if (ret)
-        {
-          *runtime_index += prog->inherit[i].function_index_offset;
-          return ret;
-        }
-    }
-  return 0;
-}
-
-char *
-function_name (program_t * prog, int index)
-{
-  runtime_function_u *func_entry = FIND_FUNC_ENTRY (prog, index);
-
-  while (prog->function_flags[index] & NAME_INHERITED)
-    {
-      prog = prog->inherit[func_entry->inh.offset].prog;
-      index = func_entry->inh.function_index_offset;
-      func_entry = FIND_FUNC_ENTRY (prog, index);
-    }
-
-  return prog->function_table[func_entry->def.f_index].name;
-}
-
-/*
- * This function is similar to apply(), except that it will not
- * call the function, only return object name if the function exists,
- * or 0 otherwise.  If flag is nonzero, then we admit static and private
- * functions exist.  Note that if you actually intend to call the function,
- * it's faster to just try to call it and check if apply() returns zero.
- */
-char *
-function_exists (const char *fun, object_t * ob, int flag)
-{
-  int index, runtime_index;
-  program_t *prog;
-  //compiler_function_t *cfp;
-
-  DEBUG_CHECK (ob->flags & O_DESTRUCTED, "function_exists() on destructed object\n");
-
-  if (fun[0] == APPLY___INIT_SPECIAL_CHAR)
-    return 0;
-
-  prog = find_function_by_name (ob, fun, &index, &runtime_index);
-  if (!prog)
-    return 0;
-
-  //cfp = prog->function_table + index;
-
-  if ((ob->prog->function_flags[runtime_index] & NAME_UNDEFINED) ||
-      ((ob->prog->function_flags[runtime_index] & (NAME_STATIC | NAME_PRIVATE))
-       && current_object != ob && !flag))
-    return 0;
-
-  return prog->name;
 }
 
 #ifndef NO_SHADOWS
@@ -4193,37 +3537,6 @@ call_function (program_t * progp, int offset)
   opt_trace (TT_EVAL, "function address: %d", funp->address);
   call_program (current_prog, funp->address);
   pop_stack ();
-}
-
-int
-translate_absolute_line (int abs_line, unsigned short *file_info, size_t block_size, int *ret_file, int *ret_line)
-{
-  unsigned short *p1, *p2, *end = file_info + (block_size / sizeof(unsigned short));
-  int file;
-  int line_tmp = abs_line;
-
-  /* two passes: first, find out what file we're interested in */
-  p1 = file_info;
-  while (line_tmp > *p1)
-    {
-      line_tmp -= *p1;
-      p1 += 2;
-      if (p1 >= end)
-        return -1; /* file info block corrupted */
-    }
-  file = p1[1];
-
-  /* now correct the line number for that file */
-  p2 = file_info;
-  while (p2 < p1)
-    {
-      if (p2[1] == file)
-        line_tmp += *p2;
-      p2 += 2;
-    }
-  *ret_line = line_tmp;
-  *ret_file = file;
-  return 0;
 }
 
 /**
