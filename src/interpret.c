@@ -47,7 +47,7 @@ program_t *current_prog;
 
 static void do_loop_cond_number (void);
 static void do_loop_cond_local (void);
-static void do_catch (char *, unsigned short);
+static void do_catch (const char *, unsigned short);
 
 static int tracedepth;
 
@@ -71,10 +71,9 @@ static int tracedepth;
  * will return. That means that control_stack[0] will have almost no
  * interesting values, as it will terminate execution.
  */
-char *pc;       /* Program pointer. */
-svalue_t *fp;   /* Pointer to first argument. */
-
-svalue_t *sp;   /* Pointer to stack top. */
+const char *pc;         /* Program pointer. */
+svalue_t *fp;           /* Pointer to first argument. */
+svalue_t *sp;           /* Pointer to stack top. */
 
 int function_index_offset;	/* Needed for inheritance */
 int variable_index_offset;	/* Needed for inheritance */
@@ -1793,8 +1792,7 @@ find_line (const char *p, const program_t * progp, char **ret_file, int *ret_lin
   return 4;
 }
 
-static void
-get_explicit_line_number_info (char *p, program_t * prog, char **ret_file, int *ret_line)
+static void get_explicit_line_number_info (const char *p, program_t * prog, char **ret_file, int *ret_line)
 {
   find_line (p, prog, ret_file, ret_line);
   if (!(*ret_file))
@@ -2175,7 +2173,7 @@ get_svalue_trace (int how)
  */
 
 void
-eval_instruction (char *p)
+eval_instruction (const char *p)
 {
   int i, n;
   float real;
@@ -3967,7 +3965,7 @@ eval_instruction (char *p)
 }
 
 static void
-do_catch (char *pc, unsigned short new_pc_offset)
+do_catch (const char *pc, unsigned short new_pc_offset)
 {
   error_context_t econ;
   (void)new_pc_offset; /* unused */

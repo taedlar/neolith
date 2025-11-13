@@ -14,9 +14,6 @@ operator pop_value, push, efun0, efun1, efun2, efun3, efunv;
 operator number, real, byte, nbyte, string, short_string, const0, const1;
 
 operator aggregate, aggregate_assoc;
-#ifdef DEBUG
-operator break_point;
-#endif
 
 /* these must be set up so that F_BRANCH is the last foward branch and
  * F_BRANCH_X + 3 == F_BBRANCH_X
