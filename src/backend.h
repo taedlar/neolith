@@ -1,16 +1,10 @@
 #pragma once
 #include "interpret.h"
 
-#define NULL_ERROR_CONTEXT       0
-#define NORMAL_ERROR_CONTEXT     1
-#define CATCH_ERROR_CONTEXT      2
-#define SAFE_APPLY_ERROR_CONTEXT 4
-
 extern time_t current_time;
 extern int heart_beat_flag;
 extern object_t *current_heart_beat;
 extern size_t eval_cost;
-extern error_context_t *current_error_context;
 
 extern void preload_objects(int);
 extern void backend(void);

@@ -1367,7 +1367,7 @@ add_mapping_pair (mapping_t * m, char *key, int value)
 }
 
 void
-add_mapping_string (mapping_t * m, char *key, char *value)
+add_mapping_string (mapping_t * m, char *key, const char *value)
 {
   svalue_t *s;
 

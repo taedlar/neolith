@@ -38,7 +38,8 @@ extern void save_command_giver (object_t*);
 extern void restore_command_giver (void);
 
 int strip_name(const char* src, char* dest, size_t dest_size);
-extern object_t *load_object(const char *);
+object_t *load_object(const char *);
+void reset_load_object_limits();
 object_t *clone_object(const char *, int);
 object_t *environment(svalue_t *);
 object_t *first_inventory(svalue_t *);
@@ -47,6 +48,7 @@ object_t *find_object(const char *);
 object_t *find_object2(const char *);
 void move_object(object_t *, object_t *);
 void destruct_object(object_t *);
+void reset_destruct_object_limits();
 void destruct2(object_t *);
 void remove_destructed_objects(void);
 
@@ -60,10 +62,8 @@ void shout_string(char *);
 extern char *dump_trace (int);
 extern array_t *get_svalue_trace (int);
 
-extern void throw_error(void) NO_RETURN;
-extern void error_handler(char *) NO_RETURN;
-extern void fatal(char *, ...) NO_RETURN;
-extern void error(char *, ...) NO_RETURN;
+void fatal(char *, ...) NO_RETURN;
+int in_fatal_error(void);
 
 void do_shutdown (int);
 void slow_shut_down (int);

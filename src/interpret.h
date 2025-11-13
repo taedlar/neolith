@@ -311,10 +311,6 @@ void assign_lvalue_range(svalue_t *);
 void try_reset(object_t *);
 #endif
 
-void pop_context(error_context_t *);
-void restore_context(error_context_t *);
-int save_context(error_context_t *);
-
 void pop_control_stack(void);
 compiler_function_t *setup_new_frame(int);
 void push_control_stack(int);
@@ -323,6 +319,7 @@ void break_point(void);
 
 extern int get_error_state (int mask);
 extern void set_error_state (int flag);
+extern void clear_error_state ();
 
 #define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
 #define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */

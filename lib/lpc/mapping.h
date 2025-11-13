@@ -86,7 +86,7 @@ void dealloc_mapping(mapping_t *);
 void mark_mapping_node_blocks(void);
 
 void add_mapping_pair(mapping_t *, char *, int);
-void add_mapping_string(mapping_t *, char *, char *);
+void add_mapping_string(mapping_t *, char *, const char *);
 void add_mapping_malloced_string(mapping_t *, char *, char *);
 void add_mapping_object(mapping_t *, char *, object_t *);
 void add_mapping_array(mapping_t *, char *, array_t *);
