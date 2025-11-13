@@ -12,6 +12,7 @@
 typedef struct main_options
 {
   char config_file[PATH_MAX];
+  int epilog_level;
   int debug_level;
   unsigned long trace_flags;    /* Trace flags for debugging */
 } main_options_t;
