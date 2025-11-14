@@ -2660,7 +2660,7 @@ int add_program_file (const char *name, int top) {
 }
 
 void init_lpc_compiler(size_t max_locals) {
-  init_num_args ();
+  init_instrs ();
   init_identifiers ();
   num_local_variables_allowed = max_locals;
   init_locals ();

@@ -468,7 +468,7 @@ disassemble (FILE * f, char *code, int start, int end, program_t * prog)
           instr = EXTRACT_UCHAR (pc++) + ONEARG_MAX;
           break;
         }
-      fprintf (f, "%s %s\n", get_f_name (instr), buff);
+      fprintf (f, "%s %s\n", query_opcode_name (instr), buff);
     }
 
   if (offsets)

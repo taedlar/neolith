@@ -38,7 +38,7 @@ protected:
         fs::current_path(mudlib_path); // change working directory to mudlib
 
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
-        init_num_args();
+        init_instrs();
         init_identifiers();
         set_inc_list (CONFIG_STR (__INCLUDE_DIRS__)); // automatically freed in deinit_lpc_compiler()
 
@@ -55,6 +55,24 @@ protected:
         deinit_config();
     }
 };
+
+TEST_F(LPCLexerTest, getOpcodeName) {
+    // LPC reserved words and operators are translated to instruction numbers (aka. opcodes)
+    // before it can be interpreted by the LPC compiler.
+
+    EXPECT_NO_THROW(query_opcode_name(0)); // not used
+
+    // first eoperator is F_POP_VALUE = 1
+    EXPECT_STREQ(query_opcode_name(F_LT), "<"); // eoperators
+
+    // BASE is 114 (first efun)
+    EXPECT_STREQ(query_opcode_name(F_CALL_OTHER), "call_other"); // from efuns
+
+    // test out-of-bounds
+    EXPECT_NO_THROW(query_opcode_name(-1));
+    EXPECT_NO_THROW(query_opcode_name(NUM_OPCODES + 1));
+    EXPECT_NO_THROW(query_opcode_name(9999));
+}
 
 TEST_F(LPCLexerTest, startNewFile) {
     int fd = open("master.c", O_RDONLY);

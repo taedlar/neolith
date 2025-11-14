@@ -1288,7 +1288,7 @@ expr0:
                         char *p;
                         
                         p = strput(buf, end, "Bad left argument to '");
-                        p = strput(p, end, get_f_name($2));
+                        p = strput(p, end, query_opcode_name($2));
                         p = strput(p, end, "' : \"");
                         p = get_type_name(p, end, t1);
                         p = strput(p, end, "\"");
@@ -1300,7 +1300,7 @@ expr0:
                         char *p;
                         
                         p = strput(buf, end, "Bad right argument to '");
-                        p = strput(p, end, get_f_name($2));
+                        p = strput(p, end, query_opcode_name($2));
                         p = strput(p, end, "' : \"");
                         p = get_type_name(p, end, t3);
                         p = strput(p, end, "\"");
@@ -1311,7 +1311,7 @@ expr0:
                         char *p;
                         
                         p = strput(buf, end, "Arguments to ");
-                        p = strput(p, end, get_f_name($2));
+                        p = strput(p, end, query_opcode_name($2));
                         p = strput(p, end, " do not have compatible types : ");
                         p = get_two_types(p, end, t1, t3);
                         yyerror(buf);
