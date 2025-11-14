@@ -301,7 +301,7 @@ void error (const char *fmt, ...) {
 
 
 void bad_arg (int arg, int instr) {
-  error ("*Bad argument %d to %s()", arg, get_f_name (instr));
+  error ("*Bad argument %d to %s()", arg, query_opcode_name (instr));
 }
 
 static char *type_names[] = {
@@ -356,7 +356,7 @@ void bad_argument (svalue_t * val, int type, int arg, int instr) {
 
   outbuf_zero (&outbuf);
   outbuf_addv (&outbuf, "Bad argument %d to %s%s, Expected: ", arg,
-               get_f_name (instr), (instr < BASE ? "" : "()"));
+               query_opcode_name (instr), (instr < BASE ? "" : "()"));
 
   do
     {

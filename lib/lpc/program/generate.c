@@ -320,7 +320,7 @@ lpc_tree_list (parse_node_t * dest, parse_node_t * expr)
     }
 }
 
-#define lpc_tree_opc(x, y) lpc_tree_string(x, get_f_name(y & ~NOVALUE_USED_FLAG))
+#define lpc_tree_opc(x, y) lpc_tree_string(x, query_opcode_name(y & ~NOVALUE_USED_FLAG))
 
 #define ARG_1 dest->r.expr
 #define ARG_2 dest->r.expr->r.expr

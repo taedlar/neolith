@@ -138,23 +138,29 @@ extern keyword_t predefs[];
 
 void push_function_context(void);
 void pop_function_context(void);
+
 int yylex(void);
-void init_num_args(void);
+
+void init_instrs(void);
 void deinit_num_args(void);
-char *get_f_name(int);
+const char *query_opcode_name(int);
+
 void set_inc_list(const char *);
 void reset_inc_list(void);
+
 void start_new_file(int fd, const char* pre_text);
 void end_new_file(void);
+const char *main_file_name(void);
+
 int lookup_predef(char *);
 void add_predefines(void);
 void free_defines (int include_predefs);
-const char *main_file_name(void);
-char *get_defined_name(defined_name_t *);
+
 ident_hash_elem_t *find_or_add_ident(char *, int);
 ident_hash_elem_t *find_or_add_perm_ident(char *);
 ident_hash_elem_t *lookup_ident(const char *);
 void free_unused_identifiers(void);
 void init_identifiers(void);
 void deinit_identifiers(void);
+
 char *show_error_context(void);

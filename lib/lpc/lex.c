@@ -2608,23 +2608,30 @@ void start_new_file (int fd, const char* pre_text) {
 static void
 int_add_instr_name (char *name, int n, short t)
 {
+  if (n < 0 || n >= MAX_INSTRS)
+    {
+      fatal ("int_add_instr_name: instruction number %d out of range", n);
+    }
   instrs[n].name = name;
   instrs[n].ret_type = t;
 }
 
 /**
  * @brief Initialize the number of arguments for LPC eoperators.
+ * 
+ * This was called init_num_args() in MudOS before.
+ * FluffOS renamed it to better reflect its purpose and we agreed.
  */
-void init_num_args () {
+void init_instrs () {
   int i, n;
 
   for (i = 0; i < BASE; i++)
     {
       instrs[i].ret_type = -1;
     }
-  for (i = 0; i < (int)NELEM (predefs); i++)
+  for (i = 0; i < (int)NELEM (predefs); i++) /* efuns */
     {
-      n = predefs[i].token;
+      n = predefs[i].token; /* used as instruction number */
       if (n & F_ALIAS_FLAG)
         {
           predefs[i].token ^= F_ALIAS_FLAG;
@@ -2770,10 +2777,15 @@ void deinit_num_args (void) {
   memset (instrs, 0, sizeof(instrs));
 }
 
-char *
-get_f_name (int n)
-{
-  if (instrs[n].name)
+/**
+ * @brief Get the name of an LPC opcode (stack machine instructions).
+ * 
+ * This function was called get_f_name() in MudOS before.
+ * @param n The opcode number.
+ * @return The name of the opcode, or "<OTHER n>" if it has no name.
+ */
+const char *query_opcode_name (int n) {
+  if (n >= 0 && n < MAX_INSTRS && instrs[n].name)
     return instrs[n].name;
   else
     {
