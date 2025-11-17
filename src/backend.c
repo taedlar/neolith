@@ -346,9 +346,7 @@ call_heart_beat ()
   call_out (); /* check for LPC call_out() */
 }
 
-int
-query_heart_beat (object_t * ob)
-{
+int query_heart_beat (object_t * ob) {
   int index;
 
   if (!(ob->flags & O_HEART_BEAT))
@@ -362,14 +360,14 @@ query_heart_beat (object_t * ob)
   return 0;
 }				/* query_heart_beat() */
 
-/* add or remove an object from the heart beat list; does the major check...
+/**
+ * @brief Add or remove an object from the heart beat list; does the major check...
  * If an object removes something from the list from within a heart beat,
  * various pointers in call_heart_beat could be stuffed, so we must
- * check current_heart_beat and adjust pointers.  */
+ * check current_heart_beat and adjust pointers.
+ */
 
-int
-set_heart_beat (object_t * ob, int to)
-{
+int set_heart_beat (object_t * ob, int to) {
   int index;
 
   if (ob->flags & O_DESTRUCTED)
@@ -377,6 +375,7 @@ set_heart_beat (object_t * ob, int to)
 
   if (!to)
     {
+      /* remove from heart beat list */
       int num;
 
       index = num_hb_objs;
@@ -397,8 +396,7 @@ set_heart_beat (object_t * ob, int to)
         }
 
       if ((num = (num_hb_objs - (index + 1))))
-        memmove (heart_beats + index, heart_beats + (index + 1),
-                 num * sizeof (heart_beat_t));
+        memmove (heart_beats + index, heart_beats + (index + 1), num * sizeof (heart_beat_t));
 
       num_hb_objs--;
       ob->flags &= ~O_HEART_BEAT;
@@ -420,8 +418,7 @@ set_heart_beat (object_t * ob, int to)
               break;
             }
         }
-      DEBUG_CHECK (index < 0,
-                   "Couldn't find enabled object in heart_beat list!\n");
+      DEBUG_CHECK (index < 0, "Couldn't find enabled object in heart_beat list!\n");
     }
   else
     {

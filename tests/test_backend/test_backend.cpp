@@ -61,3 +61,19 @@ TEST_F(BackendTest, preload) {
     EXPECT_NO_THROW(preload_objects (0)) << "preload_objects() threw an exception";
     destruct_object(master_ob);
 }
+
+TEST_F(BackendTest, setHeartBeat) {
+    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    init_master ("/master.c");
+
+    object_t* ob = master_ob;
+    EXPECT_EQ(query_heart_beat(ob), 0); // master_ob has no heart beat initially
+
+    // Enable heart beat
+    EXPECT_EQ(set_heart_beat(ob, 1), 1);
+    EXPECT_GT(query_heart_beat(ob), 0);
+
+    // Disable heart beat
+    EXPECT_EQ(set_heart_beat(ob, 0), 1);
+    EXPECT_EQ(query_heart_beat(ob), 0);
+}
