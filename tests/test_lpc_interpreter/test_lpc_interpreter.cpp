@@ -3,6 +3,7 @@
 #endif
 
 #include "fixtures.hpp"
+
 extern "C" {
     #include "lpc/program.h"
     #include "lpc/program/disassemble.h"

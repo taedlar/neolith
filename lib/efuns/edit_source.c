@@ -575,8 +575,7 @@ exgetc ()
   return c;
 }
 
-static int
-skip_to (char *token, char *atoken)
+static int skip_to (char *token, char *atoken)
 {
   char b[20], *p, *end;
   int c;
@@ -600,8 +599,7 @@ skip_to (char *token, char *atoken)
                 *p++ = (char) c;
             }
           *p = 0;
-          if (!strcmp (b, "if") || !strcmp (b, "ifdef")
-              || !strcmp (b, "ifndef"))
+          if (!strcmp (b, "if") || !strcmp (b, "ifdef") || !strcmp (b, "ifndef"))
             {
               nest++;
             }

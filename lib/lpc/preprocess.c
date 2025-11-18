@@ -6,13 +6,13 @@ static void handle_cond (int);
 
 #ifndef LEXER
 #undef DXALLOC
-#define DXALLOC(x, y, z) malloc(x)
+#define DXALLOC(x, y, z)        malloc(x)
 #undef FREE
-#define FREE(x)   free(x)
+#define FREE(x)                 free(x)
 #undef ALLOCATE
-#define ALLOCATE(x, y, z) (x *)malloc(sizeof(x))
+#define ALLOCATE(x, y, z)       (x *)malloc(sizeof(x))
 #undef DREALLOC
-#define DREALLOC(w, x, y, z) realloc(w, x)
+#define DREALLOC(w, x, y, z)    realloc(w, x)
 #endif /* LEXER */
 
 static defn_t *defns[DEFHASH];
@@ -52,9 +52,7 @@ add_define (const char *name, int nargs, const char *exps)
     {
       if (p->flags & DEF_IS_UNDEFINED)
         {
-          p->exps =
-            (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER,
-                               "add_define: redef");
+          p->exps = (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER, "add_define: redef");
           strcpy (p->exps, exps);
           p->flags = 0;
           p->nargs = nargs;
@@ -73,9 +71,7 @@ add_define (const char *name, int nargs, const char *exps)
               sprintf (buff, "redefinition of #define %s\n", name);
               yywarn (buff);
 
-              p->exps =
-                (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER,
-                                   "add_define: redef");
+              p->exps = (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER, "add_define: redef");
               strcpy (p->exps, exps);
               p->nargs = nargs;
             }
@@ -87,13 +83,9 @@ add_define (const char *name, int nargs, const char *exps)
   else
     {
       p = ALLOCATE (defn_t, TAG_COMPILER, "add_define: def");
-      p->name =
-        (char *) DXALLOC (strlen (name) + 1, TAG_COMPILER,
-                          "add_define: def name");
+      p->name = (char *) DXALLOC (strlen (name) + 1, TAG_COMPILER, "add_define: def name");
       strcpy (p->name, name);
-      p->exps =
-        (char *) DXALLOC (strlen (exps) + 1, TAG_COMPILER,
-                          "add_define: def exps");
+      p->exps = (char *) DXALLOC (strlen (exps) + 1, TAG_COMPILER, "add_define: def exps");
       strcpy (p->exps, exps);
       p->flags = 0;
       p->nargs = nargs;
@@ -271,11 +263,12 @@ cond_get_exp (int priority)
     }
   else if (ispunct (c))
     {
-          x = optab1[c];
-      if (!x) {
-            yyerrorp ("illegal character in %cif");
-            return 0;
-          }
+      x = optab1[c];
+      if (!x)
+        {
+          yyerrorp ("illegal character in %cif");
+          return 0;
+        }
       value = cond_get_exp (12);
       switch (optab2[x - 1])
         {

@@ -54,7 +54,7 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
   if (!CONFIG_STR (__SAVE_BINARIES_DIR__))
     return; /* do not allow save binary */
 
-  /* NEOLITH-ONLY: Allows save_binary without initialization of virtual stack machine. */
+  /* [NEOLITH-EXTENSION] Allows save_binary without initialization of virtual stack machine. */
   if (get_machine_state() >= MS_MUDLIB_LIMBO)
     {
       nm = add_slash (prog->name);
