@@ -293,8 +293,18 @@ static void lexerror (char *s) {
   lex_fatal++;
 }
 
-static int
-skip_to (char *token, char *atoken)
+/**
+ * @brief Skip lines until a specific preprocessor token in the input stream.
+ * 
+ * This function is used in preprocess.c to skip lines until a specific preprocessor
+ * token is found, such as #endif or #else. It handles nested preprocessor directives
+ * correctly.
+ * 
+ * @param token The token to skip to.
+ * @param atoken An alternative token to skip to, or NULL if not needed.
+ * @return 1 if `token` was found, 0 if `atoken`
+ */
+static int skip_to (char *token, char *atoken)
 {
   char b[20], *p;
   char c;
@@ -304,6 +314,7 @@ skip_to (char *token, char *atoken)
 
   for (nest = 0;;)
     {
+      /* check for preprocessor directives */
       if ((c = *yyp++) == '#')
         {
           while (is_wspace (c = *yyp++));
@@ -316,8 +327,7 @@ skip_to (char *token, char *atoken)
                 break;
             }
           *p = 0;
-          if (!strcmp (b, "if") || !strcmp (b, "ifdef")
-              || !strcmp (b, "ifndef"))
+          if (!strcmp (b, "if") || !strcmp (b, "ifdef") || !strcmp (b, "ifndef"))
             {
               nest++;
             }
@@ -348,6 +358,7 @@ skip_to (char *token, char *atoken)
                 }
             }
         }
+      /* skip a line (or EOF) */
       while (c != '\n' && c != LEX_EOF)
         c = *yyp++;
       if (c == LEX_EOF)
@@ -2542,6 +2553,7 @@ add_predefines ()
  * as expected.
  * 
  * @param fd The file descriptor of the new file.
+ * @param pre_text Optional text to insert before the file contents.
  */
 void start_new_file (int fd, const char* pre_text) {
   if (defines_need_freed)
@@ -2575,7 +2587,6 @@ void start_new_file (int fd, const char* pre_text) {
   current_function_context = 0;
   cur_lbuf = &head_lbuf;
   cur_lbuf->outptr = cur_lbuf->buf_end = outptr = cur_lbuf->buf + (DEFMAX >> 1);
-  *(last_nl = outptr - 1) = '\n';
 
   pragmas = DEFAULT_PRAGMAS;
   nexpands = 0;
@@ -2586,9 +2597,15 @@ void start_new_file (int fd, const char* pre_text) {
 
   if (pre_text)
     {
-      /* insert any text before the actual file contents */
+      /* [NEOLITH-EXTENSION] insert any text before the actual file contents */
       add_input (pre_text);
     }
+  
+  /*
+   * Ensure a newline at end of input to allow processor directives at first line.
+   * This must be done after any pre_text is added. (i.e. the newline is added before pre_text).
+   */
+  *(last_nl = outptr - 1) = '\n';
 
   if (CONFIG_STR (__GLOBAL_INCLUDE_FILE__))
     {

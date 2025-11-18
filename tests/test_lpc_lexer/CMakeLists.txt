@@ -2,6 +2,7 @@
 
 add_executable(test_lpc_lexer
     test_lpc_lexer.cpp
+    test_preprocess.cpp
 )
 target_link_libraries(test_lpc_lexer PRIVATE stem GTest::gtest_main)
 

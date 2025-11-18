@@ -6,19 +6,14 @@
 extern "C" {
     #include "std.h"
     #include "rc.h"
-    #include "src/simul_efun.h"
-    #include "uids.h"
-    #include "lpc/object.h"
-    #include "lpc/otable.h"
+    #include "lpc/lex.h"
+    #include "lpc/compiler.h"
+    #include "grammar.h"
 }
 
 using namespace testing;
 
-// according to GoogleTest FAQ, the test suite name and test name should not
-// contain underscores to avoid issues on some platforms.
-// https://google.github.io/googletest/faq.html#why-should-test-suite-names-and-test-names-not-contain-underscore
-
-class LPCInterpreterTest: public Test {
+class LPCLexerTest: public Test {
 private:
     std::filesystem::path previous_cwd;
 
@@ -42,16 +37,16 @@ protected:
         fs::current_path(mudlib_path); // change working directory to mudlib
 
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
-        init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__));
+        init_instrs();
+        init_identifiers();
         set_inc_list (CONFIG_STR (__INCLUDE_DIRS__)); // automatically freed in deinit_lpc_compiler()
 
-        init_simulate();
-        eval_cost = CONFIG_INT (__MAX_EVAL_COST__); /* simulates calling LPC code from backend */
+        // predefs are not added here; each test should add them as needed
     }
 
     void TearDown() override {
-        tear_down_simulate();
-        deinit_lpc_compiler();
+        deinit_identifiers();
+        deinit_num_args();
         deinit_strings();
 
         namespace fs = std::filesystem;
