@@ -417,7 +417,7 @@ object_t* load_object (const char *lname) {
           debug_perror ("open()", real_name);
           error ("*Could not read the file '/%s'.", real_name);
         }
-      prog = compile_file (f, real_name);
+      prog = compile_file (f, real_name, 0);
 
       update_compile_av (total_lines);
       total_lines = 0;

@@ -2462,9 +2462,14 @@ badlex:
 
 extern YYSTYPE yylval;
 
-void
-end_new_file ()
-{
+/**
+ *  @brief Clean up after finishing a file.
+ *  All open include files are closed, and all #if states are cleared.
+ *  Also frees any #defines that were added for this file.
+ *  Line buffering is also cleared.
+ */
+void end_new_file () {
+
   while (inctop)
     {
       incstate_t *p;

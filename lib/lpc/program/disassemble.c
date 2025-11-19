@@ -57,9 +57,11 @@ short_compare (const void *a, const void *b)
 
 static char *pushes[] = { "string", "number", "global", "local" };
 
-void
-disassemble (FILE * f, char *code, int start, int end, program_t * prog)
-{
+/**
+ *  @brief Disassemble LPC bytecode to human-readable format.
+ */
+void disassemble (FILE *f, char *code, int start, int end, program_t *prog) {
+
   int i, j, instr, iarg /*, is_efun*/;
   unsigned short sarg;
   unsigned short offset;

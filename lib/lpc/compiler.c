@@ -13,7 +13,7 @@
 #include "efuns/file_utils.h"
 
 static void clean_parser (void);
-static void prolog (int, const char *);
+static void prolog (const char *);
 static program_t *epilog (void);
 static void show_overload_warnings (void);
 
@@ -1837,10 +1837,16 @@ yywarn (char *str)
 }
 
 
-/*
- * Compile an LPC file.
+/**
+ *  @brief Compile an LPC file.
+ *  @param fd File descriptor of the file to compile.
+ *  @param name Name of the file to compile.
+ *  @param pre_text Text to prepend to the file being compiled.
+ *      This is a Neolith extension mainly for unit-testing LPC compiler.
+ *      It can be NULL.
+ *  @return The compiled program, or NULL on failure.
  */
-program_t *compile_file (int f, const char *name) {
+program_t *compile_file (int fd, const char *name, const char* pre_text) {
 
   static int guard = 0;
   program_t *prog;
@@ -1854,11 +1860,14 @@ program_t *compile_file (int f, const char *name) {
   guard = 1;
 
   opt_trace (TT_COMPILE, "starting compiling: \"%s\"", name);
-  prolog (f, name);
+  prolog (name);
+  start_new_file (fd, pre_text); /* initalize the lexer */
 
+  /* start parsing */
   opt_trace (TT_COMPILE, "parsing source...");
   yyparse ();
 
+  /* code generation */
   opt_trace (TT_COMPILE, "finished parsing.");
   prog = epilog ();
 
@@ -2161,11 +2170,10 @@ compress_function_tables ()
 #endif
 
 
-/*
- * The program has been compiled. Prepare a 'program_t' to be returned.
+/**
+ *  @brief After the program has been compiled. Prepare a 'program_t' to be returned.
  */
-static program_t *
-epilog ()
+static program_t *epilog ()
 {
   int size, i, lnsz, lnoff;
   char *p;
@@ -2396,11 +2404,10 @@ epilog ()
 }
 
 
-/*
- * Initialize the environment that the compiler needs.
+/**
+ *  @brief Initialize the environment that the compiler needs.
  */
-static void
-prolog (int f, const char *name)
+static void prolog (const char *name)
 {
   int i;
 
@@ -2416,8 +2423,7 @@ prolog (int f, const char *name)
    */
   for (i = 0; i < NUMAREAS; i++)
     {
-      mem_block[i].block =
-        DXALLOC (START_BLOCK_SIZE, TAG_COMPILER, "prolog: 2");
+      mem_block[i].block = DXALLOC (START_BLOCK_SIZE, TAG_COMPILER, "prolog: 2");
       mem_block[i].current_size = 0;
       mem_block[i].max_size = START_BLOCK_SIZE;
     }
@@ -2427,14 +2433,12 @@ prolog (int f, const char *name)
 
   current_file = make_shared_string (name);
   current_file_id = add_program_file (name, 1);
-  start_new_file (f, 0);
 }
 
-/*
- * The program has errors, clean things up.
+/**
+ *  @brief When the program has errors, clean things up.
  */
-static void
-clean_parser ()
+static void clean_parser ()
 {
   int i, n;
   compiler_function_t *funp;

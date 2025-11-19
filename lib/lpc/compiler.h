@@ -181,7 +181,7 @@ void deactivate_current_locals(void);
 int add_local_name(char *, int);
 void reallocate_locals(void);
 int get_id_number(void);
-program_t *compile_file(int, const char *);
+program_t *compile_file(int, const char *, const char*);
 void copy_variables(program_t *, int);
 void copy_structures(program_t *);
 int copy_functions(program_t *, int);
