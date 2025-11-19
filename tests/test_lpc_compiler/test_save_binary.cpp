@@ -13,42 +13,32 @@ using namespace testing;
 
 #ifdef BINARIES
 TEST_F(LPCCompilerTest, saveBinary) {
-    error_context_t econ;
-    save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        // FAIL() << "Failed to save binary for test object.";
-    }
-    else {
-        init_binaries();
-        std::error_code ec;
-        if (std::filesystem::exists("bin/save_binary.b", ec)) {
-            std::filesystem::remove("bin/save_binary.b", ec);
-        }
+    ASSERT_NE(CONFIG_STR(__SAVE_BINARIES_DIR__), nullptr)
+        << "__SAVE_BINARIES_DIR__ is not configured.";
+    init_binaries();
 
-        /*  The #pragma save_binary is checked in epilog(), which is called
-         *  as the last step in compile_file(). A master apply "valid_save_binary"
-         *  is called to confirm saving is allowed.
-         */
-        int fd = open("save_binary.c", O_RDONLY);
-        ASSERT_NE(fd, -1) << "Failed to open save_binary.c for reading.";
-        program_t* prog = compile_file(fd, "save_binary.c", 0);
-        ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
-        total_lines = 0;
-        close(fd);
+    /*  The #pragma save_binary is checked in epilog(), which is called
+        *  as the last step in compile_file(). A master apply "valid_save_binary"
+        *  is called to confirm saving is allowed.
+        */
+    int fd = open("save_binary.c", O_RDONLY);
+    ASSERT_NE(fd, -1) << "Failed to open save_binary.c for reading.";
+    program_t* prog = compile_file(fd, "save_binary.c", nullptr); // save_binary pragma is enabled in this file
+    EXPECT_TRUE(prog != nullptr) << "compile_file returned null program.";
+    total_lines = 0;
+    close(fd);
 
-        // free the compiled program
-        free_prog(prog, 1);
+    // free the compiled program
+    free_prog(prog, 1);
 
-        ASSERT_TRUE(std::filesystem::exists("bin/save_binary.b", ec))
-            << "Binary file was not created by save_binary pragma.";
-
-        init_simulate();
-        object_t* obj = load_object("/save_binary.c");
-        current_object = obj;
-        destruct_object(obj);
-        tear_down_simulate();
-    }
-    pop_context (&econ);
+    /* Load the saved binary:
+     * Three conditions must be met to load the binary:
+     * 1. The binary file must exist in __SAVE_BINARIES_DIR__
+     * 2. The binary's driver_id and config_id must match the current ones
+     * 3. The source file, included files and all inherited files must be older than the binary
+     */
+    prog = load_binary("save_binary.c", UNIT_TESTING);
+    EXPECT_TRUE(prog != nullptr) << "load_binary failed to load saved binary.";
+    free_prog(prog, 1);
 }
 #endif

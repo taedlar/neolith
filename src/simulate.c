@@ -326,8 +326,8 @@ void reset_load_object_limits() {
   num_objects_this_thread = 0;
 }
 
-/*
- * Load an object definition from file. If the object wants to inherit
+/**
+ * @brief Load an object definition from file. If the object wants to inherit
  * from an object that is not loaded, discard all, load the inherited object,
  * and reload again.
  *
@@ -346,6 +346,7 @@ void reset_load_object_limits() {
  *
  */
 object_t* load_object (const char *lname) {
+
   int f;
   program_t *prog;
   object_t *ob, *save_command_giver = command_giver;

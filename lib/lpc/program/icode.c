@@ -22,7 +22,7 @@ static void ins_int (int);
 void i_generate_node (parse_node_t *);
 static void i_generate_if_branch (parse_node_t *, int);
 static void i_generate_loop (int, parse_node_t *, parse_node_t *,
-			     parse_node_t *);
+                             parse_node_t *);
 static void i_update_branch_list (parse_node_t *);
 static int try_to_push (int, int);
 
@@ -146,14 +146,16 @@ upd_short (int offset, short l)
 {
   IF_DEBUG (UPDATE_PROGRAM_SIZE);
   DEBUG_CHECK2 (offset > CURRENT_PROGRAM_SIZE,
-		"patch offset %x larger than current program size %x.\n",
-		offset, CURRENT_PROGRAM_SIZE);
+                "patch offset %x larger than current program size %x.\n",
+                offset, CURRENT_PROGRAM_SIZE);
   COPY_SHORT (mem_block[current_block].block + offset, &l);
 }
 
-static void
-ins_byte (unsigned char b)
-{
+/**
+ *  @brief Insert a byte into the program code.
+ *  Grows the current memory block if necessary.
+ */
+static void ins_byte (unsigned char b) {
   if (prog_code == prog_code_max)
     {
       mem_block_t *mbp = &mem_block[current_block];
@@ -171,8 +173,8 @@ upd_byte (int offset, unsigned char b)
 {
   IF_DEBUG (UPDATE_PROGRAM_SIZE);
   DEBUG_CHECK2 (offset > CURRENT_PROGRAM_SIZE,
-		"patch offset %x larger than current program size %x.\n",
-		offset, CURRENT_PROGRAM_SIZE);
+                "patch offset %x larger than current program size %x.\n",
+                offset, CURRENT_PROGRAM_SIZE);
   mem_block[current_block].block[offset] = b;
 }
 
@@ -182,7 +184,7 @@ end_pushes (void)
   if (push_state)
     {
       if (push_state > 1)
-	upd_byte (push_start, push_state);
+        upd_byte (push_start, push_state);
       push_state = 0;
     }
 }
@@ -244,15 +246,15 @@ write_number (int val)
     {
       end_pushes ();
       if (val < 0 && val > -256)
-	{
-	  ins_byte (F_NBYTE);
-	  ins_byte (-val);
-	}
+        {
+          ins_byte (F_NBYTE);
+          ins_byte (-val);
+        }
       else
-	{
-	  ins_byte (F_NUMBER);
-	  ins_int (val);
-	}
+        {
+          ins_byte (F_NUMBER);
+          ins_int (val);
+        }
     }
 }
 
@@ -269,7 +271,7 @@ generate_expr_list (parse_node_t * expr)
   do
     {
       if (pn->type & 1)
-	flag = 1;
+        flag = 1;
       i_generate_node (pn->v.expr);
       n++;
     }
@@ -279,15 +281,15 @@ generate_expr_list (parse_node_t * expr)
     {
       pn = expr;
       do
-	{
-	  n--;
-	  if (pn->type & 1)
-	    {
-	      end_pushes ();
-	      ins_byte (F_EXPAND_VARARGS);
-	      ins_byte (n);
-	    }
-	}
+        {
+          n--;
+          if (pn->type & 1)
+            {
+              end_pushes ();
+              ins_byte (F_EXPAND_VARARGS);
+              ins_byte (n);
+            }
+        }
       while ((pn = pn->r.expr));
     }
 }
@@ -320,12 +322,12 @@ switch_to_line (int line)
 
       last_size_generated += sz;
       while (sz > 255)
-	{
-	  p = (unsigned char *) allocate_in_mem_block (A_LINENUMBERS, 3);
-	  *p++ = 255;
-	  STORE_SHORT (p, s);
-	  sz -= 255;
-	}
+        {
+          p = (unsigned char *) allocate_in_mem_block (A_LINENUMBERS, 3);
+          *p++ = 255;
+          STORE_SHORT (p, s);
+          sz -= 255;
+        }
       p = (unsigned char *) allocate_in_mem_block (A_LINENUMBERS, 3);
       *p++ = sz;
       STORE_SHORT (p, s);
@@ -339,55 +341,60 @@ try_to_push (int kind, int value)
   if (push_state)
     {
       if (value <= PUSH_MASK)
-	{
-	  if (push_state == 1)
-	    initialize_push ();
-	  push_state++;
-	  ins_byte (kind | value);
-	  if (push_state == 255)
-	    end_pushes ();
-	  return 1;
-	}
+        {
+          if (push_state == 1)
+            initialize_push ();
+          push_state++;
+          ins_byte (kind | value);
+          if (push_state == 255)
+            end_pushes ();
+          return 1;
+        }
       else
-	end_pushes ();
+        end_pushes ();
     }
   else if (value <= PUSH_MASK)
     {
       push_start = CURRENT_PROGRAM_SIZE;
       push_state = 1;
       switch (kind)
-	{
-	case PUSH_STRING:
-	  ins_byte (F_SHORT_STRING);
-	  break;
-	case PUSH_LOCAL:
-	  ins_byte (F_LOCAL);
-	  break;
-	case PUSH_GLOBAL:
-	  ins_byte (F_GLOBAL);
-	  break;
-	case PUSH_NUMBER:
-	  if (value == 0)
-	    {
-	      ins_byte (F_CONST0);
-	      return 1;
-	    }
-	  else if (value == 1)
-	    {
-	      ins_byte (F_CONST1);
-	      return 1;
-	    }
-	  ins_byte (F_BYTE);
-	}
+        {
+        case PUSH_STRING:
+          ins_byte (F_SHORT_STRING);
+          break;
+        case PUSH_LOCAL:
+          ins_byte (F_LOCAL);
+          break;
+        case PUSH_GLOBAL:
+          ins_byte (F_GLOBAL);
+          break;
+        case PUSH_NUMBER:
+          if (value == 0)
+            {
+              ins_byte (F_CONST0);
+              return 1;
+            }
+          else if (value == 1)
+            {
+              ins_byte (F_CONST1);
+              return 1;
+            }
+          ins_byte (F_BYTE);
+        }
       ins_byte (value);
       return 1;
     }
   return 0;
 }
 
-void
-i_generate_node (parse_node_t * expr)
-{
+/**
+ *  @brief Code generator for parse trees.
+ *  This is a recursive function that generates code for
+ *  the parse tree given as argument.
+ * 	@param expr The parse tree node to generate code for.
+ */
+void i_generate_node (parse_node_t * expr) {
+
   if (!expr)
     return;
 
@@ -425,15 +432,15 @@ i_generate_node (parse_node_t * expr)
       /* fall through */
     case NODE_OPCODE_1:
       if (expr->v.number == F_LOCAL)
-	{
-	  if (try_to_push (PUSH_LOCAL, expr->l.number))
-	    break;
-	}
+        {
+          if (try_to_push (PUSH_LOCAL, expr->l.number))
+            break;
+        }
       else if (expr->v.number == F_GLOBAL)
-	{
-	  if (try_to_push (PUSH_GLOBAL, expr->l.number))
-	    break;
-	}
+        {
+          if (try_to_push (PUSH_GLOBAL, expr->l.number))
+            break;
+        }
       end_pushes ();
       ins_byte (expr->v.number);
       ins_byte (expr->l.number);
@@ -443,41 +450,41 @@ i_generate_node (parse_node_t * expr)
       ins_byte (expr->v.number);
       ins_byte (expr->l.number);
       if (expr->v.number == F_LOOP_COND_NUMBER)
-	ins_int (expr->r.number);
+        ins_int (expr->r.number);
       else
-	ins_byte (expr->r.number);
+        ins_byte (expr->r.number);
       break;
     case NODE_RETURN:
       {
-	int n;
-	n = foreach_depth;
-	end_pushes ();
-	while (n--)
-	  ins_byte (F_EXIT_FOREACH);
+        int n;
+        n = foreach_depth;
+        end_pushes ();
+        while (n--)
+          ins_byte (F_EXIT_FOREACH);
 
-	if (expr->r.expr)
-	  {
-	    i_generate_node (expr->r.expr);
-	    end_pushes ();
-	    ins_byte (F_RETURN);
-	  }
-	else
-	  ins_byte (F_RETURN_ZERO);
-	break;
+        if (expr->r.expr)
+          {
+            i_generate_node (expr->r.expr);
+            end_pushes ();
+            ins_byte (F_RETURN);
+          }
+        else
+          ins_byte (F_RETURN_ZERO);
+        break;
       }
     case NODE_STRING:
       if (try_to_push (PUSH_STRING, expr->v.number))
-	break;
+        break;
       if (expr->v.number <= 0xff)
-	{
-	  ins_byte (F_SHORT_STRING);
-	  ins_byte (expr->v.number);
-	}
+        {
+          ins_byte (F_SHORT_STRING);
+          ins_byte (expr->v.number);
+        }
       else
-	{
-	  ins_byte (F_STRING);
-	  ins_short (expr->v.number);
-	}
+        {
+          ins_byte (F_STRING);
+          ins_short (expr->v.number);
+        }
       break;
     case NODE_REAL:
       end_pushes ();
@@ -492,11 +499,11 @@ i_generate_node (parse_node_t * expr)
       i_generate_forward_branch (expr->v.number);
       i_generate_node (expr->r.expr);
       if (expr->l.expr->kind == NODE_BRANCH_LINK)
-	{
-	  i_update_forward_branch_links (expr->v.number, expr->l.expr);
-	}
+        {
+          i_update_forward_branch_links (expr->v.number, expr->l.expr);
+        }
       else
-	i_update_forward_branch ();
+        i_update_forward_branch ();
       break;
     case NODE_BRANCH_LINK:
       i_generate_node (expr->l.expr);
@@ -533,23 +540,23 @@ i_generate_node (parse_node_t * expr)
       break;
     case NODE_CONTROL_JUMP:
       {
-	int kind = expr->v.number;
-	end_pushes ();
-	ins_byte (F_BRANCH);
-	expr->v.expr = branch_list[kind];
-	expr->l.number = CURRENT_PROGRAM_SIZE;
-	ins_short (0);
-	branch_list[kind] = expr;
-	break;
+        int kind = expr->v.number;
+        end_pushes ();
+        ins_byte (F_BRANCH);
+        expr->v.expr = branch_list[kind];
+        expr->l.number = CURRENT_PROGRAM_SIZE;
+        ins_short (0);
+        branch_list[kind] = expr;
+        break;
       }
     case NODE_PARAMETER:
       {
-	int which = expr->v.number + current_num_values;
-	if (try_to_push (PUSH_LOCAL, which))
-	  break;
-	ins_byte (F_LOCAL);
-	ins_byte (which);
-	break;
+        int which = expr->v.number + current_num_values;
+        if (try_to_push (PUSH_LOCAL, which))
+          break;
+        ins_byte (F_LOCAL);
+        ins_byte (which);
+        break;
       }
     case NODE_PARAMETER_LVALUE:
       end_pushes ();
@@ -560,10 +567,10 @@ i_generate_node (parse_node_t * expr)
       i_generate_if_branch (expr->v.expr, 0);
       i_generate_node (expr->l.expr);
       if (expr->r.expr)
-	{
-	  i_generate_else ();
-	  i_generate_node (expr->r.expr);
-	}
+        {
+          i_generate_else ();
+          i_generate_node (expr->r.expr);
+        }
       i_update_forward_branch ();
       break;
     case NODE_LOOP:
@@ -571,39 +578,39 @@ i_generate_node (parse_node_t * expr)
       break;
     case NODE_FOREACH:
       {
-	int tmp = 0;
+        int tmp = 0;
 
-	i_generate_node (expr->v.expr);
-	end_pushes ();
-	ins_byte (F_FOREACH);
-	if (expr->l.expr->v.number == F_GLOBAL_LVALUE)
-	  tmp |= 1;
-	if (expr->r.expr)
-	  {
-	    tmp |= 4;
-	    if (expr->r.expr->v.number == F_GLOBAL_LVALUE)
-	      tmp |= 2;
-	  }
-	ins_byte (tmp);
-	ins_byte (expr->l.expr->l.number);
-	if (expr->r.expr)
-	  ins_byte (expr->r.expr->l.number);
+        i_generate_node (expr->v.expr);
+        end_pushes ();
+        ins_byte (F_FOREACH);
+        if (expr->l.expr->v.number == F_GLOBAL_LVALUE)
+          tmp |= 1;
+        if (expr->r.expr)
+          {
+            tmp |= 4;
+            if (expr->r.expr->v.number == F_GLOBAL_LVALUE)
+              tmp |= 2;
+          }
+        ins_byte (tmp);
+        ins_byte (expr->l.expr->l.number);
+        if (expr->r.expr)
+          ins_byte (expr->r.expr->l.number);
       }
       break;
     case NODE_CASE_NUMBER:
     case NODE_CASE_STRING:
       if (expr->v.expr)
-	{
-	  parse_node_t *other = expr->v.expr;
-	  expr->v.number = 1;
-	  other->l.expr = expr->l.expr;
-	  other->v.number = CURRENT_PROGRAM_SIZE;
-	  expr->l.expr = other;
-	}
+        {
+          parse_node_t *other = expr->v.expr;
+          expr->v.number = 1;
+          other->l.expr = expr->l.expr;
+          other->v.number = CURRENT_PROGRAM_SIZE;
+          expr->l.expr = other;
+        }
       else
-	{
-	  expr->v.number = CURRENT_PROGRAM_SIZE;
-	}
+        {
+          expr->v.number = CURRENT_PROGRAM_SIZE;
+        }
       end_pushes ();
       break;
     case NODE_DEFAULT:
@@ -615,115 +622,115 @@ i_generate_node (parse_node_t * expr)
     case NODE_SWITCH_DIRECT:
     case NODE_SWITCH_RANGES:
       {
-	int addr, last_break;
-	parse_node_t *sub = expr->l.expr;
-	parse_node_t *save_switch_breaks = branch_list[CJ_BREAK_SWITCH];
+        int addr, last_break;
+        parse_node_t *sub = expr->l.expr;
+        parse_node_t *save_switch_breaks = branch_list[CJ_BREAK_SWITCH];
 
-	i_generate_node (sub);
-	branch_list[CJ_BREAK_SWITCH] = 0;
-	end_pushes ();
-	ins_byte (F_SWITCH);
-	ins_byte (0xff);	/* kind of table */
-	addr = CURRENT_PROGRAM_SIZE;
-	ins_short (0);		/* address of table */
-	ins_short (0);		/* end of table */
-	ins_short (0);		/* default address */
-	i_generate_node (expr->r.expr);
-	if (expr->v.expr && expr->v.expr->kind == NODE_DEFAULT)
-	  {
-	    upd_short (addr + 4, expr->v.expr->v.number);
-	    expr->v.expr = expr->v.expr->l.expr;
-	  }
-	else
-	  {
-	    upd_short (addr + 4, CURRENT_PROGRAM_SIZE);
-	  }
-	/* just in case the last case doesn't have a break */
-	end_pushes ();
-	ins_byte (F_BRANCH);
-	last_break = CURRENT_PROGRAM_SIZE;
-	ins_short (0);
-	/* build table */
-	upd_short (addr, CURRENT_PROGRAM_SIZE);
-	if (expr->kind == NODE_SWITCH_STRINGS)
-	  {
-	    short sw;
-	    sw = addr - 2;
-	    add_to_mem_block (A_PATCH, (char *) &sw, sizeof sw);
-	  }
-	if (expr->kind == NODE_SWITCH_DIRECT)
-	  {
-	    parse_node_t *pn = expr->v.expr;
-	    while (pn)
-	      {
-		ins_short ((short) pn->v.number);
-		pn = pn->l.expr;
-	      }
-	    ins_int (expr->v.expr->r.number);
-	    mem_block[current_block].block[addr - 1] = (char) 0xfe;
-	  }
-	else
-	  {
-	    int table_size = 0;
-	    int power_of_two = 1;
-	    int i = 0;
-	    parse_node_t *pn = expr->v.expr;
+        i_generate_node (sub);
+        branch_list[CJ_BREAK_SWITCH] = 0;
+        end_pushes ();
+        ins_byte (F_SWITCH);
+        ins_byte (0xff);	/* kind of table */
+        addr = CURRENT_PROGRAM_SIZE;
+        ins_short (0);		/* address of table */
+        ins_short (0);		/* end of table */
+        ins_short (0);		/* default address */
+        i_generate_node (expr->r.expr);
+        if (expr->v.expr && expr->v.expr->kind == NODE_DEFAULT)
+          {
+            upd_short (addr + 4, expr->v.expr->v.number);
+            expr->v.expr = expr->v.expr->l.expr;
+          }
+        else
+          {
+            upd_short (addr + 4, CURRENT_PROGRAM_SIZE);
+          }
+        /* just in case the last case doesn't have a break */
+        end_pushes ();
+        ins_byte (F_BRANCH);
+        last_break = CURRENT_PROGRAM_SIZE;
+        ins_short (0);
+        /* build table */
+        upd_short (addr, CURRENT_PROGRAM_SIZE);
+        if (expr->kind == NODE_SWITCH_STRINGS)
+          {
+            short sw;
+            sw = addr - 2;
+            add_to_mem_block (A_PATCH, (char *) &sw, sizeof sw);
+          }
+        if (expr->kind == NODE_SWITCH_DIRECT)
+          {
+            parse_node_t *pn = expr->v.expr;
+            while (pn)
+              {
+                ins_short ((short) pn->v.number);
+                pn = pn->l.expr;
+              }
+            ins_int (expr->v.expr->r.number);
+            mem_block[current_block].block[addr - 1] = (char) 0xfe;
+          }
+        else
+          {
+            int table_size = 0;
+            int power_of_two = 1;
+            int i = 0;
+            parse_node_t *pn = expr->v.expr;
 
-	    while (pn)
-	      {
-		if (expr->kind == NODE_SWITCH_STRINGS)
-		  {
-		    if (pn->r.number)
-		      {
-			ins_intptr ((intptr_t)
-				     PROG_STRING (pn->r.number));
-		      }
-		    else
-		      ins_intptr ((intptr_t) 0);
-		  }
-		else
-		  ins_intptr ((intptr_t) pn->r.expr);
-		ins_short ((short) pn->v.number);
-		pn = pn->l.expr;
-		table_size += 1;
-	      }
-	    while ((power_of_two << 1) <= table_size)
-	      {
-		power_of_two <<= 1;
-		i++;
-	      }
-	    if (expr->kind != NODE_SWITCH_STRINGS)
-	      mem_block[current_block].block[addr - 1] = (char) (0xf0 + i);
-	    else
-	      mem_block[current_block].block[addr - 1] =
-		(char) (i * 0x10 + 0x0f);
-	  }
-	i_update_branch_list (branch_list[CJ_BREAK_SWITCH]);
-	branch_list[CJ_BREAK_SWITCH] = save_switch_breaks;
-	upd_short (last_break, CURRENT_PROGRAM_SIZE - last_break);
-	upd_short (addr + 2, CURRENT_PROGRAM_SIZE);
-	break;
+            while (pn)
+              {
+                if (expr->kind == NODE_SWITCH_STRINGS)
+                  {
+                    if (pn->r.number)
+                      {
+                        ins_intptr ((intptr_t)
+                                     PROG_STRING (pn->r.number));
+                      }
+                    else
+                      ins_intptr ((intptr_t) 0);
+                  }
+                else
+                  ins_intptr ((intptr_t) pn->r.expr);
+                ins_short ((short) pn->v.number);
+                pn = pn->l.expr;
+                table_size += 1;
+              }
+            while ((power_of_two << 1) <= table_size)
+              {
+                power_of_two <<= 1;
+                i++;
+              }
+            if (expr->kind != NODE_SWITCH_STRINGS)
+              mem_block[current_block].block[addr - 1] = (char) (0xf0 + i);
+            else
+              mem_block[current_block].block[addr - 1] =
+                (char) (i * 0x10 + 0x0f);
+          }
+        i_update_branch_list (branch_list[CJ_BREAK_SWITCH]);
+        branch_list[CJ_BREAK_SWITCH] = save_switch_breaks;
+        upd_short (last_break, CURRENT_PROGRAM_SIZE - last_break);
+        upd_short (addr + 2, CURRENT_PROGRAM_SIZE);
+        break;
       }
     case NODE_CATCH:
       {
-	int addr;
+        int addr;
 
-	end_pushes ();
-	ins_byte (F_CATCH);
-	addr = CURRENT_PROGRAM_SIZE;
-	ins_short (0);
-	i_generate_node (expr->r.expr);
-	ins_byte (F_END_CATCH);
-	upd_short (addr, CURRENT_PROGRAM_SIZE - addr);
-	break;
+        end_pushes ();
+        ins_byte (F_CATCH);
+        addr = CURRENT_PROGRAM_SIZE;
+        ins_short (0);
+        i_generate_node (expr->r.expr);
+        ins_byte (F_END_CATCH);
+        upd_short (addr, CURRENT_PROGRAM_SIZE - addr);
+        break;
       }
     case NODE_TIME_EXPRESSION:
       {
-	end_pushes ();
-	ins_byte (F_TIME_EXPRESSION);
-	i_generate_node (expr->r.expr);
-	ins_byte (F_END_TIME_EXPRESSION);
-	break;
+        end_pushes ();
+        ins_byte (F_TIME_EXPRESSION);
+        i_generate_node (expr->r.expr);
+        ins_byte (F_END_TIME_EXPRESSION);
+        break;
       }
     case NODE_LVALUE_EFUN:
       i_generate_node (expr->l.expr);
@@ -731,106 +738,106 @@ i_generate_node (parse_node_t * expr)
       break;
     case NODE_FUNCTION_CONSTRUCTOR:
       if (expr->r.expr)
-	{
-	  generate_expr_list (expr->r.expr);
-	  end_pushes ();
-	  ins_byte (F_AGGREGATE);
-	  ins_short (expr->r.expr->kind);
-	}
+        {
+          generate_expr_list (expr->r.expr);
+          end_pushes ();
+          ins_byte (F_AGGREGATE);
+          ins_short (expr->r.expr->kind);
+        }
       else
-	{
-	  end_pushes ();
-	  ins_byte (F_CONST0);
-	}
+        {
+          end_pushes ();
+          ins_byte (F_CONST0);
+        }
       end_pushes ();
       ins_byte (F_FUNCTION_CONSTRUCTOR);
       ins_byte (expr->v.number & 0xff);
 
       switch (expr->v.number & 0xff)
-	{
-	case FP_SIMUL:
-	case FP_LOCAL:
-	  ins_short (expr->v.number >> 8);
-	  break;
-	case FP_EFUN:
-	  ins_short (predefs[expr->v.number >> 8].token);
-	  break;
-	case FP_FUNCTIONAL:
-	case FP_FUNCTIONAL | FP_NOT_BINDABLE:
-	  {
-	    int addr, save_current_num_values = current_num_values;
-	    ins_byte (expr->v.number >> 8);
-	    addr = CURRENT_PROGRAM_SIZE;
-	    ins_short (0);
-	    current_num_values = expr->r.expr ? expr->r.expr->kind : 0;
-	    i_generate_node (expr->l.expr);
-	    current_num_values = save_current_num_values;
-	    end_pushes ();
-	    ins_byte (F_RETURN);
-	    upd_short (addr, CURRENT_PROGRAM_SIZE - addr - 2);
-	    break;
-	  }
-	}
+        {
+        case FP_SIMUL:
+        case FP_LOCAL:
+          ins_short (expr->v.number >> 8);
+          break;
+        case FP_EFUN:
+          ins_short (predefs[expr->v.number >> 8].token);
+          break;
+        case FP_FUNCTIONAL:
+        case FP_FUNCTIONAL | FP_NOT_BINDABLE:
+          {
+            int addr, save_current_num_values = current_num_values;
+            ins_byte (expr->v.number >> 8);
+            addr = CURRENT_PROGRAM_SIZE;
+            ins_short (0);
+            current_num_values = expr->r.expr ? expr->r.expr->kind : 0;
+            i_generate_node (expr->l.expr);
+            current_num_values = save_current_num_values;
+            end_pushes ();
+            ins_byte (F_RETURN);
+            upd_short (addr, CURRENT_PROGRAM_SIZE - addr - 2);
+            break;
+          }
+        }
       break;
     case NODE_ANON_FUNC:
       {
-	int addr;
-	int save_fd = foreach_depth;
+        int addr;
+        int save_fd = foreach_depth;
 
-	foreach_depth = 0;
-	end_pushes ();
-	ins_byte (F_FUNCTION_CONSTRUCTOR);
-	if (expr->v.number & 0x10000)
-	  ins_byte (FP_ANONYMOUS | FP_NOT_BINDABLE);
-	else
-	  ins_byte (FP_ANONYMOUS);
-	ins_byte (expr->v.number & 0xff);
-	ins_byte (expr->l.number);
-	addr = CURRENT_PROGRAM_SIZE;
-	ins_short (0);
-	i_generate_node (expr->r.expr);
-	upd_short (addr, CURRENT_PROGRAM_SIZE - addr - 2);
-	foreach_depth = save_fd;
-	break;
+        foreach_depth = 0;
+        end_pushes ();
+        ins_byte (F_FUNCTION_CONSTRUCTOR);
+        if (expr->v.number & 0x10000)
+          ins_byte (FP_ANONYMOUS | FP_NOT_BINDABLE);
+        else
+          ins_byte (FP_ANONYMOUS);
+        ins_byte (expr->v.number & 0xff);
+        ins_byte (expr->l.number);
+        addr = CURRENT_PROGRAM_SIZE;
+        ins_short (0);
+        i_generate_node (expr->r.expr);
+        upd_short (addr, CURRENT_PROGRAM_SIZE - addr - 2);
+        foreach_depth = save_fd;
+        break;
       }
     case NODE_EFUN:
       {
-	int novalue_used = expr->v.number & NOVALUE_USED_FLAG;
-	int f = expr->v.number & ~NOVALUE_USED_FLAG;
+        int novalue_used = expr->v.number & NOVALUE_USED_FLAG;
+        int f = expr->v.number & ~NOVALUE_USED_FLAG;
 
-	generate_expr_list (expr->r.expr);
-	end_pushes ();
-	if (f < ONEARG_MAX)
-	  {
-	    ins_byte (f);
-	  }
-	else
-	  {
-	    /* max_arg == -1 must use F_EFUNV so that varargs expansion works */
-	    if (expr->l.number < 4 && instrs[f].max_arg != -1)
-	      ins_byte (F_EFUN0 + expr->l.number);
-	    else
-	      {
-		ins_byte (F_EFUNV);
-		ins_byte (expr->l.number);
-	      }
-	    ins_byte (f - ONEARG_MAX);
-	  }
-	if (novalue_used)
-	  {
-	    /* the value of a void efun was used.  Put in a zero. */
-	    ins_byte (F_CONST0);
-	  }
-	break;
+        generate_expr_list (expr->r.expr);
+        end_pushes ();
+        if (f < ONEARG_MAX)
+          {
+            ins_byte (f);
+          }
+        else
+          {
+            /* max_arg == -1 must use F_EFUNV so that varargs expansion works */
+            if (expr->l.number < 4 && instrs[f].max_arg != -1)
+              ins_byte (F_EFUN0 + expr->l.number);
+            else
+              {
+                ins_byte (F_EFUNV);
+                ins_byte (expr->l.number);
+              }
+            ins_byte (f - ONEARG_MAX);
+          }
+        if (novalue_used)
+          {
+            /* the value of a void efun was used.  Put in a zero. */
+            ins_byte (F_CONST0);
+          }
+        break;
     default:
-	fatal ("Unknown node %i in i_generate_node.\n", expr->kind);
+        fatal ("Unknown node %i in i_generate_node.\n", expr->kind);
       }
     }
 }
 
 static void
 i_generate_loop (int test_first, parse_node_t * block,
-		 parse_node_t * inc, parse_node_t * test)
+                 parse_node_t * inc, parse_node_t * test)
 {
   parse_node_t *save_breaks = branch_list[CJ_BREAK];
   parse_node_t *save_continues = branch_list[CJ_CONTINUE];
@@ -876,51 +883,51 @@ i_generate_if_branch (parse_node_t * node, int invert)
     {
     case NODE_UNARY_OP:
       if (node->v.number == F_NOT)
-	{
-	  i_generate_if_branch (node->r.expr, !invert);
-	  return;
-	}
+        {
+          i_generate_if_branch (node->r.expr, !invert);
+          return;
+        }
       break;
     case NODE_BINARY_OP:
       switch (node->v.number)
-	{
-	case F_EQ:
-	  generate_both = 1;
-	  branch = (invert ? F_BRANCH_EQ : F_BRANCH_NE);
-	  break;
-	case F_GE:
-	  if (invert)
-	    {
-	      generate_both = 1;
-	      branch = F_BRANCH_GE;
-	    }
-	  break;
-	case F_LE:
-	  if (invert)
-	    {
-	      generate_both = 1;
-	      branch = F_BRANCH_LE;
-	    }
-	  break;
-	case F_LT:
-	  if (!invert)
-	    {
-	      generate_both = 1;
-	      branch = F_BRANCH_GE;
-	    }
-	  break;
-	case F_GT:
-	  if (!invert)
-	    {
-	      generate_both = 1;
-	      branch = F_BRANCH_LE;
-	    }
-	  break;
-	case F_NE:
-	  generate_both = 1;
-	  branch = (invert ? F_BRANCH_NE : F_BRANCH_EQ);
-	  break;
-	}
+        {
+        case F_EQ:
+          generate_both = 1;
+          branch = (invert ? F_BRANCH_EQ : F_BRANCH_NE);
+          break;
+        case F_GE:
+          if (invert)
+            {
+              generate_both = 1;
+              branch = F_BRANCH_GE;
+            }
+          break;
+        case F_LE:
+          if (invert)
+            {
+              generate_both = 1;
+              branch = F_BRANCH_LE;
+            }
+          break;
+        case F_LT:
+          if (!invert)
+            {
+              generate_both = 1;
+              branch = F_BRANCH_GE;
+            }
+          break;
+        case F_GT:
+          if (!invert)
+            {
+              generate_both = 1;
+              branch = F_BRANCH_LE;
+            }
+          break;
+        case F_NE:
+          generate_both = 1;
+          branch = (invert ? F_BRANCH_NE : F_BRANCH_EQ);
+          break;
+        }
     }
   if (generate_both)
     {
@@ -949,7 +956,7 @@ void
 i_generate___INIT ()
 {
   add_to_mem_block (A_PROGRAM, (char *) mem_block[A_INITIALIZER].block,
-		    mem_block[A_INITIALIZER].current_size);
+                    mem_block[A_INITIALIZER].current_size);
   prog_code = mem_block[A_PROGRAM].block + mem_block[A_PROGRAM].current_size;
 }
 
@@ -969,7 +976,7 @@ i_update_forward_branch ()
 
   end_pushes ();
   upd_short (current_forward_branch,
-	     CURRENT_PROGRAM_SIZE - current_forward_branch);
+             CURRENT_PROGRAM_SIZE - current_forward_branch);
   current_forward_branch = i;
 }
 
@@ -981,7 +988,7 @@ i_update_forward_branch_links (char kind, parse_node_t * link_start)
   end_pushes ();
   i = read_short (current_forward_branch);
   upd_short (current_forward_branch,
-	     CURRENT_PROGRAM_SIZE - current_forward_branch);
+             CURRENT_PROGRAM_SIZE - current_forward_branch);
   current_forward_branch = i;
   do
     {
@@ -1000,7 +1007,7 @@ i_branch_backwards (char b, int addr)
   if (b)
     {
       if (b != F_WHILE_DEC)
-	ins_byte (b);
+        ins_byte (b);
       ins_short (CURRENT_PROGRAM_SIZE - addr);
     }
 }
@@ -1030,7 +1037,7 @@ i_generate_else ()
   ins_short (read_short (current_forward_branch));
   /* update the old branch to point to this point */
   upd_short (current_forward_branch,
-	     CURRENT_PROGRAM_SIZE - current_forward_branch);
+             CURRENT_PROGRAM_SIZE - current_forward_branch);
   /* point current_forward_branch at the new branch we made */
   current_forward_branch = CURRENT_PROGRAM_SIZE - 2;
 }
@@ -1084,200 +1091,200 @@ optimize_icode (char *start, char *pc, char *end)
       pc = start;
       end = pc + mem_block[A_PROGRAM].current_size;
       if (*pc == 0)
-	{
-	  /* no initializer jump */
-	  pc += 3;
-	}
+        {
+          /* no initializer jump */
+          pc += 3;
+        }
     }
   while (pc < end)
     {
       switch (instr = EXTRACT_UCHAR (pc++))
-	{
-	case F_NUMBER:
-	case F_REAL:
-	case F_CALL_INHERITED:
-	  pc += 4;
-	  break;
-	case F_SIMUL_EFUN:
-	case F_CALL_FUNCTION_BY_ADDRESS:
-	  pc += 3;
-	  break;
-	case F_BRANCH:
-	case F_BRANCH_WHEN_ZERO:
-	case F_BRANCH_WHEN_NON_ZERO:
-	case F_BBRANCH:
-	case F_BBRANCH_WHEN_ZERO:
-	case F_BBRANCH_WHEN_NON_ZERO:
-	  {
-	    char *tmp;
-	    short sarg;
-	    /* thread jumps */
-	    COPY_SHORT (&sarg, pc);
-	    if (instr > F_BRANCH)
-	      tmp = pc - sarg;
-	    else
-	      tmp = pc + sarg;
-	    sarg = 0;
-	    while (1)
-	      {
-		if (EXTRACT_UCHAR (tmp) == F_BRANCH)
-		  {
-		    COPY_SHORT (&sarg, tmp + 1);
-		    tmp += sarg + 1;
-		  }
-		else if (EXTRACT_UCHAR (tmp) == F_BBRANCH)
-		  {
-		    COPY_SHORT (&sarg, tmp + 1);
-		    tmp -= sarg - 1;
-		  }
-		else
-		  break;
-	      }
-	    if (!sarg)
-	      {
-		pc += 2;
-		break;
-	      }
-	    /* be careful; in the process of threading a forward jump
-	     * may have changed to a reverse one or vice versa
-	     */
-	    if (tmp > pc)
-	      {
-		if (instr > F_BRANCH)
-		  {
-		    pc[-1] -= 3;	/* change to forward branch */
-		  }
-		sarg = tmp - pc;
-	      }
-	    else
-	      {
-		if (instr <= F_BRANCH)
-		  {
-		    pc[-1] += 3;	/* change to backwards branch */
-		  }
-		sarg = pc - tmp;
-	      }
-	    STORE_SHORT (pc, sarg);
-	    break;
-	  }
+        {
+        case F_NUMBER:
+        case F_REAL:
+        case F_CALL_INHERITED:
+          pc += 4;
+          break;
+        case F_SIMUL_EFUN:
+        case F_CALL_FUNCTION_BY_ADDRESS:
+          pc += 3;
+          break;
+        case F_BRANCH:
+        case F_BRANCH_WHEN_ZERO:
+        case F_BRANCH_WHEN_NON_ZERO:
+        case F_BBRANCH:
+        case F_BBRANCH_WHEN_ZERO:
+        case F_BBRANCH_WHEN_NON_ZERO:
+          {
+            char *tmp;
+            short sarg;
+            /* thread jumps */
+            COPY_SHORT (&sarg, pc);
+            if (instr > F_BRANCH)
+              tmp = pc - sarg;
+            else
+              tmp = pc + sarg;
+            sarg = 0;
+            while (1)
+              {
+                if (EXTRACT_UCHAR (tmp) == F_BRANCH)
+                  {
+                    COPY_SHORT (&sarg, tmp + 1);
+                    tmp += sarg + 1;
+                  }
+                else if (EXTRACT_UCHAR (tmp) == F_BBRANCH)
+                  {
+                    COPY_SHORT (&sarg, tmp + 1);
+                    tmp -= sarg - 1;
+                  }
+                else
+                  break;
+              }
+            if (!sarg)
+              {
+                pc += 2;
+                break;
+              }
+            /* be careful; in the process of threading a forward jump
+             * may have changed to a reverse one or vice versa
+             */
+            if (tmp > pc)
+              {
+                if (instr > F_BRANCH)
+                  {
+                    pc[-1] -= 3;	/* change to forward branch */
+                  }
+                sarg = tmp - pc;
+              }
+            else
+              {
+                if (instr <= F_BRANCH)
+                  {
+                    pc[-1] += 3;	/* change to backwards branch */
+                  }
+                sarg = pc - tmp;
+              }
+            STORE_SHORT (pc, sarg);
+            break;
+          }
 #ifdef F_LOR
-	case F_LOR:
-	case F_LAND:
-	  {
-	    char *tmp;
-	    short sarg;
-	    /* thread jumps */
-	    COPY_SHORT (&sarg, pc);
-	    tmp = pc + sarg;
-	    sarg = 0;
-	    while (1)
-	      {
-		if (EXTRACT_UCHAR (tmp) == F_BRANCH)
-		  {
-		    COPY_SHORT (&sarg, tmp + 1);
-		    tmp += sarg + 1;
-		  }
-		else if (EXTRACT_UCHAR (tmp) == F_BBRANCH)
-		  {
-		    COPY_SHORT (&sarg, tmp + 1);
-		    tmp -= sarg - 1;
-		  }
-		else
-		  break;
-	      }
-	    if (!sarg)
-	      {
-		pc += 2;
-		break;
-	      }
-	    /* be careful; in the process of threading a forward jump
-	     * may have changed to a reverse one or vice versa
-	     */
-	    if (tmp > pc)
-	      {
-		sarg = tmp - pc;
-	      }
-	    else
-	      {
-		pc += 2;
-		break;
-	      }
-	    STORE_SHORT (pc, sarg);
-	    break;
-	  }
+        case F_LOR:
+        case F_LAND:
+          {
+            char *tmp;
+            short sarg;
+            /* thread jumps */
+            COPY_SHORT (&sarg, pc);
+            tmp = pc + sarg;
+            sarg = 0;
+            while (1)
+              {
+                if (EXTRACT_UCHAR (tmp) == F_BRANCH)
+                  {
+                    COPY_SHORT (&sarg, tmp + 1);
+                    tmp += sarg + 1;
+                  }
+                else if (EXTRACT_UCHAR (tmp) == F_BBRANCH)
+                  {
+                    COPY_SHORT (&sarg, tmp + 1);
+                    tmp -= sarg - 1;
+                  }
+                else
+                  break;
+              }
+            if (!sarg)
+              {
+                pc += 2;
+                break;
+              }
+            /* be careful; in the process of threading a forward jump
+             * may have changed to a reverse one or vice versa
+             */
+            if (tmp > pc)
+              {
+                sarg = tmp - pc;
+              }
+            else
+              {
+                pc += 2;
+                break;
+              }
+            STORE_SHORT (pc, sarg);
+            break;
+          }
 #endif
-	case F_CATCH:
-	case F_AGGREGATE:
-	case F_AGGREGATE_ASSOC:
-	case F_STRING:
+        case F_CATCH:
+        case F_AGGREGATE:
+        case F_AGGREGATE_ASSOC:
+        case F_STRING:
 #ifdef F_JUMP_WHEN_ZERO
-	case F_JUMP_WHEN_ZERO:
-	case F_JUMP_WHEN_NON_ZERO:
+        case F_JUMP_WHEN_ZERO:
+        case F_JUMP_WHEN_NON_ZERO:
 #endif
 #ifdef F_JUMP
-	case F_JUMP:
+        case F_JUMP:
 #endif
-	  pc += 2;
-	  break;
-	case F_GLOBAL_LVALUE:
-	case F_GLOBAL:
-	case F_SHORT_STRING:
-	case F_LOOP_INCR:
-	case F_WHILE_DEC:
-	case F_LOCAL:
-	case F_LOCAL_LVALUE:
-	case F_SSCANF:
-	case F_PARSE_COMMAND:
-	case F_BYTE:
-	case F_NBYTE:
-	  pc++;
-	  break;
-	case F_FUNCTION_CONSTRUCTOR:
-	  switch (EXTRACT_UCHAR (pc++))
-	    {
-	    case FP_SIMUL:
-	    case FP_LOCAL:
-	      pc += 2;
-	      break;
-	    case FP_FUNCTIONAL:
-	    case FP_FUNCTIONAL | FP_NOT_BINDABLE:
-	      pc += 3;
-	      break;
-	    case FP_ANONYMOUS:
-	    case FP_ANONYMOUS | FP_NOT_BINDABLE:
-	      pc += 4;
-	      break;
-	    case FP_EFUN:
-	      pc += 2;
-	      break;
-	    }
-	  break;
-	case F_SWITCH:
-	  {
-	    unsigned short stable, etable;
-	    pc++;		/* table type */
-	    LOAD_SHORT (stable, pc);
-	    LOAD_SHORT (etable, pc);
-	    pc += 2;		/* def */
-	    DEBUG_CHECK (stable < pc - start || etable < pc - start
-			 || etable < stable,
-			 "Error in switch table found while optimizing\n");
-	    /* recursively optimize the inside of the switch */
-	    optimize_icode (start, pc, start + stable);
-	    pc = start + etable;
-	    break;
-	  }
-	case F_EFUN0:
-	case F_EFUN1:
-	case F_EFUN2:
-	case F_EFUN3:
-	case F_EFUNV:
-	  instr = EXTRACT_UCHAR (pc++) + ONEARG_MAX;
-	  /* fall through */
-	default:
-	  if ((instr >= BASE) &&
-	      (instrs[instr].min_arg != instrs[instr].max_arg))
-	    pc++;
-	}
+          pc += 2;
+          break;
+        case F_GLOBAL_LVALUE:
+        case F_GLOBAL:
+        case F_SHORT_STRING:
+        case F_LOOP_INCR:
+        case F_WHILE_DEC:
+        case F_LOCAL:
+        case F_LOCAL_LVALUE:
+        case F_SSCANF:
+        case F_PARSE_COMMAND:
+        case F_BYTE:
+        case F_NBYTE:
+          pc++;
+          break;
+        case F_FUNCTION_CONSTRUCTOR:
+          switch (EXTRACT_UCHAR (pc++))
+            {
+            case FP_SIMUL:
+            case FP_LOCAL:
+              pc += 2;
+              break;
+            case FP_FUNCTIONAL:
+            case FP_FUNCTIONAL | FP_NOT_BINDABLE:
+              pc += 3;
+              break;
+            case FP_ANONYMOUS:
+            case FP_ANONYMOUS | FP_NOT_BINDABLE:
+              pc += 4;
+              break;
+            case FP_EFUN:
+              pc += 2;
+              break;
+            }
+          break;
+        case F_SWITCH:
+          {
+            unsigned short stable, etable;
+            pc++;		/* table type */
+            LOAD_SHORT (stable, pc);
+            LOAD_SHORT (etable, pc);
+            pc += 2;		/* def */
+            DEBUG_CHECK (stable < pc - start || etable < pc - start
+                         || etable < stable,
+                         "Error in switch table found while optimizing\n");
+            /* recursively optimize the inside of the switch */
+            optimize_icode (start, pc, start + stable);
+            pc = start + etable;
+            break;
+          }
+        case F_EFUN0:
+        case F_EFUN1:
+        case F_EFUN2:
+        case F_EFUN3:
+        case F_EFUNV:
+          instr = EXTRACT_UCHAR (pc++) + ONEARG_MAX;
+          /* fall through */
+        default:
+          if ((instr >= BASE) &&
+              (instrs[instr].min_arg != instrs[instr].max_arg))
+            pc++;
+        }
     }
 }

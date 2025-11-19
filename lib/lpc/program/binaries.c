@@ -357,7 +357,6 @@ program_t *int_load_binary (const char *name)
   object_t *ob;
   struct stat st;
 
-
   /* stuff from prolog() */
   num_parse_error = 0;
 
@@ -370,6 +369,7 @@ program_t *int_load_binary (const char *name)
   file_name[len - 1] = 'b';
 
   comp_flag = 1;
+  opt_trace (TT_COMPILE|1, "expected binary: /%s", file_name);
   fd = open (file_name, O_RDONLY);
   if (-1 == fd)
     return OUT_OF_DATE;

@@ -1,6 +1,6 @@
 #pragma once
 #include "lpc/program.h"
-#include "lpc/program/icode.h"
+#include "icode.h"
 
 #define generate_function_call i_generate_function_call
 #define generate_inherited_init_call i_generate_inherited_init_call
