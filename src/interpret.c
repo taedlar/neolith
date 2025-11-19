@@ -1623,7 +1623,9 @@ eval_instruction (const char *p)
       instruction = EXTRACT_UCHAR (pc++);
       if (!--eval_cost)
         {
-          debug_message ("object /%s: eval_cost too big %d\n", current_object->name, CONFIG_INT (__MAX_EVAL_COST__));
+          /* [NEOLITH-EXTENSION] allows eval_instruction without current_object */
+          if (current_object)
+            debug_message ("object /%s: eval_cost too big %d\n", current_object->name, CONFIG_INT (__MAX_EVAL_COST__));
           error_state |= ES_MAX_EVAL_COST;
 
           eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
