@@ -32,7 +32,7 @@ TEST_F(LPCCompilerTest, saveBinary) {
          */
         int fd = open("save_binary.c", O_RDONLY);
         ASSERT_NE(fd, -1) << "Failed to open save_binary.c for reading.";
-        program_t* prog = compile_file(fd, "save_binary.c");
+        program_t* prog = compile_file(fd, "save_binary.c", 0);
         ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
         total_lines = 0;
         close(fd);
