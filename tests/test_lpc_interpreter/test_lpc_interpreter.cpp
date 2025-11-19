@@ -29,3 +29,41 @@ TEST_F(LPCInterpreterTest, disassemble) {
     // free the compiled program
     free_prog(prog, 1);
 }
+
+TEST_F(LPCInterpreterTest, evalCostLimit) {
+    // compile a simple test file
+    program_t* prog = compile_file(-1, "infinite_loop.c",
+        "void create() { int j; j = 0; while (j < 100000) { j = j + 1; } }\n"
+    );
+    ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
+
+    EXPECT_EQ(prog->num_functions_defined, 1) << "Expected 1 defined function.";
+    
+    // set a low eval cost limit
+    eval_cost = 500; // should be enough to run out of eval cost in the loop
+
+    // try to execute the function
+    const char* name = function_name(prog, 0);
+    ASSERT_STREQ(name, "create") << "First function is not create().";
+
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+        debug_message("***** expected error: eval_cost too big.");
+        pop_context (&econ);
+        free_prog(prog, 1);
+        return;
+    }
+    else {
+        push_control_stack (FRAME_FUNCTION);
+        csp->num_local_variables = 0;
+        caller_type = 0;
+        current_prog = prog;
+        compiler_function_t* funp = setup_new_frame(0);
+        call_program (current_prog, funp->address);
+    }
+    pop_context (&econ);
+    free_prog(prog, 1);
+    FAIL() << "Expected too long evaluation error was not raised.";
+}

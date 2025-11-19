@@ -2260,7 +2260,7 @@ dump_trace (int how)
       num_arg = ftd.num_arg;
       num_local = ftd.num_local;
       log_message (NULL, "\t" HIY "%s()" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n", ftd.name,
-                   get_line_number (pc, current_prog), current_prog->name, current_object->name);
+                   get_line_number (pc, current_prog), current_prog->name, current_object ? current_object->name : "<none>");
       break;
     case FRAME_FUNP:
       log_message (NULL, "\t" HIY "(function)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
@@ -2433,7 +2433,8 @@ get_svalue_trace (int how)
       break;
     }
   add_mapping_string (m, "program", current_prog->name);
-  add_mapping_object (m, "object", current_object);
+  if (current_object)
+    add_mapping_object (m, "object", current_object);
   get_line_number_info (&file, &line);
   add_mapping_string (m, "file", file);
   add_mapping_pair (m, "line", line);
