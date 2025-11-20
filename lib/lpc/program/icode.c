@@ -43,12 +43,19 @@ static int push_start;
 
 static parse_node_t *branch_list[3];
 
-static void
-ins_real (double l)
-{
-  float f = (float) l;
+/**
+ *  @brief Insert a double precision floating point number into the program code.
+ *  In original LPMud and MudOS, this was a single precision float.
+ *  Neolith has extended to use double precision by default for better accuracy.
+ *  Note that the bytecode format is not compatible with MudOS anymore since a
+ *  double is 8 bytes while a float is 4 bytes. (The load_binary() function does
+ *  not presume such compatibility anyway.)
+ */
+static void ins_real (double l) {
 
-  if (prog_code + 4 > prog_code_max)
+  double f = (double) l;
+
+  if (prog_code + 8 > prog_code_max)
     {
       mem_block_t *mbp = &mem_block[current_block];
 
@@ -58,7 +65,7 @@ ins_real (double l)
       prog_code = mbp->block + mbp->current_size;
       prog_code_max = mbp->block + mbp->max_size;
     }
-  STORE_FLOAT (prog_code, f);
+  STORE_FLOAT (prog_code, f); /* [NEOLITH-EXTENSION] always use double-precision */
 }
 
 /*

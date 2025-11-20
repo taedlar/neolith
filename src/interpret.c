@@ -1593,22 +1593,21 @@ do_loop_cond_number ()
     error ("*Right side of < is a number, left side is not.");
 }
 
-/*
- * Evaluate instructions at address 'p'. All program offsets are
- * to current_prog->program. 'current_prog' must be setup before
- * call of this function.
+/**
+ *  @brief Evaluate instructions at address \p p.
+ *  All program offsets are relative to \p current_prog->program.
+ *  ( \p current_prog must be setup before call of this function. )
  *
- * There must not be destructed objects on the stack. The destruct_object()
- * function will automatically remove all occurences. The effect is that
- * all called efuns knows that they won't have destructed objects as
- * arguments.
+ *  There must not be destructed objects on the stack.
+ *  The destruct_object() function will automatically remove all occurences.
+ *  The effect is that all called efuns knows that they won't have destructed objects as
+ *  arguments.
  */
 
-void
-eval_instruction (const char *p)
-{
+void eval_instruction (const char *p) {
+
   int i, n;
-  float real;
+  double real;
   svalue_t *lval;
   int instruction;
   unsigned short offset;
@@ -3514,16 +3513,22 @@ is_static (const char *fun, object_t * ob)
 }
 #endif
 
-/*
- * Call a specific function address in an object. This is done with no
- * frame set up. It is expected that there are no arguments. Returned
- * values are removed.
+/**
+ *  @brief Call a specific function address in an object.
+ *  This is done with no frame set up.
+ *  It is expected that there are no arguments.
+ *  Returned values are removed automatically unless ret_value is non-NULL.
+ *  This was used by heart_beat() only in LPMud and MudOS.
+ * 
+ *  [NEOLITH-EXTENSION] If current_heart_beat is set, it will be used as the current object.
+ *  Otherwise, a dummy object is created for the call.
+ *  @param progp The program containing the function.
+ *  @param offset The function offset to call.
+ *  @param ret_value Where to store the return value, or NULL if none. The caller is responsible for
+ *  freeing it if needed.
  */
-/* used by heart_beat only now; should be looked at and generalized;
-   possible sefuns? */
-void
-call_function (program_t * progp, int offset)
-{
+void call_function (program_t *progp, int offset, svalue_t *ret_value) {
+  object_t dummy_ob;
   compiler_function_t *funp;
 
   if (progp->function_flags[offset] & NAME_UNDEFINED)
@@ -3535,10 +3540,21 @@ call_function (program_t * progp, int offset)
   current_prog = progp;
   funp = setup_new_frame (offset);
   previous_ob = current_object;
-  current_object = current_heart_beat;
-  opt_trace (TT_EVAL, "function address: %d", funp->address);
+  if (current_heart_beat)
+    current_object = current_heart_beat;
+  else
+    {
+      /* Create a dummy object for the call (no global variables) */
+      memset (&dummy_ob, 0, sizeof (dummy_ob));
+      dummy_ob.ref = 1;
+      dummy_ob.prog = progp;
+      current_object = &dummy_ob;
+    }
   call_program (current_prog, funp->address);
-  pop_stack ();
+  if (ret_value)
+    *ret_value = *sp--;
+  else
+    pop_stack ();
 }
 
 /**

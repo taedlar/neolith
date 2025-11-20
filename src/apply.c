@@ -93,12 +93,22 @@ const char *origin_name (int orig) {
     };
 }
 
-static program_t *ffbn_recurse2 (program_t * prog, char *name, int *index, int *fio, int *vio) {
+/**
+ *  @brief Recursive helper for find_function_by_name2().
+ *  This was called ffbn_recurse2() in earlier versions.
+ *  @param[in] prog The program to search.
+ *  @param[in] name The function name to search for. This must be a shared string.
+ *  @param[out] index Output parameter for the function_table index.
+ *  @param[out] fio Output parameter for the function index offset.
+ *  @param[out] vio Output parameter for the variable index offset.
+ *  @return The program_t where the function was found, or NULL if not found.
+ */
+program_t *find_function (program_t * prog, const char *name, int *index, int *fio, int *vio) {
   int high = prog->num_functions_defined - 1;
   int low = 0;
   int i;
 
-  /* Search our function table */
+  /* binary search in the function table (in the order of function name shared string pointers, not the name string) */
   while (high >= low)
     {
       int mid = (high + low) / 2;
@@ -142,7 +152,7 @@ static program_t *ffbn_recurse2 (program_t * prog, char *name, int *index, int *
   i = prog->num_inherited;
   while (i--)
     {
-      program_t *ret = ffbn_recurse2 (prog->inherit[i].prog, name, index, fio, vio);
+      program_t *ret = find_function (prog->inherit[i].prog, name, index, fio, vio);
       if (ret)
         {
           *fio += prog->inherit[i].function_index_offset;
@@ -158,7 +168,7 @@ static program_t *find_function_by_name2 (object_t * ob, char **name, int *index
 
   if (!*name)
     return 0;
-  return ffbn_recurse2 (ob->prog, *name, index, fio, vio);
+  return find_function (ob->prog, *name, index, fio, vio);
 }
 
 static int function_visible (int origin, int func_flags) {

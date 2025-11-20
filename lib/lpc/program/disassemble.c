@@ -325,7 +325,7 @@ void disassemble (FILE *f, char *code, int start, int end, program_t *prog) {
         case F_SIMUL_EFUN:
           COPY_SHORT (&sarg, pc);
           sprintf (buff, "\"%s\" %d", simuls[sarg].func->name, pc[2]);
-          pc += 3;
+          pc += 3; /* index(2), num_args(1)*/
           break;
 
         case F_FUNCTION_CONSTRUCTOR:
@@ -371,11 +371,11 @@ void disassemble (FILE *f, char *code, int start, int end, program_t *prog) {
 
         case F_REAL:
           {
-            float farg;
+            double farg;
 
             COPY_FLOAT (&farg, pc);
-            sprintf (buff, "%f", farg);
-            pc += 4;
+            sprintf (buff, "%lf", farg);
+            pc += 8; /* [NEOLITH-EXTENSION] always use double-precision */
             break;
           }
 

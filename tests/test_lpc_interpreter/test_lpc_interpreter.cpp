@@ -36,15 +36,7 @@ TEST_F(LPCInterpreterTest, evalCostLimit) {
         "void create() { int j; j = 0; while (j < 100000) { j = j + 1; } }\n"
     );
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
-
     EXPECT_EQ(prog->num_functions_defined, 1) << "Expected 1 defined function.";
-    
-    // set a low eval cost limit
-    eval_cost = 500; // should be enough to run out of eval cost in the loop
-
-    // try to execute the function
-    const char* name = function_name(prog, 0);
-    ASSERT_STREQ(name, "create") << "First function is not create().";
 
     error_context_t econ;
     save_context (&econ);
@@ -56,12 +48,15 @@ TEST_F(LPCInterpreterTest, evalCostLimit) {
         return;
     }
     else {
-        push_control_stack (FRAME_FUNCTION);
-        csp->num_local_variables = 0;
-        caller_type = 0;
-        current_prog = prog;
-        compiler_function_t* funp = setup_new_frame(0);
-        call_program (current_prog, funp->address);
+        // no object is created; we just call the functions directly
+        // (no global variables used in the test functions)
+        int index, fio, vio;
+        program_t* found_prog = find_function(prog, findstring("create"), &index, &fio, &vio);
+        ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for create().";
+
+        // set a low eval cost limit
+        eval_cost = 500; // should be enough to run out of eval cost in the loop
+        call_function (prog, index, 0);
     }
     pop_context (&econ);
     free_prog(prog, 1);

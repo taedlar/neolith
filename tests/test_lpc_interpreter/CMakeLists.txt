@@ -1,6 +1,7 @@
 # tests/test_lpc_interpreter/CMakeLists.txt
 
 add_executable(test_lpc_interpreter
+    test_double_precision.cpp
     test_lpc_interpreter.cpp
 )
 
