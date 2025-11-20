@@ -3531,7 +3531,7 @@ ident_hash_elem_t *lookup_ident (const char *name) {
   int h = IdentHash (name);
   ident_hash_elem_t *hptr, *hptr2;
 
-  if ((hptr = ident_hash_table[h]))
+  if (ident_hash_table && (hptr = ident_hash_table[h]))
     {
       CHECK_ELEM (hptr, name, return hptr;);
       hptr2 = hptr->next;

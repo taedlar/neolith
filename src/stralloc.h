@@ -101,4 +101,4 @@ extern int overhead_bytes;
 extern char *int_string_copy(const char *);
 extern char *int_string_unlink(char *);
 extern char *int_new_string(int);
-extern char *int_alloc_cstring(char *);
+extern char *int_alloc_cstring(const char *);

@@ -406,7 +406,7 @@ extend_string (char *str, int len)
 }
 
 char *
-int_alloc_cstring (char *str)
+int_alloc_cstring (const char *str)
 {
   char *ret;
 
