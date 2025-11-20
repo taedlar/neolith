@@ -2666,6 +2666,8 @@ int add_program_file (const char *name, int top) {
 void init_lpc_compiler(size_t max_locals) {
   init_instrs ();
   init_identifiers ();
+  init_keywords ();
+  init_predefines ();
   num_local_variables_allowed = max_locals;
   init_locals ();
 
@@ -2678,5 +2680,5 @@ void deinit_lpc_compiler() {
 
   deinit_locals();
   deinit_identifiers();
-  deinit_num_args();
+  deinit_instrs();
 }

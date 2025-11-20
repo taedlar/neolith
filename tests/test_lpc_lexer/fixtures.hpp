@@ -39,14 +39,14 @@ protected:
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
         init_instrs();
         init_identifiers();
+        init_keywords ();
+        init_predefines ();
         set_inc_list (CONFIG_STR (__INCLUDE_DIRS__)); // automatically freed in deinit_lpc_compiler()
-
-        // predefs are not added here; each test should add them as needed
     }
 
     void TearDown() override {
         deinit_identifiers();
-        deinit_num_args();
+        deinit_instrs();
         deinit_strings();
 
         namespace fs = std::filesystem;

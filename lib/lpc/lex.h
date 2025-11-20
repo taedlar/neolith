@@ -1,5 +1,6 @@
 #pragma once
 #include "hash.h"
+#include "identifier.h"
 
 #define DEFMAX 10000
 #define MAXLINE 1024
@@ -20,14 +21,6 @@
 #define PRAGMA_OPTIMIZE       16
 #define PRAGMA_ERROR_CONTEXT  32
 #define PRAGMA_OPTIMIZE_HIGH  64
-/* for find_or_add_ident */
-#define FOA_GLOBAL_SCOPE       0x1
-#define FOA_NEEDS_MALLOC       0x2
-
-typedef struct {
-  short local_num, global_num, efun_num;
-  short function_num, simul_num, class_num;
-} defined_name_t;
 
 typedef struct ifstate_s {
     struct ifstate_s *next;
@@ -50,42 +43,6 @@ typedef struct defn_s {
 #define DEF_IS_PREDEF    2
 /* used only in edit_source */
 #define DEF_IS_NOT_LOCAL 4
-
-/* to speed up cleaning the hash table, and identify the union */
-#define IHE_RESWORD    0x8000
-#define IHE_EFUN       0x4000
-#define IHE_SIMUL      0x2000
-#define IHE_PERMANENT  (IHE_RESWORD | IHE_EFUN | IHE_SIMUL)
-#define TOKEN_MASK     0x0fff
-
-#define INDENT_HASH_SIZE 1024 /* must be a power of 2 */
-
-typedef struct ident_hash_elem_s {
-    char *name;
-    short token; /* only flags */
-    short sem_value; /* for these, a count of the ambiguity */
-    struct ident_hash_elem_s *next;
-/* the fields above must correspond to struct keyword_t */
-    struct ident_hash_elem_s *next_dirty;
-    defined_name_t dn;
-} ident_hash_elem_t;
-
-typedef struct {
-    char *word;
-    unsigned short token;       /* flags here too */
-    short sem_value;            /* semantic value for predefined tokens */
-    ident_hash_elem_t *next;
-/* the fields above must correspond to struct ident_hash_elem */
-    short min_args;             /* Minimum number of arguments. */
-    short max_args;             /* Maximum number of arguments. */
-    short ret_type;             /* The return type used by the compiler. */
-    unsigned short arg_type1;   /* Type of argument 1 */
-    unsigned short arg_type2;   /* Type of argument 2 */
-    unsigned short arg_type3;   /* Type of argument 3 */
-    unsigned short arg_type4;   /* Type of argument 4 */
-    short arg_index;            /* Index pointing to where to find arg type */
-    short Default;              /* an efun to use as default for last argument */
-} keyword_t;
 
 typedef struct lpc_predef_s {
     char *flag;
@@ -136,13 +93,16 @@ extern int efun_arg_types[];
 extern char yytext[MAXLINE];
 extern keyword_t predefs[];
 
+void init_keywords (void);
+void init_predefines (void);
+
 void push_function_context(void);
 void pop_function_context(void);
 
 int yylex(void);
 
 void init_instrs(void);
-void deinit_num_args(void);
+void deinit_instrs(void);
 const char *query_opcode_name(int);
 
 void set_inc_list(const char *);
@@ -155,12 +115,5 @@ const char *main_file_name(void);
 int lookup_predef(char *);
 void add_predefines(void);
 void free_defines (int include_predefs);
-
-ident_hash_elem_t *find_or_add_ident(char *, int);
-ident_hash_elem_t *find_or_add_perm_ident(char *);
-ident_hash_elem_t *lookup_ident(const char *);
-void free_unused_identifiers(void);
-void init_identifiers(void);
-void deinit_identifiers(void);
 
 char *show_error_context(void);
