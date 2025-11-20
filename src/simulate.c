@@ -568,7 +568,7 @@ object_t *clone_object (const char *str1, int num_arg) {
         error ("*Attempt to create object without effective UID.");
     }
   num_objects_this_thread = 0;
-  ob = find_object (str1);
+  ob = find_or_load_object (str1);
   if (ob && !object_visible (ob))
     ob = 0;
   /*
@@ -1543,12 +1543,17 @@ do_write (svalue_t * arg)
   command_giver = save_command_giver;
 }
 
-/* Find an object. If not loaded, load it !
- * The object may self-destruct, which is the only case when 0 will be
- * returned.
+/**
+ *  @brief Find an object. If not loaded, load it !
+ *  The object may self-destruct, which is the only case when 0 will be returned.
+ *  This was called find_object() before. Neolith renamed it to avoid confusion
+ *  with the efun of the same name.
+ *  @param str The name of the object to find or load.
+ *  @return The object found or loaded, or 0 if it could not be found/loaded.
  */
 
-object_t *find_object (const char *str) {
+object_t *find_or_load_object (const char *str) {
+
   object_t *ob;
   char tmpbuf[MAX_OBJECT_NAME_SIZE];
 
@@ -1565,10 +1570,15 @@ object_t *find_object (const char *str) {
   return ob;
 }
 
-/* Look for a loaded object. Return 0 if non found. */
-object_t *
-find_object2 (const char *str)
-{
+/**
+ *  @brief Look for a loaded object. Return 0 if non found.
+ *  This was called find_object2() before. Neolith renamed it to avoid confusion
+ *  with the efun of the same name.
+ *  @param str The name of the object to find.
+ *  @return The object found or 0 if not found.
+ */
+object_t *find_object_by_name (const char *str) {
+
   register object_t *ob;
   char p[MAX_OBJECT_NAME_SIZE];
 
@@ -2632,7 +2642,7 @@ do_message (svalue_t * msg_class, svalue_t * msg, array_t * scope,
       switch (scope->item[i].type)
         {
         case T_STRING:
-          ob = find_object (scope->item[i].u.string);
+          ob = find_or_load_object (scope->item[i].u.string);
           if (!ob || !object_visible (ob))
             continue;
           break;
@@ -2695,7 +2705,7 @@ first_inventory (svalue_t * arg)
 
   if (arg->type == T_STRING)
     {
-      ob = find_object (arg->u.string);
+      ob = find_or_load_object (arg->u.string);
       if (ob && !object_visible (ob))
         ob = 0;
     }

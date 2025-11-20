@@ -43,7 +43,7 @@ f_tell_room (void)
     }
   else
     {				/* must be a string... */
-      ob = find_object (arg[0].u.string);
+      ob = find_or_load_object (arg[0].u.string);
       if (!ob || !object_visible (ob))
         error ("Bad argument 1 to tell_room()\n");
     }

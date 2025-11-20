@@ -275,9 +275,9 @@ f_find_object (void)
 {
   object_t *ob;
   if ((sp--)->u.number)
-    ob = find_object (sp->u.string);
+    ob = find_or_load_object (sp->u.string);
   else
-    ob = find_object2 (sp->u.string);
+    ob = find_object_by_name (sp->u.string);
   free_string_svalue (sp);
   if (ob)
     {
@@ -404,7 +404,7 @@ f_inherits (void)
   int i;
 
   base = (sp--)->u.ob;
-  ob = find_object2 (sp->u.string);
+  ob = find_object_by_name (sp->u.string);
   if (!ob)
     {
       free_object (base, "f_inherits");

@@ -1048,7 +1048,7 @@ map_string (svalue_t * arg, int num_arg)
             ob = arg[2].u.ob;
           else if (arg[2].type == T_STRING)
             {
-              if ((ob = find_object (arg[2].u.string))
+              if ((ob = find_or_load_object (arg[2].u.string))
                   && !object_visible (ob))
                 ob = 0;
             }

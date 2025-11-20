@@ -219,7 +219,7 @@ inheritance
 
             if (var_defined)
                 yyerror("Invalid inherit clause after variables declarations.");
-            ob = find_object2($3);
+            ob = find_object_by_name($3);
             if (ob == 0) {
                 inherit_file = alloc_cstring($3, "inherit");
                 /* Return back to load_object() */
