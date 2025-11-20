@@ -270,7 +270,7 @@ int is_static(const char *, object_t *);
 svalue_t *call_function_pointer(funptr_t *, int);
 svalue_t *safe_call_function_pointer(funptr_t *, int);
 void call___INIT(object_t *);
-void call_function(program_t *, int, svalue_t *);
+void call_function(program_t *, int, int, svalue_t *);
 
 /**
  * @brief Get the current machine state.
