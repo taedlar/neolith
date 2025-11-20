@@ -112,7 +112,7 @@ void f_stat (void) {
 	  v->item[1].type = T_NUMBER;
 	  v->item[1].u.number = buf.st_mtime;
 	  v->item[2].type = T_NUMBER;
-	  ob = find_object2 (path);
+	  ob = find_object_by_name (path);
 	  if (ob && !object_visible (ob))
 	    ob = 0;
 	  if (ob)

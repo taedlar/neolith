@@ -245,7 +245,7 @@ process_efun_callback (int narg, function_to_call_t * ftc, int f)
             }
           else if ((arg + 1)->type == T_STRING)
             {
-              if (!(ftc->ob = find_object ((arg + 1)->u.string)) ||
+              if (!(ftc->ob = find_or_load_object ((arg + 1)->u.string)) ||
                   !object_visible (ftc->ob))
                 bad_argument (arg + 1, T_STRING | T_OBJECT, 3, f);
             }

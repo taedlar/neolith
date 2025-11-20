@@ -538,7 +538,7 @@ program_t *int_load_binary (const char *name)
           return OUT_OF_DATE;
         }
       /* find inherited program (maybe load it here?) */
-      ob = find_object2 (buf);
+      ob = find_object_by_name (buf);
       if (!ob)
         {
           opt_trace (TT_COMPILE|1, "saved binary inherits: /%s", buf);

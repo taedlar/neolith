@@ -33,7 +33,7 @@ static array_t *call_all_other (array_t * v, const char *func, int numargs)
         }
       else if (vptr->type == T_STRING)
         {
-          ob = find_object (vptr->u.string);
+          ob = find_or_load_object (vptr->u.string);
           if (!ob || !object_visible (ob))
             continue;
         }
@@ -99,7 +99,7 @@ f_call_other (void)
   else
     {
       object_t *old_ob;
-      ob = find_object (arg[0].u.string);
+      ob = find_or_load_object (arg[0].u.string);
       if (!(old_ob = ob) || !object_visible (ob))
         error ("call_other() couldn't find object\n");
       ob = old_ob;

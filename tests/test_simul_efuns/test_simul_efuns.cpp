@@ -82,7 +82,7 @@ TEST_F(SimulEfunsTest, loadSimulEfun)
         EXPECT_STREQ(simul_efun_ob->uid->name, "NONAME");
 
         // simul_efun_base should still be loaded
-        object_t* base_ob = find_object("/simul_efun_base");;
+        object_t* base_ob = find_object_by_name("/simul_efun_base");;
         EXPECT_TRUE(base_ob != nullptr) << "simul_efun_base object not found after destructing simul_efun_ob.";
         destruct_object(base_ob);
     }

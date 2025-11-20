@@ -50,7 +50,7 @@ f_move_object (void)
     o2 = sp->u.ob;
   else
     {
-      if (!(o2 = find_object (sp->u.string)) || !object_visible (o2))
+      if (!(o2 = find_or_load_object (sp->u.string)) || !object_visible (o2))
         error ("move_object failed: could not find destination\n");
     }
 
