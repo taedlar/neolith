@@ -3527,16 +3527,20 @@ is_static (const char *fun, object_t * ob)
  *  @param ret_value Where to store the return value, or NULL if none. The caller is responsible for
  *  freeing it if needed.
  */
-void call_function (program_t *progp, int offset, svalue_t *ret_value) {
+void call_function (program_t *progp, int offset, int num_args, svalue_t *ret_value) {
   object_t dummy_ob;
   compiler_function_t *funp;
 
-  if (progp->function_flags[offset] & NAME_UNDEFINED)
-    return;
+  if ((offset < 0) || (offset > progp->num_functions_total) || (progp->function_flags[offset] & NAME_UNDEFINED))
+    {
+      if (ret_value)
+        *ret_value = const0u;
+      return;
+    }
   push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
   caller_type = ORIGIN_DRIVER;
   DEBUG_CHECK (csp != control_stack, "call_function with bad csp\n");
-  csp->num_local_variables = 0;
+  csp->num_local_variables = num_args;
   current_prog = progp;
   funp = setup_new_frame (offset);
   previous_ob = current_object;

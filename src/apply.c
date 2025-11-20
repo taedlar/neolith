@@ -195,13 +195,16 @@ static int function_visible (int origin, int func_flags) {
   return 1;
 }
 
-/*  int apply_low (char* fun, object_t* ob, int num_arg)
- *
- *  Return 0 if the applied function is not defined in the LPC object.
- *  Return 1 if the applied function has been called successfully.
+/**
+ *  @brief Low-level apply of a function to an object.
+ *  @param fun The function name.
+ *  @param ob The object to apply the function to.
+ *  @param num_arg The number of arguments already pushed on the stack.
+ *  @retval 0 if the applied function is not defined in the LPC object.
+ *  @retval 1 if the applied function has been called successfully.
  */
-
 int apply_low (const char *fun, object_t * ob, int num_arg) {
+
   char *sfun;
   cache_entry_t *entry;
   program_t *progp, *prog;
