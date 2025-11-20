@@ -21,7 +21,6 @@
 #include "lex.h"
 #include "compiler.h"
 #include "scratchpad.h"
-#include "lpc/include/runtime_config.h"
 #include "lpc/include/function.h"
 #include "efuns/file_utils.h"
 
@@ -163,12 +162,6 @@ static keyword_t reswords[] = {
   {.word = "while", L_WHILE, 0},
 };
 
-static ident_hash_elem_t **ident_hash_table;
-static ident_hash_elem_t **ident_hash_head;
-static ident_hash_elem_t **ident_hash_tail;
-
-static ident_hash_elem_t *ident_dirty_list = 0;
-
 instr_t instrs[MAX_INSTRS];
 
 #define TERM_ADD_INPUT 1
@@ -214,7 +207,6 @@ static void refill (void);
 static void refill_buffer (void);
 static int exgetc (void);
 static int old_func (void);
-static ident_hash_elem_t *quick_alloc_ident_entry (void);
 static void yyerrorp (char *);
 
 #define LEXER
@@ -2795,7 +2787,7 @@ void init_instrs () {
   add_instr_name ("end_time_expression", 0, F_END_TIME_EXPRESSION, T_NUMBER);
 }
 
-void deinit_num_args (void) {
+void deinit_instrs (void) {
   memset (instrs, 0, sizeof(instrs));
 }
 
@@ -3499,374 +3491,25 @@ const char* main_file_name () {
   return is->file;
 }
 
-/* identifier hash table stuff, size must be an even power of two */
-#define IDENT_HASH_SIZE 1024
-#define IdentHash(s) (whashstr((s), 20) & (IDENT_HASH_SIZE - 1))
+void init_keywords (void) {
+  size_t i;
 
-/* The identifier table is hashed for speed.  The hash chains are circular
- * linked lists, so that we can rotate them, since identifier lookup is
- * rather irregular (i.e. we're likely to be asked about the same one
- * quite a number of times in a row).  This isn't as fast as moving entries
- * to the front but is done this way for two reasons:
- *
- * 1. this allows us to keep permanent identifiers consecutive and clean
- *    up faster
- * 2. it would only be faster in cases where two identifiers with the same
- *    hash value are used often within close proximity in the source.
- *    This should be rare, esp since the hash table is fairly sparse.
- *
- * ident_hash_table[hash] points to our current position (last lookup)
- * ident_hash_head[hash] points to the first permanent identifier
- * ident_hash_tail[hash] points to the last one
- * ident_dirty_list is a linked list of identifiers that need to be cleaned
- * when we're done; this happens if you define a global or function with
- * the same name (hashed) as an efun or sefun.
- */
-
-#define CHECK_ELEM(x, y, z) if (!strcmp((x)->name, (y))) { \
-      if (((x)->token & IHE_RESWORD) || ((x)->sem_value)) { z } \
-      else return 0; }
-
-ident_hash_elem_t *lookup_ident (const char *name) {
-  int h = IdentHash (name);
-  ident_hash_elem_t *hptr, *hptr2;
-
-  if (ident_hash_table && (hptr = ident_hash_table[h]))
+  for (i = 0; i < sizeof(reswords) / sizeof(reswords[0]); i++)
     {
-      CHECK_ELEM (hptr, name, return hptr;);
-      hptr2 = hptr->next;
-      while (hptr2 != hptr)
-        {
-          CHECK_ELEM (hptr2, name, ident_hash_table[h] = hptr2;
-                      return hptr2;);
-          hptr2 = hptr2->next;
-        }
-    }
-  return 0;
-}
-
-/**
- * @brief Find or add a permanent identifier.
- * @param name The name of the identifier. No reference is made to the string after this call.
- * @return A pointer to the identifier hash element.
- */
-ident_hash_elem_t* find_or_add_perm_ident (char *name) {
-  int h = IdentHash (name);
-  ident_hash_elem_t *hptr, *hptr2;
-
-  if ((hptr = ident_hash_table[h]))
-    {
-      if (!strcmp (hptr->name, name))
-        return hptr; /* found */
-      hptr2 = hptr->next;
-      while (hptr2 != hptr)
-        {
-          if (!strcmp (hptr2->name, name))
-            return hptr2; /* found */
-          hptr2 = hptr2->next;
-        }
-      /* collision, add to slot, a circular linked list */
-      hptr = ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT, "find_or_add_perm_ident:1");
-      hptr->next = ident_hash_head[h]->next;
-      ident_hash_head[h]->next = hptr;
-      if (ident_hash_head[h] == ident_hash_tail[h])
-        ident_hash_tail[h] = hptr;
-    }
-  else
-    {
-      /* no collision, add to hash table */
-      hptr = (ident_hash_table[h] = ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT, "find_or_add_perm_ident:2"));
-      ident_hash_head[h] = hptr;
-      ident_hash_tail[h] = hptr;
-      hptr->next = hptr;
-    }
-  
-  /* a new permanent identifier is added */
-  hptr->name = name;
-  hptr->token = 0;
-  hptr->sem_value = 0;
-  hptr->dn.simul_num = -1;
-  hptr->dn.local_num = -1;
-  hptr->dn.global_num = -1;
-  hptr->dn.efun_num = -1;
-  hptr->dn.function_num = -1;
-  hptr->dn.class_num = -1;
-  return hptr;
-}
-
-typedef struct lname_linked_buf_s
-{
-  struct lname_linked_buf_s *next;
-  char block[4096];
-}
-lname_linked_buf_t;
-
-lname_linked_buf_t *lnamebuf = 0;
-
-int lb_index = 4096;
-
-static char *alloc_local_name (const char *name)
-{
-  int len = strlen (name) + 1;
-  char *res;
-
-  if (lb_index + len > 4096)
-    {
-      lname_linked_buf_t *new_buf;
-      new_buf = ALLOCATE (lname_linked_buf_t, TAG_COMPILER, "alloc_local_name");
-      new_buf->next = lnamebuf;
-      lnamebuf = new_buf; /* add to head of list */
-      lb_index = 0;
-    }
-  res = &(lnamebuf->block[lb_index]);
-  strcpy (res, name);
-  lb_index += len;
-  return res;
-}
-
-int num_free = 0;
-
-typedef struct ident_hash_elem_list_s
-{
-  struct ident_hash_elem_list_s *next;
-  ident_hash_elem_t items[128];
-}
-ident_hash_elem_list_t;
-
-ident_hash_elem_list_t *ihe_list = 0;
-
-void
-free_unused_identifiers ()
-{
-  ident_hash_elem_list_t *ihel, *next;
-  lname_linked_buf_t *lnb, *lnbn;
-  int i;
-
-  /* clean up dirty idents */
-  while (ident_dirty_list)
-    {
-      if (ident_dirty_list->dn.function_num != -1)
-        {
-          ident_dirty_list->dn.function_num = -1;
-          ident_dirty_list->sem_value--;
-        }
-      if (ident_dirty_list->dn.global_num != -1)
-        {
-          ident_dirty_list->dn.global_num = -1;
-          ident_dirty_list->sem_value--;
-        }
-      if (ident_dirty_list->dn.class_num != -1)
-        {
-          ident_dirty_list->dn.class_num = -1;
-          ident_dirty_list->sem_value--;
-        }
-      ident_dirty_list = ident_dirty_list->next_dirty;
-    }
-
-  for (i = 0; i < IDENT_HASH_SIZE; i++)
-    if ((ident_hash_table[i] = ident_hash_head[i]))
-      ident_hash_tail[i]->next = ident_hash_head[i];
-
-  ihel = ihe_list;
-  while (ihel)
-    {
-      next = ihel->next;
-      FREE (ihel);
-      ihel = next;
-    }
-  ihe_list = 0;
-  num_free = 0;
-
-  lnb = lnamebuf;
-  while (lnb)
-    {
-      lnbn = lnb->next;
-      FREE (lnb);
-      lnb = lnbn;
-    }
-  lnamebuf = 0;
-  lb_index = 4096;
-}
-
-static ident_hash_elem_t *
-quick_alloc_ident_entry ()
-{
-  if (num_free)
-    {
-      num_free--;
-      return &(ihe_list->items[num_free]);
-    }
-  else
-    {
-      ident_hash_elem_list_t *ihel;
-      ihel = ALLOCATE (ident_hash_elem_list_t, TAG_COMPILER, "quick_alloc_ident_entry");
-      ihel->next = ihe_list;
-      ihe_list = ihel;
-      num_free = 127;
-      return &(ihe_list->items[127]);
+      keyword_t *entry = &reswords[i];
+      add_keyword_t (entry->word, entry);
     }
 }
 
-ident_hash_elem_t *find_or_add_ident (char *name, int flags) {
-
-  int h = IdentHash (name);
-  ident_hash_elem_t *hptr, *hptr2;
-
-  if ((hptr = ident_hash_table[h]))
-    {
-      if (!strcmp (hptr->name, name))
-        {
-          /* found */
-          if ((hptr->token & IHE_PERMANENT) && (flags & FOA_GLOBAL_SCOPE)
-              && (hptr->dn.function_num == -1)
-              && (hptr->dn.global_num == -1)
-              && (hptr->dn.class_num == -1))
-            {
-              hptr->next_dirty = ident_dirty_list;
-              ident_dirty_list = hptr;
-            }
-          return hptr;
-        }
-      hptr2 = hptr->next;
-      while (hptr2 != hptr)
-        {
-          if (!strcmp (hptr2->name, name))
-            {
-              /* found */
-              if ((hptr2->token & IHE_PERMANENT) && (flags & FOA_GLOBAL_SCOPE)
-                  && (hptr2->dn.function_num == -1)
-                  && (hptr2->dn.global_num == -1)
-                  && (hptr2->dn.class_num == -1))
-                {
-                  hptr2->next_dirty = ident_dirty_list;
-                  ident_dirty_list = hptr2;
-                }
-              ident_hash_table[h] = hptr2;	/* rotate */
-              return hptr2;
-            }
-          hptr2 = hptr2->next;
-        }
-    }
-
-  hptr = quick_alloc_ident_entry ();
-  if (!(hptr2 = ident_hash_tail[h]) && !(hptr2 = ident_hash_table[h]))
-    {
-      /* empty slot */
-      ident_hash_table[h] = hptr->next = hptr;
-    }
-  else
-    {
-      /* collision, insert to the circular linked list */
-      hptr->next = hptr2->next;
-      hptr2->next = hptr;
-    }
-
-  if (flags & FOA_NEEDS_MALLOC)
-    {
-      hptr->name = alloc_local_name (name);
-    }
-  else
-    {
-      hptr->name = name;
-    }
-  hptr->token = 0;
-  hptr->sem_value = 0;
-  hptr->dn.simul_num = -1;
-  hptr->dn.local_num = -1;
-  hptr->dn.global_num = -1;
-  hptr->dn.efun_num = -1;
-  hptr->dn.function_num = -1;
-  hptr->dn.class_num = -1;
-  return hptr;
-}
-
-/**
- * @brief Add a keyword to the identifier hash table.
- */
-static void add_keyword_t (char *name, keyword_t * entry) {
-  int h = IdentHash (name);
-
-  if (ident_hash_table[h])
-    {
-      entry->next = ident_hash_head[h]->next;
-      ident_hash_head[h]->next = (ident_hash_elem_t *) entry;
-      if (ident_hash_head[h] == ident_hash_tail[h])
-        ident_hash_tail[h] = (ident_hash_elem_t *) entry;
-    }
-  else
-    {
-      ident_hash_head[h] = (ident_hash_elem_t *) entry;
-      ident_hash_tail[h] = (ident_hash_elem_t *) entry;
-      ident_hash_table[h] = (ident_hash_elem_t *) entry;
-      entry->next = (ident_hash_elem_t *) entry;
-    }
-  entry->token |= IHE_RESWORD;
-}
-
-/**
- * @brief Initialize identifier management structures.
- */
-void init_identifiers () {
-  int i;
-  ident_hash_elem_t *ihe;
-
-  /* allocate all three tables together */
-  ident_hash_table = CALLOCATE (IDENT_HASH_SIZE * 3, ident_hash_elem_t *,
-                                TAG_IDENT_TABLE, "init_identifiers");
-  ident_hash_head = (ident_hash_elem_t **) & ident_hash_table[IDENT_HASH_SIZE];
-  ident_hash_tail = (ident_hash_elem_t **) & ident_hash_table[2 * IDENT_HASH_SIZE];
-
-  /* clean all three tables */
-  for (i = 0; i < IDENT_HASH_SIZE * 3; i++)
-    {
-      ident_hash_table[i] = 0;
-    }
-  /* add the reserved words */
-  for (i = 0; i < (int)NELEM (reswords); i++)
-    {
-      add_keyword_t (reswords[i].word, &reswords[i]); /* IHE_RESWORD */
-    }
+void init_predefines (void) {
   /* add the efuns */
-  for (i = 0; i < (int)NELEM (predefs); i++)
+  size_t i;
+  ident_hash_elem_t *ihe;
+  for (i = 0; i < sizeof(predefs) / sizeof(predefs[0]); i++)
     {
       ihe = find_or_add_perm_ident (predefs[i].word);
       ihe->token |= IHE_EFUN;
       ihe->sem_value++;
       ihe->dn.efun_num = i;
     }
-}
-
-/**
- * @brief Deinitialize identifier management structures. All identifiers including permanents are freed.
- */
-void deinit_identifiers () {
-  int i, n = 0;
-  free_unused_identifiers ();
-  /* free identifiers with IHE_EFUN flag */
-  for (i = 0; i < IDENT_HASH_SIZE; i++)
-    {
-      ident_hash_elem_t *head, *hptr = head = ident_hash_table[i];
-      while (hptr && (hptr->next != head))
-        {
-          if (hptr->token & IHE_EFUN)
-            {
-              ident_hash_elem_t *tmp = hptr;
-              hptr = hptr->next;
-              FREE (tmp); /* allocated by find_or_add_perm_ident() */
-              n++;
-            }
-          else
-            {
-              if (!(hptr->token & IHE_RESWORD))
-                debug_warn ("leaked identifier: %s", hptr->name);
-              hptr = hptr->next;
-            }
-        }
-      ident_hash_table[i] = NULL;
-    }
-  FREE (ident_hash_table);
-  ident_hash_table = NULL;
-  ident_hash_head = NULL;
-  ident_hash_tail = NULL;
-  opt_trace (TT_BACKEND|3, "freed %d identifiers", n);
 }
