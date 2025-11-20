@@ -213,7 +213,6 @@ extern program_t fake_prog;
 extern svalue_t global_lvalue_byte;
 extern int num_varargs;
 
-/* A giant switch() statement for instruction evaluation */
 void eval_instruction(const char *p);
 
 void assign_svalue(svalue_t *, svalue_t *);
@@ -271,7 +270,7 @@ int is_static(const char *, object_t *);
 svalue_t *call_function_pointer(funptr_t *, int);
 svalue_t *safe_call_function_pointer(funptr_t *, int);
 void call___INIT(object_t *);
-void call_function(program_t *, int);
+void call_function(program_t *, int, svalue_t *);
 
 /**
  * @brief Get the current machine state.

@@ -61,9 +61,9 @@
 #define STORE_INT(x, y)		STORE4(x,y)
 #define INT_32			int32_t
 
-#define COPY_FLOAT(x, y)	COPY4(x,y)
-#define LOAD_FLOAT(x, y)	LOAD4(x,y)
-#define STORE_FLOAT(x, y)	STORE4(x,y)
+#define COPY_FLOAT(x, y)	COPY8(x,y)
+#define LOAD_FLOAT(x, y)	LOAD8(x,y)
+#define STORE_FLOAT(x, y)	STORE8(x,y)
 
 #if UINTPTR_MAX == UINT32_MAX
 #define COPY_PTR(x, y)		COPY4(x,y)

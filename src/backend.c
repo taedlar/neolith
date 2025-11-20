@@ -326,7 +326,7 @@ call_heart_beat ()
                   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
                   /* this should be looked at ... */
                   opt_trace (TT_BACKEND|2, "total: %d/%d, current: %s", heart_beat_index + 1, num_hb_to_do, ob->name);
-                  call_function (ob->prog, ob->prog->heart_beat);
+                  call_function (ob->prog, ob->prog->heart_beat, 0);
                   command_giver = 0;
                   current_object = 0;
                 }

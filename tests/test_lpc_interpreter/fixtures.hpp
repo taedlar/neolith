@@ -8,6 +8,7 @@ extern "C" {
     #include "rc.h"
     #include "src/simul_efun.h"
     #include "uids.h"
+    #include "lpc/types.h"
     #include "lpc/object.h"
     #include "lpc/otable.h"
 }
