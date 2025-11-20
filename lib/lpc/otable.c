@@ -22,7 +22,9 @@
 static int otable_size;
 static int otable_size_minus_one;
 
-static object_t *find_obj_n (const char *);
+static int user_obj_lookups = 0, user_obj_found = 0;
+
+static object_t *find_obj_n (const char *, int*);
 
 /**
  * @brief Strip leading slashes and trailing .c extensions from a file name.
@@ -124,16 +126,24 @@ void deinit_otable () {
 
 static int obj_searches = 0, obj_probes = 0, objs_found = 0;
 
-/* A global.  *shhhh* don't tell. */
-static int h;
-
-static object_t *find_obj_n (const char *s)
+/**
+ * @brief Find an object in the hash table.
+ * 
+ * If found, the object is moved to the head of the hash chain.
+ * @param s The name of the object to find.
+ * @param hash If not NULL, the hash index is stored here.
+ * @return Pointer to the object if found, NULL otherwise.
+ */
+static object_t *find_obj_n (const char *s, int* hash)
 {
+  int h;
   object_t *curr, *prev;
 
   h = ObjHash (s);
   curr = obj_table[h];
   prev = 0;
+
+  if (hash) *hash = h;
 
   obj_searches++;
 
@@ -165,14 +175,17 @@ static object_t *find_obj_n (const char *s)
  * guaranteed to be behind the real entry if a real entry exists.
  */
 void enter_object_hash (object_t * ob) {
+  int h;
   if (!obj_table)
     fatal ("enter_object_hash: object table not initialized.\n");
 
-  (void)find_obj_n (ob->name);	/* This sets h */
-  ob->next_hash = obj_table[h];
-  obj_table[h] = ob;
-  objs_in_table++;
-  return;
+  object_t* found = find_obj_n (ob->name, &h);
+  if (!found)
+    {
+      ob->next_hash = obj_table[h];
+      obj_table[h] = ob;
+      objs_in_table++;
+    }
 }
 
 /**
@@ -182,9 +195,10 @@ void enter_object_hash (object_t * ob) {
  * that the real object exists.
  */
 void enter_object_hash_at_end (object_t * ob) {
+  int h;
   object_t **op;
 
-  (void)find_obj_n (ob->name);	/* This sets h */
+  (void)find_obj_n (ob->name, &h);
 
   ob->next_hash = 0;
 
@@ -201,12 +215,12 @@ void enter_object_hash_at_end (object_t * ob) {
  * is removed from the next_all list - i.e. in destruct.
  */
 void remove_object_hash (object_t * ob) {
+  int h;
   object_t *s;
 
-  s = find_obj_n (ob->name);	/* this sets h, and cycles the ob to the front */
+  s = find_obj_n (ob->name, &h);	/* cycles the ob to the front */
 
-  DEBUG_CHECK1 (s != ob, "Remove object \"/%s\": found a different object!",
-                ob->name);
+  DEBUG_CHECK1 (s != ob, "Remove object \"/%s\": found a different object!", ob->name);
 
   obj_table[h] = ob->next_hash;
   ob->next_hash = 0;
@@ -219,12 +233,9 @@ void remove_object_hash (object_t * ob) {
  * stats; more finds are actually done than the user ever asks for.
  */
 
-static int user_obj_lookups = 0, user_obj_found = 0;
+object_t *lookup_object_hash (const char *s) {
 
-object_t *
-lookup_object_hash (char *s)
-{
-  object_t *ob = find_obj_n (s);
+  object_t *ob = find_obj_n (s, 0);
 
   user_obj_lookups++;
   if (ob)
@@ -248,8 +259,7 @@ show_otable_status (outbuffer_t * out, int verbose)
     {
       outbuf_add (out, "Object name hash table status:\n");
       outbuf_add (out, "------------------------------\n");
-      sprintf (sbuf, "%10.2f",
-               objs_in_table / (float) otable_size);
+      sprintf (sbuf, "%10.2f", objs_in_table / (float) otable_size);
       outbuf_addv (out, "Average hash chain length:       %s\n", sbuf);
       sprintf (sbuf, "%10.2f", (float) obj_probes / obj_searches);
       outbuf_addv (out, "Average search length:           %s\n", sbuf);

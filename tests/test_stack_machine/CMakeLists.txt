@@ -1,6 +1,7 @@
 # tests/test_stack_machine/CMakeLists.txt
 
 add_executable(test_stack_machine
+    test_object_hash.cpp
     test_stack_machine.cpp
 )
 
