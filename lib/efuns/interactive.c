@@ -37,14 +37,14 @@ f_interactive (void)
 
 
 #ifdef F_USERP
-void
-f_userp (void)
-{
+void f_userp (void) {
   int i;
 
-  i = (int) sp->u.ob->flags & O_ONCE_INTERACTIVE;
+  i = (0 != (sp->u.ob->flags & O_ONCE_INTERACTIVE));
+  if (sp->u.ob->flags & O_CONSOLE_USER)
+    i = 2;
   free_object (sp->u.ob, "f_userp");
-  put_number (i != 0);
+  put_number (i);
 }
 #endif
 

@@ -28,6 +28,8 @@ object_t *current_heart_beat;
 static timer_t hb_timerid = 0; /* heart beat timer id */
 #endif
 
+size_t eval_cost = 0;
+
 static void look_for_objects_to_swap (void);
 static void call_heart_beat (void);
 
@@ -52,21 +54,98 @@ static void clear_state () {
   reset_interpreter ();		/* Pop down the stack. */
 }
 
+/**
+ *  @brief This function calls the master object's connect() function to
+ *  determine whether to accept a new user connection. If accepted, the
+ *  user object returned by connect() is initialized and returned.
+ *  @param port The port number on which the new connection was received.
+ *  @param addr The address of the connecting user as a string.
+ *  @return The user object if the connection is accepted, NULL otherwise.
+ */
+object_t* mudlib_connect(int port, const char* addr) {
+
+  object_t *ob;
+  svalue_t *ret;
+  /*
+   * The user object has one extra reference. It is asserted that the
+   * master_ob is loaded.
+   */
+  add_ref (master_ob, "mudlib_connect");
+  push_number (port);
+  ret = apply_master_ob (APPLY_CONNECT, 1);
+  /* master_ob->interactive can be zero if the master object self destructed in the above. */
+  if (ret == 0 || ret == (svalue_t *) - 1 || ret->type != T_OBJECT || !master_ob->interactive)
+    {
+      debug_message ("connection from %s rejected by master\n", addr);
+      return 0;
+    }
+
+  /*
+   * There was an object returned from connect(). Use this as the user object.
+   */
+  ob = ret->u.ob;
+  if (ob->flags & O_HIDDEN)
+    num_hidden++;
+  ob->interactive = master_ob->interactive;
+  ob->interactive->ob = ob;
+  ob->flags |= O_ONCE_INTERACTIVE;
+  if (ob->interactive->fd == STDIN_FILENO)
+    ob->flags |= O_CONSOLE_USER; /* mark as console user */
+  /*
+   * assume the existance of write_prompt and process_input in user.c
+   * until proven wrong (after trying to call them).
+   */
+  ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_PROCESS_INPUT);
+
+  master_ob->flags &= ~(O_ONCE_INTERACTIVE|O_CONSOLE_USER);
+  master_ob->interactive = 0;
+  free_object (master_ob, "mudlib_connect"); /* remove extra reference added when calling connect() */
+  add_ref (ob, "mudlib_connect");
+  command_giver = ob;
+  return ob;
+}
+
 void
-logon (object_t * ob)
+mudlib_logon (object_t * ob)
 {
   /* current_object no longer set */
   apply (APPLY_LOGON, ob, 0, ORIGIN_DRIVER);
   /* function not existing is no longer fatal */
 }
 
+/**
+ *  @brief Initiate connection of the console user in console mode.
+ *  A console user is a special interactive user that uses the standard
+ *  input/output of the driver process as the communication channel.
+ *
+ *  When a console user is disconnected, the stdin is not closed, and
+ *  this function can be called again to reconnect the console user.
+ *
+ *  This is a Neolith extension.
+ */
+void init_console_user() {
+
+  object_t* ob;
+  debug_message("Initializing console user...\n");
+  new_interactive(STDIN_FILENO);
+  master_ob->interactive->connection_type = PORT_TELNET; /* PORT_CONSOLE */
+  master_ob->interactive->addr.sin_addr.s_addr = INADDR_LOOPBACK;
+  eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
+  ob = mudlib_connect(0, "console"); /* port 0 for console */
+  if (!ob)
+    {
+      if (master_ob->interactive)
+        remove_interactive (master_ob, 0);
+      return;
+    }
+  debug_message("Console user object created: %s\n", ob->name);
+  mudlib_logon(ob);
+}
+
 /*  backend()
  */
-size_t eval_cost = 0;
+void backend () {
 
-void
-backend ()
-{
   struct timeval timeout;
   int nb;
   int i;
@@ -97,6 +176,9 @@ backend ()
 
   if (setjmp (econ.context))
     restore_context (&econ);
+
+  if (MAIN_OPTION(console_mode))
+    init_console_user();
 
   while (1)
     {

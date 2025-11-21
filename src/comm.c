@@ -64,7 +64,7 @@ static void print_prompt (interactive_t *);
 static void telnet_neg (char *, char *);
 static void query_addr_name (object_t *);
 static void got_addr_number (char *, char *);
-static void add_ip_entry (long, char *);
+static void add_ip_entry (long, const char *);
 static void clear_notify (interactive_t *);
 static void new_user_handler (int);
 static void receive_snoop (char *, object_t * ob);
@@ -170,6 +170,8 @@ init_user_conn ()
       debug_perror ("signal()", 0);
       exit (5);
     }
+  
+  add_ip_entry (INADDR_LOOPBACK, "localhost");
 }
 
 /*
@@ -184,8 +186,7 @@ ipc_remove ()
     {
       if (!external_port[i].port)
         continue;
-      debug_message ("closing service on TCP port %d\n",
-                     external_port[i].port);
+      debug_message ("closing service on TCP port %d\n", external_port[i].port);
       if (close (external_port[i].fd) == -1)
         debug_perror ("ipc_remove: close", 0);
     }
@@ -244,8 +245,7 @@ add_message (object_t * who, char *data)
                 break;
             }
           ip->message_buf[ip->message_producer] = '\r';
-          ip->message_producer = (ip->message_producer + 1)
-            % MESSAGE_BUF_SIZE;
+          ip->message_producer = (ip->message_producer + 1) % MESSAGE_BUF_SIZE;
           ip->message_length++;
         }
       ip->message_buf[ip->message_producer] = *cp;
@@ -379,11 +379,12 @@ flush_message (interactive_t * ip)
         {
           length = MESSAGE_BUF_SIZE - ip->message_consumer;
         }
-/* Need to use send to get Out-Of-Band data
-   num_bytes = write(ip->fd,ip->message_buf + ip->message_consumer,length);
- */
-      num_bytes = send (ip->fd, ip->message_buf + ip->message_consumer,
-                        length, ip->out_of_band);
+      /* Need to use send to get Out-Of-Band data
+       * num_bytes = write(ip->fd,ip->message_buf + ip->message_consumer,length);
+       */
+      num_bytes = (ip->fd == STDIN_FILENO) ?
+        write (STDOUT_FILENO, ip->message_buf + ip->message_consumer, length) :
+        send (ip->fd, ip->message_buf + ip->message_consumer, length, ip->out_of_band);
       if (num_bytes == -1)
         {
           if (errno == EWOULDBLOCK || errno == EINTR)
@@ -394,8 +395,7 @@ flush_message (interactive_t * ip)
           ip->iflags |= NET_DEAD;
           return 0;
         }
-      ip->message_consumer = (ip->message_consumer + num_bytes) %
-        MESSAGE_BUF_SIZE;
+      ip->message_consumer = (ip->message_consumer + num_bytes) % MESSAGE_BUF_SIZE;
       ip->message_length -= num_bytes;
       ip->out_of_band = 0;
       inet_packets++;
@@ -823,8 +823,14 @@ make_selectmasks ()
        */
       FD_SET (all_users[i]->fd, &readmask);
       if (all_users[i]->message_length != 0)
-        FD_SET (all_users[i]->fd, &writemask);
+        {
+          if (all_users[i]->fd != STDIN_FILENO)
+            FD_SET (all_users[i]->fd, &writemask);
+        }
     }
+  if (MAIN_OPTION(console_mode))
+    FD_SET(STDIN_FILENO, &readmask); // for console re-connect
+
   /*
    * if addr_server_fd is set, set its fd in readmask.
    */
@@ -854,9 +860,9 @@ make_selectmasks ()
 /*
  * Process I/O.
  */
-inline void
-process_io ()
-{
+void process_io () {
+
+  int console_user_connected = 0;
   int i;
 
   /*
@@ -893,8 +899,18 @@ process_io ()
             continue;
         }
 
-      if (FD_ISSET (all_users[i]->fd, &writemask))
+      if (all_users[i]->fd == STDIN_FILENO)
+        {
+          console_user_connected = 1;
+          flush_message (all_users[i]);
+        }
+      else if (FD_ISSET (all_users[i]->fd, &writemask))
         flush_message (all_users[i]);
+    }
+  if (!console_user_connected && FD_ISSET (STDIN_FILENO, &readmask))
+    {
+      /* [NEOLITH-EXTENSION] console user re-connect */
+      init_console_user();
     }
 
 #ifdef PACKAGE_SOCKETS
@@ -924,56 +940,21 @@ process_io ()
     }
 }
 
-
-/*
- * This is the new user connection handler. This function is called by the
- * event handler when data is pending on the listening socket (new_user_fd).
- * If space is available, an interactive data structure is initialized and
- * the user is connected.
+/**
+ *  @brief Creates a new interactive structure for a given socket file descriptor.
+ *  The master object is set as the command giver object for this new interactive.
+ *  @param socket_fd The file descriptor of the socket to associate with the new interactive.
  */
-static void
-new_user_handler (int which)
-{
-  int new_socket_fd;
-  struct sockaddr_in addr;
-  socklen_t length;
+void new_interactive(int socket_fd) {
+
   int i;
-  object_t *ob;
-  svalue_t *ret;
-
-  length = sizeof (addr);
-  new_socket_fd =
-    accept (external_port[which].fd, (struct sockaddr *) &addr, &length);
-  if (new_socket_fd < 0)
-    {
-      if (errno == EWOULDBLOCK)
-        {
-        }
-      else
-        {
-          debug_perror ("new_user_handler: accept", 0);
-        }
-      return;
-    }
-
-#ifdef __linux__
-  /*
-   * according to Amylaar, 'accepted' sockets in Linux 0.99p6 don't
-   * properly inherit the nonblocking property from the listening socket.
-   */
-  if (set_socket_nonblocking (new_socket_fd, 1) == -1)
-    {
-      debug_perror ("new_user_handler: set_socket_nonblocking", 0);
-      exit (8);
-    }
-#endif /* __linux__ */
-
   for (i = 0; i < max_users; i++)
-    if (!all_users[i])
+    if (!all_users[i]) /* find free slot in all_users */
       break;
 
   if (i == max_users)
     {
+      /* allocate 50 user slots */
       if (all_users)
         {
           all_users = RESIZE (all_users, max_users + 50, interactive_t *, TAG_USERS, "new_user_handler");
@@ -990,8 +971,9 @@ new_user_handler (int which)
   master_ob->interactive = (interactive_t *)DXALLOC (sizeof (interactive_t), TAG_INTERACTIVE, "new_user_handler");
   total_users++;
   master_ob->interactive->default_err_message.s = 0;
-  master_ob->interactive->connection_type = external_port[which].kind;
   master_ob->flags |= O_ONCE_INTERACTIVE;
+  if (socket_fd == STDIN_FILENO)
+    master_ob->interactive->iflags = O_CONSOLE_USER;
   /*
    * initialize new user interactive data structure.
    */
@@ -1019,59 +1001,78 @@ new_user_handler (int which)
   master_ob->interactive->state = TS_DATA;
   master_ob->interactive->out_of_band = 0;
   all_users[i] = master_ob->interactive;
-  all_users[i]->fd = new_socket_fd;
-#ifdef F_QUERY_IP_PORT
-  all_users[i]->local_port = external_port[which].port;
-#endif
+  all_users[i]->fd = socket_fd;
   set_prompt ("> ");
 
-  memcpy ((char *) &all_users[i]->addr, (char *) &addr, length);
 /* debug_message ("new connection from %s\n", inet_ntoa (addr.sin_addr)); */
   num_user++;
+}
 
-  /*
-   * The user object has one extra reference. It is asserted that the
-   * master_ob is loaded.
-   */
-  add_ref (master_ob, "new_user");
-  push_number (external_port[which].port);
-  ret = apply_master_ob (APPLY_CONNECT, 1);
-  /* master_ob->interactive can be zero if the master object self
-     destructed in the above (don't ask) */
-  if (ret == 0 || ret == (svalue_t *) - 1 || ret->type != T_OBJECT
-      || !master_ob->interactive)
+/**
+ *  @brief This is the new user connection handler. This function is called by the
+ *  event handler when data is pending on the listening socket (new_user_fd).
+ *  If space is available, an interactive data structure is initialized and
+ *  the user is connected.
+ *  @param which The index of the external_port array indicating which port
+ *  the new connection is on.
+ */
+static void new_user_handler (int which) {
+
+  int new_socket_fd;
+  struct sockaddr_in addr;
+  socklen_t length;
+  object_t *ob;
+  int num_external_ports = sizeof(external_port) / sizeof(external_port[0]);
+
+  if (which >= num_external_ports || !external_port[which].port)
     {
-      if (master_ob->interactive)
-        remove_interactive (master_ob, 0);
-      debug_message ("connection from %s rejected by master\n",
-                     inet_ntoa (addr.sin_addr));
+      debug_message ("new_user_handler: invalid port index %d\n", which);
       return;
     }
 
-  /*
-   * There was an object returned from connect(). Use this as the user
-   * object.
-   */
-  ob = ret->u.ob;
-  if (ob->flags & O_HIDDEN)
-    num_hidden++;
-  ob->interactive = master_ob->interactive;
-  ob->interactive->ob = ob;
-  ob->flags |= O_ONCE_INTERACTIVE;
-  /*
-   * assume the existance of write_prompt and process_input in user.c
-   * until proven wrong (after trying to call them).
-   */
-  ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_PROCESS_INPUT);
+  length = sizeof (addr);
+  new_socket_fd = accept (external_port[which].fd, (struct sockaddr *) &addr, &length);
+  if (new_socket_fd < 0)
+    {
+      if (errno != EWOULDBLOCK)
+        {
+          debug_perror ("accept()", 0);
+        }
+      return;
+    }
 
-  master_ob->flags &= ~O_ONCE_INTERACTIVE;
-  master_ob->interactive = 0;
-  free_object (master_ob, "reconnect");
-  add_ref (ob, "new_user");
-  command_giver = ob;
+#ifdef __linux__
+  /*
+   * according to Amylaar, 'accepted' sockets in Linux 0.99p6 don't
+   * properly inherit the nonblocking property from the listening socket.
+   */
+  if (set_socket_nonblocking (new_socket_fd, 1) == -1)
+    {
+      debug_perror ("new_user_handler: set_socket_nonblocking", 0);
+      exit (8);
+    }
+#endif /* __linux__ */
+
+  /*
+   * Make master object interactive to allow sending messages to the
+   * new user during connection setup.
+   */
+  new_interactive(new_socket_fd);
+  master_ob->interactive->connection_type = external_port[which].kind;
+#ifdef F_QUERY_IP_PORT
+  master_ob->interactive->local_port = external_port[which].port;
+#endif
+  memcpy ((char *) &master_ob->interactive->addr, (char *) &addr, length);
+
+  ob = mudlib_connect(external_port[which].port, inet_ntoa (addr.sin_addr));
+  if (!ob)
+    {
+      if (master_ob->interactive)
+        remove_interactive (master_ob, 0);
+      return;
+    }
   if (addr_server_fd >= 0)
     query_addr_name (ob);
-
   if (external_port[which].kind == PORT_TELNET)
     {
       /* Ask permission to ask them for their terminal type */
@@ -1082,11 +1083,9 @@ new_user_handler (int which)
       add_message (ob, telnet_do_linemode);
     }
 
-  logon (ob);
+  mudlib_logon (ob);
   command_giver = 0;
 }				/* new_user_handler() */
-
-
 
 /*
  * This is the user command handler. This function is called when
@@ -1334,9 +1333,9 @@ hname_handler ()
 
 
 
-/*
- * Read pending data for a user into user->interactive->text.
- * This also does telnet negotiation.
+/**
+ *  @brief Read pending data for a user into user->interactive->text.
+ *  This also does telnet negotiation if the connection type is PORT_TELNET.
  */
 static void
 get_user_data (interactive_t * ip)
@@ -1375,13 +1374,14 @@ get_user_data (interactive_t * ip)
         }
       break;
 
+    case PORT_CONSOLE:
     case PORT_ASCII:
       text_space = MAX_TEXT - ip->text_end - 1;
       break;
 
     case PORT_BINARY:
     default:
-      text_space = sizeof (buf) - 1;
+      text_space = MAX_TEXT - ip->text_end - 1;
       break;
     }
 
@@ -1413,8 +1413,7 @@ get_user_data (interactive_t * ip)
             case ETIMEDOUT:
               break;
             default:
-              debug_message ("get_user_data: (fd %d): %s\n", ip->fd,
-                             strerror (errno));
+              debug_message ("get_user_data: (fd %d): %s\n", ip->fd, strerror (errno));
               break;
             }
           ip->iflags |= NET_DEAD;
@@ -1434,9 +1433,7 @@ get_user_data (interactive_t * ip)
            * option stuff and send back anything non useful we feel we have
            * to.
            */
-          ip->text_end +=
-            copy_chars ((UCHAR *) buf,
-                        (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
+          ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
           /*
            * now, text->end is just after the last char read. If last char
            * was a nl, char *before* text_end will be null.
@@ -1456,6 +1453,7 @@ get_user_data (interactive_t * ip)
             ip->iflags |= CMD_IN_BUF;
           break;
 
+        case PORT_CONSOLE:
         case PORT_ASCII:
           {
             char *nl, *str;
@@ -1730,12 +1728,11 @@ next_cmd_in_buf (interactive_t * ip)
     }
 }				/* next_cmd_in_buf() */
 
-/*
- * Remove an interactive user immediately.
+/**
+ *  @brief Remove an interactive user immediately.
  */
-void
-remove_interactive (object_t * ob, int dested)
-{
+void remove_interactive (object_t * ob, int dested) {
+
   int idx;
   /* don't have to worry about this dangling, since this is the routine
    * that causes this to dangle elsewhere, and we are protected from
@@ -1784,9 +1781,15 @@ remove_interactive (object_t * ob, int dested)
       ip->snoop_on = 0;
     }
 
-  if (OS_socket_close (ip->fd) == -1)
+  if (MAIN_OPTION(console_mode) && ip->fd == STDIN_FILENO)
     {
-      debug_perror ("remove_interactive: close", 0);
+      /* don't close stdin */
+      debug_message ("===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
+    }
+  else
+    {
+      if (OS_socket_close (ip->fd) == -1)
+        debug_perror ("remove_interactive: close", 0);
     }
   if (ob->flags & O_HIDDEN)
     num_hidden--;
@@ -1805,8 +1808,7 @@ remove_interactive (object_t * ob, int dested)
   for (idx = 0; idx < max_users; idx++)
     if (all_users[idx] == ip)
       break;
-  DEBUG_CHECK (idx == max_users,
-               "remove_interactive: could not find and remove user!\n");
+  DEBUG_CHECK (idx == max_users, "remove_interactive: could not find and remove user!\n");
   FREE (ip);
   total_users--;
   ob->interactive = 0;
@@ -2290,9 +2292,7 @@ ipentry_t;
 static ipentry_t iptable[IPSIZE];
 static int ipcur;
 
-char *
-query_ip_name (object_t * ob)
-{
+char *query_ip_name (object_t * ob) {
   int i;
 
   if (ob == 0)
@@ -2301,16 +2301,13 @@ query_ip_name (object_t * ob)
     return NULL;
   for (i = 0; i < IPSIZE; i++)
     {
-      if (iptable[i].addr == ob->interactive->addr.sin_addr.s_addr &&
-          iptable[i].name)
+      if (iptable[i].addr == ob->interactive->addr.sin_addr.s_addr && iptable[i].name)
         return (iptable[i].name);
     }
   return (inet_ntoa (ob->interactive->addr.sin_addr));
 }
 
-static void
-add_ip_entry (long addr, char *name)
-{
+static void add_ip_entry (long addr, const char *name) {
   int i;
 
   for (i = 0; i < IPSIZE; i++)

@@ -9,9 +9,9 @@
 #define PATH_MAX MAX_PATH
 #endif
 
-typedef struct main_options
-{
+typedef struct main_options {
   char config_file[PATH_MAX];
+  int console_mode;
   int epilog_level;
   int debug_level;
   unsigned long trace_flags;    /* Trace flags for debugging */

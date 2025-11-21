@@ -30,6 +30,7 @@ typedef struct {
 
 extern port_def_t external_port[5];
 
+#define PORT_CONSOLE     0
 #define PORT_TELNET      1
 #define PORT_BINARY      2
 #define PORT_ASCII       3
