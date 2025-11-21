@@ -8,7 +8,8 @@ extern size_t eval_cost;
 extern void preload_objects(int);
 extern void backend(void);
 
-extern void logon(object_t *);
+extern object_t* mudlib_connect(int, const char*);
+extern void mudlib_logon(object_t *);
 
 extern int set_heart_beat(object_t *, int);
 extern int query_heart_beat(object_t *);

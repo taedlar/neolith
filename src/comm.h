@@ -124,6 +124,7 @@ extern int add_message_calls;
 extern interactive_t **all_users;
 extern int max_users;
 
+void new_interactive(int socket_fd);
 int do_comm_polling(struct timeval* timeout);
 
 void add_vmessage(object_t *, char *, ...);
