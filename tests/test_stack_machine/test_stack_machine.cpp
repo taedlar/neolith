@@ -8,7 +8,7 @@ using namespace testing;
 
 TEST_F(StackMachineTest, initialState) {
     // =================================================
-    // stack machine initial state: see reset_machine()
+    // stack machine initial state: see reset_interpreter()
     // =================================================
     ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
     ASSERT_EQ(obj_list, nullptr); // no objects loaded yet

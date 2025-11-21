@@ -1,6 +1,5 @@
 #pragma once
 
-#include "lpc/functional.h"
 #include "apply.h"
 
 #define PUSH_STRING    (0 << 6)
@@ -209,10 +208,10 @@ extern int st_num_arg;
 extern svalue_t const0;
 extern svalue_t const1;
 extern svalue_t const0u;
-extern program_t fake_prog;
 extern svalue_t global_lvalue_byte;
 extern int num_varargs;
 
+/* LPC interpreter */
 void eval_instruction(const char *p);
 
 void call_function(program_t *, int, int, svalue_t *);
@@ -224,6 +223,15 @@ svalue_t *call_efun_callback(function_to_call_t *, int);
 int is_static(const char *, object_t *);
 #endif
 
+#define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
+#define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */
+extern int get_error_state (int mask);
+extern void set_error_state (int flag);
+extern void clear_error_state ();
+
+extern void reset_interpreter (void);
+
+/* stack manipulation */
 void assign_svalue(svalue_t *, svalue_t *);
 void assign_svalue_no_free(svalue_t *, svalue_t *);
 void copy_some_svalues(svalue_t *, svalue_t *, int);
@@ -266,20 +274,3 @@ void pop_control_stack(void);
 void push_control_stack(int);
 
 void remove_object_from_stack(object_t *);
-
-/**
- * @brief Get the current machine state.
- * @returns Returns one of the MS_* values defined below, or -1 before the machine is initialized.
- */
-extern int get_machine_state();
-#define MS_PRE_MUDLIB           0     /* The LPMUD driver has started successfully and ready to compile/run LPC code. */
-#define MS_MUDLIB_LIMBO         1     /* The mudlib is in limbo, vital objects (master_ob and simul_efun_on) were loaded successfully. */
-#define MS_MUDLIB_INTERACTIVE   2     /* The mudlib is ready for human interactions, master_ob has finished epilog() successfully. */
-extern void reset_machine (void);
-
-/* LPC interpreter error states */
-#define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
-#define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */
-extern int get_error_state (int mask);
-extern void set_error_state (int flag);
-extern void clear_error_state ();

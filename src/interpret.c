@@ -3236,7 +3236,7 @@ void call_function (program_t *progp, int offset, int num_args, svalue_t *ret_va
  * 
  * All values on the stack are removed, and the stack pointers
  */
-void reset_machine (void) {
+void reset_interpreter (void) {
   static int _init = 0;
 
   const0.type = T_NUMBER;
@@ -3247,7 +3247,7 @@ void reset_machine (void) {
   const0u.subtype = T_UNDEFINED;
   const0u.u.number = 0;
 
-  free_svalue (&apply_ret_value, "reset_machine");
+  free_svalue (&apply_ret_value, "reset_interpreter");
   apply_ret_value = const0u;
 
   csp = control_stack - 1;
@@ -3275,17 +3275,6 @@ void reset_machine (void) {
     {
       pop_n_elems (sp - start_of_stack + 1);
     }
-}
-
-int get_machine_state()
-{
-  if (!start_of_stack || !control_stack)
-    return -1; /* stack machine not yet initialized */
-  if (!master_ob)
-    return MS_PRE_MUDLIB;
-  if (current_time == 0)
-    return MS_MUDLIB_LIMBO;
-  return MS_MUDLIB_INTERACTIVE;
 }
 
 /*

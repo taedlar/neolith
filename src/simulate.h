@@ -72,6 +72,15 @@ void init_master(const char *);
 void init_simulate(void);
 void tear_down_simulate(void);
 
+/**
+ * @brief Get the current machine state.
+ * @returns Returns one of the MS_* values defined below, or -1 before the machine is initialized.
+ */
+extern int get_machine_state();
+#define MS_PRE_MUDLIB           0     /* The LPMUD driver has started successfully and ready to compile/run LPC code. */
+#define MS_MUDLIB_LIMBO         1     /* The mudlib is in limbo, vital objects (master_ob and simul_efun_on) were loaded successfully. */
+#define MS_MUDLIB_INTERACTIVE   2     /* The mudlib is ready for human interactions, master_ob has finished epilog() successfully. */
+
 void fatal(char *, ...) NO_RETURN;
 int in_fatal_error(void);
 
