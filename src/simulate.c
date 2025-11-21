@@ -1375,13 +1375,11 @@ void enable_commands (int num) {
   command_giver = 0;
 }
 
-/*
- * Set up a function in this object to be called with the next
- * user input string.
+/**
+ *  @brief Set up a function in this object to be called with the next user input string.
  */
-int
-input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args)
-{
+int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
+
   sentence_t *s;
   svalue_t *x;
   int i;
@@ -1399,8 +1397,7 @@ input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args)
       if (num_arg)
         {
           i = num_arg * sizeof (svalue_t);
-          if ((x = (svalue_t *)
-               DMALLOC (i, TAG_INPUT_TO, "input_to: 1")) == NULL)
+          if ((x = (svalue_t *)DMALLOC (i, TAG_INPUT_TO, "input_to: 1")) == NULL)
             fatal ("Out of memory!\n");
           memcpy (x, args, i);
         }

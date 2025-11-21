@@ -28,6 +28,8 @@ object_t *current_heart_beat;
 static timer_t hb_timerid = 0; /* heart beat timer id */
 #endif
 
+size_t eval_cost = 0;
+
 static void look_for_objects_to_swap (void);
 static void call_heart_beat (void);
 
@@ -109,14 +111,25 @@ mudlib_logon (object_t * ob)
   /* function not existing is no longer fatal */
 }
 
-static void init_console_user() {
+/**
+ *  @brief Initiate connection of the console user in console mode.
+ *  A console user is a special interactive user that uses the standard
+ *  input/output of the driver process as the communication channel.
+ *
+ *  When a console user is disconnected, the stdin is not closed, and
+ *  this function can be called again to reconnect the console user.
+ *
+ *  This is a Neolith extension.
+ */
+void init_console_user() {
+
   object_t* ob;
   debug_message("Initializing console user...\n");
   new_interactive(STDIN_FILENO);
-  master_ob->interactive->connection_type = PORT_CONSOLE;
-  memset(&master_ob->interactive->addr, 0, sizeof(master_ob->interactive->addr));
+  master_ob->interactive->connection_type = PORT_TELNET; /* PORT_CONSOLE */
+  master_ob->interactive->addr.sin_addr.s_addr = INADDR_LOOPBACK;
   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-  ob = mudlib_connect(0, "console");
+  ob = mudlib_connect(0, "console"); /* port 0 for console */
   if (!ob)
     {
       if (master_ob->interactive)
@@ -129,8 +142,6 @@ static void init_console_user() {
 
 /*  backend()
  */
-size_t eval_cost = 0;
-
 void backend () {
 
   struct timeval timeout;
@@ -164,7 +175,9 @@ void backend () {
   if (setjmp (econ.context))
     restore_context (&econ);
 
-  init_console_user();
+  if (MAIN_OPTION(console_mode))
+    init_console_user();
+
   while (1)
     {
       /* Has to be cleared if we jumped out of process_user_command() */

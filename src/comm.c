@@ -64,7 +64,7 @@ static void print_prompt (interactive_t *);
 static void telnet_neg (char *, char *);
 static void query_addr_name (object_t *);
 static void got_addr_number (char *, char *);
-static void add_ip_entry (long, char *);
+static void add_ip_entry (long, const char *);
 static void clear_notify (interactive_t *);
 static void new_user_handler (int);
 static void receive_snoop (char *, object_t * ob);
@@ -170,6 +170,8 @@ init_user_conn ()
       debug_perror ("signal()", 0);
       exit (5);
     }
+  
+  add_ip_entry (INADDR_LOOPBACK, "localhost");
 }
 
 /*
@@ -184,8 +186,7 @@ ipc_remove ()
     {
       if (!external_port[i].port)
         continue;
-      debug_message ("closing service on TCP port %d\n",
-                     external_port[i].port);
+      debug_message ("closing service on TCP port %d\n", external_port[i].port);
       if (close (external_port[i].fd) == -1)
         debug_perror ("ipc_remove: close", 0);
     }
@@ -827,6 +828,9 @@ make_selectmasks ()
             FD_SET (all_users[i]->fd, &writemask);
         }
     }
+  if (MAIN_OPTION(console_mode))
+    FD_SET(STDIN_FILENO, &readmask); // for console re-connect
+
   /*
    * if addr_server_fd is set, set its fd in readmask.
    */
@@ -858,6 +862,7 @@ make_selectmasks ()
  */
 void process_io () {
 
+  int console_user_connected = 0;
   int i;
 
   /*
@@ -894,8 +899,18 @@ void process_io () {
             continue;
         }
 
-      if (FD_ISSET (all_users[i]->fd, &writemask) || (all_users[i]->fd == STDIN_FILENO))
+      if (all_users[i]->fd == STDIN_FILENO)
+        {
+          console_user_connected = 1;
+          flush_message (all_users[i]);
+        }
+      else if (FD_ISSET (all_users[i]->fd, &writemask))
         flush_message (all_users[i]);
+    }
+  if (!console_user_connected && FD_ISSET (STDIN_FILENO, &readmask))
+    {
+      /* [NEOLITH-EXTENSION] console user re-connect */
+      init_console_user();
     }
 
 #ifdef PACKAGE_SOCKETS
@@ -1711,12 +1726,11 @@ next_cmd_in_buf (interactive_t * ip)
     }
 }				/* next_cmd_in_buf() */
 
-/*
- * Remove an interactive user immediately.
+/**
+ *  @brief Remove an interactive user immediately.
  */
-void
-remove_interactive (object_t * ob, int dested)
-{
+void remove_interactive (object_t * ob, int dested) {
+
   int idx;
   /* don't have to worry about this dangling, since this is the routine
    * that causes this to dangle elsewhere, and we are protected from
@@ -1765,9 +1779,15 @@ remove_interactive (object_t * ob, int dested)
       ip->snoop_on = 0;
     }
 
-  if (OS_socket_close (ip->fd) == -1)
+  if (MAIN_OPTION(console_mode) && ip->fd == STDIN_FILENO)
     {
-      debug_perror ("remove_interactive: close", 0);
+      /* don't close stdin */
+      debug_message ("===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
+    }
+  else
+    {
+      if (OS_socket_close (ip->fd) == -1)
+        debug_perror ("remove_interactive: close", 0);
     }
   if (ob->flags & O_HIDDEN)
     num_hidden--;
@@ -1786,8 +1806,7 @@ remove_interactive (object_t * ob, int dested)
   for (idx = 0; idx < max_users; idx++)
     if (all_users[idx] == ip)
       break;
-  DEBUG_CHECK (idx == max_users,
-               "remove_interactive: could not find and remove user!\n");
+  DEBUG_CHECK (idx == max_users, "remove_interactive: could not find and remove user!\n");
   FREE (ip);
   total_users--;
   ob->interactive = 0;
@@ -2271,9 +2290,7 @@ ipentry_t;
 static ipentry_t iptable[IPSIZE];
 static int ipcur;
 
-char *
-query_ip_name (object_t * ob)
-{
+char *query_ip_name (object_t * ob) {
   int i;
 
   if (ob == 0)
@@ -2282,16 +2299,13 @@ query_ip_name (object_t * ob)
     return NULL;
   for (i = 0; i < IPSIZE; i++)
     {
-      if (iptable[i].addr == ob->interactive->addr.sin_addr.s_addr &&
-          iptable[i].name)
+      if (iptable[i].addr == ob->interactive->addr.sin_addr.s_addr && iptable[i].name)
         return (iptable[i].name);
     }
   return (inet_ntoa (ob->interactive->addr.sin_addr));
 }
 
-static void
-add_ip_entry (long addr, char *name)
-{
+static void add_ip_entry (long addr, const char *name) {
   int i;
 
   for (i = 0; i < IPSIZE; i++)
