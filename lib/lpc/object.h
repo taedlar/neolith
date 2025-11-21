@@ -21,7 +21,7 @@
 #define O_ENABLE_COMMANDS       0x0004	/* Can it execute commands ?         */
 #define O_CLONE                 0x0008	/* Is it cloned from a master copy ? */
 #define O_DESTRUCTED            0x0010	/* Is it destructed ?                */
-/* #define O_SWAPPED		0x0020	   Is it swapped to file             */
+#define O_CONSOLE_USER          0x0020	/* Has it ever beena a console user ?*/
 #define O_ONCE_INTERACTIVE      0x0040	/* Has it ever been interactive ?    */
 #define O_RESET_STATE           0x0080	/* Object in a 'reset':ed state ?    */
 #define O_WILL_CLEAN_UP         0x0100	/* clean_up will be called next time */

@@ -972,6 +972,8 @@ void new_interactive(int socket_fd) {
   total_users++;
   master_ob->interactive->default_err_message.s = 0;
   master_ob->flags |= O_ONCE_INTERACTIVE;
+  if (socket_fd == STDIN_FILENO)
+    master_ob->interactive->iflags = O_CONSOLE_USER;
   /*
    * initialize new user interactive data structure.
    */

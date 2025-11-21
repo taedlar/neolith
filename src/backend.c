@@ -89,13 +89,15 @@ object_t* mudlib_connect(int port, const char* addr) {
   ob->interactive = master_ob->interactive;
   ob->interactive->ob = ob;
   ob->flags |= O_ONCE_INTERACTIVE;
+  if (ob->interactive->fd == STDIN_FILENO)
+    ob->flags |= O_CONSOLE_USER; /* mark as console user */
   /*
    * assume the existance of write_prompt and process_input in user.c
    * until proven wrong (after trying to call them).
    */
   ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_PROCESS_INPUT);
 
-  master_ob->flags &= ~O_ONCE_INTERACTIVE; /* do not treat master object as living */
+  master_ob->flags &= ~(O_ONCE_INTERACTIVE|O_CONSOLE_USER);
   master_ob->interactive = 0;
   free_object (master_ob, "mudlib_connect"); /* remove extra reference added when calling connect() */
   add_ref (ob, "mudlib_connect");

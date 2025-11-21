@@ -10,5 +10,9 @@ int userp (object ob);
 ## DESCRIPTION
 Returns `1` if the *ob* was once interactive.
 
+Returns `2` if the *ob* was once interactive that connects from the console mode. This is a Neolith extension.
+
 ## SEE ALSO
-interactive(3), users(3), living(3)
+[interactive()](interactive.md),
+[users()](users.md),
+[living()](living.md)
