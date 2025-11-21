@@ -25,6 +25,7 @@ array_t *allocate_array(int);
 array_t *allocate_empty_array(int);
 void free_array(array_t *);
 void free_empty_array(array_t *);
+void check_for_destr(array_t *);
 array_t *add_array(array_t *, array_t *);
 void implode_array(funptr_t *, array_t *, svalue_t *, int);
 array_t *subtract_array(array_t *, array_t *);

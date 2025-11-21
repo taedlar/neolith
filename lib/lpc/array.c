@@ -122,6 +122,34 @@ free_empty_array (array_t * p)
   FREE ((char *) p);
 }
 
+/*
+ * When a array is given as argument to an efun, all items have to be
+ * checked if there would be a destructed object.
+ * A bad problem currently is that a array can contain another array, so this
+ * should be tested too. But, there is currently no prevention against
+ * recursive arrays, which means that this can not be tested. Thus, MudOS
+ * may crash if a array contains a array that contains a destructed object
+ * and this top-most array is used as an argument to an efun.
+ */
+/* MudOS won't crash when doing simple operations like assign_svalue
+ * on a destructed object. You have to watch out, of course, that you don't
+ * apply a function to it.
+ * to save space it is preferable that destructed objects are freed soon.
+ *   amylaar
+ */
+void check_for_destr (array_t * v) {
+  int i = v->size;
+
+  while (i--)
+    {
+      if ((v->item[i].type == T_OBJECT) && (v->item[i].u.ob->flags & O_DESTRUCTED))
+        {
+          free_svalue (&v->item[i], "check_for_destr");
+          v->item[i] = const0;
+        }
+    }
+}
+
 /* explode_string() - Split a string into sub-strings separated by delimiter, return an array of sub-strings. */
 array_t *
 explode_string (char *str, int slen, char *del, int len)

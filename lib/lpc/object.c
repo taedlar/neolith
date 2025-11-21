@@ -2061,6 +2061,43 @@ reset_object (object_t * ob)
   ob->flags |= O_RESET_STATE;
 }
 
+/* Reason for the following 1. save cache space 2. speed :) */
+/* The following is to be called only from reset_object for */
+/* otherwise extra checks are needed - Sym                  */
+
+static void call___INIT (object_t * ob) {
+
+  program_t *progp;
+  compiler_function_t *cfp;
+  int num_functions;
+
+  /* No try_reset here for obvious reasons :) */
+  ob->flags &= ~O_RESET_STATE;
+
+  progp = ob->prog;
+  num_functions = progp->num_functions_defined;
+  if (!num_functions)
+    return;
+
+  /* ___INIT turns out to be always the last function */
+  cfp = &progp->function_table[num_functions - 1];
+  if (cfp->name[0] != APPLY___INIT_SPECIAL_CHAR)
+    return;
+  push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
+  current_prog = progp;
+  csp->fr.table_index = num_functions - 1;
+  caller_type = ORIGIN_DRIVER;
+  csp->num_local_variables = 0;
+
+  setup_new_frame (cfp->runtime_index);
+  previous_ob = current_object;
+
+  current_object = ob;
+  opt_trace (TT_EVAL, "(obsoleted) calling __INIT");
+  call_program (current_prog, cfp->address);
+  sp--;
+}
+
 void
 call_create (object_t * ob, int num_arg)
 {

@@ -215,6 +215,15 @@ extern int num_varargs;
 
 void eval_instruction(const char *p);
 
+void call_function(program_t *, int, int, svalue_t *);
+
+void call_efun(int);
+void process_efun_callback(int, function_to_call_t *, int);
+svalue_t *call_efun_callback(function_to_call_t *, int);
+#ifndef NO_SHADOWS
+int is_static(const char *, object_t *);
+#endif
+
 void assign_svalue(svalue_t *, svalue_t *);
 void assign_svalue_no_free(svalue_t *, svalue_t *);
 void copy_some_svalues(svalue_t *, svalue_t *, int);
@@ -251,26 +260,12 @@ void assign_lvalue_range(svalue_t *);
 
 compiler_function_t *setup_new_frame(int);
 compiler_function_t *setup_inherited_frame(int);
-void setup_fake_frame(funptr_t *);
-void remove_fake_frame(void);
 void setup_variables (int actual, int local, int num_arg);
 void setup_varargs_variables (int actual, int local, int num_arg);
 void pop_control_stack(void);
 void push_control_stack(int);
 
-void check_for_destr(array_t *);
 void remove_object_from_stack(object_t *);
-int merge_arg_lists(int, array_t *, int);
-
-void process_efun_callback(int, function_to_call_t *, int);
-svalue_t *call_efun_callback(function_to_call_t *, int);
-#ifndef NO_SHADOWS
-int is_static(const char *, object_t *);
-#endif
-svalue_t *call_function_pointer(funptr_t *, int);
-svalue_t *safe_call_function_pointer(funptr_t *, int);
-void call___INIT(object_t *);
-void call_function(program_t *, int, int, svalue_t *);
 
 /**
  * @brief Get the current machine state.
@@ -283,9 +278,8 @@ extern int get_machine_state();
 extern void reset_machine (void);
 
 /* LPC interpreter error states */
+#define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
+#define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */
 extern int get_error_state (int mask);
 extern void set_error_state (int flag);
 extern void clear_error_state ();
-
-#define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
-#define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */

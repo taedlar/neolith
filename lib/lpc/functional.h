@@ -53,3 +53,7 @@ void push_refed_funp(funptr_t *);
  */
 void push_funp(funptr_t *);
 void free_funp(funptr_t *);
+
+int merge_arg_lists(int, array_t *, int);
+svalue_t *call_function_pointer(funptr_t *, int);
+svalue_t *safe_call_function_pointer(funptr_t *, int);
