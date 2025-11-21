@@ -28,7 +28,6 @@
 #include "efuns/sprintf.h"
 #include "port/ansi.h"
 
-#include <stdarg.h>
 #include <sys/stat.h>
 
 /*

@@ -348,10 +348,6 @@ int cp(string, string);
     int eval_cost set_eval_limit(int default: -1);
     int max_eval_cost set_eval_limit(int default: 1);
 
-#ifdef DEBUG_MACRO
-    void set_debug_level(int);
-#endif
-
 #ifdef PROFILE_FUNCTIONS
     mapping *function_profile(object default:F_THIS_OBJECT);
 #endif

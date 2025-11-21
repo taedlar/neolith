@@ -15,6 +15,10 @@
 #include <fcntl.h>
 #endif	/* HAVE_FCNTL_H */
 
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif /* HAVE_STDARG_H */
+
 #ifdef	HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif	/* HAVE_SYS_TYPES_H */

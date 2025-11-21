@@ -343,9 +343,6 @@ socket_create (enum socket_mode mode, svalue_t * read_callback,
       lpc_socks[i].w_len = 0;
 
       current_object->flags |= O_EFUN_SOCKET;
-
-      debug (8192, ("socket_create: created socket %d mode %d fd %d\n",
-                    i, mode, fd));
     }
 
   return i;
@@ -397,10 +394,6 @@ socket_bind (int fd, int port)
     }
   lpc_socks[fd].state = BOUND;
 
-  debug (8192, ("socket_bind: bound socket %d to %s.%d\n",
-                fd, inet_ntoa (lpc_socks[fd].l_addr.sin_addr),
-                ntohs (lpc_socks[fd].l_addr.sin_port)));
-
   return EESUCCESS;
 }
 
@@ -432,8 +425,6 @@ socket_listen (int fd, svalue_t * callback)
   set_read_callback (fd, callback);
 
   current_object->flags |= O_EFUN_SOCKET;
-
-  debug (8192, ("socket_listen: listen on socket %d\n", fd));
 
   return EESUCCESS;
 }
@@ -530,9 +521,6 @@ socket_accept (int fd, svalue_t * read_callback, svalue_t * write_callback)
       copy_close_callback (i, fd);
 
       current_object->flags |= O_EFUN_SOCKET;
-
-      debug (8192, ("socket_accept: accept on socket %d\n", fd));
-      debug (8192, ("socket_accept: new socket %d on fd %d\n", i, accept_fd));
     }
   else
     close (accept_fd);
@@ -843,9 +831,6 @@ socket_read_select_handler (int fd)
   svalue_t value;
   struct sockaddr_in sin;
 
-  debug (8192, ("read_socket_handler: fd %d state %d\n",
-                fd, lpc_socks[fd].state));
-
   switch (lpc_socks[fd].state)
     {
 
@@ -866,13 +851,11 @@ socket_read_select_handler (int fd)
           break;
 
         case DATAGRAM:
-          debug (8192, ("read_socket_handler: DATA_XFER DATAGRAM\n"));
           addrlen = sizeof (sin);
           cc = recvfrom (lpc_socks[fd].fd, buf, sizeof (buf) - 1, 0,
                          (struct sockaddr *) &sin, &addrlen);
           if (cc <= 0)
             break;
-          debug (8192, ("read_socket_handler: read %d bytes\n", cc));
           buf[cc] = '\0';
           sprintf (addr, "%s %d", inet_ntoa (sin.sin_addr),
                    (int) ntohs (sin.sin_port));
@@ -897,7 +880,6 @@ socket_read_select_handler (int fd)
               copy_and_push_string (buf);
             }
           copy_and_push_string (addr);
-          debug (8192, ("read_socket_handler: apply\n"));
           call_callback (fd, S_READ_FP, 3);
           return;
         case STREAM_BINARY:
@@ -907,7 +889,6 @@ socket_read_select_handler (int fd)
       break;
 
     case LISTEN:
-      debug (8192, ("read_socket_handler: apply read callback\n"));
       lpc_socks[fd].flags |= S_WACCEPT;
       push_number (fd);
       call_callback (fd, S_READ_FP, 1);
@@ -921,18 +902,15 @@ socket_read_select_handler (int fd)
           break;
 
         case MUD:
-          debug (8192, ("read_socket_handler: DATA_XFER MUD\n"));
           if (lpc_socks[fd].flags & S_HEADER)
             {
               cc = recv (lpc_socks[fd].fd, (char *) &lpc_socks[fd].r_len +
                          lpc_socks[fd].r_off, 4 - lpc_socks[fd].r_off, 0);
               if (cc <= 0)
                 break;
-              debug (8192, ("read_socket_handler: read %d bytes\n", cc));
               lpc_socks[fd].r_off += cc;
               if (lpc_socks[fd].r_off != 4)
                 return;
-              debug (8192, ("read_socket_handler: read header\n"));
               lpc_socks[fd].flags &= ~S_HEADER;
               lpc_socks[fd].r_off = 0;
               lpc_socks[fd].r_len = ntohl (lpc_socks[fd].r_len);
@@ -944,8 +922,6 @@ socket_read_select_handler (int fd)
                          "socket_read_select_handler");
               if (lpc_socks[fd].r_buf == NULL)
                 fatal ("Out of memory");
-              debug (8192, ("read_socket_handler: svalue len is %d\n",
-                            lpc_socks[fd].r_len));
             }
           if (lpc_socks[fd].r_off < lpc_socks[fd].r_len)
             {
@@ -954,11 +930,9 @@ socket_read_select_handler (int fd)
                          lpc_socks[fd].r_off, 0);
               if (cc <= 0)
                 break;
-              debug (8192, ("read_socket_handler: read %d bytes\n", cc));
               lpc_socks[fd].r_off += cc;
               if (lpc_socks[fd].r_off != lpc_socks[fd].r_len)
                 return;
-              debug (8192, ("read_socket_handler: read svalue\n"));
             }
           lpc_socks[fd].r_buf[lpc_socks[fd].r_len] = '\0';
           value = const0;
@@ -972,16 +946,13 @@ socket_read_select_handler (int fd)
           lpc_socks[fd].r_buf = NULL;
           lpc_socks[fd].r_off = 0;
           lpc_socks[fd].r_len = 0;
-          debug (8192, ("read_socket_handler: apply read callback\n"));
           call_callback (fd, S_READ_FP, 2);
           return;
 
         case STREAM:
-          debug (8192, ("read_socket_handler: DATA_XFER STREAM\n"));
           cc = read (lpc_socks[fd].fd, buf, sizeof (buf) - 1);
           if (cc <= 0)
             break;
-          debug (8192, ("read_socket_handler: read %d bytes\n", cc));
           buf[cc] = '\0';
           push_number (fd);
           if (lpc_socks[fd].flags & S_BINARY)
@@ -1004,7 +975,6 @@ socket_read_select_handler (int fd)
             {
               copy_and_push_string (buf);
             }
-          debug (8192, ("read_socket_handler: apply read callback\n"));
           call_callback (fd, S_READ_FP, 2);
           return;
         case STREAM_BINARY:
@@ -1052,9 +1022,6 @@ socket_write_select_handler (int fd)
 {
   int cc;
 
-  debug (8192, ("write_socket_handler: fd %d state %d\n",
-                fd, lpc_socks[fd].state));
-
   if ((lpc_socks[fd].flags & S_BLOCKED) == 0)
     return;
 
@@ -1088,8 +1055,6 @@ socket_write_select_handler (int fd)
       return;
     }
 
-  debug (8192, ("write_socket_handler: apply write_callback\n"));
-
   push_number (fd);
   call_callback (fd, S_WRITE_FP, 1);
 }
@@ -1111,7 +1076,6 @@ socket_close (int fd, int flags)
 
   if (flags & SC_DO_CALLBACK)
     {
-      debug (8192, ("read_socket_handler: apply close callback\n"));
       push_number (fd);
       call_callback (fd, S_CLOSE_FP, 1);
     }
@@ -1137,7 +1101,6 @@ socket_close (int fd, int flags)
   if (lpc_socks[fd].w_buf != NULL)
     FREE (lpc_socks[fd].w_buf);
 
-  debug (8192, ("socket_close: closed fd %d\n", fd));
   return EESUCCESS;
 }
 

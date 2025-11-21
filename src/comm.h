@@ -124,19 +124,18 @@ extern int add_message_calls;
 extern interactive_t **all_users;
 extern int max_users;
 
-extern int get_IO_polling(struct timeval* timeout);
+int do_comm_polling(struct timeval* timeout);
 
 void add_vmessage(object_t *, char *, ...);
 void add_message(object_t *, char *);
 
-void update_ref_counts_for_users(void);
 void make_selectmasks(void);
 void init_user_conn(void);
-void init_addr_server(char *, int);
 void ipc_remove(void);
 void set_prompt(char *);
 void notify_no_command(void);
 void set_notify_fail_message(char *);
+void set_notify_fail_function(funptr_t *);
 void process_io(void);
 int process_user_command(void);
 int replace_interactive(object_t *, object_t *);
@@ -152,4 +151,3 @@ int query_idle(object_t *);
 int new_set_snoop(object_t *, object_t *);
 object_t *query_snoop(object_t *);
 object_t *query_snooping(object_t *);
-void set_notify_fail_function(funptr_t *);

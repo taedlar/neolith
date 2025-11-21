@@ -11,8 +11,6 @@
 #include "lpc/program.h"
 #include "efuns/sprintf.h"
 
-#include <stdarg.h>
-
 /* Used to throw an error to a catch */
 svalue_t catch_value = { .type = T_NUMBER };
 

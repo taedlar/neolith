@@ -3,11 +3,17 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <errno.h>
-#include <limits.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif /* HAVE_LIMITS_H */
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif /* HAVE_STDARG_H */
 
 #include "logger.h"
 

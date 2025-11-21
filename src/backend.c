@@ -131,7 +131,7 @@ backend ()
           timeout.tv_sec = 60;
           timeout.tv_usec = 0;
         }
-      nb = get_IO_polling (&timeout);
+      nb = do_comm_polling (&timeout);
 
       if (nb > 0)
         process_io ();
