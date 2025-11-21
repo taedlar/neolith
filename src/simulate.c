@@ -2731,13 +2731,24 @@ first_inventory (svalue_t * arg)
 }
 #endif
 
+int get_machine_state()
+{
+  if (!start_of_stack || !control_stack)
+    return -1; /* stack machine not yet initialized */
+  if (!master_ob)
+    return MS_PRE_MUDLIB;
+  if (current_time == 0)
+    return MS_MUDLIB_LIMBO;
+  return MS_MUDLIB_INTERACTIVE;
+}
+
 void init_simulate() {
   init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
   init_objects ();              /* lib/lpc/object.c */
   init_precomputed_tables ();   /* backend.c */
   init_binaries ();             /* lib/lpc/program/binaries.c */
   init_uids();                  /* uids.c */
-  reset_machine ();             /* interpret.c */
+  reset_interpreter ();             /* interpret.c */
   current_time = time (NULL);
 }
 
@@ -2763,7 +2774,7 @@ void tear_down_simulate() {
   }
   remove_destructed_objects(); // actually free destructed objects
   clear_apply_cache(); // clear shared strings referenced by apply cache
-  reset_machine ();   // clear stack machine
+  reset_interpreter ();   // clear stack machine
 
   deinit_uids();      // free all uids
   deinit_objects();   // free living name hash table

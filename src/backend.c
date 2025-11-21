@@ -49,7 +49,7 @@ static void clear_state () {
   previous_ob = 0;
   current_prog = 0;
   caller_type = 0;
-  reset_machine ();		/* Pop down the stack. */
+  reset_interpreter ();		/* Pop down the stack. */
 }
 
 void

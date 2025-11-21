@@ -9,7 +9,7 @@
 #include "crc32.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
-
+#include "lpc/functional.h"
 #include "lpc/operator.h"
 #include "sprintf.h"
 
