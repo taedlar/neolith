@@ -11,13 +11,9 @@
 #include "interpret.h"
 #include "socket/socket_efuns.h"
 #include "socket/socket_ctrl.h"
-#include "lpc/operator.h"
 #include "efuns/ed.h"
 
-#include "lpc/include/runtime_config.h"
 #include "lpc/include/origin.h"
-
-#include <stdarg.h>
 
  /*
   * This macro is for testing whether ip is still valid, since many
@@ -197,7 +193,7 @@ ipc_remove ()
 }
 
 int
-get_IO_polling (struct timeval *timeout)
+do_comm_polling (struct timeval *timeout)
 {
   return select (FD_SETSIZE, &readmask, &writemask, NULL, timeout);
 }
@@ -594,7 +590,6 @@ copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
 
                                     case SLC_VARIABLE:
                                     case SLC_CANTCHANGE:
-                                      /* �u���\�ϥ� ASCII 0-32 �� 127 �@������r��, �H�K����Y�r */
                                       if ((unsigned) slc[SLC_VALUE] >= ' ' &&
                                           (unsigned) slc[SLC_VALUE] != '\x7f')
                                         {
@@ -873,7 +868,6 @@ process_io ()
         continue;
       if (FD_ISSET (external_port[i].fd, &readmask))
         {
-          debug (512, ("process_io: NEW_USER\n"));
           new_user_handler (i);
         }
     }
@@ -894,7 +888,6 @@ process_io ()
 
       if (FD_ISSET (all_users[i]->fd, &readmask))
         {
-          debug (512, ("process_io: USER %d\n", i));
           get_user_data (all_users[i]);
           if (!all_users[i])
             continue;
@@ -926,7 +919,6 @@ process_io ()
     {
       if (FD_ISSET (addr_server_fd, &readmask))
         {
-          debug (512, ("process_io: IP_DAEMON\n"));
           hname_handler ();
         }
     }
@@ -950,14 +942,12 @@ new_user_handler (int which)
   svalue_t *ret;
 
   length = sizeof (addr);
-  debug (512, ("new_user_handler: accept on fd %d\n", external_port[which].fd));
   new_socket_fd =
     accept (external_port[which].fd, (struct sockaddr *) &addr, &length);
   if (new_socket_fd < 0)
     {
       if (errno == EWOULDBLOCK)
         {
-          debug (512, ("new_user_handler: accept: Operation would block\n"));
         }
       else
         {
@@ -1093,7 +1083,6 @@ new_user_handler (int which)
     }
 
   logon (ob);
-  debug (512, ("new_user_handler: end\n"));
   command_giver = 0;
 }				/* new_user_handler() */
 
@@ -1150,8 +1139,6 @@ process_user_command ()
       current_object = 0;
       clear_notify (ip);
       update_load_av ();
-      debug (512, ("process_user_command: command_giver = /%s\n",
-                   command_giver->name));
       tbuf = user_command;
       if ((user_command[0] == '!') && (
 #ifdef OLD_ED
@@ -1284,9 +1271,6 @@ hname_handler ()
         {
 #ifdef EWOULDBLOCK
         case EWOULDBLOCK:
-          debug (512,
-                 ("hname_handler: read on fd %d: Operation would block.\n",
-                  addr_server_fd));
           break;
 #endif
         default:
@@ -1306,7 +1290,6 @@ hname_handler ()
       return;
     default:
       hname_buf[num_bytes] = '\0';
-      debug (512, ("hname_handler: address server replies: %s", hname_buf));
       if (hname_buf[0] >= '0' && hname_buf[0] <= '9')
         {
           laddr = inet_addr (hname_buf);
@@ -1419,9 +1402,6 @@ get_user_data (interactive_t * ip)
 #ifdef EWOULDBLOCK
       if (errno == EWOULDBLOCK)
         {
-          debug (512,
-                 ("get_user_data: read on fd %d: Operation would block.\n",
-                  ip->fd));
         }
       else
 #endif
@@ -1584,7 +1564,6 @@ get_user_command ()
    * completed cmd left after this, move it to the start of his buffer; new
    * stuff will be appended.
    */
-  debug (512, ("get_user_command: user_command = (%s)\n", user_command));
   command_giver = ip->ob;
 
   /*
@@ -1776,9 +1755,6 @@ remove_interactive (object_t * ob, int dested)
       return;
     }
 
-  debug (512, ("Closing connection from %s.\n",
-               inet_ntoa (ip->addr.sin_addr)));
-
   flush_message (ip);
   ip->iflags |= CLOSING;
 
@@ -1808,7 +1784,6 @@ remove_interactive (object_t * ob, int dested)
       ip->snoop_on = 0;
     }
 
-  debug (512, ("remove_interactive: closing fd %d\n", ip->fd));
   if (OS_socket_close (ip->fd) == -1)
     {
       debug_perror ("remove_interactive: close", 0);
@@ -1945,12 +1920,7 @@ call_function_interactive (interactive_t * i, char *str)
 }				/* call_function_interactive() */
 
 
-/*
- * �]�w�ϥΪ̤U�@����J�����O�N�I�s�� sentence
- */
-int
-set_call (object_t * ob, sentence_t * sent, int flags)
-{
+int set_call (object_t * ob, sentence_t * sent, int flags) {
   if (ob == 0 || sent == 0 || ob->interactive == 0 ||
       ob->interactive->input_to)
     return 0;
@@ -2148,7 +2118,6 @@ query_addr_name (object_t * ob)
   msgtype = NAMEBYIP;
   memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype,
           sizeof (msgtype));
-  debug (512, ("query_addr_name: sent address server %s\n", dbuf));
 
   if (OS_socket_write
       (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int)) == -1)
@@ -2206,8 +2175,6 @@ query_addr_number (char *name, char *call_back)
   msgtype = (name[0] >= '0' && name[0] <= '9') ? NAMEBYIP : IPBYNAME;
   memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype,
           sizeof (msgtype));
-
-  debug (512, ("query_addr_number: sent address server %s\n", dbuf));
 
   if (OS_socket_write
       (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int)) == -1)
