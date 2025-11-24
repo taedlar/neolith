@@ -17,6 +17,10 @@
 #include "comm.h"
 #include "efuns/call_out.h"
 
+#ifdef HAVE_TERMIOS_H
+#include <termios.h>
+#endif
+
 /* The 'current_time' is updated at every heart beat. */
 time_t current_time = 0;
 
@@ -139,6 +143,16 @@ void init_console_user() {
       return;
     }
   debug_message("Console user object created: %s\n", ob->name);
+#ifdef HAVE_TERMIOS_H
+  {
+    /* enable canonical mode and echo, in case console user were disconnected while typing */
+    struct termios tio;
+
+    tcgetattr (STDIN_FILENO, &tio);
+    tio.c_lflag |= ICANON | ECHO;
+    tcsetattr (STDIN_FILENO, TCSANOW, &tio);
+  }
+#endif
   mudlib_logon(ob);
 }
 

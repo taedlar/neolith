@@ -15,6 +15,10 @@
 
 #include "lpc/include/origin.h"
 
+#ifdef HAVE_TERMIOS_H
+#include <termios.h>
+#endif
+
  /*
   * This macro is for testing whether ip is still valid, since many
   * functions call LPC code, which could otherwise use
@@ -405,8 +409,35 @@ flush_message (interactive_t * ip)
 }				/* flush_message() */
 
 
-/*
- * Copy a string, replacing newlines with '\0'. Also add an extra
+#define TS_DATA         0
+#define TS_IAC          1
+#define TS_WILL         2
+#define TS_WONT         3
+#define TS_DO           4
+#define TS_DONT         5
+#define TS_SB		6
+#define TS_SB_IAC       7
+
+static char telnet_break_response[] = { 28, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
+static char telnet_interrupt_response[] = { 127, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
+static char telnet_abort_response[] = { (SCHAR) IAC, (SCHAR) DM, 0 };
+static char telnet_do_tm_response[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
+static char telnet_do_sga[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_SGA, 0 };
+static char telnet_will_sga[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_SGA, 0 };
+static char telnet_wont_sga[] = { (SCHAR) IAC, (SCHAR) WONT, TELOPT_SGA, 0 };
+static char telnet_do_naws[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_NAWS, 0 };
+static char telnet_do_ttype[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_TTYPE, 0 };
+static char telnet_do_linemode[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_LINEMODE, 0 };
+static char telnet_term_query[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_TTYPE, TELQUAL_SEND, (SCHAR) IAC, (SCHAR) SE, 0 };
+static char telnet_no_echo[] = { (SCHAR) IAC, (SCHAR) WONT, TELOPT_ECHO, 0 };
+static char telnet_yes_echo[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_ECHO, 0 };
+static char telnet_sb_lm_mode[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_LINEMODE, LM_MODE, MODE_ACK, (SCHAR) IAC, (SCHAR) SE, 0 };
+static char telnet_sb_lm_slc[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_LINEMODE, LM_SLC, 0 };
+static char telnet_se[] = { (SCHAR) IAC, (SCHAR) SE, 0 };
+static char telnet_ga[] = { (SCHAR) IAC, (SCHAR) GA, 0 };
+
+/**
+ * @brief Copy a string, replacing newlines with '\0'. Also add an extra
  * space and back space for every newline. This trick will allow
  * otherwise empty lines, as multiple newlines would be replaced by
  * multiple zeroes only.
@@ -419,44 +450,7 @@ flush_message (interactive_t * ip)
  * out of the input stream.  Need this for terminal types.
  * (Pinkfish change)
  */
-
-#define TS_DATA         0
-#define TS_IAC          1
-#define TS_WILL         2
-#define TS_WONT         3
-#define TS_DO           4
-#define TS_DONT         5
-#define TS_SB		6
-#define TS_SB_IAC       7
-
-static char telnet_break_response[] =
-  { 28, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_interrupt_response[] =
-  { 127, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_abort_response[] = { (SCHAR) IAC, (SCHAR) DM, 0 };
-static char telnet_do_tm_response[] =
-  { (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_do_sga[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_SGA, 0 };
-static char telnet_will_sga[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_SGA, 0 };
-static char telnet_wont_sga[] = { (SCHAR) IAC, (SCHAR) WONT, TELOPT_SGA, 0 };
-static char telnet_do_naws[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_NAWS, 0 };
-static char telnet_do_ttype[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_TTYPE, 0 };
-static char telnet_do_linemode[] =
-  { (SCHAR) IAC, (SCHAR) DO, TELOPT_LINEMODE, 0 };
-static char telnet_term_query[] =
-  { (SCHAR) IAC, (SCHAR) SB, TELOPT_TTYPE, TELQUAL_SEND, (SCHAR) IAC,
-(SCHAR) SE, 0 };
-static char telnet_no_echo[] = { (SCHAR) IAC, (SCHAR) WONT, TELOPT_ECHO, 0 };
-static char telnet_yes_echo[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_ECHO, 0 };
-static char telnet_sb_lm_mode[] =
-  { (SCHAR) IAC, (SCHAR) SB, TELOPT_LINEMODE, LM_MODE, MODE_ACK, (SCHAR) IAC, (SCHAR) SE, 0 };
-static char telnet_sb_lm_slc[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_LINEMODE, LM_SLC, 0 };
-static char telnet_se[] = { (SCHAR) IAC, (SCHAR) SE, 0 };
-
-static char telnet_ga[] = { (SCHAR) IAC, (SCHAR) GA, 0 };
-
-static int
-copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
+static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
 {
   int i;
   UCHAR *start = to;
@@ -750,12 +744,31 @@ copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
 }				/* copy_chars() */
 
 
-/*
- *  set_telnet_single_char () - set single-char mode on/off
+/**
+ *  @brief set_telnet_single_char () - set single-char mode on/off
  */
-static void
-set_telnet_single_char (interactive_t * ip, int single)
+static void set_telnet_single_char (interactive_t * ip, int single)
 {
+  if (ip->fd == STDIN_FILENO)
+    {
+#ifdef HAVE_TERMIOS_H
+      /* console user, try termios */
+      struct termios tio;      
+      tcgetattr (ip->fd, &tio);
+      if (single)
+        {
+          /* disable canonical mode and echo: input character is immediately available for read() */
+          tio.c_lflag &= ~(ICANON | ECHO);
+          tio.c_cc[VMIN] = 0; /* use polling as like O_NONBLOCK was set */
+          tio.c_cc[VTIME] = 0; /* no timeout */
+        }
+      else
+        tio.c_lflag |= ICANON|ECHO; /* enable canonical mode and echo: use line editing */
+      tcsetattr (ip->fd, TCSANOW, &tio);
+#endif
+      return;
+    }
+
   /* if the client side doesnot understand telnet, do nothing */
   if (!(ip->iflags & USING_TELNET))
     return;
@@ -1584,7 +1597,18 @@ get_user_command ()
       /*
        * Must not enable echo before the user input is received.
        */
-      add_message (command_giver, telnet_no_echo);
+      if (ip->fd == STDIN_FILENO)
+        {
+#ifdef HAVE_TERMIOS_H
+          struct termios tty;
+
+          tcgetattr (ip->fd, &tty);
+          tty.c_lflag |= ECHO;
+          tcsetattr (ip->fd, TCSANOW, &tty);
+#endif
+        }
+      else
+        add_message (command_giver, telnet_no_echo);
       ip->iflags &= ~NOECHO;
     }
 
@@ -1921,7 +1945,13 @@ call_function_interactive (interactive_t * i, char *str)
   return (1);
 }				/* call_function_interactive() */
 
-
+/**
+ *  @brief Set up an input_to call for an interactive object.
+ *  @param ob The interactive object.
+ *  @param sent The sentence (function and object) to call.
+ *  @param flags Flags for the input_to call (I_NOECHO, I_NOESC, I_SINGLE_CHAR).
+ *  @return 1 on success, 0 on failure.
+ */
 int set_call (object_t * ob, sentence_t * sent, int flags) {
   if (ob == 0 || sent == 0 || ob->interactive == 0 ||
       ob->interactive->input_to)
@@ -1930,12 +1960,28 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
   ob->interactive->input_to = sent;
   ob->interactive->iflags |= (flags & (I_NOECHO | I_NOESC | I_SINGLE_CHAR));
 
-  if (flags & I_NOECHO)
-    add_message (ob, telnet_yes_echo);
+  if (ob->interactive->fd == STDIN_FILENO && MAIN_OPTION (console_mode))
+    {
+      /* don't try to set telnet options on console */
+#ifdef HAVE_TERMIOS_H
+      if (flags & I_NOECHO)
+        {
+          struct termios tio;
+
+          tcgetattr (ob->interactive->fd, &tio);
+          tio.c_lflag &= ~ECHO;
+          tcsetattr (ob->interactive->fd, TCSANOW, &tio);
+        }
+#endif /* HAVE_TERMIOS_H */
+    }
+  else
+    {
+      if (flags & I_NOECHO)
+        add_message (ob, telnet_yes_echo);
+    }
 
   if (flags & I_SINGLE_CHAR)
     set_telnet_single_char (ob->interactive, 1);
-
   return (1);
 }				/* set_call() */
 
