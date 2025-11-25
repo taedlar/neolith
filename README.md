@@ -70,7 +70,7 @@ To start a MUD using Neolith LPMud Driver, you need a Neolith configuration file
 Make a copy from [src/neolith.conf](src/neolith.conf) and customize the settings for your needs.
 You can launch the MUD by the command:
 ~~~sh
-neolith -f /path/to/neolith.conf &
+neolith -f /path/to/neolith.conf
 ~~~
 If you are new to Neolith, the follow documentations are for you:
 - [Neolith Administrator Guide](docs/manual/admin.md)

@@ -1,6 +1,28 @@
 Neolith Administrator Guide
 ===========================
 
+# Starting LPMud driver
+The LPMud driver executable is the process to listen for incoming user connections.
+The typical starting command is:
+~~~sh
+neolith -f neolith.conf
+~~~
+
+Traditionally, you would start the LPMud driver and let it run in the background.
+Sometime people would wrap the starting command with a *shell script* and restart it if the driver crashed or shutdown by in-game administrator (e.g. archwizards).
+
+You may use Neolith this way if you're just running a traditional LPMud.
+If you are keen to add efuns or integrate LPMud with some other interesting stuff that involves *modifying* the driver, Neolith provides a "console mode" for administrator to experiment with them:
+~~~sh
+neolith -f neolith.conf -C
+~~~
+The `-C` option (or `--console-mode`) enables the LPMud driver to treat **standard input** as a "connection" from the console.
+- After the master object finishes preloading, it receives a `connect()` apply with port number = 0
+- The master object can then navigate the connection through regular login or character creation process:
+  - Despite not using TELNET protocol, the `input_to()` and `get_char()` efuns are supported for console connection.
+  - When the console connection is closed, e.g. typing "quit" or forced by another wizard, the standard input is *NOT* closed and allows initiating another console connection by pressing ENTER.
+  - You can use Ctrl-C to **break** the LPMud driver process as like other processes reading data from standard input.
+
 # neolith.conf
 
 Before you can start running your own MUD, you need a configuration file to tell Neolith where is the mudlib along with other settings.

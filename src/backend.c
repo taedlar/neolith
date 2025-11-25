@@ -127,10 +127,9 @@ mudlib_logon (object_t * ob)
  *
  *  This is a Neolith extension.
  */
-void init_console_user() {
+void init_console_user(int reconnect) {
 
   object_t* ob;
-  debug_message("Initializing console user...\n");
   new_interactive(STDIN_FILENO);
   master_ob->interactive->connection_type = PORT_TELNET; /* PORT_CONSOLE */
   master_ob->interactive->addr.sin_addr.s_addr = INADDR_LOOPBACK;
@@ -142,7 +141,6 @@ void init_console_user() {
         remove_interactive (master_ob, 0);
       return;
     }
-  debug_message("Console user object created: %s\n", ob->name);
 #ifdef HAVE_TERMIOS_H
   {
     /* enable canonical mode and echo, in case console user were disconnected while typing */
@@ -150,9 +148,16 @@ void init_console_user() {
 
     tcgetattr (STDIN_FILENO, &tio);
     tio.c_lflag |= ICANON | ECHO;
-    tcsetattr (STDIN_FILENO, TCSANOW, &tio);
+    tio.c_cc[VMIN] = 0; /* use polling as like O_NONBLOCK was set */
+    tio.c_cc[VTIME] = 0; /* no timeout */
+    tcsetattr (STDIN_FILENO, TCSAFLUSH, &tio); /* discard pending input */
   }
 #endif
+  if (reconnect)
+    {
+      /* Any pending input and the ENTER key was discarded after calling tcssetattr() with TCSAFLUSH */
+      debug_message("Console user re-connected.\n");
+    }
   mudlib_logon(ob);
 }
 
@@ -192,7 +197,7 @@ void backend () {
     restore_context (&econ);
 
   if (MAIN_OPTION(console_mode))
-    init_console_user();
+    init_console_user(0);
 
   while (1)
     {
