@@ -21,4 +21,4 @@ void update_load_av(void);
 void update_compile_av(int);
 char *query_load_av(void);
 
-void init_console_user();
+void init_console_user(int reconnect);

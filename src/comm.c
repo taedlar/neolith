@@ -764,7 +764,7 @@ static void set_telnet_single_char (interactive_t * ip, int single)
         }
       else
         tio.c_lflag |= ICANON|ECHO; /* enable canonical mode and echo: use line editing */
-      tcsetattr (ip->fd, TCSANOW, &tio);
+      tcsetattr (ip->fd, TCSAFLUSH, &tio); /* discard pending input */
 #endif
       return;
     }
@@ -923,7 +923,7 @@ void process_io () {
   if (!console_user_connected && FD_ISSET (STDIN_FILENO, &readmask))
     {
       /* [NEOLITH-EXTENSION] console user re-connect */
-      init_console_user();
+      init_console_user(1);
     }
 
 #ifdef PACKAGE_SOCKETS
@@ -1604,7 +1604,7 @@ get_user_command ()
 
           tcgetattr (ip->fd, &tty);
           tty.c_lflag |= ECHO;
-          tcsetattr (ip->fd, TCSANOW, &tty);
+          tcsetattr (ip->fd, TCSAFLUSH, &tty); /* discard pending input */
 #endif
         }
       else
@@ -1970,12 +1970,15 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
 
           tcgetattr (ob->interactive->fd, &tio);
           tio.c_lflag &= ~ECHO;
-          tcsetattr (ob->interactive->fd, TCSANOW, &tio);
+          tcsetattr (ob->interactive->fd, TCSAFLUSH, &tio); /* discard pending input */
         }
 #endif /* HAVE_TERMIOS_H */
     }
   else
     {
+      /* This is a TELNET trick to hide input by telling the client that we'll be doing echo,
+       * but we won't actually do it.
+       */
       if (flags & I_NOECHO)
         add_message (ob, telnet_yes_echo);
     }
