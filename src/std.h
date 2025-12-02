@@ -7,6 +7,11 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef _WIN32
+#define STDIN_FILENO _fileno(stdin)
+#define STDOUT_FILENO _fileno(stdout)
+#endif
+
 #ifdef	HAVE_UNISTD_H
 #include <unistd.h>
 #endif	/* HAVE_UNISTD_H */

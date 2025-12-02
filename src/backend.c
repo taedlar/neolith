@@ -184,10 +184,12 @@ void backend () {
 
   if (!t_flag)
     {
+#ifdef HAVE_LIBRT
       sigset_t set;
       sigemptyset (&set);
       sigaddset (&set, SIGALRM);
       sigprocmask (SIG_UNBLOCK, &set, NULL);
+#endif
       call_heart_beat ();
     }
   clear_state ();
@@ -379,12 +381,14 @@ call_heart_beat ()
 {
   object_t *ob;
   heart_beat_t *curr_hb;
-
-  heart_beat_flag = 0;
-  signal (SIGALRM, sigalrm_handler);
-
 #ifdef HAVE_LIBRT
   struct itimerspec itimer;
+#endif /* HAVE_LIBRT */
+
+  heart_beat_flag = 0;
+
+#ifdef HAVE_LIBRT
+  signal (SIGALRM, sigalrm_handler);
   itimer.it_interval.tv_sec = HEARTBEAT_INTERVAL / 1000000;
   itimer.it_interval.tv_nsec = (HEARTBEAT_INTERVAL % 1000000) * 1000;
   itimer.it_value.tv_sec = HEARTBEAT_INTERVAL / 1000000;

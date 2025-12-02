@@ -283,18 +283,23 @@ add_vmessage (object_t * who, char *format, ...)
   char *cp, *str = NULL;
   va_list args;
 
-#ifdef _GNU_SOURCE
   va_start (args, format);
+#ifdef _GNU_SOURCE
   ret = vasprintf (&str, format, args);
+#else
+  ret = _vscprintf (format, args) + 1;
+  if (ret > 0)
+    {
+      str = DXALLOC (ret, TAG_TEMPORARY, "add_vmessage: str");
+      ret = vsprintf (str, format, args);
+    }
+#endif
   va_end (args);
   if (ret == -1)
     {
       debug_perror ("vsaprintf()", NULL);
       return;
     }
-#else
-#error Requires _GNU_SOURCE for vsaprintf
-#endif
 
   /*
    * if who->interactive is not valid, write message on stderr.
