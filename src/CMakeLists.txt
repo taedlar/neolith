@@ -31,7 +31,7 @@ target_include_directories(stem PUBLIC
 if(HAVE_LIBRT)
     target_link_libraries(stem PUBLIC -lrt)
 else()
-    message(WARNING "LIBRT not found, heart_beat() will be disabled.")
+    message(STATUS "POSIX LIBRT not found, using platform dependent timers.")
 endif()
 
 # ================================================================

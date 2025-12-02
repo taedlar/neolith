@@ -3,9 +3,12 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
 
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
+
+#include "port/socket_comm.h"
 #include "src/std.h"
 
 /*

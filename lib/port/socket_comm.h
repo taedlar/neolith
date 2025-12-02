@@ -4,6 +4,7 @@
 /* Windows Sockets */
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#define WINSOCK
 typedef SOCKET socket_fd_t;
 #define INVALID_SOCKET_FD           INVALID_SOCKET
 #define SOCKET_READ(fd, buff, len)  read(fd, buff, len)

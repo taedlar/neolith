@@ -4,8 +4,10 @@
 #cmakedefine HAVE_FCNTL_H
 #cmakedefine HAVE_INTTYPES_H
 #cmakedefine HAVE_LIMITS_H
+#cmakedefine HAVE_NETDB_H
 #cmakedefine HAVE_STDARG_H
 #cmakedefine HAVE_STDINT_H
+#cmakedefine HAVE_SYS_IOCTL_H
 #cmakedefine HAVE_SYS_PARAM_H
 #cmakedefine HAVE_SYS_TIME_H
 #cmakedefine HAVE_SYS_TYPES_H
@@ -19,6 +21,11 @@
 #cmakedefine HAVE_STRTOD
 
 #cmakedefine HAVE_LIBRT
+
+/* Timer implementation support */
+#cmakedefine HAVE_WIN32_TIMER
+#cmakedefine HAVE_POSIX_TIMER  
+#cmakedefine HAVE_FALLBACK_TIMER
 
 #define PACKAGE "@CMAKE_PROJECT_NAME@"
 #define VERSION "@CMAKE_PROJECT_VERSION@"

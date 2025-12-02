@@ -2,7 +2,7 @@
 
 #include "logger/logger.h"
 
-#if __STDC_VERSION__ >= 199901L || defined(__cplusplus)
+#if (__STDC_VERSION__ >= 199901L) || defined(__cplusplus)
 /* generic loggers */
 #define debug_fatal(...)		debug_message_with_src("FATAL", __func__, __FILE__, __LINE__, __VA_ARGS__)
 #define debug_error(...)		debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, __VA_ARGS__)
@@ -28,10 +28,10 @@
  * -t 052 enables EVAL and SIMUL_EFUN traces at level 2 and below. 
  */
 #define TT_LEVEL_MASK   0007U    /* trace level mask (lowest 3 bits) */
-#define TT_EVAL		0010U
-#define TT_COMPILE	0020U
-#define TT_SIMUL_EFUN	0040U
-#define TT_BACKEND	0100U
+#define TT_EVAL         0010U
+#define TT_COMPILE      0020U
+#define TT_SIMUL_EFUN   0040U
+#define TT_BACKEND      0100U
 
 /**
  * @brief The trace logger macro generates trace log messages based on the tier specification
@@ -46,12 +46,12 @@
  *             to log the message.
  * @param ... The format string and additional arguments for the log message.
  */
-#define opt_trace(tier, ...)		do{if((MAIN_OPTION(trace_flags)&(tier)&~TT_LEVEL_MASK) \
-                                           && ((MAIN_OPTION(trace_flags)&TT_LEVEL_MASK) + 1) > ((tier)&TT_LEVEL_MASK)) \
-                                        debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
+#define opt_trace(tier, ...) do{if((MAIN_OPTION(trace_flags)&(tier)&~TT_LEVEL_MASK) \
+   && ((MAIN_OPTION(trace_flags)&TT_LEVEL_MASK) + 1) > ((tier)&TT_LEVEL_MASK)) \
+   debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
 #endif /* using C99 */
 
-#define debug_perror(what,file)		debug_perror_with_src(__func__, __FILE__, __LINE__, (what), (file))
+#define debug_perror(what,file) debug_perror_with_src(__func__, __FILE__, __LINE__, (what), (file))
 
 #define IF_DEBUG(x) 			x
 #define DEBUG_CHECK(x, y)		if(x) opt_error(1,"%s",(y))
