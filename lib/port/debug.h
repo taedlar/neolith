@@ -2,7 +2,6 @@
 
 #include "logger/logger.h"
 
-#if (__STDC_VERSION__ >= 199901L) || defined(__cplusplus)
 /* generic loggers */
 #define debug_fatal(...)		debug_message_with_src("FATAL", __func__, __FILE__, __LINE__, __VA_ARGS__)
 #define debug_error(...)		debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, __VA_ARGS__)
@@ -49,7 +48,6 @@
 #define opt_trace(tier, ...) do{if((MAIN_OPTION(trace_flags)&(tier)&~TT_LEVEL_MASK) \
    && ((MAIN_OPTION(trace_flags)&TT_LEVEL_MASK) + 1) > ((tier)&TT_LEVEL_MASK)) \
    debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#endif /* using C99 */
 
 #define debug_perror(what,file) debug_perror_with_src(__func__, __FILE__, __LINE__, (what), (file))
 

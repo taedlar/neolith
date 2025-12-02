@@ -2,7 +2,9 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
 
 #include "src/std.h"
 #include "crc32.h"
@@ -1392,11 +1394,12 @@ f_function_owner (void)
 void
 f_rusage (void)
 {
-  struct rusage rus;
   mapping_t *m;
   long usertime, stime;
   int maxrss;
 
+#ifdef HAVE_SYS_RESOURCE_H
+  struct rusage rus;
   if (getrusage (RUSAGE_SELF, &rus) < 0)
     {
       m = allocate_mapping (0);
@@ -1406,9 +1409,6 @@ f_rusage (void)
       usertime = rus.ru_utime.tv_sec * 1000 + rus.ru_utime.tv_usec / 1000;
       stime = rus.ru_stime.tv_sec * 1000 + rus.ru_stime.tv_usec / 1000;
       maxrss = rus.ru_maxrss;
-#ifdef sun
-      maxrss *= getpagesize () / 1024;
-#endif
       m = allocate_mapping (16);
       add_mapping_pair (m, "utime", usertime);
       add_mapping_pair (m, "stime", stime);
@@ -1427,6 +1427,9 @@ f_rusage (void)
       add_mapping_pair (m, "nvcsw", rus.ru_nvcsw);
       add_mapping_pair (m, "nivcsw", rus.ru_nivcsw);
     }
+#else
+  m = allocate_mapping (0);
+#endif
   push_refed_mapping (m);
 }
 #endif
