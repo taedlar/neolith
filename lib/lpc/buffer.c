@@ -21,15 +21,13 @@ buffer_t null_buf = {
   .size = 0	/* size */
 };
 
-inline buffer_t *
-null_buffer ()
+buffer_t *null_buffer ()
 {
   null_buf.ref++;
   return &null_buf;
 }				/* null_buffer() */
 
-inline void
-free_buffer (buffer_t * b)
+void free_buffer (buffer_t * b)
 {
   b->ref--;
   /* don't try to free the null_buffer (ref count might overflow) */

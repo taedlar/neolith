@@ -2,9 +2,26 @@
 #include "lpc/types.h"
 #include "lpc/include/runtime_config.h"
 
+/* port definitions as specified in runtime configuration */
+typedef struct {
+    int kind;
+    int port;
+    int fd;
+} port_def_t;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+/* global trace flags as specified in runtime configuration */
+extern int g_trace_flag;
+
 /* runtime configurations */
 extern int config_int[NUM_CONFIG_INTS];
 extern char *config_str[NUM_CONFIG_STRS];
+extern port_def_t external_port[5];
+#ifdef __cplusplus
+}
+#endif
 
 #define CONFIG_STR(x)           config_str[(x) - BASE_CONFIG_STR]
 #define CONFIG_INT(x)           config_int[(x) - BASE_CONFIG_INT]
@@ -15,20 +32,8 @@ extern char *config_str[NUM_CONFIG_STRS];
     do { if (CONFIG_STR(x)) free(CONFIG_STR(x)); \
          CONFIG_STR(x) = xstrdup(val); } while(0)
 
-/* global trace flags as specified in runtime configuration */
-extern int g_trace_flag;
-
 #define DUMP_WITH_ARGS		0x0001
 #define DUMP_WITH_LOCALVARS	0x0002
-
-/* port definitions as specified in runtime configuration */
-typedef struct {
-    int kind;
-    int port;
-    int fd;
-} port_def_t;
-
-extern port_def_t external_port[5];
 
 #define PORT_CONSOLE     0
 #define PORT_TELNET      1

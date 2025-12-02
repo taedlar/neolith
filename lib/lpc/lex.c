@@ -1218,8 +1218,7 @@ static void refill_buffer () {
 
 static int function_flag = 0;
 
-inline void
-push_function_context ()
+void push_function_context ()
 {
   function_context_t *fc;
   parse_node_t *node;

@@ -37,6 +37,8 @@
 #include "port/wrapper.h"
 #include "port/debug.h"
 
+int g_trace_flag = 0;
+
 char *config_str[NUM_CONFIG_STRS]; /* NULL or malloc'd strings */
 int config_int[NUM_CONFIG_INTS];
 

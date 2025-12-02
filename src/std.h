@@ -10,6 +10,9 @@
 #ifdef _WIN32
 #define STDIN_FILENO _fileno(stdin)
 #define STDOUT_FILENO _fileno(stdout)
+
+#include <direct.h>
+#define chdir    _chdir
 #endif
 
 #ifdef	HAVE_UNISTD_H

@@ -39,8 +39,6 @@ char *inherit_file;
 
 char *last_verb = 0;
 
-int g_trace_flag = 0;
-
 int illegal_sentence_action;
 
 object_t *obj_list, *obj_list_destruct;
@@ -2498,10 +2496,17 @@ fatal (char *fmt, ...)
   va_list args;
 
   va_start (args, fmt);
-  if (-1 == vasprintf (&msg, fmt, args)) {
-    debug_message("{}\t***** failed to format fatal error message \"%s\".", fmt);
-    exit (EXIT_FAILURE);
-  }
+#ifdef _GNU_SOURCE
+  if (-1 == vasprintf (&msg, fmt, args))
+#else
+  int len = _vscprintf (fmt, args) + 1;
+  msg = (char *) DXALLOC (len, TAG_TEMPORARY, "fatal");
+  if (-1 == vsnprintf (msg, len, fmt, args))
+#endif
+    {
+      debug_message("{}\t***** failed to format fatal error message \"%s\".", fmt);
+      exit (EXIT_FAILURE);
+    }
   va_end (args);
 
   debug_message ("{}\t***** %s", msg);

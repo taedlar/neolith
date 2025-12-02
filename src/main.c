@@ -283,7 +283,7 @@ parse_command_line (int argc, char *argv[])
           break;
         case '?':
         default:
-          fatal (_("invalid option: %c"), c);
+          fatal ("invalid option: %c", c);
         }
     }
 #endif /* ! HAVE_ARGP_H */

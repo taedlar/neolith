@@ -816,7 +816,7 @@ sigpipe_handler (int sig)
 }
 #endif
 
-inline void
+void
 make_selectmasks ()
 {
   int i;

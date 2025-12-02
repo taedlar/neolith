@@ -236,10 +236,20 @@ get_dir (char *path, int flags)
   if (count == 0)
     {
       /* This is the easy case :-) */
+#ifdef HAVE_DIRENT_H
       closedir (dirp);
+#elif _WIN32
+      FindClose(dirp);
+#endif
       return v;
     }
+
+#ifdef HAVE_DIRENT_H
   rewinddir (dirp);
+#elif _WIN32
+  FindClose(dirp);
+  dirp = FindFirstFile(searchPath, &findFileData);
+#endif
   endtemp = temppath + strlen (temppath);
   strcat (endtemp++, "/");
 
