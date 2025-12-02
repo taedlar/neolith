@@ -12,9 +12,7 @@
 
 #include <netdb.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include "port/socket_comm.h"
 
 #include "src/std.h"
 #include "lpc/array.h"

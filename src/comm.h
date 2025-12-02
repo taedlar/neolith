@@ -1,51 +1,11 @@
 #pragma once
 
-#ifdef	HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif	/* HAVE_SYS_IOCTL_H */
-
-#ifdef	HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif	/* HAVE_SYS_SOCKET_H */
-
-#ifdef	HAVE_NETDB_H
-#include <netdb.h>
-#endif	/* HAVE_NETDB_H */
-
-#ifdef	HAVE_SYS_SEMA_H
-#include <sys/sema.h>
-#endif	/* HAVE_SYS_SEMA_H */
-
 #ifdef	HAVE_ARPA_TELNET_H
 #include <arpa/telnet.h>
 #endif	/* HAVE_ARPA_TELNET_H */
 
-#ifdef	HAVE_SYS_SOCKETVAR_H
-#include <sys/socketvar.h>
-#endif	/* HAVE_SYS_SOCKETVAR_H */
-
-#ifdef	HAVE_SOCKET_H
-#include <socket.h>
-#endif	/* HAVE_SOCKET_H */
-
-#ifdef	HAVE_RESOLVE_H
-#include <resolv.h>
-#endif	/* HAVE_RESOLVE_H */
-
-#if defined(_WIN32) || defined(__CYGWIN__)
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#elif __linux__
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#endif
-
+#include "port/socket_comm.h"
 #include "lpc/functional.h"
-
-#define OS_socket_write(f, m, l)	write(f, m, l)
-#define OS_socket_read(r, b, l)		read(r, b, l)
-#define OS_socket_close(f)		close(f)
-#define OS_socket_ioctl(f, w, a)	ioctl(f, w, (caddr_t)a)
 
 #define MAX_TEXT                   2048
 #define MAX_SOCKET_PACKET_SIZE     1024
@@ -81,7 +41,7 @@ typedef struct interactive_s {
     object_t *ob;               /* points to the associated object         */
     sentence_t *input_to;       /* to be called with next input line       */
     int connection_type;        /* the type of connection this is          */
-    int fd;                     /* file descriptor for interactive object  */
+    socket_fd_t fd;             /* file descriptor for interactive object  */
     struct sockaddr_in addr;    /* socket address of interactive object    */
 #ifdef F_QUERY_IP_PORT
     int local_port;             /* which of our ports they connected to    */
@@ -124,7 +84,7 @@ extern int add_message_calls;
 extern interactive_t **all_users;
 extern int max_users;
 
-void new_interactive(int socket_fd);
+void new_interactive(socket_fd_t socket_fd);
 int do_comm_polling(struct timeval* timeout);
 
 void add_vmessage(object_t *, char *, ...);

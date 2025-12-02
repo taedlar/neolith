@@ -3,9 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
+#include "port/socket_comm.h"
 
 #include "src/std.h"
 #include "lpc/object.h"

@@ -19,6 +19,10 @@
 #include <termios.h>
 #endif
 
+#ifdef _WIN32
+#pragma comment(lib, "ws2_32.lib")
+#endif
+
  /*
   * This macro is for testing whether ip is still valid, since many
   * functions call LPC code, which could otherwise use
@@ -958,7 +962,7 @@ void process_io () {
  *  The master object is set as the command giver object for this new interactive.
  *  @param socket_fd The file descriptor of the socket to associate with the new interactive.
  */
-void new_interactive(int socket_fd) {
+void new_interactive(socket_fd_t socket_fd) {
 
   int i;
   for (i = 0; i < max_users; i++)
@@ -1031,7 +1035,7 @@ void new_interactive(int socket_fd) {
  */
 static void new_user_handler (int which) {
 
-  int new_socket_fd;
+  socket_fd_t new_socket_fd;
   struct sockaddr_in addr;
   socklen_t length;
   object_t *ob;
@@ -1275,7 +1279,7 @@ hname_handler ()
   if (addr_server_fd < 0)
     return;
 
-  num_bytes = OS_socket_read (addr_server_fd, hname_buf, HNAME_BUF_SIZE);
+  num_bytes = SOCKET_READ (addr_server_fd, hname_buf, HNAME_BUF_SIZE);
   switch (num_bytes)
     {
     case -1:
@@ -1290,7 +1294,7 @@ hname_handler ()
           debug_perror ("hname_handler: read", 0);
           tmp = addr_server_fd;
           addr_server_fd = -1;
-          OS_socket_close (tmp);
+          SOCKET_CLOSE (tmp);
           return;
         }
       break;
@@ -1298,7 +1302,7 @@ hname_handler ()
       debug_message ("hname_handler: closing address server connection.\n");
       tmp = addr_server_fd;
       addr_server_fd = -1;
-      OS_socket_close (tmp);
+      SOCKET_CLOSE (tmp);
       return;
     default:
       hname_buf[num_bytes] = '\0';
@@ -1401,7 +1405,7 @@ get_user_data (interactive_t * ip)
   /*
    * read user data.
    */
-  num_bytes = OS_socket_read (ip->fd, buf, text_space);
+  num_bytes = SOCKET_READ (ip->fd, buf, text_space);
   switch (num_bytes)
     {
     case 0:
@@ -1812,7 +1816,7 @@ void remove_interactive (object_t * ob, int dested) {
     }
   else
     {
-      if (OS_socket_close (ip->fd) == -1)
+      if (SOCKET_CLOSE (ip->fd) == -1)
         debug_perror ("remove_interactive: close", 0);
     }
   if (ob->flags & O_HIDDEN)
@@ -2170,8 +2174,7 @@ query_addr_name (object_t * ob)
   memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype,
           sizeof (msgtype));
 
-  if (OS_socket_write
-      (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int)) == -1)
+  if (SOCKET_WRITE (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int)) == -1)
     {
       switch (errno)
         {
@@ -2227,8 +2230,7 @@ query_addr_number (char *name, char *call_back)
   memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype,
           sizeof (msgtype));
 
-  if (OS_socket_write
-      (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int)) == -1)
+  if (SOCKET_WRITE (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int)) == -1)
     {
       switch (errno)
         {
