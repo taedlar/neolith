@@ -10,10 +10,9 @@
 #include "lpc/object.h"
 
 #include <sys/stat.h>
-#include <netinet/in.h>		/* for htonl() in write_bytes */
-
 #include <fcntl.h>
 
+#include "port/socket_comm.h"
 
 #ifdef F_CP
 void f_cp (void) {
