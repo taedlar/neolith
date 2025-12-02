@@ -2,6 +2,9 @@
 
 #ifdef	HAVE_ARPA_TELNET_H
 #include <arpa/telnet.h>
+#else
+/* Minimal telnet definitions for systems that lack <arpa/telnet.h> */
+#include "port/telnet.h"
 #endif	/* HAVE_ARPA_TELNET_H */
 
 #include "port/socket_comm.h"
