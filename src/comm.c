@@ -172,12 +172,14 @@ init_user_conn ()
         }
     }
 
+#ifndef _WIN32
   /* register signal handler for SIGPIPE. */
   if (signal (SIGPIPE, sigpipe_handler) == SIG_ERR)
     {
       debug_perror ("signal()", 0);
       exit (5);
     }
+#endif
   
   add_ip_entry (INADDR_LOOPBACK, "localhost");
 }
@@ -801,6 +803,7 @@ static void set_telnet_single_char (interactive_t * ip, int single)
   flush_message (ip);
 }
 
+#ifndef _WIN32
 /*
  * SIGPIPE handler -- does very little for now.
  */
@@ -811,7 +814,7 @@ sigpipe_handler (int sig)
   debug_message ("SIGPIPE received.\n");
   signal (SIGPIPE, sigpipe_handler);
 }
-
+#endif
 
 inline void
 make_selectmasks ()

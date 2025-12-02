@@ -14,6 +14,10 @@
 #include <argp.h>
 #endif /* HAVE_ARGP_H */
 
+#ifdef _WIN32
+#include "port/getopt.h"
+#endif
+
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
 #include "rc.h"
@@ -55,6 +59,7 @@ int main (int argc, char **argv) {
   char* locale = NULL;
   error_context_t econ;
 
+#ifndef _WIN32
   /* Setup signal handlers */
   signal (SIGFPE, sig_fpe);
   signal (SIGUSR1, sig_usr1);
@@ -66,6 +71,7 @@ int main (int argc, char **argv) {
   signal (SIGSEGV, sig_segv);
   signal (SIGILL, sig_ill);
   signal (SIGCHLD, sig_cld);
+#endif
 
   /* Initialize LPMud driver runtime environment */
   if (NULL != (locale = setlocale (LC_ALL, "")))
@@ -189,7 +195,7 @@ parse_argument (int key, char *arg, struct argp_state *state)
           exit (EXIT_FAILURE);
         }
       break;
-    case 'C':
+    case 'c':
       MAIN_OPTION(console_mode) = 1;
       break;
     case 'D':
@@ -225,7 +231,7 @@ parse_command_line (int argc, char *argv[])
   struct argp_option options[] = {
     {.name = NULL, 'f', "config-file", 0, "Specifies the file path of the configuration file."},
     {.name = NULL, 'D', "macro[=definition]", 0, "Predefines global preprocessor macro for use in mudlib."},
-    {.name = "console-mode", 'C', NULL, 0, "Run the driver in console mode."},
+    {.name = "console-mode", 'c', NULL, 0, "Run the driver in console mode."},
     {.name = "debug", 'd', "debug-level", 0, "Specifies the runtime debug level."},
     {.name = "epilog", 'e', "epilog-level", 0, "Specifies the epilog level to be passed to the master object."},
     {.name = "trace", 't', "trace-flags", 0, "Specifies an integer of trace flags to enable trace messages in debug log."},
@@ -242,7 +248,7 @@ parse_command_line (int argc, char *argv[])
 #else /* ! HAVE_ARGP_H */
   int c;
 
-  while ((c = getopt (argc, argv, "f:Cd:D:t:e:")) != -1)
+  while ((c = getopt (argc, argv, "f:cd:D:t:e:")) != -1)
     {
       switch (c)
         {
@@ -252,6 +258,9 @@ parse_command_line (int argc, char *argv[])
               perror (optarg);
               exit (0);
             }
+          break;
+        case 'c':
+          MAIN_OPTION(console_mode) = 1;
           break;
         case 'd':
           MAIN_OPTION(debug_level) = atoi (optarg);
@@ -299,6 +308,7 @@ void init_debug_log()
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
 }
 
+#ifndef _WIN32
 static RETSIGTYPE
 sig_cld (int sig)
 {
@@ -388,3 +398,4 @@ sig_hup (int sig)
   g_proceeding_shutdown = 1;
 #endif
 }
+#endif /* ! _WIN32 */
