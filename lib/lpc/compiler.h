@@ -218,8 +218,7 @@ realloc_mem_block(mem_block_t* m, int size)
 {
     while (size > m->max_size) {
         m->max_size <<= 1;
-        m->block = (char *)
-            DREALLOC((char *) m->block, m->max_size, TAG_COMPILER, "realloc_mem_block");
+        m->block = (char *)DREALLOC((char *) m->block, m->max_size, TAG_COMPILER, "realloc_mem_block");
     }
 }
 
