@@ -111,15 +111,17 @@ get_simul_efuns (program_t * prog)
         {
           opt_trace (TT_SIMUL_EFUN|2, "no new simul_efuns, removing all");
           FREE (simul_names);
+          simul_names = 0;
           FREE (simuls);
+          simuls = 0;
+          num_simul_efun = 0;
+          return;
         }
       else
         {
           /* will be resized later */
-          simul_names = RESIZE (simul_names, num_simul_efun + num_new,
-                                simul_entry, TAG_SIMULS, "get_simul_efuns");
-          simuls = RESIZE (simuls, num_simul_efun + num_new,
-                           simul_info_t, TAG_SIMULS, "get_simul_efuns: 2");
+          simul_names = RESIZE (simul_names, num_simul_efun + num_new, simul_entry, TAG_SIMULS, "get_simul_efuns");
+          simuls = RESIZE (simuls, num_simul_efun + num_new, simul_info_t, TAG_SIMULS, "get_simul_efuns: 2");
         }
     }
   else
