@@ -2,12 +2,22 @@
     "version": 3,
     "configurePresets": [
         {
+            "name": "project-default",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/setup.cmake"
+            }
+        },
+        {
             "name": "windows-default",
             "hidden": true,
             "generator": "Visual Studio 16 2019",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "BISON_ROOT": "C:/GnuWin32"
             },
             "vendor": {
@@ -20,7 +30,7 @@
             "name": "vs16-x64",
             "displayName": "x64 - VS2019",
             "description": "Uses Visual Studio 2019 generator, x64 architecture",
-            "inherits": ["windows-default"],
+            "inherits": ["project-default", "windows-default"],
             "architecture": {
               "value": "x64",
               "strategy": "set"
@@ -30,7 +40,7 @@
             "name": "vs16-win32",
             "displayName": "Win32 - VS2019",
             "description": "Uses Visual Studio 2019 generator, Win32 architecture",
-            "inherits": ["windows-default"],
+            "inherits": ["project-default", "windows-default"],
             "architecture": {
               "value": "Win32",
               "strategy": "set"
@@ -39,13 +49,10 @@
         {
             "name": "linux-default",
             "hidden": true,
-            "generator": "Ninja Multi-Config",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-                "GTEST_ROOT": "/usr/src/googletest/googletest"
+                "CMAKE_CXX_COMPILER": "g++"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -56,8 +63,9 @@
         {
             "name": "linux",
             "displayName": "Linux",
-            "description": "Uses Ninja generator, architecture unspecified",
-            "inherits": ["linux-default"]
+            "generator": "Ninja Multi-Config",
+            "description": "Uses Ninja Multi-Config generator, architecture unspecified",
+            "inherits": ["project-default", "linux-default"]
         }
     ],
     "buildPresets": [
