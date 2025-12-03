@@ -7,6 +7,7 @@ set(port_SOURCES
     $<$<PLATFORM_ID:Windows>:crypt.c>
     $<$<PLATFORM_ID:Windows>:getopt.c>
     $<$<PLATFORM_ID:Windows>:gettimeofday.c>
+    $<$<PLATFORM_ID:Windows>:realpath.c>
     $<$<PLATFORM_ID:Windows>:symlink.c>
     $<$<PLATFORM_ID:Windows>:win32_timer.c>
     $<$<AND:$<BOOL:${HAVE_LIBRT}>,$<NOT:$<PLATFORM_ID:Windows>>>:posix_timer.c>

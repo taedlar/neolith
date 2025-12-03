@@ -34,6 +34,10 @@ const char *argp_program_version = PACKAGE "-" VERSION;
 const char *argp_program_bug_address = "https://github.com/taedlar/neolith";
 #endif /* HAVE_ARGP_H */
 
+#ifndef HAVE_REALPATH
+extern char* realpath(const char* path, char* resolved_path);
+#endif /* !HAVE_REALPATH */
+
 /* prototypes */
 
 static void parse_command_line (int, char **);
