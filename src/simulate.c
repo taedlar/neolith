@@ -909,7 +909,7 @@ void destruct_object (object_t * ob) {
   if (restrict_destruct && restrict_destruct != ob)
     error ("*Only this_object() can be destructed from move_or_destruct.");
 
-  if (ob == simul_efun_ob && master_ob)
+  if ((ob == simul_efun_ob) && master_ob)
     error ("*Cannot destruct simul_efun_object while master_object exists.");
 
   /*
