@@ -218,7 +218,7 @@ extern int num_varargs;
 /* LPC interpreter */
 void eval_instruction(const char *p);
 
-void call_function(program_t *, int, int, svalue_t *);
+void call_function (program_t *progp, int offset, int num_args, svalue_t *ret_value);
 
 void call_efun(int);
 void process_efun_callback(int, function_to_call_t *, int);

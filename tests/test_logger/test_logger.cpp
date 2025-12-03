@@ -3,6 +3,7 @@ extern "C" {
 #include "logger/logger.h"
 }
 #include <filesystem>
+#include <system_error>
 
 using namespace testing;
 
@@ -22,16 +23,18 @@ TEST(LoggerTest, logMessage) {
 
     // Test that log_message returns a non-negative value when logging to a specific file
     namespace fs = std::filesystem;
-    fs::remove("test.log");
+    std::error_code ec;
+    fs::remove("test.log", ec); // ignore error if file does not exist
     result = log_message("test.log", "Test log message to file: %d\n", 3);
     EXPECT_GE(result, 0);
     EXPECT_TRUE(fs::exists("test.log"));
-    fs::remove("test.log");
+    fs::remove("test.log", ec); // clean up
 }
 
 TEST(LoggerTest, debugMessage) {
     namespace fs = std::filesystem;
-    fs::remove("debug_test.log");
+    std::error_code ec;
+    fs::remove("debug_test.log", ec); // ignore error if file does not exist
     debug_set_log_file("debug_test.log");
 
     // Test that debug_message returns a non-negative value
@@ -40,7 +43,7 @@ TEST(LoggerTest, debugMessage) {
     EXPECT_GE(debug_message(""), 0); // a newline is added even for empty messages
 
     EXPECT_TRUE(fs::exists("debug_test.log"));
-    fs::remove("debug_test.log");
+    fs::remove("debug_test.log", ec); // clean up
 }
 
 TEST(LoggerTest, debugSetLogWithDate) {

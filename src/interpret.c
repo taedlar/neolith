@@ -3186,7 +3186,7 @@ is_static (const char *fun, object_t * ob)
 /**
  *  @brief Call a specific function address in an object.
  *  This is done with no frame set up.
- *  It is expected that there are no arguments.
+ *  Arguments must already be pushed on the stack.
  *  Returned values are removed automatically unless ret_value is non-NULL.
  *  This was used by heart_beat() only in LPMud and MudOS.
  * 
@@ -3194,6 +3194,7 @@ is_static (const char *fun, object_t * ob)
  *  Otherwise, a dummy object is created for the call.
  *  @param progp The program containing the function.
  *  @param offset The function offset to call.
+ *  @param num_args Number of arguments already pushed on the stack.
  *  @param ret_value Where to store the return value, or NULL if none. The caller is responsible for
  *  freeing it if needed.
  */
