@@ -107,4 +107,6 @@ Add a configuration like below in your `.vscode/launch.json`:
 ~~~
 
 This will further enable the **Debug Test** icon to let you debug a failed unit-test.
- 
+
+> [!TIP]
+> For using MSVC debugger in Windows, change `cppdbg` to `cppvsdbg`.
