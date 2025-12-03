@@ -49,6 +49,7 @@ check_include_file(arpa/telnet.h HAVE_ARPA_TELNET_H)
 
 # check for standard functions
 include(CheckSymbolExists)
+check_symbol_exists(gettimeofday sys/time.h HAVE_GETTIMEOFDAY)
 check_symbol_exists(stpcpy string.h HAVE_STPCPY)
 check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
 check_symbol_exists(strtod stdlib.h HAVE_STRTOD)
