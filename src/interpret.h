@@ -191,6 +191,10 @@ typedef struct {
         sp->u.string = (x);\
         } while(0)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern svalue_t *start_of_stack;
 extern svalue_t *end_of_stack;
 extern control_stack_t* control_stack;
@@ -225,11 +229,11 @@ int is_static(const char *, object_t *);
 
 #define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
 #define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */
-extern int get_error_state (int mask);
-extern void set_error_state (int flag);
-extern void clear_error_state ();
+int get_error_state (int mask);
+void set_error_state (int flag);
+void clear_error_state ();
 
-extern void reset_interpreter (void);
+void reset_interpreter (void);
 
 /* stack manipulation */
 void assign_svalue(svalue_t *, svalue_t *);
@@ -274,3 +278,7 @@ void pop_control_stack(void);
 void push_control_stack(int);
 
 void remove_object_from_stack(object_t *);
+
+#ifdef __cplusplus
+}
+#endif

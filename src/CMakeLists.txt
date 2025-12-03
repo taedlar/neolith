@@ -21,7 +21,10 @@ set(stem_SOURCES
     stralloc.c
 )
 add_library(stem OBJECT ${stem_SOURCES})
-target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket -lm -lcrypt)
+target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket)
+if(NOT WIN32)
+    target_link_libraries(stem PUBLIC -lm -lcrypt)
+endif()
 target_include_directories(stem PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
@@ -31,7 +34,7 @@ target_include_directories(stem PUBLIC
 if(HAVE_LIBRT)
     target_link_libraries(stem PUBLIC -lrt)
 else()
-    message(WARNING "LIBRT not found, heart_beat() will be disabled.")
+    message(STATUS "POSIX LIBRT not found, using platform dependent timers.")
 endif()
 
 # ================================================================

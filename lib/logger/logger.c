@@ -15,6 +15,12 @@
 #include <stdarg.h>
 #endif /* HAVE_STDARG_H */
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define PATH_MAX MAX_PATH
+#endif
+
 #include "logger.h"
 
 FILE* current_log_file = NULL;

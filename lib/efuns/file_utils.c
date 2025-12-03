@@ -9,20 +9,26 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
+#endif
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <io.h>
+#endif
 
 #include "src/std.h"
+#include "rc.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"
-#include "rc.h"
 #include "src/interpret.h"
 #include "lpc/lex.h"
 
 #include "file_utils.h"
 
-/* see binaries.c.  We don't want no $@$(*)@# system dependent mess of
-   includes */
+/* see binaries.c.  We don't want no $@$(*)@# system dependent mess of includes */
 
 extern int sys_nerr;
 
@@ -114,7 +120,13 @@ get_dir (char *path, int flags)
 {
   array_t *v;
   int i, count = 0;
+#ifdef HAVE_DIRENT_H
   DIR *dirp;
+#elif _WIN32
+  HANDLE dirp;
+  WIN32_FIND_DATA findFileData;
+  char searchPath[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
+#endif
   int namelen, do_match = 0;
 
   struct dirent *de;
@@ -176,12 +188,20 @@ get_dir (char *path, int flags)
       encode_stat (&v->item[0], flags, p, &st);
       return v;
     }
+#ifdef HAVE_DIRENT_H
   if ((dirp = opendir (temppath)) == 0)
     return 0;
+#elif _WIN32
+  snprintf(searchPath, sizeof(searchPath), "%s\\*", temppath);
+  dirp = FindFirstFile(searchPath, &findFileData);
+  if (dirp == INVALID_HANDLE_VALUE)
+    return 0;
+#endif
 
   /*
    * Count files
    */
+#ifdef HAVE_DIRENT_H
   for (de = readdir (dirp); de; de = readdir (dirp))
     {
       namelen = strlen (de->d_name);
@@ -194,6 +214,20 @@ get_dir (char *path, int flags)
       if (count >= CONFIG_INT (__MAX_ARRAY_SIZE__))
         break;
     }
+#elif _WIN32
+  do
+    {
+      namelen = strlen (findFileData.cFileName);
+      if (!do_match && (strcmp (findFileData.cFileName, ".") == 0 ||
+                        strcmp (findFileData.cFileName, "..") == 0))
+        continue;
+      if (do_match && !match_string (regexppath, findFileData.cFileName))
+        continue;
+      count++;
+      if (count >= CONFIG_INT (__MAX_ARRAY_SIZE__))
+        break;
+    } while (FindNextFile(dirp, &findFileData) != 0);
+#endif
 
   /*
    * Make array and put files on it.
@@ -202,13 +236,24 @@ get_dir (char *path, int flags)
   if (count == 0)
     {
       /* This is the easy case :-) */
+#ifdef HAVE_DIRENT_H
       closedir (dirp);
+#elif _WIN32
+      FindClose(dirp);
+#endif
       return v;
     }
+
+#ifdef HAVE_DIRENT_H
   rewinddir (dirp);
+#elif _WIN32
+  FindClose(dirp);
+  dirp = FindFirstFile(searchPath, &findFileData);
+#endif
   endtemp = temppath + strlen (temppath);
   strcat (endtemp++, "/");
 
+#ifdef HAVE_DIRENT_H
   for (i = 0, de = readdir (dirp); i < count; de = readdir (dirp))
     {
       namelen = strlen (de->d_name);
@@ -231,10 +276,46 @@ get_dir (char *path, int flags)
       i++;
     }
   closedir (dirp);
+#elif _WIN32
+  if (FindFirstFile(searchPath, &findFileData) != INVALID_HANDLE_VALUE)
+    {
+      for (i = 0; i < count; )
+        {
+          namelen = strlen (findFileData.cFileName);
+          if (!do_match && (strcmp (findFileData.cFileName, ".") == 0 ||
+                            strcmp (findFileData.cFileName, "..") == 0))
+            {
+              if (FindNextFile(dirp, &findFileData) == 0)
+                break;
+              continue;
+            }
+          if (do_match && !match_string (regexppath, findFileData.cFileName))
+            {
+              if (FindNextFile(dirp, &findFileData) == 0)
+                break;
+              continue;
+            }
+          findFileData.cFileName[namelen] = '\0';
+          if (flags == -1)
+            {
+              /*
+               * We'll have to .... sigh.... stat() the file to get some add'tl
+               * info.
+               */
+              strcpy (endtemp, findFileData.cFileName);
+              stat (temppath, &st);	/* We assume it works. */
+            }
+          encode_stat (&v->item[i], flags, findFileData.cFileName, &st);
+          i++;
+          if (FindNextFile(dirp, &findFileData) == 0)
+            break;
+        }
+      FindClose(dirp);
+    }
+#endif
 
   /* Sort the names. */
-  qsort ((void *) v->item, count, sizeof v->item[0],
-         (flags == -1) ? parrcmp : pstrcmp);
+  qsort ((void *) v->item, count, sizeof v->item[0], (flags == -1) ? parrcmp : pstrcmp);
   return v;
 }
 
@@ -645,7 +726,11 @@ write_bytes (char *file, int start, char *str, int theLength)
   if (theLength > CONFIG_INT (__MAX_BYTE_TRANSFER__))
     return 0;
 
-  fd = open (file, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR); /* create the file if it does not exist, do not truncate */
+  fd = open (file, O_CREAT | O_RDWR
+#ifndef _WIN32
+    , S_IRUSR | S_IWUSR
+#endif
+  ); /* create the file if it does not exist, do not truncate */
   if (-1 == fd)
     return 0;
 
@@ -852,7 +937,11 @@ copy (char *from, char *to)
       return -1;
     }
 
-  ofd = open (to, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ofd = open (to, O_WRONLY | O_CREAT | O_TRUNC
+#ifndef _WIN32
+    , S_IRUSR | S_IWUSR
+#endif
+  );
   if (ofd < 0)
     {
       close (ifd);
@@ -1120,11 +1209,10 @@ dump_file_descriptors (outbuffer_t * out)
   dev_t dev;
   struct stat stbuf;
 
-  outbuf_add (out,
-              "Fd  Device Number  Inode   Mode    Uid    Gid      Size\n");
-  outbuf_add (out,
-              "--  -------------  -----  ------  -----  -----  ----------\n");
+  outbuf_add (out, "Fd  Device Number  Inode   Mode    Uid    Gid      Size\n");
+  outbuf_add (out, "--  -------------  -----  ------  -----  -----  ----------\n");
 
+#ifndef _WIN32
   for (i = 0; i < FD_SETSIZE; i++)
     {
       /* bug in NeXT OS 2.1, st_mode == 0 for sockets */
@@ -1184,4 +1272,5 @@ dump_file_descriptors (outbuffer_t * out)
       outbuf_addv (out, "%12lu", stbuf.st_size);
       outbuf_add (out, "\n");
     }
+#endif
 }

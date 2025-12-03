@@ -471,7 +471,7 @@ int_string_unlink (char *str)
   return (char *) (newmbt + 1);
 }
 
-inline void
+void
 free_string_svalue (svalue_t * v)
 {
   char *str = v->u.string;

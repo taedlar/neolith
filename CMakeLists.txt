@@ -29,13 +29,17 @@ endif()
 # check for standard headers
 include(CheckIncludeFile)
 check_include_file(argp.h HAVE_ARGP_H)
+check_include_file(dirent.h HAVE_DIRENT_H)
 check_include_file(fcntl.h HAVE_FCNTL_H)
 check_include_file(inttypes.h HAVE_INTTYPES_H)
 check_include_file(limits.h HAVE_LIMITS_H)
+check_include_file(netdb.h HAVE_NETDB_H)
 check_include_file(signal.h HAVE_SIGNAL_H)
 check_include_file(stdarg.h HAVE_STDARG_H)
 check_include_file(stdint.h HAVE_STDINT_H)
+check_include_file(sys/ioctl.h HAVE_SYS_IOCTL_H)
 check_include_file(sys/param.h HAVE_SYS_PARAM_H)
+check_include_file(sys/resource.h HAVE_SYS_RESOURCE_H)
 check_include_file(sys/time.h HAVE_SYS_TIME_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
@@ -45,13 +49,26 @@ check_include_file(arpa/telnet.h HAVE_ARPA_TELNET_H)
 
 # check for standard functions
 include(CheckSymbolExists)
+check_symbol_exists(gettimeofday sys/time.h HAVE_GETTIMEOFDAY)
+check_symbol_exists(realpath stdlib.h HAVE_REALPATH)
 check_symbol_exists(stpcpy string.h HAVE_STPCPY)
 check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
 check_symbol_exists(strtod stdlib.h HAVE_STRTOD)
 
 # check for libraries
 include(CheckLibraryExists)
-check_library_exists(rt clock_gettime "" HAVE_LIBRT)
+if(UNIX)
+    check_library_exists(rt clock_gettime "" HAVE_LIBRT)
+endif()
+
+# Set timer support flags
+if(WIN32)
+    set(HAVE_WIN32_TIMER TRUE)
+elseif(HAVE_LIBRT)
+    set(HAVE_POSIX_TIMER TRUE)
+else()
+    set(HAVE_FALLBACK_TIMER TRUE)
+endif()
 
 # check dependencies
 find_package(BISON REQUIRED)

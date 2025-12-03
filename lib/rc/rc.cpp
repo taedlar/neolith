@@ -21,10 +21,23 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+
+#ifdef _WIN32
+#include <io.h>
+#define open    _open
+#define fdopen  _fdopen
+#define close   _close
+#define strcasecmp  _stricmp
+#define strncasecmp _strnicmp
+#endif
 
 #include "port/wrapper.h"
 #include "port/debug.h"
+
+int g_trace_flag = 0;
 
 char *config_str[NUM_CONFIG_STRS]; /* NULL or malloc'd strings */
 int config_int[NUM_CONFIG_INTS];

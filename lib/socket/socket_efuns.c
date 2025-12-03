@@ -10,7 +10,9 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#ifdef HAVE_NETDB_H
 #include <netdb.h>
+#endif
 #include <sys/types.h>
 #include "port/socket_comm.h"
 

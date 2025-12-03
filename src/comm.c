@@ -172,12 +172,14 @@ init_user_conn ()
         }
     }
 
+#ifndef _WIN32
   /* register signal handler for SIGPIPE. */
   if (signal (SIGPIPE, sigpipe_handler) == SIG_ERR)
     {
       debug_perror ("signal()", 0);
       exit (5);
     }
+#endif
   
   add_ip_entry (INADDR_LOOPBACK, "localhost");
 }
@@ -283,18 +285,23 @@ add_vmessage (object_t * who, char *format, ...)
   char *cp, *str = NULL;
   va_list args;
 
-#ifdef _GNU_SOURCE
   va_start (args, format);
+#ifdef _GNU_SOURCE
   ret = vasprintf (&str, format, args);
+#else
+  ret = _vscprintf (format, args) + 1;
+  if (ret > 0)
+    {
+      str = DXALLOC (ret, TAG_TEMPORARY, "add_vmessage: str");
+      ret = vsprintf (str, format, args);
+    }
+#endif
   va_end (args);
   if (ret == -1)
     {
       debug_perror ("vsaprintf()", NULL);
       return;
     }
-#else
-#error Requires _GNU_SOURCE for vsaprintf
-#endif
 
   /*
    * if who->interactive is not valid, write message on stderr.
@@ -796,6 +803,7 @@ static void set_telnet_single_char (interactive_t * ip, int single)
   flush_message (ip);
 }
 
+#ifndef _WIN32
 /*
  * SIGPIPE handler -- does very little for now.
  */
@@ -806,9 +814,9 @@ sigpipe_handler (int sig)
   debug_message ("SIGPIPE received.\n");
   signal (SIGPIPE, sigpipe_handler);
 }
+#endif
 
-
-inline void
+void
 make_selectmasks ()
 {
   int i;
