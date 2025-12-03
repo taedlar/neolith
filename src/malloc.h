@@ -3,14 +3,11 @@
 /*
  * to use sysmalloc or malloc replacements
  */
-#if defined(SYSMALLOC) || \
-    (defined(SMALLOC) && defined(SBRK_OK)) || \
-    defined(BSDMALLOC)
-#define MALLOC(x)       malloc(x)
+#if defined(SYSMALLOC) || (defined(SMALLOC) && defined(SBRK_OK)) || defined(BSDMALLOC)
+/*#define MALLOC(x)       malloc(x)*/
 #define FREE(x)         free(x)
-#define REALLOC(x,y)    realloc(x,y)
-#define CALLOC(x,y)     calloc(x,y)
-
+/*#define REALLOC(x,y)    realloc(x,y)*/
+/*#define CALLOC(x,y)     calloc(x,y)*/
 #endif
 
 /* smalloc - choice between replacement or wrapper */
@@ -37,6 +34,6 @@
 #endif
 
 #define DXALLOC(x,tag,desc)     xalloc(x)
-#define DMALLOC(x,tag,desc)     MALLOC(x)
-#define DREALLOC(x,y,tag,desc)  REALLOC(x,y)
-#define DCALLOC(x,y,tag,desc)   CALLOC(x,y)
+#define DMALLOC(x,tag,desc)     malloc(x)
+#define DREALLOC(x,y,tag,desc)  realloc(x,y)
+#define DCALLOC(x,y,tag,desc)   calloc(x,y)
