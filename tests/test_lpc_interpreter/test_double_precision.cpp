@@ -17,25 +17,16 @@ TEST_F(LPCInterpreterTest, floatingPointPrecision) {
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
     EXPECT_EQ(prog->num_functions_defined, 2) << "Expected 2 defined function.";
 
-    error_context_t econ;
-    save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        FAIL() << "***** unexpected error during double precision function calls.";
-    }
-    else {
-        // no object is created; we just call the functions directly
-        // (no global variables used in the test functions)
-        int index, fio, vio;
-        svalue_t ret;
-        program_t* found_prog = find_function(prog, findstring("bar"), &index, &fio, &vio);
-        ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for bar().";
-        current_prog = prog; // set current_prog for the calling local function
-        call_function (prog, index, 0, &ret);
+    // no object is created; we just call the functions directly
+    // (no global variables used in the test functions)
+    int index, fio, vio;
+    svalue_t ret;
+    program_t* found_prog = find_function(prog, findstring("bar"), &index, &fio, &vio);
+    ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for bar().";
+    current_prog = prog; // set current_prog for the calling local function
+    call_function (prog, index, 0, &ret);
 
-        EXPECT_EQ(ret.type, T_REAL) << "Expected return type to be T_REAL.";
-        EXPECT_DOUBLE_EQ(ret.u.real, 6.28f) << "Expected return value of bar() to be 6.28.";
-    }
-    pop_context (&econ);
+    EXPECT_EQ(ret.type, T_REAL) << "Expected return type to be T_REAL.";
+    EXPECT_DOUBLE_EQ(ret.u.real, 6.28f) << "Expected return value of bar() to be 6.28.";
     free_prog(prog, 1);
 }

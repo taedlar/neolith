@@ -130,9 +130,7 @@ void f_call_stack (void) {
           else
             {
               ret->item[i].subtype = STRING_CONSTANT;
-              ret->item[i].u.string =
-                (((csp - i)->framekind & FRAME_MASK) ==
-                 FRAME_CATCH) ? "CATCH" : "<function>";
+              ret->item[i].u.string = (((csp - i)->framekind & FRAME_MASK) == FRAME_CATCH) ? "CATCH" : "<function>";
             }
         }
       break;

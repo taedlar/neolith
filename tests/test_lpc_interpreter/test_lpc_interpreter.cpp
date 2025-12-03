@@ -38,28 +38,19 @@ TEST_F(LPCInterpreterTest, callFunction) {
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
     EXPECT_EQ(prog->num_functions_defined, 1) << "Expected 1 defined function.";
 
-    error_context_t econ;
-    save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        FAIL() << "***** unexpected error during callFunction.";
-    }
-    else {
-        // no object is created; we just call the functions directly
-        // (no global variables used in the test functions)
-        int index, fio, vio;
-        svalue_t ret;
-        program_t* found_prog = find_function(prog, findstring("add"), &index, &fio, &vio);
-        ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for add().";
+    // no object is created; we just call the functions directly
+    // (no global variables used in the test functions)
+    int index, fio, vio;
+    svalue_t ret;
+    program_t* found_prog = find_function(prog, findstring("add"), &index, &fio, &vio);
+    ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for add().";
 
-        push_number(1);
-        push_number(2);
-        call_function (prog, index, 2, &ret);
+    push_number(1);
+    push_number(2);
+    call_function (prog, index, 2, &ret);
 
-        EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-        EXPECT_EQ(ret.u.number, 3) << "Expected return value of add(1,2) to be 3.";
-    }
-    pop_context (&econ);
+    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
+    EXPECT_EQ(ret.u.number, 3) << "Expected return value of add(1,2) to be 3.";
     free_prog(prog, 1);
 }
 

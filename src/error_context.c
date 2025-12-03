@@ -128,11 +128,10 @@ void restore_context (error_context_t * econ) {
  * Users can throw their own error values however they choose.
  */
 void throw_error () {
-  if (((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH)
+  if (current_error_context && ((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH)
     {
       /* error string in catch_value */
       longjmp (current_error_context->context, 1);
-      fatal ("Failed longjmp() in throw_error()!");
     }
   error ("*Throw with no catch.");
 }
@@ -229,8 +228,8 @@ void error_handler (const char *err) {
       catch_value.u.string = string_copy (err, "caught error");
 
       /* jump to do_catch */
-      longjmp (current_error_context->context, 1);
-      fatal ("catch() longjump failed");
+      if (current_error_context)
+        longjmp (current_error_context->context, 1);
     }
 
   if (in_error)
