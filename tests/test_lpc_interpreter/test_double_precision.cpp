@@ -30,6 +30,7 @@ TEST_F(LPCInterpreterTest, floatingPointPrecision) {
         svalue_t ret;
         program_t* found_prog = find_function(prog, findstring("bar"), &index, &fio, &vio);
         ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for bar().";
+        current_prog = prog; // set current_prog for the calling local function
         call_function (prog, index, 0, &ret);
 
         EXPECT_EQ(ret.type, T_REAL) << "Expected return type to be T_REAL.";
