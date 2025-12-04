@@ -1,6 +1,23 @@
 #pragma once
 #include "lpc/types.h"
 
+#ifdef _WIN32
+  #define WIN32_LEAN_AND_MEAN
+  #include <windows.h>
+  #include <io.h>
+  /* define deprecated POSIX names to ISC C names */
+  #define open _open
+  #define close _close
+  #define fdopen _fdopen
+  #define fileno _fileno
+  #define unlink _unlink
+  #define read _read
+  #define write _write
+  #define mkdir _mkdir
+  #define rmdir _rmdir
+  #define getcwd _getcwd
+#endif
+
 /*
  * file.c
  */

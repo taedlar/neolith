@@ -695,7 +695,7 @@ parse (char *cmd,		/* Command to parse */
 }
 
 static void
-store_value (svalue_t * sp, int pos, int num, svalue_t * what)
+store_value (svalue_t * args, int pos, int num, svalue_t * what)
 {
   svalue_t *ret;
 
@@ -705,7 +705,7 @@ store_value (svalue_t * sp, int pos, int num, svalue_t * what)
     }
   else
     {
-      ret = sp + num - pos - 1;
+      ret = args + num - pos - 1;
       free_svalue (ret, "store_value");	/* is this necessary? */
       *ret = *what;
     }
@@ -720,8 +720,7 @@ store_value (svalue_t * sp, int pos, int num, svalue_t * what)
  * Returns:		A pointer to a static svalue now containing string.
  */
 static void
-store_words_slice (svalue_t * sp, int pos, int num, array_t * warr, int from,
-                   int to)
+store_words_slice (svalue_t * args, int pos, int num, array_t * warr, int from, int to)
 {
   svalue_t *ret;
   array_t *slice;
@@ -729,7 +728,7 @@ store_words_slice (svalue_t * sp, int pos, int num, array_t * warr, int from,
   if (pos >= num)
     return;
 
-  ret = sp + num - pos - 1;
+  ret = args + num - pos - 1;
   ret->type = T_STRING;
 
   if (from <= to)
@@ -760,7 +759,7 @@ store_words_slice (svalue_t * sp, int pos, int num, array_t * warr, int from,
  */
 static svalue_t *
 sub_parse (array_t * obarr, array_t * patarr, int *pix_in, array_t * warr,
-           int *cix_in, int *fail, svalue_t * sp)
+           int *cix_in, int *fail, svalue_t * args)
 {
   int cix, pix, subfail;
   svalue_t *pval;
@@ -778,7 +777,7 @@ sub_parse (array_t * obarr, array_t * patarr, int *pix_in, array_t * warr,
   subfail = 0;
 
   pval = one_parse (obarr, patarr->item[pix].u.string,
-                    warr, &cix, &subfail, sp);
+                    warr, &cix, &subfail, args);
 
   while (subfail)
     {
@@ -797,7 +796,7 @@ sub_parse (array_t * obarr, array_t * patarr, int *pix_in, array_t * warr,
       if (!subfail && (pix < patarr->size))
         {
           pval = one_parse (obarr, patarr->item[pix].u.string, warr, &cix,
-                            &subfail, sp);
+                            &subfail, args);
         }
       else
         {
@@ -1599,7 +1598,7 @@ static char *
 parse_to_plural (char *str)
 {
   array_t *words;
-  char *sp;
+  char *sentence;
   int il, changed;
 
   if (!(strchr (str, ' ')))
@@ -1611,14 +1610,13 @@ parse_to_plural (char *str)
     {
       if ((EQ (words->item[il].u.string, "of")) || (il + 1 == words->size))
         {
-          sp = parse_one_plural (words->item[il - 1].u.string);
-          if (sp != words->item[il - 1].u.string)
+          sentence = parse_one_plural (words->item[il - 1].u.string);
+          if (sentence != words->item[il - 1].u.string)
             {
               free_svalue (&words->item[il - 1], "parse_to_plural");
               words->item[il - 1].type = T_STRING;
               words->item[il - 1].subtype = STRING_MALLOC;
-              words->item[il - 1].u.string = string_copy (sp,
-                                                          "parse_to_plural");
+              words->item[il - 1].u.string = string_copy (sentence, "parse_to_plural");
               changed = 1;
             }
         }
@@ -1628,9 +1626,9 @@ parse_to_plural (char *str)
       free_array (words);
       return string_copy (str, "parse_to_plural");
     }
-  sp = implode_string (words, " ", 1);
+  sentence = implode_string (words, " ", 1);
   free_array (words);
-  return sp;
+  return sentence;
 }
 
 /*

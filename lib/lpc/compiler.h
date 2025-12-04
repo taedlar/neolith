@@ -11,11 +11,10 @@
  * using realloc. That means that no pointers should be kept into such
  * an area, as it might be moved.
  */
-
-typedef struct {
+typedef struct mem_block_s {
     char *block;
-    int current_size;
-    int max_size;
+    size_t current_size;
+    size_t max_size;
 } mem_block_t;
 
 #define START_BLOCK_SIZE	4096
@@ -51,7 +50,7 @@ typedef struct {
 #define NUMAREAS                24
 
 #define CURRENT_PROGRAM_SIZE (prog_code - mem_block[current_block].block)
-#define UPDATE_PROGRAM_SIZE mem_block[current_block].current_size = CURRENT_PROGRAM_SIZE
+#define UPDATE_PROGRAM_SIZE mem_block[current_block].current_size = (size_t)CURRENT_PROGRAM_SIZE
 
 /*
  * Types available. The number '0' is valid as any type. These types
@@ -208,13 +207,13 @@ parse_node_t *throw_away_mapping(parse_node_t *);
 
 #ifndef SUPPRESS_COMPILER_INLINES
 /* inlines - if we're lucky, they'll get honored. */
-static inline void realloc_mem_block(mem_block_t *, int);
+static inline void realloc_mem_block(mem_block_t *, size_t);
 static inline void add_to_mem_block(int, const char *, size_t);
-static inline void insert_in_mem_block(int, int, int);
-static inline char *allocate_in_mem_block(int, int);
+static inline void insert_in_mem_block(int, int, size_t);
+static inline char *allocate_in_mem_block(int, size_t);
 
 static inline void
-realloc_mem_block(mem_block_t* m, int size)
+realloc_mem_block(mem_block_t* m, size_t size)
 {
     while (size > m->max_size) {
         m->max_size <<= 1;
@@ -235,7 +234,7 @@ add_to_mem_block(int n, const char* data, size_t size)
 }
 
 static inline char*
-allocate_in_mem_block(int n, int size)
+allocate_in_mem_block(int n, size_t size)
 {
     mem_block_t *mbp = &mem_block[n];
     char *ret;
@@ -248,7 +247,7 @@ allocate_in_mem_block(int n, int size)
 }
 
 static inline void
-insert_in_mem_block(int n, int where, int size)
+insert_in_mem_block(int n, int where, size_t size)
 {
     mem_block_t *mbp = &mem_block[n];
     char *p;

@@ -2,20 +2,11 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-/*
- * file: file.c
- * description: handle all file based efuns
- */
-
 #include <sys/stat.h>
 #include <sys/types.h>
+
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
-#endif
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <io.h>
 #endif
 
 #include "src/std.h"

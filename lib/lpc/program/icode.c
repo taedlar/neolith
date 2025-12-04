@@ -12,12 +12,12 @@
 #include "lpc/compiler.h"
 
 static void ins_real (double);
-static void ins_short (short);
-static void upd_short (int, short);
-static void ins_byte (unsigned char);
-static void upd_byte (int, unsigned char);
-static void write_number (int);
-static short read_short (int);
+static void ins_short (int val);
+static void upd_short (int offset, int val);
+static void ins_byte (int byte);
+static void upd_byte (int offset, int byte);
+static void write_number (int number);
+static short read_short (int offset);
 static void ins_int (int);
 void i_generate_node (parse_node_t *);
 static void i_generate_if_branch (parse_node_t *, int);
@@ -73,9 +73,8 @@ static void ins_real (double l) {
  * that correct byte order is used, regardless of machine architecture.
  * Also beware that some machines can't write a word to odd addresses.
  */
-static void
-ins_short (short l)
-{
+static void ins_short (int val) {
+  short l = (short) val;
   if (prog_code + 2 > prog_code_max)
     {
       mem_block_t *mbp = &mem_block[current_block];
@@ -88,9 +87,7 @@ ins_short (short l)
   STORE_SHORT (prog_code, l);
 }
 
-static short
-read_short (int offset)
-{
+static short read_short (int offset) {
   short l;
 
   COPY_SHORT (&l, mem_block[current_block].block + offset);
@@ -101,9 +98,7 @@ read_short (int offset)
  * Store a 4 byte number. It is stored in such a way as to be sure
  * that correct byte order is used, regardless of machine architecture.
  */
-static void
-ins_int (int l)
-{
+static void ins_int (int l) {
 
   if (prog_code + 4 > prog_code_max)
     {
@@ -121,9 +116,7 @@ ins_int (int l)
  * Store a integer pointer. It is stored in such a way as to be sure
  * that correct byte order is used, regardless of machine architecture.
  */
-static void
-ins_intptr (intptr_t l)
-{
+static void ins_intptr (intptr_t l) {
 #if UINTPTR_MAX == UINT32_MAX
   if (prog_code + 4 > prog_code_max)
 #elif UINTPTR_MAX == UINT64_MAX
@@ -148,9 +141,8 @@ ins_intptr (intptr_t l)
 #endif
 }
 
-static void
-upd_short (int offset, short l)
-{
+static void upd_short (int offset, int val) {
+  short l = (short) val;
   IF_DEBUG (UPDATE_PROGRAM_SIZE);
   DEBUG_CHECK2 (offset > CURRENT_PROGRAM_SIZE,
                 "patch offset %x larger than current program size %x.\n",
@@ -162,7 +154,7 @@ upd_short (int offset, short l)
  *  @brief Insert a byte into the program code.
  *  Grows the current memory block if necessary.
  */
-static void ins_byte (unsigned char b) {
+static void ins_byte (int b) {
   if (prog_code == prog_code_max)
     {
       mem_block_t *mbp = &mem_block[current_block];
@@ -172,17 +164,18 @@ static void ins_byte (unsigned char b) {
       prog_code = mbp->block + mbp->current_size;
       prog_code_max = mbp->block + mbp->max_size;
     }
-  *prog_code++ = b;
+  *prog_code++ = (unsigned char)b;
 }
 
-static void
-upd_byte (int offset, unsigned char b)
-{
+/**
+ * @brief Update a byte in the program code at the given offset.
+ */
+static void upd_byte (int offset, int b) {
   IF_DEBUG (UPDATE_PROGRAM_SIZE);
   DEBUG_CHECK2 (offset > CURRENT_PROGRAM_SIZE,
                 "patch offset %x larger than current program size %x.\n",
                 offset, CURRENT_PROGRAM_SIZE);
-  mem_block[current_block].block[offset] = b;
+  mem_block[current_block].block[offset] = (unsigned char)b;
 }
 
 static void
@@ -661,8 +654,7 @@ void i_generate_node (parse_node_t * expr) {
         upd_short (addr, CURRENT_PROGRAM_SIZE);
         if (expr->kind == NODE_SWITCH_STRINGS)
           {
-            short sw;
-            sw = addr - 2;
+            short sw = (short) (addr - 2);
             add_to_mem_block (A_PATCH, (char *) &sw, sizeof sw);
           }
         if (expr->kind == NODE_SWITCH_DIRECT)
@@ -982,8 +974,7 @@ i_update_forward_branch ()
   int i = read_short (current_forward_branch);
 
   end_pushes ();
-  upd_short (current_forward_branch,
-             CURRENT_PROGRAM_SIZE - current_forward_branch);
+  upd_short (current_forward_branch, CURRENT_PROGRAM_SIZE - current_forward_branch);
   current_forward_branch = i;
 }
 
