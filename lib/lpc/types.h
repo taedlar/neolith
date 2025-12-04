@@ -22,13 +22,13 @@ typedef struct {
     unsigned short ref;
 } refed_t;
 
-union u {
+union svalue_u {
     char *string;
     const char *const_string;
-    intptr_t number;    /* Neolith extension: int is as wide as pointers */
-    double real;        /* Neolith extension: both float and double are in native double precision */
+    int number;     /* Neolith extension: int is as wide as pointers */
+    double real;    /* Neolith extension: both float and double are in native double precision */
 
-    refed_t *refed;     /* any of the block below */
+    refed_t *refed; /* any of the block below */
 
     struct buffer_s *buf;
     struct object_s *ob;
@@ -41,15 +41,13 @@ union u {
     void (*error_handler) (void);
 };
 
-/*
- * The value stack element.
- * If it is a string, then the way that the string has been allocated
- * differently, which will affect how it should be freed.
+/** @brief The value stack element.
+ *  If it is a string, then the way that the string has been allocated differently, which will affect how it should be freed.
  */
 struct svalue_s {
     short type;
     short subtype;
-    union u u;
+    union svalue_u u;
 };
 
 /* values for type field of svalue struct */

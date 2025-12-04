@@ -443,12 +443,11 @@ void disassemble (FILE *f, char *code, int start, int end, program_t *prog) {
                     COPY_SHORT (&sarg, pc + sizeof (char *));
                     if (ttype == 1 || !parg)
                       {
-                        fprintf (f, "\t%-4ld\t%04lx\n", (intptr_t) parg, (intptr_t) sarg);
+                        fprintf (f, "\t%-4ld\t%04lx\n", (long) parg, (long) sarg);
                       }
                     else
                       {
-                        fprintf (f, "\t\"%s\"\t%04lx\n",
-                                 disassem_string (parg), (intptr_t) sarg);
+                        fprintf (f, "\t\"%s\"\t%04lx\n", disassem_string (parg), (long) sarg);
                       }
                     pc += 2 + sizeof (char *);
                   }
