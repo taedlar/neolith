@@ -106,16 +106,15 @@ read_config_malloc (const char *filename)
 }
 
 
-/*
- * If the required flag is 0, it will only give a warning if the line is
- * missing from the config file.  Otherwise, it will give an error and exit
- * if the line isn't there.
-
-   required:
-      1  : Must have
-      0  : optional
-      -1 : warn if missing
-
+/**
+ *  @brief Scan and extract a configuration value from the config data (modified in place).
+ *  @param config The configuration data (will be modified).
+ *  @param name The name of the configuration item to search for.
+ *  @param required Flag indicating if the configuration item is required.
+ *    if required > 0, it is mandatory; if required == 0, it is optional;
+ *    if required < 0, it is optional with a warning if missing.
+ *  @param def Default value to return if the item is not found.
+ *  @return The extracted configuration value (allocated) or the default value.
  */
 static char *
 scan_config (char *config, const char *name, int required, char *def)
@@ -149,6 +148,7 @@ scan_config (char *config, const char *name, int required, char *def)
       return term;
     }
 
+  // name not found
   if (required < 0)
     {
       debug_warn ("{}\t%s is missing, assuming %s", name, def ? def : "null");
@@ -220,13 +220,23 @@ extern "C" void init_config (const char *config_file)
     }
 
   CONFIG_STR (__LOG_DIR__) = scan_config (config, "LogDir", 0, NULL);
-  CONFIG_STR (__DEBUG_LOG_FILE__) = scan_config (config, "DebugLogFile", 0, NULL);
+  if (CONFIG_STR (__LOG_DIR__))
+    {
+      // we only assign DebugLogFile if LogDir is specified because the debug log file
+      // is independent from the mudlib directory. If LogDir is not specified, we'll
+      // ignore the DebugLogFile setting and write debug logs directly to standard error.
+      //
+      // This guarantees that debug logs are always written to the console when LogDir
+      // is not set, which is useful for a read-only mudlib environment.
+      CONFIG_STR (__DEBUG_LOG_FILE__) = scan_config (config, "DebugLogFile", 0, NULL);
+    }
+  else
+    {
+      fprintf (stderr, "LogDir is not specified, debug logs will be written to standard error\n");
+    }
   CONFIG_INT (__ENABLE_LOG_DATE__) = scan_config_b (config, "LogWithDate", 0, 0);
 
-  CONFIG_STR (__MUD_LIB_DIR__) = scan_config (config, "MudlibDir", 1, NULL);
-  if (NULL == CONFIG_STR (__LOG_DIR__))
-    CONFIG_STR (__LOG_DIR__) = xstrdup (CONFIG_STR (__MUD_LIB_DIR__));
-
+  CONFIG_STR (__MUD_LIB_DIR__) = scan_config (config, "MudlibDir", 1, NULL); // required
   CONFIG_STR (__MUD_NAME__) = scan_config (config, "MudName", 0, NULL);
   CONFIG_STR (__ADDR_SERVER_IP__) = scan_config (config, "AddrServerIP", 0, NULL);
 
@@ -234,7 +244,7 @@ extern "C" void init_config (const char *config_file)
   CONFIG_STR (__BIN_DIR__) = NULL;
   CONFIG_STR (__INCLUDE_DIRS__) = scan_config (config, "IncludeDir", 0, NULL);
   CONFIG_STR (__SAVE_BINARIES_DIR__) = scan_config (config, "SaveBinaryDir", 0, NULL);
-  CONFIG_STR (__MASTER_FILE__) = scan_config (config, "MasterFile", 1, NULL);
+  CONFIG_STR (__MASTER_FILE__) = scan_config (config, "MasterFile", 1, NULL); // required
   CONFIG_STR (__SIMUL_EFUN_FILE__) = scan_config (config, "SimulEfunFile", 0, NULL);
   CONFIG_STR (__DEFAULT_ERROR_MESSAGE__) = scan_config (config, "DefaultErrorMsg", 0, NULL);
   CONFIG_STR (__DEFAULT_FAIL_MESSAGE__) = scan_config (config, "DefaultFailMsg", 0, NULL);

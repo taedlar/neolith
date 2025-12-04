@@ -14,4 +14,5 @@ add_custom_command(TARGET test_simul_efuns POST_BUILD
 gtest_discover_tests(test_simul_efuns
     PROPERTIES
     LABELS "SimulEfun"
+    DISCOVERY_TIMEOUT 20
 )

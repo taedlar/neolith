@@ -16,4 +16,5 @@ add_custom_command(TARGET test_lpc_compiler POST_BUILD
 gtest_discover_tests(test_lpc_compiler
     PROPERTIES
     LABELS "LPC"
+    DISCOVERY_TIMEOUT 20
 )

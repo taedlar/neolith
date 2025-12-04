@@ -383,7 +383,11 @@ static int inc_open (char *buf, const char *name) {
   char *p;
 
   inc_lexically_normal (current_file, name, buf);
+#ifdef _WIN32
+  if ((fd = _open (buf, O_RDONLY)) != -1)
+#else
   if ((fd = open (buf, O_RDONLY)) != -1)
+#endif
     {
       opt_trace (TT_COMPILE|3, "opened (fd %d): \"%s\"", fd, buf);
       return fd;
@@ -403,7 +407,11 @@ static int inc_open (char *buf, const char *name) {
       if (inc_list[i] == 0)
         continue;
       sprintf (buf, "%s/%s", inc_list[i], name);
+#ifdef _WIN32
+      if ((fd = _open (buf, O_RDONLY)) != -1)
+#else
       if ((fd = open (buf, O_RDONLY)) != -1)
+#endif
         {
           opt_trace (TT_COMPILE|3, "opened (fd %d): \"%s\"", fd, buf);
           return fd;
@@ -1138,6 +1146,7 @@ static void refill_buffer () {
             return;
           }
         last_nl = p; /* last newline */
+        debug_message ("{\"SOURCE_LINE\": \"%.*s\"}", last_nl - outptr, outptr);
         return;
       }
     else

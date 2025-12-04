@@ -15,4 +15,5 @@ add_custom_command(TARGET test_backend POST_BUILD
 gtest_discover_tests(test_backend
     PROPERTIES
     LABELS "STEM"
+    DISCOVERY_TIMEOUT 20
 )
