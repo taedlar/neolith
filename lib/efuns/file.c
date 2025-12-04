@@ -104,24 +104,24 @@ void f_stat (void) {
   if (stat (path, &buf) != -1)
     {
       if (buf.st_mode & S_IFREG)
-	{			/* if a regular file */
-	  v = allocate_empty_array (3);
-	  v->item[0].type = T_NUMBER;
-	  v->item[0].u.number = buf.st_size;
-	  v->item[1].type = T_NUMBER;
-	  v->item[1].u.number = buf.st_mtime;
-	  v->item[2].type = T_NUMBER;
-	  ob = find_object_by_name (path);
-	  if (ob && !object_visible (ob))
-	    ob = 0;
-	  if (ob)
-	    v->item[2].u.number = ob->load_time;
-	  else
-	    v->item[2].u.number = 0;
-	  free_string_svalue (sp);
-	  put_array (v);
-	  return;
-	}
+        {			/* if a regular file */
+          v = allocate_empty_array (3);
+          v->item[0].type = T_NUMBER;
+          v->item[0].u.number = buf.st_size;
+          v->item[1].type = T_NUMBER;
+          v->item[1].u.number = buf.st_mtime;
+          v->item[2].type = T_NUMBER;
+          ob = find_object_by_name (path);
+          if (ob && !object_visible (ob))
+            ob = 0;
+          if (ob)
+            v->item[2].u.number = ob->load_time;
+          else
+            v->item[2].u.number = 0;
+          free_string_svalue (sp);
+          put_array (v);
+          return;
+        }
     }
   v = get_dir (sp->u.string, (sp + 1)->u.number);
   free_string_svalue (sp);
@@ -230,11 +230,11 @@ file_length (char *file)
       num = fread (buf, 1, 2048, f);
       p = buf - 1;
       while ((newp = memchr (p + 1, '\n', num)))
-	{
-	  num -= (newp - p);
-	  p = newp;
-	  ret++;
-	}
+        {
+          num -= (newp - p);
+          p = newp;
+          ret++;
+        }
     }
   while (!feof (f));
 
@@ -328,9 +328,9 @@ void f_read_buffer (void) {
     {
       start = arg[1].u.number;
       if (num_arg == 3)
-	{
-	  len = arg[2].u.number;
-	}
+        {
+          len = arg[2].u.number;
+        }
     }
   if (arg[0].type == T_STRING)
     {
@@ -372,26 +372,24 @@ void f_write_bytes (void) {
     {
     case T_NUMBER:
       {
-	int netint;
-	char *netbuf;
+        int netint;
+        char *netbuf;
 
-	if (!sp->u.number)
-	  bad_arg (3, F_WRITE_BYTES);
-	netint = htonl (sp->u.number);	/* convert to network
-					 * byte-order */
-	netbuf = (char *) &netint;
-	i = write_bytes ((sp - 2)->u.string, (sp - 1)->u.number, netbuf,
-			 sizeof (int));
-	break;
+        if (!sp->u.number)
+          bad_arg (3, F_WRITE_BYTES);
+        netint = htonl (sp->u.number);	/* convert to network byte-order */
+        netbuf = (char *) &netint;
+        i = write_bytes ((sp - 2)->u.string, (sp - 1)->u.number, netbuf, sizeof (int));
+        break;
       }
 
     case T_BUFFER:
       i = write_bytes ((sp - 2)->u.string, (sp - 1)->u.number,
-		       (char *) sp->u.buf->item, sp->u.buf->size);
+                       (char *) sp->u.buf->item, sp->u.buf->size);
       break;
     case T_STRING:
       i = write_bytes ((sp - 2)->u.string, (sp - 1)->u.number,
-		       sp->u.string, SVALUE_STRLEN (sp));
+                       sp->u.string, SVALUE_STRLEN (sp));
       break;
     default:
       bad_argument (sp, T_BUFFER | T_STRING | T_NUMBER, 3, F_WRITE_BYTES);
@@ -416,24 +414,22 @@ void f_write_buffer (void) {
     {
     case T_NUMBER:
       {
-	int netint;
-	char *netbuf;
+        int netint;
+        char *netbuf;
 
-	netint = htonl (sp->u.number);	/* convert to network
-					 * byte-order */
-	netbuf = (char *) &netint;
-	i = write_buffer ((sp - 2)->u.buf, (sp - 1)->u.number, netbuf,
-			  sizeof (int));
-	break;
+        netint = htonl (sp->u.number);	/* convert to network byte-order */
+        netbuf = (char *) &netint;
+        i = write_buffer ((sp - 2)->u.buf, (sp - 1)->u.number, netbuf, sizeof (int));
+        break;
       }
 
     case T_BUFFER:
       i = write_buffer ((sp - 2)->u.buf, (sp - 1)->u.number,
-			(char *) sp->u.buf->item, sp->u.buf->size);
+                        (char *) sp->u.buf->item, sp->u.buf->size);
       break;
     case T_STRING:
       i = write_buffer ((sp - 2)->u.buf, (sp - 1)->u.number,
-			sp->u.string, SVALUE_STRLEN (sp));
+                        sp->u.string, SVALUE_STRLEN (sp));
       break;
     default:
       bad_argument (sp, T_BUFFER | T_STRING | T_NUMBER, 3, F_WRITE_BUFFER);

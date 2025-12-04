@@ -115,7 +115,7 @@ f_div_eq ()
           {
             if (sp->u.real == 0.0)
               error ("Division by 0nr\n");
-            sp->u.real = (double)(argp->u.number = (intptr_t)(argp->u.number / sp->u.real));
+            sp->u.real = (double)(argp->u.number = (int)(argp->u.number / sp->u.real));
           }
         break;
       }

@@ -1,7 +1,7 @@
 #pragma once
 /* mapping.h - 1992/07/19 */
 
-#define MAP_POINTER_HASH(x) (((intptr_t)x) >> 4)
+#define MAP_POINTER_HASH(x) ((intptr_t)x >> 4)
 
 typedef struct mapping_node_s {
     struct mapping_node_s *next;
@@ -27,7 +27,7 @@ struct mapping_s {
     int extra_ref;
 #endif
     mapping_node_t **table;     /* the hash table */
-    unsigned short table_size;  /* # of buckets in hash table == power of 2 */
+    unsigned short table_size;  /* bit-mask for # of buckets in hash table == power of 2 minus one */
     unsigned short unfilled;    /* # of buckets among 80% of total buckets that do not have entries */
     int count;                  /* total # of nodes actually in mapping  */
 };

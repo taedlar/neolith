@@ -409,7 +409,11 @@ object_t* load_object (const char *lname) {
       opt_trace (TT_COMPILE|2, "no binary found, compiling: \"%s\"", real_name);
 
       /* maybe move this section into compile_file? */
+#ifdef _WIN32
+      f = _open (real_name, O_RDONLY | O_TEXT);
+#else
       f = open (real_name, O_RDONLY);
+#endif
       if (f == -1)
         {
           debug_perror ("open()", real_name);

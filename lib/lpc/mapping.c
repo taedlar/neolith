@@ -15,8 +15,13 @@ int num_mappings = 0;
 int total_mapping_size = 0;
 int total_mapping_nodes = 0;
 
-/*
-  growMap: based on hash.c:hsplit() from Larry Wall's Perl.
+static int node_hash (mapping_node_t * mn)
+{
+  return MAP_POINTER_HASH (mn->values[0].u.number);
+}
+
+/**
+  @brief based on hash.c:hsplit() from Larry Wall's Perl.
 
   growMap doubles the size of the hash table.  It is called when FILL_PERCENT
   of the buckets in the hash table contain values.  This routine is
@@ -25,15 +30,8 @@ int total_mapping_nodes = 0;
   table).
 */
 
-static int
-node_hash (mapping_node_t * mn)
-{
-  return MAP_POINTER_HASH (mn->values[0].u.number);
-}
+int growMap (mapping_t * m) {
 
-int
-growMap (mapping_t * m)
-{
   int oldsize = m->table_size + 1;
   int newsize = oldsize << 1;
   int i;
@@ -101,10 +99,7 @@ growMap (mapping_t * m)
   so difficult to change the data structure if the need arises.
   -- Truilkan 92/07/19
 */
-
-mapping_t *
-mapTraverse (mapping_t * m,
-             int (*func) (mapping_t *, mapping_node_t *, void *), void *extra)
+mapping_t *mapTraverse (mapping_t * m, int (*func) (mapping_t *, mapping_node_t *, void *), void *extra)
 {
   mapping_node_t *elt, *nelt;
   int j = (int) m->table_size;
@@ -124,17 +119,14 @@ mapTraverse (mapping_t * m,
 
 /* free_mapping */
 
-void
-dealloc_mapping (mapping_t * m)
-{
+void dealloc_mapping (mapping_t * m) {
+
   num_mappings--;
   {
     int j = m->table_size, c = m->count;
     mapping_node_t *elt, *nelt, **a = m->table;
 
-    total_mapping_size -= (sizeof (mapping_t) +
-                           sizeof (mapping_node_t *) * (j + 1) +
-                           sizeof (mapping_node_t) * c);
+    total_mapping_size -= (sizeof (mapping_t) + sizeof (mapping_node_t *) * (j + 1) + sizeof (mapping_node_t) * c);
     total_mapping_nodes -= c;
 
     do
@@ -182,8 +174,7 @@ new_map_node ()
     }
   else
     {
-      mnb =
-        ALLOCATE (mapping_node_block_t, TAG_MAP_NODE_BLOCK, "new_map_node");
+      mnb = ALLOCATE (mapping_node_block_t, TAG_MAP_NODE_BLOCK, "new_map_node");
       mnb->next = mapping_node_blocks;
       mapping_node_blocks = mnb;
       mnb->nodes[MNB_SIZE - 1].next = 0;
@@ -202,16 +193,15 @@ free_node (mapping_node_t * mn)
   free_nodes = mn;
 }
 
-/* allocate_mapping(int n)
-   
-   call with n == 0 if you will be doing many deletions from the map.
-   call with n == "approx. # of insertions you plan to do" if you won't be
-   doing many deletions from the map.
-*/
+/** @brief Allocate a new, empty mapping.
+ *  call with n == 0 if you will be doing many deletions from the map.
+ *  call with n == "approx. # of insertions you plan to do" if you won't be
+ *  doing many deletions from the map.
+ *  @param n An estimate of the number of elements the mapping will hold.
+ *  @return A pointer to the newly allocated mapping.
+ */
+mapping_t *allocate_mapping (int n) {
 
-mapping_t *
-allocate_mapping (int n)
-{
   mapping_t *newmap;
   mapping_node_t **a;
 
@@ -233,10 +223,9 @@ allocate_mapping (int n)
   else
     newmap->table_size = (n = MAP_HASH_TABLE_SIZE) - 1;
   /* The size is actually 1 higher */
-  newmap->unfilled = n * (unsigned) FILL_PERCENT / (unsigned) 100;
+  newmap->unfilled = (unsigned short) (n * FILL_PERCENT / 100);
   a = newmap->table =
-    (mapping_node_t **) DXALLOC (n *= sizeof (mapping_node_t *),
-                                 TAG_MAP_TBL, "allocate_mapping: 3");
+    (mapping_node_t **) DXALLOC (n *= sizeof (mapping_node_t *), TAG_MAP_TBL, "allocate_mapping: 3");
   if (!a)
     error ("Allocate_mapping 2 - out of memory.\n");
   /* zero out the hash table */
@@ -265,8 +254,7 @@ copyMapping (mapping_t * m)
   newmap->table_size = k++;
   newmap->unfilled = m->unfilled;
   newmap->ref = 1;
-  c = newmap->table =
-    CALLOCATE (k, mapping_node_t *, TAG_MAP_TBL, "copy_mapping: 2");
+  c = newmap->table = CALLOCATE (k, mapping_node_t *, TAG_MAP_TBL, "copy_mapping: 2");
   if (!c)
     {
       FREE ((char *) newmap);
@@ -274,9 +262,7 @@ copyMapping (mapping_t * m)
     }
   total_mapping_nodes += (newmap->count = m->count);
   memset (c, 0, k * sizeof (mapping_node_t *));
-  total_mapping_size += (sizeof (mapping_t) +
-                         sizeof (mapping_node_t *) * k +
-                         sizeof (mapping_node_t) * m->count);
+  total_mapping_size += (sizeof (mapping_t) + sizeof (mapping_node_t *) * k + sizeof (mapping_node_t) * m->count);
   num_mappings++;
   while (k--)
     {
@@ -627,9 +613,7 @@ f_unique_mapping (void)
             {
               if (msameval (&uptr->key, sv))
                 {
-                  ind = uptr->indices =
-                    RESIZE (uptr->indices, uptr->count + 1, int, 102,
-                            "f_unique_mapping:3");
+                  ind = uptr->indices = RESIZE (uptr->indices, uptr->count + 1, int, 102, "f_unique_mapping:3");
                   ind[uptr->count++] = size;
                   break;
                 }
@@ -709,9 +693,7 @@ f_unique_mapping (void)
               elt = ALLOCATE (mapping_node_t, 105, "f_unique_mapping:6");
               *elt->values = uptr->key;
               (elt->values + 1)->type = T_ARRAY;
-              ret = (elt->values + 1)->u.arr = allocate_empty_array (size =
-                                                                     uptr->
-                                                                     count);
+              ret = (elt->values + 1)->u.arr = allocate_empty_array (size = uptr->count);
               ind = uptr->indices;
               while (size--)
                 {
