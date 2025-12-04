@@ -1079,8 +1079,6 @@ show_error_context ()
   return buf;
 }
 
-#define correct_read read
-
 static void refill_buffer () {
   if (cur_lbuf != &head_lbuf)
     {
@@ -1126,7 +1124,15 @@ static void refill_buffer () {
 
         if (yyin_desc != -1)
           {
-            size = correct_read (yyin_desc, p, MAXLINE); /* append up to MAXLINE characters at cul_lbuf->buf_end */
+            size_t max_read = MAXLINE;
+            for (size = 0; max_read > 0; )
+              {
+                int n = read (yyin_desc, p + size, max_read);
+                if (n <= 0)
+                  break;
+                size += n;
+                max_read -= n;
+              }
             cur_lbuf->buf_end = p += size;
           }
         else
@@ -1146,7 +1152,6 @@ static void refill_buffer () {
             return;
           }
         last_nl = p; /* last newline */
-        debug_message ("{\"SOURCE_LINE\": \"%.*s\"}", last_nl - outptr, outptr);
         return;
       }
     else
@@ -1177,9 +1182,7 @@ static void refill_buffer () {
             linked_buf_t *new_lbuf;
             char *new_outp;
 
-            if (!
-                (new_lbuf =
-                 ALLOCATE (linked_buf_t, TAG_COMPILER, "refill_bufer")))
+            if (!(new_lbuf = ALLOCATE (linked_buf_t, TAG_COMPILER, "refill_bufer")))
               {
                 lexerror ("Out of memory when allocating new buffer\n");
                 return;
@@ -1198,7 +1201,15 @@ static void refill_buffer () {
 
         if (yyin_desc != -1)
           {
-            size = correct_read (yyin_desc, p, MAXLINE);
+            size_t max_read = MAXLINE;
+            for (size = 0; max_read > 0; )
+              {
+                int n = read (yyin_desc, p + size, max_read);
+                if (n <= 0)
+                  break;
+                size += n;
+                max_read -= n;
+              }
             end = p += size;
             if (flag)
               cur_lbuf->buf_end = p;
