@@ -45,3 +45,9 @@
 #else
 #  define NO_RETURN
 #endif
+
+#ifdef _WIN32
+#  define PLATFORM_UTF8_LOCALE ".UTF-8"
+#else
+#  define PLATFORM_UTF8_LOCALE "C.UTF-8"
+#endif

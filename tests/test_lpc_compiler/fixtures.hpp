@@ -38,7 +38,7 @@ protected:
      */
     void SetUp() override {
         debug_set_log_with_date (0);
-        setlocale(LC_ALL, ".UTF-8"); // force UTF-8 locale for consistent string handling
+        setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
         init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
 
         init_config(MAIN_OPTION(config_file));
