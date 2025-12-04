@@ -65,8 +65,6 @@ char *prog_code_max;
 
 static program_t NULL_program;
 
-program_t *prog;
-
 static short string_idx[0x100];
 static unsigned char string_tags[0x20];
 static short freed_string;
@@ -183,7 +181,7 @@ clean_up_locals ()
 {
   int offset;
 
-  offset = locals_ptr + current_number_of_locals - locals;
+  offset = (locals_ptr + current_number_of_locals) - locals;
   while (offset--)
     {
       locals[offset]->sem_value--;
@@ -893,8 +891,7 @@ arrange_call_inherited (char *name, parse_node_t * node)
             }
           if (find_matching_function (ip->prog, shared_string, node))
             {
-              node->l.number +=
-                ((ip - (inherit_t *) mem_block[A_INHERITS].block) << 16);
+              node->l.number += ((ip - (inherit_t *) mem_block[A_INHERITS].block) << 16);
               return;
             }
         }
@@ -1487,7 +1484,7 @@ promote_to_float (parse_node_t * node)
   if (node->kind == NODE_NUMBER)
     {
       node->kind = NODE_REAL;
-      node->v.real = node->v.number;
+      node->v.real = (double)node->v.number;
       return node;
     }
   expr = new_node ();
@@ -1511,7 +1508,7 @@ promote_to_int (parse_node_t * node)
   if (node->kind == NODE_REAL)
     {
       node->kind = NODE_NUMBER;
-      node->v.number = node->v.real;
+      node->v.number = (int)node->v.real; /* truncate decimal part */
       return node;
     }
   expr = new_node ();
@@ -1947,11 +1944,9 @@ copy_and_sort_function_table (program_t * prog, char **p)
   int num_runtime;
 #endif
   compiler_function_t *dest = (compiler_function_t *) * p;
-  int num, new_num;
+  short num, new_num;
 
-  num =
-    mem_block[A_COMPILER_FUNCTIONS].current_size /
-    sizeof (compiler_function_t);
+  num = (short)(mem_block[A_COMPILER_FUNCTIONS].current_size / sizeof (compiler_function_t));
   if (!num)
     {
       prog->num_functions_defined = 0;
@@ -1969,8 +1964,7 @@ copy_and_sort_function_table (program_t * prog, char **p)
     new_num--;
   prog->num_functions_defined = new_num;
 
-  inverse =
-    CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
+  inverse = CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
   for (i = 0; i < num; i++)
     inverse[temp[i]] = i;
 
@@ -2105,11 +2099,7 @@ compress_function_tables ()
     }
 
   n_ov = l_ov - f_ov + 1;
-  cftp =
-    (compressed_offset_table_t *) allocate_in_mem_block (A_RUNTIME_COMPRESSED,
-                                                         sizeof
-                                                         (compressed_offset_table_t)
-                                                         + (n_ov - 1));
+  cftp = (compressed_offset_table_t *) allocate_in_mem_block (A_RUNTIME_COMPRESSED, sizeof (compressed_offset_table_t) + (n_ov - 1));
 
   cftp->first_defined = f_def;
   cftp->first_overload = f_ov;
@@ -2466,7 +2456,6 @@ static void clean_parser ()
       free_string (*((char **) mem_block[A_VAR_NAME].block + i));
     }
 
-  prog = 0;
   for (i = 0; i < NUMAREAS; i++)
     FREE (mem_block[i].block);
   clean_up_locals ();

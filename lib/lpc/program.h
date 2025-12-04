@@ -81,7 +81,7 @@
 #define TYPE_MOD_ARRAY      0x0020	/* Pointer to a basic type */
 #define TYPE_MOD_CLASS      0x0040  /* a class */
 
-typedef struct
+typedef struct runtime_defined_s
 {
     unsigned char num_arg;
     unsigned char num_local;
@@ -89,7 +89,7 @@ typedef struct
 }
 runtime_defined_t;
 
-typedef struct
+typedef struct runtime_inherited_s
 {
     unsigned short offset;
     unsigned short function_index_offset;
@@ -103,7 +103,7 @@ typedef union
 }
 runtime_function_u;
 
-typedef struct
+typedef struct compressed_offset_table_s
 {
     unsigned short first_defined;
     unsigned short first_overload; 
@@ -121,7 +121,7 @@ struct compiler_function_s
     unsigned short address;
 };
 
-typedef struct
+typedef struct compiler_temp_s
 {
     struct program_s *prog; /* inherited if nonzero */
     union {
@@ -134,7 +134,7 @@ typedef struct
 }
 compiler_temp_t;
 
-typedef struct
+typedef struct class_def_s
 {
     unsigned short name;
     unsigned short type;
@@ -143,21 +143,21 @@ typedef struct
 }
 class_def_t;
 
-typedef struct
+typedef struct class_member_entry_s
 {
     unsigned short name;
     unsigned short type;
 }
 class_member_entry_t;
 
-typedef struct
+typedef struct variable_s
 {
     char *name;
     unsigned short type;	/* Type of variable. See above. TYPE_ */
 }
 variable_t;
 
-typedef struct
+typedef struct inherit_s
 {
     struct program_s *prog;
     unsigned short function_index_offset;

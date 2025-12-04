@@ -93,7 +93,6 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
 
     error_context_t econ;
     save_context (&econ);
-    // push_control_stack (FRAME_FUNCTION);
     if (setjmp(econ.context)) {
         restore_context (&econ);
         debug_message("***** expected error: destruct simul_efun_ob while master object exists.");
@@ -105,7 +104,6 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
         destruct_object (simul_efun_ob); // should raise error
         FAIL() << "destruct_object(simul_efun_ob) did not raise error when master object exists.";
     }
-    // pop_control_stack ();
     pop_context (&econ);
 }
 

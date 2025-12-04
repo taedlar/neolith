@@ -631,7 +631,7 @@ egets (char *str, int size, FILE * stream)
 static int
 doread (int lin, char *fname)
 {
-  FILE *fp;
+  FILE *f;
   int err;
   unsigned int bytes;
   unsigned int lines;
@@ -642,13 +642,13 @@ doread (int lin, char *fname)
 
   if (P_VERBOSE)
     ED_OUTPUTV (ED_DEST, "\"%s\" ", fname);
-  if ((fp = fopen (fname, "r")) == NULL)
+  if ((f = fopen (fname, "r")) == NULL)
     {
       ED_OUTPUT (ED_DEST, " isn't readable.\n");
       return (ERR);
     }
   setCurLn (lin);
-  for (lines = 0, bytes = 0; (err = egets (str, ED_MAXLINE, fp)) > 0;)
+  for (lines = 0, bytes = 0; (err = egets (str, ED_MAXLINE, f)) > 0;)
     {
       bytes += err;
       if (ins (str) < 0)
@@ -658,7 +658,7 @@ doread (int lin, char *fname)
         }
       lines++;
     }
-  fclose (fp);
+  fclose (f);
   if (err < 0)
     return (err);
   if (P_VERBOSE)
@@ -678,7 +678,7 @@ doread (int lin, char *fname)
 static int
 dowrite (int from, int to, char *fname, int apflg)
 {
-  FILE *fp;
+  FILE *f;
   int lin, err;
   unsigned int lines;
   unsigned int bytes;
@@ -705,7 +705,7 @@ dowrite (int from, int to, char *fname, int apflg)
 
   if (!P_RESTRICT)
     ED_OUTPUTV (ED_DEST, "\"%s\" ", fname);
-  if ((fp = fopen (fname, (apflg ? "a" : "w"))) == NULL)
+  if ((f = fopen (fname, (apflg ? "a" : "w"))) == NULL)
     {
       if (!P_RESTRICT)
         ED_OUTPUT (ED_DEST, " can't be opened for writing!\n");
@@ -719,19 +719,19 @@ dowrite (int from, int to, char *fname, int apflg)
       str = lptr->l_buff;
       lines++;
       bytes += strlen (str) + 1;	/* str + '\n' */
-      if (fputs (str, fp) == EOF)
+      if (fputs (str, f) == EOF)
         {
           ED_OUTPUT (ED_DEST, "file write error\n");
           err++;
           break;
         }
-      fputc ('\n', fp);
+      fputc ('\n', f);
       lptr = lptr->l_next;
     }
 
   if (!P_RESTRICT)
     ED_OUTPUTV (ED_DEST, "%u lines %lu bytes\n", lines, bytes);
-  fclose (fp);
+  fclose (f);
 
 #ifdef OLD_ED
   if (ED_BUFFER->write_fn)
