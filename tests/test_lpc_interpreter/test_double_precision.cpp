@@ -27,6 +27,6 @@ TEST_F(LPCInterpreterTest, floatingPointPrecision) {
     call_function (prog, index, 0, &ret);
 
     EXPECT_EQ(ret.type, T_REAL) << "Expected return type to be T_REAL.";
-    EXPECT_DOUBLE_EQ(ret.u.real, 6.28f) << "Expected return value of bar() to be 6.28.";
+    EXPECT_DOUBLE_EQ(ret.u.real, 6.28) << "Expected return value of bar() to be 6.28 (no suffix f).";
     free_prog(prog, 1);
 }
