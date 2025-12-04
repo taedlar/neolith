@@ -132,6 +132,32 @@
     ],
     "testPresets": [
         {
+            "name": "ut-windows-defaults",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "execution": {
+                "noTestsAction": "ignore"
+            }
+        },
+        {
+            "name": "ut-vs16-win32",
+            "displayName": "Unit Tests Win32",
+            "description": "Run unit-tests for Windows 32-bits architecture",
+            "configurePreset": "vs16-win32",
+            "inherits": ["ut-windows-defaults"]
+        },
+        {
+            "name": "ut-vs16-x64",
+            "displayName": "Unit Tests x64",
+            "description": "Run unit-tests for Windows 64-bits architecture",
+            "configurePreset": "vs16-x64",
+            "inherits": ["ut-windows-defaults"]
+        },
+        {
             "name": "ut-linux-defaults",
             "hidden": true,
             "condition": {
@@ -146,8 +172,8 @@
         {
             "name": "ut-linux",
             "displayName": "Unit Tests on Linux",
+            "description": "Run unit-tests on Linux",
             "configurePreset": "linux",
-            "configuration": "RelWithDebInfo",
             "inherits": ["ut-linux-defaults"]
         }
     ]

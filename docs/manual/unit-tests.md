@@ -28,7 +28,8 @@ To add unit-tests, create a subdirectory in `tests` and build an executable test
 In the `CMakeLists.txt`, make sure these settings are added:
 ~~~cmake
 target_link_libraries(test_package PRIVATE GTest::gtest_main)
-gtest_discover_tests(test_package)
+# default discovery timeout was 5 seconds, may clash with some cloud-based antivirus
+gtest_discover_tests(test_package DISCOVERY_TIMEOUT 20)
 ~~~
 
 > [!TIP]

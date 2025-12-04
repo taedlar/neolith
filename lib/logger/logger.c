@@ -107,18 +107,6 @@ int debug_message (const char *fmt, ...)
   int n_written = 0;
   char msg[8192];	/* error message cannot exceed this size */
 
-  // if (!*debug_log_file) /* first time called */
-  //   {
-  //     if (CONFIG_STR (__DEBUG_LOG_FILE__))
-  //     	{
-	//         if (CONFIG_STR (__LOG_DIR__))
-	//           snprintf (debug_log_file, sizeof(debug_log_file), "%s/%s", CONFIG_STR (__LOG_DIR__), CONFIG_STR (__DEBUG_LOG_FILE__));
-	//         else
-	//           snprintf (debug_log_file, sizeof(debug_log_file), "%s", CONFIG_STR (__DEBUG_LOG_FILE__));
-	//       }
-  //     debug_log_file[sizeof(debug_log_file) - 1] = 0;
-  //   }
-
   va_start (args, fmt);
   vsnprintf (msg, sizeof(msg), fmt, args); /* truncated if too long */
   va_end (args);
@@ -130,7 +118,6 @@ int debug_message (const char *fmt, ...)
         msg[i] = ' ';
     }
 
-  // if (CONFIG_INT (__ENABLE_LOG_DATE__))
   if (debug_log_with_date)
     {
       char time_info[1024];

@@ -43,6 +43,7 @@ extern char* realpath(const char* path, char* resolved_path);
 static void parse_command_line (int, char **);
 static void init_debug_log();
 
+#ifndef _WIN32
 static RETSIGTYPE sig_fpe (int sig);
 static RETSIGTYPE sig_cld (int sig);
 
@@ -55,6 +56,7 @@ static RETSIGTYPE sig_hup (int sig);
 static RETSIGTYPE sig_segv (int sig);
 static RETSIGTYPE sig_ill (int sig);
 static RETSIGTYPE sig_bus (int sig);
+#endif /* ! _WIN32 */
 
 /* implementations */
 
@@ -78,7 +80,7 @@ int main (int argc, char **argv) {
 #endif
 
   /* Initialize LPMud driver runtime environment */
-  if (NULL != (locale = setlocale (LC_ALL, "")))
+  if (NULL != (locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE)))
     {
 #ifdef	ENABLE_NLS
       bindtextdomain (PACKAGE, LOCALEDIR);
@@ -298,16 +300,17 @@ parse_command_line (int argc, char *argv[])
 
 void init_debug_log()
 {
-  char path[PATH_MAX];
   if (CONFIG_STR (__DEBUG_LOG_FILE__))
     {
+      char path[PATH_MAX];
       if (CONFIG_STR (__LOG_DIR__))
         snprintf (path, sizeof(path), "%s/%s", CONFIG_STR (__LOG_DIR__), CONFIG_STR (__DEBUG_LOG_FILE__));
       else
         snprintf (path, sizeof(path), "%s", CONFIG_STR (__DEBUG_LOG_FILE__));
+      path[sizeof(path) - 1] = 0;
+      /* TODO: check if the path is absolute */
+      debug_set_log_file (path);
     }
-  path[sizeof(path) - 1] = 0;
-  debug_set_log_file (path);
 
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
 }

@@ -15,4 +15,5 @@ add_custom_command(TARGET test_lpc_lexer POST_BUILD
 gtest_discover_tests(test_lpc_lexer
     PROPERTIES
     LABELS "LPC"
+    DISCOVERY_TIMEOUT 20
 )
