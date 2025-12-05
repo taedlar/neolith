@@ -132,7 +132,7 @@ void init_console_user(int reconnect) {
   object_t* ob;
   new_interactive(STDIN_FILENO);
   master_ob->interactive->connection_type = PORT_TELNET; /* PORT_CONSOLE */
-  master_ob->interactive->addr.sin_addr.s_addr = INADDR_LOOPBACK;
+  master_ob->interactive->addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
   ob = mudlib_connect(0, "console"); /* port 0 for console */
   if (!ob)
@@ -151,6 +151,22 @@ void init_console_user(int reconnect) {
     tio.c_cc[VMIN] = 0; /* use polling as like O_NONBLOCK was set */
     tio.c_cc[VTIME] = 0; /* no timeout */
     tcsetattr (STDIN_FILENO, TCSAFLUSH, &tio); /* discard pending input */
+  }
+#elif defined(_WIN32)
+  {
+    /* Enable Windows's vt100 simulation with high-level console input and output modes.
+     * This allows ANSI escape sequences for text color and cursor movement to work on stdout.
+     * Reference: https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
+     */
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+    SetConsoleCP(CP_UTF8);
+    GetConsoleMode(hStdin, &mode);
+    SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+    SetConsoleOutputCP(CP_UTF8);
+    GetConsoleMode(hStdout, &mode);
+    SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
   }
 #endif
   if (reconnect)
@@ -248,6 +264,12 @@ void backend () {
           timeout.tv_usec = 0;
         }
       nb = do_comm_polling (&timeout);
+      if (nb == SOCKET_ERROR)
+        {
+          /* FIXME: STDIN_FILENO in fdset causes WSAENOTSOCK error in Winsock */
+          opt_trace(TT_BACKEND|4, "select() failed with error: %d\n", SOCKET_ERRNO);
+        }
+      opt_trace (TT_BACKEND|4, "do_comm_polling returned %d", nb);
 
       if (nb > 0)
         process_io ();

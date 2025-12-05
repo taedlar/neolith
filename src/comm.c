@@ -208,9 +208,12 @@ ipc_remove ()
 
 }
 
-int
-do_comm_polling (struct timeval *timeout)
-{
+/**
+ * @brief Poll for communication events.
+ */
+int do_comm_polling (struct timeval *timeout) {
+  opt_trace (TT_BACKEND|3, "do_comm_polling: timeout %ld sec, %ld usec",
+             timeout->tv_sec, timeout->tv_usec);
   return select (FD_SETSIZE, &readmask, &writemask, NULL, timeout);
 }
 
