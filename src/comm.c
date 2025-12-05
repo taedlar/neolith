@@ -1443,8 +1443,14 @@ get_user_data (interactive_t * ip)
 
   /*
    * read user data.
+   *
+   * [NEOLITH-EXTENSION] for console user (ip->fd == STDIN_FILENO), we use read()
+   * to read data from standard input, instead of SOCKET_RECV(). This allows
+   * us to support console user in console mode.
    */
-  num_bytes = SOCKET_RECV (ip->fd, buf, text_space, 0);
+  num_bytes = (ip->fd == STDIN_FILENO) ?
+    read(ip->fd, buf, text_space) :
+    SOCKET_RECV (ip->fd, buf, text_space, 0);
   switch (num_bytes)
     {
     case 0:
