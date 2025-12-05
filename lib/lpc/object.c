@@ -2173,7 +2173,8 @@ void init_objects () {
   );
   if (!hashed_living) 
     {
-      perror ("init_objects");
+      debug_perror ("init_objects", 0);
+      debug_fatal ("Cannot initialize living objects hash table.\n");
       exit (EXIT_FAILURE);
     }
 }

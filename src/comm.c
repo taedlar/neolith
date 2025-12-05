@@ -107,12 +107,11 @@ receive_snoop (char *buf, object_t * snooper)
   apply (APPLY_RECEIVE_SNOOP, snooper, 1, ORIGIN_DRIVER);
 }
 
-/*
- * Initialize new user connection socket.
+/**
+ *  @brief Initialize new user connection socket.
  */
-void
-init_user_conn ()
-{
+void init_user_conn () {
+
   struct sockaddr_in sin;
   socklen_t sin_len;
   int optval;
@@ -124,18 +123,23 @@ init_user_conn ()
         continue;
 
       /* create socket of proper type. */
+#ifdef WINSOCK
+      if ((external_port[i].fd = socket (AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+#else
       if ((external_port[i].fd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
+#endif
         {
           debug_perror ("socket()", 0);
+          debug_fatal ("Failed to create socket for port %d\n", external_port[i].port);
           exit (EXIT_FAILURE);
         }
 
       /* enable local address reuse. */
       optval = 1;
-      if (setsockopt (external_port[i].fd, SOL_SOCKET, SO_REUSEADDR,
-                      (char *) &optval, sizeof (optval)) == -1)
+      if (setsockopt (external_port[i].fd, SOL_SOCKET, SO_REUSEADDR, (char *) &optval, sizeof (optval)) == -1)
         {
           debug_perror ("setsockopt()", 0);
+          debug_fatal ("Failed to set SO_REUSEADDR on port %d\n", external_port[i].port);
           exit (2);
         }
       /* fill in socket address information. */
@@ -148,6 +152,7 @@ init_user_conn ()
                 sizeof (sin)) == -1)
         {
           debug_perror ("bind()", 0);
+          debug_fatal ("Failed to bind to port %d\n", external_port[i].port);
           exit (3);
         }
 
@@ -156,27 +161,32 @@ init_user_conn ()
       if (getsockname (external_port[i].fd, (struct sockaddr *) &sin, &sin_len) == -1)
         {
           debug_perror ("getsockname()", 0);
+          debug_fatal ("Failed to get socket name for port %d\n", external_port[i].port);
           exit (4);
         }
       /* set socket non-blocking, */
       if (set_socket_nonblocking (external_port[i].fd, 1) == -1)
         {
           debug_perror ("set_socket_nonblocking()", 0);
+          debug_fatal ("Failed to set socket non-blocking on port %d\n", external_port[i].port);
           exit (8);
         }
       /* listen on socket for connections. */
       if (listen (external_port[i].fd, SOMAXCONN) == -1)
         {
           debug_perror ("listen()", 0);
+          debug_fatal ("Failed to listen on port %d\n", external_port[i].port);
           exit (10);
         }
     }
+  opt_trace (TT_BACKEND, "finished initializing user connection sockets.\n");
 
 #ifndef _WIN32
   /* register signal handler for SIGPIPE. */
   if (signal (SIGPIPE, sigpipe_handler) == SIG_ERR)
     {
       debug_perror ("signal()", 0);
+      debug_fatal ("Failed to set signal handler for SIGPIPE\n");
       exit (5);
     }
 #endif
@@ -1066,17 +1076,16 @@ static void new_user_handler (int which) {
       return;
     }
 
-#ifdef __linux__
   /*
    * according to Amylaar, 'accepted' sockets in Linux 0.99p6 don't
    * properly inherit the nonblocking property from the listening socket.
    */
   if (set_socket_nonblocking (new_socket_fd, 1) == -1)
     {
-      debug_perror ("new_user_handler: set_socket_nonblocking", 0);
-      exit (8);
+      debug_perror ("set_socket_nonblocking", 0);
+      close (new_socket_fd);
+      return;
     }
-#endif /* __linux__ */
 
   /*
    * Make master object interactive to allow sending messages to the

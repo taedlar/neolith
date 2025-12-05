@@ -101,7 +101,8 @@ int main (int argc, char **argv) {
   debug_message ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
   if (-1 == chdir (CONFIG_STR (__MUD_LIB_DIR__)))
     {
-      perror (CONFIG_STR (__MUD_LIB_DIR__));
+      debug_perror ("chdir", CONFIG_STR (__MUD_LIB_DIR__));
+      debug_fatal ("Cannot change working directory to MudLibDir.\n");
       exit (EXIT_FAILURE);
     }
 
@@ -137,7 +138,7 @@ int main (int argc, char **argv) {
       /* returned from longjmp() */
       restore_context (&econ);
       pop_context (&econ);
-      debug_message ("{}\t***** error occurs in pre-loading stage, shutting down.");
+      debug_message ("{}\t***** error occurs in mudlib startup, shutting down.");
       exit (EXIT_FAILURE);
     }
   else
@@ -197,7 +198,7 @@ parse_argument (int key, char *arg, struct argp_state *state)
     case 'f':
       if (NULL == realpath (arg, MAIN_OPTION(config_file)))
         {
-          perror (arg);
+          debug_perror ("configuration file", arg);
           exit (EXIT_FAILURE);
         }
       break;
@@ -261,8 +262,8 @@ parse_command_line (int argc, char *argv[])
         case 'f':
           if (!realpath (optarg, MAIN_OPTION(config_file)))
             {
-              perror (optarg);
-              exit (0);
+              debug_perror ("configuration file", optarg);
+              exit (EXIT_FAILURE);
             }
           break;
         case 'c':
@@ -345,7 +346,7 @@ sig_usr1 (int sig)
   push_undefined ();
   apply_master_ob (APPLY_CRASH, 3);
   debug_message ("{}\t***** received SIGUSR1, calling exit(-1)");
-  exit (-1);
+  exit (EXIT_FAILURE);
 }
 
 /* Abort evaluation */

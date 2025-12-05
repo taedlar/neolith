@@ -1,12 +1,13 @@
 #pragma once
 #include "lpc/types.h"
 #include "lpc/include/runtime_config.h"
+#include "port/socket_comm.h"
 
 /* port definitions as specified in runtime configuration */
 typedef struct {
     int kind;
     int port;
-    int fd;
+    socket_fd_t fd;
 } port_def_t;
 
 #ifdef __cplusplus

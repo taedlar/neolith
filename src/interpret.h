@@ -245,7 +245,7 @@ void int_free_svalue(svalue_t *);
 void free_string_svalue(svalue_t *);
 void free_some_svalues(svalue_t *, int);
 void push_object(object_t *);
-void push_number(int);
+void push_number(long);
 void push_real(double);
 void push_undefined(void);
 void copy_and_push_string(const char *);

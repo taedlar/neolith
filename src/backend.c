@@ -583,12 +583,11 @@ heart_beat_status (outbuffer_t * ob, int verbose)
   *     The master object is asked to do the actual loading.
   */
 void preload_objects (int eflag) {
+
   array_t *prefiles;
   svalue_t *ret;
   volatile int ix;
   error_context_t econ;
-
-  opt_info (1, "Preloading objects with eflag=%d", eflag);
 
   save_context (&econ);
   if (setjmp (econ.context))
@@ -608,6 +607,7 @@ void preload_objects (int eflag) {
     prefiles = ret->u.arr;
   if ((prefiles == 0) || (prefiles->size < 1))
     return;
+  opt_info (1, "Preloading %d objects", prefiles->size);
 
   prefiles->ref++;
   ix = 0;
@@ -617,20 +617,21 @@ void preload_objects (int eflag) {
   if (setjmp (econ.context))
     {
       restore_context (&econ); /* catch errors in master apply preload() */
+      opt_warn (1, "Error preloading file %d/%d, continuing.", ix + 1, prefiles->size);
       ix++;
     }
   for (; ix < prefiles->size; ix++)
     {
       if (prefiles->item[ix].type != T_STRING)
         continue;
-
       eval_cost = CONFIG_INT (__MAX_EVAL_COST__);   /* prevents infinite loops */
-
       push_svalue (prefiles->item + ix);
       (void) apply_master_ob (APPLY_PRELOAD, 1);
     }
   free_array (prefiles);
   pop_context (&econ);
+
+  opt_info (1, "Preloading complete");
 }				/* preload_objects() */
 
 #define NUM_CONSTS 5

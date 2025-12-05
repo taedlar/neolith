@@ -3433,7 +3433,7 @@ void set_inc_list (const char *list) {
 
   if (mbstowcs (NULL, list, 0) != strlen(list))
     {
-      debug_message ("{}\t***** non-ANSI characters are not allowed in include search path.");
+      debug_fatal ("non-ANSI characters are not allowed in include search path.");
       exit (EXIT_FAILURE);
     }
   debug_message ("{}\tusing LPC header search path: %s", list);

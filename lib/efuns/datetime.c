@@ -61,8 +61,12 @@ f_localtime (void)
   struct timezone tz;
 #endif
 
-  lt = sp->u.number;
+  lt = (time_t)sp->u.number;
   tm = localtime (&lt);
+  if (!tm)
+    {
+      error ("Bad time value %ld passed to localtime()\n", (long)lt);
+    }
 
   vec = allocate_empty_array (10);
   vec->item[LT_SEC].type = T_NUMBER;
@@ -117,13 +121,12 @@ f_localtime (void)
       vec->item[LT_ZONE].u.string = string_copy (tzname[1], "f_localtime");
     }
 #else
-#ifndef WIN32
+#ifndef _WIN32
   vec->item[LT_GMTOFF].u.number = tm->tm_gmtoff;
   vec->item[LT_ZONE].u.string = string_copy (tm->tm_zone, "f_localtime");
 #else
   vec->item[LT_GMTOFF].u.number = _timezone;
-  vec->item[LT_ZONE].u.string =
-    string_copy (_tzname[_daylight ? 1 : 0], "f_localtime");
+  vec->item[LT_ZONE].u.string = string_copy (_tzname[_daylight ? 1 : 0], "f_localtime");
 #endif
 #endif
 #endif /* sequent */
