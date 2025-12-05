@@ -123,11 +123,7 @@ void init_user_conn () {
         continue;
 
       /* create socket of proper type. */
-#ifdef WINSOCK
       if ((external_port[i].fd = socket (AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
-#else
-      if ((external_port[i].fd = socket (AF_INET, SOCK_STREAM, 0)) == -1)
-#endif
         {
           debug_perror ("socket()", 0);
           debug_fatal ("Failed to create socket for port %d\n", external_port[i].port);
@@ -136,7 +132,7 @@ void init_user_conn () {
 
       /* enable local address reuse. */
       optval = 1;
-      if (setsockopt (external_port[i].fd, SOL_SOCKET, SO_REUSEADDR, (char *) &optval, sizeof (optval)) == -1)
+      if (setsockopt (external_port[i].fd, SOL_SOCKET, SO_REUSEADDR, (char *) &optval, sizeof (optval)) == SOCKET_ERROR)
         {
           debug_perror ("setsockopt()", 0);
           debug_fatal ("Failed to set SO_REUSEADDR on port %d\n", external_port[i].port);
@@ -148,8 +144,7 @@ void init_user_conn () {
       sin.sin_port = htons ((u_short) external_port[i].port);
 
       /* bind name to socket. */
-      if (bind (external_port[i].fd, (struct sockaddr *) &sin,
-                sizeof (sin)) == -1)
+      if (bind (external_port[i].fd, (struct sockaddr *) &sin, sizeof (sin)) == SOCKET_ERROR)
         {
           debug_perror ("bind()", 0);
           debug_fatal ("Failed to bind to port %d\n", external_port[i].port);
@@ -158,7 +153,7 @@ void init_user_conn () {
 
       /* get socket name. */
       sin_len = sizeof (sin);
-      if (getsockname (external_port[i].fd, (struct sockaddr *) &sin, &sin_len) == -1)
+      if (getsockname (external_port[i].fd, (struct sockaddr *) &sin, &sin_len) == SOCKET_ERROR)
         {
           debug_perror ("getsockname()", 0);
           debug_fatal ("Failed to get socket name for port %d\n", external_port[i].port);
@@ -172,7 +167,7 @@ void init_user_conn () {
           exit (8);
         }
       /* listen on socket for connections. */
-      if (listen (external_port[i].fd, SOMAXCONN) == -1)
+      if (listen (external_port[i].fd, SOMAXCONN) == SOCKET_ERROR)
         {
           debug_perror ("listen()", 0);
           debug_fatal ("Failed to listen on port %d\n", external_port[i].port);
