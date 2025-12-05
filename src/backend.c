@@ -152,7 +152,7 @@ void init_console_user(int reconnect) {
     tio.c_cc[VTIME] = 0; /* no timeout */
     tcsetattr (STDIN_FILENO, TCSAFLUSH, &tio); /* discard pending input */
   }
-#elif defined(_WIN32)
+#elif defined(WINSOCK)
   {
     /* Enable Windows's vt100 simulation with high-level console input and output modes.
      * This allows ANSI escape sequences for text color and cursor movement to work on stdout.

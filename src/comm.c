@@ -824,9 +824,11 @@ sigpipe_handler (int sig)
 }
 #endif
 
-void
-make_selectmasks ()
-{
+/**
+ *  @brief Create select() read and write masks.
+ */
+void make_selectmasks () {
+
   int i;
 
   /*
@@ -854,15 +856,24 @@ make_selectmasks ()
        * if this user needs more input to make a complete command, set his
        * fd so we can get it.
        */
+#ifndef WINSOCK
       FD_SET (all_users[i]->fd, &readmask);
+#endif
       if (all_users[i]->message_length != 0)
         {
           if (all_users[i]->fd != STDIN_FILENO)
             FD_SET (all_users[i]->fd, &writemask);
         }
     }
+#ifdef WINSOCK
+  /*  In Windows, the select() provided by winsock2 does not support adding the standard input
+   *  file descriptor (STDIN_FILENO) to the readmask. So we handle console user re-connects
+   *  differently here.
+   */
+#else
   if (MAIN_OPTION(console_mode))
     FD_SET(STDIN_FILENO, &readmask); // for console re-connect
+#endif
 
   /*
    * if addr_server_fd is set, set its fd in readmask.
@@ -934,17 +945,26 @@ void process_io () {
 
       if (all_users[i]->fd == STDIN_FILENO)
         {
+          /* [NEOLITH-EXTENSION] console user is connected. Always flush console user's message
+           * output to standard output without waiting for writemask.
+           */
           console_user_connected = 1;
           flush_message (all_users[i]);
         }
       else if (FD_ISSET (all_users[i]->fd, &writemask))
         flush_message (all_users[i]);
     }
+#ifndef WINSOCK
+  /* In Windows, the select() provided by winsock2 does not support adding the standard input
+   * file descriptor (STDIN_FILENO) to the readmask. So we handle console user re-connects
+   * differently here.
+   */
   if (!console_user_connected && FD_ISSET (STDIN_FILENO, &readmask))
     {
       /* [NEOLITH-EXTENSION] console user re-connect */
       init_console_user(1);
     }
+#endif
 
 #ifdef PACKAGE_SOCKETS
   /*
