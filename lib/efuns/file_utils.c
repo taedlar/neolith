@@ -607,7 +607,7 @@ char *read_file (const char *file, int start, int len)
   /* now `p` points to the start of desired file contents, and `end` points to the
    * end of read buffer. Check if we need to read more for desired number of lines.
    */
-  if (len != CONFIG_INT (__MAX_READ_FILE_SIZE__) || !feof (f))
+  if (len != CONFIG_INT (__MAX_READ_FILE_SIZE__) && !feof (f))
     {
       /* move `len` lines of text starting from `p` to the beginning of the buffer */
       for (p2 = str; p != end;)
