@@ -124,7 +124,7 @@ push_object (object_t * ob)
 /*
  * Push a number on the value stack.
  */
-void push_number (int n) {
+void push_number (long n) {
   CHECK_AND_PUSH(1);
   sp->type = T_NUMBER;
   sp->subtype = 0;
