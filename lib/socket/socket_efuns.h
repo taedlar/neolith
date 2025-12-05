@@ -7,8 +7,10 @@
  */
 
 #pragma once
+
 #include "lpc/types.h"
 #include "lpc/functional.h"
+#include "port/socket_comm.h"
 
 enum socket_mode {
     MUD, STREAM, DATAGRAM, STREAM_BINARY, DATAGRAM_BINARY
@@ -21,7 +23,7 @@ enum socket_state {
 #define ADDR_BUF_SIZE	64	/* max length of address string    */
 
 typedef struct {
-    int fd;
+    socket_fd_t fd;
     short flags;
     enum socket_mode mode;
     enum socket_state state;
@@ -54,7 +56,7 @@ extern int max_lpc_socks;
 #define S_CLOSE_FP      0x80
 #define S_EXTERNAL	0x100
 
-int check_valid_socket(char *, int, object_t *, char *, int);
+int check_valid_socket(char *, socket_fd_t, object_t *, char *, int);
 void socket_read_select_handler(int);
 void socket_write_select_handler(int);
 void assign_socket_owner(svalue_t *, object_t *);

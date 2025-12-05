@@ -11,8 +11,11 @@
  */
 
  #ifdef _WIN32
+ static char crypt_buffer[128];
+
  char* crypt(const char* key, const char* salt) {
      /* TODO: implementation for Windows */
-     return "xx";
+    snprintf(crypt_buffer, sizeof(crypt_buffer), "xx%s", key);
+    return crypt_buffer;
  }
  #endif /* _WIN32 */

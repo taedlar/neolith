@@ -7,12 +7,11 @@
 #define WINSOCK
 typedef SOCKET socket_fd_t;
 #define INVALID_SOCKET_FD           INVALID_SOCKET
-#define SOCKET_READ(fd, buff, len)  read(fd, buff, len)
-#define SOCKET_WRITE(fd, buff, len) write(fd, buff, len)
-#define SOCKET_CLOSE(fd)            closesocket(fd)
+#define SOCKET_RECV(s, b, l, f)     recv(s, b, l, f)
+#define SOCKET_SEND(s, b, l, f)     send(s, b, l, f)
+#define SOCKET_CLOSE(s)             closesocket(s)
 #define SOCKET_ERRNO                WSAGetLastError()
 /* SOCKET_ERROR defined in winsock2.h */
-/* INVALID_SOCKET defined in winsock2.h */
 #else
 /* POSIX Sockets */
 #include <sys/socket.h>
@@ -20,10 +19,9 @@ typedef SOCKET socket_fd_t;
 #include <arpa/inet.h>
 typedef int socket_fd_t;
 #define INVALID_SOCKET_FD           -1
-#define SOCKET_READ(fd, buff, len)  read(fd, buff, len)
-#define SOCKET_WRITE(fd, buff, len) write(fd, buff, len)
-#define SOCKET_CLOSE(fd)            close(fd)
+#define SOCKET_RECV(s, b, l, f)     recv(s, b, l, f)
+#define SOCKET_SEND(s, b, l, f)     send(s, b, l, f)
+#define SOCKET_CLOSE(s)             close(s)
 #define SOCKET_ERRNO                errno
 #define SOCKET_ERROR               -1
-#define INVALID_SOCKET             -1
 #endif
