@@ -11,6 +11,8 @@ typedef SOCKET socket_fd_t;
 #define SOCKET_WRITE(fd, buff, len) write(fd, buff, len)
 #define SOCKET_CLOSE(fd)            closesocket(fd)
 #define SOCKET_ERRNO                WSAGetLastError()
+/* SOCKET_ERROR defined in winsock2.h */
+/* INVALID_SOCKET defined in winsock2.h */
 #else
 /* POSIX Sockets */
 #include <sys/socket.h>
@@ -22,4 +24,6 @@ typedef int socket_fd_t;
 #define SOCKET_WRITE(fd, buff, len) write(fd, buff, len)
 #define SOCKET_CLOSE(fd)            close(fd)
 #define SOCKET_ERRNO                errno
+#define SOCKET_ERROR               -1
+#define INVALID_SOCKET             -1
 #endif

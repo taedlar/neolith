@@ -171,6 +171,7 @@ void backend () {
   error_context_t econ;
 
   opt_info (1, "Entering backend loop.");
+
 #ifdef HAVE_LIBRT
   if (-1 == timer_create (CLOCK_REALTIME, NULL, &hb_timerid))
     {
@@ -180,6 +181,18 @@ void backend () {
 #else
   opt_warn (0, "Timer functions not available, heart_beat(), call_out() and reset() disabled.");
 #endif /* HAVE_LIBRT */
+
+#ifdef WINSOCK
+  {
+    // Initialize Winsock
+    WSADATA wsaData;
+    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != 0) {
+        debug_fatal("WSAStartup failed: %d\n", iResult);
+        exit(EXIT_FAILURE);
+    }
+  }
+#endif
   init_user_conn ();		/* initialize user connection socket */
 
   if (!t_flag)

@@ -21,7 +21,7 @@
 /**
  *  @brief Set process receiving SIGIO/SIGURG signals to us.
  */
-int set_socket_owner (int fd, int which)
+int set_socket_owner (socket_fd_t fd, int which)
 {
 #ifdef OLD_ULTRIX
   return fcntl (fd, F_SETOWN, which);
@@ -37,7 +37,7 @@ int set_socket_owner (int fd, int which)
 /**
  *  @brief Allow receipt of asynchronous I/O signals.
  */
-int set_socket_async (int fd, int which)
+int set_socket_async (socket_fd_t fd, int which)
 {
 #ifdef OLD_ULTRIX
   return fcntl (fd, F_SETFL, FASYNC);
@@ -53,12 +53,8 @@ int set_socket_async (int fd, int which)
 /**
  *  @brief Set socket non-blocking
  */
-int set_socket_nonblocking (int fd, int which)
+int set_socket_nonblocking (socket_fd_t fd, int which)
 {
-#if !defined(OLD_ULTRIX) && !defined(_SEQUENT_)
-  int result;
-#endif
-
 #ifdef OLD_ULTRIX
   if (which)
     return fcntl (fd, F_SETFL, FNDELAY);
@@ -81,7 +77,7 @@ int set_socket_nonblocking (int fd, int which)
       flags &= ~O_NONBLOCK;
     return fcntl (fd, F_SETFL, flags);
   #else
-    result = ioctl (fd, FIONBIO, &which);
+    int result = ioctl (fd, FIONBIO, &which);
     if (result == -1)
       debug_perror ("set_socket_nonblocking: ioctl", 0);
     return result;

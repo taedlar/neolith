@@ -503,8 +503,10 @@ int write_file (char *file, char *str, int flags)
  *  @param start The line number to start reading from (1-based). If < 1, start from line 1.
  *  @param len The number of lines to read. If < 1, read the entire file.
  */
-char *read_file (const char *file, int start, int len)
+char *read_file (const char *path, int start, int len)
 {
+  char path_copy[PATH_MAX];
+  char* file;
   struct stat st;
   int fd;
   FILE *f;
@@ -515,7 +517,9 @@ char *read_file (const char *file, int start, int len)
 
   if (len < 0)
     return 0;
-  file = check_valid_path (file, current_object, "read_file", 0);
+  strncpy (path_copy, path, PATH_MAX - 1);
+  path_copy[PATH_MAX - 1] = '\0';
+  file = check_valid_path (path_copy, current_object, "read_file", 0);
 
   if (!file)
     return 0;
@@ -813,14 +817,12 @@ file_size (char *file)
 }
 
 
-/*
- * Check that a path to a file is valid for read or write.
- * This is done by functions in the master object.
- * The path is always treated as an absolute path, and is returned without
- * a leading '/'.
- * If the path was '/', then '.' is returned.
- * Otherwise, the returned path is temporarily allocated by apply(), which
- * means it will be deallocated at next apply().
+/**
+ *  @brief Check that a path to a file is valid for read or write.
+ *  This is done by functions in the master object.
+ *  The path is always treated as an absolute path, and is returned without a leading '/'.
+ *  If the path was '/', then '.' is returned.
+ *  Otherwise, the returned path is temporarily allocated by apply(), which means it will be deallocated at next apply().
  */
 char *check_valid_path (char *path, object_t * call_object, const char *call_fun, int writeflg) {
 
@@ -854,8 +856,7 @@ char *check_valid_path (char *path, object_t * call_object, const char *call_fun
           free_svalue (&apply_ret_value, "check_valid_path");
           apply_ret_value.type = T_STRING;
           apply_ret_value.subtype = STRING_MALLOC;
-          path = apply_ret_value.u.string =
-            string_copy (path, "check_valid_path");
+          path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
         }
     }
 
