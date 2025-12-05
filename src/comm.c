@@ -160,7 +160,7 @@ void init_user_conn () {
           exit (4);
         }
       /* set socket non-blocking, */
-      if (set_socket_nonblocking (external_port[i].fd, 1) == -1)
+      if (set_socket_nonblocking (external_port[i].fd, 1) == SOCKET_ERROR)
         {
           debug_perror ("set_socket_nonblocking()", 0);
           debug_fatal ("Failed to set socket non-blocking on port %d\n", external_port[i].port);
