@@ -497,8 +497,13 @@ int write_file (char *file, char *str, int flags)
   return n_written == 1;
 }				/* write_file() */
 
-char *
-read_file (char *file, int start, int len)
+/**
+ *  @brief Reads a text file into a string.
+ *  @param file The file to read.
+ *  @param start The line number to start reading from (1-based). If < 1, start from line 1.
+ *  @param len The number of lines to read. If < 1, read the entire file.
+ */
+char *read_file (const char *file, int start, int len)
 {
   struct stat st;
   int fd;
@@ -506,6 +511,7 @@ read_file (char *file, int start, int len)
   char *str, *end;
   register char *p, *p2;
   int size;
+  size_t n_read = 0;
 
   if (len < 0)
     return 0;
@@ -514,7 +520,11 @@ read_file (char *file, int start, int len)
   if (!file)
     return 0;
 
+#ifdef _WIN32
+  fd = open (file, O_RDONLY | O_TEXT);
+#else
   fd = open (file, O_RDONLY);
+#endif
   if (-1 == fd)
     return 0;
   /*
@@ -531,55 +541,75 @@ read_file (char *file, int start, int len)
     return 0;
   }
 
+  /* read entire file if actual file size <= MAX_READ_FILE_SIZE */
   size = st.st_size;
   if (size > CONFIG_INT (__MAX_READ_FILE_SIZE__))
     {
       if (start || len)
-        size = CONFIG_INT (__MAX_READ_FILE_SIZE__);
+        size = CONFIG_INT (__MAX_READ_FILE_SIZE__); /* read fixed-size block for skip lines below */
       else
         {
           fclose (f);
-          return 0;
+          return 0; /* file too large */
         }
     }
   if (start < 1)
     start = 1;
-  if (!len)
-    len = CONFIG_INT (__MAX_READ_FILE_SIZE__);
-  str = new_string (size, "read_file: str");
-  str[size] = '\0';
+  if (len < 1)
+    len = CONFIG_INT (__MAX_READ_FILE_SIZE__); /* max number of lines possible in max read size */
+
+  opt_trace (TT_EVAL|0, "actual size: %ld bytes, requested: (start line %d) %d lines or < %d bytes\n",
+    st.st_size, start, (len ? len : CONFIG_INT (__MAX_READ_FILE_SIZE__)), size);
+
   if (!size)
     {
       /* zero length file */
       fclose (f);
-      return str;
+      return 0;
     }
 
+  /* allocate a buffer for file contents (we don't know the actual size of buffer since the read_file()
+   * counts lines). we'll shrink it later if necessary.
+   */
+  str = new_string (size, "read_file: str");
+  str[size] = '\0';
   do
     {
-      if ((fread (str, size, 1, f) != 1) || !size)
+      /* 1. fill buffer
+       *
+       * [NEOLITH-EXTENSION] In Windows, text mode translates \r\n to \n on reading, so the number of bytes read
+       * may be less than requested size. We cannot rely on st.st_size after fread(). The actual size of ingested
+       * data is determined by the actual number of bytes returned by fread().
+       */
+      if (!size || (n_read = fread (str, 1, size, f)) == 0)
         {
+          if (ferror (f))
+            {
+              debug_perror ("fread()", file);
+              error ("Failed reading file.");
+            }
+          opt_trace (TT_EVAL|0, "fread(): EOF before start line");
           fclose (f);
           FREE_MSTR (str);
           return 0;
         }
 
-      if (size > st.st_size)
-        {
-          size = st.st_size;
-        }
-
-      st.st_size -= size;
-      end = str + size;
+      /* 2. try skip to the start line */
+      end = str + n_read;
+      *end = '\0';
       for (p = str; --start && (p2 = (char *) memchr (p, '\n', end - p));)
         {
-          p = p2 + 1;
+          p = p2 + 1; /* next line */
         }
     }
   while (start > 1);
 
-  if (len != CONFIG_INT (__MAX_READ_FILE_SIZE__) || st.st_size)
+  /* now `p` points to the start of desired file contents, and `end` points to the
+   * end of read buffer. Check if we need to read more for desired number of lines.
+   */
+  if (len < CONFIG_INT (__MAX_READ_FILE_SIZE__) && !feof (f))
     {
+      /* move `len` lines of text starting from `p` to the beginning of the buffer */
       for (p2 = str; p != end;)
         {
           char c;
@@ -591,28 +621,32 @@ read_file (char *file, int start, int len)
               if (!--len)
                 break;
             }
-          else if (c == '\0')
+          else if (c == '\0') /* NUL character is not allowed in LPC string */
             {
               fclose (f);
               FREE_MSTR (str);
               error ("Attempted to read '\\0' into a string!\n");
             }
         }
-      if (len && st.st_size)
+      /* [NEOLITH-EXTENSION] Read more data if necessary and does not rely on st.st_size anymore.
+       * This is important in Windows text mode that translates \r\n to \n on reading. The actual
+       * size of ingested data is determined by the actual number of bytes returned by fread().
+       */
+      while (len && !feof (f)) /* `len` == remaining lines of text to read */
         {
-          size -= (p2 - str);
+          size -= (p2 - str); /* `size` == remaining buffer size, in bytes */
+          if (!size)
+            break;
 
-          if (size > st.st_size)
-            size = st.st_size;
-
-          if ((fread (p2, size, 1, f) != 1) || !size)
+          if (!size || (n_read = fread (p2, 1, size, f)) == 0)
             {
               fclose (f);
               FREE_MSTR (str);
+              opt_trace (TT_EVAL|0, "fread() failed or EOF before reading all requested lines\n");
               return 0;
             }
-          st.st_size -= size;
-          /* end is same */
+          end = p2 + n_read; /* n_read could be different from requested size on Windows due to CR LF translation */
+          *end = '\0';
           for (; p2 != end;)
             {
               if (*p2 == '\0')
@@ -623,19 +657,20 @@ read_file (char *file, int start, int len)
                 }
               if (*p2++ == '\n')
                 if (!--len)
-                  break;
-            }
-
-          if (st.st_size && len)
-            {
-              /* tried to read more than READ_MAX_FILE_SIZE */
-              fclose (f);
-              FREE_MSTR (str);
-              return 0;
+                  break; /* done reading requested lines */
             }
         }
+
+      if (len && !feof (f))
+        {
+          /* size of requested lines exceeds __MAX_READ_FILE_SIZE__ */
+          fclose (f);
+          FREE_MSTR (str);
+          opt_trace (TT_EVAL|0, "requested lines exceed max read file size\n");
+          return 0;
+        }
       *p2 = '\0';
-      str = extend_string (str, p2 - str);
+      str = extend_string (str, p2 - str); /* shrink buffer to actual size */
     }
 
   fclose (f);

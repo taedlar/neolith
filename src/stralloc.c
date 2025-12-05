@@ -383,9 +383,8 @@ int_new_string (int size)
   return (char *) (mbt + 1);
 }
 
-char *
-extend_string (char *str, int len)
-{
+char *extend_string (char *str, int len) {
+
   malloc_block_t *mbt;
 #ifdef STRING_STATS
   int oldsize = MSTR_SIZE (str);
