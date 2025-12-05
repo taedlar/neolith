@@ -27,7 +27,7 @@ char *check_valid_path(char *, object_t *, const char *, int);
 void smart_log(char *, int, char *, int);
 void dump_file_descriptors(outbuffer_t *);
 
-char *read_file(char *, int, int);
+char *read_file(const char *file, int start, int len);
 char *read_bytes(char *, int, int, int *);
 int write_file(char *, char *, int);
 int write_bytes(char *, int, char *, int);

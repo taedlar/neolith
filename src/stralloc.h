@@ -24,11 +24,11 @@ typedef struct malloc_block_s {
         } while(0)
 
 #define FREE_MSTR(x) do {\
-        unsigned short size = MSTR_SIZE(x);\
+        unsigned short size_mstr = MSTR_SIZE(x);\
         DEBUG_CHECK(MSTR_REF(x) != 1, "FREE_MSTR used on a multiply referenced string\n");\
-        SUB_NEW_STRING(size, sizeof(malloc_block_t));\
+        SUB_NEW_STRING(size_mstr, sizeof(malloc_block_t));\
         FREE(MSTR_BLOCK(x));\
-        SUB_STRING(size);\
+        SUB_STRING(size_mstr);\
         } while(0)
 
 #ifdef STRING_STATS
