@@ -19,7 +19,7 @@
 #include <termios.h>
 #endif
 
-#ifdef _WIN32
+#ifdef WINSOCK
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
@@ -123,9 +123,9 @@ void init_user_conn () {
         continue;
 
       /* create socket of proper type. */
-      if ((external_port[i].fd = socket (AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+      if ((external_port[i].fd = socket (AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET_FD)
         {
-          debug_perror ("socket()", 0);
+          debug_error ("socket() failed: %d", SOCKET_ERRNO);
           debug_fatal ("Failed to create socket for port %d\n", external_port[i].port);
           exit (EXIT_FAILURE);
         }
@@ -134,7 +134,7 @@ void init_user_conn () {
       optval = 1;
       if (setsockopt (external_port[i].fd, SOL_SOCKET, SO_REUSEADDR, (char *) &optval, sizeof (optval)) == SOCKET_ERROR)
         {
-          debug_perror ("setsockopt()", 0);
+          debug_error ("setsockopt() failed: %d", SOCKET_ERRNO);
           debug_fatal ("Failed to set SO_REUSEADDR on port %d\n", external_port[i].port);
           exit (2);
         }
@@ -146,7 +146,7 @@ void init_user_conn () {
       /* bind name to socket. */
       if (bind (external_port[i].fd, (struct sockaddr *) &sin, sizeof (sin)) == SOCKET_ERROR)
         {
-          debug_perror ("bind()", 0);
+          debug_error ("bind() failed: %d", SOCKET_ERRNO);
           debug_fatal ("Failed to bind to port %d\n", external_port[i].port);
           exit (3);
         }
@@ -155,21 +155,21 @@ void init_user_conn () {
       sin_len = sizeof (sin);
       if (getsockname (external_port[i].fd, (struct sockaddr *) &sin, &sin_len) == SOCKET_ERROR)
         {
-          debug_perror ("getsockname()", 0);
+          debug_error ("getsockname() failed: %d", SOCKET_ERRNO);
           debug_fatal ("Failed to get socket name for port %d\n", external_port[i].port);
           exit (4);
         }
       /* set socket non-blocking, */
       if (set_socket_nonblocking (external_port[i].fd, 1) == SOCKET_ERROR)
         {
-          debug_perror ("set_socket_nonblocking()", 0);
+          debug_error ("set_socket_nonblocking() failed: %d", SOCKET_ERRNO);
           debug_fatal ("Failed to set socket non-blocking on port %d\n", external_port[i].port);
           exit (8);
         }
       /* listen on socket for connections. */
       if (listen (external_port[i].fd, SOMAXCONN) == SOCKET_ERROR)
         {
-          debug_perror ("listen()", 0);
+          debug_error ("listen() failed: %d", SOCKET_ERRNO);
           debug_fatal ("Failed to listen on port %d\n", external_port[i].port);
           exit (10);
         }
@@ -202,7 +202,7 @@ ipc_remove ()
       if (!external_port[i].port)
         continue;
       debug_message ("closing service on TCP port %d\n", external_port[i].port);
-      if (close (external_port[i].fd) == -1)
+      if (SOCKET_CLOSE (external_port[i].fd) == -1)
         debug_perror ("ipc_remove: close", 0);
     }
 
@@ -404,17 +404,18 @@ flush_message (interactive_t * ip)
         }
       /* Need to use send to get Out-Of-Band data
        * num_bytes = write(ip->fd,ip->message_buf + ip->message_consumer,length);
+       * [NEOLITH-EXTENSION] if the fd is STDIN_FILENO, use write to STDOUT_FILENO
        */
       num_bytes = (ip->fd == STDIN_FILENO) ?
         write (STDOUT_FILENO, ip->message_buf + ip->message_consumer, length) :
-        send (ip->fd, ip->message_buf + ip->message_consumer, length, ip->out_of_band);
+        SOCKET_SEND (ip->fd, ip->message_buf + ip->message_consumer, length, ip->out_of_band);
       if (num_bytes == -1)
         {
-          if (errno == EWOULDBLOCK || errno == EINTR)
+          if (SOCKET_ERRNO == EWOULDBLOCK || SOCKET_ERRNO == EINTR)
             return 1;
 
-          if (errno != EPIPE)
-            debug_perror ("flush_message: write", 0);
+          if (SOCKET_ERRNO != EPIPE)
+            debug_error ("send() failed: %d", SOCKET_ERRNO);
           ip->iflags |= NET_DEAD;
           return 0;
         }
@@ -856,9 +857,12 @@ void make_selectmasks () {
        * if this user needs more input to make a complete command, set his
        * fd so we can get it.
        */
-#ifndef WINSOCK
-      FD_SET (all_users[i]->fd, &readmask);
+#ifdef WINSOCK
+      if (all_users[i]->fd != STDIN_FILENO)
 #endif
+        FD_SET (all_users[i]->fd, &readmask);
+
+      /* if this user has message to send, set his fd in writemask */
       if (all_users[i]->message_length != 0)
         {
           if (all_users[i]->fd != STDIN_FILENO)
@@ -1085,11 +1089,11 @@ static void new_user_handler (int which) {
 
   length = sizeof (addr);
   new_socket_fd = accept (external_port[which].fd, (struct sockaddr *) &addr, &length);
-  if (new_socket_fd < 0)
+  if (INVALID_SOCKET_FD == new_socket_fd)
     {
-      if (errno != EWOULDBLOCK)
+      if (SOCKET_ERRNO != EWOULDBLOCK)
         {
-          debug_perror ("accept()", 0);
+          debug_error ("accept() failed: %d", SOCKET_ERRNO);
         }
       return;
     }
@@ -1098,10 +1102,10 @@ static void new_user_handler (int which) {
    * according to Amylaar, 'accepted' sockets in Linux 0.99p6 don't
    * properly inherit the nonblocking property from the listening socket.
    */
-  if (set_socket_nonblocking (new_socket_fd, 1) == -1)
+  if (set_socket_nonblocking (new_socket_fd, 1) == SOCKET_ERROR)
     {
-      debug_perror ("set_socket_nonblocking", 0);
-      close (new_socket_fd);
+      debug_error ("set_socket_nonblocking() failed: %d", SOCKET_ERRNO);
+      SOCKET_CLOSE (new_socket_fd);
       return;
     }
 
@@ -1314,7 +1318,7 @@ hname_handler ()
   if (addr_server_fd < 0)
     return;
 
-  num_bytes = SOCKET_READ (addr_server_fd, hname_buf, HNAME_BUF_SIZE);
+  num_bytes = SOCKET_RECV (addr_server_fd, hname_buf, HNAME_BUF_SIZE, 0);
   switch (num_bytes)
     {
     case -1:
@@ -1440,7 +1444,7 @@ get_user_data (interactive_t * ip)
   /*
    * read user data.
    */
-  num_bytes = SOCKET_READ (ip->fd, buf, text_space);
+  num_bytes = SOCKET_RECV (ip->fd, buf, text_space, 0);
   switch (num_bytes)
     {
     case 0:
@@ -1450,15 +1454,15 @@ get_user_data (interactive_t * ip)
       remove_interactive (ip->ob, 0);
       return;
 
-    case -1:
+    case SOCKET_ERROR:
 #ifdef EWOULDBLOCK
-      if (errno == EWOULDBLOCK)
+      if (SOCKET_ERRNO == EWOULDBLOCK)
         {
         }
       else
 #endif
         {
-          switch (errno)
+          switch (SOCKET_ERRNO)
             {
             case EPIPE:
             case ECONNRESET:
@@ -2195,7 +2199,7 @@ query_addr_name (object_t * ob)
 {
   static char buf[100];
   static char *dbuf = &buf[sizeof (int) + sizeof (int) + sizeof (int)];
-  int msglen;
+  size_t msglen;
   int msgtype;
 
   sprintf (dbuf, "%s", query_ip_number (ob));
@@ -2206,19 +2210,18 @@ query_addr_name (object_t * ob)
   memcpy (&buf[sizeof (int)], (char *) &msglen, sizeof (msglen));
 
   msgtype = NAMEBYIP;
-  memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype,
-          sizeof (msgtype));
+  memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype, sizeof (msgtype));
 
-  if (SOCKET_WRITE (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int)) == -1)
+  if (SOCKET_SEND (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int), 0) == SOCKET_ERROR)
     {
-      switch (errno)
+      switch (SOCKET_ERRNO)
         {
         case EBADF:
           debug_message ("Address server has closed connection.\n");
           addr_server_fd = -1;
           break;
         default:
-          debug_perror ("query_addr_name: write", 0);
+          debug_error ("send() failed: %d", SOCKET_ERRNO);
           break;
         }
     }
@@ -2245,9 +2248,7 @@ query_addr_number (char *name, char *call_back)
   int msglen;
   int msgtype;
 
-  if ((addr_server_fd < 0) || (strlen (name) >=
-                               100 - (sizeof (msgtype) + sizeof (msglen) +
-                                      sizeof (int))))
+  if ((addr_server_fd < 0) || (strlen (name) >= 100 - (sizeof (msgtype) + sizeof (msglen) + sizeof (int))))
     {
       share_and_push_string (name);
       push_undefined ();
@@ -2262,19 +2263,18 @@ query_addr_number (char *name, char *call_back)
   memcpy (&buf[sizeof (int)], (char *) &msglen, sizeof (msglen));
 
   msgtype = (name[0] >= '0' && name[0] <= '9') ? NAMEBYIP : IPBYNAME;
-  memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype,
-          sizeof (msgtype));
+  memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype, sizeof (msgtype));
 
-  if (SOCKET_WRITE (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int)) == -1)
+  if (SOCKET_SEND (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int), 0) == SOCKET_ERROR)
     {
-      switch (errno)
+      switch (SOCKET_ERRNO)
         {
         case EBADF:
           debug_message ("Address server has closed connection.\n");
           addr_server_fd = -1;
           break;
         default:
-          debug_perror ("query_addr_name: write", 0);
+          debug_error ("send() failed: %d", SOCKET_ERRNO);
           break;
         }
       share_and_push_string (name);
@@ -2315,8 +2315,7 @@ got_addr_number (char *number, char *name)
 
   /* First remove all the dested ones... */
   for (i = 0; i < IPSIZE; i++)
-    if (ipnumbertable[i].name
-        && ipnumbertable[i].ob_to_call->flags & O_DESTRUCTED)
+    if (ipnumbertable[i].name && ipnumbertable[i].ob_to_call->flags & O_DESTRUCTED)
       {
         free_string (ipnumbertable[i].call_back);
         free_string (ipnumbertable[i].name);
@@ -2356,8 +2355,7 @@ got_addr_number (char *number, char *name)
               push_undefined ();
             }
           push_number (i + 1);
-          safe_apply (ipnumbertable[i].call_back, ipnumbertable[i].ob_to_call,
-                      3, ORIGIN_DRIVER);
+          safe_apply (ipnumbertable[i].call_back, ipnumbertable[i].ob_to_call, 3, ORIGIN_DRIVER);
           free_string (ipnumbertable[i].call_back);
           free_string (ipnumbertable[i].name);
           free_object (ipnumbertable[i].ob_to_call, "got_addr_number: ");
@@ -2368,12 +2366,10 @@ got_addr_number (char *number, char *name)
 
 #undef IPSIZE
 #define IPSIZE 200
-typedef struct
-{
+typedef struct ipentry_s {
   long addr;
   char *name;
-}
-ipentry_t;
+} ipentry_t;
 
 static ipentry_t iptable[IPSIZE];
 static int ipcur;
@@ -2408,9 +2404,7 @@ static void add_ip_entry (long addr, const char *name) {
   ipcur = (ipcur + 1) % IPSIZE;
 }
 
-char *
-query_ip_number (object_t * ob)
-{
+char *query_ip_number (object_t * ob) {
   if (ob == 0)
     ob = command_giver;
   if (!ob || ob->interactive == 0)
@@ -2418,9 +2412,7 @@ query_ip_number (object_t * ob)
   return (inet_ntoa (ob->interactive->addr.sin_addr));
 }
 
-char *
-query_host_name ()
-{
+char *query_host_name () {
   static char name[128];
 
   gethostname (name, sizeof (name));
@@ -2428,17 +2420,13 @@ query_host_name ()
   return name;
 }
 
-object_t *
-query_snoop (object_t * ob)
-{
+object_t *query_snoop (object_t * ob) {
   if (!ob->interactive || (ob->interactive->snoop_by == 0))
     return (0);
   return (ob->interactive->snoop_by->ob);
 }				/* query_snoop() */
 
-object_t *
-query_snooping (object_t * ob)
-{
+object_t *query_snooping (object_t * ob) {
   if (!ob->interactive || (ob->interactive->snoop_on == 0))
     return (0);
   return (ob->interactive->snoop_on->ob);
@@ -2452,9 +2440,7 @@ query_idle (object_t * ob)
   return (current_time - ob->interactive->last_time);
 }				/* query_idle() */
 
-void
-notify_no_command ()
-{
+void notify_no_command () {
   string_or_func_t p;
   svalue_t *v;
 

@@ -143,6 +143,10 @@ f_repeat_string (void)
 #ifdef F_CRYPT
 #define SALT_LEN	8
 
+#ifndef HAVE_UNISTD_H
+char *crypt (const char *key, const char *salt);
+#endif
+
 void
 f_crypt (void)
 {
