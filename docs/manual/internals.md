@@ -19,6 +19,9 @@ When the LPMud Driver process is started, it goes through the follow steps in se
 
 After done start up, the LPMud Driver run an infinite backend loop that **accepts user connections** while doing necessary housekeeping tasks in the background.
 
+> [!Note]
+> If console mode is enabled by specifying `-c` in the Neolith command line, the [console user](console-mode.md) is connected first before entering the loop. 
+
 In the backend mode, the LPMud driver provides:
 - Accept connections on the TCP port specified in configuration file.
 - Compile and load extra objects when your LPC program requires.
