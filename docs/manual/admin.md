@@ -12,15 +12,15 @@ Traditionally, you would start the LPMud driver and let it run in the background
 Sometime people would wrap the starting command with a *shell script* and restart it if the driver crashed or shutdown by in-game administrator (e.g. archwizards).
 
 You may use Neolith this way if you're just running a traditional LPMud.
-If you are keen to add efuns or integrate LPMud with some other interesting stuff that involves *modifying* the driver, Neolith provides a "console mode" for administrator to experiment with them:
+If you are keen to add efuns or integrate LPMud with some other interesting stuff that involves *modifying* the driver, Neolith provides a ["console mode"](console-mode.md) for administrator to experiment with them:
 ~~~sh
 neolith -f neolith.conf -C
 ~~~
 The `-C` option (or `--console-mode`) enables the LPMud driver to treat **standard input** as a "connection" from the console.
 - After the master object finishes preloading, it receives a `connect()` apply with port number = 0
-- The master object can then navigate the connection through regular login or character creation process:
+- The master object can then navigate the connection through regular [logon](../applies/interactive/logon.md) process of player object:
   - Despite not using TELNET protocol, the `input_to()` and `get_char()` efuns are supported for console connection.
-  - When the console connection is closed, e.g. typing "quit" or forced by another wizard, the standard input is *NOT* closed and allows initiating another console connection by pressing ENTER.
+  - When the console connection is closed, e.g. typing "quit" or forced by another wizard, the standard input is *NOT* closed and allows **reconnecting** to the MUD in console mode by pressing ENTER.
   - You can use Ctrl-C to **break** the LPMud driver process as like other processes reading data from standard input.
 
 # neolith.conf
@@ -54,7 +54,7 @@ Below is a list of optional settings.
 Name | Value | Default |
 --- | --- | --- |
 `MudName` | Name of the MUD, which is made available to LPC by the pre-defined symbol `MUD_NAME`. | (empty string) |
-`LogDir` | The full-path for `log_file()` to create log files. | use MudlibDir |
+`LogDir` | The full-path for `log_file()` to create log files. | use stderr (ideal for *read-only* mudlib) |
 `DebugLogFile` | The filename of debug log file where the LPMud driver's log messages is appended to. | Use stderr |
 `LogWithDate` | Prefix each log message with an ISO-8601 format date and time. | No |
 `IncludeDir` | The search path of LPC #include. Multiple paths can be assigned by separate them with `:` character. | Not using |
