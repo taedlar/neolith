@@ -111,6 +111,8 @@ static struct pollfd *poll_fds = NULL; /* for poll(), the only limit is RLIMIT_N
 static int console_poll_index = -1;
 static int addr_server_poll_index = -1;
 #else
+#ifdef WINSOCK
+#endif
 /* fallback to select() */
 static fd_set readmask, writemask; /* usually limited to 1024 file descriptors */
 #endif
@@ -118,9 +120,8 @@ static int addr_server_fd = -1;
 
 /* implementations */
 
-static void
-receive_snoop (char *buf, object_t * snooper)
-{
+static void receive_snoop (char *buf, object_t * snooper) {
+
   /* command giver no longer set to snooper */
   copy_and_push_string (buf);
   apply (APPLY_RECEIVE_SNOOP, snooper, 1, ORIGIN_DRIVER);
@@ -211,9 +212,8 @@ void init_user_conn () {
 /*
  * Shut down new user accept file descriptor.
  */
-void
-ipc_remove ()
-{
+void ipc_remove () {
+
   int i;
 
   for (i = 0; i < 5; i++)

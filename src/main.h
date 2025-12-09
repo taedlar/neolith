@@ -11,10 +11,11 @@
 
 typedef struct main_options {
   char config_file[PATH_MAX];
-  int console_mode;
-  int epilog_level;
-  int debug_level;
-  unsigned long trace_flags;    /* Trace flags for debugging */
+  int console_mode; /* -c */
+  int pedantic; /* -p */
+  int epilog_level; /* -e */
+  int debug_level; /* -d */
+  unsigned long trace_flags; /* Trace flags for debugging */
 } main_options_t;
 
 extern main_options_t* g_main_options;

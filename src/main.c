@@ -176,16 +176,24 @@ int main (int argc, char **argv) {
    * All allocated resources will be reclaimed by the operating system upon process
    * termination.
    *
+   * In some cases, the mudlib author would like to do clean up for testing or
+   * debugging purposes. The --pedantic command line option (-p) is provided for this
+   * purpose.
+   *
    * However, we do call tear down after running unit tests to ensure that there
    * is no memory leak. The graceful tear down code can be found in various unit-testing
    * code under the tests/ directory.
    */
-#if 0
-  tear_down_simulate();
-  deinit_lpc_compiler();
-  deinit_strings();
-  deinit_config();  
-#endif
+  if (MAIN_OPTION(pedantic))
+    {
+      /* FIXME: Maybe we need to destruct all objects, followed by master and simul_efun
+       * objects here.  For now, we just tear down various subsystems.
+       */
+      tear_down_simulate();
+      deinit_lpc_compiler();
+      deinit_strings();
+      deinit_config();
+    }
 
   return EXIT_SUCCESS;
 }
@@ -224,6 +232,9 @@ parse_argument (int key, char *arg, struct argp_state *state)
     case 'e':
       MAIN_OPTION(epilog_level) = atoi (arg);
       break;
+    case 'p':
+      MAIN_OPTION(pedantic) = 1;
+      break;
     case 't':
       MAIN_OPTION(trace_flags) = strtoul (arg, NULL, 0);
       break;
@@ -244,6 +255,7 @@ parse_command_line (int argc, char *argv[])
     {.name = "console-mode", 'c', NULL, 0, "Run the driver in console mode."},
     {.name = "debug", 'd', "debug-level", 0, "Specifies the runtime debug level."},
     {.name = "epilog", 'e', "epilog-level", 0, "Specifies the epilog level to be passed to the master object."},
+    {.name = "pedantic", 'p', NULL, 0, "Enable pedantic clean up."},
     {.name = "trace", 't', "trace-flags", 0, "Specifies an integer of trace flags to enable trace messages in debug log."},
     {0}
   };
@@ -258,7 +270,7 @@ parse_command_line (int argc, char *argv[])
 #else /* ! HAVE_ARGP_H */
   int c;
 
-  while ((c = getopt (argc, argv, "f:cd:D:t:e:")) != -1)
+  while ((c = getopt (argc, argv, "f:cd:D:pt:e:")) != -1)
     {
       switch (c)
         {
@@ -288,6 +300,9 @@ parse_command_line (int argc, char *argv[])
             lpc_predefs = def;
             break;
           }
+        case 'p':
+          MAIN_OPTION(pedantic) = 1;
+          break;
         case 't':
           MAIN_OPTION(trace_flags) = strtoul (optarg, NULL, 0);
           break;
