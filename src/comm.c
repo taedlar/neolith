@@ -95,13 +95,24 @@ int max_users = 0;
 /* static declarations */
 
 #ifdef HAVE_POLL
-/* we favor poll() over select() for better performance and scalability */
+/*
+ * [NEOLITH-EXTENSION]
+ *
+ * The poll() system call is add to POSIX-1.2008 after original LPMud/MudOS was released.
+ * We favor poll() over select() for better performance and scalability.
+ * The number of maximum file descriptors select() can handle is limited to FD_SETSIZE,
+ * while poll() can handle a larger number of file descriptors.
+ *
+ * A poll_index is added to interactive_t and port_def_t structures to keep track of their
+ * position in the poll_fds array.
+ */
 static int total_fds = 0;
-static struct pollfd *poll_fds = NULL;
+static struct pollfd *poll_fds = NULL; /* for poll(), the only limit is RLIMIT_NOFILE (1 million?) */
 static int console_poll_index = -1;
 static int addr_server_poll_index = -1;
 #else
-static fd_set readmask, writemask;
+/* fallback to select() */
+static fd_set readmask, writemask; /* usually limited to 1024 file descriptors */
 #endif
 static int addr_server_fd = -1;
 

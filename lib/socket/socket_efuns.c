@@ -464,7 +464,7 @@ int socket_accept (int s, svalue_t * read_callback, svalue_t * write_callback) {
       FD_SET (accept_fd, &wmask);
       t.tv_sec = 0;
       t.tv_usec = 0;
-      nb = select (FD_SETSIZE, (fd_set *) 0, &wmask, (fd_set *) 0, &t);
+      nb = select (FD_SETSIZE, (fd_set *) 0, &wmask, (fd_set *) 0, &t); /* returns immediately */
       if ((nb < 0) || !(FD_ISSET (accept_fd, &wmask)))
         lpc_socks[i].flags |= S_BLOCKED;
 
