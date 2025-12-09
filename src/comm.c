@@ -100,10 +100,9 @@ static int total_fds = 0;
 static struct pollfd *poll_fds = NULL;
 static int console_poll_index = -1;
 static int addr_server_poll_index = -1;
-// #else
-#endif
+#else
 static fd_set readmask, writemask;
-// #endif
+#endif
 static int addr_server_fd = -1;
 
 /* implementations */
@@ -225,8 +224,9 @@ int do_comm_polling (struct timeval *timeout) {
              timeout->tv_sec, timeout->tv_usec);
 #ifdef HAVE_POLL
   return poll (poll_fds, total_fds, timeout ? (timeout->tv_sec * 1000 + timeout->tv_usec / 1000) : -1);
-#endif
+#else
   return select (FD_SETSIZE, &readmask, &writemask, NULL, timeout);
+#endif
 }
 
 /*
@@ -888,6 +888,9 @@ void make_selectmasks () {
 #endif /* PACKAGE_SOCKETS */
 #endif /* HAVE_POLL */
 
+  /*
+   * 0. reset I/O masks (allocate/reallocate poll_fds array if using poll())
+   */
 #ifdef HAVE_POLL
   if (total_fds > 0)
     {
@@ -908,11 +911,10 @@ void make_selectmasks () {
         }
       return;
     }
-// #else
-#endif
+#else /* !HAVE_POLL */
   FD_ZERO (&readmask);
   FD_ZERO (&writemask);
-// #endif
+#endif
 
   /*
    * 1. set new user (accept) fd in readmask / POLLIN.
@@ -926,8 +928,9 @@ void make_selectmasks () {
       poll_fds[i_poll].events = POLLIN;
       external_port[i].poll_index = i_poll;
       i_poll++;
-#endif
+#else
       FD_SET (external_port[i].fd, &readmask);
+#endif
     }
   /*
    * 2. set user fds in readmask/writemask.
@@ -949,11 +952,12 @@ void make_selectmasks () {
         }
       all_users[i]->poll_index = i_poll;
       i_poll++;
-#endif
+#else
 #ifdef WINSOCK
       if (all_users[i]->fd != STDIN_FILENO)
 #endif
         FD_SET (all_users[i]->fd, &readmask);
+#endif /* !HAVE_POLL */
 
       /* if this user has message to send, set his fd in writemask or enable POLLOUT */
       if (all_users[i]->message_length != 0)
@@ -962,11 +966,16 @@ void make_selectmasks () {
             {
 #ifdef HAVE_POLL
               poll_fds[i_poll-1].events |= POLLOUT;
-#endif
+#else
               FD_SET (all_users[i]->fd, &writemask);
+#endif
             }
         }
     }
+
+  /*
+   * 2.1. handle console user re-connects
+   */
 #ifdef WINSOCK
   /*  In Windows, the select() provided by winsock2 does not support adding the standard input
    *  file descriptor (STDIN_FILENO) to the readmask. So we handle console user re-connects
@@ -987,13 +996,14 @@ void make_selectmasks () {
         {
           console_poll_index = -1;
         }
-#endif
+#else
       FD_SET(STDIN_FILENO, &readmask); /* for console re-connect */
+#endif
     }
 #endif /* ! WINSOCK */
 
   /*
-   * 3. if addr_server_fd is set, set its fd in readmask.
+   * 3. if addr_server_fd is set, set its fd in readmask or poll_fds.
    */
   if (addr_server_fd >= 0)
     {
@@ -1002,8 +1012,9 @@ void make_selectmasks () {
       poll_fds[i_poll].events = POLLIN;
       addr_server_poll_index = i_poll;
       i_poll++;
-#endif
+#else
       FD_SET (addr_server_fd, &readmask);
+#endif
     }
   else
     {
@@ -1027,23 +1038,24 @@ void make_selectmasks () {
               poll_fds[i_poll].events = POLLIN;
               lpc_socks[i].poll_index = i_poll;
               i_poll++;
-#endif
+#else
               FD_SET (lpc_socks[i].fd, &readmask);
+#endif
             }
           if (lpc_socks[i].flags & S_BLOCKED)
             {
 #ifdef HAVE_POLL
               poll_fds[i_poll-1].events |= POLLOUT;
-#endif
+#else
               FD_SET (lpc_socks[i].fd, &writemask);
+#endif
             }
         }
     }
-#endif
+#endif /* PACKAGE_SOCKETS */
 }	/* make_selectmasks() */
 
-//#ifdef HAVE_POLL
-#ifndef HAVE_POLL
+#ifdef HAVE_POLL
 #define NEW_USER_CAN_READ(i) (external_port[i].poll_index >=0 && (poll_fds[external_port[i].poll_index].revents & POLLIN))
 #define USER_CAN_READ(u) (all_users[u]->poll_index >=0 && (poll_fds[all_users[u]->poll_index].revents & POLLIN))
 #define USER_CAN_WRITE(u) (all_users[u]->poll_index >=0 && (poll_fds[all_users[u]->poll_index].revents & POLLOUT))
