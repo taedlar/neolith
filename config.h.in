@@ -19,6 +19,7 @@
 #cmakedefine HAVE_ARPA_TELNET_H
 
 #cmakedefine HAVE_GETTIMEOFDAY
+#cmakedefine HAVE_POLL
 #cmakedefine HAVE_REALPATH
 #cmakedefine HAVE_STPCPY
 #cmakedefine HAVE_STPNCPY

@@ -24,6 +24,9 @@ enum socket_state {
 
 typedef struct {
     socket_fd_t fd;
+#ifdef HAVE_POLL
+    int poll_index;             /* index in poll_fds[] */
+#endif
     short flags;
     enum socket_mode mode;
     enum socket_state state;

@@ -25,3 +25,7 @@ typedef int socket_fd_t;
 #define SOCKET_ERRNO                errno
 #define SOCKET_ERROR               -1
 #endif
+
+#ifdef HAVE_POLL
+#include <poll.h>
+#endif

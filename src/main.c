@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <locale.h>
 
+#ifdef HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
+
 #ifdef	HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -42,6 +46,7 @@ extern char* realpath(const char* path, char* resolved_path);
 
 static void parse_command_line (int, char **);
 static void init_debug_log();
+static void print_startup_info();
 
 #ifndef _WIN32
 static RETSIGTYPE sig_fpe (int sig);
@@ -93,11 +98,11 @@ int main (int argc, char **argv) {
   init_debug_log();
 
   /* Print startup banner (and smoke-test debug settings) */
-  if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
-    exit (EXIT_FAILURE);
+  print_startup_info();
   if (locale)
     debug_message ("{}\tusing locale \"%s\"", locale);
 
+  /* Change working directory to MudLibDir */
   debug_message ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
   if (-1 == chdir (CONFIG_STR (__MUD_LIB_DIR__)))
     {
@@ -109,9 +114,7 @@ int main (int argc, char **argv) {
   /* Initialize resource pools */
   if (CONFIG_INT (__RESERVED_MEM_SIZE__) > 0)
     {
-      reserved_area = (char *) DMALLOC (
-        CONFIG_INT (__RESERVED_MEM_SIZE__),
-        TAG_RESERVED, "main.c: reserved_area");
+      reserved_area = (char *) DMALLOC (CONFIG_INT (__RESERVED_MEM_SIZE__), TAG_RESERVED, "main.c: reserved_area");
     } /* malloc.c */
   init_strings (
     CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__),
@@ -314,6 +317,22 @@ void init_debug_log()
     }
 
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
+}
+
+/**
+ * @brief Print startup information to debug log. Also serves as a smoke-test
+ *        for debug logging system.
+ */
+static void print_startup_info() {
+  if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
+    exit (EXIT_FAILURE);
+#ifdef HAVE_SYS_RESOURCE_H
+  struct rlimit rl;
+  if (getrlimit (RLIMIT_NOFILE, &rl) == 0) {
+    debug_message ("{}\tmaximum file descriptors: soft=%lu, hard=%lu",
+                   (unsigned long)rl.rlim_cur, (unsigned long)rl.rlim_max);
+  }
+#endif
 }
 
 #ifndef _WIN32

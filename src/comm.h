@@ -49,6 +49,9 @@ typedef struct interactive_s {
 #ifdef F_QUERY_IP_PORT
     int local_port;             /* which of our ports they connected to    */
 #endif
+#ifdef HAVE_POLL
+    int poll_index;             /* index in poll_fds[]                     */
+#endif
     char *prompt;               /* prompt string for interactive object    */
     char text[MAX_TEXT];        /* input buffer for interactive object     */
     int text_end;               /* first free char in buffer               */

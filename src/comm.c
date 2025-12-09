@@ -94,7 +94,26 @@ int max_users = 0;
 
 /* static declarations */
 
-static fd_set readmask, writemask;
+#ifdef HAVE_POLL
+/*
+ * [NEOLITH-EXTENSION]
+ *
+ * The poll() system call is add to POSIX-1.2008 after original LPMud/MudOS was released.
+ * We favor poll() over select() for better performance and scalability.
+ * The number of maximum file descriptors select() can handle is limited to FD_SETSIZE,
+ * while poll() can handle a larger number of file descriptors.
+ *
+ * A poll_index is added to interactive_t and port_def_t structures to keep track of their
+ * position in the poll_fds array.
+ */
+static int total_fds = 0;
+static struct pollfd *poll_fds = NULL; /* for poll(), the only limit is RLIMIT_NOFILE (1 million?) */
+static int console_poll_index = -1;
+static int addr_server_poll_index = -1;
+#else
+/* fallback to select() */
+static fd_set readmask, writemask; /* usually limited to 1024 file descriptors */
+#endif
 static int addr_server_fd = -1;
 
 /* implementations */
@@ -214,7 +233,11 @@ ipc_remove ()
 int do_comm_polling (struct timeval *timeout) {
   opt_trace (TT_BACKEND|3, "do_comm_polling: timeout %ld sec, %ld usec",
              timeout->tv_sec, timeout->tv_usec);
+#ifdef HAVE_POLL
+  return poll (poll_fds, total_fds, timeout ? (timeout->tv_sec * 1000 + timeout->tv_usec / 1000) : -1);
+#else
   return select (FD_SETSIZE, &readmask, &writemask, NULL, timeout);
+#endif
 }
 
 /*
@@ -812,13 +835,11 @@ static void set_telnet_single_char (interactive_t * ip, int single)
   flush_message (ip);
 }
 
-#ifndef _WIN32
+#ifndef WINSOCK
 /*
  * SIGPIPE handler -- does very little for now.
  */
-static void
-sigpipe_handler (int sig)
-{
+static void sigpipe_handler (int sig) {
   (void) sig;
   debug_message ("SIGPIPE received.\n");
   signal (SIGPIPE, sigpipe_handler);
@@ -827,27 +848,103 @@ sigpipe_handler (int sig)
 
 /**
  *  @brief Create select() read and write masks.
+ *
+ *  Generate readmask and writemask for select() call in original MudOS.
+ *  Despite the name, we favor poll() when it is available and prepares the poll_fds array in this function.
+ *
+ *  There are 4 groups of file descriptors to monitor:
+ *  1. new user accept fds in external_port[];
+ *  2. user fds in all_users[];
+ *  3. addr_server_fd for address resolution replies;
+ *  4. efun socket fds in lpc_socks[] (if PACKAGE_SOCKETS is defined).
+ *
+ *  When using select(), the amount of fds to monitor is limited by FD_SETSIZE.
+ *  When using poll(), there is no such limitation. (The maximum number of fds is limited
+ *  by the system, usually 1024 or higher.) We need to allocate and resize poll_fds array
+ *  dynamically according to the actual number of fds to monitor.
+  1. For new user accept fds, we have at most 5 fds (external_port[5]).
+  2. For user fds, we have at most max_users fds (all_users[]).
+  3. For addr_server_fd, we have at most 1 fd.
+  4. For efun socket fds, we have at most max_lpc_socks fds (lpc_socks[]).
  */
 void make_selectmasks () {
 
   int i;
 
+#ifdef HAVE_POLL
+  int i_poll = 0;
+  int console_user_connected = 0;
+  /* calculate total number of fds to monitor */
+  total_fds = 0;
+  for (i = 0; i < 5; i++)
+    {
+      if (external_port[i].port)
+        total_fds++;
+    }
+  for (i = 0; i < max_users; i++)
+    {
+      if (all_users[i] && !(all_users[i]->iflags & (CLOSING | CMD_IN_BUF)))
+        {
+          total_fds++;
+        }
+    }
+  if (addr_server_fd >= 0)
+    total_fds++;
+#ifdef PACKAGE_SOCKETS
+  for (i = 0; i < max_lpc_socks; i++)
+    {
+      if (lpc_socks[i].state != CLOSED)
+        total_fds++;
+    }
+#endif /* PACKAGE_SOCKETS */
+#endif /* HAVE_POLL */
+
   /*
-   * generate readmask and writemask for select() call.
+   * 0. reset I/O masks (allocate/reallocate poll_fds array if using poll())
    */
+#ifdef HAVE_POLL
+  if (total_fds > 0)
+    {
+      poll_fds = (struct pollfd *) DREALLOC (poll_fds, sizeof (struct pollfd) * total_fds, TAG_SYSTEM, "make_selectmasks: poll_fds");
+      for (i = 0; i < total_fds; i++)
+        {
+          poll_fds[i].fd = -1; /* poll() ignores negative fds */
+          poll_fds[i].events = 0;
+          poll_fds[i].revents = 0;
+        }
+    }
+  else
+    {
+      if (poll_fds)
+        {
+          FREE(poll_fds);
+          poll_fds = NULL;
+        }
+      return;
+    }
+#else /* !HAVE_POLL */
   FD_ZERO (&readmask);
   FD_ZERO (&writemask);
+#endif
+
   /*
-   * set new user accept fd in readmask.
+   * 1. set new user (accept) fd in readmask / POLLIN.
    */
   for (i = 0; i < 5; i++)
     {
       if (!external_port[i].port)
         continue;
+#ifdef HAVE_POLL
+      poll_fds[i_poll].fd = external_port[i].fd;
+      poll_fds[i_poll].events = POLLIN;
+      external_port[i].poll_index = i_poll;
+      i_poll++;
+#else
       FD_SET (external_port[i].fd, &readmask);
+#endif
     }
   /*
-   * set user fds in readmask.
+   * 2. set user fds in readmask/writemask.
    */
   for (i = 0; i < max_users; i++)
     {
@@ -857,18 +954,39 @@ void make_selectmasks () {
        * if this user needs more input to make a complete command, set his
        * fd so we can get it.
        */
+#ifdef HAVE_POLL
+      poll_fds[i_poll].fd = all_users[i]->fd;
+      poll_fds[i_poll].events = POLLIN;
+      if (poll_fds[i_poll].fd == STDIN_FILENO)
+        {
+          console_user_connected = 1;
+        }
+      all_users[i]->poll_index = i_poll;
+      i_poll++;
+#else
 #ifdef WINSOCK
       if (all_users[i]->fd != STDIN_FILENO)
 #endif
         FD_SET (all_users[i]->fd, &readmask);
+#endif /* !HAVE_POLL */
 
-      /* if this user has message to send, set his fd in writemask */
+      /* if this user has message to send, set his fd in writemask or enable POLLOUT */
       if (all_users[i]->message_length != 0)
         {
           if (all_users[i]->fd != STDIN_FILENO)
-            FD_SET (all_users[i]->fd, &writemask);
+            {
+#ifdef HAVE_POLL
+              poll_fds[i_poll-1].events |= POLLOUT;
+#else
+              FD_SET (all_users[i]->fd, &writemask);
+#endif
+            }
         }
     }
+
+  /*
+   * 2.1. handle console user re-connects
+   */
 #ifdef WINSOCK
   /*  In Windows, the select() provided by winsock2 does not support adding the standard input
    *  file descriptor (STDIN_FILENO) to the readmask. So we handle console user re-connects
@@ -876,37 +994,100 @@ void make_selectmasks () {
    */
 #else
   if (MAIN_OPTION(console_mode))
-    FD_SET(STDIN_FILENO, &readmask); // for console re-connect
+    {
+#ifdef HAVE_POLL
+      if (!console_user_connected)
+        {
+          poll_fds[i_poll].fd = STDIN_FILENO; /* for console re-connect*/
+          poll_fds[i_poll].events = POLLIN;
+          console_poll_index = i_poll;
+          i_poll++;
+        }
+      else
+        {
+          console_poll_index = -1;
+        }
+#else
+      FD_SET(STDIN_FILENO, &readmask); /* for console re-connect */
 #endif
+    }
+#endif /* ! WINSOCK */
 
   /*
-   * if addr_server_fd is set, set its fd in readmask.
+   * 3. if addr_server_fd is set, set its fd in readmask or poll_fds.
    */
   if (addr_server_fd >= 0)
     {
+#ifdef HAVE_POLL
+      poll_fds[i_poll].fd = addr_server_fd;
+      poll_fds[i_poll].events = POLLIN;
+      addr_server_poll_index = i_poll;
+      i_poll++;
+#else
       FD_SET (addr_server_fd, &readmask);
+#endif
     }
+  else
+    {
+#ifdef HAVE_POLL
+      addr_server_poll_index = -1;
+#endif
+    }
+
 #ifdef PACKAGE_SOCKETS
   /*
-   * set fd's for efun sockets.
+   * 4. set fd's for efun sockets.
    */
   for (i = 0; i < max_lpc_socks; i++)
     {
       if (lpc_socks[i].state != CLOSED)
         {
-          if (lpc_socks[i].state != FLUSHING &&
-              (lpc_socks[i].flags & S_WACCEPT) == 0)
-            FD_SET (lpc_socks[i].fd, &readmask);
+          if (lpc_socks[i].state != FLUSHING && (lpc_socks[i].flags & S_WACCEPT) == 0)
+            {
+#ifdef HAVE_POLL
+              poll_fds[i_poll].fd = lpc_socks[i].fd;
+              poll_fds[i_poll].events = POLLIN;
+              lpc_socks[i].poll_index = i_poll;
+              i_poll++;
+#else
+              FD_SET (lpc_socks[i].fd, &readmask);
+#endif
+            }
           if (lpc_socks[i].flags & S_BLOCKED)
-            FD_SET (lpc_socks[i].fd, &writemask);
+            {
+#ifdef HAVE_POLL
+              poll_fds[i_poll-1].events |= POLLOUT;
+#else
+              FD_SET (lpc_socks[i].fd, &writemask);
+#endif
+            }
         }
     }
+#endif /* PACKAGE_SOCKETS */
+}	/* make_selectmasks() */
+
+#ifdef HAVE_POLL
+#define NEW_USER_CAN_READ(i) (external_port[i].poll_index >=0 && (poll_fds[external_port[i].poll_index].revents & POLLIN))
+#define USER_CAN_READ(u) (all_users[u]->poll_index >=0 && (poll_fds[all_users[u]->poll_index].revents & POLLIN))
+#define USER_CAN_WRITE(u) (all_users[u]->poll_index >=0 && (poll_fds[all_users[u]->poll_index].revents & POLLOUT))
+#define CONSOLE_CAN_READ() (console_poll_index >=0 && (poll_fds[console_poll_index].revents & POLLIN))
+#define ADDR_SERVER_CAN_READ() (addr_server_poll_index >=0 && (poll_fds[addr_server_poll_index].revents & POLLIN))
+#define LPC_SOCKET_CAN_READ(i) (lpc_socks[i].poll_index >=0 && (poll_fds[lpc_socks[i].poll_index].revents & POLLIN))
+#define LPC_SOCKET_CAN_WRITE(i) (lpc_socks[i].poll_index >=0 && (poll_fds[lpc_socks[i].poll_index].revents & POLLOUT))
+#else
+#define NEW_USER_CAN_READ(i) FD_ISSET (external_port[i].fd, &readmask)
+#define USER_CAN_READ(u) FD_ISSET (all_users[u]->fd, &readmask)
+#define USER_CAN_WRITE(u) FD_ISSET (all_users[u]->fd, &writemask)
+#define CONSOLE_CAN_READ() FD_ISSET (STDIN_FILENO, &readmask)
+#define ADDR_SERVER_CAN_READ() FD_ISSET (addr_server_fd, &readmask)
+#define LPC_SOCKET_CAN_READ(i) FD_ISSET (lpc_socks[i].fd, &readmask)
+#define LPC_SOCKET_CAN_WRITE(i) FD_ISSET (lpc_socks[i].fd, &writemask)
 #endif
-}				/* make_selectmasks() */
-
-
-/*
- * Process I/O.
+/**
+ *  @brief Process I/O for sockets or console (if enabled).
+ *
+ *  This function is called after select() or poll() indicates that
+ *  there is I/O activity on one or more file descriptors.
  */
 void process_io () {
 
@@ -920,7 +1101,7 @@ void process_io () {
     {
       if (!external_port[i].port)
         continue;
-      if (FD_ISSET (external_port[i].fd, &readmask))
+      if (NEW_USER_CAN_READ(i))
         {
           new_user_handler (i);
         }
@@ -940,7 +1121,7 @@ void process_io () {
           continue;
         }
 
-      if (FD_ISSET (all_users[i]->fd, &readmask))
+      if (USER_CAN_READ(i))
         {
           get_user_data (all_users[i]);
           if (!all_users[i])
@@ -955,7 +1136,7 @@ void process_io () {
           console_user_connected = 1;
           flush_message (all_users[i]);
         }
-      else if (FD_ISSET (all_users[i]->fd, &writemask))
+      else if (USER_CAN_WRITE(i))
         flush_message (all_users[i]);
     }
 #ifndef WINSOCK
@@ -963,7 +1144,7 @@ void process_io () {
    * file descriptor (STDIN_FILENO) to the readmask. So we handle console user re-connects
    * differently here.
    */
-  if (!console_user_connected && FD_ISSET (STDIN_FILENO, &readmask))
+  if (!console_user_connected && CONSOLE_CAN_READ())
     {
       /* [NEOLITH-EXTENSION] console user re-connect */
       init_console_user(1);
@@ -977,10 +1158,10 @@ void process_io () {
   for (i = 0; i < max_lpc_socks; i++)
     {
       if (lpc_socks[i].state != CLOSED)
-        if (FD_ISSET (lpc_socks[i].fd, &readmask))
+        if (LPC_SOCKET_CAN_READ(i))
           socket_read_select_handler (i);
       if (lpc_socks[i].state != CLOSED)
-        if (FD_ISSET (lpc_socks[i].fd, &writemask))
+        if (LPC_SOCKET_CAN_WRITE(i))
           socket_write_select_handler (i);
     }
 #endif
@@ -988,12 +1169,9 @@ void process_io () {
   /*
    * check for data pending from address server.
    */
-  if (addr_server_fd >= 0)
+  if (addr_server_fd >= 0 && ADDR_SERVER_CAN_READ())
     {
-      if (FD_ISSET (addr_server_fd, &readmask))
-        {
-          hname_handler ();
-        }
+      hname_handler ();
     }
 }
 
