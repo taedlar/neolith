@@ -204,7 +204,7 @@ void backend () {
     WSADATA wsaData;
     int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0) {
-        debug_fatal("WSAStartup failed: %d\n", iResult);
+        debug_fatal("WSAStartup() failed: %d\n", iResult);
         exit(EXIT_FAILURE);
     }
   }
@@ -280,6 +280,10 @@ void backend () {
         call_heart_beat ();
     }
   pop_context (&econ);
+
+#ifdef WINSOCK
+  WSACleanup(); /* for graceful shutdown */
+#endif
 }
 
 /**
