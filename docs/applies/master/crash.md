@@ -1,20 +1,17 @@
-# crash
+# crash()
 ## NAME
-          crash - function in master that is called in the event the
-          driver crashes
+**crash** - function in master that is called in the event the driver crashes
 
 ## SYNOPSIS
-          void crash( string crash_message, object command_giver,
-                      object current_object );
+~~~cxx
+void crash (string crash_message, object command_giver, object current_object);
+~~~
 
 ## DESCRIPTION
-          The driver calls crash() in master in the event that the
-          driver crashes (segmentation fault, bus error, etc).  This
-          function offers a way to shutdown the mudlib (safe players
-          and other important data) before the driver crashes.  It
-          also lets you log various useful information such as what
-          signal crashed the driver, what object was active, who the
-          current player was etc.
+The driver calls `crash()` in master in the event that the driver crashes (segmentation fault, bus error, etc).
+This function offers a way to shutdown the mudlib (safe players and other important data) before the driver crashes.
+It also lets you log various useful information such as what signal crashed the driver, what object was active, who the current player was etc.
 
 ## SEE ALSO
-          slow_shutdown(4), shutdown(3)
+[slow_shutdown()](slow_shutdown.md),
+[shutdown()](../../efuns/shutdown.md)

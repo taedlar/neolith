@@ -1,6 +1,6 @@
-# remove_interactive
+# remove_interactive()
 ## NAME
-remove_interactive() - Disconnect an interactive object (including netdead).
+**remove_interactive** - Disconnect an interactive object (including netdead).
 
 ## SYNOPSIS
 ~~~cxx

@@ -1,6 +1,6 @@
-# objectp
+# objectp()
 ## NAME
-objectp() - determine whether or not a given variable is an object
+**objectp** - determine whether or not a given variable is an object
 
 ## SYNOPSIS
 ~~~cxx
@@ -8,7 +8,7 @@ int objectp (mixed arg);
 ~~~
 
 ## DESCRIPTION
-Return `1` if *arg* is an object.
+Return `1` if **arg** is an object.
 
 ## SEE ALSO
-mapp(3), stringp(3), pointerp(3), intp(3), bufferp(3), floatp(3), functionp(3), nullp(3), undefinedp(3), errorp(3)
+[mapp()](mapp.md), [stringp()](stringp.md), [pointerp()](pointerp.md), [intp()](intp.md), [bufferp()](bufferp.md), [floatp()](floatp.md), [functionp()](functionp.md), [nullp()](nullp.md), [undefinedp()](undefinedp.md), [errorp()](errorp.md)

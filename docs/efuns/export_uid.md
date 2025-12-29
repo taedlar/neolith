@@ -1,14 +1,16 @@
-# export_uid
+# export_uid()
 ## NAME
-          export_uid() - set the uid of another object
+**export_uid** - set the uid of another object
 
 ## SYNOPSIS
-          int export_uid( object ob );
+~~~cxx
+int export_uid( object ob );
+~~~
 
 ## DESCRIPTION
-          Set the uid of <ob> to the effective uid of this_object().
-          It is only possible when <ob> has an effective uid of 0.
+Set the uid of **ob** to the effective uid of this_object().
+It is only possible when **ob** has an effective uid of 0.
 
 ## SEE ALSO
-          this_object(3), seteuid(3), getuid(3), geteuid(3),
-          previous_object(3), valid_seteuid(4)
+[this_object()](this_object.md), [seteuid()](seteuid.md), [getuid()](getuid.md), [geteuid()](geteuid.md),
+[previous_object()](previous_object.md), [valid_seteuid()](valid_seteuid.md)

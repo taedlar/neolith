@@ -1,15 +1,17 @@
-# set_this_player
+# set_this_player()
 ## SYNOPSIS
-          void set_this_player( object who );
+~~~cxx
+void set_this_player( object who );
+~~~
 
 ## DESCRIPTION
-          set_this_player() causes 'who' to become the new value of
-          this_player().  This efun is only available with
-          __NO_ADD_ACTION__ defined, and is included since with
-          __NO_ADD_ACTION__ parsing and dispatching of commands is the
-          mudlib's responsibility.
+set_this_player() causes **who** to become the new value of
+this_player().  This efun is only available with
+__NO_ADD_ACTION__ defined, and is included since with
+__NO_ADD_ACTION__ parsing and dispatching of commands is the
+mudlib's responsibility.
 
-          who can also be zero, in which this_player() is set to zero.
+who can also be zero, in which this_player() is set to zero.
 
 ## SEE ALSO
-          this_player(3)
+[this_player()](this_player.md)

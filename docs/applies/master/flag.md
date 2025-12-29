@@ -1,11 +1,11 @@
-# flag
+# flag()
 ## NAME
-          flag - handle mudlib specific flags specified at driver
-          startup
+**flag** - handle mudlib specific flags specified at driver startup
 
 ## SYNOPSIS
-          void flag( string );
+~~~cxx
+void flag (string option);
+~~~
 
 ## DESCRIPTION
-          This master apply is called for each command line option
-          passed to the driver with the -f flag.
+This master apply is called for each command line option passed to the driver with the `-f` flag.

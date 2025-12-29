@@ -1,13 +1,15 @@
-# capitalize
+# capitalize()
 ## NAME
-          capitalize() - capitalize a string
+**capitalize** - capitalize a string
 
 ## SYNOPSIS
-          string capitalize( string str );
+~~~cxx
+string capitalize( string str );
+~~~
 
 ## DESCRIPTION
-          Convert the first character in <str> to upper case, and
-          return the new string.
+Convert the first character in **str** to upper case, and
+return the new string.
 
 ## SEE ALSO
-          lower_case(3)
+[lower_case()](lower_case.md)

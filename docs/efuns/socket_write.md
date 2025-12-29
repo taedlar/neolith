@@ -1,55 +1,57 @@
-# socket_write
+# socket_write()
 ## NAME
-          socket_write() - send a message from a socket
+**socket_write** - send a message from a socket
 
 ## SYNOPSIS
-          #include <socket_err.h>
+~~~cxx
+#include <socket_err.h>
+~~~
 
-          int socket_write( int s, mixed message,
-                            void | string address );
+int socket_write( int s, mixed message,
+void | string address );
 
 ## DESCRIPTION
-          socket_write() sends a message on a socket s. If the socket
-          s is of type STREAM or MUD, the socket must already be
-          connected and the address is not specified. If the socket is
-          of type DATAGRAM, the address must be specified.  The
-          address is of the form: "127.0.0.1 23".
+socket_write() sends a message on a socket s. If the socket
+s is of type STREAM or MUD, the socket must already be
+connected and the address is not specified. If the socket is
+of type DATAGRAM, the address must be specified.  The
+address is of the form: "127.0.0.1 23".
 
 ## RETURN VALUE
-          socket_write() returns:
+socket_write() returns:
 
-               EESUCCESS on success.
+EESUCCESS on success.
 
-               a negative value indicated below on error.
+a negative value indicated below on error.
 
 ## ERRORS
-          EEFDRANGE      Descriptor out of range.
+EEFDRANGE      Descriptor out of range.
 
-          EEBADF         Descriptor is invalid.
+EEBADF         Descriptor is invalid.
 
-          EESECURITY     Security violation attempted.
+EESECURITY     Security violation attempted.
 
-          EENOADDR       Socket not bound to an address.
+EENOADDR       Socket not bound to an address.
 
-          EEBADADDR      Problem with address format.
+EEBADADDR      Problem with address format.
 
-          EENOTCONN      Socket not connected.
+EENOTCONN      Socket not connected.
 
-          EEALREADY      Operation already in progress.
+EEALREADY      Operation already in progress.
 
-          EETYPENOTSUPP  Object type not supported.
+EETYPENOTSUPP  Object type not supported.
 
-          EEBADDATA      Sending data with too many nested levels.
+EEBADDATA      Sending data with too many nested levels.
 
-          EESENDTO       Problem with sendto.
+EESENDTO       Problem with sendto.
 
-          EEMODENOTSUPP  Socket mode not supported.
+EEMODENOTSUPP  Socket mode not supported.
 
-          EEWOULDBLOCK   Operation would block.
+EEWOULDBLOCK   Operation would block.
 
-          EESEND         Problem with send.
+EESEND         Problem with send.
 
-          EECALLBACK     Wait for callback.
+EECALLBACK     Wait for callback.
 
 ## SEE ALSO
-          socket_connect(3), socket_create(3)
+[socket_connect()](socket_connect.md), [socket_create()](socket_create.md)

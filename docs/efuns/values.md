@@ -1,28 +1,30 @@
-# values
+# values()
 ## NAME
-          values() - return an array of the values from the (key, value) pairs
-                     in a mapping
+**values** - return an array of the values from the (key, value) pairs
+in a mapping
 
 ## SYNOPSIS
-          mixed *values( mapping m );
+~~~cxx
+mixed *values( mapping m );
+~~~
 
 ## DESCRIPTION
-          values() returns an array of values corresponding to the
-          value elements in the (key, value) pairs stored in the
-          mapping m.
+values() returns an array of values corresponding to the
+value elements in the (key, value) pairs stored in the
+mapping m.
 
-          For example, if:
+For example, if:
 
-               mapping m;
+mapping m;
 
-               m = (["hp" : 35, "sp" : 42, "mass" : 100]);
+m = (["hp" : 35, "sp" : 42, "mass" : 100]);
 
-          then
+then
 
-               values(m) == ({35, 42, 100})
+values(m) == ({35, 42, 100})
 
-          Note: the values will be returned in the same order as the
-          corresponding keys.
+Note: the values will be returned in the same order as the
+corresponding keys.
 
 ## SEE ALSO
-          keys(3), each(3)
+[keys()](keys.md), [each()](each.md)

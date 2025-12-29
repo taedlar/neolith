@@ -1,6 +1,6 @@
-# query_host_name
+# query_host_name()
 ## NAME
-query_host_name() - return the host name
+**query_host_name** - return the host name
 
 ## SYNOPSIS
 ~~~cxx

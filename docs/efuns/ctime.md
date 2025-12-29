@@ -1,13 +1,15 @@
-# ctime
+# ctime()
 ## NAME
-          ctime() - return a time string
+**ctime** - return a time string
 
 ## SYNOPSIS
-          string ctime( int clock );
+~~~cxx
+string ctime( int clock );
+~~~
 
 ## DESCRIPTION
-          Gives a nice string with current date and time, with the
-          argument 'clock' that is the number of seconds since 1970.
+Gives a nice string with current date and time, with the
+argument **clock** that is the number of seconds since 1970.
 
 ## SEE ALSO
-          time(3), time_expression(3), localtime(3), uptime(3)
+[time()](time.md), [time_expression()](time_expression.md), [localtime()](localtime.md), [uptime()](uptime.md)

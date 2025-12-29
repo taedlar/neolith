@@ -1,20 +1,17 @@
-# valid_hide
+# valid_hide()
 ## NAME
-          valid_hide - allows or disallows objects to hide and see
-          hidden objects
+**valid_hide** - allows or disallows objects to hide and see hidden objects
 
 ## SYNOPSIS
-          int valid_hide( object ob );
+~~~cxx
+int valid_hide (object ob);
+~~~
 
 ## DESCRIPTION
-          Add valid_hide to master.c in order to allow objects to hide
-          themselves, or see other objects that have hidden
-          themselves.  When an object tries to use the set_hide() efun
-          to hide itself, valid_hide will be called with the object
-          that is wanting to hide as the sole parameter.  It should
-          return 1 to allow it, or 0 to not allow it.  The same call
-          takes place when it needs to be determined if a certain
-          object should be able to see hidden objects.
+Add `valid_hide()` to master.c in order to allow objects to hide themselves, or see other objects that have hidden themselves.
+When an object tries to use the [set_hide()](../../efuns/set_hide.md) efun to hide itself, `valid_hide()` will be called with the object that is wanting to hide as the sole parameter.
+It should return 1 to allow it, or 0 to not allow it.
+The same call takes place when it needs to be determined if a certain object should be able to see hidden objects.
 
 ## SEE ALSO
-          set_hide(3)
+[set_hide()](../../efuns/set_hide.md)

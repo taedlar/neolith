@@ -1,6 +1,6 @@
-# write
+# write()
 ## NAME
-write() - send a message to current player
+**write** - send a message to current player
 
 ## SYNOPSIS
 ~~~cxx

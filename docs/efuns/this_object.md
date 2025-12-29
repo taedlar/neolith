@@ -1,16 +1,18 @@
-# this_object
+# this_object()
 ## NAME
-          this_object() - return the object pointer of the calling
-          object
+**this_object** - return the object pointer of the calling
+object
 
 ## SYNOPSIS
-          object this_object( void );
+~~~cxx
+object this_object( void );
+~~~
 
 ## DESCRIPTION
-          Return the object pointer of this object.  This function is
-          useful when an object wants to call functions that are not
-          in the same source file but are in the same object (via
-          inheritance).
+Return the object pointer of this object.  This function is
+useful when an object wants to call functions that are not
+in the same source file but are in the same object (via
+inheritance).
 
 ## SEE ALSO
-          this_player(3), previous_object(3), origin(3)
+[this_player()](this_player.md), [previous_object()](previous_object.md), [origin()](origin.md)

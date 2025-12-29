@@ -1,13 +1,15 @@
-# asin
+# asin()
 ## NAME
-          asin() - return the arcsine of a float
+**asin** - return the arcsine of a float
 
 ## SYNOPSIS
-          float asin( float f );
+~~~cxx
+float asin( float f );
+~~~
 
 ## DESCRIPTION
-          Returns the arcsine of its argument, `f', measured in
-          radians.
+Returns the arcsine of its argument, `f', measured in
+radians.
 
 ## SEE ALSO
-          acos(3), atan(3), cos(3), sin(3), tan(3)
+[acos()](acos.md), [atan()](atan.md), [cos()](cos.md), [sin()](sin.md), [tan()](tan.md)

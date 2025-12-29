@@ -1,35 +1,37 @@
-# map_delete
+# map_delete()
 ## NAME
-          map_delete() - remove a (key, value) pair from a mapping
-          based on the key
+**map_delete** - remove a (key, value) pair from a mapping
+based on the key
 
 ## SYNOPSIS
-          void map_delete( mapping m, mixed element );
+~~~cxx
+void map_delete( mapping m, mixed element );
+~~~
 
 ## DESCRIPTION
-          map_delete removes the (key, value) from the mapping m that
-          has key equal to element.
+map_delete removes the (key, value) from the mapping m that
+has key equal to element.
 
-          For example, given:
+For example, given:
 
-               mapping names;
+mapping names;
 
-               names = ([]);
-               names["truilkan"] = "john";
-               names["wayfarer"] = "erik";
-               names["jacques"] = "dwayne";
+names = ([]);
+names["truilkan"] = "john";
+names["wayfarer"] = "erik";
+names["jacques"] = "dwayne";
 
-          Then:
+Then:
 
-               map_delete(names,"truilkan");
+map_delete(names,"truilkan");
 
-          causes the mapping 'names' to be equal to:
+causes the mapping **names** to be equal to:
 
-               (["wayfarer" : "erik", "jacques" : "dwayne"])
+(["wayfarer" : "erik", "jacques" : "dwayne"])
 
-          keys(names) will not contain "truilkan" after
-          map_delete(names,"truilkan") is called [unless ("truilkan",
-          *) is subsequently added back to the mapping].
+keys(names) will not contain "truilkan" after
+map_delete(names,"truilkan") is called [unless ("truilkan",
+*) is subsequently added back to the mapping].
 
 ## SEE ALSO
-          allocate_mapping(3)
+[allocate_mapping()](allocate_mapping.md)

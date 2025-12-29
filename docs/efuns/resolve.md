@@ -1,6 +1,6 @@
-# resolve
+# resolve()
 ## NAME
-resolve() - resolve an internet address to domain name, or vice versa.
+**resolve** - resolve an internet address to domain name, or vice versa.
 
 ## SYNOPSIS
 ~~~cxx
@@ -12,7 +12,7 @@ resolve() resolves `address', which should be an internet address in the form "1
 When the resolve is complete, `callback_func' will be called in the current object.
 The form of the callback is:
 
-        void callback(string address, string resolved, int key);
+void callback(string address, string resolved, int key);
 
 `key` will match up with the number that the call to resolve() returned.
 `address` will be the domain name of the host, and `resolved' the dotted decimal ip address.

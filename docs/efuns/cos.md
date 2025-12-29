@@ -1,13 +1,15 @@
-# cos
+# cos()
 ## NAME
-          cos() - return the cosine of a float
+**cos** - return the cosine of a float
 
 ## SYNOPSIS
-          float cos( float f );
+~~~cxx
+float cos( float f );
+~~~
 
 ## DESCRIPTION
-          Returns the cosine of its argument, `f', measured in
-          radians.
+Returns the cosine of its argument, `f', measured in
+radians.
 
 ## SEE ALSO
-          acos(3), asin(3), atan(3), sin(3), tan(3)
+[acos()](acos.md), [asin()](asin.md), [atan()](atan.md), [sin()](sin.md), [tan()](tan.md)

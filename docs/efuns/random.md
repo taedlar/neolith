@@ -1,10 +1,12 @@
-# random
+# random()
 ## NAME
-          random() - return a pseudo-random number
+**random** - return a pseudo-random number
 
 ## SYNOPSIS
-          int random( int n );
+~~~cxx
+int random( int n );
+~~~
 
 ## DESCRIPTION
-          Return a pseudo-random number from the range [0 .. (n -1)]
-          (inclusive).
+Return a pseudo-random number from the range [0 .. (n -1)]
+(inclusive).

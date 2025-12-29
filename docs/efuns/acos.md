@@ -1,13 +1,15 @@
-# acos
+# acos()
 ## NAME
-          acos() - return the arccosine of a float
+**acos** - return the arccosine of a float
 
 ## SYNOPSIS
-          float acos( float f );
+~~~cxx
+float acos( float f );
+~~~
 
 ## DESCRIPTION
-          Returns the arccosine of its argument, `f', measured in
-          radians.
+Returns the arccosine of its argument, `f', measured in
+radians.
 
 ## SEE ALSO
-          asin(3), atan(3), cos(3), sin(3), tan(3)
+[asin()](asin.md), [atan()](atan.md), [cos()](cos.md), [sin()](sin.md), [tan()](tan.md)

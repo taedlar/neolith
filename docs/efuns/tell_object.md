@@ -1,6 +1,6 @@
-# tell_object
+# tell_object()
 ## NAME
-tell_object() - send a message to an object
+**tell_object** - send a message to an object
 
 ## SYNOPSIS
 ~~~cxx

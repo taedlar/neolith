@@ -1,14 +1,16 @@
-# get_config
+# get_config()
 ## NAME
-          get_config() - query various driver config settings
+**get_config** - query various driver config settings
 
 ## SYNOPSIS
-          string | int get_config( int );
+~~~cxx
+string | int get_config( int );
+~~~
 
 ## DESCRIPTION
-          This efun is used to query the driver's various config
-          settings.  Please refer to the "runtime_config.h" include
-          file for a list of currently recognized options.
+This efun is used to query the driver's various config
+settings.  Please refer to the "runtime_config.h" include
+file for a list of currently recognized options.
 
 ## SEE ALSO
-          /include/runtime_config.h
+/include/runtime_config.h

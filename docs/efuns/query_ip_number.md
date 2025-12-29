@@ -1,13 +1,15 @@
-# query_ip_number
+# query_ip_number()
 ## NAME
-          query_ip_number() - return the ip number for a player object
+**query_ip_number** - return the ip number for a player object
 
 ## SYNOPSIS
-          string query_ip_number( object ob );
+~~~cxx
+string query_ip_number( object ob );
+~~~
 
 ## DESCRIPTION
-          Return the ip-number (dotted decimal form) for player `ob'.
+Return the ip-number (dotted decimal form) for player `ob'.
 
 ## SEE ALSO
-          query_ip_name(3), query_host_name(3), resolve(3),
-          socket_address(3)
+[query_ip_name()](query_ip_name.md), [query_host_name()](query_host_name.md), [resolve()](resolve.md),
+[socket_address()](socket_address.md)

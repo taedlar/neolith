@@ -1,6 +1,6 @@
-# catch
+# catch()
 ## NAME
-catch() - catch an evaluation error
+**catch** - catch an evaluation error
 
 ## SYNOPSIS
 ~~~cxx
@@ -8,7 +8,7 @@ mixed catch (mixed expr);
 ~~~
 
 ## DESCRIPTION
-Evaluate *expr*. If there is no error, 0 is returned.
+Evaluate **expr**. If there is no error, 0 is returned.
 If there is a standard error, a string (with a leading '*') will be returned.
 
 The function `throw()` can also be used to immediately return any value, except 0.
