@@ -1,16 +1,18 @@
-# rename
+# rename()
 ## NAME
-          rename() - rename a file
+**rename** - rename a file
 
 ## SYNOPSIS
-          int rename( string src, string dst );
+~~~cxx
+int rename( string src, string dst );
+~~~
 
 ## DESCRIPTION
-          Renames the file <src> to <dst>.
+Renames the file **src** to **dst**.
 
 ## RETURN VALUE
-          rename() returns zero (0) to indicate success.  Nonzero
-          indicates failure.
+rename() returns zero (0) to indicate success.  Nonzero
+indicates failure.
 
 ## SEE ALSO
-          rm(3), rmdir(3), cp(3), link(3)
+[rm()](rm.md), [rmdir()](rmdir.md), [cp()](cp.md), [link()](link.md)

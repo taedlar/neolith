@@ -1,4 +1,4 @@
-# store_variable
+# store_variable()
 ## NAME
 store_object() - store value to a global variable in current object.
 

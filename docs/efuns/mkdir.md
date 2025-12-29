@@ -1,13 +1,15 @@
-# mkdir
+# mkdir()
 ## NAME
-          mkdir() - make a directory
+**mkdir** - make a directory
 
 ## SYNOPSIS
-          int mkdir( string directory );
+~~~cxx
+int mkdir( string directory );
+~~~
 
 ## DESCRIPTION
-          Creates the specified directory.  Returns 1 if successful, 0
-          if not.
+Creates the specified directory.  Returns 1 if successful, 0
+if not.
 
 ## SEE ALSO
-          rm(3), rmdir(3), link(3)
+[rm()](rm.md), [rmdir()](rmdir.md), [link()](link.md)

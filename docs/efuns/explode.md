@@ -1,6 +1,6 @@
-# explode
+# explode()
 ## NAME
-explode() - break up a string
+**explode** - break up a string
 
 ## SYNOPSIS
 ~~~cxx
@@ -20,4 +20,4 @@ explode() returns an array of strings, created when the string `str` is split in
 For breaking UTF-8 string into Unicode characters, `explode("小星星", "")` returns the array `({"小", "星", "星"})`.
 
 ## SEE ALSO
-sscanf(3), extract(3), replace_string(3), strsrch(3)
+[sscanf()](sscanf.md), [extract()](extract.md), [replace_string()](replace_string.md), [strsrch()](strsrch.md)

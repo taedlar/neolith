@@ -1,12 +1,14 @@
-# sin
+# sin()
 ## NAME
-          sin() - return the sine of a float
+**sin** - return the sine of a float
 
 ## SYNOPSIS
-          float sin( float f );
+~~~cxx
+float sin( float f );
+~~~
 
 ## DESCRIPTION
-          Returns the sine of its argument, `f', measured in radians.
+Returns the sine of its argument, `f', measured in radians.
 
 ## SEE ALSO
-          acos(3), asin(3), atan(3), cos(3), tan(3)
+[acos()](acos.md), [asin()](asin.md), [atan()](atan.md), [cos()](cos.md), [tan()](tan.md)

@@ -1,6 +1,6 @@
-# save_variable
+# save_variable()
 ## NAME
-save_variable() - save the value of variable into a string
+**save_variable** - save the value of variable into a string
 
 ## SYNOPSIS
 ~~~cxx

@@ -1,13 +1,15 @@
-# logon
+# logon()
 ## NAME
-          logon - initialize a login connection
+**logon** - initialize a login connection
 
 ## SYNOPSIS
-          object logon( void );
+~~~cxx
+object logon (void);
+~~~
 
 ## DESCRIPTION
-          This apply is called on the object returned by the connect()
-          master apply.  It should set up the new user.
+This apply is called on the object returned by the [connect()](../master/connect.md) master apply.
+It should set up the new user.
 
 ## SEE ALSO
-          connect(4)
+[connect()](../master/connect.md)

@@ -1,13 +1,15 @@
-# query_idle
+# query_idle()
 ## NAME
-          query_idle() - determine how many seconds an interactive
-          player has been idle
+**query_idle** - determine how many seconds an interactive
+player has been idle
 
 ## SYNOPSIS
-          int query_idle( object ob );
+~~~cxx
+int query_idle( object ob );
+~~~
 
 ## DESCRIPTION
-          Query how many seconds a player object (ob) has been idling.
+Query how many seconds a player object (ob) has been idling.
 
 ## SEE ALSO
-          in_edit(3), in_input(3)
+[in_edit()](in_edit.md), [in_input()](in_input.md)

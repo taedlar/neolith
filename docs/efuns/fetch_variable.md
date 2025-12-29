@@ -1,6 +1,6 @@
-# fetch_variable
+# fetch_variable()
 ## NAME
-fetch_variable() - fetch value of a global variable by name.
+**fetch_variable** - fetch value of a global variable by name.
 
 ## SYNOPSIS
 ~~~cxx

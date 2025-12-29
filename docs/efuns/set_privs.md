@@ -1,15 +1,17 @@
-# set_privs
+# set_privs()
 ## NAME
-          set_privs() - set the privs string for an object
+**set_privs** - set the privs string for an object
 
 ## SYNOPSIS
-          void set_privs( object ob, string privs );
+~~~cxx
+void set_privs( object ob, string privs );
+~~~
 
 ## DESCRIPTION
-          Sets the privs string for `ob' to `privs'.
+Sets the privs string for `ob' to `privs'.
 
-          This efun is only available if PRIVS is defined at driver
-          compile time.
+This efun is only available if PRIVS is defined at driver
+compile time.
 
 ## SEE ALSO
-          privs_file(4), query_privs(3)
+[privs_file()](privs_file.md), [query_privs()](query_privs.md)

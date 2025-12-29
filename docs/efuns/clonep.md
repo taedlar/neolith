@@ -1,6 +1,6 @@
-# clonep
+# clonep()
 ## NAME
-clonep() - determine whether or not a given variable points to a cloned object
+**clonep** - determine whether or not a given variable points to a cloned object
 
 ## SYNOPSIS
 ~~~cxx
@@ -9,11 +9,11 @@ int clonep (void | mixed arg);
 
 ## DESCRIPTION
 Returns true (1) iff the argument is objectp() and the O_CLONE flag is set.
-The driver sets the O_CLONE flag for those objects created via new(3) (clone_object(3)).
-The clonep() efun will not return true when called on objects that are the master copy (those that are loaded via call_other(3)).
+The driver sets the O_CLONE flag for those objects created via [new()](new.md) ([clone_object()](clone_object.md)).
+The clonep() efun will not return true when called on objects that are the master copy (those that are loaded via [call_other()](call_other.md)).
 Note that if clonep() returns true, then file_name() will return a string containing a '#'.
 
 clonep() defaults to this_object().
 
 ## SEE ALSO
-virtualp(3), userp(3), wizardp(3), objectp(3), new(3), clone_object(3), call_other(3), file_name(3)
+[virtualp()](virtualp.md), [userp()](userp.md), [wizardp()](wizardp.md), [objectp()](objectp.md), [new()](new.md), [clone_object()](clone_object.md), [call_other()](call_other.md), [file_name()](file_name.md)

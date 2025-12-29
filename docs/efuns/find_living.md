@@ -1,6 +1,6 @@
-# find_living
+# find_living()
 ## NAME
-find_living() - find a living object matching a given id
+**find_living** - find a living object matching a given id
 
 ## SYNOPSIS
 ~~~cxx

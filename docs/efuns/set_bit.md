@@ -1,20 +1,22 @@
-# set_bit
+# set_bit()
 ## NAME
-          set_bit() - set a bit in a bitstring
+**set_bit** - set a bit in a bitstring
 
 ## SYNOPSIS
-          string set_bit( string str, int n );
+~~~cxx
+string set_bit( string str, int n );
+~~~
 
 ## DESCRIPTION
-          Return the new string where bit `n' is set in string `str'.
-          Note that the old string `str' is not modified.
+Return the new string where bit `n' is set in string `str'.
+Note that the old string `str' is not modified.
 
-          The max value of `n' is limited. Ask the administrator if
-          you want to now the maximum value.
+The max value of `n' is limited. Ask the administrator if
+you want to now the maximum value.
 
-          The new string will automatically be extended if needed.
+The new string will automatically be extended if needed.
 
-          Bits are packed 6 per byte in printable strings.
+Bits are packed 6 per byte in printable strings.
 
 ## SEE ALSO
-          clear_bit(3), test_bit(3)
+[clear_bit()](clear_bit.md), [test_bit()](test_bit.md)

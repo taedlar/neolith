@@ -1,40 +1,42 @@
-# socket_bind
+# socket_bind()
 ## NAME
-          socket_bind() - bind a name to a socket
+**socket_bind** - bind a name to a socket
 
 ## SYNOPSIS
-          #include <socket_err.h>
+~~~cxx
+#include <socket_err.h>
+~~~
 
-          int socket_bind( int s, int port );
+int socket_bind( int s, int port );
 
 ## DESCRIPTION
-          socket_bind() assigns a name to an unnamed socket. When a
-          socket is created with socket_create(3) it exists in a name
-          space (address family) but has no name assigned.
-          socket_bind() requests that the port be assigned to the
-          socket s.
+socket_bind() assigns a name to an unnamed socket. When a
+socket is created with [socket_create()](socket_create.md) it exists in a name
+space (address family) but has no name assigned.
+socket_bind() requests that the port be assigned to the
+socket s.
 
 ## RETURN VALUE
-          socket_bind() returns:
+socket_bind() returns:
 
-               EESUCCESS on success.
+EESUCCESS on success.
 
-               a negative value indicated below on error.
+a negative value indicated below on error.
 
 ## ERRORS
-          EEFDRANGE      Descriptor out of range.
+EEFDRANGE      Descriptor out of range.
 
-          EEBADF         Descriptor is invalid.
+EEBADF         Descriptor is invalid.
 
-          EESECURITY     Security violation attempted.
+EESECURITY     Security violation attempted.
 
-          EEISBOUND      Socket is already bound.
+EEISBOUND      Socket is already bound.
 
-          EEADDRINUSE    Address already in use.
+EEADDRINUSE    Address already in use.
 
-          EEBIND         Problem with bind.
+EEBIND         Problem with bind.
 
 ## NAME
 
 ## SEE ALSO
-          socket_connect(3), socket_create(3), socket_listen(3)
+[socket_connect()](socket_connect.md), [socket_create()](socket_create.md), [socket_listen()](socket_listen.md)

@@ -1,6 +1,6 @@
-# query_verb
+# query_verb()
 ## NAME
-query_verb() - return the name of the command currently being executed.
+**query_verb** - return the name of the command currently being executed.
 
 ## SYNOPSIS
 ~~~cxx

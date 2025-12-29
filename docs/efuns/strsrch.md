@@ -1,6 +1,6 @@
-# strsrch
+# strsrch()
 ## NAME
-strsrch() - search for substrings in a string
+**strsrch** - search for substrings in a string
 
 ## SYNOPSIS
 ~~~cxx
@@ -8,8 +8,8 @@ int strsrch (string str, string substr | int char, int flag);
 ~~~
 
 ## DESCRIPTION
-strsrch() searches for the first occurance of the string *substr* in the string *str*.
-The last occurance of *substr* can be found by passing `-1` as the 3rd argument (which is optional).
+strsrch() searches for the first occurance of the string **substr** in the string **str**.
+The last occurance of **substr** can be found by passing `-1` as the 3rd argument (which is optional).
 If the second argument is an integer, that character is found (à la C's strchr()/strrchr().)
 The empty string or null value cannot be searched for.
 

@@ -1,13 +1,15 @@
-# tan
+# tan()
 ## NAME
-          tan() - return the tangent of a float
+**tan** - return the tangent of a float
 
 ## SYNOPSIS
-          float tan( float f );
+~~~cxx
+float tan( float f );
+~~~
 
 ## DESCRIPTION
-          Returns the tangent of its argument, `f', measured in
-          radians.
+Returns the tangent of its argument, `f', measured in
+radians.
 
 ## SEE ALSO
-          acos(3), asin(3), atan(3), cos(3), sin(3)
+[acos()](acos.md), [asin()](asin.md), [atan()](atan.md), [cos()](cos.md), [sin()](sin.md)

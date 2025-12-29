@@ -1,14 +1,16 @@
-# allocate
+# allocate()
 ## NAME
-          allocate() - allocate an array
+**allocate** - allocate an array
 
 ## SYNOPSIS
-          mixed *allocate( int size );
+~~~cxx
+mixed *allocate( int size );
+~~~
 
 ## DESCRIPTION
-          Allocate an array of <size> elements.  The number of
-          elements must be >= 0 and not bigger than a system maximum
-          (usually ~10000).  All elements are initialized to 0.
+Allocate an array of **size** elements.  The number of
+elements must be >= 0 and not bigger than a system maximum
+(usually ~10000).  All elements are initialized to 0.
 
 ## SEE ALSO
-          sizeof(3), allocate_mapping(3)
+[sizeof()](sizeof.md), [allocate_mapping()](allocate_mapping.md)

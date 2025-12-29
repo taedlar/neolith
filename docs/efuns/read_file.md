@@ -1,21 +1,23 @@
-# read_file
+# read_file()
 ## NAME
-          read_file() - read a file into a string
+**read_file** - read a file into a string
 
 ## SYNOPSIS
-          string read_file( string file, int start_line,
-                            int number_of_lines );
+~~~cxx
+string read_file( string file, int start_line,
+int number_of_lines );
+~~~
 
 ## DESCRIPTION
-          Read a line of text from a file into a string.  The second
-          and third arguments are optional.  If only the first
-          argument is specified, the entire file is returned (as a
-          string).
+Read a line of text from a file into a string.  The second
+and third arguments are optional.  If only the first
+argument is specified, the entire file is returned (as a
+string).
 
-          The start_line is the line number of the line you wish to
-          read.  This routine will return 0 if you try to read past
-          the end of the file, or if you try to read from a
-          nonpositive line.
+The start_line is the line number of the line you wish to
+read.  This routine will return 0 if you try to read past
+the end of the file, or if you try to read from a
+nonpositive line.
 
 ## SEE ALSO
-          write_file(3), read_buffer(3)
+[write_file()](write_file.md), [read_buffer()](read_buffer.md)

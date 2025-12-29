@@ -1,6 +1,6 @@
-# in_input
+# in_input()
 ## NAME
-in_input() - determines if a player is inputting to an `input_to`.
+**in_input** - determines if a player is inputting to an `input_to`.
 
 ## SYNOPSIS
 ~~~cxx

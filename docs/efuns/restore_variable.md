@@ -1,6 +1,6 @@
-# restore_variable
+# restore_variable()
 ## NAME
-restore_variable() - restore value of a variable from a string
+**restore_variable** - restore value of a variable from a string
 
 ## SYNOPSIS
 ~~~cxx

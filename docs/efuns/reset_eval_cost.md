@@ -1,14 +1,16 @@
-# reset_eval_cost
+# reset_eval_cost()
 ## NAME
-          reset_eval_cost() - resets the evaluation cost remaining
+**reset_eval_cost** - resets the evaluation cost remaining
 
 ## SYNOPSIS
-          void reset_eval_cost();
+~~~cxx
+void reset_eval_cost();
+~~~
 
 ## DESCRIPTION
-          reset_eval_cost(), resets the evaluation cost remaining to
-          the maximum evaluation cost.
+reset_eval_cost(), resets the evaluation cost remaining to
+the maximum evaluation cost.
 
 ## SEE ALSO
-          catch(3), error(3), throw(3), error_handler(4),
-          eval_cost(3), set_eval_limit(3)
+[catch()](catch.md), [error()](error.md), [throw()](throw.md), [error_handler()](error_handler.md),
+[eval_cost()](eval_cost.md), [set_eval_limit()](set_eval_limit.md)

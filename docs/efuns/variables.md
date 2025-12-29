@@ -1,6 +1,6 @@
-# variables
+# variables()
 ## NAME
-variables() - returns array of global variable names
+**variables** - returns array of global variable names
 
 ## SYNOPSIS
 ~~~cxx

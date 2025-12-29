@@ -1,14 +1,16 @@
-# users
+# users()
 ## NAME
-          users() - return an array of objects containing all
-          interactive players
+**users** - return an array of objects containing all
+interactive players
 
 ## SYNOPSIS
-          object *users( void );
+~~~cxx
+object *users( void );
+~~~
 
 ## DESCRIPTION
-          Return an array of objects, containing all interactive
-          players.
+Return an array of objects, containing all interactive
+players.
 
 ## SEE ALSO
-          livings(3), children(3), objects(3)
+[livings()](livings.md), [children()](children.md), [objects()](objects.md)

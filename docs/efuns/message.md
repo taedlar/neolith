@@ -1,6 +1,6 @@
-# message
+# message()
 ## NAME
-message() - deliver messages to "living" objects
+**message** - deliver messages to "living" objects
 
 ## SYNOPSIS
 ~~~cxx
@@ -12,7 +12,7 @@ void message (mixed class, string message, mixed target, mixed exclude);
 It basically tells the object the message.
 
 - **class** is the type of message (used for clients and such).
-An example would be 'combat', 'shout', 'emergency' etc.
+An example would be **combat**, **shout**, **emergency** etc.
 
 - **message** is a string containing the text to send.
 

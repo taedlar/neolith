@@ -1,12 +1,14 @@
-# rm
+# rm()
 ## NAME
-          rm() - remove a file
+**rm** - remove a file
 
 ## SYNOPSIS
-          int rm( string file );
+~~~cxx
+int rm( string file );
+~~~
 
 ## DESCRIPTION
-          Remove file `file'. Returns 0 for failure and 1 for success.
+Remove file `file'. Returns 0 for failure and 1 for success.
 
 ## SEE ALSO
-          mkdir(3), rmdir(3), link(3)
+[mkdir()](mkdir.md), [rmdir()](rmdir.md), [link()](link.md)

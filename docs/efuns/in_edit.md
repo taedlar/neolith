@@ -1,13 +1,15 @@
-# in_edit
+# in_edit()
 ## NAME
-          in_edit() - determine if a player is in the editor
+**in_edit** - determine if a player is in the editor
 
 ## SYNOPSIS
-          string in_edit( object default : F_THIS_OBJECT );
+~~~cxx
+string in_edit( object default : F_THIS_OBJECT );
+~~~
 
 ## DESCRIPTION
-          If the given object is in the editor, the file being edited
-          is returned, else zero.
+If the given object is in the editor, the file being edited
+is returned, else zero.
 
 ## SEE ALSO
-          ed(3), in_input(3)
+[ed()](ed.md), [in_input()](in_input.md)

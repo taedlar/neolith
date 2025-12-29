@@ -1,12 +1,14 @@
-# master
+# master()
 ## NAME
-          master() - returns the master object
+**master** - returns the master object
 
 ## SYNOPSIS
-          object master( void );
+~~~cxx
+object master( void );
+~~~
 
 ## DESCRIPTION
-          Returns a pointer to the master object.
+Returns a pointer to the master object.
 
 ## SEE ALSO
-          find_object(3)
+[find_object()](find_object.md)

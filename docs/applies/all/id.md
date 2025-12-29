@@ -1,16 +1,15 @@
-# id
+# id()
 ## NAME
-          id - function called by present() in order to identify an
-          object
+**id** - function called by present() in order to identify an object
 
 ## SYNOPSIS
-          int id( string an_id );
+~~~cxx
+int id (string an_id);
+~~~
 
 ## DESCRIPTION
-          The present(3) efunction calls id() to determine if a given
-          object is named by a given string.  id() should return 1 if
-          the object wishes to be known by the name in the string
-          anId; it should return 0 otherwise.
+The [present()](../../efuns/present.md) efun calls `id()` to determine if a given object is named by a given string.
+`id()` should return 1 if the object wishes to be known by the name in the string **an_id**; it should return 0 otherwise.
 
 ## SEE ALSO
-          present(3)
+[present()](../../efuns/present.md)

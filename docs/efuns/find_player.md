@@ -1,6 +1,6 @@
-# find_player
+# find_player()
 ## NAME
-find_player() - find a player by name
+**find_player** - find a player by name
 
 ## SYNOPSIS
 ~~~cxx

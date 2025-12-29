@@ -1,15 +1,17 @@
-# rmdir
+# rmdir()
 ## NAME
-          rmdir() - remove a directory
+**rmdir** - remove a directory
 
 ## SYNOPSIS
-          int rmdir( string dir );
+~~~cxx
+int rmdir( string dir );
+~~~
 
 ## DESCRIPTION
-          Remove directory `dir'.
+Remove directory `dir'.
 
 ## RETURN VALUE
-          Returns nonzero for success, zero (0) for failure.
+Returns nonzero for success, zero (0) for failure.
 
 ## SEE ALSO
-          rm(3), mkdir(3), link(3)
+[rm()](rm.md), [mkdir()](mkdir.md), [link()](link.md)

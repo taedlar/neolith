@@ -1,6 +1,6 @@
-# remove_call_out
+# remove_call_out()
 ## NAME
-remove_call_out() - remove a pending call_out
+**remove_call_out** - remove a pending call_out
 
 ## SYNOPSIS
 ~~~cxx

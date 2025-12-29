@@ -1,6 +1,6 @@
-# socket_connect
+# socket_connect()
 ## NAME
-socket_connect() - initiate a connection on a socket
+**socket_connect** - initiate a connection on a socket
 
 ## SYNOPSIS
 ~~~cxx
@@ -10,26 +10,26 @@ int socket_connect( int s, string address, string read_callback, string write_ca
 ~~~
 
 ## DESCRIPTION
-The argument *s* is a socket.
-*s* must be either a `STREAM` mode or a `MUD` mode socket.
-*address* is the address to which the socket will attempt to connect.
-*address* is of the form:
+The argument **s** is a socket.
+**s** must be either a `STREAM` mode or a `MUD` mode socket.
+**address** is the address to which the socket will attempt to connect.
+**address** is of the form:
 
-    "127.0.0.1 23"
+"127.0.0.1 23"
 
-The argument *read_callback* is the name of a function for the driver to call when the socket gets data from its peer.
+The argument **read_callback** is the name of a function for the driver to call when the socket gets data from its peer.
 The read callback should follow this format:
 ~~~cxx
 void read_callback(int fd, mixed message)
 ~~~
-Where *fd* is the socket which received the data, and *message* is the data which was received.
+Where **fd** is the socket which received the data, and **message** is the data which was received.
 
-The argument *write_callback* is the name of a function for the driver to call when the socket is ready to be written to.
+The argument **write_callback** is the name of a function for the driver to call when the socket is ready to be written to.
 The write callback should follow this format:
 ~~~cxx
 void write_callback(int fd)
 ~~~
-Where *fd* is the socket which is ready to be written to.
+Where **fd** is the socket which is ready to be written to.
 
 ## RETURN VALUE
 socket_connect() returns:

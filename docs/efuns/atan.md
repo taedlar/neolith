@@ -1,13 +1,15 @@
-# atan
+# atan()
 ## NAME
-          atan() - return the tangent of a float
+**atan** - return the tangent of a float
 
 ## SYNOPSIS
-          float atan( float f );
+~~~cxx
+float atan( float f );
+~~~
 
 ## DESCRIPTION
-          Returns the arctangent of its argument, `f', measured in
-          radians.
+Returns the arctangent of its argument, `f', measured in
+radians.
 
 ## SEE ALSO
-          acos(3), asin(3), cos(3), sin(3), tan(3)
+[acos()](acos.md), [asin()](asin.md), [cos()](cos.md), [sin()](sin.md), [tan()](tan.md)
