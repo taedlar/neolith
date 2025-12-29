@@ -1,178 +1,166 @@
-# Neolith LPMud Driver - AI Agent Instructions
+# Neolith LPMud Driver AI Development Guide
 
 ## Project Overview
-Neolith is a minimalist LPMud (Multi-User Dungeon) game server forked from MudOS v22pre5. It's a **C/C++ virtual machine** that executes LPC (Lars Pensjö C) scripting language programs to run text-based multiplayer games. The architecture follows a classic interpreter pattern with a compiler, stack machine, and runtime.
+Neolith is a minimalist LPMud driver forked from MudOS v22pre5, modernizing decades-old C/C++ code while maintaining compatibility with the LPC (Lars Pensjö C) scripting language used by MUD builders.
 
-## Architecture Components
+**Commercial use is NOT ALLOWED** (GPLv2 + original author restrictions).
 
-### Core Runtime Layers (see [src/README.md](../src/README.md))
-- **Backend** ([src/backend.c](../src/backend.c)) - Main I/O loop, handles `heart_beat()`, `reset()` applies, and `call_out()` scheduling
-- **Comm** ([src/comm.c](../src/comm.c)) - Non-blocking TCP socket handling, telnet protocol, user command dispatch
-- **Interpret** ([src/interpret.c](../src/interpret.c)) - Stack machine interpreter executing LPC bytecode opcodes via `eval_instruction()`
-- **Simulate** ([src/simulate.c](../src/simulate.c)) - Object lifecycle (load/clone/destruct), mudlib filesystem mapping, world hierarchy
+## Architecture: The Big Picture
 
-### LPC Compiler ([lib/lpc/](../lib/lpc/))
-- **grammar.y** - Bison parser generating parse trees from LPC source
-- **compiler.c** - Translates parse trees to bytecode opcodes
-- **lex.c** - Lexer with C preprocessor support
-- Programs are reference-counted; multiple objects can share one program image while maintaining separate variable instances
+The driver operates as a virtual machine for LPC scripts, organized into these major components:
 
-### Efuns (External Functions) ([lib/efuns/](../lib/efuns/))
-- Built-in functions callable from LPC, defined with `#ifdef F_FUNCTION_NAME` pattern
-- Implementation pattern: `void f_function_name(void)` reading args from global `sp` (stack pointer)
-- Example: [lib/efuns/bits.c](../lib/efuns/bits.c) shows `f_test_bit()`, `f_set_bit()` operating on stack
+1. **Backend** ([src/backend.c](src/backend.c)): Main event loop handling I/O, timers, and object lifecycle
+   - Dispatches `heart_beat()` applies every 2 seconds for animated objects
+   - Triggers `reset()` applies for lazy object initialization
+   - Processes `call_out()` delayed function calls
+   
+2. **Interpreter** ([src/interpret.c](src/interpret.c)): Stack machine executing compiled LPC opcodes
+   - Manages value stack and control stack for function calls
+   - Routes calls through apply cache for performance
+   - Handles simul_efuns (kernel-level LPC functions loaded from mudlib)
 
-### Object System
-Objects = **Program** (shared bytecode) + **Variables** (per-instance). Initial object named `/std/room`, clones are `/std/room#2`, `/std/room#5`. This allows online code updates without disrupting active objects—a key LPMud advantage.
+3. **Simulate** ([src/simulate.c](src/simulate.c)): Virtual world object management
+   - Maps mudlib filesystem paths to LPC objects (e.g., `/std/room.c` → `/std/room`)
+   - Cloned objects get names like `/std/room#2`, all sharing the same program
+   - Objects can be moved to create spatial hierarchies
 
-## Build System
+4. **Comm** ([src/comm.c](src/comm.c)): Non-blocking network I/O
+   - Handles telnet connections and dispatches user commands to interactive objects
 
-### CMake Structure
-- **Presets-based workflow**: Use `cmake --preset linux` then `cmake --build --preset ci-linux`
-- Executables output to `out/build/<preset>/src/<config>/neolith`
-- Build presets:
-  - `dev-linux` - Debug incremental build
-  - `pr-linux` - RelWithDebInfo incremental (pre-merge validation)
-  - `ci-linux` - RelWithDebInfo clean rebuild (nightly builds)
+5. **LPC Compiler** ([lib/lpc/](lib/lpc/)): On-demand compilation via Bison grammar
+   - Compiles LPC source to opcodes when objects are loaded
+   - Multiple program versions can coexist (key to online editing workflow)
 
-### Platform Considerations
-- **Linux primary target** (Ubuntu 20.04+, WSL supported)
-- **Windows** via MSVC requires lib/port compatibility layer ([lib/port/](../lib/port/))
-- Required deps: `gcc/g++`, `ninja-build`, `bison`
-- Auto-generated `config.h` from [config.h.in](../config.h.in) handles platform headers/functions
+6. **Efuns** ([lib/efuns/](lib/efuns/)): Built-in functions callable from LPC
+   - Generated from [func_spec.c](lib/efuns/func_spec.c) via custom preprocessor tool [edit_source](lib/efuns/edit_source.c)
 
-### Project Structure
-- `lib/port/` - Platform abstraction (Windows getopt, realpath, timers)
-- `lib/logger/`, `lib/rc/` - Logging and runtime configuration
-- `lib/misc/` - Utility libraries
-- `lib/socket/` - Socket efuns implementation
+## Critical Developer Workflows
 
-## Development Conventions
-
-### Code Style (Inherited from MudOS)
-- **Include pattern**: All `src/*.c` files include `"std.h"` first (never use `<>` for it)
-- **std.h hierarchy**: Defines platform headers, `options.h`, `port/wrapper.h`, debug macros
-- Use `#ifdef HAVE_CONFIG_H` guards at file tops
-- Function definitions use K&R-style formatting (pre-C99 legacy)
-
-### Apply Functions
-Special LPC callbacks invoked by driver (see [docs/applies/](../docs/applies/)):
-- `valid_*()` - Security checks (e.g., file access permissions)
-- `init()` - Called when objects move proximity (command registration)
-- Cached in [src/apply.c](../src/apply.c) via `APPLY_CACHE_SIZE` hash table for performance
-
-### Testing with GoogleTest
-- Tests in [tests/](../tests/) follow `test_<component>/` structure
-- Test fixtures initialize with `init_stem()`, `init_strings()` - see [tests/test_stralloc/test_stralloc.cpp](../tests/test_stralloc/test_stralloc.cpp)
-- Many tests require setting working directory to example mudlib ([examples/m3_mudlib/](../examples/m3_mudlib/))
-- Run via CTest: `ctest --preset ci-linux` or individual test binaries
-
-## Critical Workflows
-
-### Running the Driver
-1. Copy [src/neolith.conf](../src/neolith.conf) and customize:
-   - `MudlibDir` - Full path to LPC mudlib files
-   - `Port` - TCP port with protocol (e.g., `5000:telnet`)
-   - `LogDir` - Full path for debug/error logs
-2. Launch: `neolith -f /path/to/neolith.conf`
-3. Driver loads master object from mudlib to bootstrap world
-
-### Adding New Efuns
-
-Efuns (External Functions) are built-in C functions callable from LPC code. They operate on the global stack pointer (`sp`) and follow a strict pattern:
-
-**Step 1: Implement the C Function**
-Create or modify a file in `lib/efuns/` (group related efuns together):
-
-```c
-#ifdef F_MY_NEW_EFUN
-void f_my_new_efun(void) {
-    // Read arguments from stack (sp points to top-most argument)
-    // For efun with 2 args: (sp-1) is arg1, (sp) is arg2
-    int arg2 = sp->u.number;      // Read second argument
-    int arg1 = (sp-1)->u.number;  // Read first argument
-    
-    // Pop arguments off stack
-    sp -= 2;
-    
-    // Push result onto stack
-    push_number(arg1 + arg2);
-}
-#endif
-```
-
-**Key Stack Operations:**
-- `sp` - Global stack pointer (points to top of stack)
-- `sp->type` - Check argument type (T_NUMBER, T_STRING, T_OBJECT, T_ARRAY, etc.)
-- `sp->u.number` / `sp->u.string` / `sp->u.ob` - Access typed values
-- `sp--` or `pop_stack()` - Remove value from stack
-- `push_number()` / `push_string()` / `push_object()` - Add result to stack
-- Type checking: Use `CHECK_TYPES(sp, T_NUMBER, argnum, F_MY_NEW_EFUN)` macro
-
-**Step 2: Declare in func_spec.c**
-Add your efun to `lib/func_spec.c` (LPC syntax, processed by `edit_source` at build time):
-
-```c
-int my_new_efun(int, int);
-```
-
-The syntax follows LPC function prototypes. Return type and parameter types determine:
-- Which arguments are required
-- Type checking performed by interpreter
-- How arguments are pushed/popped
-
-**Step 3: Add Documentation**
-Create `docs/efuns/my_new_efun.md`:
-
-```markdown
-### NAME
-    my_new_efun() - brief description
-
-### SYNOPSIS
-    int my_new_efun(int arg1, int arg2);
-
-### DESCRIPTION
-    Detailed description of what the function does.
-
-### RETURN VALUE
-    Returns the sum of arg1 and arg2.
-
-### EXAMPLES
-    int result = my_new_efun(5, 10); // returns 15
-```
-
-**Step 4: Rebuild and Test**
+### Building
 ```bash
+# Configure (Linux with Ninja Multi-Config)
+cmake --preset linux
+
+# Build (outputs to out/build/linux/src/RelWithDebInfo/neolith)
 cmake --build --preset ci-linux
-# Test in mudlib by calling the efun from LPC code
 ```
 
-**Common Patterns:**
-- **String arguments**: Use `sp->u.string`, remember to `free_string_svalue(sp)` if needed
-- **Array arguments**: Access via `sp->u.arr`, iterate with `sp->u.arr->item[i]`
-- **Object arguments**: Check `sp->u.ob->flags & O_DESTRUCTED` before use
-- **Variable arguments**: Use `st_num_arg` global to get actual argument count
-- **Error handling**: Call `error("*Error message")` for runtime errors (aborts execution)
+CMake presets in [CMakePresets.json](CMakePresets.json):
+- `linux`: Linux/WSL with GCC
+- `vs16-x64`/`vs16-win32`: Windows Visual Studio 2019
+- Presets prefixed `dev-`: incremental builds
+- Presets prefixed `ci-`: clean rebuilds
 
-**See Examples:**
-- [lib/efuns/bits.c](../lib/efuns/bits.c) - Simple efuns operating on numbers
-- [lib/efuns/strings.c](../lib/efuns/strings.c) - String manipulation
-- [lib/efuns/arrays.c](../lib/efuns/arrays.c) - Array operations
+### Testing
+Uses GoogleTest framework. Test structure mirrors driver components:
+```bash
+ctest --preset ut-linux  # Run all tests
+```
 
-### Debugging
-- Enable trace logging in config: `DebugLogFile debug.log`, `LogWithDate yes`
-- Use `opt_trace()` macros (defined via `stem.h`) for conditional debug output
-- Stack machine state inspection via `dump_trace()` functions
+Test patterns:
+- Generic library tests (e.g., [test_logger](tests/test_logger/)) link only needed dependencies
+- Driver component tests link the `stem` object library (all driver code except main.c)
+- Tests expect [examples/](examples/) directory copied to build directory (automated via CMake POST_BUILD)
+- Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
 
-## Key Files for Understanding
-- [README.md](../README.md) - Architecture diagram, build quickstart
-- [src/README.md](../src/README.md) - Runtime component mindmap
-- [lib/lpc/README.md](../lib/lpc/README.md) - LPC type system, object lifecycle
-- [docs/INSTALL.md](../docs/INSTALL.md) - Build environment setup
-- [config.h.in](../config.h.in) - Platform capability detection
+### Running
+```bash
+neolith -f /path/to/neolith.conf
+```
+Config template: [src/neolith.conf](src/neolith.conf). Set `DebugLogFile` and `LogWithDate` for ISO-8601 timestamped logs.
 
-## Important Gotchas
-- **Stack-based execution**: Most efuns/applies manipulate global `sp` stack pointer directly
-- **String interning**: Uses [src/stralloc.c](../src/stralloc.c) for shared string storage (`make_shared_string()`)
-- **No commercial use**: GPLv2 + Lars Pensjö restriction forbids monetary gain
-- **Legacy C codebase**: Pre-dates C99, many modern standards violations being gradually fixed
+## Code Conventions & Patterns
+
+### Naming & Style
+- **C code**: `snake_case` for functions/variables. No abbreviations; choose unique global names.
+- **C++ code**: `CamelCase` for classes/methods. No underscores in test names (GoogleTest restriction).
+- **Indentation**: GNU style modified—opening brace on same line as function name for grep-ability.
+  ```c
+  int my_function(int arg) {  // NOT on new line
+      // spaces only, no tabs
+  }
+  ```
+- Return type and function name on same line for searchability.
+
+### Header Includes
+All [src/](src/) files include [std.h](src/std.h) first (after config.h), which provides portable POSIX headers and driver-wide options from [efuns/options.h](lib/efuns/options.h).
+
+### Modular Architecture
+Legacy code had excessive global variables. Neolith refactors into:
+- Static libraries in [lib/](lib/): `port`, `logger`, `rc`, `misc`, `efuns`, `lpc`, `socket`
+- `stem` object library in [src/](src/): all driver code linked to tests and main executable
+- Cascaded `init_*()`/`deinit_*()` lifecycle, tracked via `get_machine_state()`
+
+### Apply Functions Pattern
+"Applies" are LPC functions called by the driver (inverse of efuns). Key examples:
+- `heart_beat()`: called every HEARTBEAT_INTERVAL (default 2s) if object calls `set_heart_beat(1)`
+- `reset()`: lazy initialization when object accessed after timeout
+- `init()`: called when objects move in inventory hierarchy
+- `receive_message()`: delivers messages from `tell_object()`, `say()`, etc.
+
+Applies are called via [apply_low()](src/apply.c) with caching for performance. See [docs/applies/](docs/applies/).
+
+### Object Lifecycle
+- **Loading**: Compile LPC source → creates initial object named without `#`
+- **Cloning**: `clone_object()` creates instance with `#N` suffix, shares program
+- **Versioning**: Multiple programs can coexist; cloned objects keep their program even after source recompile
+- **Destruction**: `destruct()` decrements program refcount; program freed when count hits zero
+
+### CMake Library Dependencies
+```
+stem (driver) → efuns, lpc, rc, socket, misc, logger, port
+    lpc → logger, efuns, rc
+    efuns → port, misc
+```
+When adding features, link appropriate libraries. Check [src/CMakeLists.txt](src/CMakeLists.txt) for the dependency chain.
+
+### Efuns Code Generation
+Efuns are **not** manually registered. Instead:
+1. Define function spec in [func_spec.c](lib/efuns/func_spec.c)
+2. Build system runs C preprocessor → `func_spec.i`
+3. Custom tool `edit_source` generates tables consumed by compiler
+4. Add C implementation in [lib/efuns/](lib/efuns/) with `#ifdef F_FUNCTION_NAME` guards
+
+## Platform-Specific Patterns
+
+### Portability Layer ([lib/port/](lib/port/))
+- Windows requires custom implementations: `crypt()`, `getopt()`, `gettimeofday()`, `realpath()`, `symlink()`
+- Timer backends selected at configure time: Win32 timer / POSIX `timer_create()` / fallback `pthread` timer
+- CMake generator expressions handle platform differences (see [lib/port/CMakeLists.txt](lib/port/CMakeLists.txt))
+
+### Compiler Differences
+- MSVC: `/W4 /wd4706 /permissive- /Zc:__cplusplus /utf-8`, defines `_CRT_SECURE_NO_WARNINGS`
+- GCC/Clang: `-Wall -Wextra -Wpedantic`, defines `_GNU_SOURCE`
+
+## Documentation Conventions
+- Markdown in [docs/](docs/) using GitHub Flavored Markdown
+- Inline doxygen comments for functions:
+  ```c
+  /**
+   * @brief Brief description.
+   * @param arg Description of parameter.
+   * @returns What the function returns.
+   */
+  ```
+- Efun docs: [docs/efuns/](docs/efuns/) in Markdown
+- Apply docs: [docs/applies/](docs/applies/) in Markdown
+
+## Key File Locations
+- **Build config**: [config.h.in](config.h.in) → `out/build/*/config.h` (feature detection results)
+- **Runtime config template**: [src/neolith.conf](src/neolith.conf)
+- **Test mudlib**: [examples/m3_mudlib/](examples/m3_mudlib/)
+- **Developer reference**: [docs/manual/dev.md](docs/manual/dev.md)
+- **Internals guide**: [docs/manual/internals.md](docs/manual/internals.md)
+
+## Common Pitfalls
+1. **Don't modify generated files** like `grammar.c`/`grammar.h` (from Bison) or efun tables (from edit_source)
+2. **Object destruction**: Always check `ob->flags & O_DESTRUCTED` after applies—objects can self-destruct
+3. **Stack discipline**: Applies must clean up arguments even on failure (see [apply.c](src/apply.c) comments)
+4. **Global state**: Minimize globals; use `static` within .c files when possible
+5. **Line-of-code metrics**: Avoid unnecessary line wrapping; check LOC with `git ls-files | egrep -v '^(docs|examples)' | xargs wc -l`
+
+## When Contributing
+- Add unit tests in [tests/](tests/) subdirectories following GoogleTest patterns
+- Document new efuns in [docs/efuns/](docs/efuns/)
+- Update [docs/ChangeLog.md](docs/ChangeLog.md)
+- See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for full guidelines
