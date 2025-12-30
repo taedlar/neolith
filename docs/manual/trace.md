@@ -1,17 +1,51 @@
 Tracing Neolith LPMud Driver
 ============================
 
-Troubleshooting a LPMud Driver in your local test is one thing, but troubleshooting a LPMud Driver **while users connected** is another.
-It is not likely you can attach a debugger to the process and set breakpoints. Also, there are also cases that bug or crash issues will not reproduce
-without user interaction with the MUD. You may need thoe old-fashioned tracing techniques to find out what goes wrong.
+Troubleshooting a LPMud Driver in your local test is one thing, but troubleshooting a LPMud Driver **while users are connected** is another.
+It is not likely you can attach a debugger to the process and set breakpoints. Also, there are cases where bug or crash issues will not reproduce
+without user interaction with the MUD. You may need the old-fashioned tracing techniques to find out what goes wrong.
 
-# No-break Tracing
+## Command Line Option
 
-To trace Neolith without breakpoints, you can use the command line argument `--trace` or `-t` to set trace flags. For example:
-```
-$ neolith -f neolith.conf -t 040
-```
-The trace above enables additional trace messages about simul efuns that shows you the state of simul efun object:
+Tracing is enabled via the `--trace` (or `-t`) command line option. The argument is an integer representing trace flags that control which trace messages are enabled.
+
+### Usage
+
+~~~sh
+neolith -f neolith.conf -t <trace-flags>
+~~~
+
+The trace flags argument can be specified in decimal, hexadecimal (prefix `0x`), or octal (prefix `0`) notation:
+
+~~~sh
+neolith -f neolith.conf -t 040       # Octal: simul efun tracing
+neolith -f neolith.conf -t 0x20      # Hex: simul efun tracing (equivalent)
+neolith -f neolith.conf -t 32        # Decimal: simul efun tracing (equivalent)
+~~~
+
+## Trace Flag Format
+
+Neolith uses a bitmask system for trace flags:
+- **Lowest 3 bits (0-7)**: Verbose level
+- **Higher bits**: Individual trace tier enable flags
+
+Conventionally, trace flags are represented as **octal integers** so the last digit represents the verbose level.
+
+### Verbose Levels
+
+| Level | Description |
+|-------|-------------|
+| 0 | Basic tracing (if tier is enabled) |
+| 1 | Additional detail |
+| 2 | More detail |
+| 3 | Maximum verbosity |
+
+> **NOTE**: Verbose level is shared by all enabled trace tiers.
+
+## Example Output
+
+Here's sample output when enabling simul efun tracing (`-t 040`):
+
 ```
 2022-10-05 16:00:35     {}      ----- loading simul efuns -----
 2022-10-05 16:00:35     simul_efun loaded successfully.
@@ -30,60 +64,118 @@ The trace above enables additional trace messages about simul efuns that shows y
 2022-10-05 16:00:35     ["TRACE","simul_efun.c",217,"find_or_add_simul_efun"]   getoid: runtime_index=12
 ```
 
-The trace flags can enable aditional log messages to help you figure out what Neolith is doing, and provides various information that are helpful to debugging.
-Neolith uses the lowest 3 bits of trace flag to represent verbose level, while other bits are bit-masks to enable individual trace tiers.
-Conventionally a trace flag is represented as an octal integer so we use the last digit to represent verbose level.
+## Trace Tiers
 
-> NOTE: verbose level is shared by all trace tiers, for simplicity.
+Trace tiers are specific subsystems of the driver that can be individually enabled for tracing. Each tier is represented by a bit in the trace flags.
 
-# Trace Tiers
+### Tier 010 (Octal): TT_EVAL
 
-## Tier 010: TT_EVAL
+**Description**: Enables trace messages about LPC code evaluation.
 
-Enables trace messages about LPC code evaluation.
+**Flag Values**:
+- `010`: Basic evaluation tracing
+- `011`: Switch statement internals
+- `013`: Per-instruction program counter change
 
-Extra verbose level:
-- `011`: switch statement internals
-- `013`: per-instruction program counter change
+**Use Cases**: Debugging LPC execution flow, understanding control flow issues, tracking evaluation costs.
 
-## Tier 020: TT_COMPILE
+### Tier 020 (Octal): TT_COMPILE
 
-Enables trace messages about compiling LPC programs.
+**Description**: Enables trace messages about compiling LPC programs.
 
-Extra verbose level:
-- `021`: detailed info of compiled LPC program, save binary
-- `023`: header includes
+**Flag Values**:
+- `020`: Basic compilation tracing
+- `021`: Detailed info of compiled LPC program, save binary operations
+- `023`: Header includes and file dependencies
 
-## Tier 040: TT_SIMUL_EFUN
+**Use Cases**: Debugging compilation errors, understanding include dependencies, tracking program loading.
 
-Enables trace messages about Simul Efuns.
+### Tier 040 (Octal): TT_SIMUL_EFUN
 
-Extra verbose level:
-- `040`: calling simul efun
-- `042`: number of args when calling simul efun
+**Description**: Enables trace messages about Simul Efuns.
 
-## Tier 0100: TT_BACKEND
+**Flag Values**:
+- `040`: Simul efun registration and basic calls
+- `042`: Number of arguments when calling simul efun
 
-Enables trace messages about LPMud driver backend activities (heart beats, call out, reset, garbage collection)
+**Use Cases**: Debugging simul efun loading, verifying function registration, tracking simul efun usage.
 
-Extra verbose level:
-- `0100`: call_outs
-- `0101`: heart_beat timer and summary
-- `0102`: SIGALRM, individual heart_beats
+### Tier 0100 (Octal): TT_BACKEND
 
-# Running in `gdb`
-A typical usage for trace log is to debug crashing bugs.
-You may do this by using the `gdb` debugger:
+**Description**: Enables trace messages about LPMud driver backend activities (heart beats, call outs, reset, garbage collection).
+
+**Flag Values**:
+- `0100`: Call_out scheduling and execution
+- `0101`: Heart_beat timer and summary statistics
+- `0102`: SIGALRM signals, individual heart_beat executions
+
+**Use Cases**: Debugging timing issues, tracking object lifecycle, monitoring background tasks.
+
+## Combining Trace Flags
+
+Multiple trace tiers can be enabled simultaneously by combining their octal values:
+
+~~~sh
+# Enable both compilation and simul efun tracing with verbose level 1
+neolith -f neolith.conf -t 061  # 020 + 040 + 1
+
+# Enable all tiers with maximum verbosity
+neolith -f neolith.conf -t 0173  # 010 + 020 + 040 + 0100 + 3
 ~~~
+
+## Configuration File Alternative
+
+Instead of using the command line, you can also enable tracing via configuration file settings:
+
+| Setting | Description |
+|---------|-------------|
+| `ArgumentsInTrace` | Enable output of function call arguments in the dump trace message. Equivalent to `DUMP_WITH_ARGS` (0x0001). |
+| `LocalVariablesInTrace` | Enable output of local variables in the dump trace message. Equivalent to `DUMP_WITH_LOCALVARS` (0x0002). |
+
+These settings affect the stack trace output produced when errors occur or when `dump_trace()` is called.
+
+## Debugging with GDB
+
+A typical usage for trace logging is to debug crashing bugs. You can run Neolith under the `gdb` debugger:
+
+~~~sh
 gdb /path/to/neolith
 (gdb) run -t 0173 -f /path/to/neolith.conf
 ~~~
 
-The trace flag `0173` enables all trace tiers and enables verbose level 3.
-You'll see a lot of trace logs when the LPMud Driver is starting and preloading.
-Now you can connect to the mud from another shell and do any tests.
+The trace flag `0173` enables all trace tiers with verbose level 3, producing maximum diagnostic output.
 
-- If your MUD crashes, the `neolith` process breaks in the debugger and allows you to see what happens.
-- If your LPC code screw up and cannot escape with regular mudlib commands, you can do ctrl-C in the `gdb` session to break the `neolith` process.
-- You can also use the debugger's `kill` command to terminate the `neolith` process to disconnect all MUD connections.
+### GDB Workflow
+
+1. **Start the driver**: The driver starts under debugger control with full tracing enabled. You'll see extensive trace logs during startup and preloading.
+
+2. **Connect and test**: Connect to the MUD from another terminal and perform your tests.
+
+3. **Handle crashes**: If your MUD crashes, the `neolith` process breaks in the debugger, allowing you to examine the stack trace and variable states.
+
+4. **Interrupt execution**: If your LPC code gets stuck and you cannot escape with regular mudlib commands, press Ctrl-C in the `gdb` session to interrupt the `neolith` process.
+
+5. **Force shutdown**: Use the debugger's `kill` command to terminate the `neolith` process and disconnect all MUD connections.
+
+### Useful GDB Commands
+
+~~~sh
+(gdb) bt                    # Print backtrace
+(gdb) info locals          # Show local variables
+(gdb) print variable_name  # Examine a specific variable
+(gdb) continue             # Resume execution after Ctrl-C
+(gdb) quit                 # Exit debugger (terminates process)
+~~~
+
+## Best Practices
+
+1. **Start with specific tiers**: Enable only the trace tiers relevant to your issue to reduce log noise.
+
+2. **Increase verbosity gradually**: Start with verbose level 0, increase only if you need more detail.
+
+3. **Use log files**: Configure `DebugLogFile` and `LogWithDate` in your config file for timestamped, persistent logs.
+
+4. **Combine with console mode**: Use `-c` together with `-t` for interactive debugging without network connections.
+
+5. **Production tracing**: Use minimal tracing in production (if any) to avoid performance impact and excessive log sizes.
 
