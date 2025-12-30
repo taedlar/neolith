@@ -1,12 +1,13 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #include <gtest/gtest.h>
 extern "C" {
 #include "port/io_reactor.h"
 #include "port/socket_comm.h"
 }
-#include <sys/socket.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
+#include "std.h"
 
 using namespace testing;
 
@@ -26,17 +27,12 @@ using namespace testing;
  * @return 0 on success, -1 on failure.
  */
 static int create_socket_pair(socket_fd_t *server_fd, socket_fd_t *client_fd) {
-    int fds[2];
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0) {
+    socket_fd_t fds[2];
+    if (create_test_socket_pair(fds) != 0) {
         return -1;
     }
     *server_fd = fds[0];
     *client_fd = fds[1];
-    
-    // Set both to non-blocking for realistic testing
-    fcntl(*server_fd, F_SETFL, O_NONBLOCK);
-    fcntl(*client_fd, F_SETFL, O_NONBLOCK);
-    
     return 0;
 }
 
@@ -46,8 +42,8 @@ static int create_socket_pair(socket_fd_t *server_fd, socket_fd_t *client_fd) {
  * @param client_fd Client side socket.
  */
 static void close_socket_pair(socket_fd_t server_fd, socket_fd_t client_fd) {
-    if (server_fd >= 0) close(server_fd);
-    if (client_fd >= 0) close(client_fd);
+    if (server_fd != INVALID_SOCKET_FD) SOCKET_CLOSE(server_fd);
+    if (client_fd != INVALID_SOCKET_FD) SOCKET_CLOSE(client_fd);
 }
 
 /*
@@ -216,7 +212,7 @@ TEST(IOReactorTest, EventDelivery) {
     
     // Write data to client side to trigger read event on server side
     const char* test_data = "test";
-    ssize_t written = write(client_fd, test_data, 4);
+    int written = SOCKET_SEND(client_fd, test_data, 4, 0);
     ASSERT_EQ(4, written);
     
     // Should get read event on server side
@@ -230,7 +226,7 @@ TEST(IOReactorTest, EventDelivery) {
     
     // Read the data to clear the event
     char buffer[10];
-    ssize_t read_bytes = read(server_fd, buffer, sizeof(buffer));
+    int read_bytes = SOCKET_RECV(server_fd, buffer, sizeof(buffer), 0);
     ASSERT_EQ(4, read_bytes);
     
     // Cleanup
@@ -255,8 +251,8 @@ TEST(IOReactorTest, MultipleEvents) {
     ASSERT_EQ(0, io_reactor_add(reactor, server2_fd, context2, EVENT_READ));
     
     // Write to both client sockets
-    ASSERT_EQ(4, write(client1_fd, "aaa", 4));
-    ASSERT_EQ(4, write(client2_fd, "bbb", 4));
+    ASSERT_EQ(4, SOCKET_SEND(client1_fd, "aaa", 4, 0));
+    ASSERT_EQ(4, SOCKET_SEND(client2_fd, "bbb", 4, 0));
     
     // Should get events on both server sockets
     io_event_t events[10];
@@ -278,9 +274,9 @@ TEST(IOReactorTest, MultipleEvents) {
     
     // Cleanup
     char buffer[10];
-    ssize_t n_read;
-    n_read = read(server1_fd, buffer, sizeof(buffer));
-    n_read = read(server2_fd, buffer, sizeof(buffer));
+    int n_read;
+    n_read = SOCKET_RECV(server1_fd, buffer, sizeof(buffer), 0);
+    n_read = SOCKET_RECV(server2_fd, buffer, sizeof(buffer), 0);
     (void) n_read;
     EXPECT_EQ(0, io_reactor_remove(reactor, server1_fd));
     EXPECT_EQ(0, io_reactor_remove(reactor, server2_fd));
@@ -305,9 +301,9 @@ TEST(IOReactorTest, MaxEventsLimitation) {
     ASSERT_EQ(0, io_reactor_add(reactor, server3_fd, (void*)3, EVENT_READ));
     
     // Trigger all three
-    ASSERT_EQ(1, write(client1_fd, "a", 1));
-    ASSERT_EQ(1, write(client2_fd, "b", 1));
-    ASSERT_EQ(1, write(client3_fd, "c", 1));
+    ASSERT_EQ(1, SOCKET_SEND(client1_fd, "a", 1, 0));
+    ASSERT_EQ(1, SOCKET_SEND(client2_fd, "b", 1, 0));
+    ASSERT_EQ(1, SOCKET_SEND(client3_fd, "c", 1, 0));
     
     // Request only 2 events max
     io_event_t events[2];
@@ -320,10 +316,10 @@ TEST(IOReactorTest, MaxEventsLimitation) {
     
     // Cleanup
     char buffer[10];
-    ssize_t n_read;
-    n_read = read(server1_fd, buffer, sizeof(buffer));
-    n_read = read(server2_fd, buffer, sizeof(buffer));
-    n_read = read(server3_fd, buffer, sizeof(buffer));
+    int n_read;
+    n_read = SOCKET_RECV(server1_fd, buffer, sizeof(buffer), 0);
+    n_read = SOCKET_RECV(server2_fd, buffer, sizeof(buffer), 0);
+    n_read = SOCKET_RECV(server3_fd, buffer, sizeof(buffer), 0);
     (void) n_read;
     EXPECT_EQ(0, io_reactor_remove(reactor, server1_fd));
     EXPECT_EQ(0, io_reactor_remove(reactor, server2_fd));
@@ -418,7 +414,7 @@ TEST(IOReactorTest, ManyConnections) {
     
     // Write to half of them
     for (int i = 0; i < NUM_PAIRS / 2; i++) {
-        ASSERT_EQ(1, write(client_fds[i], "x", 1));
+        ASSERT_EQ(1, SOCKET_SEND(client_fds[i], "x", 1, 0));
     }
     
     // Should get events for the half we wrote to
@@ -430,10 +426,10 @@ TEST(IOReactorTest, ManyConnections) {
     
     // Cleanup
     char buffer[10];
-    ssize_t n_read;
+    int n_read;
     for (int i = 0; i < NUM_PAIRS; i++) {
         if (i < NUM_PAIRS / 2) {
-            n_read = read(server_fds[i], buffer, sizeof(buffer));
+            n_read = SOCKET_RECV(server_fds[i], buffer, sizeof(buffer), 0);
             (void) n_read;
         }
         EXPECT_EQ(0, io_reactor_remove(reactor, server_fds[i]));

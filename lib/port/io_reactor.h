@@ -16,7 +16,9 @@
  */
 
 #include "socket_comm.h"
+#ifndef WINSOCK
 #include <sys/time.h>
+#endif
 
 /* Event type flags */
 #define EVENT_READ   0x01  /* Socket/fd is readable */

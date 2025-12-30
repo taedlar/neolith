@@ -27,7 +27,6 @@
 #include "rc.h"
 #include "socket_efuns.h"
 #include "socket_err.h"
-#include "socket_ctrl.h"
 #include "lpc/include/socket_err.h"
 #include "lpc/operator.h"
 
