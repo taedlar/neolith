@@ -10,7 +10,7 @@
 #include "simul_efun.h"
 #include "interpret.h"
 #include "socket/socket_efuns.h"
-#include "socket/socket_ctrl.h"
+#include "port/socket_comm.h"
 #include "efuns/ed.h"
 
 #include "lpc/include/origin.h"

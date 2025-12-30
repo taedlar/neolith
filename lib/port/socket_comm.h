@@ -29,3 +29,39 @@ typedef int socket_fd_t;
 #ifdef HAVE_POLL
 #include <poll.h>
 #endif
+
+/**
+ * @brief Create a connected socket pair for testing.
+ * 
+ * On POSIX systems, uses socketpair() with AF_UNIX.
+ * On Windows, creates a TCP loopback connection pair.
+ * Both sockets are set to non-blocking mode.
+ * 
+ * @param fds Output: array of 2 socket descriptors.
+ * @return 0 on success, -1 on failure.
+ */
+int create_test_socket_pair(socket_fd_t fds[2]);
+
+/**
+ * @brief Set socket non-blocking mode.
+ * @param fd Socket file descriptor.
+ * @param which Non-zero to enable non-blocking, zero to disable.
+ * @return 0 on success, -1 on failure.
+ */
+int set_socket_nonblocking(socket_fd_t fd, int which);
+
+/**
+ * @brief Set process receiving SIGIO/SIGURG signals.
+ * @param fd Socket file descriptor.
+ * @param which Process ID.
+ * @return 0 on success, -1 on failure.
+ */
+int set_socket_owner(socket_fd_t fd, int which);
+
+/**
+ * @brief Allow receipt of asynchronous I/O signals.
+ * @param fd Socket file descriptor.
+ * @param which Non-zero to enable, zero to disable.
+ * @return 0 on success, -1 on failure.
+ */
+int set_socket_async(socket_fd_t fd, int which);

@@ -4,6 +4,7 @@ set(port_SOURCES
     $<$<NOT:$<AND:$<BOOL:${HAVE_STPCPY}>,$<BOOL:${HAVE_STPNCPY}>>>:stpcpy.c>
     xcalloc.c
     xstrdup.c
+    socket_comm.c
     $<$<PLATFORM_ID:Windows>:crypt.c>
     $<$<PLATFORM_ID:Windows>:getopt.c>
     $<$<PLATFORM_ID:Windows>:gettimeofday.c>

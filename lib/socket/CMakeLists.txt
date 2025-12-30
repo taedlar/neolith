@@ -1,7 +1,6 @@
 # lib/socket/CMakeLists.txt
 
 set(socket_SOURCES
-    socket_ctrl.c
     socket_efuns.c
     socket_err.c
 )
