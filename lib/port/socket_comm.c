@@ -2,6 +2,9 @@
  * @file socket_comm.c
  * @brief Portable socket communication utilities.
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include "socket_comm.h"
 #include <string.h>
