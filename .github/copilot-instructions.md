@@ -144,6 +144,9 @@ Efuns are **not** manually registered. Instead:
   ```
 - Efun docs: [docs/efuns/](docs/efuns/) in Markdown
 - Apply docs: [docs/applies/](docs/applies/) in Markdown
+- **Agent-generated implementation reports**: Save to [docs/history/agent-reports/](docs/history/agent-reports/)
+  - Name pattern: `feature-name-phaseN.md` or `feature-name-YYYY-MM-DD.md`
+  - Include: summary, components delivered, test results, next steps, files modified
 
 ## Key File Locations
 - **Build config**: [config.h.in](config.h.in) → `out/build/*/config.h` (feature detection results)

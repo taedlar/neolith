@@ -22,10 +22,28 @@ For platform-specific implementation details, see:
    - Console input handling on Windows
    - Performance characteristics
 
-### Current State
+### Current Implementation Status
 
-- **Linux/POSIX**: Uses `poll()` for scalable I/O multiplexing
-- **Windows**: Uses `select()` with FD_SETSIZE limitations and special console handling
+✅ **Phase 1: Core Abstraction** ([Report](../history/agent-reports/io-reactor-phase1.md))
+- [x] Platform-agnostic API defined in [lib/port/io_reactor.h](../../lib/port/io_reactor.h)
+- [x] POSIX `poll()` implementation in [lib/port/io_reactor_poll.c](../../lib/port/io_reactor_poll.c)
+- [x] Comprehensive unit tests (19 test cases, all passing)
+- [x] Build system integration
+
+⬜ **Phase 2: Windows IOCP**
+- [ ] Windows IOCP implementation
+- [ ] Console support for Windows
+- [ ] Cross-platform integration tests
+
+⬜ **Phase 3: Backend Integration**
+- [ ] Replace `poll()`/`select()` in [src/comm.c](../../src/comm.c)
+- [ ] Reactor-based event loop
+- [ ] Migration of existing connections
+
+⬜ **Phase 4: Future Enhancements**
+- [ ] Linux `epoll()` backend
+- [ ] BSD/macOS `kqueue()` support
+- [ ] Performance benchmarking
 
 ## Reactor Pattern Fundamentals
 
@@ -40,19 +58,22 @@ The reactor pattern is a design pattern for handling service requests delivered 
 
 ### Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Backend Loop                            │
-│                                                               │
-│  ┌────────────┐     ┌──────────────┐    ┌─────────────┐    │
-│  │  Platform  │────>│  I/O Reactor │───>│  Event      │    │
-│  │  Detector  │     │   Abstraction│    │  Handlers   │    │
-│  └────────────┘     └──────────────┘    └─────────────┘    │
-│                            │                                 │
-│                            ├──── Linux: poll()/epoll()      │
-│                            │                                 │
-│                            └──── Windows: IOCP              │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "Event Loop (backend)"
+        direction TB
+        Register["1. Register Handles<br/>(io_reactor_add)"]
+        Wait["2. Wait for Events<br/>(io_reactor_wait)"]
+        Demux["3. Platform Demultiplexer<br/>(poll/epoll/IOCP)"]
+        Return["4. Return Events<br/>(io_event_t array)"]
+        Process["5. Process Events<br/>(process_io)"]
+        
+        Register --> Wait
+        Wait --> Demux
+        Demux --> Return
+        Return --> Process
+        Process -.->|"Loop continues"| Wait
+    end
 ```
 
 **Event Loop:**
@@ -74,135 +95,25 @@ The reactor pattern is a design pattern for handling service requests delivered 
 
 ## I/O Reactor Abstraction API
 
-### Header: `lib/port/io_reactor.h`
+The reactor API is defined in [lib/port/io_reactor.h](../../lib/port/io_reactor.h). Key components:
 
-```c
-#pragma once
+### Event Types
+- `EVENT_READ` - Socket/fd is readable
+- `EVENT_WRITE` - Socket/fd is writable  
+- `EVENT_ERROR` - Error occurred
+- `EVENT_CLOSE` - Connection closed
 
-#include "port/socket_comm.h"
-#include <sys/time.h>
+### Core Structures
+- `io_event_t` - Event returned by reactor (context, type, optional buffer)
+- `io_reactor_t` - Opaque reactor handle
 
-/* Event types */
-#define EVENT_READ   0x01
-#define EVENT_WRITE  0x02
-#define EVENT_ERROR  0x04
-#define EVENT_CLOSE  0x08
+### Functions
+- **Lifecycle**: `io_reactor_create()`, `io_reactor_destroy()`
+- **Registration**: `io_reactor_add()`, `io_reactor_modify()`, `io_reactor_remove()`
+- **Event Loop**: `io_reactor_wait()` - core demultiplexing function
+- **Platform Helpers**: `io_reactor_post_read()`, `io_reactor_post_write()` (no-ops on POSIX)
 
-/* Event structure returned by io_reactor_wait() */
-typedef struct io_event_s {
-    void *context;              /* Associated object (interactive_t*, port_def_t*, etc.) */
-    int event_type;             /* EVENT_READ, EVENT_WRITE, EVENT_ERROR, EVENT_CLOSE */
-    int bytes_transferred;      /* For async operations (platform-specific) */
-    void *buffer;               /* Buffer for pending I/O (platform-specific) */
-} io_event_t;
-
-/* Opaque reactor handle */
-typedef struct io_reactor_s io_reactor_t;
-
-/*
- * Lifecycle Management
- */
-
-/**
- * @brief Create a new I/O reactor instance.
- * @return Pointer to reactor, or NULL on failure.
- */
-io_reactor_t* io_reactor_create(void);
-
-/**
- * @brief Destroy an I/O reactor and release all resources.
- * @param reactor The reactor to destroy.
- */
-void io_reactor_destroy(io_reactor_t *reactor);
-
-/*
- * Handle Registration
- */
-
-/**
- * @brief Register a file descriptor/socket with the reactor.
- * @param reactor The reactor instance.
- * @param fd The file descriptor to monitor.
- * @param context User context pointer (stored and returned with events).
- * @param events Bitmask of events to monitor (EVENT_READ | EVENT_WRITE).
- * @return 0 on success, -1 on failure.
- */
-int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int events);
-
-/**
- * @brief Modify the event mask for a registered file descriptor.
- * @param reactor The reactor instance.
- * @param fd The file descriptor to modify.
- * @param events New event mask (EVENT_READ | EVENT_WRITE).
- * @return 0 on success, -1 on failure.
- */
-int io_reactor_modify(io_reactor_t *reactor, socket_fd_t fd, int events);
-
-/**
- * @brief Unregister a file descriptor from the reactor.
- * @param reactor The reactor instance.
- * @param fd The file descriptor to remove.
- * @return 0 on success, -1 on failure.
- */
-int io_reactor_remove(io_reactor_t *reactor, socket_fd_t fd);
-
-/*
- * Event Loop Integration
- */
-
-/**
- * @brief Wait for I/O events and return them.
- * @param reactor The reactor instance.
- * @param events Array to store returned events.
- * @param max_events Maximum number of events to return.
- * @param timeout Timeout for waiting (NULL = block indefinitely).
- * @return Number of events returned (>= 0), or -1 on error.
- *
- * This is the core event demultiplexing function. It blocks until:
- * - One or more events occur
- * - The timeout expires
- * - An error occurs
- *
- * On platforms with async I/O (Windows IOCP), this returns completion events.
- * On platforms with readiness notification (Linux poll), this returns ready handles.
- */
-int io_reactor_wait(io_reactor_t *reactor, io_event_t *events, 
-                    int max_events, struct timeval *timeout);
-
-/*
- * Platform-Specific Helpers
- *
- * These functions abstract platform differences in I/O models:
- * - On POSIX systems with readiness notification, they may be no-ops
- * - On Windows with completion notification (IOCP), they post async operations
- */
-
-/**
- * @brief Post an asynchronous read operation (platform-specific).
- * @param reactor The reactor instance.
- * @param fd The file descriptor to read from.
- * @param buffer Buffer to read into (NULL = use internal buffer).
- * @param len Size of buffer.
- * @return 0 on success, -1 on failure.
- *
- * On POSIX: This is typically a no-op (reads happen when EVENT_READ fires).
- * On Windows IOCP: Posts an async WSARecv() operation.
- */
-int io_reactor_post_read(io_reactor_t *reactor, socket_fd_t fd, void *buffer, size_t len);
-
-/**
- * @brief Post an asynchronous write operation (platform-specific).
- * @param reactor The reactor instance.
- * @param fd The file descriptor to write to.
- * @param buffer Buffer containing data to write.
- * @param len Number of bytes to write.
- * @return 0 on success, -1 on failure.
- *
- * On POSIX: This is typically a no-op (writes happen when EVENT_WRITE fires).
- * On Windows IOCP: Posts an async WSASend() operation.
- */
-int io_reactor_post_write(io_reactor_t *reactor, socket_fd_t fd, void *buffer, size_t len);
-```
+See the header file for complete API documentation with detailed parameter descriptions.
 
 ## Integration with Neolith Backend
 
@@ -360,114 +271,86 @@ lib/port/
 
 ### CMake Integration
 
-Platform-specific implementation selected via CMake:
+✅ **Current Implementation** ([lib/port/CMakeLists.txt](../../lib/port/CMakeLists.txt)):
 
 ```cmake
 # lib/port/CMakeLists.txt
+set(port_SOURCES
+    # ... other sources ...
+    # I/O Reactor - platform-specific implementation selection
+    $<$<NOT:$<PLATFORM_ID:Windows>>:io_reactor_poll.c>
+)
+
+target_sources(port INTERFACE
+    FILE_SET HEADERS
+    BASE_DIRS ..
+    FILES ... io_reactor.h socket_comm.h
+)
+```
+
+**Future Platform Selection**:
+```cmake
+# Phase 2: Add Windows support
 if(WIN32)
     target_sources(port PRIVATE io_reactor_win32.c)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_sources(port PRIVATE io_reactor_epoll.c)  # Or io_reactor_poll.c
 else()
-    target_sources(port PRIVATE io_reactor_poll.c)   # Fallback to POSIX poll()
+    target_sources(port PRIVATE io_reactor_poll.c)
 endif()
+
+# Phase 4: Optimize with epoll on Linux
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND HAVE_EPOLL)
+    target_sources(port PRIVATE io_reactor_epoll.c)
 ```
 
 ## Testing Strategy
 
 ### Unit Tests: `tests/test_io_reactor/`
 
-Create GoogleTest suite for reactor abstraction:
+✅ **Phase 1 Complete** - Comprehensive GoogleTest suite implemented:
 
-```cpp
-TEST(IOReactorTest, CreateDestroy) {
-    io_reactor_t* reactor = io_reactor_create();
-    ASSERT_NE(reactor, nullptr);
-    io_reactor_destroy(reactor);
-}
+**Test Coverage** (19 test cases, all passing):
+- **Lifecycle** (3 tests): CreateDestroy, CreateMultiple, DestroyNull
+- **Registration** (6 tests): AddRemoveSocket, AddWithContext, AddDuplicateFails, RemoveNonExistent, ModifyEvents, ModifyNonExistentFails
+- **Event Wait** (4 tests): TimeoutNoEvents, EventDelivery, MultipleEvents, MaxEventsLimitation, WriteEvent
+- **Error Handling** (2 tests): InvalidParameters, AddInvalidFd
+- **Scalability** (1 test): ManyConnections (100 socket pairs)
+- **Platform Helpers** (2 tests): PostReadNoOp, PostWriteNoOp
 
-TEST(IOReactorTest, AddRemoveSocket) {
-    io_reactor_t* reactor = io_reactor_create();
-    socket_fd_t fd = create_test_socket();
-    
-    EXPECT_EQ(0, io_reactor_add(reactor, fd, nullptr, EVENT_READ));
-    EXPECT_EQ(0, io_reactor_remove(reactor, fd));
-    
-    close_test_socket(fd);
-    io_reactor_destroy(reactor);
-}
+**Running Tests**:
+```bash
+# Run reactor tests only
+ctest --preset ut-linux --tests-regex IOReactor --output-on-failure
 
-TEST(IOReactorTest, EventDelivery) {
-    io_reactor_t* reactor = io_reactor_create();
-    socket_fd_t server_fd, client_fd;
-    create_socket_pair(&server_fd, &client_fd);
-    
-    io_reactor_add(reactor, server_fd, (void*)0x1234, EVENT_READ);
-    
-    // Write to client side
-    write(client_fd, "test", 4);
-    
-    // Should get read event on server side
-    io_event_t events[10];
-    struct timeval timeout = {1, 0};
-    int n = io_reactor_wait(reactor, events, 10, &timeout);
-    
-    EXPECT_EQ(1, n);
-    EXPECT_EQ(EVENT_READ, events[0].event_type);
-    EXPECT_EQ((void*)0x1234, events[0].context);
-    
-    // Cleanup
-    io_reactor_remove(reactor, server_fd);
-    close_socket_pair(server_fd, client_fd);
-    io_reactor_destroy(reactor);
-}
-
-TEST(IOReactorTest, Timeout) {
-    io_reactor_t* reactor = io_reactor_create();
-    io_event_t events[10];
-    struct timeval timeout = {0, 100000};  // 100ms
-    
-    int n = io_reactor_wait(reactor, events, 10, &timeout);
-    EXPECT_EQ(0, n);  // Should timeout with no events
-    
-    io_reactor_destroy(reactor);
-}
+# Run all tests
+ctest --preset ut-linux
 ```
+
+**Results**: `100% tests passed, 0 tests failed out of 19` (0.12s runtime)
+
+See complete test implementation: [tests/test_io_reactor/test_io_reactor.cpp](../../tests/test_io_reactor/test_io_reactor.cpp)
 
 ### Integration Tests
 
-Use example mudlib with stress testing:
+⬜ **Phase 3: Backend Integration** - Planned stress testing with actual mudlib:
 
 1. **Multi-player Load**: 100+ concurrent connections
-2. **Console Mode**: Verify STDIN handling works
+2. **Console Mode**: Verify STDIN handling works  
 3. **Message Throughput**: Large messages, rapid sends
 4. **Connection Churn**: Rapid connect/disconnect cycles
 
 ### Platform Coverage
 
-- CI testing on Linux (Ubuntu), Windows (Server 2022), macOS
-- Both 32-bit and 64-bit builds
-- Test with actual mudlib, not just unit tests
+✅ **Current**: Linux/POSIX (poll-based implementation)
+- Tested on Linux (Ubuntu) via WSL
+- GoogleTest framework integration
+- Unit test coverage for all API functions
 
-## Configuration Options
-
-Add to [src/neolith.conf](../../src/neolith.conf):
-
-```
-# I/O Reactor Configuration
-
-# Maximum events to process per cycle
-io_reactor_max_events : 128
-
-# Enable I/O reactor tracing
-trace io_reactor : 0
-```
-
-Add trace flag in [src/stem.h](../../src/stem.h):
-
-```c
-#define TT_IO_REACTOR      0x00200000  /* I/O reactor operations */
-```
+⬜ **Planned**:
+- [ ] CI testing on native Linux (Ubuntu)
+- [ ] Windows (Server 2022) with IOCP implementation
+- [ ] macOS with poll() or kqueue()
+- [ ] Both 32-bit and 64-bit builds
+- [ ] Integration tests with example mudlib
 
 ## Error Handling
 
@@ -520,32 +403,15 @@ Add trace flag in [src/stem.h](../../src/stem.h):
 
 ## Implementation Phases
 
+### Phase Reports
+- ✅ [Phase 1: Core Abstraction](../history/agent-reports/io-reactor-phase1.md) - COMPLETE
+- ⬜ Phase 2: Windows IOCP - Not started
+- ⬜ Phase 3: Backend Integration - Not started
+- ⬜ Phase 4: Future Enhancements - Optional
+
 See detailed phase breakdowns in the respective implementation documents:
 - [Linux Implementation](linux-io.md#migration-from-current-code)
 - [Windows Implementation](windows-io.md)
-
-### High-Level Roadmap
-
-**Phase 1: Core Abstraction**
-- Define reactor API in `io_reactor.h`
-- Implement Linux `poll()` backend
-- Basic unit tests
-
-**Phase 2: Windows IOCP**
-- Implement Windows IOCP backend
-- Console support for both platforms
-- Integration tests
-
-**Phase 3: Production Readiness**
-- Performance optimization
-- Error handling refinement
-- Documentation
-- CI/CD integration
-
-**Phase 4: Future Enhancements** (Optional)
-- Linux `epoll()` backend
-- Windows thread pool integration
-- Advanced features (AcceptEx, zero-copy I/O)
 
 ## Quick Start
 
@@ -569,8 +435,12 @@ lib/port/
 └── io_reactor_win32.c     # Windows IOCP implementation
 ```
 
-## Documentation Updates
+## Documentation
 
+### Implementation Reports
+- [Phase 1 Report](../history/agent-reports/io-reactor-phase1.md) - Core abstraction complete
+
+### Remaining Documentation Tasks
 - [ ] Update [docs/manual/internals.md](internals.md) with reactor architecture
 - [ ] Document platform-specific behaviors in [docs/INSTALL.md](../INSTALL.md)
 - [ ] Add troubleshooting guide for I/O issues

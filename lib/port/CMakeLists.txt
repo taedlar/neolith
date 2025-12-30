@@ -12,13 +12,15 @@ set(port_SOURCES
     $<$<PLATFORM_ID:Windows>:win32_timer.c>
     $<$<AND:$<BOOL:${HAVE_LIBRT}>,$<NOT:$<PLATFORM_ID:Windows>>>:posix_timer.c>
     $<$<AND:$<NOT:$<BOOL:${HAVE_LIBRT}>>,$<NOT:$<PLATFORM_ID:Windows>>>:fallback_timer.c>
+    # I/O Reactor - platform-specific implementation selection
+    $<$<NOT:$<PLATFORM_ID:Windows>>:io_reactor_poll.c>
 )
 
 add_library(port STATIC ${port_SOURCES})
 target_sources(port INTERFACE
     FILE_SET HEADERS
     BASE_DIRS ..
-    FILES ansi.h debug.h wrapper.h byte_code.h timer_port.h
+    FILES ansi.h debug.h wrapper.h byte_code.h timer_port.h socket_comm.h io_reactor.h
 )
 
 # Windows-specific libraries for timer support
