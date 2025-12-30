@@ -16,12 +16,46 @@ If you are keen to add efuns or integrate LPMud with some other interesting stuf
 ~~~sh
 neolith -f neolith.conf -C
 ~~~
-The `-C` option (or `--console-mode`) enables the LPMud driver to treat **standard input** as a "connection" from the console.
-- After the master object finishes preloading, it receives a `connect()` apply with port number = 0
-- The master object can then navigate the connection through regular [logon](../applies/interactive/logon.md) process of player object:
-  - Despite not using TELNET protocol, the `input_to()` and `get_char()` efuns are supported for console connection.
-  - When the console connection is closed, e.g. typing "quit" or forced by another wizard, the standard input is *NOT* closed and allows **reconnecting** to the MUD in console mode by pressing ENTER.
-  - You can use Ctrl-C to **break** the LPMud driver process as like other processes reading data from standard input.
+
+For troubleshooting and debugging, see [trace.md](trace.md) for information about enabling trace flags.
+
+# Command Line Options
+
+Neolith accepts several command line options to control its behavior. All options can be viewed by running `neolith --help`.
+
+## Available Options
+
+| Option | Short | Argument | Description |
+|--------|-------|----------|-------------|
+| `-f` | | `config-file` | Specifies the file path of the configuration file. If not provided, defaults to `/etc/neolith.conf`. |
+| `--console-mode` | `-c` | | Run the driver in console mode. See [console-mode.md](console-mode.md) for details. |
+| | `-D` | `macro[=definition]` | Predefines global preprocessor macro for use in mudlib. Can be specified multiple times. |
+| `--debug` | `-d` | `debug-level` | Specifies the runtime debug level (integer). Higher values produce more debug output. |
+| `--epilog` | `-e` | `epilog-level` | Specifies the epilog level to be passed to the master object's `epilog()` apply. |
+| `--pedantic` | `-p` | | Enable pedantic clean up on shutdown. Useful for testing memory leaks. |
+| `--trace` | `-t` | `trace-flags` | Specifies an integer of trace flags to enable trace messages in debug log. See [trace.md](trace.md) for details. |
+
+## Examples
+
+Start with a specific configuration file:
+~~~sh
+neolith -f /path/to/neolith.conf
+~~~
+
+Start in console mode with tracing enabled:
+~~~sh
+neolith -f neolith.conf -c -t 0x40
+~~~
+
+Define preprocessor macros for mudlib:
+~~~sh
+neolith -f neolith.conf -D DEBUG_MODE -D MAX_USERS=100
+~~~
+
+Run with debug level 2 and epilog level 1:
+~~~sh
+neolith -f neolith.conf -d 2 -e 1
+~~~
 
 # neolith.conf
 
