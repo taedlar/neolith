@@ -2,7 +2,20 @@
 
 ## Overview
 
-This document describes the Linux-specific implementation of the [I/O Reactor abstraction](io-reactor.md) for the Neolith LPMud driver. The Linux implementation leverages POSIX `poll()` (currently) with a future migration path to `epoll()` for better scalability.
+This document describes the Linux-specific implementation of the [I/O Reactor abstraction](io-reactor.md) for the Neolith LPMud driver.
+
+### Implementation Status
+
+✅ **Current: `poll()` Implementation** ([Phase 1 Report](../history/agent-reports/io-reactor-phase1.md))
+- [x] Reactor API implemented in [lib/port/io_reactor_poll.c](../../lib/port/io_reactor_poll.c)
+- [x] Dynamic array management with capacity expansion
+- [x] O(1) fd lookup via index mapping
+- [x] All unit tests passing (19 test cases)
+
+⬜ **Future: `epoll()` Enhancement**
+- [ ] O(1) scalability for high connection counts
+- [ ] Edge-triggered mode support
+- [ ] Kernel-side state management
 
 ## Current Implementation: poll()
 
