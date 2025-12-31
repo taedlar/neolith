@@ -24,7 +24,8 @@ TEST_F(LPCInterpreterTest, floatingPointPrecision) {
     program_t* found_prog = find_function(prog, findstring("bar"), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for bar().";
     current_prog = prog; // set current_prog for the calling local function
-    call_function (prog, index, 0, &ret);
+    int runtime_index = found_prog->function_table[index].runtime_index;
+    call_function (prog, runtime_index, 0, &ret);
 
     EXPECT_EQ(ret.type, T_REAL) << "Expected return type to be T_REAL.";
     EXPECT_DOUBLE_EQ(ret.u.real, 6.28) << "Expected return value of bar() to be 6.28 (no suffix f).";

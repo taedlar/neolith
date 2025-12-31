@@ -44,10 +44,11 @@ TEST_F(LPCInterpreterTest, callFunction) {
     svalue_t ret;
     program_t* found_prog = find_function(prog, findstring("add"), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for add().";
+    int runtime_index = found_prog->function_table[index].runtime_index;
 
     push_number(1);
     push_number(2);
-    call_function (prog, index, 2, &ret);
+    call_function (prog, runtime_index, 2, &ret);
 
     EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
     EXPECT_EQ(ret.u.number, 3) << "Expected return value of add(1,2) to be 3.";
@@ -77,10 +78,11 @@ TEST_F(LPCInterpreterTest, evalCostLimit) {
         int index, fio, vio;
         program_t* found_prog = find_function(prog, findstring("create"), &index, &fio, &vio);
         ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for create().";
+        int runtime_index = found_prog->function_table[index].runtime_index;
 
         // set a low eval cost limit
         eval_cost = 500; // should be enough to run out of eval cost in the loop
-        call_function (prog, index, 0, 0);
+        call_function (prog, runtime_index, 0, 0);
     }
     pop_context (&econ);
     free_prog(prog, 1);
