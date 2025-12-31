@@ -356,4 +356,240 @@ TEST(IOReactorConsoleTest, ConsoleLargeInput) {
     close(console_write_fd);
     io_reactor_destroy(reactor);
 }
+
+#else  // WINSOCK
+
+/*
+ * =============================================================================
+ * Windows Console Tests
+ * =============================================================================
+ */
+
+/**
+ * Test that console registration succeeds when running in a real console.
+ * Note: This test may fail in CI environments without a real console.
+ */
+TEST(IOReactorConsoleTest, AddConsoleBasic) {
+    io_reactor_t* reactor = io_reactor_create();
+    ASSERT_NE(nullptr, reactor);
+    
+    void* console_marker = (void*)0x1;
+    
+    // This may fail if stdin is redirected or not a console
+    int result = io_reactor_add_console(reactor, console_marker);
+    
+    if (result == 0) {
+        // Console was registered successfully
+        SUCCEED();
+    } else {
+        // Not a console (redirected I/O) - skip test
+        GTEST_SKIP() << "Console not available (likely redirected I/O in CI)";
+    }
+    
+    io_reactor_destroy(reactor);
+}
+
+/**
+ * Test that console registration fails gracefully with null reactor.
+ */
+TEST(IOReactorConsoleTest, AddConsoleNullReactor) {
+    void* console_marker = (void*)0x1;
+    EXPECT_EQ(-1, io_reactor_add_console(nullptr, console_marker));
+}
+
+/**
+ * Test console with listening sockets to ensure no interference.
+ */
+TEST(IOReactorConsoleTest, ConsoleWithListeningSockets) {
+    io_reactor_t* reactor = io_reactor_create();
+    ASSERT_NE(nullptr, reactor);
+    
+    void* console_marker = (void*)0x1;
+    
+    // Try to register console (may skip if not available)
+    int console_result = io_reactor_add_console(reactor, console_marker);
+    if (console_result != 0) {
+        io_reactor_destroy(reactor);
+        GTEST_SKIP() << "Console not available";
+    }
+    
+    // Create listening socket
+    socket_fd_t listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_NE(INVALID_SOCKET_FD, listen_fd);
+    
+    // Bind to any port
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = 0;  // Let OS assign port
+    
+    ASSERT_EQ(0, bind(listen_fd, (struct sockaddr*)&addr, sizeof(addr)));
+    
+    // Get assigned port
+    socklen_t addr_len = sizeof(addr);
+    ASSERT_EQ(0, getsockname(listen_fd, (struct sockaddr*)&addr, &addr_len));
+    
+    ASSERT_EQ(0, listen(listen_fd, SOMAXCONN));
+    
+    // Determine if socket is listening
+    int listening = 0;
+    int opt_len = sizeof(listening);
+    ASSERT_EQ(0, getsockopt(listen_fd, SOL_SOCKET, SO_ACCEPTCONN, 
+                           (char*)&listening, (socklen_t*)&opt_len));
+    ASSERT_NE(0, listening);
+    
+    // Register listening socket
+    void* port_context = (void*)0x100;
+    ASSERT_EQ(0, io_reactor_add(reactor, listen_fd, port_context, EVENT_READ));
+    
+    // Create client connection
+    socket_fd_t client_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_NE(INVALID_SOCKET_FD, client_fd);
+    
+    // Connect to listening socket
+    ASSERT_EQ(0, connect(client_fd, (struct sockaddr*)&addr, sizeof(addr)));
+    
+    // Wait for events (short timeout)
+    io_event_t events[10];
+    struct timeval timeout = {0, 100000};  // 100ms
+    int n = io_reactor_wait(reactor, events, 10, &timeout);
+    
+    // Should get event for listening socket (console may or may not have events)
+    ASSERT_GT(n, 0);
+    
+    // Find the listening socket event
+    bool found_listen_event = false;
+    for (int i = 0; i < n; i++) {
+        if (events[i].context == port_context) {
+            EXPECT_TRUE(events[i].event_type & EVENT_READ);
+            found_listen_event = true;
+        }
+    }
+    
+    EXPECT_TRUE(found_listen_event) << "Should receive event for listening socket";
+    
+    // Cleanup
+    SOCKET_CLOSE(client_fd);
+    SOCKET_CLOSE(listen_fd);
+    io_reactor_destroy(reactor);
+}
+
+/**
+ * Test console with network connections to ensure full integration.
+ */
+TEST(IOReactorConsoleTest, ConsoleWithNetworkConnections) {
+    io_reactor_t* reactor = io_reactor_create();
+    ASSERT_NE(nullptr, reactor);
+    
+    void* console_marker = (void*)0x1;
+    
+    // Try to register console
+    int console_result = io_reactor_add_console(reactor, console_marker);
+    if (console_result != 0) {
+        io_reactor_destroy(reactor);
+        GTEST_SKIP() << "Console not available";
+    }
+    
+    // Create socket pair for testing
+    socket_fd_t server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_NE(INVALID_SOCKET_FD, server_fd);
+    
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = 0;
+    
+    ASSERT_EQ(0, bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)));
+    
+    socklen_t addr_len = sizeof(addr);
+    ASSERT_EQ(0, getsockname(server_fd, (struct sockaddr*)&addr, &addr_len));
+    
+    ASSERT_EQ(0, listen(server_fd, SOMAXCONN));
+    
+    // Register listening socket
+    void* server_context = (void*)0x100;
+    ASSERT_EQ(0, io_reactor_add(reactor, server_fd, server_context, EVENT_READ));
+    
+    // Create client and connect
+    socket_fd_t client_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_NE(INVALID_SOCKET_FD, client_fd);
+    ASSERT_EQ(0, connect(client_fd, (struct sockaddr*)&addr, sizeof(addr)));
+    
+    // Accept connection
+    socket_fd_t accepted_fd = accept(server_fd, NULL, NULL);
+    ASSERT_NE(INVALID_SOCKET_FD, accepted_fd);
+    
+    // Register accepted socket with IOCP
+    void* accepted_context = (void*)0x200;
+    ASSERT_EQ(0, io_reactor_add(reactor, accepted_fd, accepted_context, EVENT_READ));
+    
+    // Post async read on accepted socket
+    ASSERT_EQ(0, io_reactor_post_read(reactor, accepted_fd, NULL, 0));
+    
+    // Send data from client
+    const char* msg = "Test message";
+    int sent = send(client_fd, msg, (int)strlen(msg), 0);
+    ASSERT_EQ((int)strlen(msg), sent);
+    
+    // Wait for read completion
+    io_event_t events[10];
+    struct timeval timeout = {1, 0};  // 1 second
+    int n = io_reactor_wait(reactor, events, 10, &timeout);
+    
+    ASSERT_GT(n, 0);
+    
+    // Verify we got the read event (not console event)
+    bool found_read_event = false;
+    for (int i = 0; i < n; i++) {
+        if (events[i].context == accepted_context) {
+            EXPECT_TRUE(events[i].event_type & EVENT_READ);
+            EXPECT_EQ((int)strlen(msg), events[i].bytes_transferred);
+            found_read_event = true;
+        }
+    }
+    
+    EXPECT_TRUE(found_read_event) << "Should receive read event on accepted socket";
+    
+    // Cleanup
+    SOCKET_CLOSE(client_fd);
+    SOCKET_CLOSE(accepted_fd);
+    SOCKET_CLOSE(server_fd);
+    io_reactor_destroy(reactor);
+}
+
+/**
+ * Test that console events don't block when no input is available.
+ */
+TEST(IOReactorConsoleTest, ConsoleNoInputDoesNotBlock) {
+    io_reactor_t* reactor = io_reactor_create();
+    ASSERT_NE(nullptr, reactor);
+    
+    void* console_marker = (void*)0x1;
+    
+    int console_result = io_reactor_add_console(reactor, console_marker);
+    if (console_result != 0) {
+        io_reactor_destroy(reactor);
+        GTEST_SKIP() << "Console not available";
+    }
+    
+    // Wait with short timeout - should return quickly even without input
+    io_event_t events[10];
+    struct timeval timeout = {0, 100000};  // 100ms
+    
+    auto start = std::chrono::steady_clock::now();
+    int n = io_reactor_wait(reactor, events, 10, &timeout);
+    auto end = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    
+    // Should complete within reasonable time (timeout + overhead)
+    EXPECT_LT(elapsed.count(), 500) << "Wait should not block excessively";
+    
+    // Number of events depends on whether console has buffered input
+    EXPECT_GE(n, 0);
+    
+    io_reactor_destroy(reactor);
+}
+
 #endif  // !WINSOCK

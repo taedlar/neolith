@@ -1,96 +1,46 @@
-# I/O Reactor Phase 3 Design Review: external_port Integration
+# I/O Reactor Phase 3 Design Review: Backend Integration
 
 **Date**: 2025-12-31  
-**Author**: GitHub Copilot  
-**Purpose**: Assess feasibility of integrating `external_port` array with io_reactor API
+**Status**: In Progress (Console Support Complete)  
+**Purpose**: Feasibility analysis for migrating comm.c event loop to reactor API
 
 ## Executive Summary
 
 ✅ **RECOMMENDATION: Full integration is feasible and recommended**
 
-The `external_port` array can be completely integrated with the io_reactor API. The current design already anticipates this use case, and the migration path is straightforward with minimal structural changes required.
+Analysis confirms that `external_port[]`, interactive users, console, and LPC sockets can all be migrated to the reactor API with minimal structural changes. Console support for Windows is already implemented and tested.
 
-## Current State Analysis
+## Current Architecture Problems
 
-### external_port Structure
+### Inefficiency: Redundant Registration
 
-Defined in [lib/rc/rc.h](../../../lib/rc/rc.h):
+`make_selectmasks()` is called **every backend loop iteration**, rebuilding `poll_fds[]` from scratch for all I/O sources:
+- 5 listening sockets (`external_port[]`)
+- Up to 250 interactive users (`all_users[]`)
+- Console (if enabled)
+- LPC sockets
+- Address server pipe
 
+This O(N) rebuild happens even when the set of active handles hasn't changed.
+
+### Platform Pollution
+
+Structures leak platform-specific fields:
+- `port_def_t` has `poll_index` (only on `HAVE_POLL` platforms)
+- `interactive_t` has `poll_index` (only on `HAVE_POLL` platforms)
+- Event checking uses conditional `#ifdef` macros throughout business logic
+
+### Complexity
+
+Event processing uses index-based macros with platform conditionals:
 ```c
-typedef struct {
-    int kind;           // PORT_TELNET, PORT_BINARY, or PORT_ASCII
-    int port;           // Port number (0 = unused)
-    socket_fd_t fd;     // Listening socket file descriptor
 #ifdef HAVE_POLL
-    int poll_index;     // Index in poll_fds[] array (platform-specific)
-#endif
-} port_def_t;
-
-extern port_def_t external_port[5];  // Up to 5 listening ports
-```
-
-### Current Usage Pattern
-
-The `external_port` array is used in three main phases:
-
-#### 1. Configuration (lib/rc/rc.cpp)
-```c
-// Parse port specifications from config file
-external_port[i].port = strtoul(p, &typ, 0);
-external_port[i].kind = PORT_TELNET | PORT_BINARY | PORT_ASCII;
-```
-
-#### 2. Socket Creation (src/comm.c:init_user_conn())
-```c
-for (i = 0; i < 5; i++) {
-    if (!external_port[i].port) continue;
-    
-    // Create listening socket
-    external_port[i].fd = socket(AF_INET, SOCK_STREAM, 0);
-    setsockopt(..., SO_REUSEADDR, ...);
-    bind(..., external_port[i].port, ...);
-    set_socket_nonblocking(external_port[i].fd, 1);
-    listen(..., SOMAXCONN);
-}
-```
-
-#### 3. Event Loop (src/comm.c)
-
-**Registration** in `make_selectmasks()`:
-```c
-for (i = 0; i < 5; i++) {
-    if (!external_port[i].port) continue;
-    
-    poll_fds[i_poll].fd = external_port[i].fd;
-    poll_fds[i_poll].events = POLLIN;
-    external_port[i].poll_index = i_poll;  // Track index
-    i_poll++;
-}
-```
-
-**Event Processing** in `process_io()`:
-```c
-for (i = 0; i < 5; i++) {
-    if (!external_port[i].port) continue;
-    if (NEW_USER_CAN_READ(i)) {
-        new_user_handler(i);  // Accept new connection
-    }
-}
-```
-
-Where:
-```c
 #define NEW_USER_CAN_READ(i) \
-    (external_port[i].poll_index >= 0 && \
-     (poll_fds[external_port[i].poll_index].revents & POLLIN))
+    (external_port[i].poll_index >= 0 && ...)
+#else
+#define NEW_USER_CAN_READ(i) FD_ISSET(...)
+#endif
 ```
-
-### Key Observations
-
-1. **Listening sockets only monitor reads** - new connection events
-2. **Context pointer pattern already present** - `poll_index` maps to platform state
-3. **Fixed iteration**: Always iterates 0-4, checking `port != 0` for validity
-4. **Separate handler**: `new_user_handler(int which)` requires port index
 
 ## Reactor API Integration Analysis
 
@@ -142,38 +92,13 @@ void init_user_conn(void) {
         
         // Register listening socket with reactor
         if (io_reactor_add(g_io_reactor, external_port[i].fd,
-                          &external_port[i], EVENT_READ) != 0) {
-            debug_fatal("Failed to register port %d with I/O reactor\n",
-                       external_port[i].port);
-        }
-    }
-}
+           Solution Benefits
 
-void process_io(io_event_t *events, int num_events) {
-    for (int i = 0; i < num_events; i++) {
-        io_event_t *evt = &events[i];
-        
-        // Check if event is for a listening port
-        if (is_listening_port_event(evt->context)) {
-            port_def_t *port = (port_def_t*)evt->context;
-            int which = port - external_port;  // Compute index
-            
-            if (evt->event_type & EVENT_READ) {
-                new_user_handler(which);
-            }
-            if (evt->event_type & EVENT_ERROR) {
-                handle_port_error(which);
-            }
-        }
-        /* ... handle other event types ... */
-    }
-}
-
-// Helper to distinguish port events from user/socket events
-static inline int is_listening_port_event(void *context) {
-    return (context >= (void*)&external_port[0] &&
-            context <  (void*)&external_port[5]);
-}
+1. **One-time registration**: Handles registered at creation, not every loop iteration
+2. **Platform abstraction**: No `#ifdef` in business logic, reactor handles platform differences
+3. **Event-driven processing**: O(events) dispatch instead of O(all_handles) scanning
+4. **Unified error handling**: Consistent `EVENT_ERROR` and `EVENT_CLOSE` handling across platforms
+5. **Extensibility**: Easy to add new I/O sources without touching event loop core
 ```
 
 **Pros**:
@@ -200,193 +125,48 @@ static void new_user_handler(port_def_t *port) {
         return;
     }
     
-    length = sizeof(addr);
-    new_socket_fd = accept(port->fd, (struct sockaddr*)&addr, &length);
-    /* ... existing accept logic ... */
-    
-    master_ob->interactive->connection_type = port->kind;
-#ifdef F_QUERY_IP_PORT
-    master_ob->interactive->local_port = port->port;
-#endif
-    
-    ob = mudlib_connect(port->port, inet_ntoa(addr.sin_addr));
-    /* ... existing connection setup ... */
-    
-    if (port->kind == PORT_TELNET) {
-        /* Telnet negotiation */
-    }
-}
+   Integration Design Decisions
 
-void process_io(io_event_t *events, int num_events) {
-    for (int i = 0; i < num_events; i++) {
-        io_event_t *evt = &events[i];
-        
-        if (is_listening_port_event(evt->context)) {
-            port_def_t *port = (port_def_t*)evt->context;
-            
-            if (evt->event_type & EVENT_READ) {
-                new_user_handler(port);  // Direct pointer
-            }
-            /* ... error handling ... */
-        }
-        /* ... other event types ... */
-    }
+### Context Identification Strategy
+
+**Decision**: Use pointer range checking (Option A variant)
+
+Event dispatch identifies context type by comparing pointer against known structure arrays:
+
+```c
+static inline int is_listening_port(void *context) {
+    return (context >= (void*)&external_port[0] &&
+            context <  (void*)&external_port[5]);
 }
 ```
 
-**Pros**:
-- More idiomatic object-oriented design
-- Removes array index dependency
-- Extensible to dynamic port allocation
-- Cleaner abstraction
+**Rationale**:
+- Minimal memory overhead (no wrapper structures)
+- Leverages existing fixed-size arrays
+- Simple implementation
+- Used successfully in Phase 2 listening socket tests
 
-**Cons**:
-- More invasive change to `new_user_handler()`
-- All 8 references to the function need signature update
+### Handler Signature Strategy
 
-#### Option C: Hybrid Event Dispatch (Flexible)
+**Decision**: Refactor to pointer-based signatures (Option B)
 
-Use event type tagging for polymorphic dispatch:
+Change handlers from index-based to pointer-based:
+- `new_user_handler(int which)` → `new_user_handler(port_def_t *port)`
+- Similar changes for user/socket handlers
 
-```c
-typedef enum {
-    CONTEXT_LISTENING_PORT,
-    CONTEXT_INTERACTIVE_USER,
-    CONTEXT_LPC_SOCKET,
-    CONTEXT_ADDR_SERVER
-} event_context_type_t;
+**Rationale**:
+- Cleaner abstraction (no index arithmetic)
+- Extensible to dynamic allocation
+- Sets precedent for other handlers
+- Minimal impact (8 call sites for new_user_handler)
 
-typedef struct {
-    event_context_type_t type;
-    void *data;
-} event_context_t;
+### Console Support
 
-// Wrap external_port entries
-static event_context_t port_contexts[5];
+**Status**: ✅ **COMPLETE** for Windows (see [Phase 3 Console Report](io-reactor-phase3-console-support.md))
 
-void init_user_conn(void) {
-    /* ... socket setup ... */
-    
-    for (int i = 0; i < 5; i++) {
-        if (!external_port[i].port) continue;
-        
-        port_contexts[i].type = CONTEXT_LISTENING_PORT;
-        port_contexts[i].data = &external_port[i];
-        
-        io_reactor_add(g_io_reactor, external_port[i].fd,
-                      &port_contexts[i], EVENT_READ);
-    }
-}
-
-void process_io(io_event_t *events, int num_events) {
-    for (int i = 0; i < num_events; i++) {
-        io_event_t *evt = &events[i];
-        event_context_t *ctx = (event_context_t*)evt->context;
-        
-        switch (ctx->type) {
-            case CONTEXT_LISTENING_PORT: {
-                port_def_t *port = (port_def_t*)ctx->data;
-                if (evt->event_type & EVENT_READ) {
-                    new_user_handler(port);
-                }
-                break;
-            }
-            case CONTEXT_INTERACTIVE_USER: {
-                interactive_t *user = (interactive_t*)ctx->data;
-                handle_user_event(user, evt);
-                break;
-            }
-            /* ... other types ... */
-        }
-    }
-}
-```
-
-**Pros**:
-- Type-safe event dispatch
-- Eliminates pointer range checking
-- Unified event processing model
-- Prepares for future event sources
-
-**Cons**:
-- Additional memory overhead (40 bytes for 5 ports)
-- More complex initialization
-- Indirection through wrapper structure
-
-## Structural Changes Required
-
-### 1. Remove poll_index from port_def_t
-
-**Current**:
-```c
-typedef struct {
-    int kind;
-    int port;
-    socket_fd_t fd;
-#ifdef HAVE_POLL
-    int poll_index;  // ← Platform-specific leak
-#endif
-} port_def_t;
-```
-
-**After**:
-```c
-typedef struct {
-    int kind;
-    int port;
-    socket_fd_t fd;
-    // poll_index removed - reactor manages fd→context mapping
-} port_def_t;
-```
-
-**Impact**: Clean separation of concerns. The reactor internally manages fd tracking.
-
-### 2. Eliminate make_selectmasks() port registration
-
-The `make_selectmasks()` function currently rebuilds `poll_fds[]` **every event loop iteration**. This is inefficient.
-
-**Before**:
-```c
-// Called EVERY time through backend loop
-void make_selectmasks() {
-    for (i = 0; i < 5; i++) {
-        if (external_port[i].port) {
-            poll_fds[i_poll].fd = external_port[i].fd;
-            poll_fds[i_poll].events = POLLIN;
-            external_port[i].poll_index = i_poll++;
-        }
-    }
-    /* ... register users, sockets, etc. ... */
-}
-```
-
-**After**:
-```c
-// Called ONCE during initialization
-void init_user_conn() {
-    /* ... socket creation ... */
-    
-    g_io_reactor = io_reactor_create();
-    
-    for (i = 0; i < 5; i++) {
-        if (external_port[i].port) {
-            io_reactor_add(g_io_reactor, external_port[i].fd,
-                          &external_port[i], EVENT_READ);
-        }
-    }
-}
-
-// make_selectmasks() still exists for interactive users and LPC sockets,
-// but no longer processes external_port
-```
-
-**Performance benefit**: Eliminates redundant registration overhead.
-
-### 3. Update process_io() event dispatch
-
-**Before** (poll-based):
-```c
-void process_io() {
+- Windows: `io_reactor_add_console()` polls `GetNumberOfConsoleInputEvents()` before IOCP
+- POSIX: Standard `io_reactor_add(reactor, STDIN_FILENO, ...)`
+- Context marker pattern (`CONSOLE_CONTEXT_MARKER`) identifies console events
     // Linear scan of port array
     for (i = 0; i < 5; i++) {
         if (!external_port[i].port) continue;
@@ -535,130 +315,113 @@ TEST_F(IoReactorTest, MultipleListeningPorts) {
     port_def_t ports[3];
     
     // Setup 3 listening ports
-    for (int i = 0; i < 3; i++) {
-        ports[i].port = 10000 + i;
-        ports[i].fd = create_listening_socket(ports[i].port);
-        io_reactor_add(reactor, ports[i].fd, &ports[i], EVENT_READ);
-    }
-    
-    // Connect to port 10001 (middle port)
-    socket_fd_t client = connect_to_port(10001);
-    
-    // Verify correct port receives event
-    io_event_t events[10];
-    int n = io_reactor_wait(reactor, events, 10, &short_timeout);
-    
-    ASSERT_EQ(1, n);
-    port_def_t *ready_port = (port_def_t*)events[0].context;
-    ASSERT_EQ(10001, ready_port->port);
-    ASSERT_EQ(&ports[1], ready_port);
-}
-```
+    for (int iPlatform-Specific Fields
+
+Remove `poll_index` from:
+- `port_def_t` (listening sockets)
+- `interactive_t` (users)
+
+Reactor internally manages handle→context mapping, eliminating platform leakage.
+
+### 2. Registration Migration
+
+**Before**: `make_selectmasks()` called every loop iteration  
+**After**: One-time registration in handle creation functions:
+- Listening sockets: `init_user_conn()`
+- New users: `new_user_handler()` / `new_interactive()`
+- Console: `init_user_conn()` (if console mode enabled)
+- LPC sockets: `socket_create()`, `socket_connect()`
+
+**Impact**: Eliminates O(N) rebuild overhead.
+
+### 3. Event Dispatch Refactoring
+
+Replace platform-specific macros (`NEW_USER_CAN_READ`, etc.) with unified event dispatch loop. See [io-reactor.md](../../manual/io-reactor.md) for integration patterns.
+
+## Error Handling Improvements
+
+Reactor enables unified error detection for all I/O sources:
+- `EVENT_ERROR`: Network errors, invalid handles
+- `EVENT_CLOSE`: Graceful shutdown (FIN received)
+
+Current code relies on `EWOULDBLOCK` during read/write; reactor provides proactive notification.
+All handles (listening sockets, user connections, console, pipes) use single `poll()`/`epoll()` backend. No special cases.
+
+### Windows
+- **Network sockets**: IOCP for data I/O
+- **Listening sockets**: `select()` with zero timeout (hybrid approach from Phase 2)
+- **Console**: `GetNumberOfConsoleInputEvents()` polling (Phase 3, complete)
+
+Future enhancement: `AcceptEx()` for async accepts (Phase 4+)- Listening socket integration (multiple ports, context validation)
+- Console events (Windows: ✅ 5 tests passing; POSIX: pending)
+- User connection events
+- Error condition handling
+
+Phase 2 already validated listening socket support with `select()` on Windows.
 
 ### Integration Tests
+- Full driver startup with reactor
+- Multi-port handling (telnet/binary/ascii protocols)
+- Stress tests (100+ concurrent connections)
+- Memory leak validation (valgrind)Implementation Roadmap
 
-Run full driver with reactor-based external_port:
+### Phase 3A: Core Integration
+- [ ] Refactor `new_user_handler()` signature (port pointer)
+- [ ] Add reactor initialization to `init_user_conn()`
+- [ ] Add reactor cleanup to `ipc_remove()`
+- [ ] Update `do_comm_polling()` to use `io_reactor_wait()`
+- [ ] Rewrite `process_io()` for event dispatch
+- [ ] Remove `poll_index` from structures
+- [ ] Remove `make_selectmasks()` function
 
-1. Start mudlib with multiple ports (telnet, binary, ascii)
-2. Connect clients to each port
-3. Verify correct protocol handling
-4. Test rapid connection/disconnection cycles
-5. Test connection rejection when max_users reached
+### Phase 3B: Console Support
+- [x] Windows console implementation
+- [x] Windows console tests (5 tests passing)
+- [ ] POSIX console testing
+- [ ] Console reconnect logic validation
 
-## Recommended Implementation Plan
+### Phase 3C: Testing & Validation
+- [ ] Listening socket integration tests
+- [ ] Interactive user migration tests
+- [ ] Stress tests (100+ connections)
+- [ ] Memory leak validation (valgrind)
 
-### Phase 3A: Core Integration (Week 1)
+### Phase 3D: Documentation
+- [ ] Update comm.c implementation comments
+- [ ] Document event flow in internals.md
+- [ ] Add troubleshooting guide
+- [ ] Write Phase 3 completion report**Low Risk** ✅
+- Reactor API already designed for this use case (Phase 1/2 validation)
+- Minimal structural changes required
+- No mudlib-visible API changes
+- Platform support proven (19 POSIX tests, 10 Windows tests passing)
 
-1. **Refactor new_user_handler()** to accept `port_def_t*` (Option B)
-   - Update all 8 call sites
-   - Update signature in header
+**Mitigation**
+- Incremental integration (listening sockets → users → console → LPC sockets)
+- Debug logging for event dispatch paths
+- Stress testing before production deploymentBackend integration is feasible with straightforward migration path:
 
-2. **Move registration to init_user_conn()**
-   - Add `io_reactor_add()` calls for each port
-   - Remove port registration from `make_selectmasks()`
+**Key Benefits**:
+1. Eliminates redundant `make_selectmasks()` overhead
+2. Removes platform-specific fields from structures
+3. Enables unified error handling (EVENT_ERROR, EVENT_CLOSE)
+4. Simplifies code (no conditional `#ifdef` macros in event logic)
+5. Improves scalability (O(events) vs O(all_handles))
 
-3. **Update process_io() dispatcher**
-   - Add context type checking
-   - Route listening socket events to `new_user_handler()`
+**Design Decisions**:
+- Pointer range checking for context identification
+- Pointer-based handler signatures
+- One-time registration at handle creation
+- Console support via platform-specific reactor APIs
 
-4. **Remove poll_index from port_def_t**
-   - Update struct definition
-   - Remove conditional compilation
+**Current Status**:
+- ✅ Phase 1/2: Reactor core complete and tested
+- ✅ Phase 3: Windows console support complete (5 tests passing)
+- ⏳ Phase 3A-D: Backend integration pending
 
-5. **Add error handling**
-   - Handle EVENT_ERROR for listening sockets
-   - Log and attempt recovery
-
-### Phase 3B: Testing (Week 1)
-
-6. **Unit tests**
-   - Listening socket registration
-   - Multiple port handling
-   - Context pointer validation
-
-7. **Integration tests**
-   - Full driver startup with reactor
-   - Multi-port connection handling
-   - Protocol negotiation (telnet/binary/ascii)
-
-### Phase 3C: Documentation (Week 1)
-
-8. **Update architecture docs**
-   - Document reactor-based port management
-   - Update linux-io.md with actual migration
-   - Add troubleshooting guide
-
-## Risk Assessment
-
-### Low Risk ✅
-
-- **API compatibility**: Reactor already designed for this use case
-- **Structural fit**: Minimal changes to port_def_t
-- **Platform support**: Works on both POSIX and Windows
-- **Backwards compatibility**: No mudlib-visible changes
-
-### Medium Risk ⚠️
-
-- **Event dispatch complexity**: Need clear context type discrimination
-- **Error handling**: New error paths need thorough testing
-- **Performance**: Should improve, but needs benchmarking
-
-### Mitigation Strategies
-
-1. **Incremental rollout**: Keep poll-based code paths as fallback during transition
-2. **Extensive testing**: Unit tests + integration tests + stress tests
-3. **Feature flag**: Add `--use-io-reactor` flag to enable reactor (Phase 3)
-4. **Monitoring**: Add debug logging for event dispatch paths
-
-## Conclusion
-
-**The external_port array is an ideal candidate for io_reactor integration.**
-
-Key advantages:
-1. ✅ Clean fit with existing reactor API design
-2. ✅ Eliminates platform-specific pollution (`poll_index`)
-3. ✅ Enables unified error handling
-4. ✅ Improves performance (no redundant registration)
-5. ✅ Prepares for future enhancements (AcceptEx, etc.)
-
-**Recommended approach**: **Option B** (Refactor to Port Pointer)
-- Clean abstraction
-- Minimal overhead
-- Sets precedent for interactive_t and lpc_socket_t integration
-
-**Estimated effort**: 1-2 weeks including testing and documentation
-
-**Blockers**: None identified
-
-**Next steps**:
-1. Implement Option B refactoring
-2. Add unit tests for listening socket events
-3. Update process_io() event dispatch
-4. Document migration in phase3 report
+**Next**: Implement Phase 3A core integration (see roadmap above)
 
 ---
 
 **Review Status**: ✅ APPROVED FOR IMPLEMENTATION  
-**Phase**: 3A - Core Integration  
-**Target**: Neolith v1.0
-
+**Estimated Effort**: 1-2 weeks

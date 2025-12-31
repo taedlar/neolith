@@ -63,6 +63,38 @@ Test patterns:
 - Tests expect [examples/](examples/) directory copied to build directory (automated via CMake POST_BUILD)
 - Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
 
+#### Socket Testing Patterns
+Tests using network sockets require special initialization handling:
+
+**Header Includes**:
+```cpp
+#include <gtest/gtest.h>
+extern "C" {
+#include "port/io_reactor.h"
+#include "port/socket_comm.h"  // Provides create_test_socket_pair()
+}
+```
+
+**Windows Socket Initialization**:
+- Use global `WinsockEnvironment` class in main test file (see [test_io_reactor_main.cpp](tests/test_io_reactor/test_io_reactor_main.cpp))
+- DO NOT call `socket_comm_init()`/`socket_comm_cleanup()` in individual tests
+- Global environment handles `WSAStartup()`/`WSACleanup()` for entire test run
+- Pattern:
+```cpp
+#ifdef WINSOCK
+class WinsockEnvironment : public ::testing::Environment {
+    // SetUp() calls WSAStartup(), TearDown() calls WSACleanup()
+};
+static ::testing::Environment* const winsock_env =
+    ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
+#endif
+```
+
+**Test File Organization**:
+- Main test file (e.g., `test_io_reactor_main.cpp`): Contains WinsockEnvironment and GoogleTest main()
+- Individual test files (e.g., `test_io_reactor_console.cpp`): Include common header, write tests
+- Common header (e.g., `test_io_reactor_common.h`): Shared includes and helper functions
+
 ### Running
 ```bash
 neolith -f /path/to/neolith.conf
@@ -147,6 +179,23 @@ Efuns are **not** manually registered. Instead:
 - **Agent-generated implementation reports**: Save to [docs/history/agent-reports/](docs/history/agent-reports/)
   - Name pattern: `feature-name-phaseN.md` or `feature-name-YYYY-MM-DD.md`
   - Include: summary, components delivered, test results, next steps, files modified
+
+### Documentation Best Practices
+1. **Don't duplicate implemented code in documentation**
+   - Once code is committed and tested, reference it with links instead of copying it
+   - Example: "See [io_reactor.h](lib/port/io_reactor.h)" not full API declarations
+2. **Explain committed code concisely**
+   - Document WHY decisions were made, not HOW the code works (code shows that)
+   - Focus on design rationale, platform differences, integration patterns
+   - Keep implementation reports focused on what changed and why it matters
+3. **Remove redundant content**
+   - Delete verbose examples when linking to actual source is sufficient
+   - Avoid repeating test output verbatim—summarize pass/fail status instead
+   - Don't show complete function implementations that are already in source files
+4. **Keep design documents concise**
+   - Main design docs should be reference guides, not implementation tutorials
+   - Move detailed examples to phase-specific reports or source code comments
+   - Use tables and bullet points over lengthy prose
 
 ## Key File Locations
 - **Build config**: [config.h.in](config.h.in) → `out/build/*/config.h` (feature detection results)
