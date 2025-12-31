@@ -23,7 +23,7 @@ TEST_F(LPCLexerTest, getOpcodeName) {
 }
 
 TEST_F(LPCLexerTest, startNewFile) {
-    int fd = open("master.c", O_RDONLY);
+    int fd = FILE_OPEN("master.c", O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open include file master.c";
     current_file = make_shared_string ("master.c");
     current_file_id = 0;
@@ -35,7 +35,7 @@ TEST_F(LPCLexerTest, startNewFile) {
     debug_message("Lexed %d tokens from master.c", n);
     end_new_file ();
 
-    close(fd);
+    FILE_CLOSE(fd);
     free_string(current_file);
     current_file = 0;
 }

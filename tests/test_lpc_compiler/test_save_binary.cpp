@@ -21,12 +21,12 @@ TEST_F(LPCCompilerTest, saveBinary) {
         *  as the last step in compile_file(). A master apply "valid_save_binary"
         *  is called to confirm saving is allowed.
         */
-    int fd = open("save_binary.c", O_RDONLY);
+    int fd = FILE_OPEN("save_binary.c", O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open save_binary.c for reading.";
     program_t* prog = compile_file(fd, "save_binary.c", nullptr); // save_binary pragma is enabled in this file
     EXPECT_TRUE(prog != nullptr) << "compile_file returned null program.";
     total_lines = 0;
-    close(fd);
+    FILE_CLOSE(fd);
 
     // free the compiled program
     free_prog(prog, 1);

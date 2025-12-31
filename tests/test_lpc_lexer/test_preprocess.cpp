@@ -8,7 +8,7 @@ extern "C" {
 }
 
 TEST_F(LPCLexerTest, handleInclude) {
-    int fd = open("user.c", O_RDONLY);
+    int fd = FILE_OPEN("user.c", O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open include file user.c";
     current_file = make_shared_string ("user.c");
     current_file_id = 0;
@@ -21,7 +21,7 @@ TEST_F(LPCLexerTest, handleInclude) {
     EXPECT_NE(lookup_define ("M3_CONFIG_H"), nullptr); // from included m3_config.h
     end_new_file ();
 
-    close(fd);
+    FILE_CLOSE(fd);
     free_string(current_file);
     current_file = 0;
 }

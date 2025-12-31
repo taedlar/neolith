@@ -410,9 +410,9 @@ object_t* load_object (const char *lname) {
 
       /* maybe move this section into compile_file? */
 #ifdef _WIN32
-      f = _open (real_name, O_RDONLY | O_TEXT);
+      f = FILE_OPEN (real_name, O_RDONLY | O_TEXT);
 #else
-      f = open (real_name, O_RDONLY);
+      f = FILE_OPEN (real_name, O_RDONLY);
 #endif
       if (f == -1)
         {
