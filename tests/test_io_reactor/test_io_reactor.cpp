@@ -111,7 +111,7 @@ TEST(IOReactorTest, AddRemoveSocket) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     // Add socket to reactor
@@ -128,7 +128,7 @@ TEST(IOReactorTest, AddWithContext) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     // Use a dummy pointer as context
@@ -147,7 +147,7 @@ TEST(IOReactorTest, AddDuplicateFails) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     // First add should succeed
@@ -178,7 +178,7 @@ TEST(IOReactorTest, ModifyEvents) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     // Add with read events
@@ -238,7 +238,7 @@ TEST(IOReactorTest, EventDelivery) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     void* test_context = (void*)0x1234;
@@ -285,8 +285,8 @@ TEST(IOReactorTest, MultipleEvents) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server1_fd, client1_fd;
-    socket_fd_t server2_fd, client2_fd;
+    socket_fd_t server1_fd = INVALID_SOCKET_FD, client1_fd = INVALID_SOCKET_FD;
+    socket_fd_t server2_fd = INVALID_SOCKET_FD, client2_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server1_fd, &client1_fd));
     ASSERT_EQ(0, create_socket_pair(&server2_fd, &client2_fd));
     
@@ -335,9 +335,9 @@ TEST(IOReactorTest, MaxEventsLimitation) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server1_fd, client1_fd;
-    socket_fd_t server2_fd, client2_fd;
-    socket_fd_t server3_fd, client3_fd;
+    socket_fd_t server1_fd = INVALID_SOCKET_FD, client1_fd = INVALID_SOCKET_FD;
+    socket_fd_t server2_fd = INVALID_SOCKET_FD, client2_fd = INVALID_SOCKET_FD;
+    socket_fd_t server3_fd = INVALID_SOCKET_FD, client3_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server1_fd, &client1_fd));
     ASSERT_EQ(0, create_socket_pair(&server2_fd, &client2_fd));
     ASSERT_EQ(0, create_socket_pair(&server3_fd, &client3_fd));
@@ -380,7 +380,7 @@ TEST(IOReactorTest, WriteEvent) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
 #ifdef WINSOCK
@@ -512,7 +512,7 @@ TEST(IOReactorTest, PostReadNoOp) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     ASSERT_EQ(0, io_reactor_add(reactor, server_fd, nullptr, EVENT_READ));
@@ -531,7 +531,7 @@ TEST(IOReactorTest, PostWriteNoOp) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     ASSERT_EQ(0, io_reactor_add(reactor, server_fd, nullptr, EVENT_WRITE));
@@ -557,7 +557,7 @@ TEST(IOReactorIOCPTest, CompletionWithDataInBuffer) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     // Register and post async read
@@ -588,7 +588,7 @@ TEST(IOReactorIOCPTest, GracefulClose) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     // Register and post async read
@@ -617,7 +617,7 @@ TEST(IOReactorIOCPTest, CancelledOperations) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     // Register and post async read
@@ -646,7 +646,7 @@ TEST(IOReactorIOCPTest, MultipleReadsOnSameSocket) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    socket_fd_t server_fd, client_fd;
+    socket_fd_t server_fd = INVALID_SOCKET_FD, client_fd = INVALID_SOCKET_FD;
     ASSERT_EQ(0, create_socket_pair(&server_fd, &client_fd));
     
     // Register socket
