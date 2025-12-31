@@ -15,7 +15,6 @@
 
 #include "io_reactor.h"
 #include "socket_comm.h"
-#include "debug.h"
 #include <windows.h>
 #include <winsock2.h>
 #include <stdlib.h>
@@ -136,8 +135,6 @@ io_reactor_t* io_reactor_create(void) {
     /* Create IOCP with 1 concurrent thread (single-threaded model) */
     reactor->iocp_handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
     if (reactor->iocp_handle == NULL) {
-        DWORD error = GetLastError();
-        debug_message("CreateIoCompletionPort failed: %lu\n", error);
         free(reactor);
         return NULL;
     }
@@ -193,8 +190,6 @@ int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int eve
      */
     HANDLE result = CreateIoCompletionPort((HANDLE)fd, reactor->iocp_handle, 0, 0);
     if (result == NULL) {
-        DWORD error = GetLastError();
-        debug_message("CreateIoCompletionPort for socket %d failed: %lu\n", (int)fd, error);
         return -1;
     }
     
@@ -218,7 +213,6 @@ int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int eve
             DWORD error = WSAGetLastError();
             if (error != WSA_IO_PENDING) {
                 /* Immediate error */
-                debug_message("Initial WSARecv failed: %lu\n", error);
                 free_iocp_context(reactor, io_ctx);
                 return -1;
             }
@@ -297,7 +291,6 @@ int io_reactor_post_read(io_reactor_t *reactor, socket_fd_t fd, void *buffer, si
         DWORD error = WSAGetLastError();
         if (error != WSA_IO_PENDING) {
             /* Immediate error */
-            debug_message("WSARecv failed: %lu\n", error);
             free_iocp_context(reactor, io_ctx);
             return -1;
         }
@@ -335,7 +328,6 @@ int io_reactor_post_write(io_reactor_t *reactor, socket_fd_t fd, void *buffer, s
     if (result == SOCKET_ERROR) {
         DWORD error = WSAGetLastError();
         if (error != WSA_IO_PENDING) {
-            debug_message("WSASend failed: %lu\n", error);
             free_iocp_context(reactor, io_ctx);
             return -1;
         }
@@ -391,7 +383,6 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
             /* Other error */
             if (event_count == 0) {
                 /* Only report error if we haven't collected any events */
-                debug_message("GetQueuedCompletionStatus failed: %lu\n", error);
                 return -1;
             }
             /* If we have events, return them and ignore this error */
