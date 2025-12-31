@@ -84,11 +84,9 @@ int create_test_socket_pair(socket_fd_t fds[2]) {
     }
     
     /* Set both to non-blocking */
-    if (set_socket_nonblocking(fds[0], 1) != 0 ||
-        set_socket_nonblocking(fds[1], 1) != 0) {
-        closesocket(acceptor);
-        closesocket(connector);
-        return -1;
+    if (set_socket_nonblocking(acceptor, 1) != 0 ||
+        set_socket_nonblocking(connector, 1) != 0) {
+        goto error;
     }
     
     /* Close listener - no longer needed */
