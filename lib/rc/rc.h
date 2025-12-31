@@ -8,9 +8,6 @@ typedef struct {
     int kind;
     int port;
     socket_fd_t fd;
-#ifdef HAVE_POLL
-    int poll_index; /* index in poll_fds[] */
-#endif
 } port_def_t;
 
 #ifdef __cplusplus

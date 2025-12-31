@@ -252,7 +252,6 @@ void backend () {
           slow_shut_down (tmp);
         }
 
-      make_selectmasks ();
       if (heart_beat_flag)
         {
           timeout.tv_sec = 0;

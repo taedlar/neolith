@@ -11,6 +11,7 @@
 #include "interpret.h"
 #include "socket/socket_efuns.h"
 #include "port/socket_comm.h"
+#include "port/io_reactor.h"
 #include "efuns/ed.h"
 
 #include "lpc/include/origin.h"
@@ -74,7 +75,7 @@ static void query_addr_name (object_t *);
 static void got_addr_number (char *, char *);
 static void add_ip_entry (long, const char *);
 static void clear_notify (interactive_t *);
-static void new_user_handler (int);
+static void new_user_handler (port_def_t *);
 static void receive_snoop (char *, object_t * ob);
 static void set_telnet_single_char (interactive_t *, int);
 
@@ -94,31 +95,47 @@ int max_users = 0;
 
 /* static declarations */
 
-#ifdef HAVE_POLL
 /*
- * [NEOLITH-EXTENSION]
+ * I/O Reactor - Platform-agnostic event-driven I/O multiplexing
  *
- * The poll() system call is add to POSIX-1.2008 after original LPMud/MudOS was released.
- * We favor poll() over select() for better performance and scalability.
- * The number of maximum file descriptors select() can handle is limited to FD_SETSIZE,
- * while poll() can handle a larger number of file descriptors.
- *
- * A poll_index is added to interactive_t and port_def_t structures to keep track of their
- * position in the poll_fds array.
+ * Replaces legacy poll()/select() with reactor pattern for better scalability,
+ * platform portability, and cleaner code. See docs/manual/io-reactor.md for design.
  */
-static int total_fds = 0;
-static struct pollfd *poll_fds = NULL; /* for poll(), the only limit is RLIMIT_NOFILE (1 million?) */
-static int console_poll_index = -1;
-static int addr_server_poll_index = -1;
-#else
-#ifdef WINSOCK
-#endif
-/* fallback to select() */
-static fd_set readmask, writemask; /* usually limited to 1024 file descriptors */
-#endif
+static io_reactor_t *g_io_reactor = NULL;
+static io_event_t g_io_events[512];  /* Event buffer for io_reactor_wait() */
+static int g_num_io_events = 0;
+
+/* Console context marker for identifying console events */
+#define CONSOLE_CONTEXT_MARKER ((void*)0xC0501E)
+
 static int addr_server_fd = -1;
 
 /* implementations */
+
+/* Context identification helpers for event dispatch */
+static inline int is_listening_port (void *context) {
+  return (context >= (void*)&external_port[0] &&
+          context <  (void*)&external_port[5]);
+}
+
+static inline int is_interactive_user (void *context) {
+  if (!all_users || !context) return 0;
+  
+  /* Check if pointer is in all_users array range */
+  for (int i = 0; i < max_users; i++)
+    {
+      if (all_users[i] == context)
+        return 1;
+    }
+  return 0;
+}
+
+#ifdef PACKAGE_SOCKETS
+static inline int is_lpc_socket (void *context) {
+  return (context >= (void*)&lpc_socks[0] &&
+          context <  (void*)&lpc_socks[max_lpc_socks]);
+}
+#endif
 
 static void receive_snoop (char *buf, object_t * snooper) {
 
@@ -196,6 +213,56 @@ void init_user_conn () {
     }
   opt_trace (TT_BACKEND, "finished initializing user connection sockets.\n");
 
+  /* Create I/O reactor */
+  g_io_reactor = io_reactor_create();
+  if (!g_io_reactor)
+    {
+      debug_fatal ("Failed to create I/O reactor\n");
+      exit (11);
+    }
+  
+  /* Register listening sockets with reactor */
+  for (i = 0; i < 5; i++)
+    {
+      if (!external_port[i].port)
+        continue;
+      
+      if (io_reactor_add (g_io_reactor, external_port[i].fd,
+                         &external_port[i], EVENT_READ) != 0)
+        {
+          debug_fatal ("Failed to register listening socket for port %d with reactor\n",
+                       external_port[i].port);
+          exit (12);
+        }
+      opt_trace (TT_BACKEND, "registered listening socket for port %d with reactor\n",
+                 external_port[i].port);
+    }
+
+  /* Register console if enabled */
+  if (MAIN_OPTION(console_mode))
+    {
+#ifdef _WIN32
+      if (io_reactor_add_console (g_io_reactor, CONSOLE_CONTEXT_MARKER) != 0)
+        {
+          debug_message ("Warning: Failed to register console with reactor\n");
+        }
+      else
+        {
+          opt_trace (TT_BACKEND, "registered console with reactor (Windows IOCP)\n");
+        }
+#else
+      if (io_reactor_add (g_io_reactor, STDIN_FILENO,
+                         CONSOLE_CONTEXT_MARKER, EVENT_READ) != 0)
+        {
+          debug_message ("Warning: Failed to register console with reactor\n");
+        }
+      else
+        {
+          opt_trace (TT_BACKEND, "registered console with reactor (POSIX)\n");
+        }
+#endif
+    }
+
 #ifndef _WIN32
   /* register signal handler for SIGPIPE. */
   if (signal (SIGPIPE, sigpipe_handler) == SIG_ERR)
@@ -225,6 +292,13 @@ void ipc_remove () {
         debug_perror ("ipc_remove: close", 0);
     }
 
+  /* Destroy I/O reactor */
+  if (g_io_reactor)
+    {
+      io_reactor_destroy (g_io_reactor);
+      g_io_reactor = NULL;
+    }
+
 }
 
 /**
@@ -233,11 +307,15 @@ void ipc_remove () {
 int do_comm_polling (struct timeval *timeout) {
   opt_trace (TT_BACKEND|3, "do_comm_polling: timeout %ld sec, %ld usec",
              timeout->tv_sec, timeout->tv_usec);
-#ifdef HAVE_POLL
-  return poll (poll_fds, total_fds, timeout ? (timeout->tv_sec * 1000 + timeout->tv_usec / 1000) : -1);
-#else
-  return select (FD_SETSIZE, &readmask, &writemask, NULL, timeout);
-#endif
+  
+  /* Use reactor for event demultiplexing */
+  g_num_io_events = io_reactor_wait (g_io_reactor, g_io_events,
+                                     sizeof(g_io_events) / sizeof(g_io_events[0]),
+                                     timeout);
+  
+  opt_trace (TT_BACKEND|3, "do_comm_polling: got %d events", g_num_io_events);
+  
+  return g_num_io_events;
 }
 
 /*
@@ -435,7 +513,14 @@ flush_message (interactive_t * ip)
       if (num_bytes == -1)
         {
           if (SOCKET_ERRNO == EWOULDBLOCK || SOCKET_ERRNO == EINTR)
-            return 1;
+            {
+              /* Socket would block - request write notification from reactor */
+              if (ip->fd != STDIN_FILENO)
+                {
+                  io_reactor_modify (g_io_reactor, ip->fd, EVENT_READ | EVENT_WRITE);
+                }
+              return 1;
+            }
 
           if (SOCKET_ERRNO != EPIPE)
             debug_error ("send() failed: %d", SOCKET_ERRNO);
@@ -448,6 +533,13 @@ flush_message (interactive_t * ip)
       inet_packets++;
       inet_volume += num_bytes;
     }
+  
+  /* All data sent - remove write notification if it was set */
+  if (ip->fd != STDIN_FILENO)
+    {
+      io_reactor_modify (g_io_reactor, ip->fd, EVENT_READ);
+    }
+  
   return 1;
 }				/* flush_message() */
 
@@ -846,332 +938,141 @@ static void sigpipe_handler (int sig) {
 }
 #endif
 
-/**
- *  @brief Create select() read and write masks.
- *
- *  Generate readmask and writemask for select() call in original MudOS.
- *  Despite the name, we favor poll() when it is available and prepares the poll_fds array in this function.
- *
- *  There are 4 groups of file descriptors to monitor:
- *  1. new user accept fds in external_port[];
- *  2. user fds in all_users[];
- *  3. addr_server_fd for address resolution replies;
- *  4. efun socket fds in lpc_socks[] (if PACKAGE_SOCKETS is defined).
- *
- *  When using select(), the amount of fds to monitor is limited by FD_SETSIZE.
- *  When using poll(), there is no such limitation. (The maximum number of fds is limited
- *  by the system, usually 1024 or higher.) We need to allocate and resize poll_fds array
- *  dynamically according to the actual number of fds to monitor.
-  1. For new user accept fds, we have at most 5 fds (external_port[5]).
-  2. For user fds, we have at most max_users fds (all_users[]).
-  3. For addr_server_fd, we have at most 1 fd.
-  4. For efun socket fds, we have at most max_lpc_socks fds (lpc_socks[]).
+/* Legacy make_selectmasks() removed - replaced by reactor registration in:
+ * - init_user_conn() for listening sockets and console
+ * - new_interactive() for user connections  
+ * - socket efun handlers for LPC sockets
  */
-void make_selectmasks () {
 
-  int i;
-
-#ifdef HAVE_POLL
-  int i_poll = 0;
-  int console_user_connected = 0;
-  /* calculate total number of fds to monitor */
-  total_fds = 0;
-  for (i = 0; i < 5; i++)
-    {
-      if (external_port[i].port)
-        total_fds++;
-    }
-  for (i = 0; i < max_users; i++)
-    {
-      if (all_users[i] && !(all_users[i]->iflags & (CLOSING | CMD_IN_BUF)))
-        {
-          total_fds++;
-        }
-    }
-  if (addr_server_fd >= 0)
-    total_fds++;
-#ifdef PACKAGE_SOCKETS
-  for (i = 0; i < max_lpc_socks; i++)
-    {
-      if (lpc_socks[i].state != CLOSED)
-        total_fds++;
-    }
-#endif /* PACKAGE_SOCKETS */
-#endif /* HAVE_POLL */
-
-  /*
-   * 0. reset I/O masks (allocate/reallocate poll_fds array if using poll())
-   */
-#ifdef HAVE_POLL
-  if (total_fds > 0)
-    {
-      poll_fds = (struct pollfd *) DREALLOC (poll_fds, sizeof (struct pollfd) * total_fds, TAG_SYSTEM, "make_selectmasks: poll_fds");
-      for (i = 0; i < total_fds; i++)
-        {
-          poll_fds[i].fd = -1; /* poll() ignores negative fds */
-          poll_fds[i].events = 0;
-          poll_fds[i].revents = 0;
-        }
-    }
-  else
-    {
-      if (poll_fds)
-        {
-          FREE(poll_fds);
-          poll_fds = NULL;
-        }
-      return;
-    }
-#else /* !HAVE_POLL */
-  FD_ZERO (&readmask);
-  FD_ZERO (&writemask);
-#endif
-
-  /*
-   * 1. set new user (accept) fd in readmask / POLLIN.
-   */
-  for (i = 0; i < 5; i++)
-    {
-      if (!external_port[i].port)
-        continue;
-#ifdef HAVE_POLL
-      poll_fds[i_poll].fd = external_port[i].fd;
-      poll_fds[i_poll].events = POLLIN;
-      external_port[i].poll_index = i_poll;
-      i_poll++;
-#else
-      FD_SET (external_port[i].fd, &readmask);
-#endif
-    }
-  /*
-   * 2. set user fds in readmask/writemask.
-   */
-  for (i = 0; i < max_users; i++)
-    {
-      if (!all_users[i] || (all_users[i]->iflags & (CLOSING | CMD_IN_BUF)))
-        continue;
-      /*
-       * if this user needs more input to make a complete command, set his
-       * fd so we can get it.
-       */
-#ifdef HAVE_POLL
-      poll_fds[i_poll].fd = all_users[i]->fd;
-      poll_fds[i_poll].events = POLLIN;
-      if (poll_fds[i_poll].fd == STDIN_FILENO)
-        {
-          console_user_connected = 1;
-        }
-      all_users[i]->poll_index = i_poll;
-      i_poll++;
-#else
-#ifdef WINSOCK
-      if (all_users[i]->fd != STDIN_FILENO)
-#endif
-        FD_SET (all_users[i]->fd, &readmask);
-#endif /* !HAVE_POLL */
-
-      /* if this user has message to send, set his fd in writemask or enable POLLOUT */
-      if (all_users[i]->message_length != 0)
-        {
-          if (all_users[i]->fd != STDIN_FILENO)
-            {
-#ifdef HAVE_POLL
-              poll_fds[i_poll-1].events |= POLLOUT;
-#else
-              FD_SET (all_users[i]->fd, &writemask);
-#endif
-            }
-        }
-    }
-
-  /*
-   * 2.1. handle console user re-connects
-   */
-#ifdef WINSOCK
-  /*  In Windows, the select() provided by winsock2 does not support adding the standard input
-   *  file descriptor (STDIN_FILENO) to the readmask. So we handle console user re-connects
-   *  differently here.
-   */
-#else
-  if (MAIN_OPTION(console_mode))
-    {
-#ifdef HAVE_POLL
-      if (!console_user_connected)
-        {
-          poll_fds[i_poll].fd = STDIN_FILENO; /* for console re-connect*/
-          poll_fds[i_poll].events = POLLIN;
-          console_poll_index = i_poll;
-          i_poll++;
-        }
-      else
-        {
-          console_poll_index = -1;
-        }
-#else
-      FD_SET(STDIN_FILENO, &readmask); /* for console re-connect */
-#endif
-    }
-#endif /* ! WINSOCK */
-
-  /*
-   * 3. if addr_server_fd is set, set its fd in readmask or poll_fds.
-   */
-  if (addr_server_fd >= 0)
-    {
-#ifdef HAVE_POLL
-      poll_fds[i_poll].fd = addr_server_fd;
-      poll_fds[i_poll].events = POLLIN;
-      addr_server_poll_index = i_poll;
-      i_poll++;
-#else
-      FD_SET (addr_server_fd, &readmask);
-#endif
-    }
-  else
-    {
-#ifdef HAVE_POLL
-      addr_server_poll_index = -1;
-#endif
-    }
-
-#ifdef PACKAGE_SOCKETS
-  /*
-   * 4. set fd's for efun sockets.
-   */
-  for (i = 0; i < max_lpc_socks; i++)
-    {
-      if (lpc_socks[i].state != CLOSED)
-        {
-          if (lpc_socks[i].state != FLUSHING && (lpc_socks[i].flags & S_WACCEPT) == 0)
-            {
-#ifdef HAVE_POLL
-              poll_fds[i_poll].fd = lpc_socks[i].fd;
-              poll_fds[i_poll].events = POLLIN;
-              lpc_socks[i].poll_index = i_poll;
-              i_poll++;
-#else
-              FD_SET (lpc_socks[i].fd, &readmask);
-#endif
-            }
-          if (lpc_socks[i].flags & S_BLOCKED)
-            {
-#ifdef HAVE_POLL
-              poll_fds[i_poll-1].events |= POLLOUT;
-#else
-              FD_SET (lpc_socks[i].fd, &writemask);
-#endif
-            }
-        }
-    }
-#endif /* PACKAGE_SOCKETS */
-}	/* make_selectmasks() */
-
-#ifdef HAVE_POLL
-#define NEW_USER_CAN_READ(i) (external_port[i].poll_index >=0 && (poll_fds[external_port[i].poll_index].revents & POLLIN))
-#define USER_CAN_READ(u) (all_users[u]->poll_index >=0 && (poll_fds[all_users[u]->poll_index].revents & POLLIN))
-#define USER_CAN_WRITE(u) (all_users[u]->poll_index >=0 && (poll_fds[all_users[u]->poll_index].revents & POLLOUT))
-#define CONSOLE_CAN_READ() (console_poll_index >=0 && (poll_fds[console_poll_index].revents & POLLIN))
-#define ADDR_SERVER_CAN_READ() (addr_server_poll_index >=0 && (poll_fds[addr_server_poll_index].revents & POLLIN))
-#define LPC_SOCKET_CAN_READ(i) (lpc_socks[i].poll_index >=0 && (poll_fds[lpc_socks[i].poll_index].revents & POLLIN))
-#define LPC_SOCKET_CAN_WRITE(i) (lpc_socks[i].poll_index >=0 && (poll_fds[lpc_socks[i].poll_index].revents & POLLOUT))
-#else
-#define NEW_USER_CAN_READ(i) FD_ISSET (external_port[i].fd, &readmask)
-#define USER_CAN_READ(u) FD_ISSET (all_users[u]->fd, &readmask)
-#define USER_CAN_WRITE(u) FD_ISSET (all_users[u]->fd, &writemask)
-#define CONSOLE_CAN_READ() FD_ISSET (STDIN_FILENO, &readmask)
-#define ADDR_SERVER_CAN_READ() FD_ISSET (addr_server_fd, &readmask)
-#define LPC_SOCKET_CAN_READ(i) FD_ISSET (lpc_socks[i].fd, &readmask)
-#define LPC_SOCKET_CAN_WRITE(i) FD_ISSET (lpc_socks[i].fd, &writemask)
-#endif
 /**
  *  @brief Process I/O for sockets or console (if enabled).
  *
- *  This function is called after select() or poll() indicates that
- *  there is I/O activity on one or more file descriptors.
+ *  This function is called after io_reactor_wait() returns events.
+ *  Events are dispatched to appropriate handlers based on context.
  */
 void process_io () {
 
-  int console_user_connected = 0;
   int i;
 
-  /*
-   * check for new user connection.
-   */
-  for (i = 0; i < 5; i++)
+  /* Dispatch all events returned by reactor */
+  for (i = 0; i < g_num_io_events; i++)
     {
-      if (!external_port[i].port)
-        continue;
-      if (NEW_USER_CAN_READ(i))
+      io_event_t *evt = &g_io_events[i];
+      
+      /* Identify event source by context pointer */
+      if (is_listening_port (evt->context))
         {
-          new_user_handler (i);
+          /* Listening socket - new connection */
+          port_def_t *port = (port_def_t*)evt->context;
+          
+          if (evt->event_type & EVENT_READ)
+            {
+              new_user_handler (port);
+            }
+          
+          if (evt->event_type & EVENT_ERROR)
+            {
+              debug_message ("Error on listening port %d\n", port->port);
+            }
+        }
+      else if (evt->context == CONSOLE_CONTEXT_MARKER)
+        {
+          /* Console input */
+          if (evt->event_type & EVENT_READ)
+            {
+              /* Check if console user is connected, if not reconnect */
+              int console_connected = 0;
+              for (int u = 0; u < max_users; u++)
+                {
+                  if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
+                    {
+                      console_connected = 1;
+                      get_user_data (all_users[u]);
+                      break;
+                    }
+                }
+              
+              if (!console_connected)
+                {
+                  /* Console user re-connect */
+                  init_console_user(1);
+                }
+            }
+        }
+      else if (is_interactive_user (evt->context))
+        {
+          /* Interactive user socket */
+          interactive_t *ip = (interactive_t*)evt->context;
+          
+          /* Validate interactive is still valid */
+          if (!ip->ob || (ip->ob->flags & O_DESTRUCTED) ||
+              ip->ob->interactive != ip)
+            {
+              continue;
+            }
+          
+          if (evt->event_type & (EVENT_ERROR | EVENT_CLOSE))
+            {
+              /* Network error or connection closed */
+              remove_interactive (ip->ob, 0);
+              continue;
+            }
+          
+          if (evt->event_type & EVENT_READ)
+            {
+              get_user_data (ip);
+              /* ip may be invalid after get_user_data if object was destructed */
+              if (!ip->ob || (ip->ob->flags & O_DESTRUCTED) ||
+                  ip->ob->interactive != ip)
+                {
+                  continue;
+                }
+            }
+          
+          if (evt->event_type & EVENT_WRITE)
+            {
+              flush_message (ip);
+            }
+        }
+#ifdef PACKAGE_SOCKETS
+      else if (is_lpc_socket (evt->context))
+        {
+          /* LPC socket efun */
+          lpc_socket_t *sock = (lpc_socket_t*)evt->context;
+          int sock_index = sock - lpc_socks;
+          
+          if (sock->state == CLOSED)
+            continue;
+          
+          if (evt->event_type & EVENT_READ)
+            {
+              socket_read_select_handler (sock_index);
+            }
+          
+          if (sock->state != CLOSED && (evt->event_type & EVENT_WRITE))
+            {
+              socket_write_select_handler (sock_index);
+            }
+        }
+#endif
+      else if (evt->context == &addr_server_fd)
+        {
+          /* Address server pipe */
+          if (evt->event_type & EVENT_READ)
+            {
+              hname_handler ();
+            }
         }
     }
-
-  /*
-   * check for data pending on user connections.
-   */
+  
+  /* Flush console user output if connected (console is always writable) */
   for (i = 0; i < max_users; i++)
     {
-      if (!all_users[i] || (all_users[i]->iflags & (CLOSING | CMD_IN_BUF)))
-        continue;
-
-      if (all_users[i]->iflags & NET_DEAD)
+      if (all_users[i] && all_users[i]->fd == STDIN_FILENO)
         {
-          remove_interactive (all_users[i]->ob, 0);
-          continue;
-        }
-
-      if (USER_CAN_READ(i))
-        {
-          get_user_data (all_users[i]);
-          if (!all_users[i])
-            continue;
-        }
-
-      if (all_users[i]->fd == STDIN_FILENO)
-        {
-          /* [NEOLITH-EXTENSION] console user is connected. Always flush console user's message
-           * output to standard output without waiting for writemask.
-           */
-          console_user_connected = 1;
           flush_message (all_users[i]);
+          break;
         }
-      else if (USER_CAN_WRITE(i))
-        flush_message (all_users[i]);
-    }
-#ifndef WINSOCK
-  /* In Windows, the select() provided by winsock2 does not support adding the standard input
-   * file descriptor (STDIN_FILENO) to the readmask. So we handle console user re-connects
-   * differently here.
-   */
-  if (!console_user_connected && CONSOLE_CAN_READ())
-    {
-      /* [NEOLITH-EXTENSION] console user re-connect */
-      init_console_user(1);
-    }
-#endif
-
-#ifdef PACKAGE_SOCKETS
-  /*
-   * check for data pending on efun socket connections.
-   */
-  for (i = 0; i < max_lpc_socks; i++)
-    {
-      if (lpc_socks[i].state != CLOSED)
-        if (LPC_SOCKET_CAN_READ(i))
-          socket_read_select_handler (i);
-      if (lpc_socks[i].state != CLOSED)
-        if (LPC_SOCKET_CAN_WRITE(i))
-          socket_write_select_handler (i);
-    }
-#endif
-
-  /*
-   * check for data pending from address server.
-   */
-  if (addr_server_fd >= 0 && ADDR_SERVER_CAN_READ())
-    {
-      hname_handler ();
     }
 }
 
@@ -1239,6 +1140,20 @@ void new_interactive(socket_fd_t socket_fd) {
   all_users[i]->fd = socket_fd;
   set_prompt ("> ");
 
+  /* Register interactive socket with reactor (except console on POSIX, already registered) */
+  if (socket_fd != STDIN_FILENO)
+    {
+      if (io_reactor_add (g_io_reactor, socket_fd, master_ob->interactive, EVENT_READ) != 0)
+        {
+          debug_message ("Failed to register user socket with reactor\n");
+          SOCKET_CLOSE (socket_fd);
+          FREE (master_ob->interactive);
+          master_ob->interactive = 0;
+          all_users[i] = 0;
+          return;
+        }
+    }
+
 /* debug_message ("new connection from %s\n", inet_ntoa (addr.sin_addr)); */
   num_user++;
 }
@@ -1251,22 +1166,21 @@ void new_interactive(socket_fd_t socket_fd) {
  *  @param which The index of the external_port array indicating which port
  *  the new connection is on.
  */
-static void new_user_handler (int which) {
+static void new_user_handler (port_def_t *port) {
 
   socket_fd_t new_socket_fd;
   struct sockaddr_in addr;
   socklen_t length;
   object_t *ob;
-  int num_external_ports = sizeof(external_port) / sizeof(external_port[0]);
 
-  if (which >= num_external_ports || !external_port[which].port)
+  if (!port || !port->port)
     {
-      debug_message ("new_user_handler: invalid port index %d\n", which);
+      debug_message ("new_user_handler: invalid port\n");
       return;
     }
 
   length = sizeof (addr);
-  new_socket_fd = accept (external_port[which].fd, (struct sockaddr *) &addr, &length);
+  new_socket_fd = accept (port->fd, (struct sockaddr *) &addr, &length);
   if (INVALID_SOCKET_FD == new_socket_fd)
     {
       if (SOCKET_ERRNO != EWOULDBLOCK)
@@ -1292,13 +1206,13 @@ static void new_user_handler (int which) {
    * new user during connection setup.
    */
   new_interactive(new_socket_fd);
-  master_ob->interactive->connection_type = external_port[which].kind;
+  master_ob->interactive->connection_type = port->kind;
 #ifdef F_QUERY_IP_PORT
-  master_ob->interactive->local_port = external_port[which].port;
+  master_ob->interactive->local_port = port->port;
 #endif
   memcpy ((char *) &master_ob->interactive->addr, (char *) &addr, length);
 
-  ob = mudlib_connect(external_port[which].port, inet_ntoa (addr.sin_addr));
+  ob = mudlib_connect(port->port, inet_ntoa (addr.sin_addr));
   if (!ob)
     {
       if (master_ob->interactive)
@@ -1307,7 +1221,7 @@ static void new_user_handler (int which) {
     }
   if (addr_server_fd >= 0)
     query_addr_name (ob);
-  if (external_port[which].kind == PORT_TELNET)
+  if (port->kind == PORT_TELNET)
     {
       /* Ask permission to ask them for their terminal type */
       add_message (ob, telnet_do_ttype);
@@ -2030,6 +1944,12 @@ void remove_interactive (object_t * ob, int dested) {
     {
       ip->snoop_on->snoop_by = 0;
       ip->snoop_on = 0;
+    }
+
+  /* Unregister from reactor (except console on POSIX) */
+  if (ip->fd != STDIN_FILENO)
+    {
+      io_reactor_remove (g_io_reactor, ip->fd);
     }
 
   if (MAIN_OPTION(console_mode) && ip->fd == STDIN_FILENO)

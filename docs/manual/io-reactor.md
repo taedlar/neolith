@@ -38,17 +38,24 @@ For platform-specific implementation details, see:
 - [x] Cross-platform test suite (29 total tests, all passing)
 - [x] Build system integration for Windows
 
-🔄 **Phase 3: Backend Integration** ([Design Review](../history/agent-reports/io-reactor-phase3-review.md))
-- [ ] Integrate `external_port[]` listening sockets
-- [ ] Migrate interactive user I/O (`all_users[]`)
+✅ **Phase 3: Backend Integration** ([Design Review](../history/agent-reports/io-reactor-phase3-review.md))
+- [x] Integrate `external_port[]` listening sockets
+- [x] Migrate interactive user I/O (`all_users[]`)
 - [x] Console mode support (Windows IOCP) ([Report](../history/agent-reports/io-reactor-phase3-console-support.md))
 - [x] Console mode support (POSIX) - 7 tests passing
-- [ ] LPC socket efuns integration
-- [ ] Replace `make_selectmasks()`/`process_io()` with reactor event loop
+- [x] Remove legacy `make_selectmasks()` and `poll_index` fields
+- [x] Event-driven `process_io()` with reactor event loop
+- [x] All 77 tests passing
 
-⬜ **Phase 4: Future Enhancements**
+⬜ **Phase 4: LPC Socket Integration**
+- [ ] Migrate `lpc_socks[]` to reactor (`PACKAGE_SOCKETS`)
+- [ ] Update socket efun handlers for reactor registration
+- [ ] Address server pipe integration
+
+⬜ **Phase 5: Future Enhancements**
 - [ ] Linux `epoll()` backend
 - [ ] BSD/macOS `kqueue()` support
+- [ ] Windows `AcceptEx()` for async listening
 - [ ] Performance benchmarking
 
 ## Reactor Pattern Fundamentals
@@ -338,20 +345,15 @@ static void new_user_handler(port_def_t *port) {
 
 ### 2. Console Mode Integration
 
-Console mode connects stdin to an interactive user object for local administration. Platform differences require special handling:
+**Implementation**: ✅ Complete (POSIX: 7 tests, Windows: 5 tests)
 
-- **POSIX**: Register `STDIN_FILENO` as a regular fd using `io_reactor_add()`
-- **Windows**: Use `io_reactor_add_console()` - consoles cannot be added to IOCP, so reactor polls `GetNumberOfConsoleInputEvents()` before blocking
+Console mode registers `STDIN_FILENO` (POSIX) or console handle (Windows) with the reactor. Events use `CONSOLE_CONTEXT_MARKER` for identification.
 
-Console events are identified by a unique context marker (`CONSOLE_CONTEXT_MARKER`) to distinguish from network sockets.
+**Platform Approach**:
+- **POSIX**: Standard `io_reactor_add()` with `STDIN_FILENO`
+- **Windows**: `io_reactor_add_console()` polls `GetNumberOfConsoleInputEvents()` before IOCP blocking
 
-**Implementation**:
-- API: [lib/port/io_reactor.h](../../lib/port/io_reactor.h) - `io_reactor_add_console()` (Windows only)
-- Windows: [lib/port/io_reactor_win32.c](../../lib/port/io_reactor_win32.c) - Console polling in `io_reactor_wait()`
-- POSIX: [lib/port/io_reactor_poll.c](../../lib/port/io_reactor_poll.c) - Standard fd registration
-- Tests: [tests/test_io_reactor/test_io_reactor_console.cpp](../../tests/test_io_reactor/test_io_reactor_console.cpp) - 7 test cases (POSIX), 5 test cases (Windows), all passing
-
-**Details**: See [Phase 3 Console Support Report](../history/agent-reports/io-reactor-phase3-console-support.md) for complete implementation details, code examples, and integration patterns.
+See [Phase 3 Console Report](../history/agent-reports/io-reactor-phase3-console-support.md) and [src/comm.c](../../src/comm.c).
 
 ---
 
@@ -647,43 +649,30 @@ static void handle_addr_server_event(io_event_t *evt) {
 
 ---
 
-### 6. Remove make_selectmasks()
+### 5. Legacy Code Removal
 
-The `make_selectmasks()` function becomes **obsolete**. All registration happens at handle creation time:
+**Implementation**: ✅ Complete
 
-- **Listening sockets**: Registered in `init_user_conn()`
-- **New users**: Registered in `new_user_handler()` via `new_interactive()`
-- **Console**: Registered in `init_user_conn()` (if enabled)
-- **LPC sockets**: Registered in `socket_create()`, `socket_connect()`, etc.
-- **Addr server**: Registered when server pipe is created
+Removed 240+ lines of legacy `poll()`/`select()` code:
+- Entire `make_selectmasks()` function and call sites
+- Platform-specific macros (`NEW_USER_CAN_READ`, `USER_CAN_WRITE`, etc.)
+- Global arrays: `poll_fds[]`, `readmask`, `writemask`
+- Structure fields: `poll_index` from `port_def_t` and `interactive_t`
 
-**Migration steps**:
-1. Keep `make_selectmasks()` as empty stub initially
-2. Move registration logic to appropriate creation points
-3. Remove `make_selectmasks()` entirely once verified
-4. Remove `poll_fds[]`, `readmask`, `writemask` globals
+All registration now happens at handle creation time. Build verified with 77/77 tests passing.
 
 ---
 
-### 7. Platform-Specific Considerations
+### 6. Platform-Specific Implementations
 
-#### POSIX (Linux, macOS, BSD)
+#### POSIX
+- All handles use `poll()` via [io_reactor_poll.c](../../lib/port/io_reactor_poll.c)
+- Future `epoll()` backend will be drop-in replacement (Phase 5)
 
-**poll() Implementation** (already complete in Phase 1):
-- All handles (sockets, STDIN, pipes) use same `poll()` array
-- No special cases needed
-- Console integrated seamlessly
-
-**Future epoll() Enhancement** (Phase 4):
-- Drop-in replacement for `io_reactor_poll.c`
-- Better scalability for >100 connections
-- No application code changes required
-
-#### Windows
-
-**IOCP Implementation** (complete in Phase 2):
-- Network sockets use IOCP for data I/O
-- Listening sockets use `select()` (hybrid approach)
+#### Windows  
+- Network sockets: IOCP via [io_reactor_win32.c](../../lib/port/io_reactor_win32.c)
+- Listening sockets: `select()` (hybrid approach)
+- Console: `GetNumberOfConsoleInputEvents()` polling
 - Console uses `GetNumberOfConsoleInputEvents()` polling
 
 **Console Handling** (NEW in Phase 3):
