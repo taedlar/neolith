@@ -74,6 +74,11 @@ struct io_reactor_s {
     listening_socket_t *listen_sockets;
     int listen_count;            /* Number of listening sockets */
     int listen_capacity;         /* Capacity of listen_sockets array */
+    
+    /* Console support (Windows doesn't support STDIN in Winsock select) */
+    HANDLE console_handle;       /* Console input handle (STD_INPUT_HANDLE) */
+    void *console_context;       /* User context for console events */
+    int console_enabled;         /* Whether console monitoring is active */
 };
 
 /*
@@ -171,6 +176,11 @@ io_reactor_t* io_reactor_create(void) {
         return NULL;
     }
     reactor->listen_count = 0;
+    
+    /* Initialize console support */
+    reactor->console_handle = INVALID_HANDLE_VALUE;
+    reactor->console_context = NULL;
+    reactor->console_enabled = 0;
     
     reactor->pool_size = 0;
     reactor->num_fds = 0;
@@ -421,6 +431,14 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     
     int event_count = 0;
     
+    /* Check console input first (fast, non-blocking) */
+    if (reactor->console_enabled && event_count < max_events) {
+        int console_result = check_console_input(reactor, &events[event_count]);
+        if (console_result == 1) {
+            event_count++;
+        }
+    }
+    
     /* Check listening sockets for incoming connections using select() */
     if (reactor->listen_count > 0 && event_count < max_events) {
         fd_set read_fds;
@@ -524,4 +542,75 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     }
     
     return event_count;
+}
+
+/*
+ * =============================================================================
+ * Console Support (Windows-specific)
+ * =============================================================================
+ */
+
+/**
+ * @brief Register Windows console input for event monitoring.
+ *
+ * Windows console I/O is not socket-based and cannot use IOCP. This function
+ * enables polling of console input events in io_reactor_wait().
+ *
+ * @param reactor The reactor instance. Must not be NULL.
+ * @param context User context pointer (returned in console events).
+ * @return 0 on success, -1 on failure.
+ */
+int io_reactor_add_console(io_reactor_t *reactor, void *context) {
+    if (!reactor) {
+        return -1;
+    }
+    
+    /* Get console input handle */
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    if (hStdin == INVALID_HANDLE_VALUE || hStdin == NULL) {
+        return -1;
+    }
+    
+    /* Verify it's actually a console (not redirected) */
+    DWORD console_mode;
+    if (!GetConsoleMode(hStdin, &console_mode)) {
+        /* Not a console - likely redirected input */
+        return -1;
+    }
+    
+    /* Store console state */
+    reactor->console_handle = hStdin;
+    reactor->console_context = context;
+    reactor->console_enabled = 1;
+    
+    return 0;
+}
+
+/**
+ * @brief Check if console has input available (called by io_reactor_wait).
+ *
+ * @param reactor The reactor instance.
+ * @param event Event structure to fill if console input is available.
+ * @return 1 if console event generated, 0 if no input available, -1 on error.
+ */
+static int check_console_input(io_reactor_t *reactor, io_event_t *event) {
+    if (!reactor->console_enabled) {
+        return 0;
+    }
+    
+    DWORD num_events = 0;
+    if (!GetNumberOfConsoleInputEvents(reactor->console_handle, &num_events)) {
+        return -1;
+    }
+    
+    if (num_events > 0) {
+        /* Console has input available */
+        event->context = reactor->console_context;
+        event->event_type = EVENT_READ;
+        event->buffer = NULL;
+        event->bytes_transferred = 0;
+        return 1;
+    }
+    
+    return 0;
 }

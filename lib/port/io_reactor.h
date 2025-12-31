@@ -263,3 +263,31 @@ int io_reactor_post_read(io_reactor_t *reactor, socket_fd_t fd, void *buffer, si
  *       implementations may ignore it or use it for future optimizations.
  */
 int io_reactor_post_write(io_reactor_t *reactor, socket_fd_t fd, void *buffer, size_t len);
+/*
+ * =============================================================================
+ * Console Support (Windows-specific)
+ * =============================================================================
+ */
+
+#ifdef _WIN32
+/**
+ * @brief Register Windows console input for event monitoring.
+ *
+ * Windows console I/O is not socket-based and cannot use standard IOCP or
+ * Winsock select(). This function enables polling of console input events
+ * in the reactor's event loop.
+ *
+ * @param reactor The reactor instance. Must not be NULL.
+ * @param context User context pointer (returned in console events).
+ * @return 0 on success, -1 on failure (e.g., not a console, redirected I/O).
+ *
+ * Example:
+ * @code
+ *   #define CONSOLE_CONTEXT_MARKER ((void*)0x1)
+ *   if (io_reactor_add_console(reactor, CONSOLE_CONTEXT_MARKER) != 0) {
+ *       debug_message("Warning: Failed to register console input\n");
+ *   }
+ * @endcode
+ */
+int io_reactor_add_console(io_reactor_t *reactor, void *context);
+#endif
