@@ -30,15 +30,17 @@ For platform-specific implementation details, see:
 - [x] Comprehensive unit tests (19 test cases, all passing)
 - [x] Build system integration
 
-⬜ **Phase 2: Windows IOCP**
-- [ ] Windows IOCP implementation
-- [ ] Console support for Windows
-- [ ] Cross-platform integration tests
+✅ **Phase 2: Windows IOCP** ([Report](../history/agent-reports/io-reactor-phase2.md))
+- [x] Windows IOCP implementation in [lib/port/io_reactor_win32.c](../../lib/port/io_reactor_win32.c)
+- [x] IOCP-specific unit tests (5 test cases)
+- [x] Cross-platform test suite (24 total tests)
+- [x] Build system integration for Windows
 
 ⬜ **Phase 3: Backend Integration**
 - [ ] Replace `poll()`/`select()` in [src/comm.c](../../src/comm.c)
 - [ ] Reactor-based event loop
 - [ ] Migration of existing connections
+- [ ] Console support for Windows
 
 ⬜ **Phase 4: Future Enhancements**
 - [ ] Linux `epoll()` backend

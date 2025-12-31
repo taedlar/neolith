@@ -15,6 +15,7 @@ set(port_SOURCES
     $<$<AND:$<NOT:$<BOOL:${HAVE_LIBRT}>>,$<NOT:$<PLATFORM_ID:Windows>>>:fallback_timer.c>
     # I/O Reactor - platform-specific implementation selection
     $<$<NOT:$<PLATFORM_ID:Windows>>:io_reactor_poll.c>
+    $<$<PLATFORM_ID:Windows>:io_reactor_win32.c>
 )
 
 add_library(port STATIC ${port_SOURCES})
