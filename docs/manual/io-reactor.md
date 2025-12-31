@@ -32,8 +32,10 @@ For platform-specific implementation details, see:
 
 ✅ **Phase 2: Windows IOCP** ([Report](../history/agent-reports/io-reactor-phase2.md))
 - [x] Windows IOCP implementation in [lib/port/io_reactor_win32.c](../../lib/port/io_reactor_win32.c)
-- [x] IOCP-specific unit tests (5 test cases)
-- [x] Cross-platform test suite (24 total tests)
+- [x] IOCP-specific unit tests (4 test cases)
+- [x] Listening socket support (6 test cases)
+- [x] Hybrid approach: select() for listening sockets, IOCP for data I/O
+- [x] Cross-platform test suite (29 total tests, all passing)
 - [x] Build system integration for Windows
 
 ⬜ **Phase 3: Backend Integration**
@@ -65,18 +67,33 @@ graph TB
     subgraph "Event Loop (backend)"
         direction TB
         Register["1. Register Handles<br/>(io_reactor_add)"]
+        Detect{"Listening<br/>Socket?"}
+        TrackListen["Track in<br/>listen_sockets[]"]
+        PostIOCP["Post WSARecv<br/>to IOCP"]
         Wait["2. Wait for Events<br/>(io_reactor_wait)"]
-        Demux["3. Platform Demultiplexer<br/>(poll/epoll/IOCP)"]
+        CheckListen["select() on<br/>listening sockets"]
+        CheckIOCP["GetQueuedCompletionStatus<br/>(IOCP)"]
         Return["4. Return Events<br/>(io_event_t array)"]
         Process["5. Process Events<br/>(process_io)"]
         
-        Register --> Wait
-        Wait --> Demux
-        Demux --> Return
+        Register --> Detect
+        Detect -->|Yes<br/>Windows| TrackListen
+        Detect -->|No| PostIOCP
+        TrackListen --> Wait
+        PostIOCP --> Wait
+        Wait --> CheckListen
+        CheckListen --> CheckIOCP
+        CheckIOCP --> Return
         Return --> Process
         Process -.->|"Loop continues"| Wait
     end
+    
+    style Detect fill:#ff9,stroke:#333,stroke-width:2px
+    style TrackListen fill:#9cf,stroke:#333,stroke-width:2px
+    style CheckListen fill:#9cf,stroke:#333,stroke-width:2px
 ```
+
+**Note**: On Windows, listening sockets use `select()` (readiness-based) while connected sockets use IOCP (completion-based). POSIX platforms use a single demultiplexer (`poll()` or `epoll()`) for all socket types.
 
 **Event Loop:**
 1. Application registers handles with the reactor
@@ -260,6 +277,23 @@ Each platform must implement the reactor interface defined above. See platform-s
 - [Linux I/O Reactor Design](linux-io.md) - Using `poll()` or `epoll()`
 - [Windows I/O Reactor Design](windows-io.md) - Using I/O Completion Ports (IOCP)
 
+### Windows Listening Socket Handling
+
+**Challenge**: Windows IOCP is completion-based (notifies when I/O operations complete), but listening sockets don't perform I/O—they only become "ready" to accept connections.
+
+**Solution**: Hybrid approach implemented in [io_reactor_win32.c](../../lib/port/io_reactor_win32.c):
+
+1. **Detection**: Use `getsockopt(SO_ACCEPTCONN)` to identify listening sockets during `io_reactor_add()`
+2. **Tracking**: Store listening sockets in a separate `listen_sockets[]` array (dynamically resized)
+3. **Polling**: In `io_reactor_wait()`, call `select()` with zero timeout on listening sockets before blocking on IOCP
+4. **Event Delivery**: Return `EVENT_READ` when listening socket is ready to accept
+
+**Rationale**: This allows the reactor to provide a unified API while leveraging the optimal mechanism for each socket type:
+- Listening sockets → `select()` (readiness notification)
+- Connected sockets → IOCP (completion notification with zero-copy data delivery)
+
+See [Windows I/O Implementation](windows-io.md) for complete details.
+
 ### Implementation Files
 
 ```
@@ -308,28 +342,38 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND HAVE_EPOLL)
 
 ### Unit Tests: `tests/test_io_reactor/`
 
-✅ **Phase 1 Complete** - Comprehensive GoogleTest suite implemented:
+✅ **Phase 1 & 2 Complete** - Comprehensive GoogleTest suite implemented:
 
-**Test Coverage** (19 test cases, all passing):
+**Test Coverage** (29 test cases, all passing):
 - **Lifecycle** (3 tests): CreateDestroy, CreateMultiple, DestroyNull
 - **Registration** (6 tests): AddRemoveSocket, AddWithContext, AddDuplicateFails, RemoveNonExistent, ModifyEvents, ModifyNonExistentFails
-- **Event Wait** (4 tests): TimeoutNoEvents, EventDelivery, MultipleEvents, MaxEventsLimitation, WriteEvent
+- **Event Wait** (5 tests): TimeoutNoEvents, EventDelivery, MultipleEvents, MaxEventsLimitation, WriteEvent
 - **Error Handling** (2 tests): InvalidParameters, AddInvalidFd
 - **Scalability** (1 test): ManyConnections (100 socket pairs)
 - **Platform Helpers** (2 tests): PostReadNoOp, PostWriteNoOp
+- **Listening Sockets** (6 tests): BasicListenAccept, MultipleListeningPorts, MultipleSimultaneousConnections, ContextPointerRangeCheck, ListenWithUserSockets, NoEventsWhenNoConnections
+- **IOCP-Specific** (4 tests): CompletionWithDataInBuffer, GracefulClose, CancelledOperations, MultipleReadsOnSameSocket
 
 **Running Tests**:
 ```bash
-# Run reactor tests only
+# Run reactor tests only (Linux)
 ctest --preset ut-linux --tests-regex IOReactor --output-on-failure
 
+# Run reactor tests only (Windows)
+ctest --preset ut-vs16-x64 --tests-regex IOReactor --output-on-failure
+
 # Run all tests
-ctest --preset ut-linux
+ctest --preset ut-linux   # or ut-vs16-x64 on Windows
 ```
 
-**Results**: `100% tests passed, 0 tests failed out of 19` (0.12s runtime)
+**Results**: 
+- Linux: `100% tests passed, 0 tests failed out of 19` (0.12s runtime)
+- Windows: `100% tests passed, 0 tests failed out of 29` (1.69s runtime)
 
-See complete test implementation: [tests/test_io_reactor/test_io_reactor.cpp](../../tests/test_io_reactor/test_io_reactor.cpp)
+See complete test implementations:
+- [tests/test_io_reactor/test_io_reactor_basic.cpp](../../tests/test_io_reactor/test_io_reactor_basic.cpp)
+- [tests/test_io_reactor/test_io_reactor_listen.cpp](../../tests/test_io_reactor/test_io_reactor_listen.cpp)
+- [tests/test_io_reactor/test_io_reactor_iocp.cpp](../../tests/test_io_reactor/test_io_reactor_iocp.cpp)
 
 ### Integration Tests
 

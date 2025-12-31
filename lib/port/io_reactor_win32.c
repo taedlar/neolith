@@ -51,6 +51,14 @@ typedef struct iocp_context_s {
 } iocp_context_t;
 
 /**
+ * @brief Listening socket entry for tracking sockets that need select() polling.
+ */
+typedef struct listening_socket_s {
+    socket_fd_t fd;
+    void *context;
+} listening_socket_t;
+
+/**
  * @brief Windows IOCP reactor implementation.
  */
 struct io_reactor_s {
@@ -61,6 +69,11 @@ struct io_reactor_s {
     iocp_context_t **context_pool;
     int pool_size;               /* Current number of contexts in pool */
     int pool_capacity;           /* Maximum pool capacity */
+    
+    /* Listening sockets tracked separately (need select() instead of IOCP) */
+    listening_socket_t *listen_sockets;
+    int listen_count;            /* Number of listening sockets */
+    int listen_capacity;         /* Capacity of listen_sockets array */
 };
 
 /*
@@ -148,6 +161,17 @@ io_reactor_t* io_reactor_create(void) {
         return NULL;
     }
     
+    /* Initialize listening socket tracking */
+    reactor->listen_capacity = 16;  /* Reasonable initial size */
+    reactor->listen_sockets = calloc(reactor->listen_capacity, sizeof(listening_socket_t));
+    if (!reactor->listen_sockets) {
+        free(reactor->context_pool);
+        CloseHandle(reactor->iocp_handle);
+        free(reactor);
+        return NULL;
+    }
+    reactor->listen_count = 0;
+    
     reactor->pool_size = 0;
     reactor->num_fds = 0;
     
@@ -164,6 +188,9 @@ void io_reactor_destroy(io_reactor_t *reactor) {
         free(reactor->context_pool[i]);
     }
     free(reactor->context_pool);
+    
+    /* Free listening socket tracking */
+    free(reactor->listen_sockets);
     
     /* Close IOCP handle */
     if (reactor->iocp_handle != NULL && reactor->iocp_handle != INVALID_HANDLE_VALUE) {
@@ -182,6 +209,30 @@ void io_reactor_destroy(io_reactor_t *reactor) {
 int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int events) {
     if (!reactor || fd == INVALID_SOCKET) {
         return -1;
+    }
+    
+    /* Check if this is a listening socket using SO_ACCEPTCONN */
+    BOOL is_listening = FALSE;
+    int optlen = sizeof(is_listening);
+    if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, (char*)&is_listening, &optlen) == 0 && is_listening) {
+        /* Listening socket - track separately for select() polling */
+        if (reactor->listen_count >= reactor->listen_capacity) {
+            /* Resize listening socket array */
+            int new_capacity = reactor->listen_capacity * 2;
+            listening_socket_t *new_array = realloc(reactor->listen_sockets,
+                                                    new_capacity * sizeof(listening_socket_t));
+            if (!new_array) {
+                return -1;
+            }
+            reactor->listen_sockets = new_array;
+            reactor->listen_capacity = new_capacity;
+        }
+        
+        reactor->listen_sockets[reactor->listen_count].fd = fd;
+        reactor->listen_sockets[reactor->listen_count].context = context;
+        reactor->listen_count++;
+        reactor->num_fds++;
+        return 0;
     }
     
     /* Associate socket with IOCP
@@ -238,6 +289,19 @@ int io_reactor_modify(io_reactor_t *reactor, socket_fd_t fd, int events) {
 int io_reactor_remove(io_reactor_t *reactor, socket_fd_t fd) {
     if (!reactor || fd == INVALID_SOCKET) {
         return -1;
+    }
+    
+    /* Check if this is a listening socket and remove from tracking */
+    for (int i = 0; i < reactor->listen_count; i++) {
+        if (reactor->listen_sockets[i].fd == fd) {
+            /* Remove by moving last element into this slot */
+            reactor->listen_count--;
+            if (i < reactor->listen_count) {
+                reactor->listen_sockets[i] = reactor->listen_sockets[reactor->listen_count];
+            }
+            reactor->num_fds--;
+            return 0;
+        }
     }
     
     /* Cancel pending I/O operations on this socket
@@ -356,6 +420,37 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     }
     
     int event_count = 0;
+    
+    /* Check listening sockets for incoming connections using select() */
+    if (reactor->listen_count > 0 && event_count < max_events) {
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        
+        socket_fd_t max_fd = 0;
+        for (int i = 0; i < reactor->listen_count; i++) {
+            FD_SET(reactor->listen_sockets[i].fd, &read_fds);
+            if (reactor->listen_sockets[i].fd > max_fd) {
+                max_fd = reactor->listen_sockets[i].fd;
+            }
+        }
+        
+        /* Use zero timeout for non-blocking check */
+        struct timeval zero_timeout = {0, 0};
+        int ready = select((int)(max_fd + 1), &read_fds, NULL, NULL, &zero_timeout);
+        
+        if (ready > 0) {
+            /* Check which listening sockets are ready */
+            for (int i = 0; i < reactor->listen_count && event_count < max_events; i++) {
+                if (FD_ISSET(reactor->listen_sockets[i].fd, &read_fds)) {
+                    events[event_count].context = reactor->listen_sockets[i].context;
+                    events[event_count].event_type = EVENT_READ;
+                    events[event_count].bytes_transferred = 0;
+                    events[event_count].buffer = NULL;
+                    event_count++;
+                }
+            }
+        }
+    }
     
     /* Retrieve completed I/O operations */
     while (event_count < max_events) {
