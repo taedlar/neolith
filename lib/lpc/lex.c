@@ -383,11 +383,7 @@ static int inc_open (char *buf, const char *name) {
   char *p;
 
   inc_lexically_normal (current_file, name, buf);
-#ifdef _WIN32
-  if ((fd = _open (buf, O_RDONLY)) != -1)
-#else
-  if ((fd = open (buf, O_RDONLY)) != -1)
-#endif
+  if ((fd = FILE_OPEN (buf, O_RDONLY)) != -1)
     {
       opt_trace (TT_COMPILE|3, "opened (fd %d): \"%s\"", fd, buf);
       return fd;
@@ -407,11 +403,7 @@ static int inc_open (char *buf, const char *name) {
       if (inc_list[i] == 0)
         continue;
       sprintf (buf, "%s/%s", inc_list[i], name);
-#ifdef _WIN32
-      if ((fd = _open (buf, O_RDONLY)) != -1)
-#else
-      if ((fd = open (buf, O_RDONLY)) != -1)
-#endif
+      if ((fd = FILE_OPEN (buf, O_RDONLY)) != -1)
         {
           opt_trace (TT_COMPILE|3, "opened (fd %d): \"%s\"", fd, buf);
           return fd;

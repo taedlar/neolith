@@ -102,9 +102,9 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
     else {
         current_object = master_ob;
         destruct_object (simul_efun_ob); // should raise error
-        FAIL() << "destruct_object(simul_efun_ob) did not raise error when master object exists.";
     }
     pop_context (&econ);
+    FAIL() << "destruct_object(simul_efun_ob) did not raise error when master object exists.";
 }
 
 TEST_F(SimulEfunsTest, findSimulEfun)

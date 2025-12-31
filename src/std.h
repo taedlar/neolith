@@ -10,10 +10,14 @@
 #ifdef _WIN32
 #define STDIN_FILENO _fileno(stdin)
 #define STDOUT_FILENO _fileno(stdout)
-
+#define FILE_OPEN _open
+#define FILE_CLOSE _close
 #include <direct.h>
 #define chdir    _chdir
-#endif
+#else   /* !_WIN32 */
+#define FILE_OPEN open
+#define FILE_CLOSE close
+#endif  /* !_WIN32 */
 
 #ifdef	HAVE_UNISTD_H
 #include <unistd.h>

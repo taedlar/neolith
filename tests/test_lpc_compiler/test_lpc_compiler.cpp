@@ -8,12 +8,12 @@ using namespace testing;
 
 TEST_F(LPCCompilerTest, compileFile) {
     // compile a simple test file
-    int fd = open("master.c", O_RDONLY);
+    int fd = FILE_OPEN("master.c", O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open master.c for reading.";
     program_t* prog = compile_file(fd, "master.c", 0);
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
     total_lines = 0;
-    close(fd);
+    FILE_CLOSE(fd);
 
     // free the compiled program
     free_prog(prog, 1);
