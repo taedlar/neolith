@@ -202,8 +202,14 @@ TEST(IOReactorTest, ModifyNonExistentFails) {
     io_reactor_t* reactor = io_reactor_create();
     ASSERT_NE(reactor, nullptr);
     
-    // Modifying non-existent fd should fail
+#ifndef WINSOCK
+    // On POSIX, modifying non-existent fd should fail
+    // On Windows IOCP, modify is a no-op and always succeeds
     EXPECT_EQ(-1, io_reactor_modify(reactor, 9999, EVENT_READ));
+#else
+    // On Windows IOCP, modify is a no-op (event interest managed by post operations)
+    EXPECT_EQ(0, io_reactor_modify(reactor, 9999, EVENT_READ));
+#endif
     
     io_reactor_destroy(reactor);
 }
