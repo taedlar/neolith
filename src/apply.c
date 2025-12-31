@@ -98,7 +98,7 @@ const char *origin_name (int orig) {
  *  This was called ffbn_recurse2() in earlier versions.
  *  @param[in] prog The program to search.
  *  @param[in] name The function name to search for. This must be a shared string.
- *  @param[out] index Output parameter for the function_table index.
+ *  @param[out] index Output parameter for the runtime function index (not function_table index).
  *  @param[out] fio Output parameter for the function index offset.
  *  @param[out] vio Output parameter for the variable index offset.
  *  @return The program_t where the function was found, or NULL if not found.
@@ -141,7 +141,7 @@ program_t *find_function (program_t * prog, const char *name, int *index, int *f
                 break;
               return 0;
             }
-          *index = mid;
+          *index = ridx;  /* Return runtime index, not function table index */
           *fio = 0;
           *vio = 0;
           return prog;

@@ -3193,16 +3193,16 @@ is_static (const char *fun, object_t * ob)
  *  [NEOLITH-EXTENSION] If current_heart_beat is set, it will be used as the current object.
  *  Otherwise, a dummy object is created for the call.
  *  @param progp The program containing the function.
- *  @param offset The function offset to call.
+ *  @param runtime_index The runtime function index to call.
  *  @param num_args Number of arguments already pushed on the stack.
  *  @param ret_value Where to store the return value, or NULL if none. The caller is responsible for
  *  freeing it if needed.
  */
-void call_function (program_t *progp, int offset, int num_args, svalue_t *ret_value) {
+void call_function (program_t *progp, int runtime_index, int num_args, svalue_t *ret_value) {
   object_t dummy_ob;
   compiler_function_t *funp;
 
-  if ((offset < 0) || (offset > progp->num_functions_total) || (progp->function_flags[offset] & NAME_UNDEFINED))
+  if ((runtime_index < 0) || (runtime_index > progp->num_functions_total) || (progp->function_flags[runtime_index] & NAME_UNDEFINED))
     {
       if (ret_value)
         *ret_value = const0u;
@@ -3213,7 +3213,7 @@ void call_function (program_t *progp, int offset, int num_args, svalue_t *ret_va
   DEBUG_CHECK (csp != control_stack, "call_function with bad csp\n");
   csp->num_local_variables = num_args;
   current_prog = progp;
-  funp = setup_new_frame (offset);
+  funp = setup_new_frame (runtime_index);
   previous_ob = current_object;
   if (current_heart_beat)
     current_object = current_heart_beat;

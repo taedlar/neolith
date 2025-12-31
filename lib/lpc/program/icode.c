@@ -1099,9 +1099,11 @@ optimize_icode (char *start, char *pc, char *end)
       switch (instr = EXTRACT_UCHAR (pc++))
         {
         case F_NUMBER:
-        case F_REAL:
         case F_CALL_INHERITED:
           pc += 4;
+          break;
+        case F_REAL:
+          pc += 8; /* [NEOLITH-EXTENSION] always use double-precision */
           break;
         case F_SIMUL_EFUN:
         case F_CALL_FUNCTION_BY_ADDRESS:
