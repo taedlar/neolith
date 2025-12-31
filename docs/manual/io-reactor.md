@@ -42,7 +42,7 @@ For platform-specific implementation details, see:
 - [ ] Integrate `external_port[]` listening sockets
 - [ ] Migrate interactive user I/O (`all_users[]`)
 - [x] Console mode support (Windows IOCP) ([Report](../history/agent-reports/io-reactor-phase3-console-support.md))
-- [ ] Console mode support (POSIX)
+- [x] Console mode support (POSIX) - 7 tests passing
 - [ ] LPC socket efuns integration
 - [ ] Replace `make_selectmasks()`/`process_io()` with reactor event loop
 
@@ -348,7 +348,8 @@ Console events are identified by a unique context marker (`CONSOLE_CONTEXT_MARKE
 **Implementation**:
 - API: [lib/port/io_reactor.h](../../lib/port/io_reactor.h) - `io_reactor_add_console()` (Windows only)
 - Windows: [lib/port/io_reactor_win32.c](../../lib/port/io_reactor_win32.c) - Console polling in `io_reactor_wait()`
-- Tests: [tests/test_io_reactor/test_io_reactor_console.cpp](../../tests/test_io_reactor/test_io_reactor_console.cpp) - 5 test cases, all passing
+- POSIX: [lib/port/io_reactor_poll.c](../../lib/port/io_reactor_poll.c) - Standard fd registration
+- Tests: [tests/test_io_reactor/test_io_reactor_console.cpp](../../tests/test_io_reactor/test_io_reactor_console.cpp) - 7 test cases (POSIX), 5 test cases (Windows), all passing
 
 **Details**: See [Phase 3 Console Support Report](../history/agent-reports/io-reactor-phase3-console-support.md) for complete implementation details, code examples, and integration patterns.
 
