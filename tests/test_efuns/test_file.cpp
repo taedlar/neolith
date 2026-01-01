@@ -6,7 +6,7 @@
 
 TEST_F(EfunsTest, saveObject) {
     namespace fs = std::filesystem;
-    const auto save_file_path = fs::path("test_save_object.o");
+    char save_file_path[] = "test_save_object.o";
     object_t* obj = load_object("/tests/efuns/test_save_object",
         "// object with variables\n"
         "int x;\n"
@@ -17,7 +17,7 @@ TEST_F(EfunsTest, saveObject) {
     // Save the object state to a file
     current_object = obj;
     st_num_arg = 2;
-    push_constant_string(save_file_path.string().c_str());
+    push_constant_string(save_file_path);
     push_number(0); // flag to indicate saving variables
     f_save_object();
 
@@ -38,7 +38,7 @@ TEST_F(EfunsTest, saveObject) {
     // Restore the object state from the file
     current_object = obj;
     st_num_arg = 1;
-    push_constant_string(save_file_path.string().c_str());
+    push_constant_string(save_file_path);
     f_restore_object();
     ASSERT_TRUE(sp->type == T_NUMBER);
     ASSERT_EQ(sp->u.number, 1) << "Failed to restore object state";
