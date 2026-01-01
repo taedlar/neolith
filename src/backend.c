@@ -162,11 +162,15 @@ void init_console_user(int reconnect) {
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD mode = 0;
     SetConsoleCP(CP_UTF8);
-    GetConsoleMode(hStdin, &mode);
-    SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
-    SetConsoleOutputCP(CP_UTF8);
-    GetConsoleMode(hStdout, &mode);
-    SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    if (GetConsoleMode(hStdin, &mode))
+      {
+        SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+        SetConsoleOutputCP(CP_UTF8);
+      }
+    if (GetConsoleMode(hStdout, &mode))
+      {
+        SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+      }
   }
 #endif
   if (reconnect)

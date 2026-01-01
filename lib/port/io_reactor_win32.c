@@ -570,14 +570,7 @@ int io_reactor_add_console(io_reactor_t *reactor, void *context) {
     if (hStdin == INVALID_HANDLE_VALUE || hStdin == NULL) {
         return -1;
     }
-    
-    /* Verify it's actually a console (not redirected) */
-    DWORD console_mode;
-    if (!GetConsoleMode(hStdin, &console_mode)) {
-        /* Not a console - likely redirected input */
-        return -1;
-    }
-    
+   
     /* Store console state */
     reactor->console_handle = hStdin;
     reactor->console_context = context;

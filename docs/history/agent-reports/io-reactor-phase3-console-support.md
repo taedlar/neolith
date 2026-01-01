@@ -147,13 +147,7 @@ int io_reactor_add_console(io_reactor_t *reactor, void *context) {
     if (hStdin == INVALID_HANDLE_VALUE) {
         return -1;
     }
-    
-    // Verify it's actually a console (not redirected file)
-    DWORD mode;
-    if (!GetConsoleMode(hStdin, &mode)) {
-        return -1;  // Not a console
-    }
-    
+
     // Store in reactor state for polling in wait loop
     reactor->console_handle = hStdin;
     reactor->console_context = context;
