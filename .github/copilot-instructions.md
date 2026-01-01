@@ -63,6 +63,28 @@ Test patterns:
 - Tests expect [examples/](examples/) directory copied to build directory (automated via CMake POST_BUILD)
 - Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
 
+#### LPC Object Loading in Tests
+When testing LPC compilation/object loading, use `load_object()` with the `pre_text` parameter:
+
+```cpp
+// Initialize required subsystems first
+init_simulate();
+init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+init_master(CONFIG_STR(__MASTER_FILE__));
+current_object = master_ob;
+
+// Load from inline LPC code (no filesystem required)
+object_t* obj = load_object("test_obj.c", "void create() { }\n");
+ASSERT_NE(obj, nullptr);
+EXPECT_STREQ(obj->name, "test_obj");
+
+// Cleanup
+destruct_object(obj);
+tear_down_simulate();
+```
+
+The `pre_text` parameter (Neolith extension) allows compiling LPC source inline without creating physical files, streamlining unit tests.
+
 #### Socket Testing Patterns
 Tests using network sockets require special initialization handling:
 

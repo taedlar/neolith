@@ -339,9 +339,21 @@ void reset_load_object_limits() {
  * for now, I've reenabled resetting.  We'll see if anything breaks. -WF
  *
  * Save the command_giver, because reset() in the new object might change it.
- * @param[IN] mudlib_filename The filename of the object to load.
- * @param[IN] pre_text Optional pre-text to compile instead of reading from file.
+ *
+ * @param[IN] mudlib_filename The filename of the object to load. Leading slashes
+ *            are stripped. Extension ".c" is added if not present. Nested paths
+ *            supported (e.g., "path/to/object.c"). The resulting object name
+ *            strips leading slashes and ".c" extension.
+ * @param[IN] pre_text [NEOLITH-EXTENSION] Optional LPC source code to compile.
+ *            If NULL, loads from filesystem. If non-NULL, compiles from this
+ *            string and the source file becomes optional. This enables unit
+ *            testing without filesystem scaffolding.
+ *            Example: load_object("test.c", "void create() { }\n");
  * @return The loaded object, or NULL if it could not be loaded.
+ *
+ * @note Object naming: "user.c" → name="user", "path/to/obj.c" → name="path/to/obj"
+ * @note Requires master_ob to be initialized first (via init_master()).
+ * @note Enforces inherit chain depth limit (__INHERIT_CHAIN_SIZE__ config).
  */
 object_t* load_object (const char *mudlib_filename, const char *pre_text) {
 
