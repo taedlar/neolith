@@ -70,7 +70,7 @@ int num_str_searches = 0;
 #define hfindblock(s, h) sfindblock(s, h = StrHash(s))
 #define findblock(s) sfindblock(s, StrHash(s))
 
-static inline block_t *sfindblock (const char *s, int h);
+static block_t *sfindblock (const char *s, int h);
 
 /*
  * hash table - list of pointers to heads of string chains.
@@ -129,8 +129,7 @@ void deinit_strings(void) {
  * pointer on the hash chain into fs_prev.
  */
 
-static block_t *
-sfindblock (const char *s, int h)
+static block_t *sfindblock (const char *s, int h)
 {
   block_t *curr, *prev;
 

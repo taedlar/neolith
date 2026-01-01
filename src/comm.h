@@ -27,18 +27,18 @@ enum msgtypes {
 };
 
 /* The I_* flags are input_to flags */
-#define NOECHO			I_NOECHO		/* don't echo lines */
-#define NOESC			I_NOESC			/* don't allow shell out */
-#define SINGLE_CHAR		I_SINGLE_CHAR		/* get_char */
-#define WAS_SINGLE_CHAR		I_WAS_SINGLE_CHAR
-#define HAS_PROCESS_INPUT	0x0010	/* interactive object has process_input()  */
-#define HAS_WRITE_PROMPT	0x0020	/* interactive object has write_prompt()   */
-#define CLOSING			0x0040	/* true when closing this file descriptor  */
-#define CMD_IN_BUF		0x0080	/* there is a full command in input buffer */
-#define NET_DEAD		0x0100
-#define NOTIFY_FAIL_FUNC	0x0200	/* default_err_mesg is a function pointer  */
-#define USING_TELNET		0x0400
-#define	USING_LINEMODE		0x0800
+#define NOECHO              I_NOECHO		/* don't echo lines */
+#define NOESC               I_NOESC			/* don't allow shell out */
+#define SINGLE_CHAR         I_SINGLE_CHAR		/* get_char */
+#define WAS_SINGLE_CHAR     I_WAS_SINGLE_CHAR
+#define HAS_PROCESS_INPUT   0x0010	/* interactive object has process_input()  */
+#define HAS_WRITE_PROMPT    0x0020	/* interactive object has write_prompt()   */
+#define CLOSING             0x0040	/* true when closing this file descriptor  */
+#define CMD_IN_BUF          0x0080	/* there is a full command in input buffer */
+#define NET_DEAD            0x0100
+#define NOTIFY_FAIL_FUNC    0x0200	/* default_err_mesg is a function pointer  */
+#define USING_TELNET        0x0400
+#define	USING_LINEMODE      0x0800
 
 typedef struct interactive_s {
     object_t *ob;               /* points to the associated object         */

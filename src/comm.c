@@ -303,6 +303,8 @@ void ipc_remove () {
 
 /**
  * @brief Poll for communication events.
+ * @param timeout Timeout value for polling.
+ * @return Number of events occurred, or 0 on timeout, or -1 on error.
  */
 int do_comm_polling (struct timeval *timeout) {
   opt_trace (TT_BACKEND|3, "do_comm_polling: timeout %ld sec, %ld usec",
@@ -321,9 +323,8 @@ int do_comm_polling (struct timeval *timeout) {
 /*
  * Send a message to an interactive object.
  */
-void
-add_message (object_t * who, char *data)
-{
+void add_message (object_t * who, char *data) {
+
   interactive_t *ip;
   char *cp;
 
@@ -378,6 +379,16 @@ add_message (object_t * who, char *data)
 
 #ifdef FLUSH_OUTPUT_IMMEDIATELY
   flush_message (ip);
+#else
+  if (ip->fd == STDIN_FILENO)
+    {
+      flush_message (ip);
+    }
+  else
+    {
+      /* Request write notification from reactor */
+      io_reactor_modify (g_io_reactor, ip->fd, EVENT_READ | EVENT_WRITE);
+    }
 #endif
 
   add_message_calls++;
@@ -481,9 +492,7 @@ add_vmessage (object_t * who, char *format, ...)
 /*
  * Flush outgoing message buffer of current interactive object.
  */
-int
-flush_message (interactive_t * ip)
-{
+int flush_message (interactive_t * ip) {
   int length, num_bytes;
 
   /* if ip is not valid, do nothing. */
@@ -1109,7 +1118,7 @@ void new_interactive(socket_fd_t socket_fd) {
   master_ob->interactive->default_err_message.s = 0;
   master_ob->flags |= O_ONCE_INTERACTIVE;
   if (socket_fd == STDIN_FILENO)
-    master_ob->interactive->iflags = O_CONSOLE_USER;
+    master_ob->flags |= O_CONSOLE_USER;
   /*
    * initialize new user interactive data structure.
    */

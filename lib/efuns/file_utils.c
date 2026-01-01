@@ -852,10 +852,10 @@ char *check_valid_path (char *path, object_t * call_object, const char *call_fun
         }
       else
         {
+          free_svalue (&apply_ret_value, "check_valid_path");
           apply_ret_value.type = T_STRING;
           apply_ret_value.subtype = STRING_MALLOC;
           path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
-          free_svalue (&apply_ret_value, "check_valid_path");
         }
     }
 

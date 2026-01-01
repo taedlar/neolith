@@ -162,11 +162,15 @@ void init_console_user(int reconnect) {
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD mode = 0;
     SetConsoleCP(CP_UTF8);
-    GetConsoleMode(hStdin, &mode);
-    SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
-    SetConsoleOutputCP(CP_UTF8);
-    GetConsoleMode(hStdout, &mode);
-    SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    if (GetConsoleMode(hStdin, &mode))
+      {
+        SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+        SetConsoleOutputCP(CP_UTF8);
+      }
+    if (GetConsoleMode(hStdout, &mode))
+      {
+        SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+      }
   }
 #endif
   if (reconnect)
@@ -177,7 +181,7 @@ void init_console_user(int reconnect) {
   mudlib_logon(ob);
 }
 
-/*  backend()
+/** @brief The main backend loop.
  */
 void backend () {
 
@@ -238,9 +242,6 @@ void backend () {
 
       remove_destructed_objects ();
 
-      /*
-       * do shutdown if g_proceeding_shutdown is set
-       */
       if (g_proceeding_shutdown)
         do_shutdown (0);
 
@@ -263,12 +264,11 @@ void backend () {
           timeout.tv_usec = 0;
         }
       nb = do_comm_polling (&timeout);
-      if (nb == SOCKET_ERROR)
+      if (nb == -1)
         {
-          /* FIXME: STDIN_FILENO in fdset causes WSAENOTSOCK error in Winsock */
-          opt_trace(TT_BACKEND|4, "select() failed with error: %d\n", SOCKET_ERRNO);
+          debug_perror ("backend: do_comm_polling", 0);
+          fatal ("backend: do_comm_polling failed.\n");
         }
-      opt_trace (TT_BACKEND|4, "do_comm_polling returned %d", nb);
 
       if (nb > 0)
         process_io ();
