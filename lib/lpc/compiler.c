@@ -1836,9 +1836,10 @@ yywarn (char *str)
 
 /**
  *  @brief Compile an LPC file.
- *  @param fd File descriptor of the file to compile.
+ *  @param fd File descriptor of the file to compile. If -1, indicates no actual
+ *      file to read from; program source can be provided via pre_text.
  *  @param name Name of the file to compile.
- *  @param pre_text Text to prepend to the file being compiled.
+ *  @param pre_text [NEOLITH-EXTENSION] Text to prepend to the file being compiled.
  *      This is a Neolith extension mainly for unit-testing LPC compiler.
  *      It can be NULL.
  *  @return The compiled program, or NULL on failure.

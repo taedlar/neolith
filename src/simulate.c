@@ -338,11 +338,24 @@ void reset_load_object_limits() {
  * does occur, produces mysterious results than can be hard to track down.
  * for now, I've reenabled resetting.  We'll see if anything breaks. -WF
  *
- * Save the command_giver, because reset() in the new object might change
- * it.
+ * Save the command_giver, because reset() in the new object might change it.
  *
+ * @param[IN] mudlib_filename The filename of the object to load. Leading slashes
+ *            are stripped. Extension ".c" is added if not present. Nested paths
+ *            supported (e.g., "path/to/object.c"). The resulting object name
+ *            strips leading slashes and ".c" extension.
+ * @param[IN] pre_text [NEOLITH-EXTENSION] Optional LPC source code to compile.
+ *            If NULL, loads from filesystem. If non-NULL, compiles from this
+ *            string and the source file becomes optional. This enables unit
+ *            testing without filesystem scaffolding.
+ *            Example: load_object("test.c", "void create() { }\n");
+ * @return The loaded object, or NULL if it could not be loaded.
+ *
+ * @note Object naming: "user.c" → name="user", "path/to/obj.c" → name="path/to/obj"
+ * @note Requires master_ob to be initialized first (via init_master()).
+ * @note Enforces inherit chain depth limit (__INHERIT_CHAIN_SIZE__ config).
  */
-object_t* load_object (const char *lname) {
+object_t* load_object (const char *mudlib_filename, const char *pre_text) {
 
   int f;
   program_t *prog;
@@ -352,10 +365,10 @@ object_t* load_object (const char *lname) {
   char real_name[PATH_MAX], name[PATH_MAX - 2];
 
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
-    error ("*Inherit chain too deep: > %d when trying to load '%s'.", CONFIG_INT (__INHERIT_CHAIN_SIZE__), lname);
+    error ("*Inherit chain too deep: > %d when trying to load '%s'.", CONFIG_INT (__INHERIT_CHAIN_SIZE__), mudlib_filename);
 
-  if (!strip_name (lname, name, sizeof name))
-    error ("*Filenames with consecutive /'s in them aren't allowed (%s).", lname);
+  if (!strip_name (mudlib_filename, name, sizeof (name)))
+    error ("*Filenames with consecutive /'s in them aren't allowed (%s).", mudlib_filename);
 
   if (get_machine_state() >= MS_MUDLIB_LIMBO)
     {
@@ -366,7 +379,7 @@ object_t* load_object (const char *lname) {
   /*
    * First check that the c-file exists.
    */
-  memset (real_name, 0, sizeof real_name);
+  memset (real_name, 0, sizeof (real_name));
   (void) strncpy (real_name, name, sizeof(real_name) - 1);
   (void) strncat (real_name, ".c", sizeof(real_name) - strlen(real_name) - 1);
 
@@ -375,35 +388,44 @@ object_t* load_object (const char *lname) {
     {
       svalue_t *v;
 
-      if (!(v = load_virtual_object (name)))
+      if ((v = load_virtual_object (name)))
+        {
+          /* A virtual object is returned by the master object.
+          * We don't care about its actual filename, just the object.
+          * Replace the object's name with the requested name and update it in the object hash table.
+          */
+          ob = v->u.ob;
+          remove_object_hash (ob);
+          if (ob->name)
+            FREE (ob->name);
+          ob->name = alloc_cstring (name, "load_object");
+          enter_object_hash (ob);
+          ob->flags |= O_VIRTUAL;
+          ob->load_time = current_time;
+          num_objects_this_thread--;
+          return ob;
+        }
+      else if (!pre_text)
         {
           num_objects_this_thread--;
           return 0;
         }
-      /* Now set the file name of the specified object correctly... */
-      ob = v->u.ob;
-      remove_object_hash (ob);
-      if (ob->name)
-        FREE (ob->name);
-      ob->name = alloc_cstring (name, "load_object");
-      enter_object_hash (ob);
-      ob->flags |= O_VIRTUAL;
-      ob->load_time = current_time;
-      num_objects_this_thread--;
-      return ob;
     }
-
-  /*
-   * Check if it's a legal name.
-   */
-  if (!legal_path (real_name))
+  else
     {
-      debug_message ("Illegal pathname: /%s\n", real_name);
-      error ("*Illegal path name '/%s'.", real_name);
-      return 0;
+      /*
+      * Check if it's a legal name.
+      */
+      if (!legal_path (real_name))
+        {
+          debug_message ("Illegal pathname: /%s\n", real_name);
+          error ("*Illegal path name '/%s'.", real_name);
+          return 0;
+        }
+      opt_trace (TT_COMPILE|2, "legal_path passed: \"%s\"", real_name);
     }
-  opt_trace (TT_COMPILE|2, "legal_path passed: \"%s\"", real_name);
 
+  /* Get the program by loading from binary or compiling from the source */
   if (!(prog = load_binary (real_name, lpc_obj)) && !inherit_file)
     {
       opt_trace (TT_COMPILE|2, "no binary found, compiling: \"%s\"", real_name);
@@ -414,16 +436,18 @@ object_t* load_object (const char *lname) {
 #else
       f = FILE_OPEN (real_name, O_RDONLY);
 #endif
-      if (f == -1)
+      if (f == -1 && !pre_text) /* [NEOLITH-EXTENSION] if pre_text is specified, the source file is optional */
         {
           debug_perror ("open()", real_name);
           error ("*Could not read the file '/%s'.", real_name);
         }
-      prog = compile_file (f, real_name, 0);
+      /* compile LPC program from the source, optionally using pre_text */
+      prog = compile_file (f, real_name, pre_text);
 
       update_compile_av (total_lines);
       total_lines = 0;
-      close (f);
+      if (f != -1)
+        FILE_CLOSE (f);
     }
 
   /* Sorry, can't handle objects without programs yet. */
@@ -470,7 +494,7 @@ object_t* load_object (const char *lname) {
       else
         {
           opt_trace (TT_COMPILE, "loading inherit file: /%s", inhbuf);
-          inh_obj = load_object (inhbuf);
+          inh_obj = load_object (inhbuf, 0);
         }
       if (!inh_obj)
         error ("*Inherited file '/%s' does not exist!", inhbuf);
@@ -483,7 +507,7 @@ object_t* load_object (const char *lname) {
        */
       if (!(ob = lookup_object_hash (name)))
         {
-          ob = load_object (name);
+          ob = load_object (name, 0);
           /* sigh, loading the inherited file removed us */
           if (!ob)
             {
@@ -874,7 +898,7 @@ void init_master (const char *master_file) {
   if (master_file[strlen (master_file) - 2] != '.')
     strncat (buf, ".c", sizeof(buf) - strlen(buf) - 1);
 
-  new_ob = load_object (buf);
+  new_ob = load_object (buf, 0);
   if (new_ob == 0)
     {
       fprintf (stderr, "The master file %s was not loaded.\n", master_file);
@@ -1044,7 +1068,7 @@ void destruct_object (object_t * ob) {
               error ("*Destruction of vital object rejected due to invalid config setting (\"%s\").", vital_obj_name);
             }
           opt_trace (TT_EVAL|1, "reloading vital object: /%s", tmp);
-          new_ob = load_object (tmp);
+          new_ob = load_object (tmp, 0);
         }
 
       /* handle these two carefully, since they are rather vital */
@@ -1561,7 +1585,7 @@ object_t *find_or_load_object (const char *str) {
   if ((ob = lookup_object_hash (tmpbuf)))
     return ob;
 
-  ob = load_object (tmpbuf);
+  ob = load_object (tmpbuf, 0);
   if (!ob || (ob->flags & O_DESTRUCTED))	/* *sigh* */
     return 0;
 

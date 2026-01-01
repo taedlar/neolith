@@ -1129,6 +1129,7 @@ static void refill_buffer () {
           }
         else
           {
+            /* [NEOLITH-EXTENSION] If the file descriptor is -1, there is no actual file to read. */
             size = 0;
           }
         if (size < MAXLINE) /* EOF? */
