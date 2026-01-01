@@ -303,6 +303,8 @@ void ipc_remove () {
 
 /**
  * @brief Poll for communication events.
+ * @param timeout Timeout value for polling.
+ * @return Number of events occurred, or 0 on timeout, or -1 on error.
  */
 int do_comm_polling (struct timeval *timeout) {
   opt_trace (TT_BACKEND|3, "do_comm_polling: timeout %ld sec, %ld usec",
