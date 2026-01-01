@@ -820,8 +820,9 @@ file_size (char *file)
  *  If the path was '/', then '.' is returned.
  *  Otherwise, the returned path is temporarily allocated by apply(), which means it will be deallocated at next apply().
  */
-char *check_valid_path (const char *path, object_t * call_object, const char *call_fun, int writeflg) {
+char *check_valid_path (char *path, object_t * call_object, const char *call_fun, int writeflg) {
 
+  static char current_dir[] = ".";
   svalue_t *v;
 
   if (call_object == 0 || call_object->flags & O_DESTRUCTED)
@@ -851,18 +852,17 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
         }
       else
         {
-
-          free_svalue (&apply_ret_value, "check_valid_path");
           apply_ret_value.type = T_STRING;
           apply_ret_value.subtype = STRING_MALLOC;
           path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
+          free_svalue (&apply_ret_value, "check_valid_path");
         }
     }
 
   if (path[0] == '/')
     path++;
   if (path[0] == '\0')
-    path = ".";
+    path = current_dir;
   if (legal_path (path))
     {
       opt_trace(TT_EVAL, "legal path: %s", path);

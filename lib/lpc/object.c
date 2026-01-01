@@ -1555,13 +1555,13 @@ save_object_recurse (program_t * prog, svalue_t ** svp, int type,
   return 1;
 }
 
-int sel = -1;
+static int sel = -1;
 
 /**
  * @brief Save an object to a file.
  * @returns 1 on success, 0 on failure.
  */
-int save_object (object_t * ob, char *file, int save_zeros) {
+int save_object (object_t * ob, const char *file, int save_zeros) {
 
   char *name;
   static char tmp_name[256];
@@ -1575,12 +1575,12 @@ int save_object (object_t * ob, char *file, int save_zeros) {
 
   len = strlen (file);
   if (file[len - 2] == '.' && file[len - 1] == 'c')
-    len -= 2;
+    len -= 2; /* strip .c */
 
   if (sel == -1)
     sel = strlen (SAVE_EXTENSION);
   if (strcmp (file + len - sel, SAVE_EXTENSION) == 0)
-    len -= sel;
+    len -= sel; /* strip SAVE_EXTENSION if already present */
 
   name = new_string (len + strlen (SAVE_EXTENSION), "save_object");
   strcpy (name, file);
@@ -1712,7 +1712,7 @@ clear_non_statics (object_t * ob)
   cns_recurse (ob, &idx, ob->prog);
 }
 
-int restore_object (object_t * ob, char *file, int noclear) {
+int restore_object (object_t * ob, const char *file, int noclear) {
 
   char *name, *theBuff;
   int len, i;
