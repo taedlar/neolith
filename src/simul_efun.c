@@ -63,7 +63,7 @@ init_simul_efun (const char *file)
     }
 
   simul_efun_is_loading = 1;
-  if (NULL == (new_ob = load_object (file)))
+  if (NULL == (new_ob = load_object (file, 0)))
     {
       simul_efun_is_loading = 0;
       debug_error ("failed loading simul_efun file");

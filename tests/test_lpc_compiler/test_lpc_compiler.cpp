@@ -40,19 +40,29 @@ TEST_F(LPCCompilerTest, loadMaster)
 TEST_F(LPCCompilerTest, loadObject) {
     init_simulate();
     init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
+
+    // master_ob must be initialized before load_object can be used
     init_master (CONFIG_STR (__MASTER_FILE__));
     ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
 
+    // load a nonexistent object
     current_object = master_ob;
-    object_t* obj = load_object("nonexistent_file.c");
+    object_t* obj = load_object("nonexistent_file.c", 0);
     EXPECT_TRUE(obj == nullptr) << "load_object() did not return null for nonexistent file.";
 
-    obj = load_object("user.c");
+    // load an existing object
+    obj = load_object("user.c", 0);
     ASSERT_TRUE(obj != nullptr) << "load_object() returned null for user.c.";
     // the object name removes leading slash and trailing ".c"
     EXPECT_STREQ(obj->name, "user") << "Loaded object name mismatch.";
-
     destruct_object(obj);
     EXPECT_TRUE(obj->flags & O_DESTRUCTED) << "Object not marked destructed after destruct_object().";
+
+    obj = load_object("path/to/test_object.c", "// Pre-text for testing\nvoid create() {}\n");
+    ASSERT_TRUE(obj != nullptr) << "load_object() returned null for test_object.c with pre-text.";
+    EXPECT_STREQ(obj->name, "path/to/test_object") << "Loaded object name mismatch.";
+    destruct_object(obj);
+    EXPECT_TRUE(obj->flags & O_DESTRUCTED) << "Object not marked destructed after destruct_object().";
+    
     tear_down_simulate();
 }
