@@ -4,8 +4,6 @@
 
 #include "fixtures.hpp"
 
-using namespace testing;
-
 TEST_F(EfunsTest, throwError) {
     error_context_t econ;
     save_context (&econ);

@@ -8,8 +8,6 @@ extern "C" {
     #include "efuns/sscanf.h"
 }
 
-using namespace testing;
-
 TEST_F(EfunsTest, sscanfBasic) {
     svalue_t *fp = sp + 1; // frame pointer
 

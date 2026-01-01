@@ -23,8 +23,6 @@
 
 extern int sys_nerr;
 
-int legal_path (char *);
-
 static int match_string (char *, char *);
 static int copy (char *from, char *to);
 static int do_move (char *from, char *to, int flag);
@@ -364,10 +362,8 @@ remove_file (char *path)
 /*
  * Check that it is an legal path. No '..' are allowed.
  */
-int
-legal_path (char *path)
-{
-  char *p;
+int legal_path (const char *path) {
+  const char *p;
 
   if (path == NULL)
     return 0;
@@ -824,7 +820,7 @@ file_size (char *file)
  *  If the path was '/', then '.' is returned.
  *  Otherwise, the returned path is temporarily allocated by apply(), which means it will be deallocated at next apply().
  */
-char *check_valid_path (char *path, object_t * call_object, const char *call_fun, int writeflg) {
+char *check_valid_path (const char *path, object_t * call_object, const char *call_fun, int writeflg) {
 
   svalue_t *v;
 
@@ -840,7 +836,10 @@ char *check_valid_path (char *path, object_t * call_object, const char *call_fun
     v = apply_master_ob (APPLY_VALID_READ, 3);
 
   if (v == (svalue_t *) - 1)
-    v = 0;
+    {
+      opt_trace(TT_EVAL|1, "master object not loaded yet");
+      v = 0;
+    }
 
   if (v)
     {
@@ -866,12 +865,11 @@ char *check_valid_path (char *path, object_t * call_object, const char *call_fun
     path = ".";
   if (legal_path (path))
     {
-      opt_trace(TT_SIMUL_EFUN, "legal path: %s", path);
+      opt_trace(TT_EVAL, "legal path: %s", path);
       return path;
     }
-    return path;
 
-  opt_trace(TT_SIMUL_EFUN, "not legal path: %s", path);
+  opt_trace(TT_EVAL, "not legal path: %s", path);
   return 0;
 }
 

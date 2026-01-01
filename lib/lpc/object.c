@@ -1561,9 +1561,8 @@ int sel = -1;
  * @brief Save an object to a file.
  * @returns 1 on success, 0 on failure.
  */
-int
-save_object (object_t * ob, char *file, int save_zeros)
-{
+int save_object (object_t * ob, char *file, int save_zeros) {
+
   char *name;
   static char tmp_name[256];
   int len;
@@ -1586,14 +1585,13 @@ save_object (object_t * ob, char *file, int save_zeros)
   name = new_string (len + strlen (SAVE_EXTENSION), "save_object");
   strcpy (name, file);
   strcpy (name + len, SAVE_EXTENSION);
-
   push_malloced_string (name);	/* errors */
 
   file = check_valid_path (name, ob, "save_object", 1);
-  free_string_svalue (sp--);
   if (!file)
     {
       /* error ("Denied write permission in save_object().\n"); */
+      free_string_svalue (sp--);
       return 0;
     }
 
@@ -1604,16 +1602,19 @@ save_object (object_t * ob, char *file, int save_zeros)
   snprintf (tmp_name, sizeof(tmp_name), "%.250s.tmp", file);
   tmp_name[sizeof(tmp_name) - 1] = '\0';
 
+  opt_trace (TT_EVAL|1, "creating tmp file: %s", tmp_name);
   f = fopen (tmp_name, "w");
   if (!f)
     {
       debug_perror ("fopen()", tmp_name);
+      free_string_svalue (sp--);
       return 0;  
     }
 
   if (fprintf (f, "#/%s\n", ob->prog->name) < 0)
     {
       debug_perror ("Could not write save_object() header", tmp_name);
+      free_string_svalue (sp--);
       return 0;
     }
 
@@ -1637,14 +1638,17 @@ save_object (object_t * ob, char *file, int save_zeros)
       /* Need to erase it to write over it. */
       unlink (file);
 #endif
+      opt_trace (TT_EVAL|1, "renaming %s to %s", tmp_name, file);
       if (rename (tmp_name, file) < 0)
         {
           debug_perror ("rename()", file);
           debug_message ("save_obecjt(): Failed to rename /%s to /%s", tmp_name, file);
           unlink (tmp_name);
+          success = 0;
         }
     }
 
+  free_string_svalue (sp--);
   return success ? 1 : 0;
 }
 
@@ -1708,9 +1712,8 @@ clear_non_statics (object_t * ob)
   cns_recurse (ob, &idx, ob->prog);
 }
 
-int
-restore_object (object_t * ob, char *file, int noclear)
-{
+int restore_object (object_t * ob, char *file, int noclear) {
+
   char *name, *theBuff;
   int len, i;
   FILE *f;
@@ -1737,34 +1740,45 @@ restore_object (object_t * ob, char *file, int noclear)
   push_malloced_string (name);	/* errors */
 
   file = check_valid_path (name, ob, "restore_object", 0);
-  free_string_svalue (sp--);
   if (!file)
-    error ("Denied read permission in restore_object().\n");
+    {
+      free_string_svalue (sp--);
+      error ("Denied read permission in restore_object().\n");
+    }
 
-  // opt_trace (TT_SIMUL_EFUN, "opening %s", file);
+  opt_trace (TT_EVAL|1, "restoring object from file: %s", file);
   f = fopen (file, "r");
   if (!f || fstat (fileno (f), &st) == -1)
     {
       if (f)
         (void) fclose (f);
+      free_string_svalue (sp--);
       return 0;
     }
 
   if (!(i = st.st_size))
     {
       (void) fclose (f);
+      free_string_svalue (sp--);
       return 0;
     }
   theBuff = DXALLOC (i + 1, TAG_TEMPORARY, "restore_object: 4");
-  n_read =fread (theBuff, 1, i, f);
+  opt_trace (TT_EVAL|1, "reading %d bytes of saved data", i);
+  n_read = fread (theBuff, 1, i, f);
   fclose (f);
+#ifdef _WIN32
+  /* On Windows, fread may read less than requested even at EOF */
+  if (n_read > 0 && feof(f))
+#else
   if (n_read != (size_t)i)
+#endif
     {
       FREE (theBuff);
       debug_perror ("restore_object()", file);
+      free_string_svalue (sp--);
       error ("restore_object(): Read error.\n");
     }
-  theBuff[i] = '\0';
+  theBuff[n_read] = '\0';
   current_object = ob;
 
   /* This next bit added by Armidale@Cyberworld 1/1/93
@@ -1778,6 +1792,7 @@ restore_object (object_t * ob, char *file, int noclear)
   current_object = save;
 
   FREE (theBuff);
+  free_string_svalue (sp--);
   return 1;
 }
 
