@@ -164,7 +164,7 @@ void init_console_user(int reconnect) {
     SetConsoleCP(CP_UTF8);
     if (GetConsoleMode(hStdin, &mode))
       {
-        SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+        SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_ECHO_INPUT);
         SetConsoleOutputCP(CP_UTF8);
       }
     if (GetConsoleMode(hStdout, &mode))

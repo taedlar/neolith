@@ -1662,9 +1662,57 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
   else
     {
       /* Readiness notification: perform synchronous read (POSIX poll/epoll or console) */
+#ifdef _WIN32
+      if (ip->fd == STDIN_FILENO) {
+        /* Windows console: use ReadConsoleInputW for non-blocking Unicode reads.
+         * This works regardless of ENABLE_LINE_INPUT console mode.
+         * ReadConsoleInputW always returns Unicode characters in UnicodeChar field.
+         * ReadConsoleInputA would only return code page characters in AsciiChar field.
+         */
+        HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+        INPUT_RECORD irInBuf[128];
+        DWORD cNumRead = 0;
+        
+        /* ReadConsoleInputW is non-blocking if console handle is signaled */
+        if (!ReadConsoleInputW(hStdin, irInBuf, 128, &cNumRead)) {
+          num_bytes = SOCKET_ERROR;
+          errno = EIO;
+        } else {
+          /* Extract Unicode character data from KEY_EVENT records and convert to UTF-8 */
+          WCHAR wbuf[128];
+          int wchar_count = 0;
+          
+          for (DWORD i = 0; i < cNumRead && wchar_count < 128; i++) {
+            if (irInBuf[i].EventType == KEY_EVENT && irInBuf[i].Event.KeyEvent.bKeyDown) {
+              WCHAR wch = irInBuf[i].Event.KeyEvent.uChar.UnicodeChar;
+              if (wch != 0) {
+                wbuf[wchar_count++] = wch;
+              }
+            }
+          }
+          
+          if (wchar_count > 0) {
+            /* Convert UTF-16 to UTF-8 */
+            num_bytes = WideCharToMultiByte(CP_UTF8, 0, wbuf, wchar_count,
+                                            buf, text_space, NULL, NULL);
+            if (num_bytes <= 0) {
+              num_bytes = SOCKET_ERROR;
+              errno = EILSEQ;  /* Invalid multibyte sequence */
+            }
+          } else {
+            /* No characters extracted, indicate would-block */
+            num_bytes = SOCKET_ERROR;
+            errno = EWOULDBLOCK;
+          }
+        }
+      } else {
+        num_bytes = SOCKET_RECV(ip->fd, buf, text_space, 0);
+      }
+#else
       num_bytes = (ip->fd == STDIN_FILENO) ?
         read(ip->fd, buf, text_space) :
         SOCKET_RECV (ip->fd, buf, text_space, 0);
+#endif
     }
 
   switch (num_bytes)

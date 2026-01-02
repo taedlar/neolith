@@ -199,14 +199,24 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
 
 ### Windows Console Limitation
 
-Windows console handles are not sockets and cannot be registered with IOCP. The reactor uses `GetNumberOfConsoleInputEvents()` for non-blocking polling before checking IOCP.
+Windows console handles are not sockets and cannot be registered with IOCP. The reactor uses `GetNumberOfConsoleInputEvents()` to detect available input, then `ReadConsoleInputW()` extracts raw keyboard events without blocking.
 
 ### Implementation Approach
 
-Chose non-blocking poll in reactor loop over thread-based console reader:
-- **Advantage**: Simple, no threading overhead
-- **Trade-off**: Requires platform-specific API
-- **Justification**: Console mode is a development/debugging feature, not performance-critical
+**Console Input Reading** (`get_user_data()` in [src/comm.c](../../src/comm.c)):
+- Uses `ReadConsoleInputW()` to read `INPUT_RECORD` structures (raw key events)
+- Extracts Unicode characters from `KEY_EVENT` records  
+- Converts UTF-16 to UTF-8 via `WideCharToMultiByte(CP_UTF8)`
+- **Never blocks**: `ReadConsoleInputW()` is non-blocking when console handle is signaled
+- **Mode-independent**: Works regardless of `ENABLE_LINE_INPUT` setting (console modes don't affect `ReadConsoleInputW()`)
+
+**Line editing disabled**: Console runs without `ENABLE_LINE_INPUT` - the mudlib handles command editing at the application layer (standard MUD practice).
+
+**Design choice**: Non-blocking raw input in reactor loop over thread-based line-mode reader:
+- ✅ Simple, no threading overhead or synchronization
+- ✅ Full Unicode support (UTF-16 → UTF-8 conversion)
+- ✅ Runtime mode changes don't affect behavior
+- ⚠️ No Windows native line editing (backspace, arrows handled by mudlib)
 
 ### Platform Symmetry
 
