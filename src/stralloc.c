@@ -186,7 +186,7 @@ alloc_new_string (const char *string, int h)
   size_t len = strlen (string);
   size_t size;
 
-  opt_trace (TT_BACKEND|2, "first ref: \"%s\"", string);
+  opt_trace (TT_MEMORY|2, "first ref: \"%s\"", string);
   if (len > max_string_length)
     {
       len = max_string_length;

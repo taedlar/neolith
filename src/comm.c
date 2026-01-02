@@ -307,7 +307,7 @@ void ipc_remove () {
  * @return Number of events occurred, or 0 on timeout, or -1 on error.
  */
 int do_comm_polling (struct timeval *timeout) {
-  opt_trace (TT_BACKEND|3, "do_comm_polling: timeout %ld sec, %ld usec",
+  opt_trace (TT_IO_REACTOR|3, "do_comm_polling: timeout %ld sec, %ld usec",
              timeout->tv_sec, timeout->tv_usec);
   
   /* Use reactor for event demultiplexing */
@@ -315,7 +315,7 @@ int do_comm_polling (struct timeval *timeout) {
                                      sizeof(g_io_events) / sizeof(g_io_events[0]),
                                      timeout);
   
-  opt_trace (TT_BACKEND|3, "do_comm_polling: got %d events", g_num_io_events);
+  opt_trace (TT_IO_REACTOR|3, "do_comm_polling: got %d events", g_num_io_events);
   
   return g_num_io_events;
 }
@@ -976,7 +976,7 @@ void process_io () {
           
           if (evt->event_type & EVENT_READ)
             {
-              opt_info (1, "New connection on port %d\n", port->port);
+              opt_trace (TT_IO_REACTOR, "New connection on port %d\n", port->port);
               new_user_handler (port);
             }
           
@@ -1005,7 +1005,7 @@ void process_io () {
               if (!console_connected)
                 {
                   /* Console user re-connect */
-                  opt_info (1, "Console user connected\n");
+                  opt_trace (TT_IO_REACTOR, "Console user re-connected\n");
                   init_console_user(1);
                 }
             }
@@ -1025,6 +1025,7 @@ void process_io () {
           if (evt->event_type & (EVENT_ERROR | EVENT_CLOSE))
             {
               /* Network error or connection closed */
+              opt_trace (TT_IO_REACTOR, "Connection closed on fd %d\n", ip->fd);
               remove_interactive (ip->ob, 0);
               continue;
             }
@@ -1088,25 +1089,27 @@ void process_io () {
 
 /**
  *  @brief Creates a new interactive structure for a given socket file descriptor.
+ *  The new interactive_t structure is allocated and added to the \c all_users array (dynamically resized if needed).
  *  The master object is set as the command giver object for this new interactive.
  *  @param socket_fd The file descriptor of the socket to associate with the new interactive.
  */
-void new_interactive(socket_fd_t socket_fd) {
+void new_interactive (socket_fd_t socket_fd) {
 
   int i;
   for (i = 0; i < max_users; i++)
-    if (!all_users[i]) /* find free slot in all_users */
+    if (!all_users[i]) /* find a free slot in all_users */
       break;
 
   if (i == max_users)
     {
-      /* allocate 50 user slots */
       if (all_users)
         {
+          /* allocate 50 more user slots */
           all_users = RESIZE (all_users, max_users + 50, interactive_t *, TAG_USERS, "new_user_handler");
         }
       else
         {
+          /* first time allocation */
           all_users = CALLOCATE (50, interactive_t *, TAG_USERS, "new_user_handler");
         }
       while (max_users < i + 50)
@@ -1150,7 +1153,9 @@ void new_interactive(socket_fd_t socket_fd) {
   all_users[i]->fd = socket_fd;
   set_prompt ("> ");
 
-  /* Register interactive socket with reactor (except console on POSIX, already registered) */
+  /* Register interactive socket with reactor.
+   * Cconsole user is always registered for re-connect if console_mode is enabled.
+   */
   if (socket_fd != STDIN_FILENO)
     {
       if (io_reactor_add (g_io_reactor, socket_fd, master_ob->interactive, EVENT_READ) != 0)
@@ -1180,17 +1185,19 @@ void new_interactive(socket_fd_t socket_fd) {
 #endif
     }
 
-/* debug_message ("new connection from %s\n", inet_ntoa (addr.sin_addr)); */
   num_user++;
 }
 
 /**
- *  @brief This is the new user connection handler. This function is called by the
- *  event handler when data is pending on the listening socket (new_user_fd).
- *  If space is available, an interactive data structure is initialized and
- *  the user is connected.
- *  @param which The index of the external_port array indicating which port
- *  the new connection is on.
+ *  @brief This is the new user connection handler.
+ *  This function is called by the event handler when data is pending on a listening port.
+ *  A new connection is established by using \c accept() on the listening socket.
+ *  An interactive data structure is allocated and initialized to represent the user just connected.
+ *  The master object is set as the command giver object for this new interactive in \c new_interactive().
+ *  The \c mudlib_connect() function is called to allow the mudlib to create a user object for the new connection.
+ *  If the mudlib returns an object, the connection is successful and \c mudlib_logon() is called to start the logon process.
+ *  If the mudlib returns NULL, the connection is closed and the interactive structure is removed.
+ *  @param port The port definition structure representing the listening port.
  */
 static void new_user_handler (port_def_t *port) {
 
@@ -1593,6 +1600,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       memcpy(buf, evt->buffer, num_bytes);
 
       /* Post next async read to continue receiving data */
+      opt_trace (TT_IO_REACTOR|3, "Number of bytes received: %d. Posting next async read for fd %d\n", num_bytes, ip->fd);
       if (io_reactor_post_read(g_io_reactor, ip->fd, NULL, 0) != 0)
         {
           debug_message("get_user_data: failed to post next read for fd %d\n", ip->fd);
@@ -1674,7 +1682,10 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
            * set flag if new data completes command.
            */
           if (cmd_in_buf (ip))
-            ip->iflags |= CMD_IN_BUF;
+            {
+              opt_trace (TT_IO_REACTOR|3, "Command available in buffer for fd %d\n", ip->fd);
+              ip->iflags |= CMD_IN_BUF;
+            }
           break;
 
         case PORT_ASCII:

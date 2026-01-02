@@ -263,20 +263,22 @@ int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int eve
     }
     
     /* Associate socket with IOCP
-     * Note: The completion key is set to 0 here. We use the context stored
-     * in iocp_context_t instead, which is more flexible for per-operation data.
+     * Store the user context as the completion key so it's available
+     * for all I/O operations on this socket, regardless of which
+     * iocp_context_t was used to post the operation.
      */
-    HANDLE result = CreateIoCompletionPort((HANDLE)fd, reactor->iocp_handle, 0, 0);
+    HANDLE result = CreateIoCompletionPort((HANDLE)fd, reactor->iocp_handle,
+                                          (ULONG_PTR)context, 0);
     if (result == NULL) {
         return -1;
     }
     
     /* Post initial async read if requested
-     * Note: We don't pass the context here because it will be set when
-     * we post the actual read operation below.
+     * Context is stored in the completion key above, so we don't need
+     * to pass it again to alloc_iocp_context.
      */
     if (events & EVENT_READ) {
-        iocp_context_t *io_ctx = alloc_iocp_context(reactor, fd, context, OP_READ);
+        iocp_context_t *io_ctx = alloc_iocp_context(reactor, fd, NULL, OP_READ);
         if (!io_ctx) {
             return -1;
         }
@@ -551,8 +553,12 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
          */
         iocp_context_t *io_ctx = CONTAINING_RECORD(overlapped, iocp_context_t, overlapped);
         
-        /* Populate event structure */
-        events[event_count].context = io_ctx->user_context;
+        /* Populate event structure
+         * Use completion_key for context instead of io_ctx->user_context,
+         * because io_reactor_post_read/write don't have access to the
+         * user context - it was stored once during io_reactor_add.
+         */
+        events[event_count].context = (void*)completion_key;
         events[event_count].bytes_transferred = (int)bytes_transferred;
         events[event_count].buffer = io_ctx->buffer;
         events[event_count].event_type = 0;
