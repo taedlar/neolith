@@ -63,7 +63,7 @@ int total_users = 0;
 static int copy_chars (UCHAR *, UCHAR *, int, interactive_t *);
 static void sigpipe_handler (int);
 static void hname_handler (void);
-static void get_user_data (interactive_t *);
+static void get_user_data (interactive_t *, io_event_t *);
 static char *get_user_command (void);
 static char *first_cmd_in_buf (interactive_t *);
 static int cmd_in_buf (interactive_t *);
@@ -997,7 +997,7 @@ void process_io () {
                   if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
                     {
                       console_connected = 1;
-                      get_user_data (all_users[u]);
+                      get_user_data (all_users[u], NULL);
                       break;
                     }
                 }
@@ -1031,7 +1031,7 @@ void process_io () {
           
           if (evt->event_type & EVENT_READ)
             {
-              get_user_data (ip);
+              get_user_data (ip, evt);
               /* ip may be invalid after get_user_data if object was destructed */
               if (!ip->ob || (ip->ob->flags & O_DESTRUCTED) || ip->ob->interactive != ip)
                 {
@@ -1162,6 +1162,22 @@ void new_interactive(socket_fd_t socket_fd) {
           all_users[i] = 0;
           return;
         }
+
+#ifdef _WIN32
+      /* On Windows IOCP, post initial async read operation.
+       * On POSIX, this is a no-op - reads happen after EVENT_READ notification.
+       */
+      if (io_reactor_post_read (g_io_reactor, socket_fd, NULL, 0) != 0)
+        {
+          debug_message ("Failed to post initial read for user socket\n");
+          io_reactor_remove (g_io_reactor, socket_fd);
+          SOCKET_CLOSE (socket_fd);
+          FREE (master_ob->interactive);
+          master_ob->interactive = 0;
+          all_users[i] = 0;
+          return;
+        }
+#endif
     }
 
 /* debug_message ("new connection from %s\n", inet_ntoa (addr.sin_addr)); */
@@ -1492,27 +1508,32 @@ hname_handler ()
 
 
 /**
- *  @brief Read pending data for a user into user->interactive->text.
- *  This also does telnet negotiation if the connection type is PORT_TELNET.
+ * @brief This is the user data handler. This function is called from
+ * the backend when a user has transmitted data to us.
+ *
+ * Supports both I/O notification models:
+ * - Readiness notification (POSIX): evt is NULL, perform synchronous read
+ * - Completion notification (Windows IOCP): evt contains data already read,
+ *   post next async read operation
+ *
+ * @param ip The interactive data structure for the user.
+ * @param evt Event structure from io_reactor_wait (NULL for console/POSIX).
  */
-static void
-get_user_data (interactive_t * ip)
-{
-  static char buf[MAX_TEXT];
+static void get_user_data (interactive_t* ip, io_event_t* evt) {
+
+  char buf[MAX_TEXT];
   int text_space;
   int num_bytes;
 
-  /*
-   * this /3 is here because of the trick copy_chars() uses to allow empty
-   * commands. it needs to be fixed right. later.
-   */
   switch (ip->connection_type)
     {
     case PORT_TELNET:
-      text_space = (MAX_TEXT - ip->text_end - 1) / 3;
-      /*
-         * Check if we need more space.
+      /* FIXME: The size calculation trick is here because of the way copy_chars()
+       * uses the buffer to allow empty commands.
        */
+      text_space = (MAX_TEXT - ip->text_end - 1) / 3;
+
+      /* shift out processed text from the buffer */
       if (text_space < MAX_TEXT / 16)
         {
           int l = ip->text_end - ip->text_start;
@@ -1523,8 +1544,10 @@ get_user_data (interactive_t * ip)
           text_space = (MAX_TEXT - ip->text_end - 1) / 3;
           if (text_space < MAX_TEXT / 16)
             {
-              /* almost 2k data without a newline.  Flush it, otherwise
-                 text_space will eventually go to zero and dest the user. */
+              /* FIXME: We've got almost 2k of data without a newline.
+               * It doesn't seem make sense for MUDs to have such long
+               * commands, so we just discard the buffer to make space.
+               */
               ip->text_start = 0;
               ip->text_end = 0;
               text_space = MAX_TEXT / 3;
@@ -1532,7 +1555,6 @@ get_user_data (interactive_t * ip)
         }
       break;
 
-    case PORT_CONSOLE:
     case PORT_ASCII:
       text_space = MAX_TEXT - ip->text_end - 1;
       break;
@@ -1544,15 +1566,50 @@ get_user_data (interactive_t * ip)
     }
 
   /*
-   * read user data.
+   * Read user data using appropriate I/O model:
    *
-   * [NEOLITH-EXTENSION] for console user (ip->fd == STDIN_FILENO), we use read()
-   * to read data from standard input, instead of SOCKET_RECV(). This allows
-   * us to support console user in console mode.
+   * Readiness notification (POSIX poll/epoll):
+   *   - evt is NULL or evt->buffer is NULL
+   *   - Socket is ready to read, perform synchronous recv()/read()
+   *   - Used on Linux, BSD, macOS
+   *
+   * Completion notification (Windows IOCP):
+   *   - evt->buffer contains data already read asynchronously
+   *   - evt->bytes_transferred indicates how many bytes were read
+   *   - Must post next async read operation to continue receiving data
+   *   - Used on Windows
+   *
+   * Console input:
+   *   - Always uses synchronous read() regardless of platform
    */
-  num_bytes = (ip->fd == STDIN_FILENO) ?
-    read(ip->fd, buf, text_space) :
-    SOCKET_RECV (ip->fd, buf, text_space, 0);
+  if (evt && evt->buffer && evt->bytes_transferred > 0)
+    {
+      /* Completion notification: use data already in event buffer (Windows IOCP) */
+      num_bytes = evt->bytes_transferred;
+      if (num_bytes > text_space)
+        {
+          num_bytes = text_space;  /* Truncate if buffer overflow */
+        }
+      memcpy(buf, evt->buffer, num_bytes);
+
+      /* Post next async read to continue receiving data */
+      if (io_reactor_post_read(g_io_reactor, ip->fd, NULL, 0) != 0)
+        {
+          debug_message("get_user_data: failed to post next read for fd %d\n", ip->fd);
+          /* Treat as connection error */
+          ip->iflags |= NET_DEAD;
+          remove_interactive(ip->ob, 0);
+          return;
+        }
+    }
+  else
+    {
+      /* Readiness notification: perform synchronous read (POSIX poll/epoll or console) */
+      num_bytes = (ip->fd == STDIN_FILENO) ?
+        read(ip->fd, buf, text_space) :
+        SOCKET_RECV (ip->fd, buf, text_space, 0);
+    }
+
   switch (num_bytes)
     {
     case 0:
@@ -1592,15 +1649,18 @@ get_user_data (interactive_t * ip)
         {
         case PORT_TELNET:
           /*
-           * replace newlines with nulls and catenate to buffer. Also do all
-           * the useful telnet negotation at this point too. Rip out the sub
+           * Replace newlines with nulls and catenate to buffer. Also do all
+           * the useful telnet negotation at this point too. Rip out the sub-
            * option stuff and send back anything non useful we feel we have
            * to.
+           * 
+           * Console mode users also come through here, although they don't do
+           * telnet negotiation.
            */
           ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
           /*
-           * now, text->end is just after the last char read. If last char
-           * was a nl, char *before* text_end will be null.
+           * now, ip->text_end is just after the last character read. If the last character
+           * is a newline, the character before ip->text_end will be null.
            */
           ip->text[ip->text_end] = '\0';
           /*
@@ -1617,7 +1677,6 @@ get_user_data (interactive_t * ip)
             ip->iflags |= CMD_IN_BUF;
           break;
 
-        case PORT_CONSOLE:
         case PORT_ASCII:
           {
             char *nl, *str;
@@ -1654,10 +1713,8 @@ get_user_data (interactive_t * ip)
         case PORT_BINARY:
           {
             buffer_t *buffer;
-
             buffer = allocate_buffer (num_bytes);
             memcpy (buffer->item, buf, num_bytes);
-
             push_refed_buffer (buffer);
             apply (APPLY_PROCESS_INPUT, ip->ob, 1, ORIGIN_DRIVER);
             break;
@@ -1838,46 +1895,40 @@ first_cmd_in_buf (interactive_t * ip)
   return 0;
 }				/* first_command_in_buf() */
 
-/*
- * return(1) if there is a complete command in ip->text, otherwise return(0).
+/**
+ *  @brief Check if there is a complete command in the buffer.
+ *  Looks for a null character between text_start and text_end.
+ *  If in SINGLE_CHAR mode, any input is a complete command.
+ *  @param ip The interactive structure for the user.
+ *  @return 1 if there is a complete command, otherwise returns zero.
  */
-static int
-cmd_in_buf (interactive_t * ip)
-{
-  char *p;
+static int cmd_in_buf (interactive_t * ip) {
+
+  const char *p;
 
   p = ip->text + ip->text_start;
 
-  /*
-   * skip null input.
-   */
+  /* skip empty lines */
   while ((p < (ip->text + ip->text_end)) && !*p)
     p++;
 
+   /* end of user command buffer? */
   if ((p - ip->text) >= ip->text_end)
-    {
-      return (0);
-    }
-  /* If we get here, must have something in the buffer */
+    return 0;
+
+  /* expecting single character input? */
   if (ip->iflags & SINGLE_CHAR)
-    {
-      return (1);
-    }
-  /*
-   * find end of cmd.
-   */
+    return 1;
+
+  /* find end of command */
   while ((p < (ip->text + ip->text_end)) && *p)
     p++;
-  /*
-   * null terminated; was command.
-   */
   if (p < ip->text + ip->text_end)
-    return (1);
-  /*
-   * no newline - no cmd.
-   */
-  return (0);
-}				/* cmd_in_buf() */
+    return 1;
+
+  /* user command buffer is empty or only partial command received. */
+  return 0;
+}
 
 /*
  * move pointers to next cmd, or clear buf.
