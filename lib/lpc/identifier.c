@@ -356,5 +356,5 @@ void deinit_identifiers () {
   ident_hash_table = NULL;
   ident_hash_head = NULL;
   ident_hash_tail = NULL;
-  opt_trace (TT_BACKEND|3, "freed %d identifiers", n);
+  opt_trace (TT_MEMORY|3, "freed %d identifiers", n);
 }

@@ -89,17 +89,34 @@ Listening sockets don't perform data transfer—they only become "ready" when a 
 
 This provides readiness notification for accepts while keeping unified blocking behavior.
 
-### Why Console Polling?
+### Console Input Implementation
 
-Windows console input supports overlapped I/O, but it requires posting `ReadFile()` operations that consume input when they complete. The driver needs to check console *availability* without consuming bytes (bytes are read later during command processing).
+**Problem**: Windows console handles cannot use IOCP or `select()`. Additionally, `ReadFile()`/`ReadConsole()` with `ENABLE_LINE_INPUT` mode blocks until Enter is pressed, preventing non-blocking I/O.
 
-**Solution**: Use `GetNumberOfConsoleInputEvents()` to check if input is pending:
-- Before calling `WaitForMultipleObjects()`, poll console event count
-- If events exist, skip blocking and deliver `EVENT_READ` immediately
-- If no events, include console handle in wait array
-- After wait returns, poll console again to catch events that arrived during the wait
+**Solution**: 
+1. **Detection**: `GetNumberOfConsoleInputEvents()` checks availability without consuming input
+2. **Reading**: `ReadConsoleInputW()` reads raw `INPUT_RECORD` structures (key events) - **never blocks** when console handle is signaled
+3. **Processing**: Extract Unicode characters from `KEY_EVENT` records, convert UTF-16 → UTF-8
+4. **Mode**: Console runs **without** `ENABLE_LINE_INPUT` - mudlib handles line editing (standard MUD practice)
 
-This allows non-destructive console checking while maintaining unified blocking.
+**Key advantage**: `ReadConsoleInputW()` bypasses all console modes (`ENABLE_LINE_INPUT`, etc.) and always returns immediately when input events exist, providing truly non-blocking character-by-character input.
+
+**Reactor integration** in [lib/port/io_reactor_win32.c](../../lib/port/io_reactor_win32.c):
+- Poll console before blocking: `GetNumberOfConsoleInputEvents()`
+- If events exist, deliver `EVENT_READ` immediately
+- Actual read in [src/comm.c](../../src/comm.c) uses `ReadConsoleInputW()` → UTF-8 conversion
+
+### Future Enhancement: Worker Thread for Native Line Editing
+
+**Trade-off**: Current raw mode provides non-blocking I/O but loses native Windows line editing (backspace, arrow keys, F7 history).
+
+**Proposed design** (see [enhancement-console-worker-thread.md](../plan/enhancement-console-worker-thread.md)):
+- **Worker thread** runs blocking `ReadConsole()` with `ENABLE_LINE_INPUT` enabled
+- **Thread-safe queue** transfers completed lines to main thread
+- **Manual-reset event** signals main event loop when lines available
+- **Main thread** dequeues lines non-blocking (queue empty → `EWOULDBLOCK`)
+
+**Benefits**: Users get full native console editing without blocking the event loop. Network I/O and game logic continue unaffected while worker handles line input.
 
 ## Implementation: `lib/port/io_reactor_win32.c`
 

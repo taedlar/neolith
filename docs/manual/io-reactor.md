@@ -369,6 +369,109 @@ See actual implementation in [src/comm.c](../../src/comm.c) for complete details
 
 Interactive users registered via `io_reactor_add()` in `new_user_handler()` and removed via `io_reactor_remove()` in `remove_interactive()`. Write notification managed through `io_reactor_modify()` for partial writes.
 
+#### Dual I/O Notification Model
+
+The `get_user_data()` function ([src/comm.c](../../src/comm.c)) handles both **readiness notification** (POSIX) and **completion notification** (Windows IOCP) through a unified interface:
+
+**Readiness Notification (POSIX poll/epoll)**:
+```c
+void get_user_data(interactive_t* ip, io_event_t* evt) {
+    /* evt is NULL or evt->buffer is NULL */
+    
+    /* Perform synchronous read when socket becomes readable */
+    int num_bytes = recv(ip->fd, buf, MAX_TEXT, 0);
+    
+    /* Process received data... */
+}
+```
+
+**Flow**:
+1. `io_reactor_wait()` returns `EVENT_READ` when socket has data available
+2. `get_user_data()` called with `evt->buffer = NULL`
+3. Synchronous `recv()` retrieves data from kernel buffer
+4. Function processes data and returns
+5. Next `EVENT_READ` triggers next read cycle
+
+**Completion Notification (Windows IOCP)**:
+```c
+void get_user_data(interactive_t* ip, io_event_t* evt) {
+    if (evt && evt->buffer && evt->bytes_transferred > 0) {
+        /* Data already in evt->buffer from async WSARecv */
+        memcpy(local_buf, evt->buffer, evt->bytes_transferred);
+        
+        /* Post next async read to continue receiving */
+        io_reactor_post_read(g_io_reactor, ip->fd, NULL, 0);
+        
+        /* Process received data... */
+    }
+}
+```
+
+**Flow**:
+1. Initial `WSARecv()` posted in `new_interactive()` via `io_reactor_post_read()`
+2. `io_reactor_wait()` blocks until `WSARecv()` completes
+3. Returns `EVENT_READ` with `evt->buffer` containing data and `evt->bytes_transferred` set
+4. `get_user_data()` uses pre-read data and posts next async read
+5. Cycle continues with overlapped I/O
+
+**Key Differences**:
+
+| Aspect | Readiness (POSIX) | Completion (Windows IOCP) |
+|--------|------------------|---------------------------|
+| **Notification** | "Socket is ready to read" | "Read operation completed" |
+| **Data location** | Kernel socket buffer | Already in user buffer (evt->buffer) |
+| **System call** | Synchronous `recv()` after notification | Async `WSARecv()` before notification |
+| **Overhead** | 2 syscalls per message (wait + recv) | 1 syscall per message (overlapped) |
+| **Zero-copy** | No - data copied in `recv()` | Yes - data delivered in event |
+| **Scalability** | O(ready_fds) with epoll | O(1) per completion |
+
+**Console Input Exception**:
+- Console (STDIN) always uses synchronous `read()` on both platforms
+- Windows console uses polling via `GetNumberOfConsoleInputEvents()` integrated into reactor
+- `get_user_data(ip, NULL)` forces readiness mode for console
+
+**Implementation Details**:
+
+The function signature changed from:
+```c
+static void get_user_data(interactive_t* ip);
+```
+
+To:
+```c
+static void get_user_data(interactive_t* ip, io_event_t* evt);
+```
+
+**Detection logic**:
+```c
+if (evt && evt->buffer && evt->bytes_transferred > 0) {
+    /* Completion path: use evt->buffer */
+    num_bytes = evt->bytes_transferred;
+    memcpy(buf, evt->buffer, num_bytes);
+    
+    /* Critical: post next async read */
+    io_reactor_post_read(g_io_reactor, ip->fd, NULL, 0);
+} else {
+    /* Readiness path: perform sync read */
+    num_bytes = recv(ip->fd, buf, text_space, 0);
+}
+```
+
+**Why This Design Works**:
+
+1. **Platform Abstraction**: Application code doesn't use `#ifdef _WIN32` for I/O logic
+2. **Performance**: Leverages optimal mechanism per platform (epoll vs IOCP)
+3. **Correctness**: IOCP's async chain maintained via `post_read()` calls
+4. **Simplicity**: Single code path handles both models via runtime check
+5. **Extensibility**: Future platforms (kqueue, io_uring) can use either model
+
+**Testing Verification**:
+
+Both paths validated through:
+- POSIX: Unit tests with socketpair + poll reactor ([test_io_reactor_basic.cpp](../../tests/test_io_reactor/test_io_reactor_basic.cpp))
+- Windows: Unit tests with IOCP reactor returning data in `evt->buffer` ([test_io_reactor_iocp.cpp](../../tests/test_io_reactor/test_io_reactor_iocp.cpp))
+- Integration: Example mudlib with 10+ concurrent connections on both platforms
+
 See actual implementation in [src/comm.c](../../src/comm.c) for complete details.
 
 ---

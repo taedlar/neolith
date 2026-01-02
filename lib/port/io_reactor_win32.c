@@ -263,20 +263,22 @@ int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int eve
     }
     
     /* Associate socket with IOCP
-     * Note: The completion key is set to 0 here. We use the context stored
-     * in iocp_context_t instead, which is more flexible for per-operation data.
+     * Store the user context as the completion key so it's available
+     * for all I/O operations on this socket, regardless of which
+     * iocp_context_t was used to post the operation.
      */
-    HANDLE result = CreateIoCompletionPort((HANDLE)fd, reactor->iocp_handle, 0, 0);
+    HANDLE result = CreateIoCompletionPort((HANDLE)fd, reactor->iocp_handle,
+                                          (ULONG_PTR)context, 0);
     if (result == NULL) {
         return -1;
     }
     
     /* Post initial async read if requested
-     * Note: We don't pass the context here because it will be set when
-     * we post the actual read operation below.
+     * Context is stored in the completion key above, so we don't need
+     * to pass it again to alloc_iocp_context.
      */
     if (events & EVENT_READ) {
-        iocp_context_t *io_ctx = alloc_iocp_context(reactor, fd, context, OP_READ);
+        iocp_context_t *io_ctx = alloc_iocp_context(reactor, fd, NULL, OP_READ);
         if (!io_ctx) {
             return -1;
         }
@@ -489,13 +491,35 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     
     /* 2. (NON-BLOCKING) Check if console was signaled */
     if (reactor->console_enabled && event_count < max_events) {
-        DWORD num_events = 0;
-        if (GetNumberOfConsoleInputEvents(reactor->console_handle, &num_events) && num_events > 0) {
-            events[event_count].context = reactor->console_context;
-            events[event_count].event_type = EVENT_READ;
-            events[event_count].buffer = NULL;
-            events[event_count].bytes_transferred = 0;
-            event_count++;
+        /* Peek console input to check for actual keyboard events.
+         * PeekConsoleInputW returns all event types (mouse, resize, focus, etc.),
+         * so we must filter for KEY_EVENT to avoid spurious wake-ups.
+         */
+        INPUT_RECORD peek_buffer[128];
+        DWORD num_peeked = 0;
+        BOOL has_key_event = FALSE;
+        
+        if (PeekConsoleInputW(reactor->console_handle, peek_buffer, 
+                             128, &num_peeked) && num_peeked > 0) {
+            for (DWORD i = 0; i < num_peeked; i++) {
+                if (peek_buffer[i].EventType == KEY_EVENT && 
+                    peek_buffer[i].Event.KeyEvent.bKeyDown) {
+                    has_key_event = TRUE;
+                    break;
+                }
+            }
+            
+            /* Only signal EVENT_READ if there are actual keyboard events */
+            if (has_key_event) {
+                events[event_count].context = reactor->console_context;
+                events[event_count].event_type = EVENT_READ;
+                events[event_count].buffer = NULL;
+                events[event_count].bytes_transferred = 0;
+                event_count++;
+            } else {
+                /* Discard non-keyboard events to prevent infinite loop */
+                ReadConsoleInputW(reactor->console_handle, peek_buffer, num_peeked, &num_peeked);
+            }
         }
     }
     
@@ -551,8 +575,12 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
          */
         iocp_context_t *io_ctx = CONTAINING_RECORD(overlapped, iocp_context_t, overlapped);
         
-        /* Populate event structure */
-        events[event_count].context = io_ctx->user_context;
+        /* Populate event structure
+         * Use completion_key for context instead of io_ctx->user_context,
+         * because io_reactor_post_read/write don't have access to the
+         * user context - it was stored once during io_reactor_add.
+         */
+        events[event_count].context = (void*)completion_key;
         events[event_count].bytes_transferred = (int)bytes_transferred;
         events[event_count].buffer = io_ctx->buffer;
         events[event_count].event_type = 0;

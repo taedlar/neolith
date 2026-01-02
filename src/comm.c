@@ -60,10 +60,9 @@ int total_users = 0;
 /*
  * local function prototypes.
  */
-static int copy_chars (UCHAR *, UCHAR *, int, interactive_t *);
 static void sigpipe_handler (int);
 static void hname_handler (void);
-static void get_user_data (interactive_t *);
+static void get_user_data (interactive_t *, io_event_t *);
 static char *get_user_command (void);
 static char *first_cmd_in_buf (interactive_t *);
 static int cmd_in_buf (interactive_t *);
@@ -307,7 +306,7 @@ void ipc_remove () {
  * @return Number of events occurred, or 0 on timeout, or -1 on error.
  */
 int do_comm_polling (struct timeval *timeout) {
-  opt_trace (TT_BACKEND|3, "do_comm_polling: timeout %ld sec, %ld usec",
+  opt_trace (TT_IO_REACTOR|3, "calling io_reactor_wait(): timeout %ld sec, %ld usec",
              timeout->tv_sec, timeout->tv_usec);
   
   /* Use reactor for event demultiplexing */
@@ -315,7 +314,7 @@ int do_comm_polling (struct timeval *timeout) {
                                      sizeof(g_io_events) / sizeof(g_io_events[0]),
                                      timeout);
   
-  opt_trace (TT_BACKEND|3, "do_comm_polling: got %d events", g_num_io_events);
+  opt_trace (TT_IO_REACTOR|3, "finished waiting: got %d events", g_num_io_events);
   
   return g_num_io_events;
 }
@@ -559,7 +558,7 @@ int flush_message (interactive_t * ip) {
 #define TS_WONT         3
 #define TS_DO           4
 #define TS_DONT         5
-#define TS_SB		6
+#define TS_SB           6
 #define TS_SB_IAC       7
 
 static char telnet_break_response[] = { 28, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
@@ -581,29 +580,27 @@ static char telnet_se[] = { (SCHAR) IAC, (SCHAR) SE, 0 };
 static char telnet_ga[] = { (SCHAR) IAC, (SCHAR) GA, 0 };
 
 /**
- * @brief Copy a string, replacing newlines with '\0'. Also add an extra
- * space and back space for every newline. This trick will allow
- * otherwise empty lines, as multiple newlines would be replaced by
+ * @brief Copy input characters from socket read buffer to the interactive command buffer.
+ * Replace newlines with '\0'. Also add an extra space and back space for every newline.
+ * This trick will allow otherwise empty lines, as multiple newlines would be replaced by
  * multiple zeroes only.
  *
- * Also handle the telnet stuff.  So instead of this being a direct
- * copy it is a small state thingy.
+ * Also handles TELNET negotiations and remove them from the input stream.
+ * (Original by Pinkfish@MudOS)
  *
- * In fact, it is telnet_neg conglomerated into this.  This is mostly
- * done so we can sanely remove the telnet sub option negotation stuff
- * out of the input stream.  Need this for terminal types.
- * (Pinkfish change)
+ * @param from Source buffer.
+ * @param to Destination buffer.
+ * @param count Number of characters to copy.
+ * @param ip Pointer to interactive structure.
+ * @return Number of characters copied.
  */
-static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
-{
+static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
+
   int i;
   UCHAR *start = to;
 
-  /*
-   *    scan through the input buffer for TELNET commands and process
-   *    if found.
-   */
-  for (i = 0; i < n; i++)
+  /* a simple state-machine that processes TELNET commands */
+  for (i = 0; i < count; i++)
     {
       switch (ip->state)
         {
@@ -682,11 +679,18 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
                         if (ip->sb_buf[2] & MODE_ACK)
                           {
                             /* LM_MODE confirmed */
+                            opt_trace (TT_IO_REACTOR|2, "Telnet LINEMODE mode acknowledged by client.\n");
                             break;
                           }
-                        /* if no MODE_ACK bit set, client is trying to set our
-                         * LM_MODE (which violate RFC-1091), we just ignore
-                         * them. --- Annihilator@ES2 [2002-05-07] */
+                        else
+                          {
+                            /* if no MODE_ACK bit set, client is trying to set our
+                             * LM_MODE (which violates RFC-1091), we just ignore
+                             * them. --- Annihilator@ES2 [2002-05-07] */
+                            /* set our preferred mode */
+                            add_message (ip->ob, telnet_sb_lm_mode);
+                            break;
+                          }
                         break;
                       case LM_SLC:
                         {
@@ -752,7 +756,7 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
                   }
                 default:
                   {
-                    /* TODO: Telnet subnegotiation data may contain '\0'
+                    /* FIXME: Telnet subnegotiation data may contain '\0'
                      * characters, passing as string implicitly truncated
                      * anything beyond '\0'. Maybe need change to buffer
                      * or something. --- Annihilator@ES2 [2002-05-07]
@@ -833,7 +837,11 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
            * set at the first IAC WILL/WONT TTYPE/NAWS response to the
            * initial queries.
            */
-          ip->iflags |= USING_TELNET;
+          if (!(ip->iflags & USING_TELNET))
+            {
+              opt_trace (TT_IO_REACTOR|2, "Got IAC WILL from client, assuming telnet support.\n");
+              ip->iflags |= USING_TELNET;
+            }
 
           switch (from[i])
             {
@@ -862,13 +870,47 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
           break;
 
         case TS_DONT:
+          /* if we get any IAC WILL or IAC WONTs back, we assume they
+           * understand the telnet protocol.  Typically this will become
+           * set at the first IAC WILL/WONT TTYPE/NAWS response to the
+           * initial queries.
+           */
+          if (!(ip->iflags & USING_TELNET))
+            {
+              opt_trace (TT_IO_REACTOR|2, "Got IAC WONT/DONT from client, assuming telnet support.\n");
+              ip->iflags |= USING_TELNET;
+            }
+          switch (from[i])
+            {
+            case TELOPT_SGA:
+              add_message (ip->ob, telnet_wont_sga); /* acknowledged, won't send go ahead */
+              flush_message (ip);
+              break;
+            }
+          ip->state = TS_DATA;
+          break;
+
         case TS_WONT:
           /* if we get any IAC WILL or IAC WONTs back, we assume they
            * understand the telnet protocol.  Typically this will become
            * set at the first IAC WILL/WONT TTYPE/NAWS response to the
            * initial queries.
            */
-          ip->iflags |= USING_TELNET;
+          if (!(ip->iflags & USING_TELNET))
+            {
+              opt_trace (TT_IO_REACTOR|2, "Got IAC WONT/DONT from client, assuming telnet support.\n");
+              ip->iflags |= USING_TELNET;
+            }
+          switch (from[i])
+            {
+            case TELOPT_SGA:
+              opt_trace (TT_IO_REACTOR|2, "(TELNET) client won't send go ahead.\n");
+              break;
+            case TELOPT_LINEMODE:
+              opt_trace (TT_IO_REACTOR|2, "(TELNET) client disabled LINEMODE.\n");
+              ip->iflags &= ~USING_LINEMODE;
+              break;
+            }
           ip->state = TS_DATA;
           break;
 
@@ -885,7 +927,7 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
     }
 
   return (to - start);
-}				/* copy_chars() */
+}
 
 
 /**
@@ -976,7 +1018,7 @@ void process_io () {
           
           if (evt->event_type & EVENT_READ)
             {
-              opt_info (1, "New connection on port %d\n", port->port);
+              opt_trace (TT_IO_REACTOR, "New connection on port %d\n", port->port);
               new_user_handler (port);
             }
           
@@ -997,7 +1039,7 @@ void process_io () {
                   if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
                     {
                       console_connected = 1;
-                      get_user_data (all_users[u]);
+                      get_user_data (all_users[u], NULL);
                       break;
                     }
                 }
@@ -1005,7 +1047,7 @@ void process_io () {
               if (!console_connected)
                 {
                   /* Console user re-connect */
-                  opt_info (1, "Console user connected\n");
+                  opt_trace (TT_IO_REACTOR, "Console user re-connected\n");
                   init_console_user(1);
                 }
             }
@@ -1025,14 +1067,15 @@ void process_io () {
           if (evt->event_type & (EVENT_ERROR | EVENT_CLOSE))
             {
               /* Network error or connection closed */
+              opt_trace (TT_IO_REACTOR, "Connection closed on fd %d\n", ip->fd);
               remove_interactive (ip->ob, 0);
               continue;
             }
           
           if (evt->event_type & EVENT_READ)
             {
-              get_user_data (ip);
-              /* ip may be invalid after get_user_data if object was destructed */
+              get_user_data (ip, evt);
+              /* ip->ob may be invalid after get_user_data if object was destructed */
               if (!ip->ob || (ip->ob->flags & O_DESTRUCTED) || ip->ob->interactive != ip)
                 {
                   continue;
@@ -1088,25 +1131,27 @@ void process_io () {
 
 /**
  *  @brief Creates a new interactive structure for a given socket file descriptor.
+ *  The new interactive_t structure is allocated and added to the \c all_users array (dynamically resized if needed).
  *  The master object is set as the command giver object for this new interactive.
  *  @param socket_fd The file descriptor of the socket to associate with the new interactive.
  */
-void new_interactive(socket_fd_t socket_fd) {
+void new_interactive (socket_fd_t socket_fd) {
 
   int i;
   for (i = 0; i < max_users; i++)
-    if (!all_users[i]) /* find free slot in all_users */
+    if (!all_users[i]) /* find a free slot in all_users */
       break;
 
   if (i == max_users)
     {
-      /* allocate 50 user slots */
       if (all_users)
         {
+          /* allocate 50 more user slots */
           all_users = RESIZE (all_users, max_users + 50, interactive_t *, TAG_USERS, "new_user_handler");
         }
       else
         {
+          /* first time allocation */
           all_users = CALLOCATE (50, interactive_t *, TAG_USERS, "new_user_handler");
         }
       while (max_users < i + 50)
@@ -1144,13 +1189,15 @@ void new_interactive(socket_fd_t socket_fd) {
   master_ob->interactive->message_consumer = 0;
   master_ob->interactive->message_length = 0;
   master_ob->interactive->num_carry = 0;
-  master_ob->interactive->state = TS_DATA;
+  master_ob->interactive->state = TS_DATA; /* initial telnet state when connection is established */
   master_ob->interactive->out_of_band = 0;
   all_users[i] = master_ob->interactive;
   all_users[i]->fd = socket_fd;
   set_prompt ("> ");
 
-  /* Register interactive socket with reactor (except console on POSIX, already registered) */
+  /* Register interactive socket with reactor.
+   * Cconsole user is always registered for re-connect if console_mode is enabled.
+   */
   if (socket_fd != STDIN_FILENO)
     {
       if (io_reactor_add (g_io_reactor, socket_fd, master_ob->interactive, EVENT_READ) != 0)
@@ -1162,19 +1209,38 @@ void new_interactive(socket_fd_t socket_fd) {
           all_users[i] = 0;
           return;
         }
+
+#ifdef _WIN32
+      /* On Windows IOCP, post initial async read operation.
+       * On POSIX, this is a no-op - reads happen after EVENT_READ notification.
+       */
+      if (io_reactor_post_read (g_io_reactor, socket_fd, NULL, 0) != 0)
+        {
+          debug_message ("Failed to post initial read for user socket\n");
+          io_reactor_remove (g_io_reactor, socket_fd);
+          SOCKET_CLOSE (socket_fd);
+          FREE (master_ob->interactive);
+          master_ob->interactive = 0;
+          all_users[i] = 0;
+          return;
+        }
+#endif
     }
 
-/* debug_message ("new connection from %s\n", inet_ntoa (addr.sin_addr)); */
   num_user++;
 }
 
 /**
- *  @brief This is the new user connection handler. This function is called by the
- *  event handler when data is pending on the listening socket (new_user_fd).
- *  If space is available, an interactive data structure is initialized and
- *  the user is connected.
- *  @param which The index of the external_port array indicating which port
- *  the new connection is on.
+ *  @brief This is the new user connection handler.
+ *  This function is called by the event handler when data is pending on a listening port.
+ *  A new connection is established by using \c accept() on the listening socket.
+ *  An interactive data structure is allocated and initialized to represent the user just connected.
+ *  The master object is set as the command giver object for this new interactive in \c new_interactive().
+ *  The \c mudlib_connect() function is called to allow the mudlib to create a user object for the new connection.
+ *  If the mudlib returns an object, the connection is successful and \c mudlib_logon() is called to start
+ *  the logon process (after initial TELNET negotiation).
+ *  If the mudlib returns NULL, the connection is closed and the interactive structure is removed.
+ *  @param port The port definition structure representing the listening port.
  */
 static void new_user_handler (port_def_t *port) {
 
@@ -1231,19 +1297,24 @@ static void new_user_handler (port_def_t *port) {
     }
   if (addr_server_fd >= 0)
     query_addr_name (ob);
-  if (port->kind == PORT_TELNET)
+  if (ob->interactive && ob->interactive->connection_type == PORT_TELNET)
     {
+      opt_trace (TT_IO_REACTOR|1, "Sending telnet negotiation to new user (fd = %d)\n", ob->interactive->fd);
+      /* Tell them we won't echo. The client should echo locally or they won't see their input */
+      add_message (ob, telnet_no_echo);
+      /* Ask them to send commands as a whole line */
+      add_message (ob, telnet_do_linemode);
       /* Ask permission to ask them for their terminal type */
       add_message (ob, telnet_do_ttype);
       /* Ask them for their window size */
       add_message (ob, telnet_do_naws);
-      /* Ask them for linemode */
-      add_message (ob, telnet_do_linemode);
+
+      /* If we receive any TELNET response from the client, the USING_TELNET flag will be enabled in iflags */
     }
 
   mudlib_logon (ob);
   command_giver = 0;
-}				/* new_user_handler() */
+}
 
 /*
  * This is the user command handler. This function is called when
@@ -1492,27 +1563,32 @@ hname_handler ()
 
 
 /**
- *  @brief Read pending data for a user into user->interactive->text.
- *  This also does telnet negotiation if the connection type is PORT_TELNET.
+ * @brief This is the user data handler. This function is called from
+ * the backend when a user has transmitted data to us.
+ *
+ * Supports both I/O notification models:
+ * - Readiness notification (POSIX): evt is NULL, perform synchronous read
+ * - Completion notification (Windows IOCP): evt contains data already read,
+ *   post next async read operation
+ *
+ * @param ip The interactive data structure for the user.
+ * @param evt Event structure from io_reactor_wait (NULL for console/POSIX).
  */
-static void
-get_user_data (interactive_t * ip)
-{
-  static char buf[MAX_TEXT];
-  int text_space;
-  int num_bytes;
+static void get_user_data (interactive_t* ip, io_event_t* evt) {
 
-  /*
-   * this /3 is here because of the trick copy_chars() uses to allow empty
-   * commands. it needs to be fixed right. later.
-   */
+  char buf[MAX_TEXT];
+  int text_space;
+  int num_bytes, err = 0;
+
   switch (ip->connection_type)
     {
     case PORT_TELNET:
-      text_space = (MAX_TEXT - ip->text_end - 1) / 3;
-      /*
-         * Check if we need more space.
+      /* FIXME: The size calculation trick is here because of the way copy_chars()
+       * uses the buffer to allow empty commands.
        */
+      text_space = (MAX_TEXT - ip->text_end - 1) / 3;
+
+      /* shift out processed text from the buffer */
       if (text_space < MAX_TEXT / 16)
         {
           int l = ip->text_end - ip->text_start;
@@ -1523,8 +1599,10 @@ get_user_data (interactive_t * ip)
           text_space = (MAX_TEXT - ip->text_end - 1) / 3;
           if (text_space < MAX_TEXT / 16)
             {
-              /* almost 2k data without a newline.  Flush it, otherwise
-                 text_space will eventually go to zero and dest the user. */
+              /* FIXME: We've got almost 2k of data without a newline.
+               * It doesn't seem make sense for MUDs to have such long
+               * commands, so we just discard the buffer to make space.
+               */
               ip->text_start = 0;
               ip->text_end = 0;
               text_space = MAX_TEXT / 3;
@@ -1532,7 +1610,6 @@ get_user_data (interactive_t * ip)
         }
       break;
 
-    case PORT_CONSOLE:
     case PORT_ASCII:
       text_space = MAX_TEXT - ip->text_end - 1;
       break;
@@ -1544,15 +1621,105 @@ get_user_data (interactive_t * ip)
     }
 
   /*
-   * read user data.
+   * Read user data using appropriate I/O model:
    *
-   * [NEOLITH-EXTENSION] for console user (ip->fd == STDIN_FILENO), we use read()
-   * to read data from standard input, instead of SOCKET_RECV(). This allows
-   * us to support console user in console mode.
+   * Readiness notification (POSIX poll/epoll):
+   *   - evt is NULL or evt->buffer is NULL
+   *   - Socket is ready to read, perform synchronous recv()/read()
+   *   - Used on Linux, BSD, macOS
+   *
+   * Completion notification (Windows IOCP):
+   *   - evt->buffer contains data already read asynchronously
+   *   - evt->bytes_transferred indicates how many bytes were read
+   *   - Must post next async read operation to continue receiving data
+   *   - Used on Windows
+   *
+   * Console input:
+   *   - Always uses synchronous read() regardless of platform
    */
-  num_bytes = (ip->fd == STDIN_FILENO) ?
-    read(ip->fd, buf, text_space) :
-    SOCKET_RECV (ip->fd, buf, text_space, 0);
+  if (evt && evt->buffer && evt->bytes_transferred > 0)
+    {
+      /* Completion notification: use data already in event buffer (Windows IOCP) */
+      num_bytes = evt->bytes_transferred;
+      if (num_bytes > text_space)
+        {
+          num_bytes = text_space;  /* Truncate if buffer overflow */
+        }
+      memcpy(buf, evt->buffer, num_bytes);
+
+      /* Post next async read to continue receiving data */
+      opt_trace (TT_IO_REACTOR|3, "Number of bytes received: %d. Posting next async read for fd %d\n", num_bytes, ip->fd);
+      if (io_reactor_post_read(g_io_reactor, ip->fd, NULL, 0) != 0)
+        {
+          debug_message("get_user_data: failed to post next read for fd %d\n", ip->fd);
+          /* Treat as connection error */
+          ip->iflags |= NET_DEAD;
+          remove_interactive(ip->ob, 0);
+          return;
+        }
+    }
+  else
+    {
+      /* Readiness notification: perform synchronous read (POSIX poll/epoll or console) */
+#ifdef _WIN32
+      if (ip->fd == STDIN_FILENO) {
+        /* Windows console: use ReadConsoleInputW for non-blocking Unicode reads.
+         * This works regardless of ENABLE_LINE_INPUT console mode.
+         * ReadConsoleInputW always returns Unicode characters in UnicodeChar field.
+         * ReadConsoleInputA would only return code page characters in AsciiChar field.
+         */
+        HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+        INPUT_RECORD irInBuf[128];
+        DWORD cNumRead = 0;
+        
+        /* ReadConsoleInputW is non-blocking if console handle is signaled */
+        if (!ReadConsoleInputW(hStdin, irInBuf, 128, &cNumRead)) {
+          num_bytes = SOCKET_ERROR;
+          err = EIO;
+        } else {
+          /* Extract Unicode character data from KEY_EVENT records and convert to UTF-8 */
+          WCHAR wbuf[128];
+          int wchar_count = 0;
+          
+          for (DWORD i = 0; i < cNumRead && wchar_count < 128; i++) {
+            if (irInBuf[i].EventType == KEY_EVENT && irInBuf[i].Event.KeyEvent.bKeyDown) {
+              WCHAR wch = irInBuf[i].Event.KeyEvent.uChar.UnicodeChar;
+              if (wch == L'\r') {
+                /* Convert carriage return to newline */
+                wch = L'\n';
+              }
+              if (wch != 0) {
+                wbuf[wchar_count++] = wch;
+              }
+            }
+          }
+          
+          if (wchar_count > 0) {
+            /* FIXME: handle password case */
+            WriteConsoleW (GetStdHandle(STD_OUTPUT_HANDLE), wbuf, wchar_count, NULL, NULL);
+            /* Convert UTF-16 to UTF-8 */
+            num_bytes = WideCharToMultiByte(CP_UTF8, 0, wbuf, wchar_count, buf, text_space, NULL, NULL);
+            if (num_bytes <= 0) {
+              num_bytes = SOCKET_ERROR;
+              err = EILSEQ;  /* Invalid multibyte sequence */
+            }
+          } else {
+            /* No characters extracted, indicate would-block */
+            num_bytes = SOCKET_ERROR;
+            err = EWOULDBLOCK;
+          }
+        }
+      } else {
+        num_bytes = SOCKET_RECV(ip->fd, buf, text_space, 0);
+      }
+#else
+      num_bytes = (ip->fd == STDIN_FILENO) ?
+        read(ip->fd, buf, text_space) :
+        SOCKET_RECV (ip->fd, buf, text_space, 0);
+      err = SOCKET_ERRNO;
+#endif
+    }
+
   switch (num_bytes)
     {
     case 0:
@@ -1563,21 +1730,16 @@ get_user_data (interactive_t * ip)
       return;
 
     case SOCKET_ERROR:
-#ifdef EWOULDBLOCK
-      if (SOCKET_ERRNO == EWOULDBLOCK)
+      if ((err != EWOULDBLOCK) && (err != EILSEQ))
         {
-        }
-      else
-#endif
-        {
-          switch (SOCKET_ERRNO)
+          switch (err)
             {
             case EPIPE:
             case ECONNRESET:
             case ETIMEDOUT:
               break;
             default:
-              debug_message ("get_user_data: (fd %d): %s\n", ip->fd, strerror (errno));
+              debug_message ("get_user_data: (fd %d): %s\n", ip->fd, strerror (err));
               break;
             }
           ip->iflags |= NET_DEAD;
@@ -1592,15 +1754,19 @@ get_user_data (interactive_t * ip)
         {
         case PORT_TELNET:
           /*
-           * replace newlines with nulls and catenate to buffer. Also do all
-           * the useful telnet negotation at this point too. Rip out the sub
+           * Replace newlines with nulls and catenate to buffer. Also do all
+           * the useful telnet negotation at this point too. Rip out the sub-
            * option stuff and send back anything non useful we feel we have
            * to.
+           * 
+           * Console mode users also come through here, although they don't do
+           * telnet negotiation.
            */
           ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
+          opt_trace (TT_IO_REACTOR, "Command buffer contains %d characters\n", ip->text_end - ip->text_start);
           /*
-           * now, text->end is just after the last char read. If last char
-           * was a nl, char *before* text_end will be null.
+           * now, ip->text_end is just after the last character read. If the last character
+           * is a newline, the character before ip->text_end will be null.
            */
           ip->text[ip->text_end] = '\0';
           /*
@@ -1614,10 +1780,12 @@ get_user_data (interactive_t * ip)
            * set flag if new data completes command.
            */
           if (cmd_in_buf (ip))
-            ip->iflags |= CMD_IN_BUF;
+            {
+              opt_trace (TT_IO_REACTOR, "Command available in buffer for fd %d\n", ip->fd);
+              ip->iflags |= CMD_IN_BUF;
+            }
           break;
 
-        case PORT_CONSOLE:
         case PORT_ASCII:
           {
             char *nl, *str;
@@ -1654,10 +1822,8 @@ get_user_data (interactive_t * ip)
         case PORT_BINARY:
           {
             buffer_t *buffer;
-
             buffer = allocate_buffer (num_bytes);
             memcpy (buffer->item, buf, num_bytes);
-
             push_refed_buffer (buffer);
             apply (APPLY_PROCESS_INPUT, ip->ob, 1, ORIGIN_DRIVER);
             break;
@@ -1838,46 +2004,40 @@ first_cmd_in_buf (interactive_t * ip)
   return 0;
 }				/* first_command_in_buf() */
 
-/*
- * return(1) if there is a complete command in ip->text, otherwise return(0).
+/**
+ *  @brief Check if there is a complete command in the buffer.
+ *  Looks for a null character between text_start and text_end.
+ *  If in SINGLE_CHAR mode, any input is a complete command.
+ *  @param ip The interactive structure for the user.
+ *  @return 1 if there is a complete command, otherwise returns zero.
  */
-static int
-cmd_in_buf (interactive_t * ip)
-{
-  char *p;
+static int cmd_in_buf (interactive_t * ip) {
+
+  const char *p;
 
   p = ip->text + ip->text_start;
 
-  /*
-   * skip null input.
-   */
+  /* skip empty lines */
   while ((p < (ip->text + ip->text_end)) && !*p)
     p++;
 
+   /* end of user command buffer? */
   if ((p - ip->text) >= ip->text_end)
-    {
-      return (0);
-    }
-  /* If we get here, must have something in the buffer */
+    return 0;
+
+  /* expecting single character input? */
   if (ip->iflags & SINGLE_CHAR)
-    {
-      return (1);
-    }
-  /*
-   * find end of cmd.
-   */
+    return 1;
+
+  /* find end of command */
   while ((p < (ip->text + ip->text_end)) && *p)
     p++;
-  /*
-   * null terminated; was command.
-   */
   if (p < ip->text + ip->text_end)
-    return (1);
-  /*
-   * no newline - no cmd.
-   */
-  return (0);
-}				/* cmd_in_buf() */
+    return 1;
+
+  /* user command buffer is empty or only partial command received. */
+  return 0;
+}
 
 /*
  * move pointers to next cmd, or clear buf.
@@ -2129,7 +2289,7 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
           tio.c_lflag &= ~ECHO;
           tcsetattr (ob->interactive->fd, TCSAFLUSH, &tio); /* discard pending input */
         }
-#endif /* HAVE_TERMIOS_H */
+#endif
     }
   else
     {

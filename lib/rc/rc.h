@@ -36,7 +36,7 @@ extern port_def_t external_port[5];
 #define DUMP_WITH_ARGS		0x0001
 #define DUMP_WITH_LOCALVARS	0x0002
 
-#define PORT_CONSOLE     0
+/* #define PORT_CONSOLE     0 */
 #define PORT_TELNET      1
 #define PORT_BINARY      2
 #define PORT_ASCII       3
