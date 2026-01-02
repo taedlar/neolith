@@ -559,7 +559,7 @@ int flush_message (interactive_t * ip) {
 #define TS_WONT         3
 #define TS_DO           4
 #define TS_DONT         5
-#define TS_SB		6
+#define TS_SB           6
 #define TS_SB_IAC       7
 
 static char telnet_break_response[] = { 28, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
@@ -581,29 +581,27 @@ static char telnet_se[] = { (SCHAR) IAC, (SCHAR) SE, 0 };
 static char telnet_ga[] = { (SCHAR) IAC, (SCHAR) GA, 0 };
 
 /**
- * @brief Copy a string, replacing newlines with '\0'. Also add an extra
- * space and back space for every newline. This trick will allow
- * otherwise empty lines, as multiple newlines would be replaced by
+ * @brief Copy input characters from socket read buffer to the interactive command buffer.
+ * Replace newlines with '\0'. Also add an extra space and back space for every newline.
+ * This trick will allow otherwise empty lines, as multiple newlines would be replaced by
  * multiple zeroes only.
  *
- * Also handle the telnet stuff.  So instead of this being a direct
- * copy it is a small state thingy.
+ * Also handles TELNET negotiations and remove them from the input stream.
+ * (Original by Pinkfish@MudOS)
  *
- * In fact, it is telnet_neg conglomerated into this.  This is mostly
- * done so we can sanely remove the telnet sub option negotation stuff
- * out of the input stream.  Need this for terminal types.
- * (Pinkfish change)
+ * @param from Source buffer.
+ * @param to Destination buffer.
+ * @param count Number of characters to copy.
+ * @param ip Pointer to interactive structure.
+ * @return Number of characters copied.
  */
-static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
-{
+static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
+
   int i;
   UCHAR *start = to;
 
-  /*
-   *    scan through the input buffer for TELNET commands and process
-   *    if found.
-   */
-  for (i = 0; i < n; i++)
+  /* a simple state-machine that processes TELNET commands */
+  for (i = 0; i < count; i++)
     {
       switch (ip->state)
         {
@@ -682,11 +680,18 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
                         if (ip->sb_buf[2] & MODE_ACK)
                           {
                             /* LM_MODE confirmed */
+                            opt_trace (TT_IO_REACTOR|2, "Telnet LINEMODE mode acknowledged by client.\n");
                             break;
                           }
-                        /* if no MODE_ACK bit set, client is trying to set our
-                         * LM_MODE (which violate RFC-1091), we just ignore
-                         * them. --- Annihilator@ES2 [2002-05-07] */
+                        else
+                          {
+                            /* if no MODE_ACK bit set, client is trying to set our
+                             * LM_MODE (which violates RFC-1091), we just ignore
+                             * them. --- Annihilator@ES2 [2002-05-07] */
+                            /* set our preferred mode */
+                            add_message (ip->ob, telnet_sb_lm_mode);
+                            break;
+                          }
                         break;
                       case LM_SLC:
                         {
@@ -752,7 +757,7 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
                   }
                 default:
                   {
-                    /* TODO: Telnet subnegotiation data may contain '\0'
+                    /* FIXME: Telnet subnegotiation data may contain '\0'
                      * characters, passing as string implicitly truncated
                      * anything beyond '\0'. Maybe need change to buffer
                      * or something. --- Annihilator@ES2 [2002-05-07]
@@ -833,7 +838,11 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
            * set at the first IAC WILL/WONT TTYPE/NAWS response to the
            * initial queries.
            */
-          ip->iflags |= USING_TELNET;
+          if (!(ip->iflags & USING_TELNET))
+            {
+              opt_trace (TT_IO_REACTOR|2, "Got IAC WILL from client, assuming telnet support.\n");
+              ip->iflags |= USING_TELNET;
+            }
 
           switch (from[i])
             {
@@ -862,13 +871,47 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
           break;
 
         case TS_DONT:
+          /* if we get any IAC WILL or IAC WONTs back, we assume they
+           * understand the telnet protocol.  Typically this will become
+           * set at the first IAC WILL/WONT TTYPE/NAWS response to the
+           * initial queries.
+           */
+          if (!(ip->iflags & USING_TELNET))
+            {
+              opt_trace (TT_IO_REACTOR|2, "Got IAC WONT/DONT from client, assuming telnet support.\n");
+              ip->iflags |= USING_TELNET;
+            }
+          switch (from[i])
+            {
+            case TELOPT_SGA:
+              add_message (ip->ob, telnet_wont_sga); /* acknowledged, won't send go ahead */
+              flush_message (ip);
+              break;
+            }
+          ip->state = TS_DATA;
+          break;
+
         case TS_WONT:
           /* if we get any IAC WILL or IAC WONTs back, we assume they
            * understand the telnet protocol.  Typically this will become
            * set at the first IAC WILL/WONT TTYPE/NAWS response to the
            * initial queries.
            */
-          ip->iflags |= USING_TELNET;
+          if (!(ip->iflags & USING_TELNET))
+            {
+              opt_trace (TT_IO_REACTOR|2, "Got IAC WONT/DONT from client, assuming telnet support.\n");
+              ip->iflags |= USING_TELNET;
+            }
+          switch (from[i])
+            {
+            case TELOPT_SGA:
+              opt_trace (TT_IO_REACTOR|2, "(TELNET) client won't send go ahead.\n");
+              break;
+            case TELOPT_LINEMODE:
+              opt_trace (TT_IO_REACTOR|2, "(TELNET) client disabled LINEMODE.\n");
+              ip->iflags &= ~USING_LINEMODE;
+              break;
+            }
           ip->state = TS_DATA;
           break;
 
@@ -885,7 +928,7 @@ static int copy_chars (UCHAR * from, UCHAR * to, int n, interactive_t * ip)
     }
 
   return (to - start);
-}				/* copy_chars() */
+}
 
 
 /**
@@ -1147,7 +1190,7 @@ void new_interactive (socket_fd_t socket_fd) {
   master_ob->interactive->message_consumer = 0;
   master_ob->interactive->message_length = 0;
   master_ob->interactive->num_carry = 0;
-  master_ob->interactive->state = TS_DATA;
+  master_ob->interactive->state = TS_DATA; /* initial telnet state when connection is established */
   master_ob->interactive->out_of_band = 0;
   all_users[i] = master_ob->interactive;
   all_users[i]->fd = socket_fd;
@@ -1195,7 +1238,8 @@ void new_interactive (socket_fd_t socket_fd) {
  *  An interactive data structure is allocated and initialized to represent the user just connected.
  *  The master object is set as the command giver object for this new interactive in \c new_interactive().
  *  The \c mudlib_connect() function is called to allow the mudlib to create a user object for the new connection.
- *  If the mudlib returns an object, the connection is successful and \c mudlib_logon() is called to start the logon process.
+ *  If the mudlib returns an object, the connection is successful and \c mudlib_logon() is called to start
+ *  the logon process (after initial TELNET negotiation).
  *  If the mudlib returns NULL, the connection is closed and the interactive structure is removed.
  *  @param port The port definition structure representing the listening port.
  */
@@ -1254,19 +1298,24 @@ static void new_user_handler (port_def_t *port) {
     }
   if (addr_server_fd >= 0)
     query_addr_name (ob);
-  if (port->kind == PORT_TELNET)
+  if (ob->interactive && ob->interactive->connection_type == PORT_TELNET)
     {
+      opt_trace (TT_IO_REACTOR|1, "Sending telnet negotiation to new user (fd = %d)\n", ob->interactive->fd);
+      /* Tell them we won't echo. The client should echo locally or they won't see their input */
+      add_message (ob, telnet_no_echo);
+      /* Ask them to send commands as a whole line */
+      add_message (ob, telnet_do_linemode);
       /* Ask permission to ask them for their terminal type */
       add_message (ob, telnet_do_ttype);
       /* Ask them for their window size */
       add_message (ob, telnet_do_naws);
-      /* Ask them for linemode */
-      add_message (ob, telnet_do_linemode);
+
+      /* If we receive any TELNET response from the client, the USING_TELNET flag will be enabled in iflags */
     }
 
   mudlib_logon (ob);
   command_giver = 0;
-}				/* new_user_handler() */
+}
 
 /*
  * This is the user command handler. This function is called when
