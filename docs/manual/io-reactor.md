@@ -33,30 +33,38 @@ For platform-specific implementation details, see:
 ✅ **Phase 2: Windows IOCP** ([Report](../history/agent-reports/io-reactor-phase2.md))
 - [x] Windows IOCP implementation in [lib/port/io_reactor_win32.c](../../lib/port/io_reactor_win32.c)
 - [x] IOCP-specific unit tests (4 test cases)
-- [x] Listening socket support (6 test cases)
-- [x] Hybrid approach: select() for listening sockets, IOCP for data I/O
-- [x] Cross-platform test suite (29 total tests, all passing)
+- [x] Listening socket support (6 test cases) using WSAEventSelect
+- [x] Console support (5 test cases) using WaitForMultipleObjects
+- [x] Unified event collection from all I/O sources in single wait call
+- [x] Cross-platform test suite (34 total tests, all passing)
 - [x] Build system integration for Windows
 
 ✅ **Phase 3: Backend Integration** ([Design Review](../history/agent-reports/io-reactor-phase3-review.md))
-- [x] Integrate `external_port[]` listening sockets
-- [x] Migrate interactive user I/O (`all_users[]`)
-- [x] Console mode support (Windows IOCP) ([Report](../history/agent-reports/io-reactor-phase3-console-support.md))
-- [x] Console mode support (POSIX) - 7 tests passing
-- [x] Remove legacy `make_selectmasks()` and `poll_index` fields
-- [x] Event-driven `process_io()` with reactor event loop
-- [x] All 77 tests passing
+- [x] Reactor initialization in `init_user_conn()` ([src/comm.c](../../src/comm.c))
+- [x] Listening socket registration (`external_port[]`)
+- [x] Interactive user I/O migration (`all_users[]`)
+- [x] Console mode support (POSIX and Windows)
+- [x] Event-driven `process_io()` with context-based dispatch
+- [x] Legacy code removal (`make_selectmasks()`, `poll_index` fields)
+- [x] Unit tests (34 tests passing: 19 generic + 4 IOCP + 6 listening + 5 console)
+- [x] Integration verified with example mudlib
 
 ⬜ **Phase 4: LPC Socket Integration**
 - [ ] Migrate `lpc_socks[]` to reactor (`PACKAGE_SOCKETS`)
 - [ ] Update socket efun handlers for reactor registration
 - [ ] Address server pipe integration
+- [ ] Performance testing with 1000+ connections
+- [ ] Stress testing (connection churn, sustained throughput)
 
 ⬜ **Phase 5: Future Enhancements**
-- [ ] Linux `epoll()` backend
+- [ ] Linux `epoll()` backend for better scalability (O(ready) vs O(all))
 - [ ] BSD/macOS `kqueue()` support
-- [ ] Windows `AcceptEx()` for async listening
-- [ ] Performance benchmarking
+- [ ] Windows optimizations:
+  - [ ] Multi-threaded IOCP worker pool
+  - [ ] Zero-copy I/O (`TransmitFile`, `TransmitPackets`)
+  - [ ] Pre-posted accept operations (`AcceptEx`)
+- [ ] Performance benchmarking across platforms
+- [ ] Connection scalability testing (10,000+ concurrent)
 
 ## Reactor Pattern Fundamentals
 
@@ -77,32 +85,30 @@ graph TB
         direction TB
         Register["1. Register Handles<br/>(io_reactor_add)"]
         Detect{"Listening<br/>Socket?"}
-        TrackListen["Track in<br/>listen_sockets[]"]
+        TrackListen["WSAEventSelect<br/>(event objects)"]
         PostIOCP["Post WSARecv<br/>to IOCP"]
-        Wait["2. Wait for Events<br/>(io_reactor_wait)"]
-        CheckListen["select() on<br/>listening sockets"]
-        CheckIOCP["GetQueuedCompletionStatus<br/>(IOCP)"]
-        Return["4. Return Events<br/>(io_event_t array)"]
-        Process["5. Process Events<br/>(process_io)"]
+        Wait["2. Wait for Events<br/>(WaitForMultipleObjects)"]
+        CheckAll["Check all sources:<br/>Console + Listen Events + IOCP"]
+        Return["3. Return Events<br/>(io_event_t array)"]
+        Process["4. Process Events<br/>(process_io)"]
         
         Register --> Detect
         Detect -->|Yes<br/>Windows| TrackListen
         Detect -->|No| PostIOCP
         TrackListen --> Wait
         PostIOCP --> Wait
-        Wait --> CheckListen
-        CheckListen --> CheckIOCP
-        CheckIOCP --> Return
+        Wait --> CheckAll
+        CheckAll --> Return
         Return --> Process
         Process -.->|"Loop continues"| Wait
     end
     
     style Detect fill:#ff9,stroke:#333,stroke-width:2px
     style TrackListen fill:#9cf,stroke:#333,stroke-width:2px
-    style CheckListen fill:#9cf,stroke:#333,stroke-width:2px
+    style CheckAll fill:#9cf,stroke:#333,stroke-width:2px
 ```
 
-**Note**: On Windows, listening sockets use `select()` (readiness-based) while connected sockets use IOCP (completion-based). POSIX platforms use a single demultiplexer (`poll()` or `epoll()`) for all socket types.
+**Note**: On Windows, listening sockets use `WSAEventSelect()` with event objects (readiness-based) while connected sockets use IOCP (completion-based). All sources are unified via `WaitForMultipleObjects()`. POSIX platforms use a single demultiplexer (`poll()` or `epoll()`) for all socket types.
 
 **Event Loop:**
 1. Application registers handles with the reactor
@@ -351,319 +357,23 @@ Console mode registers `STDIN_FILENO` (POSIX) or console handle (Windows) with t
 
 **Platform Approach**:
 - **POSIX**: Standard `io_reactor_add()` with `STDIN_FILENO`
-- **Windows**: `io_reactor_add_console()` polls `GetNumberOfConsoleInputEvents()` before IOCP blocking
+- **Windows**: `io_reactor_add_console()` with `WaitForMultipleObjects()` integration
 
-See [Phase 3 Console Report](../history/agent-reports/io-reactor-phase3-console-support.md) and [src/comm.c](../../src/comm.c).
+See actual implementation in [src/comm.c](../../src/comm.c) for complete details.
 
 ---
 
 ### 3. Interactive User Integration
 
-Current implementation tracks users in `all_users[]` array with platform-specific indices.
-
-#### Reactor Migration
-
-**User Connection** (`new_user_handler()`):
-```c
-static void new_user_handler(port_def_t *port) {
-    new_socket_fd = accept(port->fd, ...);
-    
-    // Create interactive structure
-    new_interactive(new_socket_fd);
-    
-    // Register with reactor (NEW)
-    if (io_reactor_add(g_io_reactor, new_socket_fd,
-                      master_ob->interactive, EVENT_READ) != 0) {
-        debug_message("Failed to register new user socket\n");
-        remove_interactive(master_ob, 0);
-        return;
-    }
-    
-    /* ... existing connection setup ... */
-}
-```
-
-**User Disconnection**:
-```c
-void remove_interactive(object_t *ob, int dested) {
-    if (ob->interactive) {
-        // Unregister from reactor (NEW)
-        io_reactor_remove(g_io_reactor, ob->interactive->fd);
-        
-        if (ob->interactive->fd != STDIN_FILENO) {
-            SOCKET_CLOSE(ob->interactive->fd);
-        }
-    }
-    
-    /* ... existing cleanup ... */
-}
-```
-
-**Write Notification**:
-
-When output buffer fills, request write notification:
-
-```c
-int flush_message(interactive_t *ip) {
-    /* ... attempt to send ... */
-    
-    if (num_bytes < ip->message_length) {
-        // Partial write - enable write events
-        io_reactor_modify(g_io_reactor, ip->fd, EVENT_READ | EVENT_WRITE);
-    } else {
-        // Full write - disable write events
-        io_reactor_modify(g_io_reactor, ip->fd, EVENT_READ);
-    }
-}
-```
-
-**Remove `poll_index` from `interactive_t`**:
-
-The `interactive_t` structure (in [src/comm.h](../../src/comm.h)) currently has:
-
-```c
-typedef struct interactive_s {
-    /* ... */
-#ifdef HAVE_POLL
-    int poll_index;  // ← Remove this
-#endif
-    /* ... */
-} interactive_t;
-```
-
-This field becomes unnecessary when using the reactor.
-
----
-
-### 4. Initialization
-
-In [src/comm.c](../../src/comm.c), replace direct `poll()`/`select()` usage:
-
-```c
-#include "port/io_reactor.h"
-
-static io_reactor_t *g_io_reactor = NULL;
-
-void init_user_conn(void) {
-    /* ... existing socket setup for external_port[] ... */
-    
-    // Create I/O reactor
-    g_io_reactor = io_reactor_create();
-    if (!g_io_reactor) {
-        debug_fatal("Failed to create I/O reactor\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    // Register listening sockets
-    for (int i = 0; i < 5; i++) {
-        if (!external_port[i].port) continue;
-        
-        if (io_reactor_add(g_io_reactor, external_port[i].fd,
-                          &external_port[i], EVENT_READ) != 0) {
-            debug_fatal("Failed to register port %d with I/O reactor\n",
-                       external_port[i].port);
-        }
-    }
-    
-    // Register console if in console mode
-    if (MAIN_OPTION(console_mode)) {
-#ifdef _WIN32
-        if (io_reactor_add_console(g_io_reactor, CONSOLE_CONTEXT_MARKER) != 0) {
-            debug_message("Warning: Failed to register console input\n");
-        }
-#else
-        if (io_reactor_add(g_io_reactor, STDIN_FILENO,
-                          CONSOLE_CONTEXT_MARKER, EVENT_READ) != 0) {
-            debug_message("Warning: Failed to register console input\n");
-        }
-#endif
-    }
-}
-
-void ipc_remove(void) {
-    /* ... existing cleanup ... */
-    
-    if (g_io_reactor) {
-        io_reactor_destroy(g_io_reactor);
-        g_io_reactor = NULL;
-    }
-}
-```
-
-### 5. Event Loop
-
-Replace `do_comm_polling()` and `process_io()` to use reactor:
-
-**Main Event Wait** (replaces poll/select):
-```c
-// Global event buffer (reused across iterations)
-static io_event_t g_io_events[MAX_IO_EVENTS];
-static int g_num_io_events = 0;
-
-int do_comm_polling(struct timeval *timeout) {
-    opt_trace(TT_BACKEND|3, "do_comm_polling: timeout %ld sec, %ld usec",
-              timeout->tv_sec, timeout->tv_usec);
-    
-    g_num_io_events = io_reactor_wait(g_io_reactor, g_io_events,
-                                       MAX_IO_EVENTS, timeout);
-    return g_num_io_events;
-}
-```
-
-**Event Processing** (replaces linear fd scanning):
-```c
-void process_io(void) {
-    for (int i = 0; i < g_num_io_events; i++) {
-        io_event_t *evt = &g_io_events[i];
-        
-        // Dispatch based on context type
-        if (evt->context == CONSOLE_CONTEXT_MARKER) {
-            handle_console_event(evt);
-        }
-        else if (is_listening_port(evt->context)) {
-            handle_listening_port_event(evt);
-        }
-        else if (is_interactive_user(evt->context)) {
-            handle_user_event(evt);
-        }
-        else if (is_lpc_socket(evt->context)) {
-            handle_lpc_socket_event(evt);
-        }
-        else if (evt->context == (void*)&addr_server_fd) {
-            handle_addr_server_event(evt);
-        }
-        else {
-            debug_message("Unknown event context: %p\n", evt->context);
-        }
-    }
-}
-
-// Context type identification helpers
-static inline int is_listening_port(void *context) {
-    return (context >= (void*)&external_port[0] &&
-            context <  (void*)&external_port[5]);
-}
-
-static inline int is_interactive_user(void *context) {
-    // Check if pointer is in all_users array range
-    for (int i = 0; i < max_users; i++) {
-        if (all_users[i] == context) return 1;
-    }
-    return 0;
-}
-
-static inline int is_lpc_socket(void *context) {
-#ifdef PACKAGE_SOCKETS
-    return (context >= (void*)&lpc_socks[0] &&
-            context <  (void*)&lpc_socks[max_lpc_socks]);
-#else
-    return 0;
-#endif
-}
-
-// Event handlers
-static void handle_console_event(io_event_t *evt) {
-    if (evt->event_type & EVENT_READ) {
-        if (!console_user_connected()) {
-            init_console_user(1);  // Reconnect console user
-        }
-    }
-}
-
-static void handle_listening_port_event(io_event_t *evt) {
-    port_def_t *port = (port_def_t*)evt->context;
-    
-    if (evt->event_type & EVENT_READ) {
-        new_user_handler(port);  // Accept new connection
-    }
-    if (evt->event_type & EVENT_ERROR) {
-        debug_message("Error on listening port %d (fd=%d)\n",
-                     port->port, port->fd);
-        // Could attempt recovery or mark port as failed
-    }
-}
-
-static void handle_user_event(io_event_t *evt) {
-    interactive_t *ip = (interactive_t*)evt->context;
-    
-    // Validate user still exists
-    if (!ip || !ip->ob || (ip->ob->flags & O_DESTRUCTED)) {
-        return;
-    }
-    
-    if (evt->event_type & EVENT_CLOSE) {
-        // Connection closed by remote
-        remove_interactive(ip->ob, 0);
-        return;
-    }
-    
-    if (evt->event_type & EVENT_ERROR) {
-        // Network error occurred
-        ip->iflags |= NET_DEAD;
-        remove_interactive(ip->ob, 0);
-        return;
-    }
-    
-    if (evt->event_type & EVENT_READ) {
-        // Data available to read
-        get_user_data(ip);
-        
-        // Check if user was disconnected during processing
-        if (!ip || !ip->ob) return;
-    }
-    
-    if (evt->event_type & EVENT_WRITE) {
-        // Socket is writable (after partial write)
-        flush_message(ip);
-        
-        // If buffer now empty, disable write notifications
-        if (ip->message_length == 0) {
-            io_reactor_modify(g_io_reactor, ip->fd, EVENT_READ);
-        }
-    }
-}
-
-static void handle_lpc_socket_event(io_event_t *evt) {
-#ifdef PACKAGE_SOCKETS
-    lpc_socket_t *sock = (lpc_socket_t*)evt->context;
-    
-    if (evt->event_type & EVENT_READ) {
-        socket_read_select_handler(sock - lpc_socks);  // Compute index
-    }
-    if (evt->event_type & EVENT_WRITE) {
-        socket_write_select_handler(sock - lpc_socks);
-    }
-    if (evt->event_type & (EVENT_ERROR | EVENT_CLOSE)) {
-        // Handle socket error/close
-        socket_close(sock - lpc_socks);
-    }
-#endif
-}
-
-static void handle_addr_server_event(io_event_t *evt) {
-    if (evt->event_type & EVENT_READ) {
-        hname_handler();  // Existing addr server handler
-    }
-}
-```
-
----
-
-### 5. Legacy Code Removal
-
 **Implementation**: ✅ Complete
 
-Removed 240+ lines of legacy `poll()`/`select()` code:
-- Entire `make_selectmasks()` function and call sites
-- Platform-specific macros (`NEW_USER_CAN_READ`, `USER_CAN_WRITE`, etc.)
-- Global arrays: `poll_fds[]`, `readmask`, `writemask`
-- Structure fields: `poll_index` from `port_def_t` and `interactive_t`
+Interactive users registered via `io_reactor_add()` in `new_user_handler()` and removed via `io_reactor_remove()` in `remove_interactive()`. Write notification managed through `io_reactor_modify()` for partial writes.
 
-All registration now happens at handle creation time. Build verified with 77/77 tests passing.
+See actual implementation in [src/comm.c](../../src/comm.c) for complete details.
 
 ---
 
-### 6. Platform-Specific Implementations
+### 4. Platform-Specific Implementations
 
 #### POSIX
 - All handles use `poll()` via [io_reactor_poll.c](../../lib/port/io_reactor_poll.c)
@@ -671,18 +381,12 @@ All registration now happens at handle creation time. Build verified with 77/77 
 
 #### Windows  
 - Network sockets: IOCP via [io_reactor_win32.c](../../lib/port/io_reactor_win32.c)
-- Listening sockets: `select()` (hybrid approach)
-- Console: `GetNumberOfConsoleInputEvents()` polling
-- Console uses `GetNumberOfConsoleInputEvents()` polling
-
-**Console Handling** (NEW in Phase 3):
-- `io_reactor_add_console()` stores console handle in reactor state
-- `io_reactor_wait()` checks console before blocking on IOCP
-- Console events delivered as `EVENT_READ` with `CONSOLE_CONTEXT_MARKER`
+- Listening sockets: `WSAEventSelect()` with event objects
+- Console: `GetNumberOfConsoleInputEvents()` polling integrated with `WaitForMultipleObjects()`
 
 ---
 
-### 8. Error Handling Improvements
+### 5. Error Handling
 
 The reactor enables **unified error detection**:
 
@@ -801,39 +505,6 @@ TEST(IOReactorConsoleTest, ConsoleEventWindows) {
 
 ---
 
-### 10. Migration Checklist
-
-**Phase 3A: Core Integration**
-- [x] Design documented (this section)
-- [ ] Refactor `new_user_handler()` signature (port pointer)
-- [ ] Add reactor initialization to `init_user_conn()`
-- [ ] Add reactor cleanup to `ipc_remove()`
-- [ ] Update `do_comm_polling()` to use `io_reactor_wait()`
-- [ ] Rewrite `process_io()` for event dispatch
-- [ ] Remove `poll_index` from `port_def_t` and `interactive_t`
-- [ ] Remove `make_selectmasks()` function
-
-**Phase 3B: Console Support**
-- [x] Implement `io_reactor_add_console()` for Windows
-- [ ] Test console mode on POSIX
-- [x] Test console mode on Windows
-- [ ] Verify console reconnect logic
-
-**Phase 3C: Testing**
-- [ ] Unit tests for listening socket integration
-- [x] Unit tests for console events (Windows: 5 tests passing)
-- [ ] Integration tests with example mudlib
-- [ ] Stress tests (100+ connections)
-- [ ] Verify no memory leaks (valgrind)
-
-**Phase 3D: Documentation**
-- [ ] Update [comm.c](../../src/comm.c) comments
-- [ ] Document reactor event flow in [internals.md](internals.md)
-- [ ] Add troubleshooting guide for I/O issues
-- [ ] Write Phase 3 completion report
-
----
-
 ## Complete Event Flow Diagram
 
 ```mermaid
@@ -910,39 +581,33 @@ Each platform must implement the reactor interface defined above. See platform-s
 
 **Challenge**: Windows IOCP is completion-based (notifies when I/O operations complete), but listening sockets don't perform I/O—they only become "ready" to accept connections.
 
-**Solution**: Hybrid approach implemented in [io_reactor_win32.c](../../lib/port/io_reactor_win32.c):
+**Solution**: Event-based approach implemented in [io_reactor_win32.c](../../lib/port/io_reactor_win32.c):
 
 1. **Detection**: Use `getsockopt(SO_ACCEPTCONN)` to identify listening sockets during `io_reactor_add()`
-2. **Tracking**: Store listening sockets in a separate `listen_sockets[]` array (dynamically resized)
-3. **Polling**: In `io_reactor_wait()`, call `select()` with zero timeout on listening sockets before blocking on IOCP
-4. **Event Delivery**: Return `EVENT_READ` when listening socket is ready to accept
+2. **Event Objects**: Create `WSAEVENT` for each listening socket using `WSACreateEvent()`
+3. **Registration**: Use `WSAEventSelect(fd, event, FD_ACCEPT)` to associate socket with event
+4. **Unified Wait**: `WaitForMultipleObjects()` waits on IOCP handle + console handle + listening socket events
+5. **Event Collection**: After wait returns, check all sources (console, listening sockets, IOCP) to collect multiple events in one call
+6. **Event Reset**: Call `WSAResetEvent()` after processing each listening socket event
 
-**Rationale**: This allows the reactor to provide a unified API while leveraging the optimal mechanism for each socket type:
-- Listening sockets → `select()` (readiness notification)
+**Rationale**: This allows the reactor to provide a unified API while leveraging the optimal mechanism for each I/O source:
+- Listening sockets → `WSAEventSelect()` with manual event objects (readiness notification)
 - Connected sockets → IOCP (completion notification with zero-copy data delivery)
+- Console input → `GetNumberOfConsoleInputEvents()` polling
+
+All sources are unified via `WaitForMultipleObjects()` which blocks until any handle is signaled, then the reactor checks all sources to collect available events.
 
 See [Windows I/O Implementation](windows-io.md) for complete details.
-
-### Implementation Files
-
-```
-lib/port/
-├── io_reactor.h           # Platform-agnostic API (this document)
-├── io_reactor_poll.c      # POSIX poll() implementation
-├── io_reactor_epoll.c     # Linux epoll() implementation (future)
-├── io_reactor_kqueue.c    # BSD/macOS kqueue() implementation (future)
-└── io_reactor_win32.c     # Windows IOCP implementation
-```
 
 ### CMake Integration
 
 ✅ **Current Implementation** ([lib/port/CMakeLists.txt](../../lib/port/CMakeLists.txt)):
 
 ```cmake
-# lib/port/CMakeLists.txt
+# I/O Reactor - platform-specific implementation selection
 set(port_SOURCES
     # ... other sources ...
-    # I/O Reactor - platform-specific implementation selection
+    $<$<PLATFORM_ID:Windows>>:io_reactor_win32.c>
     $<$<NOT:$<PLATFORM_ID:Windows>>:io_reactor_poll.c>
 )
 
@@ -953,19 +618,9 @@ target_sources(port INTERFACE
 )
 ```
 
-**Future Platform Selection**:
-```cmake
-# Phase 2: Add Windows support
-if(WIN32)
-    target_sources(port PRIVATE io_reactor_win32.c)
-else()
-    target_sources(port PRIVATE io_reactor_poll.c)
-endif()
-
-# Phase 4: Optimize with epoll on Linux
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND HAVE_EPOLL)
-    target_sources(port PRIVATE io_reactor_epoll.c)
-```
+**Future Enhancements** (Phase 5):
+- Linux: Detect and use `epoll()` when available for better scalability
+- BSD/macOS: Implement `kqueue()` backend
 
 ## Testing Strategy
 
@@ -973,7 +628,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND HAVE_EPOLL)
 
 ✅ **Phase 1 & 2 Complete** - Comprehensive GoogleTest suite implemented:
 
-**Test Coverage** (29 test cases, all passing):
+**Test Coverage** (34 test cases, all passing):
 - **Lifecycle** (3 tests): CreateDestroy, CreateMultiple, DestroyNull
 - **Registration** (6 tests): AddRemoveSocket, AddWithContext, AddDuplicateFails, RemoveNonExistent, ModifyEvents, ModifyNonExistentFails
 - **Event Wait** (5 tests): TimeoutNoEvents, EventDelivery, MultipleEvents, MaxEventsLimitation, WriteEvent
@@ -981,7 +636,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND HAVE_EPOLL)
 - **Scalability** (1 test): ManyConnections (100 socket pairs)
 - **Platform Helpers** (2 tests): PostReadNoOp, PostWriteNoOp
 - **Listening Sockets** (6 tests): BasicListenAccept, MultipleListeningPorts, MultipleSimultaneousConnections, ContextPointerRangeCheck, ListenWithUserSockets, NoEventsWhenNoConnections
-- **IOCP-Specific** (4 tests): CompletionWithDataInBuffer, GracefulClose, CancelledOperations, MultipleReadsOnSameSocket
+- **Console Support** (5 tests, Windows): ConsoleReadable, ConsoleNotReadable, ConsoleWithOtherEvents, ConsoleUnregister, ConsoleTimeout
+- **IOCP-Specific** (4 tests, Windows): CompletionWithDataInBuffer, GracefulClose, CancelledOperations, MultipleReadsOnSameSocket
 
 **Running Tests**:
 ```bash
@@ -996,8 +652,8 @@ ctest --preset ut-linux   # or ut-vs16-x64 on Windows
 ```
 
 **Results**: 
-- Linux: `100% tests passed, 0 tests failed out of 19` (0.12s runtime)
-- Windows: `100% tests passed, 0 tests failed out of 29` (1.69s runtime)
+- POSIX: 24 tests passing (19 generic + 5 poll-specific)
+- Windows: 34 tests passing (19 generic + 4 IOCP + 6 listening + 5 console)
 
 See complete test implementations:
 - [tests/test_io_reactor/test_io_reactor_basic.cpp](../../tests/test_io_reactor/test_io_reactor_basic.cpp)
@@ -1020,12 +676,15 @@ See complete test implementations:
 - GoogleTest framework integration
 - Unit test coverage for all API functions
 
+✅ **CI Integration**:
+- [x] Windows (VS 2019) with IOCP implementation
+- [x] WSL2 (Ubuntu) with poll() implementation
+- [x] Both 32-bit and 64-bit Windows builds
+- [x] Integration tests with example mudlib (77/77 driver tests passing)
+
 ⬜ **Planned**:
-- [ ] CI testing on native Linux (Ubuntu)
-- [ ] Windows (Server 2022) with IOCP implementation
+- [ ] Native Linux CI runner (currently WSL2)
 - [ ] macOS with poll() or kqueue()
-- [ ] Both 32-bit and 64-bit builds
-- [ ] Integration tests with example mudlib
 
 ## Error Handling
 
@@ -1076,18 +735,6 @@ See complete test implementations:
 - Event loop should be O(1) or O(log n) per event, not O(n)
 - Platform implementations must use efficient demultiplexing
 
-## Implementation Phases
-
-### Phase Reports
-- ✅ [Phase 1: Core Abstraction](../history/agent-reports/io-reactor-phase1.md) - COMPLETE
-- ⬜ Phase 2: Windows IOCP - Not started
-- ⬜ Phase 3: Backend Integration - Not started
-- ⬜ Phase 4: Future Enhancements - Optional
-
-See detailed phase breakdowns in the respective implementation documents:
-- [Linux Implementation](linux-io.md#migration-from-current-code)
-- [Windows Implementation](windows-io.md)
-
 ## Quick Start
 
 For developers wanting to understand or implement the reactor:
@@ -1112,14 +759,16 @@ lib/port/
 
 ## Documentation
 
-### Implementation Reports
-- [Phase 1 Report](../history/agent-reports/io-reactor-phase1.md) - Core abstraction complete
+### Phase Reports
+- ✅ [Phase 1](../history/agent-reports/io-reactor-phase1.md) - POSIX poll() implementation
+- ✅ [Phase 2](../history/agent-reports/io-reactor-phase2.md) - Windows IOCP implementation
+- ✅ [Phase 3 Review](../history/agent-reports/io-reactor-phase3-review.md) - Backend integration design
 
-### Remaining Documentation Tasks
-- [ ] Update [docs/manual/internals.md](internals.md) with reactor architecture
-- [ ] Document platform-specific behaviors in [docs/INSTALL.md](../INSTALL.md)
+### Remaining Tasks
+- [ ] Update [internals.md](internals.md) with reactor architecture
+- [ ] Document platform-specific behaviors in [INSTALL.md](../INSTALL.md)
 - [ ] Add troubleshooting guide for I/O issues
-- [ ] Update [docs/manual/dev.md](dev.md) with portability patterns
+- [ ] Update [dev.md](dev.md) with reactor portability patterns
 
 ## References
 
@@ -1129,7 +778,7 @@ lib/port/
 
 ---
 
-**Status**: Draft Design  
+**Status**: Living Document (Phases 1-3 Complete)  
 **Author**: GitHub Copilot  
-**Date**: 2025-12-30  
+**Last Updated**: 2025-01-19  
 **Target Version**: Neolith v1.0

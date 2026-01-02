@@ -51,11 +51,12 @@ typedef struct iocp_context_s {
 } iocp_context_t;
 
 /**
- * @brief Listening socket entry for tracking sockets that need select() polling.
+ * @brief Listening socket entry for tracking sockets that need event notification.
  */
 typedef struct listening_socket_s {
     socket_fd_t fd;
     void *context;
+    WSAEVENT event_handle;       /* Event object for WSAEventSelect */
 } listening_socket_t;
 
 /**
@@ -199,7 +200,10 @@ void io_reactor_destroy(io_reactor_t *reactor) {
     }
     free(reactor->context_pool);
     
-    /* Free listening socket tracking */
+    /* Close event handles and free listening socket tracking */
+    for (int i = 0; i < reactor->listen_count; i++) {
+        WSACloseEvent(reactor->listen_sockets[i].event_handle);
+    }
     free(reactor->listen_sockets);
     
     /* Close IOCP handle */
@@ -225,7 +229,7 @@ int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int eve
     BOOL is_listening = FALSE;
     int optlen = sizeof(is_listening);
     if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, (char*)&is_listening, &optlen) == 0 && is_listening) {
-        /* Listening socket - track separately for select() polling */
+        /* Listening socket - track separately with WSAEventSelect */
         if (reactor->listen_count >= reactor->listen_capacity) {
             /* Resize listening socket array */
             int new_capacity = reactor->listen_capacity * 2;
@@ -238,8 +242,21 @@ int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int eve
             reactor->listen_capacity = new_capacity;
         }
         
+        /* Create event object for this listening socket */
+        WSAEVENT event_obj = WSACreateEvent();
+        if (event_obj == WSA_INVALID_EVENT) {
+            return -1;
+        }
+        
+        /* Associate socket with event (FD_ACCEPT for incoming connections) */
+        if (WSAEventSelect(fd, event_obj, FD_ACCEPT) == SOCKET_ERROR) {
+            WSACloseEvent(event_obj);
+            return -1;
+        }
+        
         reactor->listen_sockets[reactor->listen_count].fd = fd;
         reactor->listen_sockets[reactor->listen_count].context = context;
+        reactor->listen_sockets[reactor->listen_count].event_handle = event_obj;
         reactor->listen_count++;
         reactor->num_fds++;
         return 0;
@@ -304,6 +321,9 @@ int io_reactor_remove(io_reactor_t *reactor, socket_fd_t fd) {
     /* Check if this is a listening socket and remove from tracking */
     for (int i = 0; i < reactor->listen_count; i++) {
         if (reactor->listen_sockets[i].fd == fd) {
+            /* Close event handle */
+            WSACloseEvent(reactor->listen_sockets[i].event_handle);
+            
             /* Remove by moving last element into this slot */
             reactor->listen_count--;
             if (i < reactor->listen_count) {
@@ -431,60 +451,83 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     
     int event_count = 0;
     
-    /* Check console input first (fast, non-blocking) */
+    /* Build array of handles to wait on using WaitForMultipleObjects */
+    HANDLE wait_handles[MAXIMUM_WAIT_OBJECTS];
+    int handle_count = 0;
+    
+    /* Add IOCP handle first */
+    wait_handles[handle_count++] = reactor->iocp_handle;
+    
+    /* Add console handle if enabled */
+    int console_index = -1;
+    if (reactor->console_enabled) {
+        console_index = handle_count;
+        wait_handles[handle_count++] = reactor->console_handle;
+    }
+    
+    /* Add listening socket event handles */
+    int listen_start_index = handle_count;
+    for (int i = 0; i < reactor->listen_count && handle_count < MAXIMUM_WAIT_OBJECTS; i++) {
+        wait_handles[handle_count++] = reactor->listen_sockets[i].event_handle;
+    }
+    
+    /* 1. (BLOCKING) Wait for any event to be signaled */
+    DWORD wait_result = WaitForMultipleObjects(handle_count, wait_handles, FALSE, timeout_ms);
+    
+    if (wait_result == WAIT_TIMEOUT) {
+        return 0;  /* Timeout with no events */
+    }
+    
+    if (wait_result == WAIT_FAILED) {
+        return -1;  /* Error */
+    }
+    
+    /* After WaitForMultipleObjects returns, at least one handle is signaled.
+     * Check all non-IOCP handles that might be ready, then check IOCP.
+     * This ensures we collect all available events in one call.
+     */
+    
+    /* 2. (NON-BLOCKING) Check if console was signaled */
     if (reactor->console_enabled && event_count < max_events) {
-        int console_result = check_console_input(reactor, &events[event_count]);
-        if (console_result == 1) {
+        DWORD num_events = 0;
+        if (GetNumberOfConsoleInputEvents(reactor->console_handle, &num_events) && num_events > 0) {
+            events[event_count].context = reactor->console_context;
+            events[event_count].event_type = EVENT_READ;
+            events[event_count].buffer = NULL;
+            events[event_count].bytes_transferred = 0;
             event_count++;
         }
     }
     
-    /* Check listening sockets for incoming connections using select() */
-    if (reactor->listen_count > 0 && event_count < max_events) {
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        
-        socket_fd_t max_fd = 0;
-        for (int i = 0; i < reactor->listen_count; i++) {
-            FD_SET(reactor->listen_sockets[i].fd, &read_fds);
-            if (reactor->listen_sockets[i].fd > max_fd) {
-                max_fd = reactor->listen_sockets[i].fd;
-            }
-        }
-        
-        /* Use zero timeout for non-blocking check */
-        struct timeval zero_timeout = {0, 0};
-        int ready = select((int)(max_fd + 1), &read_fds, NULL, NULL, &zero_timeout);
-        
-        if (ready > 0) {
-            /* Check which listening sockets are ready */
-            for (int i = 0; i < reactor->listen_count && event_count < max_events; i++) {
-                if (FD_ISSET(reactor->listen_sockets[i].fd, &read_fds)) {
-                    events[event_count].context = reactor->listen_sockets[i].context;
-                    events[event_count].event_type = EVENT_READ;
-                    events[event_count].bytes_transferred = 0;
-                    events[event_count].buffer = NULL;
-                    event_count++;
-                }
-            }
+    /* 3. (NON-BLOCKING) Check all listening sockets that are signaled */
+    for (int i = 0; i < reactor->listen_count && event_count < max_events; i++) {
+        DWORD wait_result_single = WaitForSingleObject(reactor->listen_sockets[i].event_handle, 0);
+        if (wait_result_single == WAIT_OBJECT_0) {
+            /* Reset the event for next use */
+            WSAResetEvent(reactor->listen_sockets[i].event_handle);
+            
+            events[event_count].context = reactor->listen_sockets[i].context;
+            events[event_count].event_type = EVENT_READ;
+            events[event_count].bytes_transferred = 0;
+            events[event_count].buffer = NULL;
+            event_count++;
         }
     }
     
-    /* Retrieve completed I/O operations */
+    /* 4. (NON-BLOCKING) Check IOCP for completed I/O operations.
+     * We always check with zero timeout to collect any ready events, even if IOCP wasn't the signaled handle)
+     */
     while (event_count < max_events) {
         DWORD bytes_transferred;
         ULONG_PTR completion_key;
         OVERLAPPED *overlapped;
-        
-        /* Only wait on first iteration; subsequent iterations check for more ready events */
-        DWORD wait_time = (event_count == 0) ? timeout_ms : 0;
         
         BOOL result = GetQueuedCompletionStatus(
             reactor->iocp_handle,
             &bytes_transferred,
             &completion_key,
             &overlapped,
-            wait_time
+            0 /* Use zero timeout - we already waited via WaitForMultipleObjects */
         );
         
         if (!result && overlapped == NULL) {
@@ -554,7 +597,7 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
  * @brief Register Windows console input for event monitoring.
  *
  * Windows console I/O is not socket-based and cannot use IOCP. This function
- * enables polling of console input events in io_reactor_wait().
+ * enables monitoring of console input events via WaitForMultipleObjects in io_reactor_wait().
  *
  * @param reactor The reactor instance. Must not be NULL.
  * @param context User context pointer (returned in console events).
@@ -575,35 +618,6 @@ int io_reactor_add_console(io_reactor_t *reactor, void *context) {
     reactor->console_handle = hStdin;
     reactor->console_context = context;
     reactor->console_enabled = 1;
-    
-    return 0;
-}
-
-/**
- * @brief Check if console has input available (called by io_reactor_wait).
- *
- * @param reactor The reactor instance.
- * @param event Event structure to fill if console input is available.
- * @return 1 if console event generated, 0 if no input available, -1 on error.
- */
-static int check_console_input(io_reactor_t *reactor, io_event_t *event) {
-    if (!reactor->console_enabled) {
-        return 0;
-    }
-    
-    DWORD num_events = 0;
-    if (!GetNumberOfConsoleInputEvents(reactor->console_handle, &num_events)) {
-        return -1;
-    }
-    
-    if (num_events > 0) {
-        /* Console has input available */
-        event->context = reactor->console_context;
-        event->event_type = EVENT_READ;
-        event->buffer = NULL;
-        event->bytes_transferred = 0;
-        return 1;
-    }
     
     return 0;
 }
