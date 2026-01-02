@@ -161,16 +161,26 @@ void init_console_user(int reconnect) {
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD mode = 0;
-    SetConsoleCP(CP_UTF8);
     if (GetConsoleMode(hStdin, &mode))
       {
-        SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_ECHO_INPUT);
-        SetConsoleOutputCP(CP_UTF8);
+        SetConsoleCP(CP_UTF8);
+        if (! (mode & ENABLE_VIRTUAL_TERMINAL_INPUT))
+          opt_warn (0, "Console input does not support virtual terminal sequences.\n");
+        /* We cannot use native line mode since the non-blocking ReadConsoleInputW() is a low-level
+         * input that does not support line editing. So we just enable processed input.
+         * TODO: translate vt100 line editing sequences (like arrow keys) to console input events.
+         */
       }
+    else
+      debug_message("Failed to get console mode for stdin.\n"); /* FIXME: this could happen in debugger */
     if (GetConsoleMode(hStdout, &mode))
       {
-        SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        SetConsoleOutputCP(CP_UTF8);
+        if (!SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT))
+          debug_message("Failed to set ENABLE_VIRTUAL_TERMINAL_PROCESSING mode for console stdout.\n");
       }
+    else
+      debug_message("Failed to get console mode for stdout.\n"); /* FIXME: this could happen in debugger */
   }
 #endif
   if (reconnect)

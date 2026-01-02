@@ -491,13 +491,35 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     
     /* 2. (NON-BLOCKING) Check if console was signaled */
     if (reactor->console_enabled && event_count < max_events) {
-        DWORD num_events = 0;
-        if (GetNumberOfConsoleInputEvents(reactor->console_handle, &num_events) && num_events > 0) {
-            events[event_count].context = reactor->console_context;
-            events[event_count].event_type = EVENT_READ;
-            events[event_count].buffer = NULL;
-            events[event_count].bytes_transferred = 0;
-            event_count++;
+        /* Peek console input to check for actual keyboard events.
+         * PeekConsoleInputW returns all event types (mouse, resize, focus, etc.),
+         * so we must filter for KEY_EVENT to avoid spurious wake-ups.
+         */
+        INPUT_RECORD peek_buffer[128];
+        DWORD num_peeked = 0;
+        BOOL has_key_event = FALSE;
+        
+        if (PeekConsoleInputW(reactor->console_handle, peek_buffer, 
+                             128, &num_peeked) && num_peeked > 0) {
+            for (DWORD i = 0; i < num_peeked; i++) {
+                if (peek_buffer[i].EventType == KEY_EVENT && 
+                    peek_buffer[i].Event.KeyEvent.bKeyDown) {
+                    has_key_event = TRUE;
+                    break;
+                }
+            }
+            
+            /* Only signal EVENT_READ if there are actual keyboard events */
+            if (has_key_event) {
+                events[event_count].context = reactor->console_context;
+                events[event_count].event_type = EVENT_READ;
+                events[event_count].buffer = NULL;
+                events[event_count].bytes_transferred = 0;
+                event_count++;
+            } else {
+                /* Discard non-keyboard events to prevent infinite loop */
+                ReadConsoleInputW(reactor->console_handle, peek_buffer, num_peeked, &num_peeked);
+            }
         }
     }
     

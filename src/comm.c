@@ -60,7 +60,6 @@ int total_users = 0;
 /*
  * local function prototypes.
  */
-static int copy_chars (UCHAR *, UCHAR *, int, interactive_t *);
 static void sigpipe_handler (int);
 static void hname_handler (void);
 static void get_user_data (interactive_t *, io_event_t *);
@@ -307,7 +306,7 @@ void ipc_remove () {
  * @return Number of events occurred, or 0 on timeout, or -1 on error.
  */
 int do_comm_polling (struct timeval *timeout) {
-  opt_trace (TT_IO_REACTOR|3, "do_comm_polling: timeout %ld sec, %ld usec",
+  opt_trace (TT_IO_REACTOR|3, "calling io_reactor_wait(): timeout %ld sec, %ld usec",
              timeout->tv_sec, timeout->tv_usec);
   
   /* Use reactor for event demultiplexing */
@@ -315,7 +314,7 @@ int do_comm_polling (struct timeval *timeout) {
                                      sizeof(g_io_events) / sizeof(g_io_events[0]),
                                      timeout);
   
-  opt_trace (TT_IO_REACTOR|3, "do_comm_polling: got %d events", g_num_io_events);
+  opt_trace (TT_IO_REACTOR|3, "finished waiting: got %d events", g_num_io_events);
   
   return g_num_io_events;
 }
@@ -1076,7 +1075,7 @@ void process_io () {
           if (evt->event_type & EVENT_READ)
             {
               get_user_data (ip, evt);
-              /* ip may be invalid after get_user_data if object was destructed */
+              /* ip->ob may be invalid after get_user_data if object was destructed */
               if (!ip->ob || (ip->ob->flags & O_DESTRUCTED) || ip->ob->interactive != ip)
                 {
                   continue;
@@ -1579,7 +1578,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
 
   char buf[MAX_TEXT];
   int text_space;
-  int num_bytes;
+  int num_bytes, err = 0;
 
   switch (ip->connection_type)
     {
@@ -1676,7 +1675,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
         /* ReadConsoleInputW is non-blocking if console handle is signaled */
         if (!ReadConsoleInputW(hStdin, irInBuf, 128, &cNumRead)) {
           num_bytes = SOCKET_ERROR;
-          errno = EIO;
+          err = EIO;
         } else {
           /* Extract Unicode character data from KEY_EVENT records and convert to UTF-8 */
           WCHAR wbuf[128];
@@ -1685,6 +1684,10 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
           for (DWORD i = 0; i < cNumRead && wchar_count < 128; i++) {
             if (irInBuf[i].EventType == KEY_EVENT && irInBuf[i].Event.KeyEvent.bKeyDown) {
               WCHAR wch = irInBuf[i].Event.KeyEvent.uChar.UnicodeChar;
+              if (wch == L'\r') {
+                /* Convert carriage return to newline */
+                wch = L'\n';
+              }
               if (wch != 0) {
                 wbuf[wchar_count++] = wch;
               }
@@ -1692,17 +1695,18 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
           }
           
           if (wchar_count > 0) {
+            /* FIXME: handle password case */
+            WriteConsoleW (GetStdHandle(STD_OUTPUT_HANDLE), wbuf, wchar_count, NULL, NULL);
             /* Convert UTF-16 to UTF-8 */
-            num_bytes = WideCharToMultiByte(CP_UTF8, 0, wbuf, wchar_count,
-                                            buf, text_space, NULL, NULL);
+            num_bytes = WideCharToMultiByte(CP_UTF8, 0, wbuf, wchar_count, buf, text_space, NULL, NULL);
             if (num_bytes <= 0) {
               num_bytes = SOCKET_ERROR;
-              errno = EILSEQ;  /* Invalid multibyte sequence */
+              err = EILSEQ;  /* Invalid multibyte sequence */
             }
           } else {
             /* No characters extracted, indicate would-block */
             num_bytes = SOCKET_ERROR;
-            errno = EWOULDBLOCK;
+            err = EWOULDBLOCK;
           }
         }
       } else {
@@ -1712,6 +1716,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       num_bytes = (ip->fd == STDIN_FILENO) ?
         read(ip->fd, buf, text_space) :
         SOCKET_RECV (ip->fd, buf, text_space, 0);
+      err = SOCKET_ERRNO;
 #endif
     }
 
@@ -1725,21 +1730,16 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       return;
 
     case SOCKET_ERROR:
-#ifdef EWOULDBLOCK
-      if (SOCKET_ERRNO == EWOULDBLOCK)
+      if ((err != EWOULDBLOCK) && (err != EILSEQ))
         {
-        }
-      else
-#endif
-        {
-          switch (SOCKET_ERRNO)
+          switch (err)
             {
             case EPIPE:
             case ECONNRESET:
             case ETIMEDOUT:
               break;
             default:
-              debug_message ("get_user_data: (fd %d): %s\n", ip->fd, strerror (errno));
+              debug_message ("get_user_data: (fd %d): %s\n", ip->fd, strerror (err));
               break;
             }
           ip->iflags |= NET_DEAD;
@@ -1763,6 +1763,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
            * telnet negotiation.
            */
           ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
+          opt_trace (TT_IO_REACTOR, "Command buffer contains %d characters\n", ip->text_end - ip->text_start);
           /*
            * now, ip->text_end is just after the last character read. If the last character
            * is a newline, the character before ip->text_end will be null.
@@ -1780,7 +1781,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
            */
           if (cmd_in_buf (ip))
             {
-              opt_trace (TT_IO_REACTOR|3, "Command available in buffer for fd %d\n", ip->fd);
+              opt_trace (TT_IO_REACTOR, "Command available in buffer for fd %d\n", ip->fd);
               ip->iflags |= CMD_IN_BUF;
             }
           break;
@@ -2288,7 +2289,7 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
           tio.c_lflag &= ~ECHO;
           tcsetattr (ob->interactive->fd, TCSAFLUSH, &tio); /* discard pending input */
         }
-#endif /* HAVE_TERMIOS_H */
+#endif
     }
   else
     {
