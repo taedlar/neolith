@@ -976,6 +976,7 @@ void process_io () {
           
           if (evt->event_type & EVENT_READ)
             {
+              opt_info (1, "New connection on port %d\n", port->port);
               new_user_handler (port);
             }
           
@@ -1004,6 +1005,7 @@ void process_io () {
               if (!console_connected)
                 {
                   /* Console user re-connect */
+                  opt_info (1, "Console user connected\n");
                   init_console_user(1);
                 }
             }
@@ -1031,8 +1033,7 @@ void process_io () {
             {
               get_user_data (ip);
               /* ip may be invalid after get_user_data if object was destructed */
-              if (!ip->ob || (ip->ob->flags & O_DESTRUCTED) ||
-                  ip->ob->interactive != ip)
+              if (!ip->ob || (ip->ob->flags & O_DESTRUCTED) || ip->ob->interactive != ip)
                 {
                   continue;
                 }

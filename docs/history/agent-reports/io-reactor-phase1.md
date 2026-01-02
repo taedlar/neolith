@@ -77,24 +77,6 @@ ctest --preset ut-linux
 
 **Status**: All 64 unit tests pass (45 existing + 19 new)
 
-## Next Steps
-
-### Phase 2: Windows IOCP Implementation
-1. Create `io_reactor_win32.c` using I/O Completion Ports
-2. Handle completion-based I/O model differences
-3. Implement console input support for Windows
-
-### Phase 3: Backend Integration
-1. Replace `poll()`/`select()` calls in [src/comm.c](../../src/comm.c)
-2. Modify `do_comm_polling()` to use reactor
-3. Update `process_io()` to handle reactor events
-4. Add reactor initialization to `init_user_conn()`
-
-### Phase 4: Future Enhancements (Optional)
-- Linux `epoll()` backend for improved scalability
-- BSD/macOS `kqueue()` support
-- Performance benchmarking and optimization
-
 ## Files Modified/Created
 
 ### New Files

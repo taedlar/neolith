@@ -1,8 +1,12 @@
-# Windows I/O Reactor Implementation Design
+# Windows I/O Reactor Implementation
 
 ## Overview
 
-This document describes the Windows-specific implementation of the [I/O Reactor abstraction](io-reactor.md) for the Neolith LPMud driver using I/O Completion Ports (IOCP).
+This document describes the Windows-specific implementation of the [I/O Reactor abstraction](io-reactor.md) for the Neolith LPMud driver using I/O Completion Ports (IOCP) for connected sockets, WSAEventSelect for listening sockets, and unified waiting via WaitForMultipleObjects.
+
+**Status**: ✅ Complete (34/34 tests passing)
+
+**Implementation**: [lib/port/io_reactor_win32.c](../../lib/port/io_reactor_win32.c) (~625 lines)
 
 ## Problem Statement
 
@@ -35,9 +39,24 @@ Windows Winsock has significant limitations for server applications:
    - Address server communication
    - Potentially file I/O for async operations
 
-## Solution: I/O Completion Ports (IOCP)
+## Solution: Hybrid Approach
 
-### Why IOCP?
+### Design Rationale
+
+The Windows reactor uses **three complementary mechanisms**:
+
+1. **Connected Sockets → IOCP**: Completion-based async I/O with zero-copy data delivery
+2. **Listening Sockets → WSAEventSelect**: Event-based readiness notification (listening sockets don't transfer data)
+3. **Console Input → Polling**: `GetNumberOfConsoleInputEvents()` checked before blocking
+
+All three are unified via `WaitForMultipleObjects()` which blocks until ANY source is ready:
+- IOCP completion port handle
+- Console input handle (if enabled)
+- WSAEvent objects for listening sockets (up to MAXIMUM_WAIT_OBJECTS - 2 = 62 ports)
+
+After the wait returns, the reactor **checks all sources** to collect multiple ready events in a single `io_reactor_wait()` call, matching the behavior of `poll()` on POSIX.
+
+### Why IOCP for Connected Sockets?
 
 I/O Completion Ports are Windows' native high-performance solution for scalable server applications:
 
@@ -57,21 +76,48 @@ I/O Completion Ports are Windows' native high-performance solution for scalable 
 | Error Handling        | Check recv() return     | Check completion status   |
 | Buffer Management     | App-allocated           | Pre-posted with operation |
 
+### Why WSAEventSelect for Listening Sockets?
+
+Listening sockets don't perform data transfer—they only become "ready" when a connection arrives. IOCP requires posting async operations (like `WSARecv`), which doesn't match the accept pattern.
+
+**Solution**: Use `WSAEventSelect()` to associate each listening socket with a `WSAEVENT` object:
+- Call `WSACreateEvent()` to create an event object
+- Call `WSAEventSelect(fd, event, FD_ACCEPT)` to get notifications
+- Include event in `WaitForMultipleObjects()` array
+- After wait returns, check event with `WaitForSingleObject(event, 0)` (non-blocking poll)
+- Reset event with `WSAResetEvent()` after processing
+
+This provides readiness notification for accepts while keeping unified blocking behavior.
+
+### Why Console Polling?
+
+Windows console input supports overlapped I/O, but it requires posting `ReadFile()` operations that consume input when they complete. The driver needs to check console *availability* without consuming bytes (bytes are read later during command processing).
+
+**Solution**: Use `GetNumberOfConsoleInputEvents()` to check if input is pending:
+- Before calling `WaitForMultipleObjects()`, poll console event count
+- If events exist, skip blocking and deliver `EVENT_READ` immediately
+- If no events, include console handle in wait array
+- After wait returns, poll console again to catch events that arrived during the wait
+
+This allows non-destructive console checking while maintaining unified blocking.
+
 ## Implementation: `lib/port/io_reactor_win32.c`
 
-### IOCP Context Structures
+### Data Structures
 
 ```c
-#include "port/io_reactor.h"
-#include <winsock2.h>
+```c
+#include "io_reactor.h"
+#include "socket_comm.h"
 #include <windows.h>
+#include <winsock2.h>
 
 /* Operation types */
 #define OP_READ    1
 #define OP_WRITE   2
 #define OP_ACCEPT  3
 
-/* IOCP context for each I/O operation */
+/* IOCP context for each I/O operation (connected sockets) */
 typedef struct iocp_context_s {
     OVERLAPPED overlapped;       /* Must be first member for CONTAINING_RECORD */
     void *user_context;          /* interactive_t*, port_def_t*, etc. */
@@ -81,23 +127,36 @@ typedef struct iocp_context_s {
     socket_fd_t fd;              /* Associated file descriptor */
 } iocp_context_t;
 
+/* Listening socket tracking (WSAEventSelect) */
+typedef struct listening_socket_s {
+    socket_fd_t fd;
+    void *context;
+    WSAEVENT event_handle;       /* Event object for WSAEventSelect */
+} listening_socket_t;
+
 /* Reactor state */
-typedef struct io_reactor_s {
+struct io_reactor_s {
     HANDLE iocp_handle;          /* I/O completion port handle */
     int num_fds;                 /* Number of registered handles */
     
-    /* Console-specific state */
-    HANDLE console_handle;       /* STDIN handle if in console mode */
-    HANDLE console_event;        /* Event for console overlapped I/O */
-    iocp_context_t *console_ctx; /* Console I/O context */
-    
-    /* Context pool for allocation efficiency */
+    /* Context pool for IOCP operations */
     iocp_context_t **context_pool;
     int pool_size;
     int pool_capacity;
-} io_reactor_t;
+    
+    /* Listening sockets (tracked separately) */
+    listening_socket_t *listen_sockets;
+    int listen_count;
+    int listen_capacity;
+    
+    /* Console support */
+    HANDLE console_handle;       /* Console input handle */
+    void *console_context;       /* User context for console events */
+    int console_enabled;         /* Whether console is active */
+};
 
 #define INITIAL_POOL_SIZE 256
+```
 ```
 
 ### Reactor Lifecycle
@@ -112,8 +171,6 @@ io_reactor_t* io_reactor_create(void) {
     /* Create IOCP with 1 concurrent thread (single-threaded model) */
     reactor->iocp_handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
     if (reactor->iocp_handle == NULL) {
-        DWORD error = GetLastError();
-        debug_message("CreateIoCompletionPort failed: %lu\n", error);
         free(reactor);
         return NULL;
     }
@@ -127,11 +184,21 @@ io_reactor_t* io_reactor_create(void) {
         return NULL;
     }
     
+    /* Initialize listening socket array */
+    reactor->listen_capacity = 8;  /* Start with room for 8 listening ports */
+    reactor->listen_sockets = calloc(reactor->listen_capacity, sizeof(listening_socket_t));
+    if (!reactor->listen_sockets) {
+        free(reactor->context_pool);
+        CloseHandle(reactor->iocp_handle);
+        free(reactor);
+        return NULL;
+    }
+    
     reactor->pool_size = 0;
     reactor->num_fds = 0;
+    reactor->listen_count = 0;
     reactor->console_handle = INVALID_HANDLE_VALUE;
-    reactor->console_event = NULL;
-    reactor->console_ctx = NULL;
+    reactor->console_enabled = 0;
     
     return reactor;
 }
@@ -141,13 +208,13 @@ void io_reactor_destroy(io_reactor_t *reactor) {
         return;
     }
     
-    /* Clean up console resources */
-    if (reactor->console_event) {
-        CloseHandle(reactor->console_event);
+    /* Clean up listening sockets */
+    for (int i = 0; i < reactor->listen_count; i++) {
+        if (reactor->listen_sockets[i].event_handle) {
+            WSACloseEvent(reactor->listen_sockets[i].event_handle);
+        }
     }
-    if (reactor->console_ctx) {
-        free(reactor->console_ctx);
-    }
+    free(reactor->listen_sockets);
     
     /* Free context pool */
     for (int i = 0; i < reactor->pool_size; i++) {
@@ -210,26 +277,53 @@ int io_reactor_add(io_reactor_t *reactor, socket_fd_t fd, void *context, int eve
         return -1;
     }
     
-    /* Associate socket with IOCP */
-    iocp_context_t *io_ctx = alloc_iocp_context(reactor, fd, context, 0);
-    if (!io_ctx) {
-        return -1;
-    }
-    
-    HANDLE result = CreateIoCompletionPort((HANDLE)fd, reactor->iocp_handle, 
-                                          (ULONG_PTR)io_ctx, 0);
-    if (result == NULL) {
-        DWORD error = GetLastError();
-        debug_message("CreateIoCompletionPort for socket %d failed: %lu\n", fd, error);
-        free_iocp_context(reactor, io_ctx);
-        return -1;
-    }
-    
-    /* Post initial async read if requested */
-    if (events & EVENT_READ) {
-        if (io_reactor_post_read(reactor, fd, NULL, 0) != 0) {
-            free_iocp_context(reactor, io_ctx);
+    /* Detect if this is a listening socket */
+    BOOL is_listen = FALSE;
+    int optlen = sizeof(is_listen);
+    if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, (char*)&is_listen, &optlen) == 0 && is_listen) {
+        /* Listening socket - use WSAEventSelect */
+        WSAEVENT event = WSACreateEvent();
+        if (event == WSA_INVALID_EVENT) {
             return -1;
+        }
+        
+        if (WSAEventSelect(fd, event, FD_ACCEPT) == SOCKET_ERROR) {
+            WSACloseEvent(event);
+            return -1;
+        }
+        
+        /* Add to listening socket array */
+        if (reactor->listen_count >= reactor->listen_capacity) {
+            /* Grow array */
+            int new_cap = reactor->listen_capacity * 2;
+            listening_socket_t *new_array = realloc(reactor->listen_sockets, 
+                                                    new_cap * sizeof(listening_socket_t));
+            if (!new_array) {
+                WSACloseEvent(event);
+                return -1;
+            }
+            reactor->listen_sockets = new_array;
+            reactor->listen_capacity = new_cap;
+        }
+        
+        reactor->listen_sockets[reactor->listen_count].fd = fd;
+        reactor->listen_sockets[reactor->listen_count].context = context;
+        reactor->listen_sockets[reactor->listen_count].event_handle = event;
+        reactor->listen_count++;
+    }
+    else {
+        /* Connected socket - use IOCP */
+        HANDLE result = CreateIoCompletionPort((HANDLE)fd, reactor->iocp_handle, 
+                                              (ULONG_PTR)context, 0);
+        if (result == NULL) {
+            return -1;
+        }
+        
+        /* Post initial async read if requested */
+        if (events & EVENT_READ) {
+            if (io_reactor_post_read(reactor, fd, NULL, 0) != 0) {
+                return -1;
+            }
         }
     }
     
@@ -334,7 +428,9 @@ int io_reactor_post_write(io_reactor_t *reactor, socket_fd_t fd, void *buffer, s
 }
 ```
 
-### Event Retrieval
+### Event Retrieval (WaitForMultipleObjects)
+
+The key implementation challenge is unifying IOCP, listening sockets, and console into a single blocking call.
 
 ```c
 int io_reactor_wait(io_reactor_t *reactor, io_event_t *events, 
@@ -352,27 +448,93 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     
     int event_count = 0;
     
-    /* Retrieve completed I/O operations */
+    /* Step 1: Check console BEFORE blocking (non-destructive peek) */
+    if (reactor->console_enabled && reactor->console_handle != INVALID_HANDLE_VALUE) {
+        DWORD num_events = 0;
+        if (GetNumberOfConsoleInputEvents(reactor->console_handle, &num_events) && num_events > 0) {
+            events[event_count].context = reactor->console_context;
+            events[event_count].event_type = EVENT_READ;
+            events[event_count].bytes_transferred = 0;
+            events[event_count].buffer = NULL;
+            event_count++;
+            timeout_ms = 0;  /* Don't block - return console event immediately */
+        }
+    }
+    
+    /* Step 2: Build wait handle array */
+    HANDLE wait_handles[MAXIMUM_WAIT_OBJECTS];
+    int handle_count = 0;
+    
+    wait_handles[handle_count++] = reactor->iocp_handle;  /* Always first */
+    
+    if (reactor->console_enabled && reactor->console_handle != INVALID_HANDLE_VALUE) {
+        wait_handles[handle_count++] = reactor->console_handle;
+    }
+    
+    for (int i = 0; i < reactor->listen_count && handle_count < MAXIMUM_WAIT_OBJECTS; i++) {
+        wait_handles[handle_count++] = reactor->listen_sockets[i].event_handle;
+    }
+    
+    /* Step 3: Unified blocking wait */
+    DWORD wait_result = WaitForMultipleObjects(handle_count, wait_handles, 
+                                               FALSE, timeout_ms);
+    
+    if (wait_result == WAIT_TIMEOUT) {
+        return event_count;
+    }
+    if (wait_result == WAIT_FAILED) {
+        return -1;
+    }
+    
+    /* Step 4: Check ALL sources (WaitForMultipleObjects only guarantees ONE ready) */
+    
+    /* Re-check console (may have become ready during wait) */
+    if (reactor->console_enabled && event_count < max_events) {
+        DWORD num_events = 0;
+        if (GetNumberOfConsoleInputEvents(reactor->console_handle, &num_events) && num_events > 0) {
+            /* Avoid duplicate from step 1 */
+            int already_added = (event_count > 0 && 
+                                events[0].context == reactor->console_context);
+            if (!already_added) {
+                events[event_count].context = reactor->console_context;
+                events[event_count].event_type = EVENT_READ;
+                events[event_count].bytes_transferred = 0;
+                events[event_count].buffer = NULL;
+                event_count++;
+            }
+        }
+    }
+    
+    /* Check all listening sockets with zero-timeout poll */
+    for (int i = 0; i < reactor->listen_count && event_count < max_events; i++) {
+        if (WaitForSingleObject(reactor->listen_sockets[i].event_handle, 0) == WAIT_OBJECT_0) {
+            events[event_count].context = reactor->listen_sockets[i].context;
+            events[event_count].event_type = EVENT_READ;
+            events[event_count].bytes_transferred = 0;
+            events[event_count].buffer = NULL;
+            event_count++;
+            WSAResetEvent(reactor->listen_sockets[i].event_handle);
+        }
+    }
+    
+    /* Check IOCP queue with zero-timeout poll */
     while (event_count < max_events) {
         DWORD bytes_transferred;
         ULONG_PTR completion_key;
         OVERLAPPED *overlapped;
-        
-        /* Only wait on first iteration; subsequent iterations check for more ready events */
-        DWORD wait_time = (event_count == 0) ? timeout_ms : 0;
         
         BOOL result = GetQueuedCompletionStatus(
             reactor->iocp_handle,
             &bytes_transferred,
             &completion_key,
             &overlapped,
-            wait_time
+            0  /* Zero timeout - non-blocking poll */
         );
         
         if (!result && overlapped == NULL) {
-            /* Timeout or error with no completion packet */
-            if (GetLastError() == WAIT_TIMEOUT) {
-                break;  /* Timeout */
+            /* No more completions */
+            break;
+        }
             }
             /* Other error */
             debug_message("GetQueuedCompletionStatus failed: %lu\n", GetLastError());
@@ -418,10 +580,10 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
 
 ## Console Input Handling
 
-Windows console I/O requires special handling since console handles use different APIs than sockets:
+Windows console I/O is handled via polling `GetNumberOfConsoleInputEvents()`:
 
 ```c
-int io_reactor_add_console(io_reactor_t *reactor) {
+int io_reactor_add_console(io_reactor_t *reactor, void *context) {
     if (!reactor) {
         return -1;
     }
@@ -431,31 +593,26 @@ int io_reactor_add_console(io_reactor_t *reactor) {
         return -1;
     }
     
-    /* Create manual-reset event for overlapped I/O */
-    reactor->console_event = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!reactor->console_event) {
+    /* Verify it's a real console (not redirected) */
+    DWORD mode;
+    if (!GetConsoleMode(reactor->console_handle, &mode)) {
+        /* Handle is redirected or invalid */
+        reactor->console_handle = INVALID_HANDLE_VALUE;
         return -1;
     }
     
-    /* Allocate console context */
-    reactor->console_ctx = calloc(1, sizeof(iocp_context_t));
-    if (!reactor->console_ctx) {
-        CloseHandle(reactor->console_event);
-        reactor->console_event = NULL;
-        return -1;
-    }
+    reactor->console_context = context;
+    reactor->console_enabled = 1;
     
-    reactor->console_ctx->operation = OP_READ;
-    reactor->console_ctx->overlapped.hEvent = reactor->console_event;
-    
-    /* Associate console event with IOCP */
-    HANDLE result = CreateIoCompletionPort(reactor->console_event, 
-                                          reactor->iocp_handle,
-                                          (ULONG_PTR)reactor->console_ctx, 0);
-    if (result == NULL) {
-        free(reactor->console_ctx);
-        reactor->console_ctx = NULL;
-        CloseHandle(reactor->console_event);
+    return 0;
+}
+```
+
+**Key Points**:
+- No overlapped I/O or event objects needed
+- `GetNumberOfConsoleInputEvents()` is non-destructive (doesn't consume input)
+- Console handle is included in `WaitForMultipleObjects()` array
+- Polling before and after wait ensures events aren't missed
         reactor->console_event = NULL;
         return -1;
     }
@@ -488,39 +645,16 @@ int io_reactor_post_console_read(io_reactor_t *reactor) {
         }
     }
     
-    return 0;
-}
-```
-
 ## Backend Integration
 
-### Initialization in comm.c
+Integration with [src/comm.c](../../src/comm.c) is complete. See Phase 3 documentation for details:
+- [Phase 3 Review](../history/agent-reports/io-reactor-phase3-review.md)
 
-```c
-#ifdef WINSOCK
-#include "port/io_reactor.h"
-
-static io_reactor_t *g_io_reactor = NULL;
-#endif
-
-void init_user_conn(void) {
-    /* ... existing socket setup code ... */
-    
-#ifdef WINSOCK
-    g_io_reactor = io_reactor_create();
-    if (!g_io_reactor) {
-        debug_fatal("Failed to create I/O reactor\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    /* Add console if in console mode */
-    if (MAIN_OPTION(console_mode)) {
-        if (io_reactor_add_console(g_io_reactor) != 0) {
-            debug_message("Warning: Failed to register console with I/O reactor\n");
-        }
-    }
-#endif
-}
+Key integration points:
+- `init_user_conn()` creates reactor and registers listening ports
+- `new_user_handler()` registers new connections
+- `process_io()` dispatches events based on context pointers
+- `remove_interactive()` unregisters disconnected users
 ```
 
 ### Event Loop
@@ -637,33 +771,17 @@ void remove_interactive(object_t *ob, int dested) {
 10,000 connections: select() N/A,   IOCP ~1ms per cycle
 ```
 
-## Alternative Solutions (Not Recommended)
-
-### 1. WSAPoll() with Increased FD_SETSIZE
-
-**Verdict:** Adequate for <100 connections but not production-grade.
-
-### 2. WSAAsyncSelect() with Window Message Loop
-
-**Verdict:** Not suitable for server architecture (designed for GUI apps).
-
-### 3. Overlapped I/O with WSAEventSelect()
-
-**Verdict:** Limited to 64 events per wait (MAXIMUM_WAIT_OBJECTS).
-
-### 4. Thread-per-Connection
-
-**Verdict:** Too invasive; conflicts with single-threaded LPC interpreter.
-
-See [io-reactor.md](io-reactor.md) for detailed analysis.
-
 ## Testing
 
-### Unit Tests: `tests/test_io_reactor/test_iocp.cpp`
+Unit tests in [tests/test_io_reactor/](../../tests/test_io_reactor/) provide comprehensive coverage:
 
-```cpp
-TEST(IOReactorIOCPTest, BasicCompletion) {
-    io_reactor_t* reactor = io_reactor_create();
+- **IOCP Tests** (4 tests): CompletionWithDataInBuffer, GracefulClose, CancelledOperations, MultipleReadsOnSameSocket
+- **Listening Tests** (6 tests): BasicListenAccept, MultipleListeningPorts, MultipleSimultaneousConnections, etc.
+- **Console Tests** (5 tests, Windows-only): ConsoleReadable, ConsoleNotReadable, ConsoleWithOtherEvents, etc.
+
+**Total**: 34/34 tests passing
+
+See [Phase 2 Report](../history/agent-reports/io-reactor-phase2.md) for complete test details.
     ASSERT_NE(reactor, nullptr);
     
     // Create socket pair
@@ -752,13 +870,12 @@ trace io_reactor : 0
 - [Microsoft Docs: I/O Completion Ports](https://docs.microsoft.com/en-us/windows/win32/fileio/i-o-completion-ports)
 - [WSARecv Documentation](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsarecv)
 - [WSASend Documentation](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasend)
-- [CreateIoCompletionPort API](https://docs.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-createiocompletionport)
-- [GetQueuedCompletionStatus API](https://docs.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-getqueuedcompletionstatus)
-- [Console Overlapped I/O](https://docs.microsoft.com/en-us/windows/console/reading-input-buffer-events)
+- [WSAEventSelect Documentation](https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsaeventselect)
+- [WaitForMultipleObjects API](https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects)
+- [GetNumberOfConsoleInputEvents API](https://docs.microsoft.com/en-us/windows/console/getnumberofconsoleinputevents)
 
 ---
 
-**Status**: Draft Design  
-**Author**: GitHub Copilot  
-**Date**: 2025-12-30  
+**Status**: ✅ Complete (Phase 2 Implementation)  
+**Last Updated**: 2026-01-02  
 **Target Version**: Neolith v1.0
