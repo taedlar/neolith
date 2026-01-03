@@ -1582,6 +1582,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
 
   switch (ip->connection_type)
     {
+    case CONSOLE_USER:
     case PORT_TELNET:
       /* FIXME: The size calculation trick is here because of the way copy_chars()
        * uses the buffer to allow empty commands.
@@ -1752,6 +1753,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       buf[num_bytes] = '\0';
       switch (ip->connection_type)
         {
+        case CONSOLE_USER:
         case PORT_TELNET:
           /*
            * Replace newlines with nulls and catenate to buffer. Also do all
@@ -1762,7 +1764,28 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
            * Console mode users also come through here, although they don't do
            * telnet negotiation.
            */
-          ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
+          if (ip->connection_type == CONSOLE_USER)
+            {
+              char* from = buf;
+              char* to = ip->text + ip->text_end;
+              while(num_bytes-- > 0)
+                {
+                  if (*from == '\n')
+                    {
+                      *to++ = '\0';
+                    }
+                  else
+                    {
+                      *to++ = *from;
+                    }
+                  from++;
+                }
+              ip->text_end += (to - (ip->text + ip->text_end));
+            }
+          else
+            {
+              ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
+            }
           opt_trace (TT_IO_REACTOR, "Command buffer contains %d characters\n", ip->text_end - ip->text_start);
           /*
            * now, ip->text_end is just after the last character read. If the last character
