@@ -1582,6 +1582,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
 
   switch (ip->connection_type)
     {
+    case CONSOLE_USER:
     case PORT_TELNET:
       /* FIXME: The size calculation trick is here because of the way copy_chars()
        * uses the buffer to allow empty commands.
@@ -1752,6 +1753,16 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       buf[num_bytes] = '\0';
       switch (ip->connection_type)
         {
+        case CONSOLE_USER:
+          /* TODO: similar to PORT_TELNET, but don't need telnet negotiation.
+           * Just catenate input to buffer, set CMD_IN_BUF if newline found.
+           * If the console supports terminal (termios or Windows console modes),
+           * - when in line mode the input will already be line-buffered.
+           * - when in single-char mode, we need to process terminal control key sequences such
+           *   as backspace, arrow keys, etc. to build lines properly.
+           */
+          break;
+
         case PORT_TELNET:
           /*
            * Replace newlines with nulls and catenate to buffer. Also do all

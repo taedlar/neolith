@@ -131,7 +131,7 @@ void init_console_user(int reconnect) {
 
   object_t* ob;
   new_interactive(STDIN_FILENO);
-  master_ob->interactive->connection_type = PORT_TELNET;
+  master_ob->interactive->connection_type = CONSOLE_USER;
   master_ob->interactive->addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
   ob = mudlib_connect(0, "console"); /* port 0 for console */
