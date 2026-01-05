@@ -37,7 +37,7 @@ typedef struct mem_block_s {
 #define A_CLASS_MEMBER          12
 #define A_ARGUMENT_TYPES        13	/* */
 #define A_ARGUMENT_INDEX        14	/* */
-#define NUMPAREAS               15
+#define NUMPAREAS               15  /* number of permanent areas (saved after compilation)*/
 #define A_CASES                 15  /* keep track of cases */
 #define A_STRING_NEXT           16	/* next prog string in hash chain */
 #define A_STRING_REFS           17	/* reference count of prog string */
@@ -118,7 +118,7 @@ extern int var_defined;
 /* runtime_function_u from full function index, but digs down to the definition.  This is rather complex; maybe it should be stored in FUNCTION_TEMP too */
 #define FUNCTION_DEF_RENTRY(n) (FUNCTION_PROG(n) ? FIND_FUNC_ENTRY(FUNCTION_PROG(n), FUNCTION_TEMP(n)->u.func->runtime_index) : FUNCTION_RENTRY(n))
 /* flags from full function index */
-#define FUNCTION_FLAGS(n) *((unsigned short *)mem_block[A_FUNCTION_FLAGS].block + (n))
+#define FUNCTION_FLAGS(n) *((function_flags_t *)mem_block[A_FUNCTION_FLAGS].block + (n))
 
 #define NUM_INHERITS (mem_block[A_INHERITS].current_size / sizeof(inherit_t))
 
@@ -151,16 +151,17 @@ extern int current_block;
 extern char *prog_code;
 extern char *prog_code_max;
 extern ident_hash_elem_t **locals;
-extern unsigned short *type_of_locals;
+typedef int type_of_locals_t;
+extern type_of_locals_t *type_of_locals;
 extern char *runtime_locals;
 extern int current_number_of_locals;
 extern int max_num_locals;
-extern unsigned short *type_of_locals_ptr;
+extern type_of_locals_t *type_of_locals_ptr;
 extern ident_hash_elem_t **locals_ptr;
 extern char *runtime_locals_ptr;
 
-extern int type_of_locals_size;
-extern int locals_size;
+extern size_t type_of_locals_size;
+extern size_t locals_size;
 extern short compatible[11];
 extern short is_type[11];
 

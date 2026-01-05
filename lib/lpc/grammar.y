@@ -2848,7 +2848,7 @@ function_call:
                 f = COMPILER_FUNC(cf)->runtime_index;
                 $$->kind = NODE_CALL_1;
                 $$->v.number = F_CALL_FUNCTION_BY_ADDRESS;
-                $$->l.number = f;
+                $$->l.number = f; /* runtime index */
                 $$->type = TYPE_ANY; /* just a guess */
                 if (exact_types) {
                     char buf[256];

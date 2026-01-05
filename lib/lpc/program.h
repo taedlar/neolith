@@ -29,6 +29,8 @@
  * 6. List of inherited objects.
  */
 
+typedef unsigned short function_flags_t;    /* function flags saved in A_FUNCTION_FLAGS block */
+
 /*
  * When a new object inherits from another, all function definitions
  * are copied, and all variable definitions.
@@ -52,6 +54,7 @@
  * NAME_ALIAS     - This entry refers us to another entry, usually because
                     this function was overloaded by that function
  */
+
 #define NAME_INHERITED      0x1
 #define NAME_UNDEFINED      0x2
 #define NAME_STRICT_TYPES   0x4
@@ -81,11 +84,16 @@
 #define TYPE_MOD_ARRAY      0x0020	/* Pointer to a basic type */
 #define TYPE_MOD_CLASS      0x0040  /* a class */
 
+typedef unsigned short function_offset_t; /* an integer type for program_t's function_offsets indices */
+typedef unsigned short function_index_t; /* an integer type for program_t's function_table indices */
+typedef unsigned short function_address_t; /* an integer type for function addresses in the program */
+
+/***** Area A_RUNTIME_FUNCTIONS *****/
 typedef struct runtime_defined_s
 {
     unsigned char num_arg;
     unsigned char num_local;
-    unsigned short f_index; /* Index in sorted function table */
+    function_index_t f_index; /* index in the A_COMPILER_FUNCTIONS area */
 }
 runtime_defined_t;
 
@@ -101,8 +109,9 @@ typedef union
     runtime_defined_t def;
     runtime_inherited_t inh;
 }
-runtime_function_u;
+runtime_function_u; /* runtime function table entry in A_RUNTIME_FUNCTIONS area */
 
+/***** Area A_RUNTIME_COMPRESSED *****/
 typedef struct compressed_offset_table_s
 {
     unsigned short first_defined;
@@ -113,14 +122,16 @@ typedef struct compressed_offset_table_s
 }
 compressed_offset_table_t;
 
+/***** Area A_COMPILER_FUNCTIONS *****/
 struct compiler_function_s
 {
     char *name;
     unsigned short type;
-    unsigned short runtime_index;
-    unsigned short address;
-};
+    function_offset_t runtime_index; /* index into A_FUNCTION_FLAGS area */
+    function_address_t address;
+}; /* function definition entry in A_COMPILER_FUNCTIONS area */
 
+/***** Area A_FUNCTION_DEFS *****/
 typedef struct compiler_temp_s
 {
     struct program_s *prog; /* inherited if nonzero */
@@ -134,6 +145,7 @@ typedef struct compiler_temp_s
 }
 compiler_temp_t;
 
+/***** Area A_CLASS_DEFS *****/
 typedef struct class_def_s
 {
     unsigned short name;
@@ -143,6 +155,7 @@ typedef struct class_def_s
 }
 class_def_t;
 
+/***** Area A_CLASS_MEMBER *****/
 typedef struct class_member_entry_s
 {
     unsigned short name;
@@ -150,6 +163,7 @@ typedef struct class_member_entry_s
 }
 class_member_entry_t;
 
+/***** Area A_VAR_NAME and A_VAR_TEMP *****/
 typedef struct variable_s
 {
     char *name;
@@ -157,6 +171,7 @@ typedef struct variable_s
 }
 variable_t;
 
+/***** Area A_INHERIT *****/
 typedef struct inherit_s
 {
     struct program_s *prog;
@@ -166,20 +181,21 @@ typedef struct inherit_s
 }
 inherit_t;
 
+/***** The program structure *****/
 struct program_s
 {
     char *name;	                /* Name of file that defined prog */
     int flags;
     unsigned short ref;	        /* Reference count */
     unsigned short func_ref;
-    char *program;              /* The binary instructions */
+    char *program;              /* The binary instructions (A_PROGRAM area) */
     int id_number;              /* used to associate information with this
                                  * prog block without needing to increase the
                                  * reference count     */
-    unsigned char *line_info;   /* Line number information */
-    unsigned short *file_info;
+    unsigned char *line_info;   /* Line number information (A_LINENUMBERS area) */
+    unsigned short *file_info;  /* File information (A_FILE_INFO area)*/
     compiler_function_t *function_table;
-    unsigned short *function_flags; /* separate for alignment reasons */
+    function_flags_t *function_flags; /* separate for alignment reasons */
     runtime_function_u *function_offsets;
 #ifdef COMPRESS_FUNCTION_TABLES
     compressed_offset_table_t *function_compressed;
@@ -210,8 +226,8 @@ struct program_s
      */
     unsigned short program_size;    /* size of this instruction code */
     unsigned short num_classes;
-    unsigned short num_functions_total;
-    unsigned short num_functions_defined;
+    function_index_t num_functions_total;
+    function_index_t num_functions_defined;
     unsigned short num_strings;
     unsigned short num_variables_total;
     unsigned short num_variables_defined;
