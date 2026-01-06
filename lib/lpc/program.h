@@ -84,23 +84,23 @@ typedef unsigned short function_flags_t;    /* function flags saved in A_FUNCTIO
 #define TYPE_MOD_ARRAY      0x0020	/* Pointer to a basic type */
 #define TYPE_MOD_CLASS      0x0040  /* a class */
 
-typedef unsigned short function_offset_t; /* an integer type for program_t's function_offsets indices */
-typedef unsigned short function_index_t; /* an integer type for program_t's function_table indices */
-typedef unsigned short function_address_t; /* an integer type for function addresses in the program */
+typedef unsigned short function_index_t; /* an integer type for program_t's function_offsets indices (runtime_function_u) */
+typedef unsigned short function_number_t; /* an integer type for program_t's function_table indices (compiler_function_t) */
+typedef unsigned short function_address_t; /* an integer type for function addresses in the program (char) */
 
 /***** Area A_RUNTIME_FUNCTIONS *****/
 typedef struct runtime_defined_s
 {
     unsigned char num_arg;
     unsigned char num_local;
-    function_index_t f_index; /* index in the A_COMPILER_FUNCTIONS area */
+    function_number_t f_index; /* index in the A_COMPILER_FUNCTIONS area */
 }
 runtime_defined_t;
 
 typedef struct runtime_inherited_s
 {
     unsigned short offset;
-    unsigned short function_index_offset;
+    function_index_t function_index_offset;
 }
 runtime_inherited_t;
 
@@ -114,8 +114,8 @@ runtime_function_u; /* runtime function table entry in A_RUNTIME_FUNCTIONS area 
 /***** Area A_RUNTIME_COMPRESSED *****/
 typedef struct compressed_offset_table_s
 {
-    unsigned short first_defined;
-    unsigned short first_overload; 
+    function_index_t first_defined;
+    function_index_t first_overload; 
     unsigned short num_compressed;
     unsigned short num_deleted;
     unsigned char index[1];
@@ -127,7 +127,7 @@ struct compiler_function_s
 {
     char *name;
     unsigned short type;
-    function_offset_t runtime_index; /* index into A_FUNCTION_FLAGS area */
+    function_index_t runtime_index; /* index into A_FUNCTION_FLAGS area */
     function_address_t address;
 }; /* function definition entry in A_COMPILER_FUNCTIONS area */
 
@@ -137,7 +137,7 @@ typedef struct compiler_temp_s
     struct program_s *prog; /* inherited if nonzero */
     union {
         compiler_function_t *func;
-        int index;
+        function_index_t index;
     } u;
     /* For non-aliases, this is a count of the number of non-aliases we've
        seen for this function. */
@@ -226,8 +226,8 @@ struct program_s
      */
     unsigned short program_size;    /* size of this instruction code */
     unsigned short num_classes;
-    function_index_t num_functions_total;
-    function_index_t num_functions_defined;
+    function_number_t num_functions_total;
+    function_number_t num_functions_defined;
     unsigned short num_strings;
     unsigned short num_variables_total;
     unsigned short num_variables_defined;
