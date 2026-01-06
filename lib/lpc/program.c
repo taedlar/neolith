@@ -87,7 +87,7 @@ char *function_name (program_t * prog, int index) {
   while (prog->function_flags[index] & NAME_INHERITED)
     {
       prog = prog->inherit[func_entry->inh.offset].prog;
-      index = func_entry->inh.function_index_offset;
+      index = func_entry->inh.index;
       func_entry = FIND_FUNC_ENTRY (prog, index);
     }
 
@@ -122,7 +122,7 @@ runtime_function_u *find_func_entry (const program_t * prog, int index) {
         first = mid;
     }
       ret.inh.offset = first;
-      ret.inh.function_index_offset =
+      ret.inh.index =
     index - prog->inherit[first].function_index_offset;
       return &ret;
     }

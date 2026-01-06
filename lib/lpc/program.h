@@ -88,7 +88,10 @@ typedef unsigned short function_index_t; /* an integer type for program_t's func
 typedef unsigned short function_number_t; /* an integer type for program_t's function_table indices (compiler_function_t) */
 typedef unsigned short function_address_t; /* an integer type for function addresses in the program (char) */
 
-/***** Area A_RUNTIME_FUNCTIONS *****/
+/* ***** Area A_RUNTIME_FUNCTIONS *****
+ * Each function has an entry here, which tells where the function
+ * is located, or where to find it in an inherited object.
+ */
 typedef struct runtime_defined_s
 {
     unsigned char num_arg;
@@ -99,8 +102,8 @@ runtime_defined_t;
 
 typedef struct runtime_inherited_s
 {
-    unsigned short offset;
-    function_index_t function_index_offset;
+    unsigned short offset; /* which inherit in A_INHERITS area */
+    function_index_t index; /* index in that program's A_RUNTIME_FUNCTIONS area */
 }
 runtime_inherited_t;
 
@@ -111,18 +114,24 @@ typedef union
 }
 runtime_function_u; /* runtime function table entry in A_RUNTIME_FUNCTIONS area */
 
-/***** Area A_RUNTIME_COMPRESSED *****/
+/* ***** Area A_RUNTIME_COMPRESSED *****
+ * A compressed table to map full function indices to runtime_function_u
+ * entries, to save space in large inherited programs.
+ */
 typedef struct compressed_offset_table_s
 {
     function_index_t first_defined;
     function_index_t first_overload; 
-    unsigned short num_compressed;
-    unsigned short num_deleted;
+    unsigned short num_compressed; /* number of compressed entries */
+    unsigned short num_deleted; /* number of deleted entries */
     unsigned char index[1];
 }
 compressed_offset_table_t;
 
-/***** Area A_COMPILER_FUNCTIONS *****/
+/* ***** Area A_COMPILER_FUNCTIONS *****
+ * Each function defined in the program has an entry here.
+ * This is used during compilation to keep track of functions.
+ */
 struct compiler_function_s
 {
     char *name;
@@ -131,7 +140,10 @@ struct compiler_function_s
     function_address_t address;
 }; /* function definition entry in A_COMPILER_FUNCTIONS area */
 
-/***** Area A_FUNCTION_DEFS *****/
+/* ***** Area A_FUNCTION_DEFS *****
+ * Temporary structure used during compilation to keep track of functions.
+ * This structure is not saved in the final program.
+ */
 typedef struct compiler_temp_s
 {
     struct program_s *prog; /* inherited if nonzero */
@@ -194,9 +206,9 @@ struct program_s
                                  * reference count     */
     unsigned char *line_info;   /* Line number information (A_LINENUMBERS area) */
     unsigned short *file_info;  /* File information (A_FILE_INFO area)*/
-    compiler_function_t *function_table;
-    function_flags_t *function_flags; /* separate for alignment reasons */
-    runtime_function_u *function_offsets;
+    compiler_function_t *function_table; /* function definitions (A_COMPILER_FUNCTIONS area), indexed by function_number_t */
+    function_flags_t *function_flags; /* function flags (A_FUNCTION_FLAGS area), indexed by function_index_t */
+    runtime_function_u *function_offsets; /* runtime function table entry in A_RUNTIME_FUNCTIONS area, indexed by function_index_t */
 #ifdef COMPRESS_FUNCTION_TABLES
     compressed_offset_table_t *function_compressed;
 #endif
@@ -205,7 +217,7 @@ struct program_s
     char **strings;	        /* All strings uses by the program */
     char **variable_table;  /* variables defined by this program */
     unsigned short *variable_types;	/* variables defined by this program */
-    inherit_t *inherit;     /* List of inherited prgms */
+    inherit_t *inherit;     /* List of inherited prgms (A_INHERITS area) */
     int total_size;	        /* Sum of all data in this struct */
     int heart_beat;	        /* Index of the heart beat function. -1 means no heart beat */
     /*
@@ -226,7 +238,7 @@ struct program_s
      */
     unsigned short program_size;    /* size of this instruction code */
     unsigned short num_classes;
-    function_number_t num_functions_total;
+    function_index_t num_functions_total;
     function_number_t num_functions_defined;
     unsigned short num_strings;
     unsigned short num_variables_total;
@@ -247,7 +259,9 @@ runtime_function_u *find_func_entry(const program_t *, int);
 #define FUNC_ENTRY(p, i) ((p)->function_offsets + (i))
 #ifdef COMPRESS_FUNCTION_TABLES
 /* Find a function entry */
-#define FIND_FUNC_ENTRY(p, i) (((i) < (p)->function_compressed->first_defined) ? find_func_entry(p, i) : FUNC_ENTRY(p, (i) - (p)->function_compressed->num_deleted))
+#define FIND_FUNC_ENTRY(p, i) (((i) < (p)->function_compressed->first_defined) ? \
+    find_func_entry(p, i) : \
+    FUNC_ENTRY(p, (i) - (p)->function_compressed->num_deleted))
 #else
 #define FIND_FUNC_ENTRY(p, i) FUNC_ENTRY(p, i)
 #endif

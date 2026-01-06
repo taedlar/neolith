@@ -218,7 +218,7 @@ extern int num_varargs;
 /* LPC interpreter */
 void eval_instruction(const char *p);
 
-void call_function (program_t *progp, int offset, int num_args, svalue_t *ret_value);
+void call_function (program_t *progp, int runtime_index, int num_args, svalue_t *ret_value);
 
 void call_efun(int);
 void process_efun_callback(int, function_to_call_t *, int);
@@ -270,8 +270,8 @@ void unlink_string_svalue(svalue_t *);
 void copy_lvalue_range(svalue_t *);
 void assign_lvalue_range(svalue_t *);
 
-compiler_function_t *setup_new_frame(int);
-compiler_function_t *setup_inherited_frame(int);
+compiler_function_t *setup_new_frame(int runtime_index);
+compiler_function_t *setup_inherited_frame(int runtime_index);
 void setup_variables (int actual, int local, int num_arg);
 void setup_varargs_variables (int actual, int local, int num_arg);
 void pop_control_stack(void);

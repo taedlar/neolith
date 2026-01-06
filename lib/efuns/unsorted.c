@@ -1318,7 +1318,7 @@ f_functions (void)
       while (prog->function_flags[index] & NAME_INHERITED)
         {
           prog = prog->inherit[func_entry->inh.offset].prog;
-          index = func_entry->inh.function_index_offset;
+          index = func_entry->inh.index;
           func_entry = FIND_FUNC_ENTRY (prog, index);
         }
 
