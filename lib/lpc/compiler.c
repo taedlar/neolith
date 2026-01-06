@@ -894,7 +894,7 @@ arrange_call_inherited (char *name, parse_node_t * node)
         {
           if (super_name)
             {
-              int l = SHARED_STRLEN (ip->prog->name);	/* Including .c */
+              size_t l = SHARED_STRLEN (ip->prog->name);	/* Including .c */
 
               if (l - 2 < super_length)
                 continue;

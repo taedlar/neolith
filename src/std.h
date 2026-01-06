@@ -31,6 +31,10 @@
 #include <stdarg.h>
 #endif /* HAVE_STDARG_H */
 
+#ifdef HAVE_STDDEF_H
+#include <stddef.h>
+#endif /* HAVE_STDDEF_H */
+
 #ifdef	HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif	/* HAVE_SYS_TYPES_H */
