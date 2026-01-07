@@ -157,7 +157,7 @@ extern int current_block;
 extern char *prog_code;
 extern char *prog_code_max;
 extern ident_hash_elem_t **locals;
-typedef int type_of_locals_t;
+typedef unsigned short type_of_locals_t; /* entry type in A_ARGUMENT_TYPES area */
 extern type_of_locals_t *type_of_locals;
 extern char *runtime_locals;
 extern int current_number_of_locals;
