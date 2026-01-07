@@ -175,6 +175,121 @@ Efuns are **not** manually registered. Instead:
 3. Custom tool `edit_source` generates tables consumed by compiler
 4. Add C implementation in [lib/efuns/](lib/efuns/) with `#ifdef F_FUNCTION_NAME` guards
 
+## LPC Compiler Architecture
+
+The LPC compiler uses a multi-pass architecture with 24 memory blocks (`mem_block[]`) for incremental program construction. See [docs/internals/lpc-program.md](docs/internals/lpc-program.md) for complete details.
+
+### Memory Block System
+
+**15 Permanent Areas** (saved in final `program_t`):
+- **A_PROGRAM** (0): Bytecode instructions (max 64KB)
+- **A_RUNTIME_FUNCTIONS** (1): Function dispatch table (`runtime_function_u[]`)
+- **A_COMPILER_FUNCTIONS** (2): Function definitions defined at this level (`compiler_function_t[]`)
+- **A_RUNTIME_COMPRESSED** (3): Compressed function table for deep inheritance
+- **A_FUNCTION_FLAGS** (4): Function modifiers (static, private, inherited, etc.)
+- **A_STRINGS** (5): String literal table (shared strings)
+- **A_VAR_NAME/TYPE** (6-7): Variable names and types
+- **A_LINENUMBERS** (8): Debug info mapping bytecode→source lines
+- **A_FILE_INFO** (9): Include file boundaries
+- **A_INHERITS** (10): Inherited program references
+- **A_CLASS_DEF/MEMBER** (11-12): LPC class definitions
+- **A_ARGUMENT_TYPES/INDEX** (13-14): Function argument types (if `#pragma save_types`)
+
+**9 Temporary Areas** (compilation only):
+- **A_CASES** (15): Switch case tracking
+- **A_STRING_NEXT/REFS** (16-17): String hash table bookkeeping
+- **A_INCLUDES** (18): Include file list for binary validation
+- **A_PATCH** (19): String switch bytecode offsets for patching
+- **A_INITIALIZER** (20): Global variable initialization code (becomes `__INIT()`)
+- **A_FUNCTIONALS** (21): Unused/vestigial
+- **A_FUNCTION_DEFS** (22): Function inheritance/alias tracking (`compiler_temp_t[]`)
+- **A_VAR_TEMP** (23): All variables including inherited
+
+**Key Macros** (defined in [lib/lpc/compiler.h](lib/lpc/compiler.h)):
+```c
+COMPILER_FUNC(n)    // Get compiler_function_t from A_COMPILER_FUNCTIONS
+FUNCTION_RENTRY(n)  // Get runtime_function_u from A_RUNTIME_FUNCTIONS
+FUNCTION_FLAGS(n)   // Get flags from A_FUNCTION_FLAGS
+FUNCTION_TEMP(n)    // Get compiler_temp_t from A_FUNCTION_DEFS
+INHERIT(n)          // Get inherit_t from A_INHERITS
+VAR_TEMP(n)         // Get variable_t from A_VAR_TEMP
+PROG_STRING(n)      // Get string from A_STRINGS
+CLASS(n)            // Get class_def_t from A_CLASS_DEF
+```
+
+### Compilation Lifecycle
+
+1. **prolog()**: Allocate 24 blocks at 4KB each (grows via doubling)
+2. **Parsing**: Bison grammar in [lib/lpc/grammar.y](lib/lpc/grammar.y) builds parse trees
+3. **Code Generation**: [lib/lpc/program/icode.c](lib/lpc/program/icode.c) walks trees, emits bytecode
+4. **epilog()**: 
+   - Resolve undefined/inherited functions
+   - Sort function table alphabetically
+   - Copy 15 permanent areas into single contiguous `program_t`
+   - Free temporary blocks
+5. **clean_parser()**: On errors, free all blocks and shared strings
+
+**Block Switching**: Compiler switches between `A_PROGRAM` (main code) and `A_INITIALIZER` (variable init) via `switch_to_block()`. The `__INIT()` function is appended at end of compilation if A_INITIALIZER is non-empty.
+
+### Binary Serialization
+
+Neolith can save compiled programs to `.b` files (enabled via `#pragma save_binary` and `__SAVE_BINARIES_DIR__` config). This avoids re-parsing on subsequent driver starts. See [docs/internals/lpc-program.md#binary-serialization](docs/internals/lpc-program.md#binary-serialization).
+
+**Binary Format**:
+```
+[Magic:"NEOL"][Driver ID][Config ID (simul_efun mtime)]
+[Include list][Program name][program_t with relative pointers]
+[Inherited names][String table][Variable names][Function names]
+[Line numbers][Patches for string switches]
+```
+
+**Pointer Conversion**:
+- **Save** ([locate_out()](lib/lpc/program/binaries.c)): Convert absolute pointers → offsets from `program_t` base
+- **Load** ([locate_in()](lib/lpc/program/binaries.c)): Convert offsets → absolute pointers
+- **String Switches** ([patch_out/in()](lib/lpc/program/binaries.c)): Convert embedded string pointers ↔ table indices, then re-sort
+
+**Validation**: Binary rejected if source/includes newer, driver changed, or simul_efun changed. Falls back to full compilation.
+
+**Critical for Binary Save/Load**:
+- All shared strings must be recreated via `make_shared_string()`
+- Function table must be re-sorted (pointer addresses change between runs)
+- Inherited programs must be loaded first (triggers recursive loads)
+- Switch tables need special patching (tracked in `A_PATCH` during compilation)
+
+### Function Dispatch
+
+**Three Index Types**:
+- `function_number_t`: Index into `A_COMPILER_FUNCTIONS` (only defined functions)
+- `function_index_t`: Index into `A_RUNTIME_FUNCTIONS` (all functions including inherited)
+- `function_address_t`: Bytecode offset in `A_PROGRAM`
+
+**Inheritance Resolution**:
+- Local functions: `runtime_function_u.def` has `{num_arg, num_local, f_index}`
+- Inherited: `runtime_function_u.inh` has `{inherit_offset, parent_function_index}`
+- Flag `NAME_INHERITED` in `A_FUNCTION_FLAGS` distinguishes them
+- Offsets in `inherit_t` translate parent indices to child namespace
+
+**Function Lookup**: Binary search on sorted `function_table` by name pointer address (not strcmp). Functions starting with `#` always last.
+
+### Common Compiler Tasks
+
+**Adding New Bytecode Instruction**:
+1. Define opcode in [lib/efuns/include/function.h](lib/efuns/include/function.h)
+2. Add code generation in [lib/lpc/program/icode.c](lib/lpc/program/icode.c)
+3. Add execution in [src/interpret.c](src/interpret.c)
+4. Update disassembler in [lib/lpc/program/disassemble.c](lib/lpc/program/disassemble.c)
+
+**Adding Grammar Production**:
+1. Update [lib/lpc/grammar.y](lib/lpc/grammar.y)
+2. Build parse tree node in [lib/lpc/program/parse_trees.c](lib/lpc/program/parse_trees.c)
+3. Add code generation case in [lib/lpc/program/icode.c](lib/lpc/program/icode.c)
+
+**Debugging Compilation**:
+- Set `TT_COMPILE` trace flags in config for verbose logging
+- Use `opt_trace(TT_COMPILE|level, ...)` throughout compiler
+- Check `num_parse_error` counter
+- Inspect `mem_block[].current_size` to see area growth
+
 ## Platform-Specific Patterns
 
 ### Portability Layer ([lib/port/](lib/port/))
@@ -225,6 +340,23 @@ Efuns are **not** manually registered. Instead:
 - **Test mudlib**: [examples/m3_mudlib/](examples/m3_mudlib/)
 - **Developer reference**: [docs/manual/dev.md](docs/manual/dev.md)
 - **Internals guide**: [docs/manual/internals.md](docs/manual/internals.md)
+- **LPC compiler internals**: [docs/internals/lpc-program.md](docs/internals/lpc-program.md) - mem_block system and binary serialization
+
+## Reference Documentation
+
+**Design Documentation** ([docs/manual/](docs/manual/)):
+- [dev.md](docs/manual/dev.md): Developer workflow and build system
+- [internals.md](docs/manual/internals.md): Driver architecture overview
+
+**Implementation Details** ([docs/internals/](docs/internals/)):
+- [lpc-program.md](docs/internals/lpc-program.md): Complete LPC compiler memory block system, binary save/load format, pointer serialization, inheritance resolution
+
+When working on compiler features, consult these documents for:
+- Memory block allocations and their data types
+- Binary file format and version validation
+- Function/variable/class indexing schemes
+- Pointer conversion during serialization
+- Switch table patching mechanics
 
 ## Common Pitfalls
 1. **Don't modify generated files** like `grammar.c`/`grammar.h` (from Bison) or efun tables (from edit_source)
