@@ -147,7 +147,7 @@ get_simul_efuns (program_t * prog)
       while (nprog->function_flags[index] & NAME_INHERITED)
         {
           nprog = nprog->inherit[func_entry->inh.offset].prog;
-          index = func_entry->inh.function_index_offset;
+          index = func_entry->inh.index;
           func_entry = FIND_FUNC_ENTRY (nprog, index);
         }
 

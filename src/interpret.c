@@ -1119,23 +1119,20 @@ void setup_varargs_variables (int actual, int local, int num_arg) {
   fp = sp - (csp->num_local_variables = local + num_arg) + 1;
 }
 
-compiler_function_t *
-setup_new_frame (int index)
-{
+compiler_function_t* setup_new_frame (int index) {
+
   runtime_function_u *func_entry = FIND_FUNC_ENTRY (current_prog, index);
-  int findex;
+  function_number_t findex;
 
   function_index_offset = variable_index_offset = 0;
 
   while (current_prog->function_flags[index] & NAME_INHERITED)
     {
       int offset = func_entry->inh.offset;
-      function_index_offset +=
-        current_prog->inherit[offset].function_index_offset;
-      variable_index_offset +=
-        current_prog->inherit[offset].variable_index_offset;
+      function_index_offset += current_prog->inherit[offset].function_index_offset;
+      variable_index_offset += current_prog->inherit[offset].variable_index_offset;
       current_prog = current_prog->inherit[offset].prog;
-      index = func_entry->inh.function_index_offset;
+      index = func_entry->inh.index;
       func_entry = FIND_FUNC_ENTRY (current_prog, index);
     }
 
@@ -1154,21 +1151,18 @@ setup_new_frame (int index)
   return &current_prog->function_table[findex];
 }
 
-compiler_function_t *
-setup_inherited_frame (int index)
-{
+compiler_function_t* setup_inherited_frame (int index) {
+
   runtime_function_u *func_entry = FIND_FUNC_ENTRY (current_prog, index);
-  int findex;
+  function_number_t findex;
 
   while (current_prog->function_flags[index] & NAME_INHERITED)
     {
       int offset = func_entry->inh.offset;
-      function_index_offset +=
-        current_prog->inherit[offset].function_index_offset;
-      variable_index_offset +=
-        current_prog->inherit[offset].variable_index_offset;
+      function_index_offset += current_prog->inherit[offset].function_index_offset;
+      variable_index_offset += current_prog->inherit[offset].variable_index_offset;
       current_prog = current_prog->inherit[offset].prog;
-      index = func_entry->inh.function_index_offset;
+      index = func_entry->inh.index;
       func_entry = FIND_FUNC_ENTRY (current_prog, index);
     }
 

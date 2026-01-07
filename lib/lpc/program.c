@@ -87,7 +87,7 @@ char *function_name (program_t * prog, int index) {
   while (prog->function_flags[index] & NAME_INHERITED)
     {
       prog = prog->inherit[func_entry->inh.offset].prog;
-      index = func_entry->inh.function_index_offset;
+      index = func_entry->inh.index;
       func_entry = FIND_FUNC_ENTRY (prog, index);
     }
 
@@ -95,36 +95,47 @@ char *function_name (program_t * prog, int index) {
 }
 
 #ifdef COMPRESS_FUNCTION_TABLES
-/* Warning: sometimes returns a pointer to a static object.  So don't
-   hold the returned pointers too long; it will be invalidated on the
-   next call to this function */
-runtime_function_u *find_func_entry (const program_t * prog, int index) {
+/** @brief Find a function entry in a program with compressed function tables.
+ *  This function handles the case where the function entry was
+ *  omitted from the compressed table.  In that case, it reconstructs the
+ *  entry based on the inheritance information.
+ *  Warning: sometimes returns a pointer to a static object.  So don't
+ *  hold the returned pointers too long; it will be invalidated on the
+ *  next call to this function.
+ *  @param prog The program to search.
+ *  @param index The function index to find.
+ *  @return A pointer to the runtime_function_u entry for the function.
+ */
+runtime_function_u *find_func_entry (const program_t * prog, function_index_t index) {
+
   static runtime_function_u ret;
 
   int f_ov = prog->function_compressed->first_overload;
-  int n_ov =
-    prog->function_compressed->first_defined -
-    prog->function_compressed->num_compressed;
+  int n_ov = prog->function_compressed->first_defined - prog->function_compressed->num_compressed;
   int idx;
   int fidx;
 
+  /*  See if the entry is in the compressed table:
+   *  - before the overloads
+   *  - beyond the defined functions
+   *  - or present in the compressed table
+   */
   if ((index < f_ov) || (idx = index - f_ov) >= n_ov ||
       (fidx = prog->function_compressed->index[idx]) == 255)
     {
       int first = 0, last = prog->num_inherited - 1;
-      /* The entry was omitted.  Remake it */
+      /* The entry was omitted.  Remake it from the inheritance information */
       while (last > first)
-    {
-      int mid = (last + first + 1) / 2;
-      if (prog->inherit[mid].function_index_offset > index)
-        last = mid - 1;
-      else
-        first = mid;
-    }
+        {
+          int mid = (last + first + 1) / 2;
+          if (prog->inherit[mid].function_index_offset > index)
+            last = mid - 1;
+          else
+            first = mid;
+        }
       ret.inh.offset = first;
-      ret.inh.function_index_offset =
-    index - prog->inherit[first].function_index_offset;
-      return &ret;
+      ret.inh.index = index - prog->inherit[first].function_index_offset;
+      return &ret; /* FIXME: returning pointer to static variable */
     }
   else
     {

@@ -123,7 +123,7 @@ dump_prog (program_t * prog, char *fn, int flags)
 	  fprintf (f, "%4d: %-20s  %5d  %7s %5d\n",
 		   i, function_name (prog, i),
 		   func_entry->inh.offset,
-		   sflags, func_entry->inh.function_index_offset);
+		   sflags, func_entry->inh.index);
 	}
       else
 	{

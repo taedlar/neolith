@@ -37,7 +37,7 @@ typedef struct mem_block_s {
 #define A_CLASS_MEMBER          12
 #define A_ARGUMENT_TYPES        13	/* */
 #define A_ARGUMENT_INDEX        14	/* */
-#define NUMPAREAS               15
+#define NUMPAREAS               15  /* number of permanent areas (saved after compilation)*/
 #define A_CASES                 15  /* keep track of cases */
 #define A_STRING_NEXT           16	/* next prog string in hash chain */
 #define A_STRING_REFS           17	/* reference count of prog string */
@@ -105,20 +105,26 @@ extern int var_defined;
 #define IS_TYPE(e, t) (!(e & (TYPE_MOD_ARRAY | TYPE_MOD_CLASS)) \
                        && (is_type[(unsigned char)e] & (1 << (t))))
 
-#define FUNCTION_TEMP(n) ((compiler_temp_t *)mem_block[A_FUNCTION_DEFS].block + (n))
+/* runtime_function_u from full function index */
+#define FUNCTION_RENTRY(n) ((runtime_function_u *)mem_block[A_RUNTIME_FUNCTIONS].block + (n))
 /* compiler_function_t from A_COMPILER_FUNCTIONS index */
 #define COMPILER_FUNC(n) ((compiler_function_t *)mem_block[A_COMPILER_FUNCTIONS].block + (n))
+/* flags from full function index */
+#define FUNCTION_FLAGS(n) *((function_flags_t *)mem_block[A_FUNCTION_FLAGS].block + (n))
+
+/* compiler_temp_t from full function index (compile-time function structure) */
+#define FUNCTION_TEMP(n) ((compiler_temp_t *)mem_block[A_FUNCTION_DEFS].block + (n))
 /* program for inherited entry from full function index */
 #define FUNCTION_PROG(n) (FUNCTION_TEMP(n)->prog)
 #define FUNCTION_ALIAS(n) (FUNCTION_TEMP(n)->alias_for)
+
 /* compiler_function_t from full function index */
 #define FUNCTION_DEF(n) (FUNCTION_PROG(n) ? FUNCTION_TEMP(n)->u.func : COMPILER_FUNC(FUNCTION_TEMP(n)->u.index))
-/* runtime_function_u from full function index */
-#define FUNCTION_RENTRY(n) ((runtime_function_u *)mem_block[A_RUNTIME_FUNCTIONS].block + (n))
-/* runtime_function_u from full function index, but digs down to the definition.  This is rather complex; maybe it should be stored in FUNCTION_TEMP too */
-#define FUNCTION_DEF_RENTRY(n) (FUNCTION_PROG(n) ? FIND_FUNC_ENTRY(FUNCTION_PROG(n), FUNCTION_TEMP(n)->u.func->runtime_index) : FUNCTION_RENTRY(n))
-/* flags from full function index */
-#define FUNCTION_FLAGS(n) *((unsigned short *)mem_block[A_FUNCTION_FLAGS].block + (n))
+/* runtime_function_u from full function index, but digs down to the definition.
+ * This is rather complex; maybe it should be stored in FUNCTION_TEMP too */
+#define FUNCTION_DEF_RENTRY(n) (FUNCTION_PROG(n) ? \
+    FIND_FUNC_ENTRY(FUNCTION_PROG(n), FUNCTION_TEMP(n)->u.func->runtime_index) : \
+    FUNCTION_RENTRY(n))
 
 #define NUM_INHERITS (mem_block[A_INHERITS].current_size / sizeof(inherit_t))
 
@@ -142,7 +148,7 @@ extern int var_defined;
 
 #define NOVALUE_USED_FLAG        1024
 
-int validate_function_call(int, parse_node_t *);
+int validate_function_call(function_index_t, parse_node_t *);
 parse_node_t *validate_efun_call(int, parse_node_t *);
 extern mem_block_t mem_block[];
 extern int exact_types, global_modifiers;
@@ -151,16 +157,17 @@ extern int current_block;
 extern char *prog_code;
 extern char *prog_code_max;
 extern ident_hash_elem_t **locals;
-extern unsigned short *type_of_locals;
+typedef unsigned short type_of_locals_t; /* entry type in A_ARGUMENT_TYPES area */
+extern type_of_locals_t *type_of_locals;
 extern char *runtime_locals;
 extern int current_number_of_locals;
 extern int max_num_locals;
-extern unsigned short *type_of_locals_ptr;
+extern type_of_locals_t *type_of_locals_ptr;
 extern ident_hash_elem_t **locals_ptr;
 extern char *runtime_locals_ptr;
 
-extern int type_of_locals_size;
-extern int locals_size;
+extern size_t type_of_locals_size;
+extern size_t locals_size;
 extern short compatible[11];
 extern short is_type[11];
 
@@ -188,7 +195,7 @@ void type_error(char *, int);
 int compatible_types(int, int);
 int compatible_types2(int, int);
 void arrange_call_inherited(char *, parse_node_t *);
-int define_new_function(char *, int, int, int, int);
+function_number_t define_new_function(char *, int, int, function_flags_t, int);
 int define_new_variable(char *, int);
 short store_prog_string(const char *);
 void free_prog_string(short);

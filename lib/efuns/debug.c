@@ -783,38 +783,28 @@ f_program_info (void)
         {
           hdr_size += sizeof (program_t);
           prog_size += prog->program_size;
-          func_size += 2 * prog->num_functions_total;	/* function flags */
+          func_size += sizeof(function_flags_t) * prog->num_functions_total;	/* function flags */
 #ifdef COMPRESS_FUNCTION_TABLES
           /* compressed table header */
           func_size += sizeof (compressed_offset_table_t) - 1;
           /* it's entries */
-          func_size +=
-            (prog->function_compressed->first_defined -
-             prog->function_compressed->num_compressed);
+          func_size += (prog->function_compressed->first_defined - prog->function_compressed->num_compressed);
           /* offset table */
-          func_size +=
-            sizeof (runtime_function_u) * (prog->num_functions_total -
-                                           prog->function_compressed->
-                                           num_deleted);
+          func_size += sizeof (runtime_function_u) * (prog->num_functions_total - prog->function_compressed->num_deleted);
 #else
           /* offset table */
-          func_size +=
-            prog->num_functions_total * sizeof (runtime_function_u);
+          func_size += sizeof (runtime_function_u) * prog->num_functions_total;
 #endif
           /* definitions */
-          func_size +=
-            prog->num_functions_defined * sizeof (compiler_function_t);
+          func_size += prog->num_functions_defined * sizeof (compiler_function_t);
           string_size += prog->num_strings * sizeof (char *);
-          var_size +=
-            prog->num_variables_defined * (sizeof (char *) +
-                                           sizeof (unsigned short));
+          var_size += prog->num_variables_defined * (sizeof (char *) + sizeof (unsigned short));
           inherit_size += prog->num_inherited * sizeof (inherit_t);
           if (prog->num_classes)
-            class_size +=
-              prog->num_classes * sizeof (class_def_t) +
-              (prog->classes[prog->num_classes - 1].index +
-               prog->classes[prog->num_classes -
-                             1].size) * sizeof (class_member_entry_t);
+            {
+              class_size += prog->num_classes * sizeof (class_def_t);
+              class_size += (prog->classes[prog->num_classes - 1].index + prog->classes[prog->num_classes - 1].size) * sizeof (class_member_entry_t);
+            }
           type_size += prog->num_functions_defined * sizeof (short);
           n = 0;
           for (i = 0; i < prog->num_functions_defined; i++)

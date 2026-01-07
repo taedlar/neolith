@@ -46,7 +46,7 @@ typedef struct parse_node_block_s {
 
 #define INT_CREATE_TERNARY_OP(vn, op, t, x, y, z) do {\
 	(vn)->l.expr = (x);\
-	(vn)->type = t;\
+	(vn)->type = (char)t;\
 	CREATE_BINARY_OP((vn)->r.expr, op, t, y, z);\
 	} while(0)
 
@@ -80,7 +80,7 @@ typedef struct parse_node_block_s {
 
 #define INT_CREATE_OPCODE(vn, op, t) do {\
 	(vn)->v.number = op;\
-	(vn)->type = t;\
+	(vn)->type = (char)t;\
 	} while(0)
 
 #define CREATE_OPCODE_1(vn, op, t, p) do {\
@@ -109,14 +109,14 @@ typedef struct parse_node_block_s {
 	(vn) = new_node();\
 	(vn)->kind = NODE_BINARY_OP_1;\
 	INT_CREATE_BINARY_OP(vn, op, t, x, y);\
-	(vn)->type = p;\
+	(vn)->type = (char)p;\
 	} while(0)
 
 #define CREATE_TERNARY_OP_1(vn, op, t, x, y, z, p) do {\
 	(vn) = new_node();\
 	(vn)->kind = NODE_TERNARY_OP_1;\
 	INT_CREATE_TERNARY_OP(vn, op, t, x, y, z);\
-	(vn)->r.expr->type = p;\
+	(vn)->r.expr->type = (char)p;\
 	} while(0)
 
 #define CREATE_RETURN(vn, val) do {\
@@ -139,7 +139,7 @@ typedef struct parse_node_block_s {
 	(vn)->kind = NODE_CALL;\
 	(vn)->l.number = (vn)->v.number;\
 	(vn)->v.number = op;\
-	(vn)->type = t;\
+	(vn)->type = (char)t;\
 	} while(0)
 
 #define CREATE_STATEMENTS(vn, ln, rn) do {\
@@ -151,7 +151,7 @@ typedef struct parse_node_block_s {
 
 #define CREATE_TWO_VALUES(vn, t, ln, rn) do {\
 	CREATE_STATEMENTS(vn, ln, rn);\
-	(vn)->type = t;\
+	(vn)->type = (char)t;\
 	} while(0)
 
 #define CREATE_CONTROL_JUMP(vn, op) do {\
@@ -163,7 +163,7 @@ typedef struct parse_node_block_s {
 #define CREATE_PARAMETER(vn, t, p) do {\
 	(vn) = new_node_no_line();\
 	(vn)->kind = NODE_PARAMETER;\
-	(vn)->type = t;\
+	(vn)->type = (char)t;\
 	(vn)->v.number = p;\
 	} while(0)
 
@@ -178,7 +178,7 @@ typedef struct parse_node_block_s {
 #define CREATE_LOOP(vn, tf, b, i, t) do {\
 	(vn) = new_node_no_line();\
 	(vn)->kind = NODE_LOOP;\
-	(vn)->type = tf;\
+	(vn)->type = (char)tf;\
 	(vn)->v.expr = b;\
 	(vn)->l.expr = i;\
 	(vn)->r.expr = t;\
@@ -188,7 +188,7 @@ typedef struct parse_node_block_s {
 	(vn) = new_node();\
 	(vn)->kind = NODE_LVALUE_EFUN;\
 	(vn)->r.expr = lvl;\
-	(vn)->type = t;\
+	(vn)->type = (char)t;\
 	} while(0)
 
 #define CREATE_FOREACH(vn, ln, rn) do {\
@@ -237,7 +237,7 @@ typedef struct parse_node_block_s {
 	(vn)->v.expr = pn;\
 	(vn)->l.expr = vn;\
 	(vn)->r.expr = 0;\
-	(vn)->type = f;\
+	(vn)->type = (char)f;\
 	} while(0)
 
 #define CREATE_CATCH(vn, pn) do {\
