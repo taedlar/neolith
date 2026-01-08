@@ -97,22 +97,19 @@ typedef struct runtime_defined_s
     unsigned char num_arg;
     unsigned char num_local;
     function_number_t f_index; /* index in the A_COMPILER_FUNCTIONS area */
-}
-runtime_defined_t;
+} runtime_defined_t;
 
 typedef struct runtime_inherited_s
 {
     unsigned short offset; /* which inherit in A_INHERITS area */
     function_index_t index; /* index in that program's A_RUNTIME_FUNCTIONS area */
-}
-runtime_inherited_t;
+} runtime_inherited_t;
 
 typedef union
 {
     runtime_defined_t def;
     runtime_inherited_t inh;
-}
-runtime_function_u; /* runtime function table entry in A_RUNTIME_FUNCTIONS area */
+} runtime_function_u; /* runtime function table entry in A_RUNTIME_FUNCTIONS area */
 
 /* ***** Area A_RUNTIME_COMPRESSED *****
  * A compressed table to map full function indices to runtime_function_u
@@ -125,20 +122,24 @@ typedef struct compressed_offset_table_s
     unsigned short num_compressed; /* number of compressed entries */
     unsigned short num_deleted; /* number of deleted entries */
     unsigned char index[1];
-}
-compressed_offset_table_t;
+} compressed_offset_table_t;
 
 /* ***** Area A_COMPILER_FUNCTIONS *****
- * Each function defined in the program has an entry here.
- * This is used during compilation to keep track of functions.
+ * Each function defined in the program has an compiler_function_t entry.
+ * These are function definitions generated at compile time.
+ * The interpreter looks up functions by their runtime index in function_offsets,
+ * which gives a runtime_function_u entry. If that entry is a defined function,
+ * the f_index field gives the index into the function_table.
+ * If it is an inherited function, the offset and index fields give the location
+ * of the function in the inherited program.
  */
-struct compiler_function_s
+typedef struct compiler_function_s
 {
     char *name;
-    unsigned short type;
+    lpc_type_t type; /* return type of function */
     function_index_t runtime_index; /* index into A_FUNCTION_FLAGS area */
-    function_address_t address;
-}; /* function definition entry in A_COMPILER_FUNCTIONS area */
+    function_address_t address; /* opcode offset in the program_t.program */
+} compiler_function_t;
 
 /* ***** Area A_FUNCTION_DEFS *****
  * Temporary structure used during compilation to keep track of functions.
@@ -154,34 +155,30 @@ typedef struct compiler_temp_s
     /* For non-aliases, this is a count of the number of non-aliases we've
        seen for this function. */
     unsigned short alias_for;
-}
-compiler_temp_t;
+} compiler_temp_t;
 
 /***** Area A_CLASS_DEFS *****/
 typedef struct class_def_s
 {
     unsigned short name;
-    unsigned short type;
+    lpc_type_t type; /* currently unused. reserved for class-wise declaration */
     unsigned short size;
     unsigned short index;
-}
-class_def_t;
+} class_def_t;
 
 /***** Area A_CLASS_MEMBER *****/
 typedef struct class_member_entry_s
 {
     unsigned short name;
-    unsigned short type;
-}
-class_member_entry_t;
+    lpc_type_t type;
+} class_member_entry_t;
 
 /***** Area A_VAR_NAME and A_VAR_TEMP *****/
 typedef struct variable_s
 {
     char *name;
-    unsigned short type;	/* Type of variable. See above. TYPE_ */
-}
-variable_t;
+    lpc_type_t type;	/* Type of variable. See above. TYPE_ */
+} variable_t;
 
 /***** Area A_INHERIT *****/
 typedef struct inherit_s
@@ -190,11 +187,10 @@ typedef struct inherit_s
     function_index_t function_index_offset;
     unsigned short variable_index_offset;
     unsigned short type_mod;
-}
-inherit_t;
+} inherit_t;
 
 /***** The program structure *****/
-struct program_s
+typedef struct program_s
 {
     char *name;	                /* Name of file that defined prog */
     int flags;
@@ -216,7 +212,7 @@ struct program_s
     class_member_entry_t *class_members;
     char **strings;	        /* All strings uses by the program */
     char **variable_table;  /* variables defined by this program */
-    unsigned short *variable_types;	/* variables defined by this program */
+    lpc_type_t *variable_types;	/* variables defined by this program */
     inherit_t *inherit;     /* List of inherited prgms (A_INHERITS area) */
     int total_size;	        /* Sum of all data in this struct */
     int heart_beat;	        /* Index of the heart beat function. -1 means no heart beat */
@@ -230,7 +226,7 @@ struct program_s
      * inheritance. There are several lines of code that depends on the type
      * length (16 bits) of 'type_start' (sorry !).
      */
-    unsigned short *argument_types;
+    lpc_type_t *argument_types;
 #define INDEX_START_NONE    65535
     unsigned short *type_start;
     /*
@@ -244,7 +240,7 @@ struct program_s
     unsigned short num_variables_total;
     unsigned short num_variables_defined;
     unsigned short num_inherited;
-};
+} program_t;
 
 extern int total_num_prog_blocks;
 extern int total_prog_block_size;
@@ -253,7 +249,7 @@ void free_prog(program_t *, int);
 void deallocate_program(program_t *);
 char *variable_name(program_t *, int);
 char *function_name(program_t *, int);
-runtime_function_u *find_func_entry(const program_t *, function_index_t);
+runtime_function_u *find_func_entry(const program_t*, int);
 
 /* the simple version */
 #define FUNC_ENTRY(p, i) ((p)->function_offsets + (i))

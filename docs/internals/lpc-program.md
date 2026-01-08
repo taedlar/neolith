@@ -261,7 +261,7 @@ typedef struct class_member_entry_s {
 ---
 
 #### A_ARGUMENT_TYPES (13)
-**Data Type**: `unsigned short[]` (type_of_locals_t)  
+**Data Type**: `unsigned short[]` (lpc_type_t)  
 **Description**: Type information for function arguments. Only saved if `#pragma save_types` is used.  
 **Usage**:
 - Allocated per function in [define_new_function()](../../lib/lpc/compiler.c#L1058)

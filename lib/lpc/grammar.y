@@ -1150,9 +1150,7 @@ expr0:
                 CREATE_BINARY_OP($$, $2, r->type, r, l);
 
                 if (exact_types && !compatible_types(r->type, l->type) &&
-                    !($2 == F_ADD_EQ
-                      && r->type == TYPE_STRING && 
-                      COMP_TYPE(l->type, TYPE_NUMBER))) {
+                    !($2 == F_ADD_EQ && r->type == TYPE_STRING && COMP_TYPE(l->type, TYPE_NUMBER))) {
                     char buf[256];
                     char *end = EndOf(buf);
                     char *p;
@@ -2277,9 +2275,7 @@ expr4:
                     CREATE_ERROR($$);
                 } else {
                     CREATE_UNARY_OP_1($$, F_MEMBER, 0, $1, 0);
-                    $$->l.number = lookup_class_member(CLASS_IDX($1->type),
-                                                       $3,
-                                                       &($$->type));
+                    $$->l.number = lookup_class_member(CLASS_IDX($1->type), $3, &($$->type));
                 }
                 scratch_free($3);
             }

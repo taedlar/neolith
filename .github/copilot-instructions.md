@@ -175,6 +175,26 @@ Efuns are **not** manually registered. Instead:
 3. Custom tool `edit_source` generates tables consumed by compiler
 4. Add C implementation in [lib/efuns/](lib/efuns/) with `#ifdef F_FUNCTION_NAME` guards
 
+## LPC Type Systems
+
+Neolith uses **three distinct type systems** that must never be mixed:
+
+1. **Compile-time types** (`lpc_type_t`): TYPE_* constants (0-10) for static type checking
+2. **Runtime types** (`svalue_type_t`): T_* bit flags for runtime value dispatch
+3. **Parse tree types** (`lpc_type_t`): TYPE_* annotations in AST nodes
+
+**Critical Rules**:
+- `lpc_type_t` uses hybrid encoding: sequential base (0-10) + bit flag modifiers (TYPE_MOD_ARRAY=0x0020, TYPE_MOD_CLASS=0x0040, NAME_TYPE_MOD=0x7F00)
+- `svalue_type_t` uses pure bit flags: T_NUMBER=0x2, T_STRING=0x4, T_ARRAY=0x8, etc.
+- **Never use TYPE_* with svalue_t or T_* with lpc_type_t**—they are incompatible domains
+- Always mask NAME_TYPE_MOD (0x7F00) when checking base types: `type & ~NAME_TYPE_MOD`
+- Check arrays with: `if (type & TYPE_MOD_ARRAY)`
+- Check classes with: `IS_CLASS(type)` macro
+
+**Structures using `lpc_type_t`**: compiler_function_t.type, variable_t.type, class_member_entry_t.type, parse_node_t.type
+
+See [docs/internals/lpc-types.md](docs/internals/lpc-types.md) for complete type system reference.
+
 ## LPC Compiler Architecture
 
 The LPC compiler uses a multi-pass architecture with 24 memory blocks (`mem_block[]`) for incremental program construction. See [docs/internals/lpc-program.md](docs/internals/lpc-program.md) for complete details.
@@ -262,6 +282,7 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
 - `function_number_t`: Index into `A_COMPILER_FUNCTIONS` (only defined functions)
 - `function_index_t`: Index into `A_RUNTIME_FUNCTIONS` (all functions including inherited)
 - `function_address_t`: Bytecode offset in `A_PROGRAM`
+- When passing index types to functions, use `int` for compatibility. When returning, use specific typedefs. When storing in structs, use specific typedefs for clarity.
 
 **Inheritance Resolution**:
 - Local functions: `runtime_function_u.def` has `{num_arg, num_local, f_index}`
@@ -340,6 +361,7 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
 - **Test mudlib**: [examples/m3_mudlib/](examples/m3_mudlib/)
 - **Developer reference**: [docs/manual/dev.md](docs/manual/dev.md)
 - **Internals guide**: [docs/manual/internals.md](docs/manual/internals.md)
+- **LPC type systems**: [docs/internals/lpc-types.md](docs/internals/lpc-types.md) - compile-time vs runtime types, encoding schemes
 - **LPC compiler internals**: [docs/internals/lpc-program.md](docs/internals/lpc-program.md) - mem_block system and binary serialization
 
 ## Reference Documentation
@@ -349,9 +371,11 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
 - [internals.md](docs/manual/internals.md): Driver architecture overview
 
 **Implementation Details** ([docs/internals/](docs/internals/)):
+- [lpc-types.md](docs/internals/lpc-types.md): Complete LPC type system reference - lpc_type_t vs svalue_type_t, encoding schemes, compatibility checking, common pitfalls
 - [lpc-program.md](docs/internals/lpc-program.md): Complete LPC compiler memory block system, binary save/load format, pointer serialization, inheritance resolution
 
 When working on compiler features, consult these documents for:
+- **Type system rules**: lpc_type_t vs svalue_type_t domains, masking NAME_TYPE_MOD, array/class detection
 - Memory block allocations and their data types
 - Binary file format and version validation
 - Function/variable/class indexing schemes
@@ -364,6 +388,7 @@ When working on compiler features, consult these documents for:
 3. **Stack discipline**: Applies must clean up arguments even on failure (see [apply.c](src/apply.c) comments)
 4. **Global state**: Minimize globals; use `static` within .c files when possible
 5. **Line-of-code metrics**: Avoid unnecessary line wrapping; check LOC with `git ls-files | egrep -v '^(docs|examples)' | xargs wc -l`
+6. **Type system mixing**: Never mix compile-time TYPE_* with runtime T_* values—see [lpc-types.md](docs/internals/lpc-types.md)
 
 ## When Contributing
 - Add unit tests in [tests/](tests/) subdirectories following GoogleTest patterns
