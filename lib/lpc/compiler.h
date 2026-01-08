@@ -134,10 +134,16 @@ extern int var_defined;
 #define PROG_STRING(n)  (((char **)mem_block[A_STRINGS].block)[n])
 #define CLASS(n)        ((class_def_t *)mem_block[A_CLASS_DEF].block + (n))
 
-#if !defined(__alpha) && !defined(cray)
-#define align(x) (((x) + 3) & ~3)
+/* Struct alignment for program_t and sub-areas.
+ * Must match pointer size since program_t contains many pointer fields.
+ * Using sizeof(void*) ensures correct alignment on all platforms.
+ */
+#if defined(__LP64__) || defined(_WIN64) || defined(__x86_64__) || defined(__amd64__) || \
+    defined(__aarch64__) || defined(__ia64__) || defined(__powerpc64__) || \
+    defined(__alpha) || defined(cray)
+#define ALIGN_SIZE(x) (((x) + 7) & ~7)  /* 8-byte alignment for 64-bit */
 #else
-#define align(x) (((x) + 7) & ~7)
+#define ALIGN_SIZE(x) (((x) + 3) & ~3)  /* 4-byte alignment for 32-bit */
 #endif
 
 #define SOME_NUMERIC_CASE_LABELS 0x40000
