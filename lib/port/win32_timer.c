@@ -13,9 +13,6 @@
 #include <process.h>
 #include "timer_port.h"
 
-/* Thread-local storage for callback function */
-static __declspec(thread) timer_callback_t g_timer_callback = NULL;
-
 /**
  * @brief Timer thread procedure
  * 
@@ -36,8 +33,8 @@ static unsigned __stdcall timer_thread_proc(void *lpParameter)
         
         switch (wait_result) {
             case WAIT_OBJECT_0:  /* Timer signaled */
-                if (timer->active && g_timer_callback) {
-                    g_timer_callback();
+                if (timer->active && timer->callback) {
+                    timer->callback();
                 }
                 break;
                 
@@ -62,22 +59,23 @@ static unsigned __stdcall timer_thread_proc(void *lpParameter)
 /**
  * @brief Initialize Windows timer system
  */
-int timer_port_init(timer_port_t *timer)
+timer_error_t timer_port_init(timer_port_t *timer)
 {
     if (!timer) {
-        return -1;
+        return TIMER_ERR_NULL_PARAM;
     }
     
     /* Initialize all handles to invalid/null */
     timer->timer_handle = NULL;
     timer->timer_thread = NULL;
     timer->stop_event = NULL;
+    timer->callback = NULL;
     timer->active = 0;
     
     /* Create manual-reset stop event */
     timer->stop_event = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!timer->stop_event) {
-        return -1;
+        return TIMER_ERR_SYSTEM;
     }
     
     /* Create waitable timer */
@@ -85,31 +83,39 @@ int timer_port_init(timer_port_t *timer)
     if (!timer->timer_handle) {
         CloseHandle(timer->stop_event);
         timer->stop_event = NULL;
-        return -1;
+        return TIMER_ERR_SYSTEM;
     }
     
-    return 0;
+    return TIMER_OK;
 }
 
 /**
  * @brief Start the periodic timer
  */
-int timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callback_t callback)
+timer_error_t timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callback_t callback)
 {
     LARGE_INTEGER due_time;
     LONG period_ms;
     
-    if (!timer || !callback || !timer->timer_handle || !timer->stop_event) {
-        return -1;
+    if (!timer || !callback) {
+        return TIMER_ERR_NULL_PARAM;
+    }
+    
+    if (!timer->timer_handle || !timer->stop_event) {
+        return TIMER_ERR_SYSTEM;
     }
     
     if (timer->active) {
         /* Timer already running */
-        return -1;
+        return TIMER_ERR_ALREADY_ACTIVE;
     }
     
-    /* Store callback in thread-local storage */
-    g_timer_callback = callback;
+    if (interval_us == 0) {
+        return TIMER_ERR_INVALID_INTERVAL;
+    }
+    
+    /* Store callback in timer structure */
+    timer->callback = callback;
     
     /* Convert microseconds to milliseconds for period */
     period_ms = (LONG)(interval_us / 1000);
@@ -126,7 +132,7 @@ int timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callb
     
     /* Set the waitable timer */
     if (!SetWaitableTimer(timer->timer_handle, &due_time, period_ms, NULL, NULL, FALSE)) {
-        return -1;
+        return TIMER_ERR_SYSTEM;
     }
     
     /* Mark timer as active before starting thread */
@@ -145,23 +151,23 @@ int timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callb
     if (!timer->timer_thread) {
         timer->active = 0;
         CancelWaitableTimer(timer->timer_handle);
-        return -1;
+        return TIMER_ERR_THREAD;
     }
     
-    return 0;
+    return TIMER_OK;
 }
 
 /**
  * @brief Stop the timer
  */
-int timer_port_stop(timer_port_t *timer)
+timer_error_t timer_port_stop(timer_port_t *timer)
 {
     if (!timer) {
-        return -1;
+        return TIMER_ERR_NULL_PARAM;
     }
     
     if (!timer->active) {
-        return 0;  /* Already stopped */
+        return TIMER_OK;  /* Already stopped */
     }
     
     /* Signal the timer thread to stop */
@@ -183,9 +189,9 @@ int timer_port_stop(timer_port_t *timer)
     }
     
     /* Clear callback */
-    g_timer_callback = NULL;
+    timer->callback = NULL;
     
-    return 0;
+    return TIMER_OK;
 }
 
 /**
@@ -220,6 +226,31 @@ void timer_port_cleanup(timer_port_t *timer)
 int timer_port_is_active(const timer_port_t *timer)
 {
     return (timer && timer->active) ? 1 : 0;
+}
+
+/**
+ * @brief Convert timer error code to string
+ */
+const char *timer_error_string(timer_error_t error)
+{
+    switch (error) {
+        case TIMER_OK:
+            return "Success";
+        case TIMER_ERR_NULL_PARAM:
+            return "NULL parameter";
+        case TIMER_ERR_ALREADY_ACTIVE:
+            return "Timer already active";
+        case TIMER_ERR_NOT_ACTIVE:
+            return "Timer not active";
+        case TIMER_ERR_SYSTEM:
+            return "System error";
+        case TIMER_ERR_THREAD:
+            return "Thread creation failed";
+        case TIMER_ERR_INVALID_INTERVAL:
+            return "Invalid interval";
+        default:
+            return "Unknown error";
+    }
 }
 
 #endif /* _WIN32 */

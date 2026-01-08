@@ -16,6 +16,7 @@
 #include "backend.h"
 #include "comm.h"
 #include "efuns/call_out.h"
+#include "port/timer_port.h"
 
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
@@ -28,16 +29,20 @@ int heart_beat_flag = 0;
 
 object_t *current_heart_beat;
 
-#ifdef HAVE_LIBRT
-static timer_t hb_timerid = 0; /* heart beat timer id */
-#endif
+static timer_port_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
 
 size_t eval_cost = 0;
 
 static void look_for_objects_to_swap (void);
 static void call_heart_beat (void);
 
-static RETSIGTYPE sigalrm_handler (int);
+/**
+ * @brief Heart beat timer callback.
+ * Sets the heart_beat_flag to trigger heart beat processing.
+ */
+static void heartbeat_timer_callback(void) {
+  heart_beat_flag = 1;
+}
 
 /*
  * There are global variables that must be zeroed before any execution.
@@ -199,18 +204,25 @@ void backend () {
   int nb;
   int i;
   error_context_t econ;
+  timer_error_t timer_err;
 
   opt_info (1, "Entering backend loop.");
 
-#ifdef HAVE_LIBRT
-  if (-1 == timer_create (CLOCK_REALTIME, NULL, &hb_timerid))
+  timer_err = timer_port_init(&heartbeat_timer);
+  if (timer_err != TIMER_OK)
     {
-      debug_perror ("timer_create()", NULL);
-      return;
+      opt_warn (0, "Timer initialization failed: %s. heart_beat(), call_out() and reset() disabled.",
+                timer_error_string(timer_err));
     }
-#else
-  opt_warn (0, "Timer functions not available, heart_beat(), call_out() and reset() disabled.");
-#endif /* HAVE_LIBRT */
+  else
+    {
+      timer_err = timer_port_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
+      if (timer_err != TIMER_OK)
+        {
+          opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
+                    timer_error_string(timer_err));
+        }
+    }
 
 #ifdef WINSOCK
   {
@@ -289,6 +301,8 @@ void backend () {
         call_heart_beat ();
     }
   pop_context (&econ);
+
+  timer_port_cleanup(&heartbeat_timer);
 
 #ifdef WINSOCK
   WSACleanup(); /* for graceful shutdown */
@@ -434,24 +448,6 @@ call_heart_beat ()
 #endif /* HAVE_LIBRT */
 
   heart_beat_flag = 0;
-
-#ifdef HAVE_LIBRT
-  signal (SIGALRM, sigalrm_handler);
-  itimer.it_interval.tv_sec = HEARTBEAT_INTERVAL / 1000000;
-  itimer.it_interval.tv_nsec = (HEARTBEAT_INTERVAL % 1000000) * 1000;
-  itimer.it_value.tv_sec = HEARTBEAT_INTERVAL / 1000000;
-  itimer.it_value.tv_nsec = (HEARTBEAT_INTERVAL % 1000000) * 1000;
-  if (-1 == timer_settime (hb_timerid, 0, &itimer, NULL))
-    {
-      debug_perror ("timer_settime()", NULL);
-      return;
-    }
-#endif /* HAVE_LIBRT */
-//#ifdef HAVE_UALARM
-//  ualarm (HEARTBEAT_INTERVAL, 0);
-//#else /* ! HAVE_UALARM */
-//  alarm (((HEARTBEAT_INTERVAL + 999999) / 1000000));
-//#endif /* ! HAVE_UALARM */
 
   current_time = time (NULL);
   opt_trace (TT_BACKEND|1, "current_time: %ul, num_hb_objs: %d", current_time, num_hb_objs);
@@ -768,15 +764,3 @@ get_heart_beats ()
   return arr;
 }
 #endif
-
-
-/*
- * SIGALRM handler.
- */
-static RETSIGTYPE
-sigalrm_handler (int sig)
-{
-  (void) sig; /* unused */
-  heart_beat_flag = 1;
-  opt_trace (TT_BACKEND|2, "SIGALRM");
-}

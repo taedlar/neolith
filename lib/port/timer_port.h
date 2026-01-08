@@ -16,6 +16,22 @@ extern "C" {
 #include <config.h>
 #endif
 
+/**
+ * @brief Timer error codes
+ */
+typedef enum {
+    TIMER_OK = 0,               /**< Success */
+    TIMER_ERR_NULL_PARAM = -1,  /**< NULL parameter passed */
+    TIMER_ERR_ALREADY_ACTIVE = -2,  /**< Timer already running */
+    TIMER_ERR_NOT_ACTIVE = -3,  /**< Timer not running */
+    TIMER_ERR_SYSTEM = -4,      /**< System error (check errno/GetLastError) */
+    TIMER_ERR_THREAD = -5,      /**< Thread creation/management failed */
+    TIMER_ERR_INVALID_INTERVAL = -6  /**< Invalid interval specified */
+} timer_error_t;
+
+/* Timer callback function type */
+typedef void (*timer_callback_t)(void);
+
 /* Timer handle type - platform specific */
 #ifdef _WIN32
 #include <windows.h>
@@ -23,6 +39,7 @@ typedef struct {
     HANDLE timer_handle;
     HANDLE timer_thread;
     HANDLE stop_event;
+    timer_callback_t callback;
     volatile int active;
 } timer_port_t;
 #elif defined(HAVE_LIBRT)
@@ -40,31 +57,28 @@ typedef struct {
 } timer_port_t;
 #endif
 
-/* Timer callback function type */
-typedef void (*timer_callback_t)(void);
-
 /**
  * @brief Initialize the timer system
  * @param timer Pointer to timer handle structure
- * @return 0 on success, -1 on error
+ * @return TIMER_OK on success, error code on failure
  */
-int timer_port_init(timer_port_t *timer);
+timer_error_t timer_port_init(timer_port_t *timer);
 
 /**
  * @brief Start a periodic timer
  * @param timer Pointer to initialized timer handle
  * @param interval_us Timer interval in microseconds
  * @param callback Function to call on each timer expiration
- * @return 0 on success, -1 on error
+ * @return TIMER_OK on success, error code on failure
  */
-int timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callback_t callback);
+timer_error_t timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callback_t callback);
 
 /**
  * @brief Stop the timer
  * @param timer Pointer to timer handle
- * @return 0 on success, -1 on error
+ * @return TIMER_OK on success, error code on failure
  */
-int timer_port_stop(timer_port_t *timer);
+timer_error_t timer_port_stop(timer_port_t *timer);
 
 /**
  * @brief Cleanup timer resources
@@ -78,6 +92,13 @@ void timer_port_cleanup(timer_port_t *timer);
  * @return 1 if active, 0 if not active
  */
 int timer_port_is_active(const timer_port_t *timer);
+
+/**
+ * @brief Convert timer error code to string
+ * @param error Error code
+ * @return Human-readable error string
+ */
+const char *timer_error_string(timer_error_t error);
 
 #ifdef __cplusplus
 }
