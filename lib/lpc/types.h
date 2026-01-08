@@ -6,6 +6,8 @@
     #include <inttypes.h>
 #endif
 
+typedef unsigned short lpc_type_t; /* entry type in A_ARGUMENT_TYPES area */
+
 /* forward declarations */
 typedef struct array_s			array_t;
 typedef struct buffer_s			buffer_t;
@@ -44,8 +46,9 @@ union svalue_u {
 /** @brief The value stack element.
  *  If it is a string, then the way that the string has been allocated differently, which will affect how it should be freed.
  */
+typedef short svalue_type_t;
 struct svalue_s {
-    short type;
+    svalue_type_t type; /* runtime type of svalue_t (bit flags, not to be confused with lpc_type_t) */
     short subtype;
     union svalue_u u;
 };

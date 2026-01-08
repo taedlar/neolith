@@ -19,7 +19,10 @@ typedef struct mem_block_s {
 
 #define START_BLOCK_SIZE	4096
 
-/* NUMPAREAS ares are saved with the program code after compilation,
+/*
+ * Compilation memory blocks.
+ *
+ * NUMPAREAS ares are saved with the program code after compilation,
  * the rest are only temporary.
  */
 #define A_PROGRAM               0	/* executable code */
@@ -49,15 +52,16 @@ typedef struct mem_block_s {
 #define A_VAR_TEMP              23	/* table of variables */
 #define NUMAREAS                24
 
+extern mem_block_t mem_block[NUMAREAS];
+
 #define CURRENT_PROGRAM_SIZE (prog_code - mem_block[current_block].block)
 #define UPDATE_PROGRAM_SIZE mem_block[current_block].current_size = (size_t)CURRENT_PROGRAM_SIZE
 
 /*
- * LPC types available. The number '0' is valid as any type.
-*  These types are only used by the compiler, when type checks are enabled.
+ * LPC compiler types available. The number '0' is valid as any type.
+ * These types are only used by the compiler, when type checks are enabled.
  * This is not to be confused with runtime svalue types (named T_* in types.h).
  */
-
 #define TYPE_UNKNOWN	0	/* This type must be casted */
 #define TYPE_ANY        1	/* Will match any type */
 #define TYPE_NOVALUE    2
@@ -71,8 +75,6 @@ typedef struct mem_block_s {
 #define TYPE_BUFFER     10
 
 extern char *compiler_type_names[];
-
-extern mem_block_t mem_block[NUMAREAS];
 
 #define LOOP_CONTEXT            0x1
 #define SWITCH_CONTEXT          0x2
@@ -163,7 +165,6 @@ extern int current_block;
 extern char *prog_code;
 extern char *prog_code_max;
 extern ident_hash_elem_t **locals;
-typedef unsigned short lpc_type_t; /* entry type in A_ARGUMENT_TYPES area */
 extern lpc_type_t *type_of_locals;
 extern char *runtime_locals;
 extern int current_number_of_locals;
