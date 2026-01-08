@@ -239,12 +239,6 @@ void backend () {
 
   if (!t_flag)
     {
-#ifdef HAVE_LIBRT
-      sigset_t set;
-      sigemptyset (&set);
-      sigaddset (&set, SIGALRM);
-      sigprocmask (SIG_UNBLOCK, &set, NULL);
-#endif
       call_heart_beat ();
     }
   clear_state ();
@@ -443,9 +437,6 @@ call_heart_beat ()
 {
   object_t *ob;
   heart_beat_t *curr_hb;
-#ifdef HAVE_LIBRT
-  struct itimerspec itimer;
-#endif /* HAVE_LIBRT */
 
   heart_beat_flag = 0;
 

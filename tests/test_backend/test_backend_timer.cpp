@@ -35,8 +35,8 @@ protected:
  * @brief Test that heart_beat_flag is set by timer callback
  */
 TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
-    timer_port_t test_timer = {0};
-    volatile int callback_count = 0;
+    timer_port_t test_timer;
+    memset(&test_timer, 0, sizeof(test_timer));
 
     auto test_callback = +[]() {
         heart_beat_flag = 1;
@@ -67,7 +67,8 @@ TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
  * @brief Test multiple timer callbacks over time
  */
 TEST_F(BackendTimerTest, MultipleTimerCallbacks) {
-    timer_port_t test_timer = {0};
+    timer_port_t test_timer;
+    memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
 
     auto counting_callback = +[]() {
@@ -99,7 +100,8 @@ TEST_F(BackendTimerTest, MultipleTimerCallbacks) {
  * @brief Test timer stop prevents further callbacks
  */
 TEST_F(BackendTimerTest, TimerStopPreventsFurtherCallbacks) {
-    timer_port_t test_timer = {0};
+    timer_port_t test_timer;
+    memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
 
     auto counting_callback = +[]() {
@@ -133,7 +135,8 @@ TEST_F(BackendTimerTest, TimerStopPreventsFurtherCallbacks) {
  * @brief Test timer restart functionality
  */
 TEST_F(BackendTimerTest, TimerRestart) {
-    timer_port_t test_timer = {0};
+    timer_port_t test_timer;
+    memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
 
     auto counting_callback = +[]() {
@@ -167,7 +170,8 @@ TEST_F(BackendTimerTest, TimerRestart) {
  * @brief Test timer is_active status
  */
 TEST_F(BackendTimerTest, TimerActiveStatus) {
-    timer_port_t test_timer = {0};
+    timer_port_t test_timer;
+    memset(&test_timer, 0, sizeof(test_timer));
 
     auto dummy_callback = +[]() { };
 
@@ -191,7 +195,8 @@ TEST_F(BackendTimerTest, TimerActiveStatus) {
  * @brief Test HEARTBEAT_INTERVAL timer interval (2 seconds)
  */
 TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
-    timer_port_t test_timer = {0};
+    timer_port_t test_timer;
+    memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
     
     auto counting_callback = +[]() {
@@ -241,7 +246,8 @@ TEST_F(BackendTimerTest, QueryHeartBeatIntegration) {
     // This test ensures the timer infrastructure doesn't interfere
     // with the existing heart beat object tracking
 
-    timer_port_t test_timer = {0};
+    timer_port_t test_timer;
+    memset(&test_timer, 0, sizeof(test_timer));
     ASSERT_EQ(timer_port_init(&test_timer), TIMER_OK);
     
     // Just verify timer can start/stop without affecting other systems
