@@ -210,7 +210,7 @@ void prepare_cases(parse_node_t *, int);
 void push_func_block(void);
 void pop_func_block(void);
 
-int lookup_class_member(int, char *, char *);
+int lookup_class_member(int, const char *, lpc_type_t*);
 parse_node_t *reorder_class_values(int, parse_node_t *);
 
 parse_node_t *promote_to_float(parse_node_t *);

@@ -339,7 +339,7 @@ static void copy_function (program_t * prog, function_index_t index,
   ihe->dn.function_num = (function_index_t)where;
 }
 
-int lookup_class_member (int which, char *name, char *type) {
+int lookup_class_member (int which, const char *name, lpc_type_t *type) {
 
   int i;
   class_def_t *cd;
