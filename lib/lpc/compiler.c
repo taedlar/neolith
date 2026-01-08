@@ -12,6 +12,8 @@
 #include "lpc/include/runtime_config.h"
 #include "efuns/file_utils.h"
 
+extern int yyparse (void); /* generated from grammar.y */
+
 static void clean_parser (void);
 static void prolog (const char *);
 static program_t *epilog (void);
@@ -20,9 +22,7 @@ static void show_overload_warnings (void);
 #define CT(x) (1 << (x))
 #define CT_SIMPLE(x) (CT(TYPE_ANY) | CT(x))
 
-extern int yyparse (void);
-
-short compatible[11] = {
+lpc_type_t lpcc_compatible[11] = {
   /* UNKNOWN */ 0,
   /* ANY */ 0xfff,
   /* NOVALUE to */ CT_SIMPLE (TYPE_NOVALUE) | CT (TYPE_VOID) | CT (TYPE_NUMBER),
@@ -36,7 +36,7 @@ short compatible[11] = {
   /* BUFFER */ CT_SIMPLE (TYPE_BUFFER),
 };
 
-short is_type[11] = {
+lpc_type_t lpcc_is_type[11] = {
   /* UNKNOWN */ 0,
   /* ANY */ 0xfff,
   /* NOVALUE */ CT_SIMPLE (TYPE_NOVALUE) | CT (TYPE_VOID),
@@ -49,6 +49,9 @@ short is_type[11] = {
   /* REAL */ CT_SIMPLE (TYPE_REAL),
   /* BUFFER */ CT_SIMPLE (TYPE_BUFFER),
 };
+
+#undef CT_SIMPLE
+#undef CT
 
 mem_block_t mem_block[NUMAREAS];
 
@@ -71,11 +74,11 @@ static short freed_string;
 
 size_t num_local_variables_allowed = 0;
 
-type_of_locals_t *type_of_locals = 0;
+lpc_type_t *type_of_locals = 0;
 ident_hash_elem_t **locals = 0;
 char *runtime_locals = 0;
 
-type_of_locals_t *type_of_locals_ptr = 0;
+lpc_type_t *type_of_locals_ptr = 0;
 ident_hash_elem_t **locals_ptr = 0;
 char *runtime_locals_ptr = 0;
 
@@ -107,9 +110,10 @@ char* get_two_types (char *where, char *end, int type1, int type2) {
  */
 void init_locals () {
 
-  type_of_locals = CALLOCATE (num_local_variables_allowed, type_of_locals_t, TAG_LOCALS, "init_locals:1");
-  locals = CALLOCATE (num_local_variables_allowed, ident_hash_elem_t *, TAG_LOCALS, "init_locals:2");
-  runtime_locals = CALLOCATE (num_local_variables_allowed, char, TAG_LOCALS, "init_locals:3");
+  type_of_locals  = CALLOCATE (num_local_variables_allowed, lpc_type_t, TAG_LOCALS, "init_locals:1");
+  locals          = CALLOCATE (num_local_variables_allowed, ident_hash_elem_t *, TAG_LOCALS, "init_locals:2");
+  runtime_locals  = CALLOCATE (num_local_variables_allowed, char, TAG_LOCALS, "init_locals:3");
+
   type_of_locals_ptr = type_of_locals;
   locals_ptr = locals;
   runtime_locals_ptr = runtime_locals;
@@ -212,11 +216,11 @@ int add_local_name (char *str, int type) {
       ident_hash_elem_t *ihe;
 
       ihe = find_or_add_ident (str, FOA_NEEDS_MALLOC);
-      type_of_locals_ptr[max_num_locals] = type;
+      type_of_locals_ptr[max_num_locals] = (lpc_type_t)type;
       locals_ptr[current_number_of_locals++] = ihe;
       if (ihe->dn.local_num == -1)
         ihe->sem_value++;
-      return ihe->dn.local_num = max_num_locals++;
+      return (ihe->dn.local_num = max_num_locals++);
     }
 }
 
@@ -226,8 +230,8 @@ void reallocate_locals () {
 
   offset = type_of_locals_ptr - type_of_locals;
   type_of_locals = RESIZE (type_of_locals,
-    type_of_locals_size += num_local_variables_allowed,
-    type_of_locals_t,
+    (type_of_locals_size += num_local_variables_allowed),
+    lpc_type_t,
     TAG_LOCALS, "reallocate_locals:1"
   );
   type_of_locals_ptr = type_of_locals + offset;
@@ -739,7 +743,7 @@ int compatible_types (int t1, int t2) {
     }
   else if (t2 & TYPE_MOD_ARRAY)
     return 0;
-  return compatible[t1] & (1 << t2);
+  return lpcc_compatible[t1] & (1 << t2);
 #endif
 }
 
@@ -768,9 +772,9 @@ int compatible_types2 (int t1, int t2) {
     }
   else if (t2 & TYPE_MOD_ARRAY)
     return 0;
-  if (compatible[t1] & (1 << t2))
+  if (lpcc_compatible[t1] & (1 << t2))
     return 1;
-  return compatible[t2] & (1 << t1);
+  return lpcc_compatible[t2] & (1 << t1);
 #endif
 }
 

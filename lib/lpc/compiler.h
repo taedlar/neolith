@@ -94,16 +94,15 @@ extern function_context_t *current_function_context;
 extern int var_defined;
 
 /*
- * Some good macros to have.
+ *  Below are some macros shared by the LPC parser and the LPC compiler.
  */
-
 #define IS_CLASS(t) ((t & (TYPE_MOD_ARRAY | TYPE_MOD_CLASS)) == TYPE_MOD_CLASS)
 #define CLASS_IDX(t) (t & ~(NAME_TYPE_MOD | TYPE_MOD_CLASS))
 
 #define COMP_TYPE(e, t) (!(e & (TYPE_MOD_ARRAY | TYPE_MOD_CLASS)) \
-                         && (compatible[(unsigned char)e] & (1 << (t))))
+                         && (lpcc_compatible[(unsigned char)e] & (1 << (t))))
 #define IS_TYPE(e, t) (!(e & (TYPE_MOD_ARRAY | TYPE_MOD_CLASS)) \
-                       && (is_type[(unsigned char)e] & (1 << (t))))
+                       && (lpcc_is_type[(unsigned char)e] & (1 << (t))))
 
 /* runtime_function_u from full function index */
 #define FUNCTION_RENTRY(n) ((runtime_function_u *)mem_block[A_RUNTIME_FUNCTIONS].block + (n))
@@ -163,19 +162,19 @@ extern int current_block;
 extern char *prog_code;
 extern char *prog_code_max;
 extern ident_hash_elem_t **locals;
-typedef unsigned short type_of_locals_t; /* entry type in A_ARGUMENT_TYPES area */
-extern type_of_locals_t *type_of_locals;
+typedef unsigned short lpc_type_t; /* entry type in A_ARGUMENT_TYPES area */
+extern lpc_type_t *type_of_locals;
 extern char *runtime_locals;
 extern int current_number_of_locals;
 extern int max_num_locals;
-extern type_of_locals_t *type_of_locals_ptr;
+extern lpc_type_t *type_of_locals_ptr;
 extern ident_hash_elem_t **locals_ptr;
 extern char *runtime_locals_ptr;
 
 extern size_t type_of_locals_size;
 extern size_t locals_size;
-extern short compatible[11];
-extern short is_type[11];
+extern lpc_type_t lpcc_compatible[11];
+extern lpc_type_t lpcc_is_type[11];
 
 char *get_two_types(char *, char *, int, int);
 char *get_type_name(char *, char *, int);
