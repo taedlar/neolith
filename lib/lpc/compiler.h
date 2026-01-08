@@ -141,9 +141,9 @@ extern int var_defined;
 #if defined(__LP64__) || defined(_WIN64) || defined(__x86_64__) || defined(__amd64__) || \
     defined(__aarch64__) || defined(__ia64__) || defined(__powerpc64__) || \
     defined(__alpha) || defined(cray)
-#define align(x) (((x) + 7) & ~7)  /* 8-byte alignment for 64-bit */
+#define ALIGN_SIZE(x) (((x) + 7) & ~7)  /* 8-byte alignment for 64-bit */
 #else
-#define align(x) (((x) + 3) & ~3)  /* 4-byte alignment for 32-bit */
+#define ALIGN_SIZE(x) (((x) + 3) & ~3)  /* 4-byte alignment for 32-bit */
 #endif
 
 #define SOME_NUMERIC_CASE_LABELS 0x40000

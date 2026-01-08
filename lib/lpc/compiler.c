@@ -1848,7 +1848,7 @@ copy_in (int which, char **start)
   block = mem_block[which].block;
   memcpy (*start, block, size);
 
-  *start += align (size);
+  *start += ALIGN_SIZE (size);
 }
 
 static int
@@ -1974,7 +1974,7 @@ copy_and_sort_function_table (program_t * prog, char **p)
     }
 #endif
 
-  *p += align (new_num * sizeof (compiler_function_t));
+  *p += ALIGN_SIZE (new_num * sizeof (compiler_function_t));
 
   if (mem_block[A_ARGUMENT_TYPES].current_size)
     {
@@ -1987,7 +1987,7 @@ copy_and_sort_function_table (program_t * prog, char **p)
       for (i = 0; i < new_num; i++)
         dest[i] = *((unsigned short *) mem_block[A_ARGUMENT_INDEX].block + temp[i]);
 
-      *p += align (new_num * sizeof (unsigned short));
+      *p += ALIGN_SIZE (new_num * sizeof (unsigned short));
     }
   else
     {
@@ -2192,7 +2192,7 @@ static program_t *epilog ()
     }
   generate_final_program (1);
 
-  size = align (sizeof (program_t));
+  size = ALIGN_SIZE (sizeof (program_t));
 
   /* delete argument information if we're not saving it */
   if (!(pragmas & PRAGMA_SAVE_TYPES))
@@ -2206,7 +2206,7 @@ static program_t *epilog ()
 
   for (i = 0; i < NUMPAREAS; i++)
     if (i != A_LINENUMBERS && i != A_FILE_INFO)
-      size += align (mem_block[i].current_size);
+      size += ALIGN_SIZE (mem_block[i].current_size);
 
   p = (char *) DXALLOC (size, TAG_PROGRAM, "epilog: 1");
   prog = (program_t *) p;
@@ -2238,7 +2238,7 @@ static program_t *epilog ()
   prog->line_info = (unsigned char *) (&prog->file_info[lnoff]);
   memcpy (((char *) &prog->file_info[lnoff]), mem_block[A_LINENUMBERS].block, mem_block[A_LINENUMBERS].current_size);
 
-  p += align (sizeof (program_t));
+  p += ALIGN_SIZE (sizeof (program_t));
 
   prog->program = p;
   prog->program_size = mem_block[A_PROGRAM].current_size;
