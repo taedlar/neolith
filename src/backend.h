@@ -2,6 +2,7 @@
 #include "interpret.h"
 
 extern time_t current_time;
+extern int heart_beat_flag;
 extern object_t *current_heart_beat;
 extern size_t eval_cost;
 

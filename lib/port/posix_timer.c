@@ -38,35 +38,39 @@ static void timer_signal_handler(int signum)
 /**
  * @brief Initialize POSIX timer system
  */
-int timer_port_init(timer_port_t *timer)
+timer_error_t timer_port_init(timer_port_t *timer)
 {
     if (!timer) {
-        return -1;
+        return TIMER_ERR_NULL_PARAM;
     }
     
     timer->timer_id = 0;
     timer->active = 0;
     memset(&timer->old_sigaction, 0, sizeof(timer->old_sigaction));
     
-    return 0;
+    return TIMER_OK;
 }
 
 /**
  * @brief Start the periodic POSIX timer
  */
-int timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callback_t callback)
+timer_error_t timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callback_t callback)
 {
     struct sigevent sev;
     struct itimerspec its;
     struct sigaction sa;
     
     if (!timer || !callback) {
-        return -1;
+        return TIMER_ERR_NULL_PARAM;
+    }
+    
+    if (interval_us == 0) {
+        return TIMER_ERR_INVALID_INTERVAL;
     }
     
     if (timer->active) {
         /* Timer already running */
-        return -1;
+        return TIMER_ERR_ALREADY_ACTIVE;
     }
     
     /* Store callback */
@@ -78,7 +82,7 @@ int timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callb
     sa.sa_flags = SA_RESTART;  /* Restart interrupted system calls */
     
     if (sigaction(SIGALRM, &sa, &timer->old_sigaction) == -1) {
-        return -1;
+        return TIMER_ERR_SYSTEM;
     }
     
     /* Create the timer */
@@ -89,7 +93,7 @@ int timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callb
     if (timer_create(CLOCK_REALTIME, &sev, &timer->timer_id) == -1) {
         /* Restore old signal handler */
         sigaction(SIGALRM, &timer->old_sigaction, NULL);
-        return -1;
+        return TIMER_ERR_SYSTEM;
     }
     
     /* Configure timer interval */
@@ -104,26 +108,26 @@ int timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callb
     if (timer_settime(timer->timer_id, 0, &its, NULL) == -1) {
         timer_delete(timer->timer_id);
         sigaction(SIGALRM, &timer->old_sigaction, NULL);
-        return -1;
+        return TIMER_ERR_SYSTEM;
     }
     
     timer->active = 1;
-    return 0;
+    return TIMER_OK;
 }
 
 /**
  * @brief Stop the POSIX timer
  */
-int timer_port_stop(timer_port_t *timer)
+timer_error_t timer_port_stop(timer_port_t *timer)
 {
     struct itimerspec its;
     
     if (!timer) {
-        return -1;
+        return TIMER_ERR_NULL_PARAM;
     }
     
     if (!timer->active) {
-        return 0;  /* Already stopped */
+        return TIMER_OK;  /* Already stopped */
     }
     
     /* Stop the timer by setting interval to zero */
@@ -143,7 +147,7 @@ int timer_port_stop(timer_port_t *timer)
     g_timer_callback = NULL;
     timer->active = 0;
     
-    return 0;
+    return TIMER_OK;
 }
 
 /**
@@ -165,6 +169,31 @@ void timer_port_cleanup(timer_port_t *timer)
 int timer_port_is_active(const timer_port_t *timer)
 {
     return (timer && timer->active) ? 1 : 0;
+}
+
+/**
+ * @brief Convert timer error code to string
+ */
+const char *timer_error_string(timer_error_t error)
+{
+    switch (error) {
+        case TIMER_OK:
+            return "Success";
+        case TIMER_ERR_NULL_PARAM:
+            return "NULL parameter";
+        case TIMER_ERR_ALREADY_ACTIVE:
+            return "Timer already active";
+        case TIMER_ERR_NOT_ACTIVE:
+            return "Timer not active";
+        case TIMER_ERR_SYSTEM:
+            return "System error";
+        case TIMER_ERR_THREAD:
+            return "Thread creation failed";
+        case TIMER_ERR_INVALID_INTERVAL:
+            return "Invalid interval";
+        default:
+            return "Unknown error";
+    }
 }
 
 #endif /* HAVE_LIBRT && !_WIN32 */
