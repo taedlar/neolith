@@ -556,7 +556,7 @@ static void overload_function (program_t * prog, function_index_t index,
           char *p;
           ovlwarn_t *ow;
           program_t *defprog2;
-          int defindex2;
+          function_index_t defindex2;
           runtime_function_u *func_entry = FUNCTION_RENTRY (oldindex);
           program_t *prog2 = INHERIT (func_entry->inh.offset)->prog;
 
@@ -628,7 +628,7 @@ static void overload_function (program_t * prog, function_index_t index,
       if (f & NAME_PUBLIC)
         f &= ~NAME_PRIVATE;
 
-      FUNCTION_FLAGS (oldindex) = f;
+      FUNCTION_FLAGS (oldindex) = (function_flags_t)f;
 
       if (FUNCTION_PROG (oldindex) == 0)
         {

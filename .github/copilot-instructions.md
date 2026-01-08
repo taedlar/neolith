@@ -262,6 +262,7 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
 - `function_number_t`: Index into `A_COMPILER_FUNCTIONS` (only defined functions)
 - `function_index_t`: Index into `A_RUNTIME_FUNCTIONS` (all functions including inherited)
 - `function_address_t`: Bytecode offset in `A_PROGRAM`
+- When passing index types to functions, use `int` for compatibility. When returning, use specific typedefs. When storing in structs, use specific typedefs for clarity.
 
 **Inheritance Resolution**:
 - Local functions: `runtime_function_u.def` has `{num_arg, num_local, f_index}`

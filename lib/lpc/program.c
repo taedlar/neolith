@@ -106,7 +106,7 @@ char *function_name (program_t * prog, int index) {
  *  @param index The function index to find.
  *  @return A pointer to the runtime_function_u entry for the function.
  */
-runtime_function_u *find_func_entry (const program_t * prog, function_index_t index) {
+runtime_function_u *find_func_entry (const program_t * prog, int index) {
 
   static runtime_function_u ret;
 

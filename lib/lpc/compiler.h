@@ -53,9 +53,9 @@ typedef struct mem_block_s {
 #define UPDATE_PROGRAM_SIZE mem_block[current_block].current_size = (size_t)CURRENT_PROGRAM_SIZE
 
 /*
- * Types available. The number '0' is valid as any type. These types
- * are only used by the compiler, when type checks are enabled. Compare with
- * the run-time types, named T_ interpret.h.
+ * LPC types available. The number '0' is valid as any type.
+*  These types are only used by the compiler, when type checks are enabled.
+ * This is not to be confused with runtime svalue types (named T_* in types.h).
  */
 
 #define TYPE_UNKNOWN	0	/* This type must be casted */
@@ -70,8 +70,9 @@ typedef struct mem_block_s {
 #define TYPE_REAL       9
 #define TYPE_BUFFER     10
 
-extern mem_block_t mem_block[NUMAREAS];
 extern char *compiler_type_names[];
+
+extern mem_block_t mem_block[NUMAREAS];
 
 #define LOOP_CONTEXT            0x1
 #define SWITCH_CONTEXT          0x2
