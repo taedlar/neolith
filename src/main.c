@@ -146,6 +146,8 @@ int main (int argc, char **argv) {
     }
   else
     {
+      current_time = time (NULL); /* initialize current_time */
+
       debug_message ("{}\t----- loading simul efuns -----");
       init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__)); /* could be NULL */
 

@@ -158,7 +158,34 @@ int io_reactor_modify(io_reactor_t *reactor, socket_fd_t fd, int events);
  * @endcode
  */
 int io_reactor_remove(io_reactor_t *reactor, socket_fd_t fd);
-
+/**
+ * @brief Wake up a blocked io_reactor_wait() call.
+ *
+ * This function signals the reactor to return from a blocking wait, even if
+ * no I/O events have occurred. This is useful for interrupting the wait loop
+ * from another thread (e.g., timer callback on Windows).
+ *
+ * On POSIX systems with signals, this is typically not needed since signals
+ * interrupt system calls with EINTR. On Windows, this provides equivalent
+ * functionality by signaling an event object.
+ *
+ * @param reactor The reactor instance. Must not be NULL.
+ * @return 0 on success, -1 on failure.
+ *
+ * @note This function is thread-safe and can be called from signal handlers
+ *       or timer callbacks.
+ * @note On platforms where this is not needed (POSIX), this may be a no-op.
+ *
+ * Example:
+ * @code
+ *   // In timer callback:
+ *   void timer_callback(void) {
+ *       heart_beat_flag = 1;
+ *       io_reactor_wakeup(g_io_reactor);  // Wake up polling thread
+ *   }
+ * @endcode
+ */
+int io_reactor_wakeup(io_reactor_t *reactor);
 /*
  * =============================================================================
  * Event Loop Integration

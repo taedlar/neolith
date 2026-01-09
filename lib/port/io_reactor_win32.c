@@ -80,6 +80,9 @@ struct io_reactor_s {
     HANDLE console_handle;       /* Console input handle (STD_INPUT_HANDLE) */
     void *console_context;       /* User context for console events */
     int console_enabled;         /* Whether console monitoring is active */
+    
+    /* Wakeup event for interrupting wait (e.g., from timer thread) */
+    HANDLE wakeup_event;         /* Manual-reset event for waking up io_reactor_wait() */
 };
 
 /*
@@ -183,6 +186,16 @@ io_reactor_t* io_reactor_create(void) {
     reactor->console_context = NULL;
     reactor->console_enabled = 0;
     
+    /* Create wakeup event (manual-reset, initially non-signaled) */
+    reactor->wakeup_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (reactor->wakeup_event == NULL) {
+        CloseHandle(reactor->iocp_handle);
+        free(reactor->context_pool);
+        free(reactor->listen_sockets);
+        free(reactor);
+        return NULL;
+    }
+    
     reactor->pool_size = 0;
     reactor->num_fds = 0;
     
@@ -209,6 +222,11 @@ void io_reactor_destroy(io_reactor_t *reactor) {
     /* Close IOCP handle */
     if (reactor->iocp_handle != NULL && reactor->iocp_handle != INVALID_HANDLE_VALUE) {
         CloseHandle(reactor->iocp_handle);
+    }
+    
+    /* Close wakeup event */
+    if (reactor->wakeup_event) {
+        CloseHandle(reactor->wakeup_event);
     }
     
     free(reactor);
@@ -460,6 +478,10 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     /* Add IOCP handle first */
     wait_handles[handle_count++] = reactor->iocp_handle;
     
+    /* Add wakeup event (for timer interrupts) */
+    int wakeup_index = handle_count;
+    wait_handles[handle_count++] = reactor->wakeup_event;
+    
     /* Add console handle if enabled */
     int console_index = -1;
     if (reactor->console_enabled) {
@@ -489,7 +511,15 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
      * This ensures we collect all available events in one call.
      */
     
-    /* 2. (NON-BLOCKING) Check if console was signaled */
+    /* 2. Check if wakeup event was signaled (timer interrupt) */
+    if (wait_result == (WAIT_OBJECT_0 + wakeup_index)) {
+        /* Reset the event so future waits will block */
+        ResetEvent(reactor->wakeup_event);
+        /* No events to return, just wake up the main loop */
+        /* Fall through to check other handles in case they're also signaled */
+    }
+    
+    /* 3. (NON-BLOCKING) Check if console was signaled */
     if (reactor->console_enabled && event_count < max_events) {
         /* Peek console input to check for actual keyboard events.
          * PeekConsoleInputW returns all event types (mouse, resize, focus, etc.),
@@ -646,6 +676,29 @@ int io_reactor_add_console(io_reactor_t *reactor, void *context) {
     reactor->console_handle = hStdin;
     reactor->console_context = context;
     reactor->console_enabled = 1;
+    
+    return 0;
+}
+
+/**
+ * @brief Wake up a blocked io_reactor_wait() call.
+ *
+ * Signals the reactor's wakeup event to interrupt a blocking wait, allowing
+ * the event loop to process other tasks (e.g., heartbeat). This is thread-safe
+ * and can be called from timer callbacks or other threads.
+ *
+ * @param reactor The reactor instance. Must not be NULL.
+ * @return 0 on success, -1 on failure.
+ */
+int io_reactor_wakeup(io_reactor_t *reactor) {
+    if (!reactor || !reactor->wakeup_event) {
+        return -1;
+    }
+    
+    /* Signal the manual-reset event to wake up WaitForMultipleObjects */
+    if (!SetEvent(reactor->wakeup_event)) {
+        return -1;
+    }
     
     return 0;
 }
