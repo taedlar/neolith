@@ -3027,3 +3027,11 @@ outbuf_push (outbuffer_t * outbuf)
     }
 }
 
+/*
+ * Return the I/O reactor instance for integration with other subsystems
+ * (e.g., timer callback wake-up on Windows).
+ */
+io_reactor_t *
+get_io_reactor(void) {
+    return g_io_reactor;
+}

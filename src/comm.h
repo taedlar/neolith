@@ -114,3 +114,7 @@ int query_idle(object_t *);
 int new_set_snoop(object_t *, object_t *);
 object_t *query_snoop(object_t *);
 object_t *query_snooping(object_t *);
+
+/* I/O reactor access (for timer callback integration) */
+struct io_reactor_s;
+struct io_reactor_s *get_io_reactor(void);

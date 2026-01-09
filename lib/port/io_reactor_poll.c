@@ -353,3 +353,10 @@ int io_reactor_post_write(io_reactor_t *reactor, socket_fd_t fd, void *buffer, s
     /* No-op: In readiness notification model, writes happen after EVENT_WRITE */
     return 0;
 }
+
+int io_reactor_wakeup(io_reactor_t *reactor) {
+    (void)reactor;
+    /* No-op: On POSIX, signals (e.g., SIGALRM) automatically interrupt
+     * poll()/epoll_wait() with EINTR. Explicit wakeup is not needed. */
+    return 0;
+}

@@ -65,7 +65,7 @@ f_localtime (void)
   tm = localtime (&lt);
   if (!tm)
     {
-      error ("Bad time value %ld passed to localtime()\n", (long)lt);
+      error ("Bad time value %lu passed to localtime()\n", (unsigned long)lt);
     }
 
   vec = allocate_empty_array (10);

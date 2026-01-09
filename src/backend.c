@@ -17,6 +17,7 @@
 #include "comm.h"
 #include "efuns/call_out.h"
 #include "port/timer_port.h"
+#include "port/io_reactor.h"
 
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
@@ -39,9 +40,20 @@ static void call_heart_beat (void);
 /**
  * @brief Heart beat timer callback.
  * Sets the heart_beat_flag to trigger heart beat processing.
+ * On Windows, also wakes up the I/O reactor to interrupt blocking wait.
  */
 static void heartbeat_timer_callback(void) {
   heart_beat_flag = 1;
+  
+#ifdef _WIN32
+  /* On Windows, wake up the I/O reactor waiting in WaitForMultipleObjects().
+   * On POSIX, this is not needed because SIGALRM automatically interrupts
+   * blocking syscalls with EINTR. */
+  io_reactor_t *reactor = get_io_reactor();
+  if (reactor) {
+    io_reactor_wakeup(reactor);
+  }
+#endif
 }
 
 /*
