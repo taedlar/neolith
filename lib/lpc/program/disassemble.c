@@ -369,6 +369,19 @@ void disassemble (FILE *f, char *code, int start, int end, program_t *prog) {
           pc += 4;
           break;
 
+        case F_LONG:
+          {
+            int64_t larg;
+            COPY_LONG (&larg, pc);
+#ifdef _WIN32
+            sprintf (buff, "%I64d", larg);
+#else
+            sprintf (buff, "%lld", (long long)larg);
+#endif
+            pc += 8;
+            break;
+          }
+
         case F_REAL:
           {
             double farg;

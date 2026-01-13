@@ -124,7 +124,7 @@ push_object (object_t * ob)
 /*
  * Push a number on the value stack.
  */
-void push_number (long n) {
+void push_number (int64_t n) {
   CHECK_AND_PUSH(1);
   sp->type = T_NUMBER;
   sp->subtype = 0;
@@ -860,10 +860,7 @@ assign_lvalue_range (svalue_t * from)
 /*
  * Deallocate 'n' values from the stack.
  */
-void
-pop_n_elems (int n)
-{
-  DEBUG_CHECK1 (n < 0, "pop_n_elems: %d elements.\n", n);
+void pop_n_elems (size_t n) {
   while (n--)
     {
       pop_stack ();
@@ -1410,6 +1407,7 @@ void eval_instruction (const char *p) {
               }
             else
               {
+                i = 0;
                 error ("*Decrement (--) on non-numeric argument.");
               }
             if (i)
@@ -1430,6 +1428,13 @@ void eval_instruction (const char *p) {
         case F_NUMBER:
           LOAD_INT (i, pc);
           push_number (i);
+          break;
+        case F_LONG:
+          {
+            int64_t long_val;
+            LOAD_LONG (long_val, pc);
+            push_number (long_val);
+          }
           break;
         case F_REAL:
           LOAD_FLOAT (real, pc);
@@ -1722,9 +1727,9 @@ void eval_instruction (const char *p) {
                       break;
                     case T_STRING:
                       {
-                        char buff[20];
+                        char buff[30];
 
-                        sprintf (buff, "%ld", (sp + 1)->u.number);
+                        sprintf (buff, "%" PRId64, (sp + 1)->u.number);
                         EXTEND_SVALUE_STRING (sp, buff, "f_add: 2");
                         break;
                       }
@@ -1792,9 +1797,9 @@ void eval_instruction (const char *p) {
                     {
                     case T_NUMBER:
                       {
-                        char buff[20];
+                        char buff[30];
 
-                        sprintf (buff, "%ld", (sp - 1)->u.number);
+                        sprintf (buff, "%" PRId64, (sp - 1)->u.number);
                         SVALUE_STRING_ADD_LEFT (buff, "f_add: 3");
                         break;
                       }		/* end of T_NUMBER + T_STRING */
@@ -1837,9 +1842,9 @@ void eval_instruction (const char *p) {
                 }
               else if (sp->type == T_NUMBER)
                 {
-                  char buff[20];
+                  char buff[30];
 
-                  sprintf (buff, "%ld", sp->u.number);
+                  sprintf (buff, "%" PRId64, sp->u.number);
                   EXTEND_SVALUE_STRING (lval, buff, "f_add_eq: 2");
                 }
               else if (sp->type == T_REAL)

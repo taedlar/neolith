@@ -136,6 +136,13 @@ Config template: [src/neolith.conf](src/neolith.conf). Set `DebugLogFile` and `L
   ```
 - Return type and function name on same line for searchability.
 
+### Integer Type Usage
+- **LPC runtime integers**: Always `int64_t` (svalue_u.number is int64_t)
+- **Format strings**: Use `PRId64` macro for printing int64_t values
+- **Never use `long`**: Platform-specific size (32-bit on Windows x64, 64-bit on Linux)
+- **Small integers**: `int` is fine for loop counters, array indices, etc.
+- **push_number()**: Accepts `int64_t`, automatically handles conversion
+
 ### Header Includes
 All [src/](src/) files include [std.h](src/std.h) first (after config.h), which provides portable POSIX headers and driver-wide options from [efuns/options.h](lib/efuns/options.h).
 
@@ -373,9 +380,11 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
 **Implementation Details** ([docs/internals/](docs/internals/)):
 - [lpc-types.md](docs/internals/lpc-types.md): Complete LPC type system reference - lpc_type_t vs svalue_type_t, encoding schemes, compatibility checking, common pitfalls
 - [lpc-program.md](docs/internals/lpc-program.md): Complete LPC compiler memory block system, binary save/load format, pointer serialization, inheritance resolution
+- [int64-design.md](docs/internals/int64-design.md): Platform-agnostic 64-bit integer implementation - runtime types, bytecode encoding, binary compatibility
 
 When working on compiler features, consult these documents for:
 - **Type system rules**: lpc_type_t vs svalue_type_t domains, masking NAME_TYPE_MOD, array/class detection
+- **Integer handling**: svalue_u.number is int64_t, use PRId64 for formatting, F_LONG opcode for large literals
 - Memory block allocations and their data types
 - Binary file format and version validation
 - Function/variable/class indexing schemes
@@ -389,6 +398,7 @@ When working on compiler features, consult these documents for:
 4. **Global state**: Minimize globals; use `static` within .c files when possible
 5. **Line-of-code metrics**: Avoid unnecessary line wrapping; check LOC with `git ls-files | egrep -v '^(docs|examples)' | xargs wc -l`
 6. **Type system mixing**: Never mix compile-time TYPE_* with runtime T_* values—see [lpc-types.md](docs/internals/lpc-types.md)
+7. **Binary compatibility**: Always bump driver_id in [binaries.c](lib/lpc/program/binaries.c) when adding/removing/reordering opcodes or changing runtime struct sizes
 
 ## When Contributing
 - Add unit tests in [tests/](tests/) subdirectories following GoogleTest patterns

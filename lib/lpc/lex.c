@@ -2265,7 +2265,7 @@ case_string:
                     break;
                 }
               outptr--;
-              yylval.number = (int) strtol (yytext, (char **) NULL, 0x10);
+              yylval.number = strtoll (yytext, (char **) NULL, 0x10);
               return L_NUMBER;
             }
           outptr--;
@@ -2335,7 +2335,7 @@ case_string:
             }
           else
             {
-              yylval.number = atoi (yytext);
+              yylval.number = strtoll (yytext, NULL, 10);
               return L_NUMBER;
             }
         default:
@@ -2719,6 +2719,7 @@ void init_instrs () {
   add_instr_name ("local", "C_LOCAL(%i);\n", F_LOCAL, T_ANY);
   add_instr_name ("transfer_local", "c_transfer_local(%i);\n", F_TRANSFER_LOCAL, T_ANY);
   add_instr_name ("number", 0, F_NUMBER, T_NUMBER);
+  add_instr_name ("long", 0, F_LONG, T_NUMBER);
   add_instr_name ("real", 0, F_REAL, T_REAL);
   add_instr_name ("local_lvalue", "C_LVALUE(fp + %i);\n", F_LOCAL_LVALUE, T_LVALUE);
   add_instr_name ("while_dec", "C_WHILE_DEC(%i); if (lpc_int)\n", F_WHILE_DEC, -1);

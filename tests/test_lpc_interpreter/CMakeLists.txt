@@ -2,6 +2,7 @@
 
 add_executable(test_lpc_interpreter
     test_double_precision.cpp
+    test_int64.cpp
     test_lpc_interpreter.cpp
 )
 
