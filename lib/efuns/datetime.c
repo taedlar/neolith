@@ -53,7 +53,8 @@ f_ctime (void)
 void
 f_localtime (void)
 {
-  struct tm *tm;
+  struct tm local_tm;
+  struct tm *tm = &local_tm;
   array_t *vec;
   time_t lt;
 
@@ -62,7 +63,11 @@ f_localtime (void)
 #endif
 
   lt = (time_t)sp->u.number;
+#ifdef _WIN32
+  _localtime64_s (&local_tm, (__time64_t *)&sp->u.number);
+#else
   tm = localtime (&lt);
+#endif
   if (!tm)
     {
       error ("Bad time value %lu passed to localtime()\n", (unsigned long)lt);
