@@ -61,6 +61,10 @@
 #define STORE_INT(x, y)		STORE4(x,y)
 #define INT_32			int32_t
 
+#define COPY_LONG(x, y)		COPY8(x,y)
+#define LOAD_LONG(x, y)		LOAD8(x,y)
+#define STORE_LONG(x, y)	STORE8(x,y)
+
 #define COPY_FLOAT(x, y)	COPY8(x,y)
 #define LOAD_FLOAT(x, y)	LOAD8(x,y)
 #define STORE_FLOAT(x, y)	STORE8(x,y)

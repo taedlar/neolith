@@ -118,7 +118,7 @@ int yyparse(void);
 
 {
     intptr_t pointer_int;
-    long number;
+    int64_t number;
     double real;
     char *string;
     int type;

@@ -245,7 +245,7 @@ void int_free_svalue(svalue_t *);
 void free_string_svalue(svalue_t *);
 void free_some_svalues(svalue_t *, int);
 void push_object(object_t *);
-void push_number(long);
+void push_number(int64_t);
 void push_real(double);
 void push_undefined(void);
 void copy_and_push_string(const char *);
@@ -262,7 +262,7 @@ void push_malloced_string(char *);
 void push_shared_string(char *);
 void push_constant_string(const char *);
 void pop_stack(void);
-void pop_n_elems(int);
+void pop_n_elems(size_t);
 void pop_2_elems(void);
 void pop_3_elems(void);
 

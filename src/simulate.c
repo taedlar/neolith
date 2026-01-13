@@ -1312,7 +1312,7 @@ tell_room (object_t * room, svalue_t * v, array_t * avoid)
       break;
     case T_NUMBER:
       buff = txt_buf;
-      sprintf (buff, "%ld", v->u.number);
+      sprintf (buff, "%" PRId64, v->u.number);
       break;
     case T_REAL:
       buff = txt_buf;
@@ -1527,7 +1527,7 @@ print_svalue (svalue_t * arg)
         tell_object (command_giver, tbuf);
         break;
       case T_NUMBER:
-        sprintf (tbuf, "%ld", arg->u.number);
+        sprintf (tbuf, "%" PRId64, arg->u.number);
         tell_object (command_giver, tbuf);
         break;
       case T_REAL:

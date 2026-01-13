@@ -27,7 +27,7 @@ typedef struct {
 union svalue_u {
     char *string;
     const char *const_string;
-    long number;    /* Neolith extension: int is as wide as pointers */
+    int64_t number;    /* Neolith extension: fixed 64-bit integer for consistent cross-platform semantics */
     double real;    /* Neolith extension: both float and double are in native double precision */
 
     refed_t *refed; /* any of the block below */

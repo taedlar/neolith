@@ -17,8 +17,10 @@ static void upd_short (int offset, int val);
 static void ins_byte (int byte);
 static void upd_byte (int offset, int byte);
 static void write_number (int number);
+static void write_long_number (int64_t number);
 static short read_short (int offset);
 static void ins_int (int);
+static void ins_long (int64_t);
 void i_generate_node (parse_node_t *);
 static void i_generate_if_branch (parse_node_t *, int);
 static void i_generate_loop (int, parse_node_t *, parse_node_t *,
@@ -110,6 +112,24 @@ static void ins_int (int l) {
       prog_code_max = mbp->block + mbp->max_size;
     }
   STORE_INT (prog_code, l);
+}
+
+/*
+ * Store an 8 byte number. It is stored in such a way as to be sure
+ * that correct byte order is used, regardless of machine architecture.
+ */
+static void ins_long (int64_t l) {
+
+  if (prog_code + 8 > prog_code_max)
+    {
+      mem_block_t *mbp = &mem_block[current_block];
+      UPDATE_PROGRAM_SIZE;
+      realloc_mem_block (mbp, mbp->current_size * 2);
+
+      prog_code = mbp->block + mbp->current_size;
+      prog_code_max = mbp->block + mbp->max_size;
+    }
+  STORE_LONG (prog_code, l);
 }
 
 /*
@@ -255,6 +275,23 @@ write_number (int val)
           ins_byte (F_NUMBER);
           ins_int (val);
         }
+    }
+}
+
+static void
+write_long_number (int64_t val)
+{
+  /* Check if it fits in 32-bit range, use F_NUMBER for efficiency */
+  if (val >= INT32_MIN && val <= INT32_MAX)
+    {
+      write_number ((int)val);
+    }
+  else
+    {
+      /* Requires full 64-bit encoding */
+      end_pushes ();
+      ins_byte (F_LONG);
+      ins_long (val);
     }
 }
 
@@ -492,7 +529,7 @@ void i_generate_node (parse_node_t * expr) {
       ins_real (expr->v.real);
       break;
     case NODE_NUMBER:
-      write_number (expr->v.number);
+      write_long_number (expr->v.number);
       break;
     case NODE_LAND_LOR:
       i_generate_node (expr->l.expr);

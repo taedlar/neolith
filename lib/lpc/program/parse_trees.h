@@ -19,7 +19,7 @@ enum control_jump_type {
 };
 
 union parse_value {
-    int number;
+    int64_t number;
     double real;
     struct parse_node_s *expr;
 };
