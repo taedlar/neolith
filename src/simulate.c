@@ -702,7 +702,7 @@ environment (svalue_t * arg)
  * The command can also come from a NPC.
  * Beware that 'str' can be modified and extended !
  */
-int process_comand (char *str, object_t * ob)
+int process_command (char *str, object_t * ob)
 {
   object_t *save = command_giver;
   int res;
@@ -723,11 +723,11 @@ int process_comand (char *str, object_t * ob)
   res = user_parser (str);
   command_giver = save;
   return (res);
-}				/* process_comand() */
+}				/* process_command() */
 
 /*
  * Execute a command for an object. Copy the command into a
- * new buffer, because 'process_comand()' can modify the command.
+ * new buffer, because 'process_command()' can modify the command.
  * If the object is not current object, static functions will not
  * be executed. This will prevent forcing users to do illegal things.
  *
@@ -746,7 +746,7 @@ command_for_object (char *str)
     return 0;
   strncpy (buff, str, sizeof buff);
   buff[sizeof buff - 1] = '\0';
-  if (process_comand (buff, current_object))
+  if (process_command (buff, current_object))
     return save_eval_cost - eval_cost;
   else
     return 0;
