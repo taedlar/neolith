@@ -268,6 +268,7 @@ void backend () {
       current_interactive = 0;
       eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
 
+      /* Performs housekeeping tasks and garbage collection */
       remove_destructed_objects ();
 
       if (g_proceeding_shutdown)
@@ -283,26 +284,46 @@ void backend () {
 
       if (heart_beat_flag)
         {
+          /* When heart beat is active, do not wait in poll */
           timeout.tv_sec = 0;
           timeout.tv_usec = 0;
         }
       else
         {
+          /* When heart beat is not active, wait up to 60 seconds in poll */
           timeout.tv_sec = 60;
           timeout.tv_usec = 0;
         }
-      nb = do_comm_polling (&timeout);
+      nb = do_comm_polling (&timeout); /* blocks until timeout or event */
       if (nb == -1)
         {
           debug_perror ("backend: do_comm_polling", 0);
           fatal ("backend: do_comm_polling failed.\n");
         }
 
+      /*
+       * Process any I/O events that have occurred.
+       * This includes new user connections, TELNET negotiation, and user input (buffering).
+       * flush_message() is called for each user to ensure outgoing messages are sent.
+       */
       if (nb > 0)
         process_io ();
 
+      /*
+       * Process user commands fairly (round-robin). Number of commands
+       * to process is limited to max_users to avoid starvation of heartbeats.
+       */
       for (i = 0; process_user_command () && i < max_users; i++);
 
+      /*
+       * Despite the name, this routine takes care of several things.
+       * - Calls heart_beat() functions in all objects that enable it.
+       * - Calls reset() in objects that need it.
+       * - Calls clean_up() in objects that need it.
+       * - Handles call_out() functions.
+       * The heart_beat_flag is set in the heartbeat timer and cleared 
+       * when call_heart_beat() is called.
+       */
       if (heart_beat_flag)
         call_heart_beat ();
     }

@@ -55,7 +55,7 @@ typedef struct interactive_s {
     int text_start;             /* where we are up to in user command buffer */
     struct interactive_s *snoop_on;
     struct interactive_s *snoop_by;
-    int last_time;               /* time of last command executed           */
+    time_t last_time;           /* time of last command executed           */
     string_or_func_t default_err_message;
 #ifdef OLD_ED
     struct ed_buffer_s *ed_buffer;  /* local ed                        */
@@ -110,7 +110,7 @@ char *query_ip_name(object_t *);
 char *query_ip_number(object_t *);
 char *query_host_name(void);
 int query_ip_port (object_t *);
-int query_idle(object_t *);
+time_t query_idle(object_t *);
 int new_set_snoop(object_t *, object_t *);
 object_t *query_snoop(object_t *);
 object_t *query_snooping(object_t *);

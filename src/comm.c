@@ -1316,15 +1316,16 @@ static void new_user_handler (port_def_t *port) {
   command_giver = 0;
 }
 
-/*
- * This is the user command handler. This function is called when
- * a user command needs to be processed.
- * This function calls get_user_command() to get a user command.
- * One user command is processed per execution of this function.
+/**
+ *  @brief This is the user command handler.
+ *  This function is called when a user command needs to be processed.
+ *  This function calls \c get_user_command() to iterate over all connected users
+ *  in sequence and dispatch next user command. One user command is processed
+ *  per execution of this function.
+ *  @return Returns 1 if a user command was processed, 0 if no more user commands are pending.
  */
-int
-process_user_command ()
-{
+int process_user_command () {
+
   char *user_command;
   static char buf[MAX_TEXT], *tbuf;
   object_t *save_current_object = current_object;
@@ -1344,8 +1345,7 @@ process_user_command ()
           if (*p == 27)
             {
               char *q = buf;
-              for (p = user_command; *p && p - user_command < MAX_TEXT - 1;
-                   p++)
+              for (p = user_command; *p && p - user_command < MAX_TEXT - 1; p++)
                 *q++ = ((*p == 27) ? ' ' : *p);
               *q = 0;
               user_command = buf;
@@ -1368,12 +1368,17 @@ process_user_command ()
       clear_notify (ip);
       update_load_av ();
       tbuf = user_command;
+
+      /*
+       * Check for special command prefixes.
+       * '!' indicates a command to be processed by process_input() in the user object.
+       * If ed_buffer is set, the command is for the line editor
+       */
       if ((user_command[0] == '!') && (
 #ifdef OLD_ED
-                                        ip->ed_buffer ||
+          ip->ed_buffer ||
 #endif
-                                        (ip->input_to
-                                         && !(ip->iflags & NOESC))))
+          (ip->input_to && !(ip->iflags & NOESC))))
         {
           if (ip->iflags & SINGLE_CHAR)
             {
@@ -1397,35 +1402,33 @@ process_user_command ()
               if (ip->iflags & HAS_PROCESS_INPUT)
                 {
                   copy_and_push_string (user_command + 1);
-                  ret =
-                    apply (APPLY_PROCESS_INPUT, command_giver, 1,
-                           ORIGIN_DRIVER);
+                  ret = apply (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
                   VALIDATE_IP (ip, command_giver);
                   if (!ret)
                     ip->iflags &= ~HAS_PROCESS_INPUT;
                   if (ret && ret->type == T_STRING)
                     {
                       strncpy (buf, ret->u.string, MAX_TEXT - 1);
-                      process_comand (buf, command_giver);
+                      process_command (buf, command_giver);
                     }
                   else if (!ret || ret->type != T_NUMBER || !ret->u.number)
                     {
-                      process_comand (tbuf + 1, command_giver);
+                      process_command (tbuf + 1, command_giver);
                     }
                 }
               else
-                process_comand (tbuf + 1, command_giver);
+                process_command (tbuf + 1, command_giver);
             }
 #ifdef OLD_ED
         }
       else if (ip->ed_buffer)
         {
           ed_cmd (user_command);
-#endif /* ED */
+#endif /* OLD_ED */
         }
       else if (call_function_interactive (ip, user_command))
         {
-          ;			/* do nothing */
+          /* do nothing */
         }
       else
         {
@@ -1437,23 +1440,22 @@ process_user_command ()
           if (ip->iflags & HAS_PROCESS_INPUT)
             {
               copy_and_push_string (user_command);
-              ret =
-                apply (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
+              ret = apply (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
               VALIDATE_IP (ip, command_giver);
               if (!ret)
                 ip->iflags &= ~HAS_PROCESS_INPUT;
               if (ret && ret->type == T_STRING)
                 {
                   strncpy (buf, ret->u.string, MAX_TEXT - 1);
-                  process_comand (buf, command_giver);
+                  process_command (buf, command_giver);
                 }
               else if (!ret || ret->type != T_NUMBER || !ret->u.number)
                 {
-                  process_comand (tbuf, command_giver);
+                  process_command (tbuf, command_giver);
                 }
             }
           else
-            process_comand (tbuf, command_giver);
+            process_command (tbuf, command_giver);
         }
       VALIDATE_IP (ip, command_giver);
       /*
@@ -1856,21 +1858,28 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
 }
 
 
-/*
- * Return the first cmd of the next user in sequence that has a complete cmd
- * in their buffer.
- * CmdsGiven is used to allow users in ED to send more cmds (if they have
- * them queued up) than users not in ED.
+/** @brief Return the next user command to be processed in sequence.
+ * The order of user command being processed is "rotated" so that no one
+ * user can monopolize the command processing. The \c s_next_user
+ * static variable keeps track of which user should be checked next.
+ * This function scans through all connected users starting from
+ * s_next_user and looks for a user with a complete command
+ * in his input buffer. It also calls \c flush_message() to ensure
+ * that any outgoing messages are sent to the user before processing
+ * his input.
+ * 
  * This should also return a value if there is something in the
  * buffer and we are supposed to be in single character mode.
+ * 
+ * @returns Pointer to a static buffer containing the next user command to be processed
+ * and updates \c command_giver if a command is found, or 0 if no commands are available.
  */
-#define IncCmdGiver     NextCmdGiver = (NextCmdGiver == 0 ? max_users - 1: \
-                                        NextCmdGiver - 1)
+static char* get_user_command () {
 
-static char *
-get_user_command ()
-{
-  static int NextCmdGiver = 0;
+  /* A static counter that iterates between all users in sequence.
+   * This ensures fair processing of user commands.
+   */
+  static int s_next_user = 0;
 
   int i;
   interactive_t *ip = NULL;
@@ -1882,7 +1891,7 @@ get_user_command ()
    */
   for (i = 0; i < max_users; i++)
     {
-      ip = all_users[NextCmdGiver];
+      ip = all_users[s_next_user];
       if (ip && ip->message_length)
         {
           object_t *ob = ip->ob;
@@ -1900,8 +1909,8 @@ get_user_command ()
             ip->iflags &= ~CMD_IN_BUF;
         }
 
-      if (NextCmdGiver-- == 0)
-        NextCmdGiver = max_users - 1;
+      if (s_next_user-- == 0)
+        s_next_user = max_users - 1; /* wrap around */
     }
 
   /*
@@ -1929,8 +1938,8 @@ get_user_command ()
   if (!cmd_in_buf (ip))
     ip->iflags &= ~CMD_IN_BUF;
 
-  if (NextCmdGiver-- == 0)
-    NextCmdGiver = max_users - 1;
+  if (s_next_user-- == 0)
+    s_next_user = max_users - 1; /* wrap around */
 
   if (ip->iflags & NOECHO)
     {
@@ -1953,7 +1962,7 @@ get_user_command ()
     }
 
   ip->last_time = current_time;
-  return (buf);
+  return buf;
 }
 
 
@@ -2181,9 +2190,14 @@ void remove_interactive (object_t * ob, int dested) {
   return;
 }				/* remove_interactive() */
 
-static int
-call_function_interactive (interactive_t * i, char *str)
-{
+/**
+ *  @brief Call a function on an interactive object set up by input_to() if any.
+ *  @param i The interactive structure for the user.
+ *  @param str The input string to pass to the function.
+ *  @return 1 if a function was called, otherwise returns 0.
+ */
+static int call_function_interactive (interactive_t * i, char *str) {
+
   object_t *ob;
   funptr_t *funp = NULL;
   char *function;
@@ -2193,7 +2207,7 @@ call_function_interactive (interactive_t * i, char *str)
 
   i->iflags &= ~NOESC;
   if (!(sent = i->input_to))
-    return (0);
+    return 0; /* no input_to() was set up on this interactive */
 
   /*
    * Special feature: input_to() has been called to setup a call to a
@@ -2201,7 +2215,7 @@ call_function_interactive (interactive_t * i, char *str)
    */
   if (sent->ob->flags & O_DESTRUCTED)
     {
-      /* Sorry, the object has selfdestructed ! */
+      /* The object has self-destructed earlier */
       free_object (sent->ob, "call_function_interactive");
       free_sentence (sent);
       i->input_to = 0;
@@ -2729,7 +2743,7 @@ object_t *query_snooping (object_t * ob) {
   return (ob->interactive->snoop_on->ob);
 }				/* query_snooping() */
 
-int
+time_t
 query_idle (object_t * ob)
 {
   if (!ob->interactive)
