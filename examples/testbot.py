@@ -7,9 +7,12 @@ piping commands to stdin and validating output. Use this as a template for creat
 more advanced test automation scripts.
 
 Platform support:
-- Linux/WSL: Fully supported (pipes work with poll())
-- Windows: Not yet supported - requires piped stdin enhancement
-  See docs/plan/windows-piped-stdin-support.md for implementation plan
+- Linux/WSL: ✅ Phase 1 complete - pipes work correctly
+- Windows: ⚠️  Phase 2 pending - requires piped stdin enhancement
+  See docs/plan/console-testbot-support.md for implementation plan
+
+Note: The driver waits for reconnection after user disconnects (by design).
+Test scripts should use timeout to handle this gracefully.
 
 Usage:
     cd examples
@@ -38,12 +41,12 @@ def test_console_mode():
     else:  # Linux/WSL
         driver_path = Path("../out/build/linux/src/RelWithDebInfo/neolith")
     
-    config_path = Path("m3.local.conf")
+    config_path = Path("m3.conf")
     
     # Verify files exist
     if not driver_path.exists():
         print(f"❌ Driver not found: {driver_path}")
-        print("   Build the driver first with: cmake --build --preset ci-vs16-x64")
+        print("   Build the driver first with: cmake --build --preset ci-linux")
         return 1
     
     if not config_path.exists():
@@ -56,8 +59,6 @@ def test_console_mode():
     
     # Prepare test commands
     test_commands = [
-        "wizard",          # Username
-        "wizard",          # Password
         "say Hello from Python test!",
         "help",
         "quit"
@@ -73,7 +74,7 @@ def test_console_mode():
     if os.name == 'nt':
         print("⚠️  WARNING: This test will FAIL on Windows!")
         print("   Windows console mode requires a real console, not piped stdin.")
-        print("   Run the driver manually: ..\\out\\build\\vs16-x64\\src\\RelWithDebInfo\\neolith.exe -f m3.local.conf -c")
+        print("   Run the driver manually: ..\\out\\build\\vs16-x64\\src\\RelWithDebInfo\\neolith.exe -f m3.conf -c")
         print()
     
     print("Input commands:")

@@ -24,6 +24,19 @@
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
+#ifdef HAVE_TERMIOS_H
+/**
+ * @brief Apply terminal settings without data loss for pipes
+ * 
+ * Real TTY: Use TCSAFLUSH to discard stale input (security)
+ * Pipe:     Use TCSANOW to preserve all data (testbot)
+ */
+static inline void safe_tcsetattr(int fd, struct termios *tio) {
+    int action = isatty(fd) ? TCSAFLUSH : TCSANOW;
+    tcsetattr(fd, action, tio);
+}
+#endif
+
  /*
   * This macro is for testing whether ip is still valid, since many
   * functions call LPC code, which could otherwise use
@@ -950,7 +963,7 @@ static void set_telnet_single_char (interactive_t * ip, int single)
         }
       else
         tio.c_lflag |= ICANON|ECHO; /* enable canonical mode and echo: use line editing */
-      tcsetattr (ip->fd, TCSAFLUSH, &tio); /* discard pending input */
+      safe_tcsetattr (ip->fd, &tio); /* TTY: discard pending input, Pipe: preserve data */
 #endif
       return;
     }
@@ -1965,7 +1978,7 @@ static char* get_user_command () {
 
           tcgetattr (ip->fd, &tty);
           tty.c_lflag |= ECHO;
-          tcsetattr (ip->fd, TCSAFLUSH, &tty); /* discard pending input */
+          safe_tcsetattr (ip->fd, &tty); /* TTY: discard pending input, Pipe: preserve data */
 #endif
         }
       else
@@ -2336,7 +2349,7 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
 
           tcgetattr (ob->interactive->fd, &tio);
           tio.c_lflag &= ~ECHO;
-          tcsetattr (ob->interactive->fd, TCSAFLUSH, &tio); /* discard pending input */
+          safe_tcsetattr (ob->interactive->fd, &tio); /* TTY: discard pending input, Pipe: preserve data */
         }
 #endif
     }

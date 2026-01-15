@@ -519,15 +519,15 @@ if ($LASTEXITCODE -eq 0) {
 
 ## Implementation Checklist
 
-### Phase 1: POSIX (Linux/WSL)
-- [ ] Add `safe_tcsetattr()` to [src/comm.c](../../src/comm.c)
-- [ ] Update [src/backend.c](../../src/backend.c#L171)
-- [ ] Update [src/comm.c](../../src/comm.c#L953)
-- [ ] Update [src/comm.c](../../src/comm.c#L2340)
-- [ ] Update [src/comm.c](../../src/comm.c#L1967)
-- [ ] Test with `testbot.py` on Linux/WSL
-- [ ] Test interactive console on Linux/WSL
-- [ ] Add unit test for piped stdin
+### Phase 1: POSIX (Linux/WSL) - ✅ COMPLETE
+- [x] Add `safe_tcsetattr()` to [src/comm.c](../../src/comm.c)
+- [x] Update [src/backend.c](../../src/backend.c#L171)
+- [x] Update [src/comm.c](../../src/comm.c#L953)
+- [x] Update [src/comm.c](../../src/comm.c#L2340)
+- [x] Update [src/comm.c](../../src/comm.c#L1967)
+- [x] Test with piped stdin on Linux/WSL
+- [x] Test interactive console on Linux/WSL
+- [x] Add test script for piped stdin (examples/test_phase1.sh)
 
 ### Phase 2: Windows
 - [ ] Add `console_type_t` enum to [lib/port/io_reactor_win32.c](../../lib/port/io_reactor_win32.c)
