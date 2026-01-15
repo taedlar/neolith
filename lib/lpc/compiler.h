@@ -277,5 +277,5 @@ insert_in_mem_block(int n, int where, size_t size)
 #endif	/* ! SUPPRESS_COMPILER_INLINES */
 
 extern size_t num_local_variables_allowed;
-extern void init_lpc_compiler(size_t max_locals);
+extern void init_lpc_compiler(size_t max_locals, const char* include_dirs);
 extern void deinit_lpc_compiler(void);

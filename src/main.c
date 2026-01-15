@@ -2,17 +2,11 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <errno.h>
-#include <stdlib.h>
 #include <locale.h>
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
-
-#ifdef	HAVE_UNISTD_H
-#include <unistd.h>
-#endif /* HAVE_UNISTD_H */
 
 #ifdef	HAVE_ARGP_H
 #include <argp.h>
@@ -26,11 +20,7 @@
 #include "std.h"
 #include "rc.h"
 #include "comm.h"
-#include "uids.h"
-#include "lpc/object.h"
 #include "simul_efun.h"
-#include "lpc/program/binaries.h"
-#include "lpc/otable.h"
 #include "main.h"
 
 #ifdef HAVE_ARGP_H
@@ -85,13 +75,7 @@ int main (int argc, char **argv) {
 #endif
 
   /* Initialize LPMud driver runtime environment */
-  if (NULL != (locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE)))
-    {
-#ifdef	ENABLE_NLS
-      bindtextdomain (PACKAGE, LOCALEDIR);
-      textdomain (PACKAGE);
-#endif /* ENABLE_NLS */
-    }
+  locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
   init_stem(0, 0, NULL);
   parse_command_line (argc, argv);
   init_config (MAIN_OPTION(config_file));
@@ -122,11 +106,13 @@ int main (int argc, char **argv) {
   );  /* stralloc.c */
 
   /* Initialize the LPC compiler. */
-  init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__)); /* lib/lpc/compiler.c */
-  set_inc_list (CONFIG_STR (__INCLUDE_DIRS__));
+  init_lpc_compiler (
+    CONFIG_INT (__MAX_LOCAL_VARIABLES__),
+    CONFIG_STR (__INCLUDE_DIRS__)
+  ); /* lib/lpc/compiler.c */
 
-  /* Initialize the world simulation machine */
-  init_simulate();
+  /* Setup the world simulation machine */
+  setup_simulate();
 
   /* Load and start the mudlib:
    * 1. Load simul_efun object (if any)
@@ -220,10 +206,10 @@ parse_argument (int key, char *arg, struct argp_state *state)
       break;
     case 'D':
       {
-        struct lpc_predef_s *def;
+        lpc_predef_t *def;
 
-        def =  (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
-        def->flag = arg;
+        def =  (lpc_predef_t *) xcalloc (1, sizeof (lpc_predef_t));
+        def->expression = arg;
         def->next = lpc_predefs;
         lpc_predefs = def;
         break;
@@ -294,10 +280,10 @@ parse_command_line (int argc, char *argv[])
           break;
         case 'D':
           {
-            struct lpc_predef_s *def;
+            lpc_predef_t *def;
 
-            def = (struct lpc_predef_s *) xcalloc (1, sizeof (struct lpc_predef_s));
-            def->flag = optarg;
+            def = (lpc_predef_t *) xcalloc (1, sizeof (lpc_predef_t));
+            def->expression = optarg;
             def->next = lpc_predefs;
             lpc_predefs = def;
             break;

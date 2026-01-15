@@ -2591,7 +2591,7 @@ int add_program_file (const char *name, int top) {
   return mem_block[A_STRINGS].block ? store_prog_string (name) + 1 : 0;
 }
 
-void init_lpc_compiler(size_t max_locals) {
+void init_lpc_compiler(size_t max_locals, const char* include_dirs) {
   init_instrs ();
   init_identifiers ();
   init_keywords ();
@@ -2600,6 +2600,7 @@ void init_lpc_compiler(size_t max_locals) {
   init_locals ();
 
   add_predefines ();
+  set_inc_list(include_dirs);
 }
 
 void deinit_lpc_compiler() {

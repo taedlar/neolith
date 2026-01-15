@@ -69,7 +69,7 @@ char *dump_trace (int);
 array_t *get_svalue_trace (int);
 
 void init_master(const char *);
-void init_simulate(void);
+void setup_simulate(void);
 void tear_down_simulate(void);
 
 /**

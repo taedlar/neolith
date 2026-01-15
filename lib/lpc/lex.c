@@ -62,7 +62,7 @@ int pragmas;
 
 int num_parse_error;		/* Number of errors in the parser. */
 
-struct lpc_predef_s *lpc_predefs = NULL;
+lpc_predef_t *lpc_predefs = NULL;
 
 static int yyin_desc;
 static int lex_fatal;
@@ -2529,7 +2529,7 @@ void
 add_predefines ()
 {
   int i;
-  struct lpc_predef_s *tmpf;
+  lpc_predef_t *tmpf;
 
   add_quoted_predefine ("__DRIVER__", PACKAGE);
   add_quoted_predefine ("__VERSION__", VERSION);
@@ -2544,7 +2544,7 @@ add_predefines ()
       char mtext[MLEN];
 
       *mtext = '\0';
-      sscanf (tmpf->flag, "%[^=]=%[ -~=]", namebuf, mtext);
+      sscanf (tmpf->expression, "%[^=]=%[ -~=]", namebuf, mtext);
       if (strlen (namebuf) >= NSIZE)
         fatal ("NSIZE exceeded");
       if (strlen (mtext) >= MLEN)

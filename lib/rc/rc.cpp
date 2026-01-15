@@ -267,18 +267,15 @@ extern "C" void init_config (const char *config_file)
         }
       free (p);
     }
-  if (i < 1)
-    {
-      debug_message ("*****No user-accessible ports assigned\n");
-      fatal_config_error++;
-    }
-  CONFIG_INT (__MUD_PORT__) = external_port[0].port;
+  CONFIG_INT (__MUD_PORT__) = (i > 0) ? external_port[0].port : 0; /* external port is optional since we have console-mode */
 
   CONFIG_INT (__ADDR_SERVER_PORT__) = scan_config_i (config, "AddrServerPort", 0, 0);
   CONFIG_INT (__TIME_TO_CLEAN_UP__) = scan_config_i (config, "CleanupDuration", 0, 600);
   CONFIG_INT (__TIME_TO_RESET__) = scan_config_i (config, "ResetDuration", 0, 1800);
   CONFIG_INT (__INHERIT_CHAIN_SIZE__) = scan_config_i (config, "MaxInheritDepth", 0, 30);
   CONFIG_INT (__MAX_EVAL_COST__) = scan_config_i (config, "MaxEvaluationCost", 0, 1000000);
+  CONFIG_INT (__RESERVED_MEM_SIZE__) = scan_config_i (config, "ReservedMemorySize", 0, 0); /* reserved for emergent shutdown */
+
   CONFIG_INT (__MAX_ARRAY_SIZE__) = scan_config_i (config, "MaxArraySize", 0, 15000);
   CONFIG_INT (__MAX_BUFFER_SIZE__) = scan_config_i (config, "MaxBufferSize", 0, 4000000);
   CONFIG_INT (__MAX_MAPPING_SIZE__) = scan_config_i (config, "MaxMappingSize", 0, 15000);

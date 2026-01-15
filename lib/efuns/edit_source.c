@@ -78,11 +78,7 @@ static void handle_build_efuns (const char *efun_spec);
 int
 main (int argc, char *argv[])
 {
-#if defined(HAVE_GETTEXT) && defined(ENABLE_NLS)
-  setlocale (LC_ALL, "");
-  bindtextdomain (PACKAGE, LOCALEDIR);
-  textdomain (PACKAGE);
-#endif /* ENABLE_NLS */
+  setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
 
   if (argc < 3)
     {

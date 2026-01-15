@@ -44,9 +44,8 @@ protected:
         fs::current_path(mudlib_path); // change working directory to mudlib
 
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
-        init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__));
-        set_inc_list (CONFIG_STR (__INCLUDE_DIRS__)); // automatically freed in deinit_lpc_compiler()
-        init_simulate();
+        init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__), CONFIG_STR (__INCLUDE_DIRS__));
+        setup_simulate();
 
         eval_cost = CONFIG_INT (__MAX_EVAL_COST__); /* simulates calling LPC code from backend */
     }
