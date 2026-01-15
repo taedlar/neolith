@@ -449,12 +449,9 @@ Could adjust timeout based on command queue depth:
 ## Implementation Checklist
 
 1. ✓ Design document created
-2. [ ] Add `HAS_CMD_TURN` flag to comm.h
-3. [ ] Implement turn grant logic in backend.c
-4. [ ] Implement timeout check logic in backend.c
-5. [ ] Modify get_user_command() to check/consume turns
-6. [ ] Add unit tests for fairness scenarios
-7. [ ] Add integration tests with test mudlib
-8. [ ] Manual testing with multiple connections
-9. [ ] Performance profiling with high user count
-10. [ ] Update ChangeLog.md
+2. ✓ Add `HAS_CMD_TURN` flag to comm.h
+3. ✓ Implement turn grant logic in backend.c
+4. ✓ Implement timeout check logic in backend.c
+5. ✓ Modify get_user_command() to check/consume turns
+6. ✓ Add unit tests for fairness scenarios
+7. ✓ Update ChangeLog.md
