@@ -23,7 +23,13 @@
 - added unit-tests for command fairness system.
 - added lpmud driver architecture illustration using mermaid.
 - provide pre-release versions with git tags.
-- **Console Mode Piped Stdin Support (Linux/WSL)**: Enabled automated testing via piped stdin by conditionally preserving input data for non-TTY handles. Real terminals still flush input on mode changes for security; pipes preserve all data for testbot automation. Added `safe_tcsetattr()` helper using `isatty()` detection. See [docs/plan/console-testbot-support.md](plan/console-testbot-support.md) for design.
+- **Console Mode Piped Stdin Support**: Enabled automated testing via piped stdin on both Linux/WSL and Windows platforms.
+  - **Linux/WSL (Phase 1)**: Added `safe_tcsetattr()` helper using `isatty()` detection to conditionally preserve input data for non-TTY handles. Real terminals still flush input on mode changes for security; pipes preserve all data for testbot automation.
+  - **Windows (Phase 2)**: Implemented handle type detection with `GetFileType()` to distinguish real consoles from pipes/files. Uses synchronous `ReadFile()` for pipes instead of overlapped I/O, mirroring POSIX simplicity.
+  - **EOF Handling**: Pipes/files trigger clean shutdown instead of console reconnection loop when input closes.
+  - **Reactor Improvements**: Fixed IOCP timeout handling to properly wait on socket I/O completions. Fixed `io_reactor_wakeup()` to signal both event handle and IOCP for reliable timer interrupts.
+  - **Testing**: Added shutdown command to example mudlib. Updated `testbot.py` to exit cleanly on pipe closure. All 37 io_reactor unit tests passing.
+  - See [docs/manual/console-testbot-support.md](manual/console-testbot-support.md) for design overview.
 
 ## neolith-0.2
 - imported from the code of stable driver used in ES2, which is MudOS v22pre5 with several crasher fixes and support for non-english multi-byte encoding.

@@ -88,30 +88,31 @@ Goodbye!
 
 ### Manual Command Line Testing
 
-**Piped commands (Linux/WSL only):**
+**Piped commands (cross-platform):**
 ~~~sh
-# Linux
-echo -e "admin\npassword\nsay test\nquit" | neolith -f neolith.conf -c
+# Linux/WSL
+echo -e "admin\npassword\nsay test\nshutdown" | neolith -f neolith.conf -c
 
-# Windows PowerShell - NOT SUPPORTED
-# GetConsoleMode() rejects piped stdin on Windows
+# Windows PowerShell
+"admin`npassword`nsay test`nshutdown" | .\neolith.exe -f neolith.conf -c
 ~~~
 
-**Redirected file input (Linux/WSL only):**
+**Redirected file input (cross-platform):**
 ~~~sh
-echo "admin" > commands.txt
-echo "password" >> commands.txt
-echo "say test" >> commands.txt
-echo "quit" >> commands.txt
-
+# Linux/WSL
+echo -e "admin\npassword\nsay test\nshutdown" > commands.txt
 neolith -f neolith.conf -c < commands.txt
+
+# Windows PowerShell
+"admin`npassword`nsay test`nshutdown" | Out-File commands.txt
+Get-Content commands.txt | .\neolith.exe -f neolith.conf -c
 ~~~
 
-**Windows limitation**: Piped/redirected input currently not supported. `GetConsoleMode()` validates stdin is a real console, rejecting pipes/files. See [Windows Piped Stdin Support](../plan/windows-piped-stdin-support.md) for planned enhancement to support overlapped I/O on pipes.
+**Note**: When using piped or redirected input, the driver will process commands until the pipe closes (EOF), then automatically shutdown. This is different from interactive console mode where the driver waits for reconnection after user disconnects.
 
 ### Python Test Automation
 
-The repository includes [testbot.py](../../examples/testbot.py) as a template for creating automated console mode tests on Linux/WSL:
+The repository includes [testbot.py](../../examples/testbot.py) as a template for automated console mode testing on both platforms:
 
 ~~~sh
 cd examples
@@ -126,9 +127,16 @@ This testing robot demonstrates how to pipe test commands to the driver and vali
 
 **Platform support:**
 - ✅ **Linux/WSL**: Fully functional (pipes work with poll())
-- ❌ **Windows**: Not yet supported (requires piped stdin enhancement)
+- ✅ **Windows**: Fully functional (synchronous ReadFile() for pipes)
 
-Windows users should test manually until piped stdin support is implemented (see [windows-piped-stdin-support.md](../plan/windows-piped-stdin-support.md)).
+**How it works:**
+1. Sends commands via `subprocess.Popen` with piped stdin
+2. Driver detects pipe (not real console) and preserves all input data
+3. Commands are processed line-by-line until EOF
+4. Driver automatically shuts down on pipe closure
+5. Test validates exit code and output
+
+See [Console Testbot Support](console-testbot-support.md) for design details.
 
 ### Unit Tests
 
@@ -183,29 +191,38 @@ On POSIX systems, `STDIN_FILENO` (file descriptor 0) is registered directly with
 
 ### Windows Implementation
 
-Windows console handles cannot be used with Winsock `select()` or I/O Completion Ports (IOCP). The reactor employs a platform-specific solution:
+Windows console handles cannot be used with Winsock `select()` or I/O Completion Ports (IOCP). The reactor employs a platform-specific solution that supports both real consoles and piped stdin:
 
-**Console Registration**: 
-- Backend calls `io_reactor_add_console()` with a context marker (e.g., `0xC0123456`)
-- Reactor stores console handle from `GetStdHandle(STD_INPUT_HANDLE)`
-- Console is validated as a real console (not redirected I/O)
+**Handle Type Detection**:
+- Uses `GetFileType()` to distinguish console vs pipe vs file
+- Real console (`FILE_TYPE_CHAR` + `GetConsoleMode()` succeeds): Uses `ReadConsoleInputW()`
+- Pipe (`FILE_TYPE_PIPE`): Uses synchronous `ReadFile()`
+- File (`FILE_TYPE_DISK`): Uses synchronous `ReadFile()`
 
-**Event Loop Integration**:
-- `io_reactor_wait()` polls console via `GetNumberOfConsoleInputEvents()` before blocking on IOCP
-- If console input exists, returns `EVENT_READ` event immediately
-- Console checking is non-blocking and doesn't interfere with network I/O
-
-**Input Reading** ([src/comm.c](../src/comm.c)):
+**Real Console Mode**:
 - `ReadConsoleInputW()` reads raw `INPUT_RECORD` structures (keyboard events)
 - Extracts Unicode characters from `KEY_EVENT` records
 - Converts UTF-16 to UTF-8 via `WideCharToMultiByte(CP_UTF8)`
-- **Never blocks**: Returns immediately when console handle is signaled
-- **Mode-independent**: Works without `ENABLE_LINE_INPUT` (mudlib handles line editing)
+- Non-blocking operation via `GetNumberOfConsoleInputEvents()` check
+- Supports reconnection (stdin remains open after disconnect)
+
+**Pipe/File Mode** (for automated testing):
+- Synchronous `ReadFile()` on stdin handle
+- Processes input line-by-line until EOF
+- EOF triggers clean shutdown instead of reconnection
+- Enables `testbot.py` and piped command automation
+
+**Event Loop Integration**:
+- `io_reactor_wait()` checks console availability before blocking on IOCP
+- Real console: Polled via `GetNumberOfConsoleInputEvents()`
+- Pipe/file: Always considered ready (synchronous read handles blocking)
+- Returns `EVENT_READ` when console input available
 
 **Design Benefits**:
-- ✅ Full Unicode support (UTF-16 → UTF-8 conversion)
+- ✅ Full Unicode support (UTF-16 → UTF-8 conversion for real console)
+- ✅ Cross-platform testbot.py support
 - ✅ Non-blocking operation - no thread overhead
 - ✅ Console and network I/O handled in unified event loop
-- ✅ Reconnection supported (stdin remains open after disconnect)
+- ✅ Automatic EOF handling (pipes exit cleanly, consoles reconnect)
 
-See [Windows I/O Implementation](windows-io.md#console-input-handling) for complete technical details and [I/O Reactor Phase 3 Report](../history/agent-reports/io-reactor-phase3-console-support.md) for implementation specifics.
+See [Windows I/O Implementation](windows-io.md#console-input-handling) for complete technical details and [Console Testbot Support](console-testbot-support.md) for design overview.

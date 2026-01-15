@@ -9,6 +9,7 @@ private void logon()
   add_action("cmd_quit", "quit");
   add_action("cmd_say", "say");
   add_action("cmd_help", "help");
+  add_action("cmd_shutdown", "shutdown");
 }
 
 private int cmd_quit (string arg)
@@ -35,6 +36,14 @@ private int cmd_help (string arg)
   write("  say <message>  - Say something\n");
   write("  help           - Show this help\n");
   write("  quit           - Exit the MUD\n");
+  write("  shutdown       - Shutdown the driver\n");
+  return 1;
+}
+
+private int cmd_shutdown (string arg)
+{
+  write("Shutting down...\n");
+  shutdown();
   return 1;
 }
 

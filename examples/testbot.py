@@ -8,11 +8,15 @@ more advanced test automation scripts.
 
 Platform support:
 - Linux/WSL: ✅ Phase 1 complete - pipes work correctly
-- Windows: ⚠️  Phase 2 pending - requires piped stdin enhancement
-  See docs/plan/console-testbot-support.md for implementation plan
+- Windows: ✅ Phase 2 complete - pipes work correctly
+  See docs/manual/console-testbot-support.md for design details
 
-Note: The driver waits for reconnection after user disconnects (by design).
-Test scripts should use timeout to handle this gracefully.
+How it works:
+- Sends commands via subprocess.Popen with piped stdin
+- Driver detects pipe (not real console) and preserves all input data
+- Commands are processed until EOF
+- Driver automatically shuts down on pipe closure
+- Test validates clean exit with code 0
 
 Usage:
     cd examples
@@ -26,7 +30,7 @@ import os
 from pathlib import Path
 
 def test_console_mode():
-    """Test the driver in console mode with automated input (Linux/WSL only)
+    """Test the driver in console mode with automated input
     
     This is a template demonstrating basic automated testing. Extend this for:
     - Testing specific LPC functionality
@@ -61,7 +65,7 @@ def test_console_mode():
     test_commands = [
         "say Hello from Python test!",
         "help",
-        "quit"
+        "shutdown"  # Use shutdown to cleanly exit the driver
     ]
     
     # Join commands with newlines and encode
@@ -70,12 +74,8 @@ def test_console_mode():
     print("=" * 60)
     print("CONSOLE MODE AUTOMATED TEST")
     print("=" * 60)
-    
-    if os.name == 'nt':
-        print("⚠️  WARNING: This test will FAIL on Windows!")
-        print("   Windows console mode requires a real console, not piped stdin.")
-        print("   Run the driver manually: ..\\out\\build\\vs16-x64\\src\\RelWithDebInfo\\neolith.exe -f m3.conf -c")
-        print()
+    print(f"Platform: {os.name}")
+    print()
     
     print("Input commands:")
     for i, cmd in enumerate(test_commands, 1):
@@ -100,10 +100,10 @@ def test_console_mode():
         
         # Send input to the driver
         try:
-            stdout_data, _ = process.communicate(input=input_data, timeout=10)
+            stdout_data, _ = process.communicate(input=input_data, timeout=5)
             print(stdout_data)
         except subprocess.TimeoutExpired:
-            print("\n⚠️  Process timeout - killing driver")
+            print("\n❌ Process did not exit cleanly - killing driver")
             process.kill()
             stdout_data, _ = process.communicate()
             print(stdout_data)

@@ -40,6 +40,21 @@ typedef struct io_event_s {
 } io_event_t;
 
 /**
+ * @brief Console input types (Windows-specific).
+ *
+ * Used to distinguish different stdin handle types on Windows for
+ * dispatching appropriate I/O methods.
+ */
+#ifdef _WIN32
+typedef enum {
+    CONSOLE_TYPE_NONE = 0,
+    CONSOLE_TYPE_REAL,    /* Real console (ReadConsoleInputW) */
+    CONSOLE_TYPE_PIPE,    /* Pipe (synchronous ReadFile) */
+    CONSOLE_TYPE_FILE     /* File (synchronous ReadFile) */
+} console_type_t;
+#endif
+
+/**
  * @brief Opaque reactor handle.
  *
  * The internal structure is platform-specific and defined in implementation files.
@@ -317,4 +332,37 @@ int io_reactor_post_write(io_reactor_t *reactor, socket_fd_t fd, void *buffer, s
  * @endcode
  */
 int io_reactor_add_console(io_reactor_t *reactor, void *context);
+
+/**
+ * @brief Get console type for Windows console mode.
+ *
+ * Returns the type of stdin handle (real console, pipe, or file) so that
+ * appropriate I/O methods can be used.
+ *
+ * @param reactor The reactor instance. Must not be NULL.
+ * @return console_type_t value (CONSOLE_TYPE_REAL, CONSOLE_TYPE_PIPE, etc.)
+ */
+console_type_t io_reactor_get_console_type(io_reactor_t *reactor);
+
+/**
+ * @brief Get console event handle for piped stdin (Windows).
+ *
+ * Returns the event handle used for overlapped I/O on piped stdin.
+ * Only valid when console type is CONSOLE_TYPE_PIPE.
+ *
+ * @param reactor The reactor instance. Must not be NULL.
+ * @return Event handle, or NULL if not in pipe mode.
+ */
+HANDLE io_reactor_get_console_event(io_reactor_t *reactor);
+
+/**
+ * @brief Get console IOCP context for piped stdin (Windows).
+ *
+ * Returns the IOCP context containing buffer and OVERLAPPED structure
+ * for overlapped ReadFile operations on piped stdin.
+ *
+ * @param reactor The reactor instance. Must not be NULL.
+ * @return Pointer to iocp_context_t, or NULL if not in pipe mode.
+ */
+void* io_reactor_get_console_ctx(io_reactor_t *reactor);
 #endif

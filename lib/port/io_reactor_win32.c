@@ -34,19 +34,17 @@
 #define OP_ACCEPT  3
 
 /**
- * @brief IOCP context for each I/O operation.
+ * @brief IOCP context for each I/O operation (Windows internal use).
  *
- * This structure represents a single overlapped I/O operation.
- * The OVERLAPPED structure must be the first member to support
- * CONTAINING_RECORD macro for retrieving the full context from
- * the OVERLAPPED pointer returned by GetQueuedCompletionStatus().
+ * This structure represents a single overlapped I/O operation for sockets.
+ * The OVERLAPPED structure must be the first member.
  */
 typedef struct iocp_context_s {
     OVERLAPPED overlapped;       /* Must be first member */
-    void *user_context;          /* User-supplied context (interactive_t*, etc.) */
-    int operation;               /* OP_READ, OP_WRITE, OP_ACCEPT */
+    void *user_context;          /* User-supplied context */
+    int operation;               /* Operation type */
     WSABUF wsa_buf;              /* WSA buffer descriptor */
-    char buffer[MAX_TEXT];       /* Inline buffer to avoid allocations */
+    char buffer[MAX_TEXT];       /* Inline buffer */
     socket_fd_t fd;              /* Associated file descriptor */
 } iocp_context_t;
 
@@ -77,6 +75,7 @@ struct io_reactor_s {
     int listen_capacity;         /* Capacity of listen_sockets array */
     
     /* Console support (Windows doesn't support STDIN in Winsock select) */
+    console_type_t console_type; /* Console input type (real/pipe/file) */
     HANDLE console_handle;       /* Console input handle (STD_INPUT_HANDLE) */
     void *console_context;       /* User context for console events */
     int console_enabled;         /* Whether console monitoring is active */
@@ -475,35 +474,62 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     HANDLE wait_handles[MAXIMUM_WAIT_OBJECTS];
     int handle_count = 0;
     
-    /* Add IOCP handle first */
-    wait_handles[handle_count++] = reactor->iocp_handle;
-    
     /* Add wakeup event (for timer interrupts) */
     int wakeup_index = handle_count;
     wait_handles[handle_count++] = reactor->wakeup_event;
     
-    /* Add console handle if enabled */
+    /* Add console handle if enabled (only for real console) */
     int console_index = -1;
-    if (reactor->console_enabled) {
+    if (reactor->console_enabled && reactor->console_type == CONSOLE_TYPE_REAL) {
+        /* Real console: add console handle to wait array */
         console_index = handle_count;
         wait_handles[handle_count++] = reactor->console_handle;
     }
+    /* PIPE and FILE types don't wait - they're always ready (checked below) */
     
     /* Add listening socket event handles */
-    int listen_start_index = handle_count;
     for (int i = 0; i < reactor->listen_count && handle_count < MAXIMUM_WAIT_OBJECTS; i++) {
         wait_handles[handle_count++] = reactor->listen_sockets[i].event_handle;
     }
     
-    /* 1. (BLOCKING) Wait for any event to be signaled */
-    DWORD wait_result = WaitForMultipleObjects(handle_count, wait_handles, FALSE, timeout_ms);
+    /* 1. (BLOCKING) Wait for any event to be signaled
+     * Note: IOCP completions are NOT waitable via WaitForMultipleObjects!
+     * Strategy depends on what handles we have:
+     *   - If we have console/listening sockets: Wait on those + wakeup, then check IOCP non-blocking
+     *   - If we only have wakeup event: Use short timeout on it, then check IOCP with remaining time
+     */
+    DWORD wait_result = WAIT_TIMEOUT;
+    DWORD iocp_timeout_ms = timeout_ms;
+    BOOL waited_on_handles = FALSE;
     
-    if (wait_result == WAIT_TIMEOUT) {
-        return 0;  /* Timeout with no events */
-    }
-    
-    if (wait_result == WAIT_FAILED) {
-        return -1;  /* Error */
+    if (handle_count > 1) {
+        /* We have console or listening sockets - wait on all handles */
+        wait_result = WaitForMultipleObjects(handle_count, wait_handles, FALSE, timeout_ms);
+        waited_on_handles = TRUE;
+        iocp_timeout_ms = 0;  /* After waiting, check IOCP non-blocking */
+        
+        if (wait_result == WAIT_FAILED) {
+            return -1;  /* Error */
+        }
+    } else {
+        /* Only wakeup event - use short timeout to check it periodically while waiting on IOCP */
+        DWORD short_timeout = (timeout_ms == INFINITE) ? 100 : min(timeout_ms, 100);
+        wait_result = WaitForSingleObject(reactor->wakeup_event, short_timeout);
+        
+        if (wait_result == WAIT_FAILED) {
+            return -1;
+        }
+        
+        if (wait_result == WAIT_OBJECT_0) {
+            /* Wakeup signaled - reset it and check IOCP non-blocking */
+            ResetEvent(reactor->wakeup_event);
+            iocp_timeout_ms = 0;
+        } else {
+            /* Wakeup not signaled - use remaining timeout on IOCP */
+            if (timeout_ms != INFINITE) {
+                iocp_timeout_ms = (timeout_ms > short_timeout) ? (timeout_ms - short_timeout) : 0;
+            }
+        }
     }
     
     /* After WaitForMultipleObjects returns, at least one handle is signaled.
@@ -512,7 +538,7 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
      */
     
     /* 2. Check if wakeup event was signaled (timer interrupt) */
-    if (wait_result == (WAIT_OBJECT_0 + wakeup_index)) {
+    if (waited_on_handles && wait_result == (WAIT_OBJECT_0 + wakeup_index)) {
         /* Reset the event so future waits will block */
         ResetEvent(reactor->wakeup_event);
         /* No events to return, just wake up the main loop */
@@ -521,35 +547,43 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
     
     /* 3. (NON-BLOCKING) Check if console was signaled */
     if (reactor->console_enabled && event_count < max_events) {
-        /* Peek console input to check for actual keyboard events.
-         * PeekConsoleInputW returns all event types (mouse, resize, focus, etc.),
-         * so we must filter for KEY_EVENT to avoid spurious wake-ups.
-         */
-        INPUT_RECORD peek_buffer[128];
-        DWORD num_peeked = 0;
-        BOOL has_key_event = FALSE;
-        
-        if (PeekConsoleInputW(reactor->console_handle, peek_buffer, 
-                             128, &num_peeked) && num_peeked > 0) {
-            for (DWORD i = 0; i < num_peeked; i++) {
-                if (peek_buffer[i].EventType == KEY_EVENT && 
-                    peek_buffer[i].Event.KeyEvent.bKeyDown) {
-                    has_key_event = TRUE;
-                    break;
+        if (reactor->console_type == CONSOLE_TYPE_REAL) {
+            /* Real console: peek for keyboard events */
+            INPUT_RECORD peek_buffer[128];
+            DWORD num_peeked = 0;
+            BOOL has_key_event = FALSE;
+            
+            if (PeekConsoleInputW(reactor->console_handle, peek_buffer, 
+                                 128, &num_peeked) && num_peeked > 0) {
+                for (DWORD i = 0; i < num_peeked; i++) {
+                    if (peek_buffer[i].EventType == KEY_EVENT && 
+                        peek_buffer[i].Event.KeyEvent.bKeyDown) {
+                        has_key_event = TRUE;
+                        break;
+                    }
+                }
+                
+                /* Only signal EVENT_READ if there are actual keyboard events */
+                if (has_key_event) {
+                    events[event_count].context = reactor->console_context;
+                    events[event_count].event_type = EVENT_READ;
+                    events[event_count].buffer = NULL;
+                    events[event_count].bytes_transferred = 0;
+                    event_count++;
+                } else {
+                    /* Discard non-keyboard events to prevent infinite loop */
+                    ReadConsoleInputW(reactor->console_handle, peek_buffer, num_peeked, &num_peeked);
                 }
             }
-            
-            /* Only signal EVENT_READ if there are actual keyboard events */
-            if (has_key_event) {
-                events[event_count].context = reactor->console_context;
-                events[event_count].event_type = EVENT_READ;
-                events[event_count].buffer = NULL;
-                events[event_count].bytes_transferred = 0;
-                event_count++;
-            } else {
-                /* Discard non-keyboard events to prevent infinite loop */
-                ReadConsoleInputW(reactor->console_handle, peek_buffer, num_peeked, &num_peeked);
-            }
+        }
+        else if (reactor->console_type == CONSOLE_TYPE_PIPE || 
+                 reactor->console_type == CONSOLE_TYPE_FILE) {
+            /* Pipe/File: always signal ready (synchronous ReadFile handles blocking) */
+            events[event_count].context = reactor->console_context;
+            events[event_count].event_type = EVENT_READ;
+            events[event_count].buffer = NULL;
+            events[event_count].bytes_transferred = 0;
+            event_count++;
         }
     }
     
@@ -568,8 +602,10 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
         }
     }
     
-    /* 4. (NON-BLOCKING) Check IOCP for completed I/O operations.
-     * We always check with zero timeout to collect any ready events, even if IOCP wasn't the signaled handle)
+    /* 4. (BLOCKING or NON-BLOCKING) Check IOCP for completed I/O operations.
+     * Use iocp_timeout_ms which is either:
+     *   - 0 if we already waited via WaitForMultipleObjects
+     *   - Full timeout if we skipped WaitForMultipleObjects (no console/listening sockets)
      */
     while (event_count < max_events) {
         DWORD bytes_transferred;
@@ -581,8 +617,11 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
             &bytes_transferred,
             &completion_key,
             &overlapped,
-            0 /* Use zero timeout - we already waited via WaitForMultipleObjects */
+            iocp_timeout_ms  /* Use calculated timeout */
         );
+        
+        /* After first IOCP call, use zero timeout for subsequent checks */
+        iocp_timeout_ms = 0;
         
         if (!result && overlapped == NULL) {
             /* Timeout or error with no completion packet */
@@ -596,6 +635,12 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
                 return -1;
             }
             /* If we have events, return them and ignore this error */
+            break;
+        }
+        
+        /* Check for wakeup completion (overlapped == NULL from PostQueuedCompletionStatus) */
+        if (overlapped == NULL) {
+            /* This is a wakeup signal - don't create an event, just return collected events */
             break;
         }
         
@@ -671,11 +716,29 @@ int io_reactor_add_console(io_reactor_t *reactor, void *context) {
     if (hStdin == INVALID_HANDLE_VALUE || hStdin == NULL) {
         return -1;
     }
-   
-    /* Store console state */
-    reactor->console_handle = hStdin;
-    reactor->console_context = context;
-    reactor->console_enabled = 1;
+    
+    /* Detect handle type */
+    DWORD fileType = GetFileType(hStdin);
+    DWORD mode;
+    
+    if (fileType == FILE_TYPE_CHAR && GetConsoleMode(hStdin, &mode)) {
+        /* Real console: use GetNumberOfConsoleInputEvents() + ReadConsoleInputW() */
+        reactor->console_type = CONSOLE_TYPE_REAL;
+        reactor->console_handle = hStdin;
+        reactor->console_context = context;
+        reactor->console_enabled = 1;
+    }
+    else if (fileType == FILE_TYPE_PIPE || fileType == FILE_TYPE_DISK) {
+        /* Pipe or file: use synchronous reads (always ready when signaled) */
+        reactor->console_type = (fileType == FILE_TYPE_PIPE) ? CONSOLE_TYPE_PIPE : CONSOLE_TYPE_FILE;
+        reactor->console_handle = hStdin;
+        reactor->console_context = context;
+        reactor->console_enabled = 1;
+    }
+    else {
+        /* Unsupported handle type */
+        return -1;
+    }
     
     return 0;
 }
@@ -683,22 +746,40 @@ int io_reactor_add_console(io_reactor_t *reactor, void *context) {
 /**
  * @brief Wake up a blocked io_reactor_wait() call.
  *
- * Signals the reactor's wakeup event to interrupt a blocking wait, allowing
- * the event loop to process other tasks (e.g., heartbeat). This is thread-safe
- * and can be called from timer callbacks or other threads.
+ * Signals the reactor's wakeup event AND posts to IOCP to interrupt both
+ * WaitForMultipleObjects and GetQueuedCompletionStatus. This ensures
+ * the reactor wakes up regardless of which wait mechanism is active.
+ * Thread-safe - can be called from timer callbacks or other threads.
  *
  * @param reactor The reactor instance. Must not be NULL.
  * @return 0 on success, -1 on failure.
  */
 int io_reactor_wakeup(io_reactor_t *reactor) {
-    if (!reactor || !reactor->wakeup_event) {
+    if (!reactor) {
         return -1;
     }
     
     /* Signal the manual-reset event to wake up WaitForMultipleObjects */
-    if (!SetEvent(reactor->wakeup_event)) {
-        return -1;
+    if (reactor->wakeup_event) {
+        if (!SetEvent(reactor->wakeup_event)) {
+            return -1;
+        }
+    }
+    
+    /* Also post a completion to IOCP to interrupt GetQueuedCompletionStatus
+     * Use NULL for all values to distinguish from real I/O completions */
+    if (reactor->iocp_handle) {
+        if (!PostQueuedCompletionStatus(reactor->iocp_handle, 0, 0, NULL)) {
+            return -1;
+        }
     }
     
     return 0;
+}
+
+console_type_t io_reactor_get_console_type(io_reactor_t *reactor) {
+    if (!reactor) {
+        return CONSOLE_TYPE_NONE;
+    }
+    return reactor->console_type;
 }

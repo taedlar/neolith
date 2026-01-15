@@ -1665,6 +1665,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
 
       /* Post next async read to continue receiving data */
       opt_trace (TT_IO_REACTOR|3, "Number of bytes received: %d. Posting next async read for fd %d\n", num_bytes, ip->fd);
+      
       if (io_reactor_post_read(g_io_reactor, ip->fd, NULL, 0) != 0)
         {
           debug_message("get_user_data: failed to post next read for fd %d\n", ip->fd);
@@ -1679,51 +1680,72 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       /* Readiness notification: perform synchronous read (POSIX poll/epoll or console) */
 #ifdef _WIN32
       if (ip->fd == STDIN_FILENO) {
-        /* Windows console: use ReadConsoleInputW for non-blocking Unicode reads.
-         * This works regardless of ENABLE_LINE_INPUT console mode.
-         * ReadConsoleInputW always returns Unicode characters in UnicodeChar field.
-         * ReadConsoleInputA would only return code page characters in AsciiChar field.
-         */
-        HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-        INPUT_RECORD irInBuf[128];
-        DWORD cNumRead = 0;
+        /* Check console type to determine read method */
+        console_type_t console_type = io_reactor_get_console_type(g_io_reactor);
         
-        /* ReadConsoleInputW is non-blocking if console handle is signaled */
-        if (!ReadConsoleInputW(hStdin, irInBuf, 128, &cNumRead)) {
+        if (console_type == CONSOLE_TYPE_REAL) {
+          /* Real console: use ReadConsoleInputW for non-blocking Unicode reads.
+           * This works regardless of ENABLE_LINE_INPUT console mode.
+           * ReadConsoleInputW always returns Unicode characters in UnicodeChar field.
+           * ReadConsoleInputA would only return code page characters in AsciiChar field.
+           */
+          HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+          INPUT_RECORD irInBuf[128];
+          DWORD cNumRead = 0;
+          
+          /* ReadConsoleInputW is non-blocking if console handle is signaled */
+          if (!ReadConsoleInputW(hStdin, irInBuf, 128, &cNumRead)) {
+            num_bytes = SOCKET_ERROR;
+            err = EIO;
+          } else {
+            /* Extract Unicode character data from KEY_EVENT records and convert to UTF-8 */
+            WCHAR wbuf[128];
+            int wchar_count = 0;
+            
+            for (DWORD i = 0; i < cNumRead && wchar_count < 128; i++) {
+              if (irInBuf[i].EventType == KEY_EVENT && irInBuf[i].Event.KeyEvent.bKeyDown) {
+                WCHAR wch = irInBuf[i].Event.KeyEvent.uChar.UnicodeChar;
+                if (wch == L'\r') {
+                  /* Convert carriage return to newline */
+                  wch = L'\n';
+                }
+                if (wch != 0) {
+                  wbuf[wchar_count++] = wch;
+                }
+              }
+            }
+            
+            if (wchar_count > 0) {
+              /* FIXME: handle password case */
+              WriteConsoleW (GetStdHandle(STD_OUTPUT_HANDLE), wbuf, wchar_count, NULL, NULL);
+              /* Convert UTF-16 to UTF-8 */
+              num_bytes = WideCharToMultiByte(CP_UTF8, 0, wbuf, wchar_count, buf, text_space, NULL, NULL);
+              if (num_bytes <= 0) {
+                num_bytes = SOCKET_ERROR;
+                err = EILSEQ;  /* Invalid multibyte sequence */
+              }
+            } else {
+              /* No characters extracted, indicate would-block */
+              num_bytes = SOCKET_ERROR;
+              err = EWOULDBLOCK;
+            }
+          }
+        }
+        else if (console_type == CONSOLE_TYPE_PIPE || console_type == CONSOLE_TYPE_FILE) {
+          /* Pipe or file: use synchronous ReadFile (no overlapped I/O needed) */
+          HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+          DWORD bytes_read;
+          if (ReadFile(hStdin, buf, text_space, &bytes_read, NULL)) {
+            num_bytes = bytes_read;
+          } else {
+            num_bytes = SOCKET_ERROR;
+            err = EIO;
+          }
+        }
+        else {
+          /* Unknown console type */
           num_bytes = SOCKET_ERROR;
           err = EIO;
-        } else {
-          /* Extract Unicode character data from KEY_EVENT records and convert to UTF-8 */
-          WCHAR wbuf[128];
-          int wchar_count = 0;
-          
-          for (DWORD i = 0; i < cNumRead && wchar_count < 128; i++) {
-            if (irInBuf[i].EventType == KEY_EVENT && irInBuf[i].Event.KeyEvent.bKeyDown) {
-              WCHAR wch = irInBuf[i].Event.KeyEvent.uChar.UnicodeChar;
-              if (wch == L'\r') {
-                /* Convert carriage return to newline */
-                wch = L'\n';
-              }
-              if (wch != 0) {
-                wbuf[wchar_count++] = wch;
-              }
-            }
-          }
-          
-          if (wchar_count > 0) {
-            /* FIXME: handle password case */
-            WriteConsoleW (GetStdHandle(STD_OUTPUT_HANDLE), wbuf, wchar_count, NULL, NULL);
-            /* Convert UTF-16 to UTF-8 */
-            num_bytes = WideCharToMultiByte(CP_UTF8, 0, wbuf, wchar_count, buf, text_space, NULL, NULL);
-            if (num_bytes <= 0) {
-              num_bytes = SOCKET_ERROR;
-              err = EILSEQ;  /* Invalid multibyte sequence */
-            }
-          } else {
-            /* No characters extracted, indicate would-block */
-            num_bytes = SOCKET_ERROR;
-            err = EWOULDBLOCK;
-          }
         }
       } else {
         num_bytes = SOCKET_RECV(ip->fd, buf, text_space, 0);
@@ -2181,7 +2203,22 @@ void remove_interactive (object_t * ob, int dested) {
 
   if (MAIN_OPTION(console_mode) && ip->fd == STDIN_FILENO)
     {
-      /* don't close stdin */
+      /* Check if stdin is a pipe/file - if so, exit instead of trying to reconnect */
+#ifdef _WIN32
+      console_type_t console_type = io_reactor_get_console_type(g_io_reactor);
+      if (console_type == CONSOLE_TYPE_PIPE || console_type == CONSOLE_TYPE_FILE) {
+        debug_message ("Console input closed (pipe/file) - shutting down\n");
+        do_shutdown(0);
+        return;
+      }
+#else
+      if (!isatty(STDIN_FILENO)) {
+        debug_message ("Console input closed (pipe/file) - shutting down\n");
+        do_shutdown(0);
+        return;
+      }
+#endif
+      /* Real console - allow reconnection */
       debug_message ("===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
     }
   else
