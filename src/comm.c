@@ -1904,7 +1904,19 @@ static char* get_user_command () {
         {
           user_command = first_cmd_in_buf (ip);
           if (user_command)
-            break;
+            {
+              /* Check if user has their turn */
+              if (ip->iflags & HAS_CMD_TURN)
+                {
+                  ip->iflags &= ~HAS_CMD_TURN;  /* Consume turn */
+                  break;  /* Process this command */
+                }
+              else
+                {
+                  /* User has command but no turn - skip and continue searching */
+                  user_command = NULL;
+                }
+            }
           else
             ip->iflags &= ~CMD_IN_BUF;
         }

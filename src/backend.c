@@ -282,15 +282,35 @@ void backend () {
           slow_shut_down (tmp);
         }
 
-      if (heart_beat_flag)
+      /*
+       * Grant command processing turns to all connected users.
+       * Also count connected users and check for pending commands to optimize timeout.
+       */
+      int has_pending_commands = 0;
+      int connected_users = 0;
+      for (i = 0; i < max_users; i++)
         {
-          /* When heart beat is active, do not wait in poll */
+          if (all_users[i])
+            {
+              all_users[i]->iflags |= HAS_CMD_TURN;
+              connected_users++;
+
+              if (!has_pending_commands && (all_users[i]->iflags & CMD_IN_BUF))
+                {
+                  has_pending_commands = 1;
+                }
+            }
+        }
+
+      if (heart_beat_flag || has_pending_commands)
+        {
+          /* When heart beat is active or commands pending, do not wait in poll */
           timeout.tv_sec = 0;
           timeout.tv_usec = 0;
         }
       else
         {
-          /* When heart beat is not active, wait up to 60 seconds in poll */
+          /* When heart beat is not active and no pending commands, wait up to 60 seconds */
           timeout.tv_sec = 60;
           timeout.tv_usec = 0;
         }
@@ -310,10 +330,11 @@ void backend () {
         process_io ();
 
       /*
-       * Process user commands fairly (round-robin). Number of commands
-       * to process is limited to max_users to avoid starvation of heartbeats.
+       * Process user commands fairly (round-robin).
+       * Each user gets exactly one turn per cycle (via HAS_CMD_TURN flag).
+       * Loop bounded by connected_users for tighter safety limit.
        */
-      for (i = 0; process_user_command () && i < max_users; i++);
+      for (i = 0; process_user_command () && i < connected_users; i++);
 
       /*
        * Despite the name, this routine takes care of several things.

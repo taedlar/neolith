@@ -39,6 +39,7 @@ enum msgtypes {
 #define NOTIFY_FAIL_FUNC    0x0200	/* default_err_mesg is a function pointer  */
 #define USING_TELNET        0x0400
 #define	USING_LINEMODE      0x0800
+#define HAS_CMD_TURN        0x1000	/* user has command processing turn this cycle */
 
 typedef struct interactive_s {
     object_t *ob;               /* points to the associated object         */
