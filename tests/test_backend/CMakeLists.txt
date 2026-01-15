@@ -3,6 +3,7 @@
 add_executable(test_backend
     test_backend.cpp
     test_backend_timer.cpp
+    test_command_fairness.cpp
 )
 
 target_link_libraries(test_backend PRIVATE stem GTest::gtest_main)

@@ -1,6 +1,16 @@
 # ChangeLog
 
-## neolith-1.0.0-alpha
+## neolith-1.0.0-alpha (unreleased)
+
+### Security & Fairness
+- **Fixed command processing fairness exploit**: Implemented turn-based token system to prevent single users from monopolizing backend cycles through command buffering. Each connected user now processes exactly one buffered command per backend cycle, ensuring fair round-robin scheduling. See [docs/internals/user-command-turn.md](internals/user-command-turn.md) for design details.
+  - Added `HAS_CMD_TURN` flag to `interactive_t->iflags`
+  - Backend loop grants turns to all connected users each cycle
+  - Command processing loop uses actual connected user count instead of historical peak
+  - Zero timeout when unprocessed commands remain (improves responsiveness)
+  - `command()` efun unaffected (LPC-initiated commands bypass turn system)
+
+### Development & Testing
 - created source code repository on github.
 - clean up non-UTF8 comments and contents.
 - changed build system to CMake.
@@ -10,6 +20,7 @@
 - converted documentations to markdown format.
 - added googletest as unit-testing framework.
 - added unit-tests (C++ code) for several efuns and base components.
+- added unit-tests for command fairness system.
 - added lpmud driver architecture illustration using mermaid.
 - provide pre-release versions with git tags.
 
