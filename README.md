@@ -72,6 +72,21 @@ You can launch the MUD by the command:
 ~~~sh
 neolith -f /path/to/neolith.conf
 ~~~
+
+### Quick Start & Testing
+Neolith includes a minimal test mudlib in [examples/m3_mudlib/](examples/m3_mudlib/) and automated testing tools:
+~~~sh
+# Interactive testing
+cd examples
+/path/to/neolith -f m3.conf
+
+# Automated testing
+cd examples
+python testbot.py
+~~~
+
+See [examples/README.md](examples/README.md) for comprehensive usage examples and troubleshooting.
+
 If you are new to Neolith, the follow documentations are for you:
 - [Neolith Administrator Guide](docs/manual/admin.md)
 - [Neolith LPC Guide](docs/manual/lpc.md)

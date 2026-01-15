@@ -167,7 +167,8 @@ void init_console_user(int reconnect) {
     tio.c_lflag |= ICANON | ECHO;
     tio.c_cc[VMIN] = 0; /* use polling as like O_NONBLOCK was set */
     tio.c_cc[VTIME] = 0; /* no timeout */
-    tcsetattr (STDIN_FILENO, TCSAFLUSH, &tio); /* discard pending input */
+    int action = isatty(STDIN_FILENO) ? TCSAFLUSH : TCSANOW;
+    tcsetattr (STDIN_FILENO, action, &tio); /* TTY: discard pending input, Pipe: preserve data */
   }
 #elif defined(WINSOCK)
   {
