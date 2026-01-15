@@ -52,36 +52,47 @@ Implement a **turn token system** where each user receives exactly one "turn" pe
 
 Added to `interactive_t->iflags` in [comm.h](../../src/comm.h).
 
+### Scope of Turn Limitation
+
+**Important**: The turn limitation applies **only to user input commands** buffered from network connections. It does **NOT** affect:
+
+- **`command()` efun**: LPC code calling `command("look", player)` bypasses turn checking entirely
+- **`call_out()` callbacks**: Delayed function execution is unaffected
+- **`heart_beat()` functions**: Periodic object updates are unaffected
+- **NPC actions**: Commands initiated by game objects use `command()` efun
+- **Aliases/macros**: Mudlib command preprocessing via `command()` efun
+
+This is correct behavior because:
+- LPC-initiated commands are already rate-limited by `eval_cost`
+- They don't consume network I/O resources (no buffering)
+- They're part of game logic, not player input queuing
+- Turn limitation targets network input buffering exploit only
+
 ## Implementation Details
 
 ### 1. Backend Loop Modifications
 
 **File**: `src/backend.c`
 
-**Before command processing** (add after line 309):
+**Combined turn grant, user counting, and timeout calculation** (modify around line 285):
 
 ```c
-/* Grant command processing turn to all connected users */
+/* Check if any user has unprocessed commands.
+ * Combined with turn grant loop for efficiency.
+ */
+int has_pending_commands = 0;
+int connected_users = 0;
 for (i = 0; i < max_users; i++)
 {
     if (all_users[i])
     {
         all_users[i]->iflags |= HAS_CMD_TURN;
-    }
-}
-```
-
-**Timeout calculation** (modify around line 285):
-
-```c
-/* Check if any user has unprocessed commands */
-int has_pending_commands = 0;
-for (i = 0; i < max_users; i++)
-{
-    if (all_users[i] && (all_users[i]->iflags & CMD_IN_BUF))
-    {
-        has_pending_commands = 1;
-        break;
+        connected_users++;
+        
+        if (!has_pending_commands && (all_users[i]->iflags & CMD_IN_BUF))
+        {
+            has_pending_commands = 1;
+        }
     }
 }
 
@@ -97,6 +108,11 @@ else
     timeout.tv_sec = 60;
     timeout.tv_usec = 0;
 }
+
+/* Process user commands fairly (round-robin).
+ * Limit to connected_users for tighter safety bound.
+ */
+for (i = 0; process_user_command() && i < connected_users; i++);
 ```
 
 ### 2. Command Processing Modifications
@@ -165,6 +181,42 @@ Add flag definition after line 37 (after `USING_LINEMODE`):
 
 ## Execution Flow Example
 
+### User Input Command Flow (Turn-Limited)
+
+**Path**: Network → Buffer → Backend Loop → Turn Check → Execution
+
+```
+User types command
+  → get_user_data() reads from socket
+    → copy_chars() processes telnet, adds to interactive_t->text buffer
+    → Sets CMD_IN_BUF flag
+    
+Backend Loop
+  → Grant HAS_CMD_TURN to all connected users
+  → process_user_command()
+    → get_user_command() [CHECKS HAS_CMD_TURN]
+      → first_cmd_in_buf() extracts command from buffer
+      → IF has turn: Clear HAS_CMD_TURN [CONSUME TURN]
+      → ELSE: Skip user, continue searching
+      → Return command string
+    → process_command(command, user)
+      → user_parser() executes LPC actions
+```
+
+### command() Efun Flow (NOT Turn-Limited)
+
+**Path**: LPC Code → Direct Execution (bypasses turn system)
+
+```
+LPC code: command("look", player)
+  → f_command() in lib/efuns/command.c
+    → command_for_object()
+      → process_command() [DIRECTLY, NO TURN CHECK]
+        → user_parser() executes LPC actions
+```
+
+The `command()` efun calls `process_command()` directly without going through `get_user_command()`, so turn checking never occurs.
+
 ### Scenario
 - **max_users**: 10
 - **User A** (slot 5): 10 buffered commands
@@ -173,32 +225,39 @@ Add flag definition after line 37 (after `USING_LINEMODE`):
 
 ### Backend Cycle 1
 
-1. **Grant turns**: `all_users[5]->iflags |= HAS_CMD_TURN` and `all_users[7]->iflags |= HAS_CMD_TURN`
+1. **Grant turns and count users**: 
+   - `all_users[5]->iflags |= HAS_CMD_TURN` and `all_users[7]->iflags |= HAS_CMD_TURN`
+   - `connected_users = 2`
+   - Loop limit set to 2 (not 10)
 
-2. **Iteration 1**:
+2. **Iteration 1** (`i=0`):
    - `s_next_user = 5` (hypothetically)
    - Find User A: has command + has turn → consume turn, process command 1
 
-3. **Iteration 2**:
+3. **Iteration 2** (`i=1`):
    - Search from `s_next_user = 4, 3, 2...`
    - Find User B at slot 7: has command + has turn → consume turn, process command 1
 
-4. **Iteration 3**:
-   - Search all users
+4. **Iteration 3** (`i=2`, at loop limit):
+   - Would search all users
    - User A has 9 commands but **no turn** → skip
-   - No other users with commands+turns → return 0, stop loop
+   - No other users with commands+turns → `process_user_command()` returns 0
+   - Loop terminates (both conditions met: return 0 AND `i < 2` is now false)
 
 ### Backend Cycle 2
 
-1. **Grant turns**: Both users get turns again
+1. **Grant turns and count**: Both users get turns, `connected_users = 2`
 
-2. **Iteration 1**: Process User A's command 2
+2. **Iteration 1** (`i=0`): Process User A's command 2
 
-3. **Iteration 2**: User B has no more commands, skip
-
-4. **Iteration 3**: User A has commands but no turn → stop
+3. **Iteration 2** (`i=1`): 
+   - User B has no more commands (buffer empty)
+   - Continue searching → no other users with commands+turns
+   - `process_user_command()` returns 0, loop terminates
 
 **Result**: Fair processing - each user gets 1 command per cycle regardless of queue depth.
+
+**Loop Efficiency**: With only 2 connected users, loop bounded at 2 iterations instead of 10 (the `max_users` value).
 
 ## Edge Cases
 
@@ -224,12 +283,15 @@ Add flag definition after line 37 (after `USING_LINEMODE`):
 - Turn consumed per character processed
 - Zero timeout when `CMD_IN_BUF` set ensures responsive processing
 
-### Empty Slots Performance
+### command() Efun Usage
 
-- Turn grant loops through all `max_users` slots (including NULLs)
-- With `max_users` never shrinking, could iterate 100+ slots if peak was high
-- Performance impact: negligible (simple pointer check + bit operation)
-- Alternative: track `num_user` for early break (optimization for later)
+**Scenario**: User A has exhausted their turn, but their `heart_beat()` calls `command("emote laughs")`
+
+- User A's buffered input commands: **Blocked** (no turn remaining)
+- `command()` efun execution: **Proceeds normally** (bypasses turn system)
+- Result: NPC actions and mudlib automation continue regardless of turn status
+
+This allows game logic to function independently of player input queuing.
 
 ## Testing Strategy
 
@@ -268,33 +330,41 @@ Add flag definition after line 37 (after `USING_LINEMODE`):
 3. **Latency test**: Measure command response time with varying queue depths
    - Verify predictable latency regardless of other users' queues
 
+4. **command() efun test**: Create NPC with `heart_beat()` that uses `command()`
+   - Verify NPC actions work regardless of player turn status
+   - Verify `command()` doesn't consume player turns
+
 ### Manual Testing
 
 1. Connect multiple telnet sessions
 2. Paste long command sequences into one session
 3. Type commands normally in other sessions
 4. Observe fair command processing via debug logging
+5. Test `command()` efun from LPC code while user has buffered commands
 
 ## Performance Considerations
 
 ### Turn Grant Overhead
 
 - **Cost**: O(max_users) iteration per backend cycle
-- **Operations**: NULL check + bit set operation
+- **Operations**: NULL check + bit set operation + counter increment
 - **Impact**: Negligible (microseconds for 100 users)
+- **Benefit**: Produces `connected_users` count used to tighten command loop bound
 
 ### Pending Command Check
 
-- **Cost**: O(max_users) iteration per backend cycle
-- **Early exit**: Breaks on first match
-- **Alternative**: Set global flag in `get_user_command()` when skipping due to no turn
-- **Decision**: Use scan approach for simplicity and correctness
+- **Cost**: O(max_users) iteration per backend cycle, combined with turn grant
+- **Optimization**: Stops checking once first pending command found
+- **No additional overhead**: Integrated into existing turn grant loop
 
 ### Loop Iteration Reduction
 
-- **Before**: Up to `max_users` calls to `process_user_command()`
-- **After**: Typically `num_user` calls (actual connected users)
-- **Benefit**: Fewer wasted iterations searching empty slots
+- **Before**: Loop bounded at `max_users` (historical peak, e.g., 100)
+- **After**: Loop bounded at `connected_users` (actual count, e.g., 2)
+- **Benefit**: Tighter safety limit, fewer wasted iterations in edge cases
+- **Normal termination**: Loop typically stops when `process_user_command()` returns 0 (all turns exhausted)
+- **Safety bound**: `connected_users` limit prevents excessive iteration if bugs occur
+- **Example**: If `max_users=100` but only 2 users connected, loop limit is 2 not 100
 
 ## Migration Notes
 
@@ -304,10 +374,54 @@ Add flag definition after line 37 (after `USING_LINEMODE`):
 - No mudlib changes required
 - Transparent to game developers
 - Only affects internal scheduling
+- **`command()` efun behavior unchanged**: Continues to execute immediately without turn restrictions
 
 ### Configuration
 
 No new configuration options needed. The fairness is enforced automatically.
+
+### Behavioral Changes
+
+**What changes**:
+- User input commands buffered from network are limited to 1 per backend cycle per user
+- Zero timeout when buffered commands remain unprocessed (improves responsiveness)
+- Command processing loop uses tighter bound (`connected_users` instead of `max_users`)
+
+**What doesn't change**:
+- `command()` efun execution (immediate, no turn checking)
+- `call_out()` execution (timer-based, not turn-limited)
+- `heart_beat()` execution (periodic, not turn-limited)
+- Any LPC-initiated command processing
+- Overall command throughput (same commands processed, just distributed fairly)
+
+### Implementation Improvements
+
+This design includes an optimization over the naive approach:
+
+**Naive approach**: 
+```c
+for (i = 0; process_user_command() && i < max_users; i++);
+```
+Loop bounded by historical peak user count.
+
+**Optimized approach**:
+```c
+int connected_users = 0;
+for (i = 0; i < max_users; i++) {
+    if (all_users[i]) {
+        all_users[i]->iflags |= HAS_CMD_TURN;
+        connected_users++;
+    }
+}
+for (i = 0; process_user_command() && i < connected_users; i++);
+```
+
+**Benefits**:
+- Tighter safety bound (actual users, not historical peak)
+- More accurate semantics (loop limit matches connected users)
+- Better failure mode containment (bug protection)
+- Minimal cost (single counter increment per user)
+- Self-contained (no dependency on global `num_user` accuracy)
 
 ## Future Enhancements
 
@@ -324,13 +438,6 @@ Could adjust timeout based on command queue depth:
 - Deep queues: timeout = 0
 - Shallow queues: timeout = 1ms (allow brief I/O wait)
 - Empty queues: timeout = 60s
-
-### max_users Compaction
-
-Currently `max_users` only grows. Could implement periodic compaction:
-- When `num_user` << `max_users`, compact the array
-- Requires updating all index references
-- Trade-off: complexity vs. minor performance gain
 
 ## References
 
