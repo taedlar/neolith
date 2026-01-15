@@ -529,7 +529,7 @@ if ($LASTEXITCODE -eq 0) {
 - [x] Update [src/comm.c](../../src/comm.c#L1967)
 - [x] Test with piped stdin on Linux/WSL
 - [x] Test interactive console on Linux/WSL
-- [x] Add test script for piped stdin (examples/test_phase1.sh)
+- [x] Update [testbot.py](../../examples/testbot.py) for automated testing
 
 ### Phase 2: Windows - ✅ COMPLETE
 - [x] Add `console_type_t` enum to [lib/port/io_reactor.h](../../lib/port/io_reactor.h)

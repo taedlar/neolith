@@ -33,41 +33,21 @@ Replaced 4 `tcsetattr(TCSAFLUSH)` calls with conditional behavior:
 4. **[src/comm.c:2340](../../src/comm.c#L2340)** - Password input in `set_call()`
    - Uses `safe_tcsetattr()` helper
 
-### 3. Test Script Created
-**File**: [examples/test_phase1.sh](../../examples/test_phase1.sh)
+### 3. Testing
 
-Validates that piped input is preserved and processed correctly:
-- Sends commands via pipe: `wizard`, `wizard`, `quit`
-- Verifies all commands are processed
-- Uses timeout to handle reconnection wait
-- ✅ All tests passing
-
-## Test Results
-
+**Quick Test** (Linux/WSL):
 ```bash
-$ ./examples/test_phase1.sh
-================================
-Phase 1: POSIX Piped Stdin Test
-================================
-
-Test: Piped input should be preserved, not discarded
-Commands: wizard, wizard, quit
-
-Welcome to the M3 Mud!
-What?
-> What?
-> Bye!
-
-✅ SUCCESS: All piped commands were processed
-   - Input preserved through tcsetattr calls
-   - Phase 1 implementation working correctly
+printf "say Hello\nhelp\nquit\n" | neolith -f config.conf -c
 ```
 
-**Observations**:
-- All piped commands successfully received and processed
-- Input buffer not discarded by terminal mode changes
-- Interactive console behavior unchanged (verified manually)
-- Driver waits for reconnection after EOF (expected behavior)
+**Windows** (requires Phase 2):
+```powershell
+"say Hello`nhelp`nquit" | .\neolith.exe -f config.conf -c
+```
+
+For automated testing, see [testbot.py](../../examples/testbot.py).
+
+**Results**: ✅ All piped commands preserved and processed correctly
 
 ## Platform Behavior Verification
 
@@ -101,29 +81,24 @@ What?
 
 ## Documentation Updates
 
-1. **[examples/testbot.py](../../examples/testbot.py)**: Updated status comment
-2. **[docs/plan/console-testbot-support.md](../../docs/plan/console-testbot-support.md)**: Marked Phase 1 complete
+- [examples/testbot.py](../../examples/testbot.py) - Python automation example
+- [docs/plan/console-testbot-support.md](../../docs/plan/console-testbot-support.md) - Complete design
+- [docs/ChangeLog.md](../../docs/ChangeLog.md) - Release notes
 
 ## Known Limitations
 
-1. **Reconnection Wait**: Driver waits for stdin input after disconnect (by design)
-   - Mitigation: Test scripts use timeout
-   - Future: Consider adding exit-on-EOF option for automation
+1. **Reconnection Wait**: Driver waits for stdin after disconnect (by design for interactive recovery)
+   - Test automation: Use timeout wrapper or send Ctrl+C
 
-2. **EOF Handling**: Driver doesn't exit on EOF (waits for reconnection)
-   - Current behavior: Intentional for interactive console recovery
-   - Test scripts: Use timeout wrapper
-
-3. **Platform-Specific**: Phase 1 only addresses POSIX (Linux/WSL)
+2. **Platform-Specific**: Phase 1 addresses POSIX only (Linux/WSL)
    - Windows Phase 2 pending (requires overlapped I/O)
 
 ## Files Modified
 
-- [src/comm.c](../../src/comm.c) - Added helper, replaced 3 calls
-- [src/backend.c](../../src/backend.c) - Replaced 1 call
-- [examples/test_phase1.sh](../../examples/test_phase1.sh) - Created test script
-- [examples/testbot.py](../../examples/testbot.py) - Updated status comment
-- [docs/plan/console-testbot-support.md](../../docs/plan/console-testbot-support.md) - Marked complete
+- [src/comm.c](../../src/comm.c) - Added `safe_tcsetattr()` helper, replaced 3 calls
+- [src/backend.c](../../src/backend.c) - Replaced 1 call with `isatty()` check
+- [examples/m3_mudlib/user.c](../../examples/m3_mudlib/user.c) - Added say/help commands for testing
+- [examples/testbot.py](../../examples/testbot.py) - Updated config path and test commands
 
 ## Next Steps
 
