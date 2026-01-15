@@ -21,7 +21,7 @@ TEST_F(LPCCompilerTest, compileFile) {
 
 TEST_F(LPCCompilerTest, loadMaster)
 {
-    init_simulate();
+    setup_simulate();
     init_master (CONFIG_STR (__MASTER_FILE__));
     ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
     // master_ob should have ref count 2: one from set_master, one from get_empty_object
@@ -38,7 +38,7 @@ TEST_F(LPCCompilerTest, loadMaster)
 }
 
 TEST_F(LPCCompilerTest, loadObject) {
-    init_simulate();
+    setup_simulate();
     init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
 
     // master_ob must be initialized before load_object can be used
@@ -71,7 +71,7 @@ TEST_F(LPCCompilerTest, programAlignment) {
     // Verify that compiled programs have correct pointer alignment for both 32-bit and 64-bit platforms.
     // The align() macro in compiler.h must ensure 8-byte alignment on 64-bit, 4-byte on 32-bit.
     
-    init_simulate();
+    setup_simulate();
     init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);

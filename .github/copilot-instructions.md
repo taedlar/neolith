@@ -68,7 +68,7 @@ When testing LPC compilation/object loading, use `load_object()` with the `pre_t
 
 ```cpp
 // Initialize required subsystems first
-init_simulate();
+setup_simulate();
 init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
 init_master(CONFIG_STR(__MASTER_FILE__));
 current_object = master_ob;

@@ -2771,7 +2771,7 @@ int get_machine_state()
   return MS_MUDLIB_INTERACTIVE;
 }
 
-void init_simulate() {
+void setup_simulate() {
   init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
   init_objects ();              /* lib/lpc/object.c */
   init_precomputed_tables ();   /* backend.c */

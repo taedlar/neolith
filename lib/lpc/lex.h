@@ -44,15 +44,19 @@ typedef struct defn_s {
 /* used only in edit_source */
 #define DEF_IS_NOT_LOCAL 4
 
-typedef struct lpc_predef_s {
-    char *flag;
-    struct lpc_predef_s *next;
-} lpc_predef_t;
+/**
+ * @brief Linked list of predefined macros to be added at the start of compilation.
+ * These can be specified at the command line using -D option.
+ */
+typedef struct lpc_predef_s lpc_predef_t;
+struct lpc_predef_s {
+    const char *expression; /* static pointer to command line arguments */
+    lpc_predef_t *next;
+};
+extern lpc_predef_t *lpc_predefs;
 
 #define EXPECT_ELSE 1
 #define EXPECT_ENDIF 2
-
-extern lpc_predef_t *lpc_predefs;
 
 #define isalunum(c) (isalnum(c) || (c) == '_')
 
@@ -88,7 +92,6 @@ extern char *current_file;
 extern int current_file_id;
 extern int pragmas;
 extern int num_parse_error;
-extern lpc_predef_t *lpc_predefs;
 extern int efun_arg_types[];
 extern char yytext[MAXLINE];
 extern keyword_t predefs[];
