@@ -1,49 +1,75 @@
-# Enhancement Plan: Console Worker Thread for Native Line Editing
+# Enhancement Plan: Console Worker Thread with IOCP Completion Notification
 
 **Status**: Proposed  
 **Target Platform**: Windows  
 **Created**: 2026-01-02  
-**Related**: [io-reactor-phase3-console-support.md](agent-reports/io-reactor-phase3-console-support.md), [windows-io.md](../manual/windows-io.md)
+**Updated**: 2026-01-17 (Completion notification design)  
+**Related**: [io-reactor-phase3-console-support.md](agent-reports/io-reactor-phase3-console-support.md), [windows-io.md](../manual/windows-io.md), [piped-stdin-delay-analysis.md](agent-reports/piped-stdin-delay-analysis.md)
 
 ## Problem Statement
 
-Current Windows console implementation (Phase 3) uses `ReadConsoleInputW()` in raw mode:
-- Reads individual key events (character-by-character)
+Current Windows console implementation has two issues:
+
+**Issue 1: Console Mode** (Phase 3 - CONSOLE_TYPE_REAL)
+- Uses `ReadConsoleInputW()` in raw mode (character-by-character)
 - Mudlib provides command editing via LPC code
 - **Missing**: Native Windows console features (backspace, arrow keys, command history via F7, etc.)
 
-While functional and non-blocking, this approach loses Windows console line editing capabilities that users expect from native console applications.
+**Issue 2: Piped/File stdin** (CONSOLE_TYPE_PIPE, CONSOLE_TYPE_FILE)
+- Current polling approach uses `PeekNamedPipe()` to check availability
+- Still subject to backend 60-second timeout (reactor polls only when timeout expires)
+- Commands can take up to 60 seconds to process even when data is ready
+
+While functional and non-blocking, these approaches lose Windows console capabilities and suffer from delayed responsiveness.
 
 ## Proposed Solution
 
-Implement **worker thread** for console input handling:
+Implement **worker thread with IOCP completion notification** for all console input types:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ Main Thread (Backend Event Loop)                            │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ WaitForMultipleObjects(IOCP, console, sockets)      │   │
-│  │  - Console handle signals when worker has data      │   │
-│  │  - get_user_data() polls line queue (non-blocking)  │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                          ▲                                   │
-│                          │ (thread-safe queue)              │
-│                          │                                   │
-└──────────────────────────┼───────────────────────────────────┘
-                           │
-┌──────────────────────────┼───────────────────────────────────┐
-│ Console Worker Thread    │                                   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ while (running) {                                    │   │
-│  │   ReadConsole(stdin, buf, sizeof(buf), &read, NULL) │ ◄─── BLOCKS HERE
-│  │   // Returns when user presses Enter               │   │
-│  │   EnqueueLine(buf, read);                          │   │
-│  │   SetEvent(console_event);  // Signal main thread  │   │
-│  │ }                                                   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│  Console Mode: ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT       │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Main Thread (Backend Event Loop)                             │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │ GetQueuedCompletionStatus(iocp_handle, ...)       │     │
+│  │   - Network I/O completions (existing)            │     │
+│  │   - Console worker completions (NEW!)      ◄──────┼─────┐│
+│  │   - Timeout only when queue empty                 │     ││
+│  └────────────────────────────────────────────────────┘     ││
+│                     ▲                                        ││
+│                     │ (thread-safe queue)                    ││
+│                     │                                        ││
+└─────────────────────┼────────────────────────────────────────┘│
+                      │                                         │
+┌─────────────────────┼─────────────────────────────────────────┘
+│ Console Worker Thread (All stdin types)                      │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │ while (running) {                                  │     │
+│  │   DWORD bytes_read = 0;                            │     │
+│  │                                                     │     │
+│  │   if (console_type == CONSOLE_TYPE_REAL) {         │     │
+│  │     // Native line editing for interactive console │     │
+│  │     ReadConsole(stdin, buf, size, &bytes_read, ..);│ ◄───┼─ BLOCKS
+│  │   } else {                                         │     │
+│  │     // Pipes and files (testbot.py, redirected I/O)│     │
+│  │     ReadFile(stdin, buf, size, &bytes_read, NULL); │ ◄───┼─ BLOCKS
+│  │   }                                                │     │
+│  │                                                     │     │
+│  │   if (bytes_read > 0) {                            │     │
+│  │     EnqueueLine(queue, buf, bytes_read);          │     │
+│  │                                                     │     │
+│  │     // POST COMPLETION - wakes main thread INSTANTLY!    │
+│  │     PostQueuedCompletionStatus(                    │     │
+│  │       iocp_handle,                                 │     │
+│  │       bytes_read,                                  │     │
+│  │       (ULONG_PTR)CONSOLE_COMPLETION_KEY,          │     │
+│  │       NULL);  ──────────────────────────────────────────┘│
+│  │   }                                                 │     │
+│  │ }                                                   │     │
+│  └─────────────────────────────────────────────────────┘     │
+└───────────────────────────────────────────────────────────────┘
 ```
+
+**Key Innovation:** Console input becomes just another **completion source** in the IOCP queue, alongside network I/O completions.
 
 ### Architecture Components
 
@@ -64,44 +90,107 @@ void cq_destroy(console_queue_t* q);
 
 **2. Console Worker Thread** (new: `lib/port/console_worker.c`)
 ```c
+typedef enum {
+    CONSOLE_TYPE_REAL,   // Interactive console (ReadConsole)
+    CONSOLE_TYPE_PIPE,   // Piped stdin (testbot.py)
+    CONSOLE_TYPE_FILE    // File redirection
+} console_type_t;
+
 typedef struct {
     HANDLE thread_handle;
     HANDLE shutdown_event;          // Signal worker to exit
+    HANDLE iocp_handle;             // IOCP for posting completions
     console_queue_t* queue;
+    console_type_t console_type;
     volatile bool running;
 } console_worker_t;
 
+#define CONSOLE_COMPLETION_KEY ((ULONG_PTR)0xC0701E)  // Unique key
+
 DWORD WINAPI console_thread_proc(LPVOID param) {
     console_worker_t* worker = (console_worker_t*)param;
-    HANDLE handles[] = {worker->shutdown_event, GetStdHandle(STD_INPUT_HANDLE)};
+    HANDLE stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
     
     while (worker->running) {
         char buf[4096];
-        DWORD num_read = 0;
+        DWORD bytes_read = 0;
+        BOOL success = FALSE;
         
-        // This blocks until Enter pressed - OK because we're in worker thread
-        if (!ReadConsole(GetStdHandle(STD_INPUT_HANDLE), buf, sizeof(buf) - 1, 
-                         &num_read, NULL)) {
+        // Select read method based on console type
+        if (worker->console_type == CONSOLE_TYPE_REAL) {
+            // Interactive console - native line editing
+            success = ReadConsole(stdin_handle, buf, sizeof(buf) - 1, 
+                                 &bytes_read, NULL);
+        } else {
+            // Pipes and files - synchronous ReadFile
+            success = ReadFile(stdin_handle, buf, sizeof(buf) - 1, 
+                              &bytes_read, NULL);
+        }
+        
+        if (!success) {
             break;  // Console closed or error
         }
         
-        if (num_read > 0) {
-            buf[num_read] = '\0';
-            cq_enqueue(worker->queue, buf, num_read);
-            SetEvent(worker->queue->data_ready_event);
+        if (bytes_read > 0) {
+            buf[bytes_read] = '\0';
+            cq_enqueue(worker->queue, buf, bytes_read);
+            
+            // POST COMPLETION TO IOCP - wakes main thread INSTANTLY
+            // This is the key: main thread's GetQueuedCompletionStatus()
+            // returns immediately with this completion, regardless of timeout
+            PostQueuedCompletionStatus(
+                worker->iocp_handle,
+                bytes_read,                      // Bytes transferred
+                CONSOLE_COMPLETION_KEY,          // Completion key (identifies console)
+                NULL                             // No OVERLAPPED needed
+            );
         }
     }
     return 0;
 }
 
-bool console_worker_init(console_worker_t* worker, console_queue_t* queue);
+bool console_worker_init(console_worker_t* worker, console_queue_t* queue, 
+                        HANDLE iocp, console_type_t type);
 void console_worker_shutdown(console_worker_t* worker);
 ```
 
 **3. Reactor Integration** (modify: `lib/port/io_reactor_win32.c`)
-- Replace `GetNumberOfConsoleInputEvents()` polling with queue event check
-- Console event now signals when worker thread has enqueued data
-- Remove console availability check (worker handles blocking)
+```c
+int io_reactor_wait(io_reactor_t* reactor, io_event_t* events, 
+                    int max_events, int timeout_ms) {
+    DWORD num_bytes;
+    ULONG_PTR completion_key;
+    LPOVERLAPPED overlapped;
+    
+    // This blocks up to timeout_ms (e.g., 60,000ms)
+    // BUT gets woken up by:
+    // 1. Network I/O completions (existing)
+    // 2. Console worker completions (NEW!) ← Solves backend timeout!
+    BOOL ok = GetQueuedCompletionStatus(
+        reactor->iocp_handle,
+        &num_bytes,
+        &completion_key,
+        &overlapped,
+        timeout_ms
+    );
+    
+    if (completion_key == CONSOLE_COMPLETION_KEY) {
+        // Console worker posted completion - data ready in queue!
+        events[count].events = EVENT_READ;
+        events[count].fd = STDIN_FILENO;
+        events[count].context = reactor->console_context;
+        count++;
+    } else {
+        // Network I/O completion (existing code)
+        // ... handle AcceptEx, WSARecv, WSASend completions ...
+    }
+    
+    return count;
+}
+```
+- Remove console handle from `WaitForMultipleObjects()` array
+- Remove `PeekNamedPipe()` polling logic (no longer needed)
+- Console completions integrated with network I/O completions
 
 **4. Main Thread Reading** (modify: `src/comm.c::get_user_data()`)
 ```c
@@ -119,29 +208,129 @@ if (fd == STDIN_FILENO) {
 ```
 
 **5. Lifecycle Management** (modify: `src/backend.c`)
-- `init_console_user()`: Start worker thread
-- `backend_shutdown()`: Signal shutdown, join worker thread, cleanup queue
+```c
+void init_console_user() {
+    extern io_reactor_t* g_reactor;
+    
+    // Determine console type
+    console_type_t type = detect_console_type();  // REAL/PIPE/FILE
+    
+    // Initialize queue
+    cq_init(&g_console_queue);
+    
+    // Start worker thread with IOCP handle
+    console_worker_init(&g_console_worker, &g_console_queue, 
+                       io_reactor_get_iocp(g_reactor), type);
+}
+
+void backend_shutdown() {
+    // Signal worker to stop
+    console_worker_shutdown(&g_console_worker);
+    
+    // Cleanup queue
+    cq_destroy(&g_console_queue);
+}
+```
 
 ## Benefits
 
-1. **Native Line Editing**: Users get full Windows console editing:
-   - Backspace/Delete for character removal
-   - Left/Right arrow keys for cursor positioning
-   - Home/End for line navigation
-   - Up/Down arrows for command history (if console history enabled)
-   - F7 for command history popup
-   - Ctrl+C handling via console control handler
+### 1. Solves Backend Timeout Issue (All stdin types)
+**Before (PeekNamedPipe polling):**
+```
+Command arrives → waits up to 60s → reactor checks → processes
+```
 
-2. **Non-Blocking Main Loop**: Worker thread handles blocking `ReadConsole()` calls
-   - Main event loop never blocks on console input
-   - Network I/O, timers, and game logic continue unaffected
-   - Listening sockets accept connections regardless of console state
+**After (IOCP completion):**
+```
+Command arrives → ReadFile completes → PostQueuedCompletionStatus → reactor wakes INSTANTLY
+```
 
-3. **Better User Experience**: Console mode feels like native Windows application
+| Scenario | Polling Approach | Completion Notification |
+|----------|------------------|------------------------|
+| Data arrives after 5s | ⚠️ Waits full 60s | ✅ Woken at 5s |
+| Data arrives after 30s | ⚠️ Waits full 60s | ✅ Woken at 30s |
+| Rapid commands | Must wait for reactor cycle | ✅ Each completion wakes reactor |
 
-4. **UTF-8 Support**: `ReadConsole()` with `CP_UTF8` code page or UTF-16 → UTF-8 conversion
+### 2. Native Line Editing (CONSOLE_TYPE_REAL)
+Users get full Windows console features:
+- Backspace/Delete for character removal
+- Left/Right arrow keys for cursor positioning
+- Home/End for line navigation
+- Up/Down arrows for command history (if console history enabled)
+- F7 for command history popup
+- Ctrl+C handling via console control handler
+
+### 3. Non-Blocking Main Loop (All types)
+- Worker thread handles blocking reads (`ReadConsole`/`ReadFile`)
+- Main event loop never blocks on console input
+- Network I/O, timers, and game logic continue unaffected
+- Listening sockets accept connections regardless of console state
+
+### 4. Unified Architecture
+- Console input becomes just another IOCP completion source
+- Same code path as network I/O (AcceptEx, WSARecv, WSASend)
+- No special console handling in reactor wait loop
+- Architecturally consistent with Windows I/O model
+
+### 5. Zero Polling Overhead
+- No `PeekNamedPipe()` calls every reactor cycle
+- No console availability checking
+- Worker blocks efficiently (zero CPU when idle)
+
+### 6. Better User Experience
+- **testbot.py**: Instant command execution (no 60s delay)
+- **Interactive console**: Native line editing like cmd.exe
+- **Redirected files**: Sequential reading without delays
+- **UTF-8 Support**: `ReadConsole()` with `CP_UTF8` or UTF-16 conversion
 
 ## Challenges & Considerations
+
+### Thread Safety
+**Idea**: Check pipe availability with `PeekNamedPipe()` before `ReadFile()`  
+**Implemented**: Currently in use, prevents blocking  
+**Limitation**: Still subject to 60s backend timeout (polling only checks when timeout expires)  
+**Status**: Worker thread with completion notification supersedes this approach
+
+### 4. Worker Thread with Event Signaling
+**Idea**: Worker calls `SetEvent()`, main thread adds event to `WaitForMultipleObjects()`  
+**Limitation**: Requires modifying wait handle array, more complex than completion  
+**Better**: Post completion directly to existing IOCP queue (cleaner integration)
+
+### 5. Hybrid Mode Switching
+**Idea**: Switch between raw and line mode based on user preference  
+**Rejected**: Mode switching at runtime is complex; worker thread is cleaner
+
+**Polling Approach (Solution B - current):**
+```c
+// Every reactor cycle (every 60s or when network I/O completes)
+if (console_type == PIPE) {
+    DWORD bytes_available = 0;
+    PeekNamedPipe(stdin, NULL, 0, NULL, &bytes_available, NULL);
+    if (bytes_available > 0) {
+        signal_event_read();  // Can now read safely
+    }
+}
+```
+✅ Prevents blocking  
+❌ Still subject to 60s timeout  
+❌ Polling overhead on every reactor cycle  
+⚠️ Only works for pipes, not real console
+
+**Completion Approach (this design):**
+```c
+// Worker thread (dedicated, blocks harmlessly)
+ReadFile(stdin, buf, size, &bytes_read, NULL);  // BLOCKS
+PostQueuedCompletionStatus(iocp, bytes_read, CONSOLE_KEY, NULL);  // WAKES REACTOR
+
+// Main thread (no changes needed - existing IOCP wait)
+GetQueuedCompletionStatus(iocp, &bytes, &key, &overlapped, 60000);
+if (key == CONSOLE_KEY) { /* Console data ready */ }
+```
+✅ Prevents blocking  
+✅ **Instant wake** (no timeout wait)  
+✅ Zero polling overhead  
+✅ Works for **all console types** (real, pipe, file)  
+✅ Architecturally consistent with IOCP model
 
 ### Thread Safety
 - **Critical sections** protect queue operations (enqueue/dequeue)
@@ -238,9 +427,10 @@ void console_worker_shutdown(console_worker_t* worker) {
 ## Migration Path
 
 This enhancement is **backward compatible**:
-- Current raw mode implementation remains functional
-- Worker thread is **opt-in** via config option (e.g., `console_line_mode: true`)
-- If worker thread fails to start, fallback to raw mode
+- Current polling implementation remains functional during development
+- Worker thread can coexist with polling initially (test both paths)
+- Once validated, remove polling code entirely
+- If worker thread fails to start, fallback to polling (fail-safe)
 
 ## Future Enhancements
 

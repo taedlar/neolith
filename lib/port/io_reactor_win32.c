@@ -576,9 +576,23 @@ int io_reactor_wait(io_reactor_t *reactor, io_event_t *events,
                 }
             }
         }
-        else if (reactor->console_type == CONSOLE_TYPE_PIPE || 
-                 reactor->console_type == CONSOLE_TYPE_FILE) {
-            /* Pipe/File: always signal ready (synchronous ReadFile handles blocking) */
+        else if (reactor->console_type == CONSOLE_TYPE_PIPE) {
+            /* Pipe: check if data actually available before signaling ready */
+            DWORD bytes_available = 0;
+            BOOL result = PeekNamedPipe(reactor->console_handle, NULL, 0, NULL, &bytes_available, NULL);
+            if (result && bytes_available > 0) {
+                events[event_count].context = reactor->console_context;
+                events[event_count].event_type = EVENT_READ;
+                events[event_count].buffer = NULL;
+                events[event_count].bytes_transferred = 0;
+                event_count++;
+            }
+            /* Note: If PeekNamedPipe fails or no data available, we don't signal EVENT_READ.
+             * This prevents get_user_data() from blocking on ReadFile() when there's no data.
+             */
+        }
+        else if (reactor->console_type == CONSOLE_TYPE_FILE) {
+            /* File: always ready (synchronous ReadFile handles blocking/EOF) */
             events[event_count].context = reactor->console_context;
             events[event_count].event_type = EVENT_READ;
             events[event_count].buffer = NULL;
