@@ -12,7 +12,8 @@ Platform support:
   See docs/manual/console-testbot-support.md for design details
 
 How it works:
-- Sends commands via subprocess.Popen with piped stdin
+- Uses pexpect.PopenSpawn for robust interactive process control
+- Sends commands line-by-line with interactive pattern matching
 - Driver detects pipe (not real console) and preserves all input data
 - Commands are processed until EOF
 - Driver automatically shuts down on pipe closure
@@ -21,13 +22,22 @@ How it works:
 Usage:
     cd examples
     python testbot.py
+
+Requirements:
+    pip install pexpect
 """
 
-import subprocess
 import sys
-import time
 import os
 from pathlib import Path
+
+try:
+    import pexpect
+    from pexpect.popen_spawn import PopenSpawn
+except ImportError:
+    print("❌ pexpect module not found")
+    print("   Install it with: pip install pexpect")
+    sys.exit(1)
 
 def test_console_mode():
     """Test the driver in console mode with automated input
@@ -68,9 +78,6 @@ def test_console_mode():
         "shutdown"  # Use shutdown to cleanly exit the driver
     ]
     
-    # Join commands with newlines and encode
-    input_data = "\n".join(test_commands) + "\n"
-    
     print("=" * 60)
     print("CONSOLE MODE AUTOMATED TEST")
     print("=" * 60)
@@ -82,48 +89,90 @@ def test_console_mode():
         print(f"  {i}. {cmd}")
     print()
     
+    child = None
     try:
-        # Start the driver process
-        process = subprocess.Popen(
-            [str(driver_path), "-f", str(config_path), "-c"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,  # Line buffered
-            encoding='utf-8',
-            errors='replace'
-        )
+        # Start the driver process using pexpect PopenSpawn
+        # PopenSpawn uses subprocess.Popen internally but provides better interactive control
+        command = [str(driver_path), "-f", str(config_path), "-c"]
+        child = PopenSpawn(command, timeout=10, encoding='utf-8', codec_errors='replace')
         
-        print("Driver started. Sending commands...")
+        print("Driver started. Sending commands and verifying output...")
         print("-" * 60)
         
-        # Send input to the driver
-        try:
-            stdout_data, _ = process.communicate(input=input_data, timeout=5)
-            print(stdout_data)
-        except subprocess.TimeoutExpired:
-            print("\n❌ Process did not exit cleanly - killing driver")
-            process.kill()
-            stdout_data, _ = process.communicate()
-            print(stdout_data)
-            return 1
+        # Wait for initial prompt
+        child.expect('Type .help. for available commands.', timeout=5)
+        print("✓ Initial prompt received")
+        
+        # Test 1: Send "say" command and verify output
+        print("\nTest 1: Sending 'say Hello from Python test!'")
+        child.sendline("say Hello from Python test!")
+        child.expect('You say: Hello from Python test!', timeout=2)
+        print("✓ Say command verified")
+        
+        # Test 2: Send "help" command and verify output
+        print("\nTest 2: Sending 'help'")
+        child.sendline("help")
+        child.expect('Available commands:', timeout=2)
+        child.expect('shutdown', timeout=2)  # Verify shutdown command is listed
+        print("✓ Help command verified")
+        
+        # Test 3: Send "shutdown" command
+        print("\nTest 3: Sending 'shutdown'")
+        child.sendline("shutdown")
+        child.expect('Shutting down...', timeout=2)
+        print("✓ Shutdown command verified")
+        
+        # Wait for process to exit
+        child.expect(pexpect.EOF, timeout=5)
         
         print("-" * 60)
+        
+        # Display all captured output
+        print("\nFull output:")
+        print(child.before)
+        
+        print("-" * 60)
+        
+        # Wait for child to fully exit
+        child.wait()
+        exit_code = child.exitstatus
         
         # Check exit code
-        if process.returncode == 0:
-            print("✅ TEST PASSED - Driver exited successfully")
+        if exit_code == 0:
+            print("\n✅ ALL TESTS PASSED - Driver exited successfully")
             return 0
         else:
-            print(f"❌ TEST FAILED - Driver exited with code {process.returncode}")
+            print(f"\n❌ TEST FAILED - Driver exited with code {exit_code}")
             return 1
             
+    except pexpect.TIMEOUT:
+        print("\n❌ TEST FAILED - Process timed out waiting for expected output")
+        if child:
+            print("\nLast output before timeout:")
+            print(child.before)
+            child.kill(9)
+            try:
+                child.wait()
+            except:
+                pass
+        return 1
+    except pexpect.EOF:
+        print("\n❌ TEST FAILED - Unexpected EOF from driver")
+        if child:
+            print("\nOutput before EOF:")
+            print(child.before)
+        return 1
     except FileNotFoundError:
         print(f"❌ Could not execute: {driver_path}")
         return 1
     except Exception as e:
         print(f"❌ Error during test: {e}")
+        if child and child.isalive():
+            child.kill(9)
+            try:
+                child.wait()
+            except:
+                pass
         return 1
     finally:
         # Cleanup log file if it exists
