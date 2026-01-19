@@ -134,7 +134,12 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
     int max_epoll_events = (max_events < MAX_EVENTS) ? max_events : MAX_EVENTS;
     
     int result = epoll_wait(runtime->epoll_fd, epoll_events, max_epoll_events, timeout_ms);
-    if (result <= 0) return result;
+    if (result < 0) {
+        /* EINTR (signal interruption) is used to wake up the event loop.
+         * Treat it as timeout so backend can check heartbeat/shutdown flags. */
+        return (errno == EINTR) ? 0 : -1;
+    }
+    if (result == 0) return 0;  /* Timeout */
     
     int event_count = 0;
     for (int i = 0; i < result && event_count < max_events; i++) {

@@ -147,6 +147,7 @@ TEST_F(AsyncWorkerLifecycleTest, WorkerContext) {
 
 static void* state_checking_worker(void* arg) {
     async_worker_t* self = async_worker_current();
+    (void)arg;  // Unused
     EXPECT_NE(self, nullptr);
     
     EXPECT_EQ(async_worker_get_state(self), ASYNC_WORKER_RUNNING);
