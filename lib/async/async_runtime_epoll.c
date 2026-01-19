@@ -2,8 +2,7 @@
  * @file async_runtime_epoll.c
  * @brief Linux epoll-based async runtime implementation
  * 
- * NOTE: This is a Phase 1 stub. Full implementation will use epoll for I/O
- * and eventfd for worker completion notifications.
+ * Uses epoll for efficient I/O multiplexing and eventfd for worker completion notifications.
  */
 
 #if defined(__linux__)
@@ -13,16 +12,38 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
+
+#define MAX_EVENTS 64
 
 struct async_runtime_s {
     int epoll_fd;
     int event_fd;  /* For worker completions */
-    /* TODO: Add remaining fields */
 };
 
+/* Helper functions */
+
+static uint32_t events_to_epoll(uint32_t events) {
+    uint32_t epoll_events = 0;
+    if (events & EVENT_READ) epoll_events |= EPOLLIN;
+    if (events & EVENT_WRITE) epoll_events |= EPOLLOUT;
+    return epoll_events;
+}
+
+static uint32_t epoll_to_events(uint32_t epoll_events) {
+    uint32_t events = 0;
+    if (epoll_events & EPOLLIN) events |= EVENT_READ;
+    if (epoll_events & EPOLLOUT) events |= EVENT_WRITE;
+    if (epoll_events & EPOLLERR) events |= EVENT_ERROR;
+    if (epoll_events & EPOLLHUP) events |= EVENT_CLOSE;
+    return events;
+}
+
+/* Public API */
+
 async_runtime_t* async_runtime_init(void) {
-    async_runtime_t* runtime = (async_runtime_t*)calloc(1, sizeof(async_runtime_t));
+    async_runtime_t* runtime = calloc(1, sizeof(async_runtime_t));
     if (!runtime) return NULL;
     
     runtime->epoll_fd = epoll_create1(0);
@@ -68,34 +89,83 @@ void async_runtime_deinit(async_runtime_t* runtime) {
 }
 
 int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
-    /* TODO: Implement using epoll_ctl */
-    (void)runtime; (void)fd; (void)events; (void)context;
-    return -1;
+    if (!runtime || fd < 0) return -1;
+    
+    struct epoll_event ev = {0};
+    ev.events = events_to_epoll(events);
+    ev.data.ptr = context;
+    
+    return epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, fd, &ev);
 }
 
 int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events) {
-    /* TODO: Implement using epoll_ctl */
-    (void)runtime; (void)fd; (void)events;
-    return -1;
+    if (!runtime || fd < 0) return -1;
+    
+    struct epoll_event ev = {0};
+    ev.events = events_to_epoll(events);
+    
+    return epoll_ctl(runtime->epoll_fd, EPOLL_CTL_MOD, fd, &ev);
 }
 
 int async_runtime_remove(async_runtime_t* runtime, socket_fd_t fd) {
-    /* TODO: Implement using epoll_ctl */
-    (void)runtime; (void)fd;
-    return -1;
+    if (!runtime || fd < 0) return -1;
+    
+    return epoll_ctl(runtime->epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 }
 
 int async_runtime_wakeup(async_runtime_t* runtime) {
-    /* TODO: Implement using eventfd_write */
-    (void)runtime;
-    return -1;
+    if (!runtime || runtime->event_fd < 0) return -1;
+    
+    uint64_t val = 1;
+    ssize_t n = write(runtime->event_fd, &val, sizeof(val));
+    return (n == sizeof(val)) ? 0 : -1;
 }
 
 int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
                        int max_events, struct timeval* timeout) {
-    /* TODO: Implement using epoll_wait */
-    (void)runtime; (void)events; (void)max_events; (void)timeout;
-    return -1;
+    if (!runtime || !events || max_events <= 0) return -1;
+    
+    int timeout_ms = -1;
+    if (timeout) {
+        timeout_ms = (timeout->tv_sec * 1000) + (timeout->tv_usec / 1000);
+    }
+    
+    struct epoll_event epoll_events[MAX_EVENTS];
+    int max_epoll_events = (max_events < MAX_EVENTS) ? max_events : MAX_EVENTS;
+    
+    int result = epoll_wait(runtime->epoll_fd, epoll_events, max_epoll_events, timeout_ms);
+    if (result <= 0) return result;
+    
+    int event_count = 0;
+    for (int i = 0; i < result && event_count < max_events; i++) {
+        /* Check if this is the eventfd */
+        if (epoll_events[i].data.fd == runtime->event_fd) {
+            /* Drain eventfd and decode worker completions */
+            uint64_t val;
+            while (read(runtime->event_fd, &val, sizeof(val)) == sizeof(val)) {
+                if (event_count < max_events) {
+                    events[event_count].fd = -1;
+                    events[event_count].completion_key = (uintptr_t)(val >> 32);
+                    events[event_count].context = NULL;
+                    events[event_count].event_type = EVENT_READ;
+                    events[event_count].bytes_transferred = (int)(val & 0xFFFFFFFF);
+                    events[event_count].buffer = NULL;
+                    event_count++;
+                }
+            }
+        } else {
+            /* Regular I/O event */
+            events[event_count].fd = epoll_events[i].data.fd;
+            events[event_count].completion_key = 0;
+            events[event_count].context = epoll_events[i].data.ptr;
+            events[event_count].event_type = epoll_to_events(epoll_events[i].events);
+            events[event_count].bytes_transferred = 0;
+            events[event_count].buffer = NULL;
+            event_count++;
+        }
+    }
+    
+    return event_count;
 }
 
 int async_runtime_post_completion(async_runtime_t* runtime, uintptr_t completion_key, uintptr_t data) {
