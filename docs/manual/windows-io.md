@@ -110,7 +110,7 @@ This provides readiness notification for accepts while keeping unified blocking 
 
 **Trade-off**: Current raw mode provides non-blocking I/O but loses native Windows line editing (backspace, arrow keys, F7 history).
 
-**Proposed design** (see [enhancement-console-worker-thread.md](../plan/enhancement-console-worker-thread.md)):
+**Proposed design** (see [console-async.md](../plan/console-async.md)):
 - **Worker thread** runs blocking `ReadConsole()` with `ENABLE_LINE_INPUT` enabled
 - **Thread-safe queue** transfers completed lines to main thread
 - **Manual-reset event** signals main event loop when lines available

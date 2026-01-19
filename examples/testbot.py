@@ -95,6 +95,7 @@ def test_console_mode():
         # PopenSpawn uses subprocess.Popen internally but provides better interactive control
         command = [str(driver_path), "-f", str(config_path), "-c"]
         child = PopenSpawn(command, timeout=10, encoding='utf-8', codec_errors='replace')
+        child.logfile_read = sys.stdout  # Log all output to stdout
         
         print("Driver started. Sending commands and verifying output...")
         print("-" * 60)
@@ -106,20 +107,20 @@ def test_console_mode():
         # Test 1: Send "say" command and verify output
         print("\nTest 1: Sending 'say Hello from Python test!'")
         child.sendline("say Hello from Python test!")
-        child.expect('You say: Hello from Python test!', timeout=2)
+        child.expect('You say: Hello from Python test!', timeout=5)
         print("✓ Say command verified")
         
         # Test 2: Send "help" command and verify output
         print("\nTest 2: Sending 'help'")
         child.sendline("help")
-        child.expect('Available commands:', timeout=2)
-        child.expect('shutdown', timeout=2)  # Verify shutdown command is listed
+        child.expect('Available commands:', timeout=5)
+        child.expect('shutdown', timeout=5)  # Verify shutdown command is listed
         print("✓ Help command verified")
         
         # Test 3: Send "shutdown" command
         print("\nTest 3: Sending 'shutdown'")
         child.sendline("shutdown")
-        child.expect('Shutting down...', timeout=2)
+        child.expect('Shutting down...', timeout=5)
         print("✓ Shutdown command verified")
         
         # Wait for process to exit

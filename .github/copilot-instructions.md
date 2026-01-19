@@ -50,6 +50,7 @@ CMake presets in [CMakePresets.json](CMakePresets.json):
 - `vs16-x64`/`vs16-win32`: Windows Visual Studio 2019
 - Presets prefixed `dev-`: incremental builds
 - Presets prefixed `ci-`: clean rebuilds
+- CMake build presets should be used from top-level directory
 
 ### Testing
 Uses GoogleTest framework. Test structure mirrors driver components:
@@ -62,6 +63,7 @@ Test patterns:
 - Driver component tests link the `stem` object library (all driver code except main.c)
 - Tests expect [examples/](examples/) directory copied to build directory (automated via CMake POST_BUILD)
 - Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
+- CTest presets should be used from top-level directory
 
 #### LPC Object Loading in Tests
 When testing LPC compilation/object loading, use `load_object()` with the `pre_text` parameter:
@@ -341,9 +343,10 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
   ```
 - Efun docs: [docs/efuns/](docs/efuns/) in Markdown
 - Apply docs: [docs/applies/](docs/applies/) in Markdown
-- **Agent-generated implementation reports**: Save to [docs/history/agent-reports/](docs/history/agent-reports/)
+- **Agent-generated analysis and implementation reports**: Save to [docs/history/agent-reports/](docs/history/agent-reports/)
   - Name pattern: `feature-name-phaseN.md` or `feature-name-YYYY-MM-DD.md`
   - Include: summary, components delivered, test results, next steps, files modified
+  - Following the same style as implementation details in [docs/internals/](docs/internals/) but don't link to source files directly since they may be outdated
 
 ### Documentation Best Practices
 1. **Don't duplicate implemented code in documentation**
@@ -370,17 +373,39 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
 - **Internals guide**: [docs/manual/internals.md](docs/manual/internals.md)
 - **LPC type systems**: [docs/internals/lpc-types.md](docs/internals/lpc-types.md) - compile-time vs runtime types, encoding schemes
 - **LPC compiler internals**: [docs/internals/lpc-program.md](docs/internals/lpc-program.md) - mem_block system and binary serialization
+- **Design ideas, draft and plans**: [docs/plan/](docs/plan/) - any design docs, proposals, feature plans before implementation
 
 ## Reference Documentation
 
-**Design Documentation** ([docs/manual/](docs/manual/)):
-- [dev.md](docs/manual/dev.md): Developer workflow and build system
-- [internals.md](docs/manual/internals.md): Driver architecture overview
+Documentation files should be named using lowercase letters and dashes (`-`) as word separators. Avoid underscores and camelCase.
+Prefix the filenames with the library name, feature or subsystem name for easy identification (e.g., `async-dns-integration.md`).
+
+**Design & Planning** ([docs/plan/](docs/plan/)):
+- Create design docs here before implementation starts. Move to manual/internals when implementation begins.
+- When extending an existing feature, update the original design doc instead of creating a new one.
+- Don't duplicate implementation details here; focus on high-level design, rationale, alternatives considered, and final decisions.
+
+**High-level Design Documentation** ([docs/manual/](docs/manual/)):
+- [admin.md](docs/manual/admin.md): Admin guide for server operators - configuration options, logging, performance tuning.
+- [lpc.md](docs/manual/lpc.md): LPC language reference - syntax, semantics, standard libraries.
+- [efuns.md](docs/manual/efuns.md): Comprehensive efun reference manual, categorized by functionality.
+- [dev.md](docs/manual/dev.md): Developer workflow and build system, testing patterns and git workflow.
+- [unit-tests.md](docs/manual/unit-tests.md): Guidelines for writing and organizing unit tests using GoogleTest.
+- [console-mode.md](docs/manual/console-mode.md): Using the interactive console mode for debugging and live interaction.
+- [internals.md](docs/manual/internals.md): Driver architecture overview. Links to [docs/internals/](docs/internals/) for deep dives into specific subsystems.
+- [trace.md](docs/manual/trace.md): Debugging and tracing guide - how to enable and interpret trace logs.
+- When extending an existing feature, update the original design doc instead of creating a new one.
+- Keep these documents updated as the codebase evolves. Focus on high-level architecture and terminology for current code.
+- High-level concepts includes features that are visible to mudlib developers (efuns, applies, object model, compiler behavior).
+- When starting new features, create design docs in [docs/plan/](docs/plan/) first, then move to manual when implementation starts. Keep implementation status updated. Link implementation details back to design docs.
 
 **Implementation Details** ([docs/internals/](docs/internals/)):
+- Keep these documents focused on design decisions, technical specifications and internal architecture such as C APIs and data structures.
+- Update as implementation details change. Link back to high-level design docs in [docs/manual/internals.md](docs/manual/internals.md).
 - [lpc-types.md](docs/internals/lpc-types.md): Complete LPC type system reference - lpc_type_t vs svalue_type_t, encoding schemes, compatibility checking, common pitfalls
 - [lpc-program.md](docs/internals/lpc-program.md): Complete LPC compiler memory block system, binary save/load format, pointer serialization, inheritance resolution
 - [int64-design.md](docs/internals/int64-design.md): Platform-agnostic 64-bit integer implementation - runtime types, bytecode encoding, binary compatibility
+- [async-library.md](docs/internals/async-library.md): Async library design - queues, workers, runtime integration
 
 When working on compiler features, consult these documents for:
 - **Type system rules**: lpc_type_t vs svalue_type_t domains, masking NAME_TYPE_MOD, array/class detection
