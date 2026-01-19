@@ -21,7 +21,7 @@ set(stem_SOURCES
     stralloc.c
 )
 add_library(stem OBJECT ${stem_SOURCES})
-target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket)
+target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket async)
 if(NOT WIN32)
     target_link_libraries(stem PUBLIC -lm -lcrypt)
 endif()

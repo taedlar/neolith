@@ -118,4 +118,4 @@ object_t *query_snooping(object_t *);
 
 /* I/O reactor access (for timer callback integration) */
 struct io_reactor_s;
-struct io_reactor_s *get_io_reactor(void);
+struct async_runtime_s *get_io_reactor(void);
