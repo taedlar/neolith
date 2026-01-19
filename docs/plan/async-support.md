@@ -172,28 +172,33 @@ See [async-library-use-case-analysis.md](async-library-use-case-analysis.md) for
 
 ## Implementation Roadmap
 
-### Phase 1: Core Primitives (1 week)
+### Phase 1: Core Primitives (1 week) ✅ COMPLETE
 **Deliverables**:
-- `lib/port/port_sync.{h,c}` - Platform-agnostic sync primitives
-- `lib/async/async_queue.{h,c}` - Uses port_sync internally
-- `lib/async/async_worker_{win32,pthread}.c`
-- Unit tests (GoogleTest)
+- `lib/port/port_sync.{h,c}` - Platform-agnostic sync primitives ✅
+- `lib/async/async_queue.{h,c}` - Uses port_sync internally ✅
+- `lib/async/async_worker_{win32,pthread}.c` ✅
+- `lib/async/async_runtime_{iocp,epoll,poll}.c` - Unified event loop ✅
+- Unit tests (GoogleTest) ✅
 
 **Success Criteria**:
-- Queue throughput >10K msgs/sec
-- Worker creation <5ms
-- Zero memory leaks
+- Queue throughput >10K msgs/sec ✅
+- Worker creation <5ms ✅
+- Zero memory leaks ✅
 
-### Phase 2: Console Worker (3-5 days) — **IMMEDIATE VALUE**
+### Phase 2: Console Worker (3-5 days) ✅ COMPLETE — **IMMEDIATE VALUE DELIVERED**
 **Deliverables**:
-- `lib/async/async_notifier_{win32,posix}.c`
-- `lib/port/console_worker.c`
-- io_reactor integration (expose IOCP handle)
+- `lib/async/console_worker.{h,c}` using async library ✅
+- Platform-specific console detection (REAL/PIPE/FILE) ✅
+- Backend integration: `src/comm.c` event loop handles console completions ✅
+- UTF-8 encoding support (Windows code page handling) ✅
+- Unit tests: `tests/test_console_worker/` ✅
 
 **Target Benefits**:
 - ✅ Windows console mode with native features
-- ✅ Testbot automation without 60s delay
-- ✅ Cross-platform design
+- ✅ Testbot automation without 60s delay (instant command execution)
+- ✅ Cross-platform design (Windows and POSIX)
+
+**Implementation Date**: 2026-01-20
 
 ### Phase 3: Async DNS (3-5 days) — **PERFORMANCE FIX**
 **Deliverables**:

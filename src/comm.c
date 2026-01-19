@@ -12,6 +12,8 @@
 #include "socket/socket_efuns.h"
 #include "port/socket_comm.h"
 #include "async/async_runtime.h"
+#include "async/async_queue.h"
+#include "async/console_worker.h"
 #include "efuns/ed.h"
 
 #include "lpc/include/origin.h"
@@ -116,6 +118,10 @@ int max_users = 0;
 static async_runtime_t *g_io_reactor = NULL;
 static io_event_t g_io_events[512];  /* Event buffer for async_runtime_wait() */
 static int g_num_io_events = 0;
+
+/* Console worker globals */
+static console_worker_context_t *g_console_worker = NULL;
+static async_queue_t *g_console_queue = NULL;
 
 /* Console context marker for identifying console events */
 #define CONSOLE_CONTEXT_MARKER ((void*)0xC0501E)
@@ -253,26 +259,28 @@ void init_user_conn () {
   /* Register console if enabled */
   if (MAIN_OPTION(console_mode))
     {
-#ifdef _WIN32
-      if (async_runtime_add_console (g_io_reactor, CONSOLE_CONTEXT_MARKER) != 0)
+      /* Create console line queue (capacity: 256 lines, max line size: CONSOLE_MAX_LINE) */
+      g_console_queue = async_queue_create(256, CONSOLE_MAX_LINE, ASYNC_QUEUE_DROP_OLDEST);
+      if (!g_console_queue)
         {
-          debug_message ("Warning: Failed to register console with async runtime\n");
+          debug_message("Warning: Failed to create console queue\n");
         }
       else
         {
-          opt_trace (TT_BACKEND, "registered console with async runtime (Windows IOCP)\n");
+          /* Initialize console worker */
+          g_console_worker = console_worker_init(g_io_reactor, g_console_queue, CONSOLE_COMPLETION_KEY);
+          if (!g_console_worker)
+            {
+              debug_message("Warning: Failed to initialize console worker\n");
+              async_queue_destroy(g_console_queue);
+              g_console_queue = NULL;
+            }
+          else
+            {
+              opt_trace(TT_BACKEND, "Console worker initialized (type: %s)\n",
+                       console_type_str(g_console_worker->console_type));
+            }
         }
-#else
-      if (async_runtime_add (g_io_reactor, STDIN_FILENO,
-                            EVENT_READ, CONSOLE_CONTEXT_MARKER) != 0)
-        {
-          debug_message ("Warning: Failed to register console with async runtime\n");
-        }
-      else
-        {
-          opt_trace (TT_BACKEND, "registered console with async runtime (POSIX)\n");
-        }
-#endif
     }
 
 #ifndef _WIN32
@@ -307,6 +315,23 @@ void ipc_remove () {
   /* Destroy async runtime */
   if (g_io_reactor)
     {
+      /* Shutdown console worker if active */
+      if (g_console_worker)
+        {
+          if (!console_worker_shutdown(g_console_worker, 5000))
+            {
+              debug_message("Warning: Console worker did not stop within timeout\n");
+            }
+          console_worker_destroy(g_console_worker);
+          g_console_worker = NULL;
+        }
+      
+      if (g_console_queue)
+        {
+          async_queue_destroy(g_console_queue);
+          g_console_queue = NULL;
+        }
+      
       async_runtime_deinit (g_io_reactor);
       g_io_reactor = NULL;
     }
@@ -1040,28 +1065,110 @@ void process_io () {
               debug_message ("Error on listening port %d\n", port->port);
             }
         }
-      else if (evt->context == CONSOLE_CONTEXT_MARKER)
+      else if (evt->context == CONSOLE_CONTEXT_MARKER || evt->completion_key == CONSOLE_COMPLETION_KEY)
         {
-          /* Console input */
-          if (evt->event_type & EVENT_READ)
+          /* Console input - completion posted by console worker */
+          if (g_console_queue)
             {
-              /* Check if console user is connected, if not reconnect */
-              int console_connected = 0;
-              for (int u = 0; u < max_users; u++)
-                {
-                  if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
-                    {
-                      console_connected = 1;
-                      get_user_data (all_users[u], NULL);
-                      break;
-                    }
-                }
+              char line_buffer[CONSOLE_MAX_LINE];
+              size_t line_length;
               
-              if (!console_connected)
+              /* Drain all pending lines from queue */
+              while (async_queue_dequeue(g_console_queue, line_buffer, sizeof(line_buffer), &line_length))
                 {
-                  /* Console user re-connect */
-                  opt_trace (TT_IO_REACTOR, "Console user re-connected\n");
-                  init_console_user(1);
+                  /* Check if console user is connected, if not reconnect */
+                  int console_connected = 0;
+                  for (int u = 0; u < max_users; u++)
+                    {
+                      if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
+                        {
+                          console_connected = 1;
+                          interactive_t *ip = all_users[u];
+                          
+                          /* Add line to input buffer - worker already read it */
+                          /* Convert newlines to null terminators for command parsing */
+                          if (ip && !(ip->iflags & (NET_DEAD | CLOSING)))
+                            {
+                              int len = (int)(line_length > 0 ? line_length - 1 : 0); /* Exclude null terminator */
+                              if (len > 0 && ip->text_end + len < MAX_TEXT)
+                                {
+                                  char* from = line_buffer;
+                                  char* to = ip->text + ip->text_end;
+                                  int bytes = len;
+                                  while (bytes-- > 0)
+                                    {
+                                      if (*from == '\n' || *from == '\r')
+                                        {
+                                          *to++ = '\0';
+                                        }
+                                      else
+                                        {
+                                          *to++ = *from;
+                                        }
+                                      from++;
+                                    }
+                                  ip->text_end = to - ip->text;
+                                  ip->text[ip->text_end] = '\0';
+                                  
+                                  /* Set flag if new data completes command */
+                                  if (cmd_in_buf(ip))
+                                    {
+                                      opt_trace(TT_IO_REACTOR, "Console command available in buffer\n");
+                                      ip->iflags |= CMD_IN_BUF;
+                                    }
+                                }
+                            }
+                          break;
+                        }
+                    }
+                  
+                  if (!console_connected)
+                    {
+                      /* Console user needs to reconnect first */
+                      opt_trace(TT_IO_REACTOR, "Console user re-connecting\n");
+                      init_console_user(1);
+                      
+                      /* Now add the line to the newly connected console user */
+                      for (int u = 0; u < max_users; u++)
+                        {
+                          if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
+                            {
+                              interactive_t *ip = all_users[u];
+                              if (ip && !(ip->iflags & (NET_DEAD | CLOSING)))
+                                {
+                                  int len = (int)(line_length > 0 ? line_length - 1 : 0);
+                                  if (len > 0 && ip->text_end + len < MAX_TEXT)
+                                    {
+                                      char* from = line_buffer;
+                                      char* to = ip->text + ip->text_end;
+                                      int bytes = len;
+                                      while (bytes-- > 0)
+                                        {
+                                          if (*from == '\n' || *from == '\r')
+                                            {
+                                              *to++ = '\0';
+                                            }
+                                          else
+                                            {
+                                              *to++ = *from;
+                                            }
+                                          from++;
+                                        }
+                                      ip->text_end = to - ip->text;
+                                      ip->text[ip->text_end] = '\0';
+                                      
+                                      /* Set flag if new data completes command */
+                                      if (cmd_in_buf(ip))
+                                        {
+                                          opt_trace(TT_IO_REACTOR, "Console command available in buffer after reconnect\n");
+                                          ip->iflags |= CMD_IN_BUF;
+                                        }
+                                    }
+                                }
+                              break;
+                            }
+                        }
+                    }
                 }
             }
         }
