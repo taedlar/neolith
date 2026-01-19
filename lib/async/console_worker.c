@@ -99,7 +99,7 @@ static void* console_worker_proc_win32(void* ctx) {
     }
 
     char line_buffer[CONSOLE_MAX_LINE];
-    DWORD chars_read;
+    DWORD chars_read = 0;
 
     debug_message("Console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
@@ -133,7 +133,7 @@ static void* console_worker_proc_win32(void* ctx) {
 
             /* Wait with timeout to check shutdown flag */
             while (!async_worker_should_stop(async_worker_current())) {
-                DWORD wait_result = WaitForSingleObject(overlapped.hEvent, 100);
+                DWORD wait_result = WaitForSingleObject(overlapped.hEvent, 10);
                 if (wait_result == WAIT_OBJECT_0) {
                     /* I/O completed */
                     if (!GetOverlappedResult(hStdin, &overlapped, &chars_read, FALSE)) {
@@ -195,7 +195,7 @@ static void* console_worker_proc_posix(void* ctx) {
 
         struct timeval timeout;
         timeout.tv_sec = 0;
-        timeout.tv_usec = 100000; /* 100ms */
+        timeout.tv_usec = 10000; /* 10ms */
 
         int ret = select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout);
         if (ret < 0) {
