@@ -1031,11 +1031,49 @@ static void sigpipe_handler (int sig) {
 }
 #endif
 
-/* Legacy make_selectmasks() removed - replaced by reactor registration in:
- * - init_user_conn() for listening sockets and console
- * - new_interactive() for user connections  
- * - socket efun handlers for LPC sockets
+/**
+ * @brief Add console input line to interactive buffer.
+ * 
+ * Console input uses virtual terminal (VT) mode, not TELNET protocol.
+ * Lines are already read by the console worker thread. This function
+ * converts CR/LF to null terminators and appends to the text buffer.
+ * 
+ * @param ip Interactive object (must be console user)
+ * @param line_buffer Line data from console worker (null-terminated)
+ * @param line_length Length including null terminator
  */
+static void add_console_line (interactive_t *ip, const char *line_buffer, size_t line_length) {
+  if (!ip || (ip->iflags & (NET_DEAD | CLOSING)))
+    return;
+
+  int len = (int)(line_length > 0 ? line_length - 1 : 0); /* Exclude null terminator */
+  if (len <= 0 || ip->text_end + len >= MAX_TEXT)
+    return;
+
+  /* Convert newlines to null terminators for command parsing */
+  const char* from = line_buffer;
+  char* to = ip->text + ip->text_end;
+  int bytes = len;
+  
+  while (bytes-- > 0)
+    {
+      if (*from == '\n' || *from == '\r')
+        *to++ = '\0';
+      else
+        *to++ = *from;
+      from++;
+    }
+  
+  ip->text_end = to - ip->text;
+  ip->text[ip->text_end] = '\0';
+  
+  /* Set flag if new data completes command */
+  if (cmd_in_buf(ip))
+    {
+      opt_trace(TT_COMM|1, "Console command available in buffer\n");
+      ip->iflags |= CMD_IN_BUF;
+    }
+}
 
 /**
  *  @brief Process I/O for sockets or console (if enabled).
@@ -1071,107 +1109,48 @@ void process_io () {
         }
       else if (evt->completion_key == CONSOLE_COMPLETION_KEY)
         {
-          /* Console input - completion posted by console worker */
+          /* Console input - completion posted by console worker thread.
+           * Console uses virtual terminal mode (VT), not TELNET protocol.
+           * Worker thread has already read the data; we just process it. */
           if (g_console_queue)
             {
-              char line_buffer[CONSOLE_MAX_LINE];
-              size_t line_length;
-              
-              /* Drain all pending lines from queue (always null-terminated) */
-              while (async_queue_dequeue(g_console_queue, line_buffer, sizeof(line_buffer), &line_length))
+              /* Find console user once before draining queue */
+              interactive_t *console_ip = NULL;
+              for (int u = 0; u < max_users; u++)
                 {
-                  /* Check if console user is connected. if not, reconnect it */
-                  int console_connected = 0;
+                  if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
+                    {
+                      console_ip = all_users[u];
+                      break;
+                    }
+                }
+              
+              if (!console_ip)
+                {
+                  /* Console user disconnected - reconnect first */
+                  opt_trace(TT_COMM, "Console user re-connecting\n");
+                  init_console_user(1);
+                  
+                  /* Find newly connected console user */
                   for (int u = 0; u < max_users; u++)
                     {
                       if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
                         {
-                          console_connected = 1;
-                          interactive_t *ip = all_users[u];
-                          
-                          /* Add line to input buffer - worker already read it */
-                          /* Convert newlines to null terminators for command parsing */
-                          if (ip && !(ip->iflags & (NET_DEAD | CLOSING)))
-                            {
-                              int len = (int)(line_length > 0 ? line_length - 1 : 0); /* Exclude null terminator */
-                              if (len > 0 && ip->text_end + len < MAX_TEXT)
-                                {
-                                  char* from = line_buffer;
-                                  char* to = ip->text + ip->text_end;
-                                  int bytes = len;
-                                  while (bytes-- > 0)
-                                    {
-                                      if (*from == '\n' || *from == '\r')
-                                        {
-                                          *to++ = '\0';
-                                        }
-                                      else
-                                        {
-                                          *to++ = *from;
-                                        }
-                                      from++;
-                                    }
-                                  ip->text_end = to - ip->text;
-                                  ip->text[ip->text_end] = '\0';
-                                  
-                                  /* Set flag if new data completes command */
-                                  if (cmd_in_buf(ip))
-                                    {
-                                      opt_trace(TT_COMM|1, "Console command available in buffer\n");
-                                      ip->iflags |= CMD_IN_BUF;
-                                    }
-                                }
-                            }
+                          console_ip = all_users[u];
                           break;
                         }
                     }
+                }
+              
+              /* Drain all pending lines from queue (always null-terminated) */
+              if (console_ip)
+                {
+                  char line_buffer[CONSOLE_MAX_LINE];
+                  size_t line_length;
                   
-                  if (!console_connected)
+                  while (async_queue_dequeue(g_console_queue, line_buffer, sizeof(line_buffer), &line_length))
                     {
-                      /* Console user needs to reconnect first */
-                      opt_trace(TT_COMM, "Console user re-connecting\n");
-                      init_console_user(1);
-                      
-                      /* Now add the line to the newly connected console user */
-                      for (int u = 0; u < max_users; u++)
-                        {
-                          if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
-                            {
-                              interactive_t *ip = all_users[u];
-                              if (ip && !(ip->iflags & (NET_DEAD | CLOSING)))
-                                {
-                                  int len = (int)(line_length > 0 ? line_length - 1 : 0);
-                                  if (len > 0 && ip->text_end + len < MAX_TEXT)
-                                    {
-                                      char* from = line_buffer;
-                                      char* to = ip->text + ip->text_end;
-                                      int bytes = len;
-                                      while (bytes-- > 0)
-                                        {
-                                          if (*from == '\n' || *from == '\r')
-                                            {
-                                              *to++ = '\0';
-                                            }
-                                          else
-                                            {
-                                              *to++ = *from;
-                                            }
-                                          from++;
-                                        }
-                                      ip->text_end = to - ip->text;
-                                      ip->text[ip->text_end] = '\0';
-                                      
-                                      /* Set flag if new data completes command */
-                                      if (cmd_in_buf(ip))
-                                        {
-                                          opt_trace(TT_COMM, "Console command available in buffer after reconnect\n");
-                                          ip->iflags |= CMD_IN_BUF;
-                                        }
-                                    }
-                                }
-                              break;
-                            }
-                        }
+                      add_console_line(console_ip, line_buffer, line_length);
                     }
                 }
             }
@@ -1698,7 +1677,7 @@ hname_handler ()
  *   post next async read operation
  *
  * @param ip The interactive data structure for the user.
- * @param evt Event structure from async_runtime_wait (NULL for console/POSIX).
+ * @param evt Event structure from async_runtime_wait (NULL for POSIX).
  */
 static void get_user_data (interactive_t* ip, io_event_t* evt) {
 
@@ -1706,12 +1685,20 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
   int text_space;
   int num_bytes, err = 0;
 
+  /* Console users should never reach this function - they use completion queue.
+   * This assertion validates the architecture invariant. */
+  if (ip->connection_type == CONSOLE_USER)
+    {
+      debug_message("get_user_data: console user unexpectedly in network I/O path (fd %d)\n", ip->fd);
+      return;
+    }
+
   switch (ip->connection_type)
     {
-    case CONSOLE_USER:
     case PORT_TELNET:
-      /* FIXME: The size calculation trick is here because of the way copy_chars()
-       * uses the buffer to allow empty commands.
+      /* NOTE: The /3 size calculation is because copy_chars() expands TELNET
+       * escape sequences. Worst case: every byte could become IAC IAC (2 bytes)
+       * plus the null terminator expansion for newlines adds another byte.
        */
       text_space = (MAX_TEXT - ip->text_end - 1) / 3;
 
@@ -1726,9 +1713,8 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
           text_space = (MAX_TEXT - ip->text_end - 1) / 3;
           if (text_space < MAX_TEXT / 16)
             {
-              /* FIXME: We've got almost 2k of data without a newline.
-               * It doesn't seem make sense for MUDs to have such long
-               * commands, so we just discard the buffer to make space.
+              /* We've got almost 2k of data without a newline.
+               * Discard buffer to prevent DoS from extremely long lines.
                */
               ip->text_start = 0;
               ip->text_end = 0;
@@ -1738,11 +1724,9 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       break;
 
     case PORT_ASCII:
-      text_space = MAX_TEXT - ip->text_end - 1;
-      break;
-
     case PORT_BINARY:
     default:
+      /* No protocol overhead - use full buffer */
       text_space = MAX_TEXT - ip->text_end - 1;
       break;
     }
@@ -1760,9 +1744,6 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
    *   - evt->bytes_transferred indicates how many bytes were read
    *   - Must post next async read operation to continue receiving data
    *   - Used on Windows
-   *
-   * Console input:
-   *   - Always uses synchronous read() regardless of platform
    */
   if (evt && evt->buffer && evt->bytes_transferred > 0)
     {
@@ -1790,9 +1771,10 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
     {
       /* Readiness notification: perform synchronous read (POSIX poll/epoll)
        * 
-       * NOTE: Console input never reaches this code path. Console uses worker
-       * thread + completion queue (see CONSOLE_COMPLETION_KEY in process_io).
-       * This function is now exclusively for network socket I/O.
+       * NOTE: Console input NEVER reaches this path. Console uses a dedicated
+       * worker thread that posts completions to async_queue, processed in
+       * process_io() under CONSOLE_COMPLETION_KEY. This function handles only
+       * network socket I/O (TELNET, ASCII, BINARY protocols).
        */
       num_bytes = SOCKET_RECV(ip->fd, buf, text_space, 0);
       err = SOCKET_ERRNO;
@@ -1830,39 +1812,13 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       buf[num_bytes] = '\0';
       switch (ip->connection_type)
         {
-        case CONSOLE_USER:
         case PORT_TELNET:
           /*
-           * Replace newlines with nulls and catenate to buffer. Also do all
-           * the useful telnet negotation at this point too. Rip out the sub-
-           * option stuff and send back anything non useful we feel we have
-           * to.
-           * 
-           * Console mode users also come through here, although they don't do
-           * telnet negotiation.
+           * Process TELNET protocol: replace newlines with nulls, handle IAC sequences,
+           * process suboption negotiations (TTYPE, NAWS, LINEMODE), etc.
+           * copy_chars() implements the TELNET state machine.
            */
-          if (ip->connection_type == CONSOLE_USER)
-            {
-              char* from = buf;
-              char* to = ip->text + ip->text_end;
-              while(num_bytes-- > 0)
-                {
-                  if (*from == '\n')
-                    {
-                      *to++ = '\0';
-                    }
-                  else
-                    {
-                      *to++ = *from;
-                    }
-                  from++;
-                }
-              ip->text_end += (to - (ip->text + ip->text_end));
-            }
-          else
-            {
-              ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
-            }
+          ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
           opt_trace (TT_COMM, "Command buffer contains %d characters\n", ip->text_end - ip->text_start);
           /*
            * now, ip->text_end is just after the last character read. If the last character

@@ -88,6 +88,13 @@ static void* console_worker_proc_win32(void* ctx) {
     console_worker_context_t* cctx = (console_worker_context_t*)ctx;
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     
+    /* Create shutdown event for graceful termination of blocking I/O */
+    HANDLE hShutdownEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (!hShutdownEvent) {
+        debug_error("Failed to create shutdown event: %lu\n", GetLastError());
+        return NULL;
+    }
+    
     /* Set UTF-8 code page */
     SetConsoleCP(CP_UTF8);
 
@@ -111,77 +118,82 @@ static void* console_worker_proc_win32(void* ctx) {
     debug_info ("Console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
     while (!async_worker_should_stop(async_worker_current())) {
+        /* Use overlapped I/O for all types to allow cancellation */
+        OVERLAPPED overlapped = {0};
+        overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+        if (!overlapped.hEvent) {
+            debug_error ("Failed to create event for overlapped I/O\n");
+            break;
+        }
+
+        BOOL result;
         if (cctx->console_type == CONSOLE_TYPE_REAL) {
-            /* Real console: Use ReadConsole for native line editing */
-            if (!ReadConsoleA(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL)) {
-                DWORD err = GetLastError();
-                if (err == ERROR_OPERATION_ABORTED) {
-                    /* Worker is stopping */
-                    break;
-                }
-                debug_error ("ReadConsoleA failed: %lu\n", err);
-                break;
-            }
-            debug_info ("ReadConsoleA read %lu characters\n", chars_read);
+            /* Real console: ReadConsoleA with overlapped I/O */
+            result = ReadConsoleA(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, NULL, &overlapped);
         } else {
             /* Pipe or file: Use ReadFile with overlapped I/O for cancelability */
-            OVERLAPPED overlapped = {0};
-            overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-            if (!overlapped.hEvent) {
-                debug_error ("Failed to create event for overlapped I/O\n");
-                break;
-            }
+            result = ReadFile(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, NULL, &overlapped);
+        }
 
-            BOOL result = ReadFile(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, NULL, &overlapped);
-            if (!result && GetLastError() != ERROR_IO_PENDING) {
-                debug_error ("ReadFile failed: %lu\n", GetLastError());
+        if (!result && GetLastError() != ERROR_IO_PENDING) {
+            debug_error ("Read failed: %lu\n", GetLastError());
+            CloseHandle(overlapped.hEvent);
+            break;
+        }
+
+        /* Wait for either I/O completion or shutdown signal */
+        HANDLE events[2] = { overlapped.hEvent, hShutdownEvent };
+        DWORD wait_result = WaitForMultipleObjects(2, events, FALSE, INFINITE);
+        debug_trace ("Console worker wait result: %lu\n", wait_result);
+        
+        if (wait_result == WAIT_OBJECT_0) {
+            /* I/O completed successfully */
+            if (!GetOverlappedResult(hStdin, &overlapped, &chars_read, FALSE)) {
+                DWORD err = GetLastError();
+                if (err != ERROR_OPERATION_ABORTED) {
+                    debug_error ("GetOverlappedResult failed: %lu\n", err);
+                }
                 CloseHandle(overlapped.hEvent);
                 break;
             }
-
-            /* Wait with timeout to check shutdown flag */
-            while (!async_worker_should_stop(async_worker_current())) {
-                DWORD wait_result = WaitForSingleObject(overlapped.hEvent, 10);
-                if (wait_result == WAIT_OBJECT_0) {
-                    /* I/O completed */
-                    if (!GetOverlappedResult(hStdin, &overlapped, &chars_read, FALSE)) {
-                        debug_error ("GetOverlappedResult failed: %lu\n", GetLastError());
-                        CloseHandle(overlapped.hEvent);
-                        goto cleanup;
-                    }
-                    break;
-                } else if (wait_result == WAIT_TIMEOUT) {
-                    /* Check shutdown flag on next iteration */
-                    continue;
-                } else {
-                    debug_error ("WaitForSingleObject failed: %lu\n", GetLastError());
-                    CloseHandle(overlapped.hEvent);
-                    goto cleanup;
-                }
-            }
-
             CloseHandle(overlapped.hEvent);
+            
+            if (chars_read > 0) {
+                /* Null-terminate */
+                line_buffer[chars_read] = '\0';
 
-            if (async_worker_should_stop(async_worker_current())) {
-                break;
+                /* Enqueue line */
+                if (!async_queue_enqueue(cctx->line_queue, line_buffer, chars_read + 1)) {
+                    debug_warn ("Console line queue full, dropping line\n");
+                }
+
+                /* Post completion to wake main thread */
+                async_runtime_post_completion(cctx->runtime, cctx->completion_key, chars_read);
             }
+        } else if (wait_result == WAIT_OBJECT_0 + 1) {
+            /* Shutdown signaled - cancel pending I/O and exit cleanly */
+            debug_info("Console worker shutdown signaled, canceling I/O\n");
+            CancelIoEx(hStdin, &overlapped);
+            
+            /* Wait for cancellation to complete */
+            GetOverlappedResult(hStdin, &overlapped, &chars_read, TRUE);
+            CloseHandle(overlapped.hEvent);
+            break;
+        } else {
+            /* Error or unexpected result */
+            debug_error ("WaitForMultipleObjects failed: %lu\n", wait_result);
+            CancelIoEx(hStdin, &overlapped);
+            CloseHandle(overlapped.hEvent);
+            break;
         }
-
-        if (chars_read > 0) {
-            /* Null-terminate */
-            line_buffer[chars_read] = '\0';
-
-            /* Enqueue line */
-            if (!async_queue_enqueue(cctx->line_queue, line_buffer, chars_read + 1)) {
-                debug_warn ("Console line queue full, dropping line\n");
-            }
-
-            /* Post completion to wake main thread */
-            async_runtime_post_completion(cctx->runtime, cctx->completion_key, chars_read);
+        
+        /* Check shutdown flag after processing (redundant but safe) */
+        if (async_worker_should_stop(async_worker_current())) {
+            SetEvent(hShutdownEvent); /* Ensure event is set for next iteration */
         }
     }
 
-cleanup:
+    CloseHandle(hShutdownEvent);
     debug_info ("Console worker stopped\n");
     return NULL;
 }
@@ -253,13 +265,13 @@ static void* console_worker_proc_posix(void* ctx) {
  */
 console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_queue_t* queue, uintptr_t completion_key) {
     if (!runtime || !queue) {
-        debug_message("console_worker_init: invalid arguments\n");
+        debug_error ("console_worker_init: invalid arguments\n");
         return NULL;
     }
 
     console_worker_context_t* ctx = (console_worker_context_t*)calloc(1, sizeof(*ctx));
     if (!ctx) {
-        debug_message("console_worker_init: out of memory\n");
+        debug_error ("console_worker_init: out of memory\n");
         return NULL;
     }
 
@@ -268,10 +280,10 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
     ctx->completion_key = completion_key;
     ctx->console_type = console_detect_type();
 
-    debug_message("Console type detected: %s\n", console_type_str(ctx->console_type));
+    /* debug_info ("Console type detected: %s\n", console_type_str(ctx->console_type)); */
 
     if (ctx->console_type == CONSOLE_TYPE_NONE) {
-        debug_message("No console detected, worker will not start\n");
+        debug_warn ("No console detected, worker will not start\n");
         /* Don't treat as fatal - allow mudlib to run without console */
         return ctx;
     }
@@ -283,7 +295,7 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
 #endif
 
     if (!ctx->worker) {
-        debug_message("Failed to create console worker thread\n");
+        debug_error ("Failed to create console worker thread\n");
         free(ctx);
         return NULL;
     }
