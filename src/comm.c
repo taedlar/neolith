@@ -312,7 +312,7 @@ void ipc_remove () {
     {
       if (!external_port[i].port)
         continue;
-      debug_message ("closing service on TCP port %d\n", external_port[i].port);
+      debug_message ("{}\tclosing service on TCP port %d\n", external_port[i].port);
       if (SOCKET_CLOSE (external_port[i].fd) == -1)
         debug_perror ("ipc_remove: close", 0);
     }
@@ -325,7 +325,7 @@ void ipc_remove () {
         {
           if (!console_worker_shutdown(g_console_worker, 5000))
             {
-              debug_message("Warning: Console worker did not stop within timeout\n");
+              debug_warn ("Console worker did not stop within timeout\n");
             }
           console_worker_destroy(g_console_worker);
           g_console_worker = NULL;

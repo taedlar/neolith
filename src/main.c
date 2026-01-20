@@ -57,6 +57,7 @@ static RETSIGTYPE sig_bus (int sig);
 
 int main (int argc, char **argv) {
 
+  int exit_code = EXIT_SUCCESS;
   char* locale = NULL;
   error_context_t econ;
 
@@ -156,7 +157,7 @@ int main (int argc, char **argv) {
 
   /* Run the infinite backend loop */
   debug_message ("{}\t----- entering MUD -----");
-  backend ();
+  backend (&exit_code);
 
   /* NOTE: We do not do active tear down of the runtime environment when running as
    * a long-lived server process. It is not pratical to require the mudlib to destruct
@@ -172,18 +173,9 @@ int main (int argc, char **argv) {
    * is no memory leak. The graceful tear down code can be found in various unit-testing
    * code under the tests/ directory.
    */
-  if (MAIN_OPTION(pedantic))
-    {
-      /* FIXME: Maybe we need to destruct all objects, followed by master and simul_efun
-       * objects here.  For now, we just tear down various subsystems.
-       */
-      tear_down_simulate();
-      deinit_lpc_compiler();
-      deinit_strings();
-      deinit_config();
-    }
+  do_shutdown (exit_code);
 
-  return EXIT_SUCCESS;
+  return exit_code;
 }
 
 

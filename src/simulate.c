@@ -2603,12 +2603,10 @@ fatal (char *fmt, ...)
  * We don't call it directly from HUP, because it is dangerous when being
  * in an interrupt.
  */
-void
-do_shutdown (int exit_code)
-{
+void do_shutdown (int exit_code) {
+
   int i;
 
-  shout_string ("Shutting down immediately.\n");
   ipc_remove ();
   for (i = 0; i < max_lpc_socks; i++)
     {
@@ -2626,6 +2624,18 @@ do_shutdown (int exit_code)
 #ifdef PROFILING
   monitor (0, 0, 0, 0, 0);	/* cause gmon.out to be written */
 #endif
+
+  if (MAIN_OPTION(pedantic))
+    {
+      /* FIXME: Maybe we need to destruct all objects, followed by master and simul_efun
+       * objects here.  For now, we just tear down various subsystems.
+       */
+      debug_message ("{}\ttearing down subsystems");
+      tear_down_simulate();
+      deinit_lpc_compiler();
+      deinit_strings();
+      deinit_config();
+    }
   exit (exit_code);
 }
 
