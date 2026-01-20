@@ -251,9 +251,9 @@ int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events,
     return 0;
 }
 
-int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events) {
+int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
     /* IOCP doesn't need explicit modify - just post new operations */
-    (void)runtime; (void)fd; (void)events;
+    (void)runtime; (void)fd; (void)events; (void)context;
     return 0;
 }
 

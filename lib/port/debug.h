@@ -31,7 +31,7 @@
 #define TT_COMPILE      0020U
 #define TT_SIMUL_EFUN   0040U
 #define TT_BACKEND      0100U
-#define TT_IO_REACTOR   0200U
+#define TT_COMM   0200U
 #define TT_MEMORY       0400U
 
 /**

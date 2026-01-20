@@ -123,9 +123,6 @@ static int g_num_io_events = 0;
 static console_worker_context_t *g_console_worker = NULL;
 static async_queue_t *g_console_queue = NULL;
 
-/* Console context marker for identifying console events */
-#define CONSOLE_CONTEXT_MARKER ((void*)0xC0501E)
-
 static int addr_server_fd = -1;
 
 /* implementations */
@@ -146,6 +143,11 @@ static inline int is_interactive_user (void *context) {
         return 1;
     }
   return 0;
+}
+
+static inline int is_console_user (void *context) {
+  return is_interactive_user(context) &&
+         ((interactive_t*)context)->fd == STDIN_FILENO;
 }
 
 #ifdef PACKAGE_SOCKETS
@@ -239,7 +241,9 @@ void init_user_conn () {
       exit (11);
     }
   
-  /* Register listening sockets with reactor */
+  /* Register listening sockets to async runtime. When new connections arrive, the listening sockets
+   * will generate read events.
+   */
   for (i = 0; i < 5; i++)
     {
       if (!external_port[i].port)
@@ -344,7 +348,7 @@ void ipc_remove () {
  * @return Number of events occurred, or 0 on timeout, or -1 on error.
  */
 int do_comm_polling (struct timeval *timeout) {
-  opt_trace (TT_IO_REACTOR|3, "calling async_runtime_wait(): timeout %ld sec, %ld usec",
+  opt_trace (TT_COMM|3, "calling async_runtime_wait(): timeout %ld sec, %ld usec",
              timeout->tv_sec, timeout->tv_usec);
   
   /* Use async runtime for event demultiplexing */
@@ -352,7 +356,7 @@ int do_comm_polling (struct timeval *timeout) {
                                         sizeof(g_io_events) / sizeof(g_io_events[0]),
                                         timeout);
   
-  opt_trace (TT_IO_REACTOR|3, "finished waiting: got %d events", g_num_io_events);
+  opt_trace (TT_COMM|3, "finished waiting: got %d events", g_num_io_events);
   
   return g_num_io_events;
 }
@@ -424,7 +428,7 @@ void add_message (object_t * who, char *data) {
   else
     {
       /* Request write notification from async runtime */
-      async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE);
+      async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE, ip);
     }
 #endif
 
@@ -563,7 +567,7 @@ int flush_message (interactive_t * ip) {
               /* Socket would block - request write notification from async runtime */
               if (ip->fd != STDIN_FILENO)
                 {
-                  async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE);
+                  async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE, ip);
                 }
               return 1;
             }
@@ -583,7 +587,7 @@ int flush_message (interactive_t * ip) {
   /* All data sent - remove write notification if it was set */
   if (ip->fd != STDIN_FILENO)
     {
-      async_runtime_modify (g_runtime, ip->fd, EVENT_READ);
+      async_runtime_modify (g_runtime, ip->fd, EVENT_READ, ip);
     }
   
   return 1;
@@ -717,7 +721,7 @@ static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
                         if (ip->sb_buf[2] & MODE_ACK)
                           {
                             /* LM_MODE confirmed */
-                            opt_trace (TT_IO_REACTOR|2, "Telnet LINEMODE mode acknowledged by client.\n");
+                            opt_trace (TT_COMM|2, "Telnet LINEMODE mode acknowledged by client.\n");
                             break;
                           }
                         else
@@ -877,7 +881,7 @@ static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
            */
           if (!(ip->iflags & USING_TELNET))
             {
-              opt_trace (TT_IO_REACTOR|2, "Got IAC WILL from client, assuming telnet support.\n");
+              opt_trace (TT_COMM|2, "Got IAC WILL from client, assuming telnet support.\n");
               ip->iflags |= USING_TELNET;
             }
 
@@ -915,7 +919,7 @@ static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
            */
           if (!(ip->iflags & USING_TELNET))
             {
-              opt_trace (TT_IO_REACTOR|2, "Got IAC WONT/DONT from client, assuming telnet support.\n");
+              opt_trace (TT_COMM|2, "Got IAC WONT/DONT from client, assuming telnet support.\n");
               ip->iflags |= USING_TELNET;
             }
           switch (from[i])
@@ -936,16 +940,16 @@ static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
            */
           if (!(ip->iflags & USING_TELNET))
             {
-              opt_trace (TT_IO_REACTOR|2, "Got IAC WONT/DONT from client, assuming telnet support.\n");
+              opt_trace (TT_COMM|2, "Got IAC WONT/DONT from client, assuming telnet support.\n");
               ip->iflags |= USING_TELNET;
             }
           switch (from[i])
             {
             case TELOPT_SGA:
-              opt_trace (TT_IO_REACTOR|2, "(TELNET) client won't send go ahead.\n");
+              opt_trace (TT_COMM|2, "(TELNET) client won't send go ahead.\n");
               break;
             case TELOPT_LINEMODE:
-              opt_trace (TT_IO_REACTOR|2, "(TELNET) client disabled LINEMODE.\n");
+              opt_trace (TT_COMM|2, "(TELNET) client disabled LINEMODE.\n");
               ip->iflags &= ~USING_LINEMODE;
               break;
             }
@@ -1056,7 +1060,7 @@ void process_io () {
           
           if (evt->event_type & EVENT_READ)
             {
-              opt_trace (TT_IO_REACTOR, "New connection on port %d\n", port->port);
+              opt_trace (TT_COMM, "New connection on port %d\n", port->port);
               new_user_handler (port);
             }
           
@@ -1065,7 +1069,7 @@ void process_io () {
               debug_message ("Error on listening port %d\n", port->port);
             }
         }
-      else if (evt->context == CONSOLE_CONTEXT_MARKER || evt->completion_key == CONSOLE_COMPLETION_KEY)
+      else if (evt->completion_key == CONSOLE_COMPLETION_KEY)
         {
           /* Console input - completion posted by console worker */
           if (g_console_queue)
@@ -1073,10 +1077,10 @@ void process_io () {
               char line_buffer[CONSOLE_MAX_LINE];
               size_t line_length;
               
-              /* Drain all pending lines from queue */
+              /* Drain all pending lines from queue (always null-terminated) */
               while (async_queue_dequeue(g_console_queue, line_buffer, sizeof(line_buffer), &line_length))
                 {
-                  /* Check if console user is connected, if not reconnect */
+                  /* Check if console user is connected. if not, reconnect it */
                   int console_connected = 0;
                   for (int u = 0; u < max_users; u++)
                     {
@@ -1113,7 +1117,7 @@ void process_io () {
                                   /* Set flag if new data completes command */
                                   if (cmd_in_buf(ip))
                                     {
-                                      opt_trace(TT_IO_REACTOR, "Console command available in buffer\n");
+                                      opt_trace(TT_COMM|1, "Console command available in buffer\n");
                                       ip->iflags |= CMD_IN_BUF;
                                     }
                                 }
@@ -1125,7 +1129,7 @@ void process_io () {
                   if (!console_connected)
                     {
                       /* Console user needs to reconnect first */
-                      opt_trace(TT_IO_REACTOR, "Console user re-connecting\n");
+                      opt_trace(TT_COMM, "Console user re-connecting\n");
                       init_console_user(1);
                       
                       /* Now add the line to the newly connected console user */
@@ -1160,7 +1164,7 @@ void process_io () {
                                       /* Set flag if new data completes command */
                                       if (cmd_in_buf(ip))
                                         {
-                                          opt_trace(TT_IO_REACTOR, "Console command available in buffer after reconnect\n");
+                                          opt_trace(TT_COMM, "Console command available in buffer after reconnect\n");
                                           ip->iflags |= CMD_IN_BUF;
                                         }
                                     }
@@ -1187,7 +1191,7 @@ void process_io () {
           if (evt->event_type & (EVENT_ERROR | EVENT_CLOSE))
             {
               /* Network error or connection closed */
-              opt_trace (TT_IO_REACTOR, "Connection closed on fd %d\n", ip->fd);
+              opt_trace (TT_COMM, "Connection closed on fd %d\n", ip->fd);
               remove_interactive (ip->ob, 0);
               continue;
             }
@@ -1419,7 +1423,7 @@ static void new_user_handler (port_def_t *port) {
     query_addr_name (ob);
   if (ob->interactive && ob->interactive->connection_type == PORT_TELNET)
     {
-      opt_trace (TT_IO_REACTOR|1, "Sending telnet negotiation to new user (fd = %d)\n", ob->interactive->fd);
+      opt_trace (TT_COMM|1, "Sending telnet negotiation to new user (fd = %d)\n", ob->interactive->fd);
       /* Tell them we won't echo. The client should echo locally or they won't see their input */
       add_message (ob, telnet_no_echo);
       /* Ask them to send commands as a whole line */
@@ -1771,7 +1775,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       memcpy(buf, evt->buffer, num_bytes);
 
       /* Post next async read to continue receiving data */
-      opt_trace (TT_IO_REACTOR|3, "Number of bytes received: %d. Posting next async read for fd %d\n", num_bytes, ip->fd);
+      opt_trace (TT_COMM|3, "Number of bytes received: %d. Posting next async read for fd %d\n", num_bytes, ip->fd);
       
       if (async_runtime_post_read(g_runtime, ip->fd, NULL, 0) != 0)
         {
@@ -1784,85 +1788,14 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
     }
   else
     {
-      /* Readiness notification: perform synchronous read (POSIX poll/epoll or console) */
-#ifdef _WIN32
-      if (ip->fd == STDIN_FILENO) {
-        /* Check console type to determine read method */
-        console_type_t console_type = async_runtime_get_console_type(g_runtime);
-        
-        if (console_type == CONSOLE_TYPE_REAL) {
-          /* Real console: use ReadConsoleInputW for non-blocking Unicode reads.
-           * This works regardless of ENABLE_LINE_INPUT console mode.
-           * ReadConsoleInputW always returns Unicode characters in UnicodeChar field.
-           * ReadConsoleInputA would only return code page characters in AsciiChar field.
-           */
-          HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-          INPUT_RECORD irInBuf[128];
-          DWORD cNumRead = 0;
-          
-          /* ReadConsoleInputW is non-blocking if console handle is signaled */
-          if (!ReadConsoleInputW(hStdin, irInBuf, 128, &cNumRead)) {
-            num_bytes = SOCKET_ERROR;
-            err = EIO;
-          } else {
-            /* Extract Unicode character data from KEY_EVENT records and convert to UTF-8 */
-            WCHAR wbuf[128];
-            int wchar_count = 0;
-            
-            for (DWORD i = 0; i < cNumRead && wchar_count < 128; i++) {
-              if (irInBuf[i].EventType == KEY_EVENT && irInBuf[i].Event.KeyEvent.bKeyDown) {
-                WCHAR wch = irInBuf[i].Event.KeyEvent.uChar.UnicodeChar;
-                if (wch == L'\r') {
-                  /* Convert carriage return to newline */
-                  wch = L'\n';
-                }
-                if (wch != 0) {
-                  wbuf[wchar_count++] = wch;
-                }
-              }
-            }
-            
-            if (wchar_count > 0) {
-              /* FIXME: handle password case */
-              WriteConsoleW (GetStdHandle(STD_OUTPUT_HANDLE), wbuf, wchar_count, NULL, NULL);
-              /* Convert UTF-16 to UTF-8 */
-              num_bytes = WideCharToMultiByte(CP_UTF8, 0, wbuf, wchar_count, buf, text_space, NULL, NULL);
-              if (num_bytes <= 0) {
-                num_bytes = SOCKET_ERROR;
-                err = EILSEQ;  /* Invalid multibyte sequence */
-              }
-            } else {
-              /* No characters extracted, indicate would-block */
-              num_bytes = SOCKET_ERROR;
-              err = EWOULDBLOCK;
-            }
-          }
-        }
-        else if (console_type == CONSOLE_TYPE_PIPE || console_type == CONSOLE_TYPE_FILE) {
-          /* Pipe or file: use synchronous ReadFile (no overlapped I/O needed) */
-          HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-          DWORD bytes_read;
-          if (ReadFile(hStdin, buf, text_space, &bytes_read, NULL)) {
-            num_bytes = bytes_read;
-          } else {
-            num_bytes = SOCKET_ERROR;
-            err = EIO;
-          }
-        }
-        else {
-          /* Unknown console type */
-          num_bytes = SOCKET_ERROR;
-          err = EIO;
-        }
-      } else {
-        num_bytes = SOCKET_RECV(ip->fd, buf, text_space, 0);
-      }
-#else
-      num_bytes = (ip->fd == STDIN_FILENO) ?
-        read(ip->fd, buf, text_space) :
-        SOCKET_RECV (ip->fd, buf, text_space, 0);
+      /* Readiness notification: perform synchronous read (POSIX poll/epoll)
+       * 
+       * NOTE: Console input never reaches this code path. Console uses worker
+       * thread + completion queue (see CONSOLE_COMPLETION_KEY in process_io).
+       * This function is now exclusively for network socket I/O.
+       */
+      num_bytes = SOCKET_RECV(ip->fd, buf, text_space, 0);
       err = SOCKET_ERRNO;
-#endif
     }
 
   switch (num_bytes)
@@ -1930,7 +1863,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
             {
               ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
             }
-          opt_trace (TT_IO_REACTOR, "Command buffer contains %d characters\n", ip->text_end - ip->text_start);
+          opt_trace (TT_COMM, "Command buffer contains %d characters\n", ip->text_end - ip->text_start);
           /*
            * now, ip->text_end is just after the last character read. If the last character
            * is a newline, the character before ip->text_end will be null.
@@ -1948,7 +1881,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
            */
           if (cmd_in_buf (ip))
             {
-              opt_trace (TT_IO_REACTOR, "Command available in buffer for fd %d\n", ip->fd);
+              opt_trace (TT_COMM, "Command available in buffer for fd %d\n", ip->fd);
               ip->iflags |= CMD_IN_BUF;
             }
           break;
@@ -2191,7 +2124,7 @@ first_cmd_in_buf (interactive_t * ip)
 }				/* first_command_in_buf() */
 
 /**
- *  @brief Check if there is a complete command in the buffer.
+ *  @brief Check if there is a complete, non-empty line in the buffer.
  *  Looks for a null character between text_start and text_end.
  *  If in SINGLE_CHAR mode, any input is a complete command.
  *  @param ip The interactive structure for the user.

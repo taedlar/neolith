@@ -98,11 +98,12 @@ int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events,
     return epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, fd, &ev);
 }
 
-int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events) {
+int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
     if (!runtime || fd < 0) return -1;
     
     struct epoll_event ev = {0};
     ev.events = events_to_epoll(events);
+    ev.data.ptr = context;  /* Preserve context pointer when modifying events */
     
     return epoll_ctl(runtime->epoll_fd, EPOLL_CTL_MOD, fd, &ev);
 }
