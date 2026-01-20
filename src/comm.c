@@ -300,8 +300,9 @@ void init_user_conn () {
   add_ip_entry (INADDR_LOOPBACK, "localhost");
 }
 
-/*
- * Shut down new user accept file descriptor.
+/**
+ *  @brief Shut down new user accept file descriptor.
+ *  Also stop the console worker and destroy the async runtime.
  */
 void ipc_remove () {
 

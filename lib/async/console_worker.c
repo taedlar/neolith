@@ -87,13 +87,14 @@ console_type_t console_detect_type(void) {
 static void* console_worker_proc_win32(void* ctx) {
     console_worker_context_t* cctx = (console_worker_context_t*)ctx;
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    port_event_t* stop_event = async_worker_get_stop_event(async_worker_current());
     
-    /* Create shutdown event for graceful termination of blocking I/O */
-    HANDLE hShutdownEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!hShutdownEvent) {
-        debug_error("Failed to create shutdown event: %lu\n", GetLastError());
+    if (!stop_event || !stop_event->event) {
+        debug_error("Failed to get stop event\n");
         return NULL;
     }
+    
+    HANDLE hStopEvent = stop_event->event;
     
     /* Set UTF-8 code page */
     SetConsoleCP(CP_UTF8);
@@ -118,45 +119,31 @@ static void* console_worker_proc_win32(void* ctx) {
     debug_info ("Console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
     while (!async_worker_should_stop(async_worker_current())) {
-        /* Use overlapped I/O for all types to allow cancellation */
-        OVERLAPPED overlapped = {0};
-        overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-        if (!overlapped.hEvent) {
-            debug_error ("Failed to create event for overlapped I/O\n");
-            break;
-        }
-
-        BOOL result;
-        if (cctx->console_type == CONSOLE_TYPE_REAL) {
-            /* Real console: ReadConsoleA with overlapped I/O */
-            result = ReadConsoleA(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, NULL, &overlapped);
-        } else {
-            /* Pipe or file: Use ReadFile with overlapped I/O for cancelability */
-            result = ReadFile(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, NULL, &overlapped);
-        }
-
-        if (!result && GetLastError() != ERROR_IO_PENDING) {
-            debug_error ("Read failed: %lu\n", GetLastError());
-            CloseHandle(overlapped.hEvent);
-            break;
-        }
-
-        /* Wait for either I/O completion or shutdown signal */
-        HANDLE events[2] = { overlapped.hEvent, hShutdownEvent };
+        /* Wait for stdin to be signaled OR stop event */
+        HANDLE events[2] = { hStdin, hStopEvent };
         DWORD wait_result = WaitForMultipleObjects(2, events, FALSE, INFINITE);
-        debug_trace ("Console worker wait result: %lu\n", wait_result);
         
         if (wait_result == WAIT_OBJECT_0) {
-            /* I/O completed successfully */
-            if (!GetOverlappedResult(hStdin, &overlapped, &chars_read, FALSE)) {
+            /* stdin is signaled - data available, read it synchronously */
+            BOOL result;
+            if (cctx->console_type == CONSOLE_TYPE_REAL) {
+                /* Real console: ReadConsoleA (synchronous only)
+                 * NOTE: If in cooked mode, ReadConsoleA blocks until ENTER is pressed, it can be interrupted
+                 * by CancelIoEx() during shutdown. If in raw mode, it returns immediately with available characters.
+                 */
+                result = ReadConsoleA(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL);
+            } else {
+                /* Pipe or file: Use ReadFile (synchronous) */
+                result = ReadFile(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL);
+            }
+
+            if (!result) {
+                /* the console worker can be interrupted by CancelIoEx during shutdown */
                 DWORD err = GetLastError();
-                if (err != ERROR_OPERATION_ABORTED) {
-                    debug_error ("GetOverlappedResult failed: %lu\n", err);
-                }
-                CloseHandle(overlapped.hEvent);
+                if (err != ERROR_OPERATION_ABORTED)
+                    debug_error ("Read failed: %lu\n", err);
                 break;
             }
-            CloseHandle(overlapped.hEvent);
             
             if (chars_read > 0) {
                 /* Null-terminate */
@@ -169,31 +156,22 @@ static void* console_worker_proc_win32(void* ctx) {
 
                 /* Post completion to wake main thread */
                 async_runtime_post_completion(cctx->runtime, cctx->completion_key, chars_read);
+            } else {
+                /* EOF */
+                debug_info("Console EOF detected\n");
+                break;
             }
         } else if (wait_result == WAIT_OBJECT_0 + 1) {
-            /* Shutdown signaled - cancel pending I/O and exit cleanly */
-            debug_info("Console worker shutdown signaled, canceling I/O\n");
-            CancelIoEx(hStdin, &overlapped);
-            
-            /* Wait for cancellation to complete */
-            GetOverlappedResult(hStdin, &overlapped, &chars_read, TRUE);
-            CloseHandle(overlapped.hEvent);
+            /* Stop event signaled - exit cleanly */
+            debug_info("Console worker stop signaled\n");
             break;
         } else {
             /* Error or unexpected result */
-            debug_error ("WaitForMultipleObjects failed: %lu\n", wait_result);
-            CancelIoEx(hStdin, &overlapped);
-            CloseHandle(overlapped.hEvent);
+            debug_error ("WaitForMultipleObjects failed: %lu (error: %lu)\n", wait_result, GetLastError());
             break;
-        }
-        
-        /* Check shutdown flag after processing (redundant but safe) */
-        if (async_worker_should_stop(async_worker_current())) {
-            SetEvent(hShutdownEvent); /* Ensure event is set for next iteration */
         }
     }
 
-    CloseHandle(hShutdownEvent);
     debug_info ("Console worker stopped\n");
     return NULL;
 }
@@ -307,6 +285,10 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
  * Shutdown console worker
  */
 bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
+#if _WIN32_WINNT > 0x0602
+    /* cancel any pending ReadConsole() in cooked mode */
+    CancelIoEx (GetStdHandle(STD_INPUT_HANDLE), NULL);
+#endif
     if (!ctx || !ctx->worker) {
         return true; /* No worker to shutdown */
     }

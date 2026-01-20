@@ -6,6 +6,7 @@
 #ifdef _WIN32
 
 #include "async/async_worker.h"
+#include "port/debug.h"
 #include "port/port_sync.h"
 #include <windows.h>
 #include <stdlib.h>
@@ -15,8 +16,8 @@ struct async_worker_s {
     DWORD thread_id;
     async_worker_proc_t proc;
     void* context;
-    volatile bool should_stop;
     async_worker_state_t state;
+    port_event_t stop_event;
 };
 
 /* Thread-local storage for current worker */
@@ -45,8 +46,12 @@ async_worker_t* async_worker_create(async_worker_proc_t proc, void* context, siz
     
     worker->proc = proc;
     worker->context = context;
-    worker->should_stop = false;
     worker->state = ASYNC_WORKER_STOPPED;
+    
+    if (!port_event_init(&worker->stop_event, true, false)) {
+        free(worker);
+        return NULL;
+    }
     
     worker->thread = CreateThread(
         NULL,                           /* default security */
@@ -71,13 +76,13 @@ void async_worker_destroy(async_worker_t* worker) {
     if (worker->thread) {
         CloseHandle(worker->thread);
     }
-    
+    port_event_destroy(&worker->stop_event);
     free(worker);
 }
 
 void async_worker_signal_stop(async_worker_t* worker) {
     if (worker) {
-        worker->should_stop = true;
+        port_event_set(&worker->stop_event);
     }
 }
 
@@ -95,11 +100,16 @@ async_worker_t* async_worker_current(void) {
 }
 
 bool async_worker_should_stop(async_worker_t* worker) {
-    return worker ? worker->should_stop : false;
+    if (!worker) return false;
+    return port_event_wait(&worker->stop_event, 0);
 }
 
 async_worker_state_t async_worker_get_state(const async_worker_t* worker) {
     return worker ? worker->state : ASYNC_WORKER_STOPPED;
+}
+
+port_event_t* async_worker_get_stop_event(async_worker_t* worker) {
+    return worker ? &worker->stop_event : NULL;
 }
 
 #endif /* _WIN32 */

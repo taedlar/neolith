@@ -8,6 +8,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include "port/port_sync.h"
 
 typedef struct async_worker_s async_worker_t;
 
@@ -84,5 +85,14 @@ bool async_worker_should_stop(async_worker_t* worker);
  * @returns Current state
  */
 async_worker_state_t async_worker_get_state(const async_worker_t* worker);
+
+/**
+ * Get stop event for worker thread
+ * For use with platform wait functions (WaitForMultipleObjects/select/etc)
+ * 
+ * @param worker Worker to query (use async_worker_current())
+ * @returns Pointer to stop event, or NULL if invalid
+ */
+port_event_t* async_worker_get_stop_event(async_worker_t* worker);
 
 #endif /* ASYNC_WORKER_H */
