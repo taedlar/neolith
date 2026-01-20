@@ -87,6 +87,14 @@ console_type_t console_detect_type(void) {
 static void* console_worker_proc_win32(void* ctx) {
     console_worker_context_t* cctx = (console_worker_context_t*)ctx;
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    port_event_t* stop_event = async_worker_get_stop_event(async_worker_current());
+    
+    if (!stop_event || !stop_event->event) {
+        debug_error("Failed to get stop event\n");
+        return NULL;
+    }
+    
+    HANDLE hStopEvent = stop_event->event;
     
     /* Set UTF-8 code page */
     SetConsoleCP(CP_UTF8);
@@ -111,77 +119,59 @@ static void* console_worker_proc_win32(void* ctx) {
     debug_info ("Console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
     while (!async_worker_should_stop(async_worker_current())) {
-        if (cctx->console_type == CONSOLE_TYPE_REAL) {
-            /* Real console: Use ReadConsole for native line editing */
-            if (!ReadConsoleA(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL)) {
+        /* Wait for stdin to be signaled OR stop event */
+        HANDLE events[2] = { hStdin, hStopEvent };
+        DWORD wait_result = WaitForMultipleObjects(2, events, FALSE, INFINITE);
+        
+        if (wait_result == WAIT_OBJECT_0) {
+            /* stdin is signaled - data available, read it synchronously */
+            BOOL result;
+            if (cctx->console_type == CONSOLE_TYPE_REAL) {
+                /* Real console: ReadConsoleA (synchronous only)
+                 * NOTE: If in cooked mode, ReadConsoleA blocks until ENTER is pressed, it can be interrupted
+                 * by CancelIoEx() during shutdown. If in raw mode, it returns immediately with available characters.
+                 */
+                result = ReadConsoleA(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL);
+            } else {
+                /* Pipe or file: Use ReadFile (synchronous) */
+                result = ReadFile(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL);
+            }
+
+            if (!result) {
+                /* the console worker can be interrupted by CancelIoEx during shutdown */
                 DWORD err = GetLastError();
-                if (err == ERROR_OPERATION_ABORTED) {
-                    /* Worker is stopping */
-                    break;
-                }
-                debug_error ("ReadConsoleA failed: %lu\n", err);
+                if (err != ERROR_OPERATION_ABORTED)
+                    debug_error ("Read failed: %lu\n", err);
                 break;
             }
-            debug_info ("ReadConsoleA read %lu characters\n", chars_read);
+            
+            if (chars_read > 0) {
+                /* Null-terminate */
+                line_buffer[chars_read] = '\0';
+
+                /* Enqueue line */
+                if (!async_queue_enqueue(cctx->line_queue, line_buffer, chars_read + 1)) {
+                    debug_warn ("Console line queue full, dropping line\n");
+                }
+
+                /* Post completion to wake main thread */
+                async_runtime_post_completion(cctx->runtime, cctx->completion_key, chars_read);
+            } else {
+                /* EOF */
+                debug_info("Console EOF detected\n");
+                break;
+            }
+        } else if (wait_result == WAIT_OBJECT_0 + 1) {
+            /* Stop event signaled - exit cleanly */
+            debug_info("Console worker stop signaled\n");
+            break;
         } else {
-            /* Pipe or file: Use ReadFile with overlapped I/O for cancelability */
-            OVERLAPPED overlapped = {0};
-            overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-            if (!overlapped.hEvent) {
-                debug_error ("Failed to create event for overlapped I/O\n");
-                break;
-            }
-
-            BOOL result = ReadFile(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, NULL, &overlapped);
-            if (!result && GetLastError() != ERROR_IO_PENDING) {
-                debug_error ("ReadFile failed: %lu\n", GetLastError());
-                CloseHandle(overlapped.hEvent);
-                break;
-            }
-
-            /* Wait with timeout to check shutdown flag */
-            while (!async_worker_should_stop(async_worker_current())) {
-                DWORD wait_result = WaitForSingleObject(overlapped.hEvent, 10);
-                if (wait_result == WAIT_OBJECT_0) {
-                    /* I/O completed */
-                    if (!GetOverlappedResult(hStdin, &overlapped, &chars_read, FALSE)) {
-                        debug_error ("GetOverlappedResult failed: %lu\n", GetLastError());
-                        CloseHandle(overlapped.hEvent);
-                        goto cleanup;
-                    }
-                    break;
-                } else if (wait_result == WAIT_TIMEOUT) {
-                    /* Check shutdown flag on next iteration */
-                    continue;
-                } else {
-                    debug_error ("WaitForSingleObject failed: %lu\n", GetLastError());
-                    CloseHandle(overlapped.hEvent);
-                    goto cleanup;
-                }
-            }
-
-            CloseHandle(overlapped.hEvent);
-
-            if (async_worker_should_stop(async_worker_current())) {
-                break;
-            }
-        }
-
-        if (chars_read > 0) {
-            /* Null-terminate */
-            line_buffer[chars_read] = '\0';
-
-            /* Enqueue line */
-            if (!async_queue_enqueue(cctx->line_queue, line_buffer, chars_read + 1)) {
-                debug_warn ("Console line queue full, dropping line\n");
-            }
-
-            /* Post completion to wake main thread */
-            async_runtime_post_completion(cctx->runtime, cctx->completion_key, chars_read);
+            /* Error or unexpected result */
+            debug_error ("WaitForMultipleObjects failed: %lu (error: %lu)\n", wait_result, GetLastError());
+            break;
         }
     }
 
-cleanup:
     debug_info ("Console worker stopped\n");
     return NULL;
 }
@@ -253,13 +243,13 @@ static void* console_worker_proc_posix(void* ctx) {
  */
 console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_queue_t* queue, uintptr_t completion_key) {
     if (!runtime || !queue) {
-        debug_message("console_worker_init: invalid arguments\n");
+        debug_error ("console_worker_init: invalid arguments\n");
         return NULL;
     }
 
     console_worker_context_t* ctx = (console_worker_context_t*)calloc(1, sizeof(*ctx));
     if (!ctx) {
-        debug_message("console_worker_init: out of memory\n");
+        debug_error ("console_worker_init: out of memory\n");
         return NULL;
     }
 
@@ -268,10 +258,10 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
     ctx->completion_key = completion_key;
     ctx->console_type = console_detect_type();
 
-    debug_message("Console type detected: %s\n", console_type_str(ctx->console_type));
+    /* debug_info ("Console type detected: %s\n", console_type_str(ctx->console_type)); */
 
     if (ctx->console_type == CONSOLE_TYPE_NONE) {
-        debug_message("No console detected, worker will not start\n");
+        debug_warn ("No console detected, worker will not start\n");
         /* Don't treat as fatal - allow mudlib to run without console */
         return ctx;
     }
@@ -283,7 +273,7 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
 #endif
 
     if (!ctx->worker) {
-        debug_message("Failed to create console worker thread\n");
+        debug_error ("Failed to create console worker thread\n");
         free(ctx);
         return NULL;
     }
@@ -295,6 +285,10 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
  * Shutdown console worker
  */
 bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
+#if _WIN32_WINNT > 0x0602
+    /* cancel any pending ReadConsole() in cooked mode */
+    CancelIoEx (GetStdHandle(STD_INPUT_HANDLE), NULL);
+#endif
     if (!ctx || !ctx->worker) {
         return true; /* No worker to shutdown */
     }
