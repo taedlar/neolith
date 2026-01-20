@@ -151,7 +151,7 @@ Semantic correctness: Runtime manages async operations (lib/async), not platform
 
 **Implementation**: [console_worker.c](../../lib/async/console_worker.c)  
 **Integration**: [comm.c](../../src/comm.c) handles `CONSOLE_COMPLETION_KEY` events  
-**Design**: [console-async.md](../plan/console-async.md)
+**Implementation**: [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md)
 
 **Key insight**: Console becomes just another completion source in event loop, eliminating 60s polling delay.
 
@@ -275,7 +275,7 @@ Use `async_queue_get_stats()` to monitor queue health. Check for dropped message
 ### Documentation
 - **Plans and Use Cases**: [async-support.md](../plan/async-support.md) - Design roadmap and planned use cases
 - **Design**: [async-library.md](../internals/async-library.md) - Architecture and platform implementations
-- **Integration**: [console-async.md](../plan/console-async.md) - Console worker design
+- **Integration**: [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md) - Console worker implementation
 
 ### Implementation
 - **Source**: [lib/async/](../../lib/async/) - All async library components

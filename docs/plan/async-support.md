@@ -21,7 +21,7 @@ Platform-agnostic infrastructure for running **blocking operations** in worker t
 |-----------|---------|---------------|
 | **async_queue** | Thread-safe FIFO message queue | Platform-agnostic (mutex-protected circular buffer) |
 | **async_worker** | Managed worker threads | `CreateThread()` / `pthread_create()` |
-| **async_runtime** | Event loop runtime (I/O + completions) | IOCP / epoll / poll (moved from lib/port/io_reactor) |
+| **async_runtime** | Event loop runtime (I/O + completions) | IOCP / epoll / poll (unified replacement for legacy io_reactor, removed 2026-01-20) |
 | **port_sync** (lib/port) | Mutex/event primitives (internal) | `CRITICAL_SECTION` + `Event` / `pthread_mutex` + `pthread_cond` |
 
 **Thread Safety Model**:
@@ -55,7 +55,7 @@ Got line ───────├─ Enqueue ──→├─ Dequeue → process
 - ✅ Testbot commands execute immediately (no 60s delay)
 - ✅ Platform-agnostic design (POSIX version uses eventfd/pipe)
 
-**Implementation**: [console-async.md](console-async.md)
+**Implementation**: [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md)
 
 ---
 
@@ -217,7 +217,7 @@ See [async-library-use-case-analysis.md](async-library-use-case-analysis.md) for
 
 **Implementation Date**: 2026-01-20  
 **Test Results**: All console worker tests passing  
-**Documentation**: [console-async.md](console-async.md), [console-testbot-support.md](console-testbot-support.md)
+**Documentation**: [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md), [console-testbot-support.md](console-testbot-support.md)
 
 ### Phase 3: Async DNS (3-5 days) — **PERFORMANCE FIX** (Planned)
 **Status**: Design complete, ready for implementation
@@ -244,7 +244,7 @@ See [async-library-use-case-analysis.md](async-library-use-case-analysis.md) for
 **Deliverables**:
 - ✅ User guide: [async.md](../manual/async.md) - Usage patterns and examples
 - ✅ Design docs: [async-library.md](../internals/async-library.md) - Technical architecture
-- ✅ Integration guides: [console-async.md](console-async.md), [console-testbot-support.md](console-testbot-support.md)
+- ✅ Integration guides: [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md), [console-testbot-support.md](console-testbot-support.md)
 - ✅ Configuration documentation in [neolith.conf](../../src/neolith.conf)
 - ⏳ Integration testing: console + sockets + heartbeats concurrent (deferred to Phase 3)
 
@@ -260,30 +260,54 @@ See [async-library-use-case-analysis.md](async-library-use-case-analysis.md) for
 
 ### I/O Reactor
 **Relationship**: Complementary, not overlapping
-- **io_reactor**: Manages non-blocking file descriptor events (sockets, pipes)
-- **async_notifier**: Integrates worker completions into reactor event loop
+### Legacy io_reactor Infrastructure (REMOVED 2026-01-20)
 
-**Integration Point**:
+**Historical Note**: Earlier phases of the async library used a separate `io_reactor` API in `lib/port/` for I/O event management. This was superseded by the unified `async_runtime` system which combines I/O events and worker completion notifications in a single event loop.
+
+**Migration completed**: All production code migrated from `io_reactor_*` to `async_runtime_*` APIs. Legacy code and tests removed.
+
+See [io-reactor-migration-2026-01-20.md](../history/agent-reports/io-reactor-migration-2026-01-20.md) for details.
+
+---
+
+## Current Event Loop Architecture
+
+**Unified Runtime** (`async_runtime`):
+- Combines I/O event notification with worker completion handling
+- Platform implementations: IOCP (Windows), epoll (Linux), poll (fallback)
+- Single `async_runtime_wait()` call handles all event sources
+
+**Current API** (see [async_runtime.h](../../lib/async/async_runtime.h)):
 ```c
-// Expose IOCP/eventfd for notifier
-HANDLE io_reactor_get_iocp(io_reactor_t* reactor);           // Windows
-int io_reactor_get_event_loop_handle(io_reactor_t* reactor); // POSIX
+async_runtime_t* async_runtime_init();  // Create unified event loop
+int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, int events, void* context);
+int async_runtime_wait(async_runtime_t* runtime, io_event_t* events, int max_events, int timeout_ms);
+int async_runtime_post_completion(async_runtime_t* runtime, uintptr_t key, void* data);
 ```
+
+**Backend Integration**: Main event loop ([src/comm.c](../../src/comm.c)) uses `async_runtime_wait()` to handle both I/O events and worker completions through a single unified call.
 
 ### Backend Event Loop
-**Current**:
+
+**Current Implementation** ([src/comm.c](../../src/comm.c)):
 ```c
-io_reactor_wait(reactor, events, 64, 60000);  // 60s timeout
-for (each event) { dispatch socket handlers }
+async_runtime_wait(g_runtime, events, 512, 60000);  // 60s timeout
+for (each event) {
+    if (event.completion_key == CONSOLE_COMPLETION_KEY) {
+        while (dequeue console_queue) { process_console_input() }
+    } else {
+        dispatch_socket_handler();  // Normal I/O events
+    }
+}
 ```
 
-**With Async**:
+**With Future Async DNS** (planned):
 ```c
-io_reactor_wait(reactor, events, 64, 60000);
+async_runtime_wait(g_runtime, events, 512, 60000);
 for (each event) {
-    if (event.key == CONSOLE_COMPLETION_KEY) {
-        while (dequeue console_queue) { process_input() }
-    } else if (event.key == DNS_COMPLETION_KEY) {
+    if (event.completion_key == CONSOLE_COMPLETION_KEY) {
+        while (dequeue console_queue) { process_console_input() }
+    } else if (event.completion_key == DNS_COMPLETION_KEY) {
         process_dns_completions();
     } else {
         dispatch_socket_handler();
@@ -322,7 +346,7 @@ for (each event) {
 | [async-use-cases.md](async-use-cases.md) | Extended use case validation |
 | [async-dns-integration.md](async-dns-integration.md) | DNS async integration plan |
 | [async.md](../manual/async.md) | User guide (usage patterns, examples) |
-| [console-async.md](console-async.md) | Console async integration plan |
+| [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md) | Phase 2 console worker implementation report |
 
 ---
 

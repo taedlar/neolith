@@ -94,7 +94,7 @@ Tests using network sockets require special initialization handling:
 ```cpp
 #include <gtest/gtest.h>
 extern "C" {
-#include "port/io_reactor.h"
+#include "async/async_runtime.h"
 #include "port/socket_comm.h"  // Provides create_test_socket_pair()
 }
 ```
@@ -115,9 +115,9 @@ static ::testing::Environment* const winsock_env =
 ```
 
 **Test File Organization**:
-- Main test file (e.g., `test_io_reactor_main.cpp`): Contains WinsockEnvironment and GoogleTest main()
-- Individual test files (e.g., `test_io_reactor_console.cpp`): Include common header, write tests
-- Common header (e.g., `test_io_reactor_common.h`): Shared includes and helper functions
+- Main test file (e.g., `test_async_worker_main.cpp`): Contains WinsockEnvironment and GoogleTest main()
+- Individual test files (e.g., `test_async_worker_basic.cpp`): Include common header, write tests
+- Common header (e.g., `test_async_worker_common.h`): Shared includes and helper functions
 
 ### Running
 ```bash
@@ -351,7 +351,7 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
 ### Documentation Best Practices
 1. **Don't duplicate implemented code in documentation**
    - Once code is committed and tested, reference it with links instead of copying it
-   - Example: "See [io_reactor.h](lib/port/io_reactor.h)" not full API declarations
+   - Example: "See [async_runtime.h](lib/async/async_runtime.h)" not full API declarations
 2. **Explain committed code concisely**
    - Document WHY decisions were made, not HOW the code works (code shows that)
    - Focus on design rationale, platform differences, integration patterns

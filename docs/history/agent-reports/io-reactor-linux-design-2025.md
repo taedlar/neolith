@@ -1,5 +1,20 @@
 # Linux I/O Reactor Implementation Design
 
+**STATUS: HISTORICAL - io_reactor REMOVED (2026-01-20)**
+
+This document describes the original Linux-specific `io_reactor` implementation using `poll()`. This implementation was replaced by the unified `async_runtime` system which provides the same functionality through a cleaner architecture.
+
+**For current implementation, see:**
+- [async-library.md](../../internals/async-library.md) - Unified async runtime with epoll/poll backends
+- [async_runtime_epoll.c](../../../lib/async/async_runtime_epoll.c) - Linux epoll implementation
+- [async_runtime_poll.c](../../../lib/async/async_runtime_poll.c) - POSIX poll fallback
+
+**What Changed**: The `io_reactor_poll.c` implementation was refactored into `async_runtime_poll.c` with extended functionality for worker completion notifications. The same poll-based event detection is used, but integrated with a unified event loop.
+
+---
+
+## Original Design Document (Historical)
+
 ## Overview
 
 This document describes the Linux-specific implementation of the [I/O Reactor abstraction](io-reactor.md) for the Neolith LPMud driver.

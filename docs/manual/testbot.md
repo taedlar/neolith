@@ -1,4 +1,4 @@
-# Console Mode Testing Robot Support
+# Testing Robot
 
 ## Overview
 
@@ -110,14 +110,15 @@ All modes preserve optimal UX for their respective use cases.
 
 For detailed implementation information, see:
 
+- **Development Plan**: [docs/plan/console-testbot-support.md](../plan/console-testbot-support.md)
 - **Phase 1 (POSIX)**: [docs/history/agent-reports/console-testbot-phase1.md](../history/agent-reports/console-testbot-phase1.md) (if exists)
 - **Phase 2 (Windows)**: [docs/history/agent-reports/console-testbot-phase2.md](../history/agent-reports/console-testbot-phase2.md)
 - **Phase 3 (Documentation)**: [docs/history/agent-reports/console-testbot-phase3-complete.md](../history/agent-reports/console-testbot-phase3-complete.md)
-- **Original Plan**: [docs/plan/console-testbot-support.md](../plan/console-testbot-support.md) (archived)
 
 ## Related Documentation
 
 - [Console Mode Manual](console-mode.md) - Complete console mode documentation
-- [I/O Reactor Design](io-reactor.md) - Platform-agnostic I/O architecture
+- [Async Library Design](../internals/async-library.md) - Unified async runtime architecture
+- [Console Worker Implementation](../../lib/async/console_worker.c) - Platform-specific console handling
 - [Examples Guide](../../examples/README.md) - Testing procedures and troubleshooting
 - [testbot.py](../../examples/testbot.py) - Testing robot template

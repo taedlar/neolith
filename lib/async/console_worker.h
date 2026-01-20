@@ -8,7 +8,7 @@
  *
  * Worker posts completions to async_runtime, main thread dequeues from async_queue.
  *
- * Design: docs/plan/console-async.md
+ * Implementation: docs/history/agent-reports/async-phase2-console-worker-2026-01-20.md
  */
 
 #ifndef CONSOLE_WORKER_H

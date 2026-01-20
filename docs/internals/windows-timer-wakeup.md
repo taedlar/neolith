@@ -1,5 +1,18 @@
 # Windows Timer Wake-Up Implementation
 
+**STATUS: HISTORICAL - io_reactor REMOVED (2026-01-20)**
+
+This document describes the original timer wake-up implementation for the `io_reactor` API. The `io_reactor` has been replaced by `async_runtime`, which provides integrated wake-up functionality.
+
+**For current implementation, see:**
+- [async-library.md](async-library.md) - Unified async runtime architecture
+- [async_runtime.h](../../lib/async/async_runtime.h) - Current event loop API
+- [src/backend.c](../../src/backend.c) - Timer callback integration with `get_async_runtime()`
+
+---
+
+## Original Design (Historical)
+
 ## Overview
 
 This document describes the solution for making Windows timer callbacks wake up the I/O reactor, providing cross-platform behavioral consistency with POSIX systems.
@@ -234,7 +247,7 @@ Measured improvement: Heartbeat timing accuracy improved from ±1000ms to ±10ms
 
 ## References
 - [Timer Port Documentation](timer-port.md) - Timer implementation details
-- [I/O Reactor Design](../manual/io-reactor.md) - Reactor pattern architecture
+- [Async Library Design](async-library.md) - Async runtime architecture
 - Windows API: [WaitForMultipleObjects()](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitformultipleobjects)
 - Windows API: [CreateEvent()](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa)
 - POSIX: [Signal Concepts](https://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_04)

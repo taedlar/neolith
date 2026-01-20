@@ -1,5 +1,18 @@
 # Console Mode Testing Robot Support - Unified Design
 
+**STATUS: OBSOLETED BY ASYNC_RUNTIME MIGRATION (2026-01-20)**
+
+This design document is historical. Console support was successfully implemented using the `io_reactor` API described here, which was subsequently replaced by the unified `async_runtime` system. Console functionality remains intact through `console_worker` integration.
+
+**For current implementation, see:**
+- [async-library.md](../internals/async-library.md) - Unified async architecture
+- [console_worker.h](../../lib/async/console_worker.h) - Console input handling
+- [console_worker.c](../../lib/async/console_worker.c) - Platform-specific implementation
+
+---
+
+## Original Design (Historical)
+
 ## Executive Summary
 
 Enable platform-agnostic automated testing via `testbot.py` by supporting piped stdin on both Windows and POSIX platforms while preserving optimal behavior for real terminal consoles.
@@ -566,5 +579,6 @@ if ($LASTEXITCODE -eq 0) {
 
 **Related Documents**:
 - [console-mode.md](../../docs/manual/console-mode.md) - User manual
-- [io-reactor.md](../../docs/manual/io-reactor.md) - IO reactor design
+- [async-library.md](../internals/async-library.md) - Async runtime design (replaced io_reactor)
+- [console_worker.h](../../lib/async/console_worker.h) - Current console implementation
 - [testbot.py](../../examples/testbot.py) - Testing robot template

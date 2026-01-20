@@ -159,7 +159,7 @@ ctest --preset ut-linux --tests-regex Console --output-on-failure
 ctest --preset ut-vs16-x64 --tests-regex Console --output-on-failure
 ~~~
 
-See [I/O Reactor Design](io-reactor.md#testing-strategy) for complete test documentation.
+See [Async Library Design](../internals/async-library.md) and [Console Worker Tests](../../tests/test_console_worker/) for complete test documentation.
 
 ### Troubleshooting
 
@@ -225,4 +225,4 @@ Windows console handles cannot be used with Winsock `select()` or I/O Completion
 - ✅ Console and network I/O handled in unified event loop
 - ✅ Automatic EOF handling (pipes exit cleanly, consoles reconnect)
 
-See [Windows I/O Implementation](windows-io.md#console-input-handling) for complete technical details and [Console Testbot Support](console-testbot-support.md) for design overview.
+See [Console Worker Implementation](../../lib/async/console_worker.c) for complete technical details and [Console Testbot Support](console-testbot-support.md) for design overview.

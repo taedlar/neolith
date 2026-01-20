@@ -1,5 +1,24 @@
 # I/O Reactor Design for Neolith Backend Loop
 
+**STATUS: HISTORICAL - io_reactor REMOVED (2026-01-20)**
+
+This document describes the original `io_reactor` abstraction that was replaced by the unified `async_runtime` system. The io_reactor successfully demonstrated cross-platform I/O abstraction but was superseded by a design that unified I/O events with worker completion notifications.
+
+**For current implementation, see:**
+- [async-library.md](../../internals/async-library.md) - Unified async runtime architecture
+- [async_runtime.h](../../../lib/async/async_runtime.h) - Current event loop API
+- [io-reactor-migration-2026-01-20.md](io-reactor-migration-2026-01-20.md) - Migration details
+
+**Migration Summary**: All production code migrated from `io_reactor_*` APIs to `async_runtime_*` APIs. Legacy implementations removed:
+- `lib/port/io_reactor.h` (API header)
+- `lib/port/io_reactor_win32.c` (Windows IOCP implementation)
+- `lib/port/io_reactor_poll.c` (POSIX poll implementation)
+- `tests/test_io_reactor/` (37 unit tests)
+
+---
+
+## Original Design Document (Historical)
+
 ## Overview
 
 This document provides comprehensive documentation for the I/O reactor design for cross-platform non-blocking I/O in Neolith. The I/O reactor is a platform-agnostic abstraction layer that provides a unified interface for non-blocking I/O multiplexing across different operating systems. It implements the **Reactor Pattern**, decoupling the event detection mechanism from event handling logic.
