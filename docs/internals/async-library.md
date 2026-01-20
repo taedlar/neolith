@@ -453,7 +453,7 @@ Implementation deferred pending Phase 1-3 completion and mudlib developer feedba
 - [async-dns-integration.md](../plan/async-dns-integration.md) - Async DNS implementation plan
 - [async-use-cases.md](../plan/async-use-cases.md) - Extended use case validation
 - [async-reactor-api-unification-analysis.md](async-reactor-api-unification-analysis.md) - Architectural rationale for async_runtime
-- [console-async.md](../plan/console-async.md) - Console async integration plan
+- [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md) - Console worker implementation (Phase 2 complete)
 
 ### User Documentation
 - [async.md](../manual/async.md) - User guide with common patterns

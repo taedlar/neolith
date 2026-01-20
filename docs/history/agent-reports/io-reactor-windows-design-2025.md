@@ -1,5 +1,26 @@
 # Windows I/O Reactor Implementation
 
+**STATUS: HISTORICAL - io_reactor REMOVED (2026-01-20)**
+
+This document describes the original Windows-specific `io_reactor` implementation using IOCP, WSAEventSelect, and WaitForMultipleObjects. This implementation was replaced by the unified `async_runtime` system which provides the same hybrid approach but with integrated worker completion support.
+
+**For current implementation, see:**
+- [async-library.md](../../internals/async-library.md) - Unified async runtime architecture
+- [async_runtime_iocp.c](../../../lib/async/async_runtime_iocp.c) - Windows IOCP implementation
+- [console_worker.c](../../../lib/async/console_worker.c) - Console input handling (replaced io_reactor console support)
+
+**What Changed**: The `io_reactor_win32.c` hybrid approach (IOCP + WSAEventSelect + console polling) was refactored into `async_runtime_iocp.c` with additional support for worker completion notifications. Console handling was extracted into a dedicated `console_worker` for better separation of concerns.
+
+**Key Improvements**:
+- Unified completion key mechanism for I/O and worker events
+- Better separation between I/O reactor and console worker
+- Cleaner integration with async queue system
+- Retained all performance benefits (IOCP for connected sockets, WSAEventSelect for listening)
+
+---
+
+## Original Implementation Documentation (Historical)
+
 ## Overview
 
 This document describes the Windows-specific implementation of the [I/O Reactor abstraction](io-reactor.md) for the Neolith LPMud driver using I/O Completion Ports (IOCP) for connected sockets, WSAEventSelect for listening sockets, and unified waiting via WaitForMultipleObjects.
@@ -110,7 +131,7 @@ This provides readiness notification for accepts while keeping unified blocking 
 
 **Trade-off**: Current raw mode provides non-blocking I/O but loses native Windows line editing (backspace, arrow keys, F7 history).
 
-**Proposed design** (see [console-async.md](../plan/console-async.md)):
+**Proposed design** (see [console-async-plan-archived.md](console-async-plan-archived.md)):
 - **Worker thread** runs blocking `ReadConsole()` with `ENABLE_LINE_INPUT` enabled
 - **Thread-safe queue** transfers completed lines to main thread
 - **Manual-reset event** signals main event loop when lines available

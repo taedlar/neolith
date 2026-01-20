@@ -311,7 +311,7 @@ Phase 1 primitives support all 6 validated use cases:
 
 ### Phase 2: Console Worker (Next Priority)
 
-See [console-async.md](../plan/console-async.md) for implementation plan.
+See [async-phase2-console-worker-2026-01-20.md](async-phase2-console-worker-2026-01-20.md) for implementation report.
 
 **Target**: Windows console with native line editing + testbot instant commands.
 

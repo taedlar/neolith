@@ -14,7 +14,6 @@ if(MSVC)
         crypt.c
         getopt.c
         gettimeofday.c
-        io_reactor_win32.c
         port_sync_win32.c
         realpath.c
         symlink.c
@@ -23,7 +22,6 @@ if(MSVC)
 else()
     # POSIX-compatible implementations
     list(APPEND port_SOURCES
-        io_reactor_poll.c
         port_sync_pthread.c
         posix_timer.c
     )
@@ -33,7 +31,7 @@ add_library(port STATIC ${port_SOURCES})
 target_sources(port INTERFACE
     FILE_SET HEADERS
     BASE_DIRS ..
-    FILES ansi.h debug.h wrapper.h byte_code.h timer_port.h socket_comm.h io_reactor.h port_sync.h
+    FILES ansi.h debug.h wrapper.h byte_code.h timer_port.h socket_comm.h port_sync.h
 )
 
 # Windows-specific libraries for timer support
