@@ -116,6 +116,5 @@ int new_set_snoop(object_t *, object_t *);
 object_t *query_snoop(object_t *);
 object_t *query_snooping(object_t *);
 
-/* I/O reactor access (for timer callback integration) */
-struct io_reactor_s;
-struct async_runtime_s *get_io_reactor(void);
+/* Async runtime access (for timer callback integration) */
+struct async_runtime_s *get_async_runtime(void);

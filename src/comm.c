@@ -115,7 +115,7 @@ int max_users = 0;
  * Uses async_runtime for platform-agnostic event-driven I/O multiplexing.
  * See docs/internals/async-library.md for design.
  */
-static async_runtime_t *g_io_reactor = NULL;
+static async_runtime_t *g_runtime = NULL;
 static io_event_t g_io_events[512];  /* Event buffer for async_runtime_wait() */
 static int g_num_io_events = 0;
 
@@ -232,8 +232,8 @@ void init_user_conn () {
   opt_trace (TT_BACKEND, "finished initializing user connection sockets.\n");
 
   /* Create async runtime */
-  g_io_reactor = async_runtime_init();
-  if (!g_io_reactor)
+  g_runtime = async_runtime_init();
+  if (!g_runtime)
     {
       debug_fatal ("Failed to create async runtime\n");
       exit (11);
@@ -245,7 +245,7 @@ void init_user_conn () {
       if (!external_port[i].port)
         continue;
       
-      if (async_runtime_add (g_io_reactor, external_port[i].fd,
+      if (async_runtime_add (g_runtime, external_port[i].fd,
                             EVENT_READ, &external_port[i]) != 0)
         {
           debug_fatal ("Failed to register listening socket for port %d with async runtime\n",
@@ -268,7 +268,7 @@ void init_user_conn () {
       else
         {
           /* Initialize console worker */
-          g_console_worker = console_worker_init(g_io_reactor, g_console_queue, CONSOLE_COMPLETION_KEY);
+          g_console_worker = console_worker_init(g_runtime, g_console_queue, CONSOLE_COMPLETION_KEY);
           if (!g_console_worker)
             {
               debug_message("Warning: Failed to initialize console worker\n");
@@ -313,7 +313,7 @@ void ipc_remove () {
     }
 
   /* Destroy async runtime */
-  if (g_io_reactor)
+  if (g_runtime)
     {
       /* Shutdown console worker if active */
       if (g_console_worker)
@@ -332,8 +332,8 @@ void ipc_remove () {
           g_console_queue = NULL;
         }
       
-      async_runtime_deinit (g_io_reactor);
-      g_io_reactor = NULL;
+      async_runtime_deinit (g_runtime);
+      g_runtime = NULL;
     }
 
 }
@@ -348,7 +348,7 @@ int do_comm_polling (struct timeval *timeout) {
              timeout->tv_sec, timeout->tv_usec);
   
   /* Use async runtime for event demultiplexing */
-  g_num_io_events = async_runtime_wait (g_io_reactor, g_io_events,
+  g_num_io_events = async_runtime_wait (g_runtime, g_io_events,
                                         sizeof(g_io_events) / sizeof(g_io_events[0]),
                                         timeout);
   
@@ -424,7 +424,7 @@ void add_message (object_t * who, char *data) {
   else
     {
       /* Request write notification from async runtime */
-      async_runtime_modify (g_io_reactor, ip->fd, EVENT_READ | EVENT_WRITE);
+      async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE);
     }
 #endif
 
@@ -563,7 +563,7 @@ int flush_message (interactive_t * ip) {
               /* Socket would block - request write notification from async runtime */
               if (ip->fd != STDIN_FILENO)
                 {
-                  async_runtime_modify (g_io_reactor, ip->fd, EVENT_READ | EVENT_WRITE);
+                  async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE);
                 }
               return 1;
             }
@@ -583,7 +583,7 @@ int flush_message (interactive_t * ip) {
   /* All data sent - remove write notification if it was set */
   if (ip->fd != STDIN_FILENO)
     {
-      async_runtime_modify (g_io_reactor, ip->fd, EVENT_READ);
+      async_runtime_modify (g_runtime, ip->fd, EVENT_READ);
     }
   
   return 1;
@@ -1320,7 +1320,7 @@ void new_interactive (socket_fd_t socket_fd) {
    */
   if (socket_fd != STDIN_FILENO)
     {
-      if (async_runtime_add (g_io_reactor, socket_fd, EVENT_READ, master_ob->interactive) != 0)
+      if (async_runtime_add (g_runtime, socket_fd, EVENT_READ, master_ob->interactive) != 0)
         {
           debug_message ("Failed to register user socket with async runtime\n");
           SOCKET_CLOSE (socket_fd);
@@ -1334,10 +1334,10 @@ void new_interactive (socket_fd_t socket_fd) {
       /* On Windows IOCP, post initial async read operation.
        * On POSIX, this is a no-op - reads happen after EVENT_READ notification.
        */
-      if (async_runtime_post_read (g_io_reactor, socket_fd, NULL, 0) != 0)
+      if (async_runtime_post_read (g_runtime, socket_fd, NULL, 0) != 0)
         {
           debug_message ("Failed to post initial read for user socket\n");
-          async_runtime_remove (g_io_reactor, socket_fd);
+          async_runtime_remove (g_runtime, socket_fd);
           SOCKET_CLOSE (socket_fd);
           FREE (master_ob->interactive);
           master_ob->interactive = 0;
@@ -1773,7 +1773,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       /* Post next async read to continue receiving data */
       opt_trace (TT_IO_REACTOR|3, "Number of bytes received: %d. Posting next async read for fd %d\n", num_bytes, ip->fd);
       
-      if (async_runtime_post_read(g_io_reactor, ip->fd, NULL, 0) != 0)
+      if (async_runtime_post_read(g_runtime, ip->fd, NULL, 0) != 0)
         {
           debug_message("get_user_data: failed to post next read for fd %d\n", ip->fd);
           /* Treat as connection error */
@@ -1788,7 +1788,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
 #ifdef _WIN32
       if (ip->fd == STDIN_FILENO) {
         /* Check console type to determine read method */
-        console_type_t console_type = async_runtime_get_console_type(g_io_reactor);
+        console_type_t console_type = async_runtime_get_console_type(g_runtime);
         
         if (console_type == CONSOLE_TYPE_REAL) {
           /* Real console: use ReadConsoleInputW for non-blocking Unicode reads.
@@ -2305,14 +2305,14 @@ void remove_interactive (object_t * ob, int dested) {
   /* Unregister from async runtime (except console on POSIX) */
   if (ip->fd != STDIN_FILENO)
     {
-      async_runtime_remove (g_io_reactor, ip->fd);
+      async_runtime_remove (g_runtime, ip->fd);
     }
 
   if (MAIN_OPTION(console_mode) && ip->fd == STDIN_FILENO)
     {
       /* Check if stdin is a pipe/file - if so, exit instead of trying to reconnect */
 #ifdef _WIN32
-      console_type_t console_type = async_runtime_get_console_type(g_io_reactor);
+      console_type_t console_type = async_runtime_get_console_type(g_runtime);
       if (console_type == CONSOLE_TYPE_PIPE || console_type == CONSOLE_TYPE_FILE) {
         debug_message ("Console input closed (pipe/file) - shutting down\n");
         do_shutdown(0);
@@ -3215,6 +3215,6 @@ outbuf_push (outbuffer_t * outbuf)
  * (e.g., timer callback wake-up on Windows).
  */
 async_runtime_t *
-get_io_reactor(void) {
-    return g_io_reactor;
+get_async_runtime(void) {
+    return g_runtime;
 }

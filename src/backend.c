@@ -49,7 +49,7 @@ static void heartbeat_timer_callback(void) {
   /* On Windows, wake up the async runtime waiting in GetQueuedCompletionStatusEx().
    * On POSIX, this is not needed because SIGALRM automatically interrupts
    * blocking syscalls with EINTR. */
-  async_runtime_t *reactor = get_io_reactor();
+  async_runtime_t *reactor = get_async_runtime();
   if (reactor) {
     async_runtime_wakeup(reactor);
   }

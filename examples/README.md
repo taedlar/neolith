@@ -17,15 +17,19 @@ A minimal example mudlib demonstrating core LPC functionality:
 - `shutdown` - Shutdown the driver (console mode)
 
 ### testbot.py
-Automated testing robot for console mode validation.
+Example of an automated **testing robot** using console mode.
+The python script runs Neolith with `popen` and enables console mode to send command and receive outputs via piped stdin/stdout of the LPMud server process.
 
 **Purpose**: Validate cross-platform piped stdin support for automated testing.
 
 **Platform Support**:
 - ✅ Linux/WSL
 - ✅ Windows
+- Requires `pexpect` python module for interaction with the mudlib. It can be installed via `pip install pexpect`.
 
 **Usage**:
+- Create a python virtual environment and install `pexpect`.
+- Activate the virtual environment
 ```bash
 cd examples
 python testbot.py
@@ -58,23 +62,6 @@ Driver started. Sending commands...
 ...
 ✅ TEST PASSED - Driver exited successfully
 ```
-
-**Customization**:
-Modify `test_commands` list in `testbot.py` to test different scenarios:
-```python
-test_commands = [
-    "say Hello from Python test!",
-    "help",
-    "shutdown"
-]
-```
-
-**Advanced Usage**:
-Use testbot.py as a template for:
-- Regression testing after driver changes
-- Testing specific LPC functionality
-- Performance benchmarking
-- Stress testing with complex command sequences
 
 ## Configuration Files
 

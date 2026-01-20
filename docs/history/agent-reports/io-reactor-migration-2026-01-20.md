@@ -1,9 +1,34 @@
 # Async Library & IO Reactor API Unification Analysis
 
 **Date**: 2026-01-19  
+**Status**: COMPLETED - Migration finished 2026-01-20  
 **Question**: With non-blocking async library design, should async_notifier and io_reactor share a common API?
 
 ---
+
+## Migration Summary (2026-01-20)
+
+**COMPLETED**: This analysis led to full migration from `io_reactor` to unified `async_runtime` API.
+
+### What Was Removed
+- `lib/port/io_reactor.h`, `io_reactor_win32.c`, `io_reactor_poll.c` (replaced by `async_runtime`)
+- `tests/test_io_reactor/` (37 unit tests for deprecated API)
+- Build targets for `io_reactor_*.c` files
+
+### What Was Renamed
+- `g_io_reactor` → `g_runtime` in `src/comm.c`
+- `get_io_reactor()` → `get_async_runtime()` for clarity
+
+### Final Architecture
+- Production code uses `async_runtime_init()`, `async_runtime_add()`, `async_runtime_wait()`
+- Unified event loop handles both I/O and worker completions
+- Platform implementations: `async_runtime_iocp.c` (Windows), `async_runtime_epoll.c` (Linux), `async_runtime_poll.c` (fallback)
+
+See [async-library.md](../../internals/async-library.md) for current async library design.
+
+---
+
+## Original Analysis (Historical)
 
 ## Current Architecture
 

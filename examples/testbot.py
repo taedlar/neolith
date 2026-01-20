@@ -71,24 +71,12 @@ def test_console_mode():
     print(f"✓ Using config: {config_path}")
     print()
     
-    # Prepare test commands
-    test_commands = [
-        "say Hello from Python test!",
-        "help",
-        "shutdown"  # Use shutdown to cleanly exit the driver
-    ]
-    
     print("=" * 60)
     print("CONSOLE MODE AUTOMATED TEST")
     print("=" * 60)
     print(f"Platform: {os.name}")
     print()
-    
-    print("Input commands:")
-    for i, cmd in enumerate(test_commands, 1):
-        print(f"  {i}. {cmd}")
-    print()
-    
+       
     child = None
     try:
         # Start the driver process using pexpect PopenSpawn
