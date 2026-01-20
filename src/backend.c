@@ -172,33 +172,19 @@ void init_console_user(int reconnect) {
   }
 #elif defined(WINSOCK)
   {
-    /* Enable Windows's vt100 simulation with high-level console input and output modes.
+    /* Enable Windows's vt100 simulation for outputs.
      * This allows ANSI escape sequences for text color and cursor movement to work on stdout.
      * Reference: https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
      */
-    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD mode = 0;
-    if (GetConsoleMode(hStdin, &mode))
-      {
-        SetConsoleCP(CP_UTF8);
-        if (! (mode & ENABLE_VIRTUAL_TERMINAL_INPUT))
-          opt_warn (0, "Console input does not support virtual terminal sequences.\n");
-        /* We cannot use native line mode since the non-blocking ReadConsoleInputW() is a low-level
-         * input that does not support line editing. So we just enable processed input.
-         * TODO: translate vt100 line editing sequences (like arrow keys) to console input events.
-         */
-      }
-    else
-      debug_message("Failed to get console mode for stdin.\n"); /* FIXME: this could happen in debugger */
     if (GetConsoleMode(hStdout, &mode))
       {
-        SetConsoleOutputCP(CP_UTF8);
+        SetConsoleOutputCP (CP_UTF8);
         if (!SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT))
           debug_message("Failed to set ENABLE_VIRTUAL_TERMINAL_PROCESSING mode for console stdout.\n");
       }
-    else
-      debug_message("Failed to get console mode for stdout.\n"); /* FIXME: this could happen in debugger */
+    /* NOTE: If stdout are piped, the GetConsoleMode() will fail and leave the console mode unchanged */
   }
 #endif
   if (reconnect)

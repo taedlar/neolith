@@ -6,7 +6,7 @@
  */
 
 #include "console_worker.h"
-#include "logger/logger.h"
+#include "port/debug.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -90,18 +90,25 @@ static void* console_worker_proc_win32(void* ctx) {
     
     /* Set UTF-8 code page */
     SetConsoleCP(CP_UTF8);
-    SetConsoleOutputCP(CP_UTF8);
 
-    /* Enable virtual terminal input for VT100 escape sequences */
+    /* If standard input is a console, enable line input and processed input modes */
     DWORD mode;
     if (GetConsoleMode(hStdin, &mode)) {
-        SetConsoleMode(hStdin, mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_PROCESSED_INPUT);
+        DWORD new_mode = ENABLE_EXTENDED_FLAGS
+            | ENABLE_QUICK_EDIT_MODE    /* allows mouse select and edit of console input */
+            | ENABLE_PROCESSED_INPUT    /* Ctrl-C handling, plus other control keys */
+            | ENABLE_LINE_INPUT         /* ReadConsoleA() returns only when ENTER is pressed */
+            | ENABLE_ECHO_INPUT         /* echo input characters */
+            ;
+        if (!SetConsoleMode(hStdin, new_mode)) {
+            debug_warn ("SetConsoleMode failed to enable line input: %lu\n", GetLastError());
+        }
     }
 
     char line_buffer[CONSOLE_MAX_LINE];
     DWORD chars_read = 0;
 
-    debug_message("Console worker started (type: %s)\n", console_type_str(cctx->console_type));
+    debug_info ("Console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
     while (!async_worker_should_stop(async_worker_current())) {
         if (cctx->console_type == CONSOLE_TYPE_REAL) {
@@ -112,21 +119,22 @@ static void* console_worker_proc_win32(void* ctx) {
                     /* Worker is stopping */
                     break;
                 }
-                debug_message("ReadConsoleA failed: %lu\n", err);
+                debug_error ("ReadConsoleA failed: %lu\n", err);
                 break;
             }
+            debug_info ("ReadConsoleA read %lu characters\n", chars_read);
         } else {
             /* Pipe or file: Use ReadFile with overlapped I/O for cancelability */
             OVERLAPPED overlapped = {0};
             overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
             if (!overlapped.hEvent) {
-                debug_message("Failed to create event for overlapped I/O\n");
+                debug_error ("Failed to create event for overlapped I/O\n");
                 break;
             }
 
             BOOL result = ReadFile(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, NULL, &overlapped);
             if (!result && GetLastError() != ERROR_IO_PENDING) {
-                debug_message("ReadFile failed: %lu\n", GetLastError());
+                debug_error ("ReadFile failed: %lu\n", GetLastError());
                 CloseHandle(overlapped.hEvent);
                 break;
             }
@@ -137,7 +145,7 @@ static void* console_worker_proc_win32(void* ctx) {
                 if (wait_result == WAIT_OBJECT_0) {
                     /* I/O completed */
                     if (!GetOverlappedResult(hStdin, &overlapped, &chars_read, FALSE)) {
-                        debug_message("GetOverlappedResult failed: %lu\n", GetLastError());
+                        debug_error ("GetOverlappedResult failed: %lu\n", GetLastError());
                         CloseHandle(overlapped.hEvent);
                         goto cleanup;
                     }
@@ -146,7 +154,7 @@ static void* console_worker_proc_win32(void* ctx) {
                     /* Check shutdown flag on next iteration */
                     continue;
                 } else {
-                    debug_message("WaitForSingleObject failed: %lu\n", GetLastError());
+                    debug_error ("WaitForSingleObject failed: %lu\n", GetLastError());
                     CloseHandle(overlapped.hEvent);
                     goto cleanup;
                 }
@@ -165,7 +173,7 @@ static void* console_worker_proc_win32(void* ctx) {
 
             /* Enqueue line */
             if (!async_queue_enqueue(cctx->line_queue, line_buffer, chars_read + 1)) {
-                debug_message("Console line queue full, dropping line\n");
+                debug_warn ("Console line queue full, dropping line\n");
             }
 
             /* Post completion to wake main thread */
@@ -174,7 +182,7 @@ static void* console_worker_proc_win32(void* ctx) {
     }
 
 cleanup:
-    debug_message("Console worker stopped\n");
+    debug_info ("Console worker stopped\n");
     return NULL;
 }
 #else
