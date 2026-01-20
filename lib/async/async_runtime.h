@@ -115,9 +115,10 @@ int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events,
  * @param runtime Runtime instance
  * @param fd File descriptor to modify
  * @param events New event mask
+ * @param context User-supplied context pointer (must match original context)
  * @returns 0 on success, -1 on failure
  */
-int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events);
+int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context);
 
 /**
  * Unregister a file descriptor from the runtime

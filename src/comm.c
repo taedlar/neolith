@@ -428,7 +428,7 @@ void add_message (object_t * who, char *data) {
   else
     {
       /* Request write notification from async runtime */
-      async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE);
+      async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE, ip);
     }
 #endif
 
@@ -567,7 +567,7 @@ int flush_message (interactive_t * ip) {
               /* Socket would block - request write notification from async runtime */
               if (ip->fd != STDIN_FILENO)
                 {
-                  async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE);
+                  async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE, ip);
                 }
               return 1;
             }
@@ -587,7 +587,7 @@ int flush_message (interactive_t * ip) {
   /* All data sent - remove write notification if it was set */
   if (ip->fd != STDIN_FILENO)
     {
-      async_runtime_modify (g_runtime, ip->fd, EVENT_READ);
+      async_runtime_modify (g_runtime, ip->fd, EVENT_READ, ip);
     }
   
   return 1;

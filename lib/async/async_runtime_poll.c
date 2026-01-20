@@ -174,7 +174,7 @@ int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events,
     return 0;
 }
 
-int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events) {
+int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
     if (!runtime || fd < 0) return -1;
     
     int idx = find_fd_index(runtime, fd);
@@ -182,6 +182,7 @@ int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t even
     
     runtime->pollfds[idx].events = events_to_poll(events);
     runtime->mappings[idx].events = events;
+    runtime->mappings[idx].context = context;  /* Update context when modifying events */
     
     return 0;
 }
