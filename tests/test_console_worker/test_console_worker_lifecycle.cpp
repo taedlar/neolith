@@ -65,7 +65,8 @@ TEST(ConsoleWorkerLifecycle, NullArguments) {
  */
 TEST(ConsoleWorkerLifecycle, ShutdownNoWorker) {
     /* Create context with no worker (simulated) */
-    console_worker_context_t ctx = {0};
+    console_worker_context_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
     ctx.console_type = CONSOLE_TYPE_NONE;
     ctx.worker = nullptr;
     
