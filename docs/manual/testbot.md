@@ -110,7 +110,7 @@ All modes preserve optimal UX for their respective use cases.
 
 For detailed implementation information, see:
 
-- **Development Plan**: [docs/plan/console-testbot-support.md](../plan/console-testbot-support.md)
+- **Development Plan**: [docs/history/console-testbot-support.md](../history/console-testbot-support.md) (archived - completed)
 - **Phase 1 (POSIX)**: [docs/history/agent-reports/console-testbot-phase1.md](../history/agent-reports/console-testbot-phase1.md) (if exists)
 - **Phase 2 (Windows)**: [docs/history/agent-reports/console-testbot-phase2.md](../history/agent-reports/console-testbot-phase2.md)
 - **Phase 3 (Documentation)**: [docs/history/agent-reports/console-testbot-phase3-complete.md](../history/agent-reports/console-testbot-phase3-complete.md)

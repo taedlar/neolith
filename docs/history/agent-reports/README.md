@@ -56,7 +56,7 @@ This directory contains historical implementation reports and design documents f
 ### Technical Design
 - [docs/internals/async-library.md](../../internals/async-library.md) - Async library architecture
 - [docs/manual/async.md](../../manual/async.md) - Async library user guide
-- [docs/plan/async-support.md](../../plan/async-support.md) - Async roadmap and quick reference
+- [docs/history/async-support.md](../async-support.md) - Async roadmap and quick reference (archived - completed)
 
 ### Implementation Files
 - [lib/async/](../../../lib/async/) - Async library source code
