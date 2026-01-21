@@ -28,6 +28,9 @@
 #define OP_WRITE   2
 #define OP_ACCEPT  3
 
+/* Completion keys for special events */
+#define ACCEPT_COMPLETION_KEY  ((uintptr_t)-2)
+
 /**
  * IOCP context for each I/O operation
  * The OVERLAPPED structure must be the first member
@@ -42,6 +45,14 @@ typedef struct iocp_context_s {
 } iocp_context_t;
 
 /**
+ * Listening socket entry for accept worker
+ */
+typedef struct listening_socket_s {
+    socket_fd_t fd;
+    void* context;
+} listening_socket_t;
+
+/**
  * Async runtime implementation for Windows
  */
 struct async_runtime_s {
@@ -52,6 +63,15 @@ struct async_runtime_s {
     iocp_context_t** context_pool;
     int pool_size;
     int pool_capacity;
+    
+    /* Accept worker for listening sockets */
+    HANDLE accept_thread;
+    DWORD accept_thread_id;
+    CRITICAL_SECTION listen_lock;
+    listening_socket_t* listen_sockets;
+    int listen_count;
+    int listen_capacity;
+    volatile int accept_thread_running;
     
     /* Console support */
     console_type_t console_type;
@@ -97,6 +117,69 @@ static void free_iocp_context(async_runtime_t* runtime, iocp_context_t* ctx) {
     }
 }
 
+/* Accept worker thread - monitors listening sockets and posts accepted connections to IOCP */
+static DWORD WINAPI accept_worker_thread(LPVOID param) {
+    async_runtime_t* runtime = (async_runtime_t*)param;
+    
+    while (runtime->accept_thread_running) {
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        socket_fd_t max_fd = INVALID_SOCKET;
+        
+        /* Build fd_set from listening sockets */
+        EnterCriticalSection(&runtime->listen_lock);
+        for (int i = 0; i < runtime->listen_count; i++) {
+            FD_SET(runtime->listen_sockets[i].fd, &read_fds);
+            if (max_fd == INVALID_SOCKET || runtime->listen_sockets[i].fd > max_fd) {
+                max_fd = runtime->listen_sockets[i].fd;
+            }
+        }
+        int listen_count = runtime->listen_count;
+        LeaveCriticalSection(&runtime->listen_lock);
+        
+        if (listen_count == 0) {
+            /* No listening sockets, sleep briefly */
+            Sleep(100);
+            continue;
+        }
+        
+        /* Wait for activity with 1 second timeout */
+        struct timeval timeout = {1, 0};
+        int result = select((int)max_fd + 1, &read_fds, NULL, NULL, &timeout);
+        
+        if (result > 0) {
+            /* Check each listening socket */
+            EnterCriticalSection(&runtime->listen_lock);
+            for (int i = 0; i < runtime->listen_count; i++) {
+                socket_fd_t listen_fd = runtime->listen_sockets[i].fd;
+                void* context = runtime->listen_sockets[i].context;
+                
+                if (FD_ISSET(listen_fd, &read_fds)) {
+                    LeaveCriticalSection(&runtime->listen_lock);
+                    
+                    /* Accept connection (non-blocking) */
+                    struct sockaddr_in addr;
+                    int addr_len = sizeof(addr);
+                    socket_fd_t accepted_fd = accept(listen_fd, (struct sockaddr*)&addr, &addr_len);
+                    
+                    if (accepted_fd != INVALID_SOCKET) {
+                        /* Post completion to IOCP with listening socket context */
+                        PostQueuedCompletionStatus(runtime->iocp_handle,
+                                                  (DWORD)(uintptr_t)accepted_fd,
+                                                  (ULONG_PTR)context,
+                                                  NULL);
+                    }
+                    
+                    EnterCriticalSection(&runtime->listen_lock);
+                }
+            }
+            LeaveCriticalSection(&runtime->listen_lock);
+        }
+    }
+    
+    return 0;
+}
+
 /* Lifecycle management */
 
 async_runtime_t* async_runtime_init(void) {
@@ -119,6 +202,28 @@ async_runtime_t* async_runtime_init(void) {
         return NULL;
     }
     
+    /* Initialize listening socket array and accept worker */
+    runtime->listen_capacity = 8;
+    runtime->listen_sockets = calloc(runtime->listen_capacity, sizeof(listening_socket_t));
+    if (!runtime->listen_sockets) {
+        free(runtime->context_pool);
+        CloseHandle(runtime->iocp_handle);
+        free(runtime);
+        return NULL;
+    }
+    
+    InitializeCriticalSection(&runtime->listen_lock);
+    runtime->accept_thread_running = 1;
+    runtime->accept_thread = CreateThread(NULL, 0, accept_worker_thread, runtime, 0, &runtime->accept_thread_id);
+    if (!runtime->accept_thread) {
+        DeleteCriticalSection(&runtime->listen_lock);
+        free(runtime->listen_sockets);
+        free(runtime->context_pool);
+        CloseHandle(runtime->iocp_handle);
+        free(runtime);
+        return NULL;
+    }
+    
     /* Initialize console support */
     runtime->console_handle = INVALID_HANDLE_VALUE;
     runtime->console_enabled = 0;
@@ -127,6 +232,7 @@ async_runtime_t* async_runtime_init(void) {
     /* Create wakeup event */
     runtime->wakeup_event = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!runtime->wakeup_event) {
+        free(runtime->listen_sockets);
         free(runtime->context_pool);
         CloseHandle(runtime->iocp_handle);
         free(runtime);
@@ -138,6 +244,16 @@ async_runtime_t* async_runtime_init(void) {
 
 void async_runtime_deinit(async_runtime_t* runtime) {
     if (!runtime) return;
+    
+    /* Stop accept worker thread */
+    if (runtime->accept_thread) {
+        runtime->accept_thread_running = 0;
+        WaitForSingleObject(runtime->accept_thread, 5000);
+        CloseHandle(runtime->accept_thread);
+    }
+    
+    DeleteCriticalSection(&runtime->listen_lock);
+    free(runtime->listen_sockets);
     
     /* Free context pool */
     for (int i = 0; i < runtime->pool_size; i++) {
@@ -169,15 +285,28 @@ int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events,
     BOOL is_listening = FALSE;
     int optlen = sizeof(is_listening);
     if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, (char*)&is_listening, &optlen) == 0 && is_listening) {
-        /* Listening socket - associate with IOCP like connected sockets
-         * The caller will use accept() in the event handler, which works with IOCP */
-        HANDLE result = CreateIoCompletionPort((HANDLE)fd, runtime->iocp_handle,
-                                              (ULONG_PTR)context, 0);
-        if (!result) return -1;
+        /* Listening socket - add to accept worker's monitoring list */
+        EnterCriticalSection(&runtime->listen_lock);
         
-        /* Post a dummy completion to trigger accept checking immediately
-         * This ensures pending connections are detected on first poll */
-        PostQueuedCompletionStatus(runtime->iocp_handle, 0, (ULONG_PTR)context, NULL);
+        /* Grow array if needed */
+        if (runtime->listen_count >= runtime->listen_capacity) {
+            int new_capacity = runtime->listen_capacity * 2;
+            listening_socket_t* new_array = realloc(runtime->listen_sockets,
+                                                   new_capacity * sizeof(listening_socket_t));
+            if (!new_array) {
+                LeaveCriticalSection(&runtime->listen_lock);
+                return -1;
+            }
+            runtime->listen_sockets = new_array;
+            runtime->listen_capacity = new_capacity;
+        }
+        
+        /* Add to array */
+        runtime->listen_sockets[runtime->listen_count].fd = fd;
+        runtime->listen_sockets[runtime->listen_count].context = context;
+        runtime->listen_count++;
+        
+        LeaveCriticalSection(&runtime->listen_lock);
         
         runtime->num_fds++;
         return 0;
@@ -217,7 +346,24 @@ int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t even
 int async_runtime_remove(async_runtime_t* runtime, socket_fd_t fd) {
     if (!runtime) return -1;
     
-    /* Just decrement count - socket will be closed by caller */
+    /* Check if this is a listening socket */
+    EnterCriticalSection(&runtime->listen_lock);
+    for (int i = 0; i < runtime->listen_count; i++) {
+        if (runtime->listen_sockets[i].fd == fd) {
+            /* Remove from array (swap with last element) */
+            runtime->listen_count--;
+            if (i < runtime->listen_count) {
+                runtime->listen_sockets[i] = runtime->listen_sockets[runtime->listen_count];
+            }
+            
+            LeaveCriticalSection(&runtime->listen_lock);
+            runtime->num_fds--;
+            return 0;
+        }
+    }
+    LeaveCriticalSection(&runtime->listen_lock);
+    
+    /* Not a listening socket - just decrement count */
     runtime->num_fds--;
     return 0;
 }
@@ -240,7 +386,8 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
     
     int event_count = 0;
     
-    /* All I/O sources (sockets, workers) use IOCP - single wait point */
+    /* All events (connected sockets, accepted connections, worker completions)
+     * flow through IOCP - single blocking point, no polling */
     OVERLAPPED_ENTRY entries[64];
     ULONG num_entries = 0;
     
@@ -250,14 +397,15 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
         for (ULONG i = 0; i < num_entries && event_count < max_events; i++) {
             iocp_context_t* io_ctx = (iocp_context_t*)entries[i].lpOverlapped;
             
-            events[event_count].fd = io_ctx ? io_ctx->fd : INVALID_SOCKET;
-            events[event_count].handle = NULL;
-            events[event_count].completion_key = entries[i].lpCompletionKey;
-            events[event_count].context = (void*)entries[i].lpCompletionKey;
-            events[event_count].bytes_transferred = entries[i].dwNumberOfBytesTransferred;
-            events[event_count].buffer = io_ctx ? io_ctx->buffer : NULL;
-            
             if (io_ctx) {
+                /* Connected socket I/O completion */
+                events[event_count].fd = io_ctx->fd;
+                events[event_count].handle = NULL;
+                events[event_count].completion_key = entries[i].lpCompletionKey;
+                events[event_count].context = (void*)entries[i].lpCompletionKey;
+                events[event_count].bytes_transferred = entries[i].dwNumberOfBytesTransferred;
+                events[event_count].buffer = io_ctx->buffer;
+                
                 if (io_ctx->operation == OP_READ) {
                     events[event_count].event_type = (entries[i].dwNumberOfBytesTransferred > 0)
                                                      ? EVENT_READ : EVENT_CLOSE;
@@ -266,8 +414,17 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
                 }
                 free_iocp_context(runtime, io_ctx);
             } else {
-                /* Worker completion (no io_ctx) */
-                events[event_count].event_type = EVENT_READ;  /* Arbitrary flag for completion */
+                /* NULL overlapped - either worker completion or accepted connection */
+                /* Accept worker posts accepted FD in dwNumberOfBytesTransferred */
+                socket_fd_t accepted_fd = (socket_fd_t)entries[i].dwNumberOfBytesTransferred;
+                
+                events[event_count].fd = accepted_fd;
+                events[event_count].handle = NULL;
+                events[event_count].completion_key = entries[i].lpCompletionKey;
+                events[event_count].context = (void*)entries[i].lpCompletionKey;
+                events[event_count].event_type = EVENT_READ;  /* Listening socket ready or worker completion */
+                events[event_count].bytes_transferred = 0;
+                events[event_count].buffer = NULL;
             }
             
             event_count++;

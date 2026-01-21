@@ -89,6 +89,7 @@ static void query_addr_name (object_t *);
 static void got_addr_number (char *, char *);
 static void add_ip_entry (long, const char *);
 static void clear_notify (interactive_t *);
+static void setup_accepted_connection (port_def_t *, socket_fd_t, struct sockaddr_in *);
 static void new_user_handler (port_def_t *);
 static void receive_snoop (char *, object_t * ob);
 static void set_telnet_single_char (interactive_t *, int);
@@ -1094,13 +1095,43 @@ void process_io () {
       /* Identify event source by context pointer */
       if (is_listening_port (evt->context))
         {
-          /* Listening socket - new connection */
+          /* Listening socket event */
           port_def_t *port = (port_def_t*)evt->context;
           
           if (evt->event_type & EVENT_READ)
             {
+#ifdef _WIN32
+              /* On Windows, accept worker has already called accept() and posted
+               * the accepted socket FD. The FD is in evt->fd. */
+              if (evt->fd != INVALID_SOCKET)
+                {
+                  opt_trace (TT_COMM, "Accept worker accepted connection on port %d (fd=%d)\n", 
+                            port->port, (int)evt->fd);
+                  
+                  /* Get peer address for the already-accepted socket */
+                  struct sockaddr_in addr;
+                  socklen_t addr_len = sizeof(addr);
+                  if (getpeername(evt->fd, (struct sockaddr*)&addr, &addr_len) == 0)
+                    {
+                      setup_accepted_connection(port, evt->fd, &addr);
+                    }
+                  else
+                    {
+                      debug_message("getpeername() failed for accepted socket: %d\n", SOCKET_ERRNO);
+                      SOCKET_CLOSE(evt->fd);
+                    }
+                }
+              else
+                {
+                  /* Fallback: call accept() synchronously (shouldn't happen with accept worker) */
+                  opt_trace (TT_COMM, "Fallback: synchronous accept on port %d\n", port->port);
+                  new_user_handler (port);
+                }
+#else
+              /* On POSIX, listening socket is ready - call accept() */
               opt_trace (TT_COMM, "New connection on port %d\n", port->port);
               new_user_handler (port);
+#endif
             }
           
           if (evt->event_type & EVENT_ERROR)
@@ -1335,6 +1366,75 @@ void new_interactive (socket_fd_t socket_fd) {
 }
 
 /**
+ *  @brief Setup a newly accepted connection.
+ *  This helper function is called after accept() has been performed (either by new_user_handler
+ *  on POSIX, or by the accept worker thread on Windows). It performs initial socket configuration
+ *  and delegates to backend's mudlib_connect/mudlib_logon pattern.
+ *  @param port The port definition for the listening socket
+ *  @param new_socket_fd The accepted socket file descriptor
+ *  @param addr The peer address structure from accept() or getpeername()
+ */
+static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_fd, struct sockaddr_in *addr) {
+  object_t *user_ob;
+  char addr_str[50];
+
+  opt_trace (TT_COMM, "Connection from %s:%d on port %d (fd=%d)\n",
+            inet_ntoa (addr->sin_addr), ntohs (addr->sin_port), port->port, (int)new_socket_fd);
+
+  /* Set non-blocking mode on accepted socket */
+  if (set_socket_nonblocking (new_socket_fd, 1) == SOCKET_ERROR)
+    {
+      debug_message ("Failed to set non-blocking mode on socket: %d\n", SOCKET_ERRNO);
+      SOCKET_CLOSE (new_socket_fd);
+      return;
+    }
+
+  /* Create interactive structure attached to master_ob */
+  new_interactive (new_socket_fd);
+  
+  /* master_ob->interactive can be NULL if new_interactive failed */
+  if (!master_ob->interactive)
+    {
+      SOCKET_CLOSE (new_socket_fd);
+      return;
+    }
+
+  /* Store connection info in the interactive structure */
+  memcpy (&master_ob->interactive->addr, addr, sizeof (struct sockaddr_in));
+  master_ob->interactive->connection_type = port->kind;
+#ifdef F_QUERY_IP_PORT
+  master_ob->interactive->local_port = port->port;
+#endif
+
+  /* Call master->connect() to get user object and transfer interactive */
+  snprintf (addr_str, sizeof(addr_str), "%s", inet_ntoa (addr->sin_addr));
+  user_ob = mudlib_connect (port->port, addr_str);
+  
+  if (!user_ob)
+    {
+      /* Connection rejected by mudlib */
+      if (master_ob->interactive)
+        remove_interactive (master_ob, 0);
+      return;
+    }
+
+  /* Send initial TELNET negotiation if using telnet protocol */
+  if (port->kind == PORT_TELNET)
+    {
+      add_message (user_ob, telnet_do_ttype);
+      add_message (user_ob, telnet_do_naws);
+      add_message (user_ob, telnet_do_linemode);
+      flush_message (user_ob->interactive);
+    }
+
+  /* Call logon() apply */
+  mudlib_logon (user_ob);
+  
+  opt_trace (TT_COMM, "Connection established for %s (fd=%d, ob=%s)\n",
+            addr_str, (int)new_socket_fd, user_ob->name);
+}
+
+/**
  *  @brief This is the new user connection handler.
  *  This function is called by the event handler when data is pending on a listening port.
  *  A new connection is established by using \c accept() on the listening socket.
@@ -1351,7 +1451,6 @@ static void new_user_handler (port_def_t *port) {
   socket_fd_t new_socket_fd;
   struct sockaddr_in addr;
   socklen_t length;
-  object_t *ob;
 
   if (!port || !port->port)
     {
@@ -1370,54 +1469,9 @@ static void new_user_handler (port_def_t *port) {
       return;
     }
 
-  /*
-   * according to Amylaar, 'accepted' sockets in Linux 0.99p6 don't
-   * properly inherit the nonblocking property from the listening socket.
-   */
-  if (set_socket_nonblocking (new_socket_fd, 1) == SOCKET_ERROR)
-    {
-      debug_error ("set_socket_nonblocking() failed: %d", SOCKET_ERRNO);
-      SOCKET_CLOSE (new_socket_fd);
-      return;
-    }
-
-  /*
-   * Make master object interactive to allow sending messages to the
-   * new user during connection setup.
-   */
-  new_interactive(new_socket_fd);
-  master_ob->interactive->connection_type = port->kind;
-#ifdef F_QUERY_IP_PORT
-  master_ob->interactive->local_port = port->port;
-#endif
-  memcpy ((char *) &master_ob->interactive->addr, (char *) &addr, length);
-
-  ob = mudlib_connect(port->port, inet_ntoa (addr.sin_addr));
-  if (!ob)
-    {
-      if (master_ob->interactive)
-        remove_interactive (master_ob, 0);
-      return;
-    }
-  if (addr_server_fd >= 0)
-    query_addr_name (ob);
-  if (ob->interactive && ob->interactive->connection_type == PORT_TELNET)
-    {
-      opt_trace (TT_COMM|1, "Sending telnet negotiation to new user (fd = %d)\n", ob->interactive->fd);
-      /* Tell them we won't echo. The client should echo locally or they won't see their input */
-      add_message (ob, telnet_no_echo);
-      /* Ask them to send commands as a whole line */
-      add_message (ob, telnet_do_linemode);
-      /* Ask permission to ask them for their terminal type */
-      add_message (ob, telnet_do_ttype);
-      /* Ask them for their window size */
-      add_message (ob, telnet_do_naws);
-
-      /* If we receive any TELNET response from the client, the USING_TELNET flag will be enabled in iflags */
-    }
-
-  mudlib_logon (ob);
-  command_giver = 0;
+  /* Note: according to Amylaar, 'accepted' sockets in Linux 0.99p6 don't
+   * properly inherit the nonblocking property from the listening socket. */
+  setup_accepted_connection(port, new_socket_fd, &addr);
 }
 
 /**

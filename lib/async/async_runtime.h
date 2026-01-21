@@ -7,8 +7,12 @@
  *
  * Platform-specific implementations:
  * - Windows: async_runtime_iocp.c (using I/O Completion Ports)
+ *   - Uses dedicated accept worker thread for listening sockets
+ *   - Worker calls accept() and posts completed FD to IOCP
  * - Linux: async_runtime_epoll.c (using epoll + eventfd for completions)
+ *   - Traditional readiness notification for listening sockets
  * - Fallback: async_runtime_poll.c (using poll + pipe for completions)
+ *   - Traditional readiness notification for listening sockets
  *
  * Design: docs/internals/async-library.md
  */
@@ -39,9 +43,14 @@ typedef int socket_fd_t;
  * 
  * Represents either an I/O event (fd/handle became ready) or a worker
  * completion (worker posted completion via async_runtime_post_completion).
+ * 
+ * On Windows with listening sockets:
+ * - fd contains the ACCEPTED socket FD (not the listening socket)
+ * - context points to the listening port_def_t structure
+ * - Accept worker has already called accept() before posting completion
  */
 typedef struct {
-    socket_fd_t fd;              /**< File descriptor (POSIX) or INVALID_SOCKET */
+    socket_fd_t fd;              /**< File descriptor; on Windows may be accepted socket from accept worker */
 #ifdef _WIN32
     HANDLE handle;               /**< Native handle (Windows) or NULL */
 #endif
@@ -101,10 +110,15 @@ void async_runtime_deinit(async_runtime_t* runtime);
 /**
  * Register a file descriptor/socket with the runtime
  * 
+ * For listening sockets on Windows, the accept worker will monitor the socket
+ * and post accepted FD completions to IOCP with the context pointer.
+ * 
+ * For connected sockets, the context is returned in io_event_t when I/O events occur.
+ * 
  * @param runtime Runtime instance
  * @param fd File descriptor or socket to monitor
  * @param events Bitmask of EVENT_READ and/or EVENT_WRITE
- * @param context User-supplied context pointer (returned in events)
+ * @param context User-supplied context pointer (returned in io_event_t.context)
  * @returns 0 on success, -1 on failure
  */
 int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context);
@@ -112,10 +126,12 @@ int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events,
 /**
  * Modify event mask for registered descriptor
  * 
+ * Used to toggle between EVENT_READ and EVENT_READ|EVENT_WRITE for flow control.
+ * 
  * @param runtime Runtime instance
  * @param fd File descriptor to modify
- * @param events New event mask
- * @param context User-supplied context pointer (must match original context)
+ * @param events New event mask (EVENT_READ and/or EVENT_WRITE)
+ * @param context User-supplied context pointer (should match original, used for validation)
  * @returns 0 on success, -1 on failure
  */
 int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context);
@@ -148,10 +164,31 @@ int async_runtime_wakeup(async_runtime_t* runtime);
 /**
  * Wait for I/O events or worker completions
  * 
- * Blocks until:
- * - I/O events occur (sockets become ready)
+ * Blocks until one of the following occurs:
+ * - I/O events occur (connected sockets become ready for read/write)
+ * - Listening socket accepts connection (Windows: accept worker posts accepted FD;
+ *   POSIX: listening socket becomes readable, caller must call accept())
  * - Worker completion posted via async_runtime_post_completion()
  * - Timeout expires
+ * 
+ * On Windows, listening socket events have:
+ * - io_event_t.fd = accepted socket (not listening socket)
+ * - io_event_t.context = listening socket's context (e.g., port_def_t*)
+ * - Caller should use getpeername() to get peer address
+ * 
+ * On POSIX, listening socket events have:
+ * - io_event_t.context = listening socket's context
+ * - Caller must call accept() to get new connection
+ * 
+ * CRITICAL: This function MUST be called from a single thread only (the main thread).
+ * Double polling (calling from multiple threads or calling again while a previous
+ * call is still blocked) will cause undefined behavior:
+ * - Windows IOCP: Events may be delivered to wrong thread or lost
+ * - Linux epoll: Spurious wakeups and event duplication
+ * - Event correlation breaks (completion_key may mismatch context)
+ * 
+ * The driver backend calls this via do_comm_polling() in the main event loop.
+ * Never call this function from worker threads or multiple locations.
  * 
  * @param runtime Runtime instance
  * @param events Array to store returned events
@@ -166,7 +203,8 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
  * Post a worker completion (called from worker threads)
  * 
  * Wakes up async_runtime_wait() and delivers a completion event with
- * the specified completion_key. Main thread correlates key to queue/handler.
+ * the specified completion_key. Main thread uses completion_key to identify
+ * the completion source (e.g., CONSOLE_COMPLETION_KEY for console worker).
  * 
  * Thread-safe, can be called from any worker thread.
  * 
@@ -175,9 +213,13 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
  * - Linux: write() to eventfd
  * - macOS/BSD: write() to pipe
  * 
+ * Usage example:
+ * - Console worker: completion_key = CONSOLE_COMPLETION_KEY, data = unused
+ * - Accept worker (internal): Uses ACCEPT_COMPLETION_KEY, data = accepted FD
+ * 
  * @param runtime Runtime instance
- * @param completion_key User-defined key for correlation
- * @param data Optional data value (platform-specific use)
+ * @param completion_key User-defined key for identifying completion source
+ * @param data Optional data value (platform-specific, often unused)
  * @returns 0 on success, -1 on failure
  */
 int async_runtime_post_completion(async_runtime_t* runtime, uintptr_t completion_key, uintptr_t data);

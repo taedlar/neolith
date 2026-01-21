@@ -150,9 +150,41 @@ All [src/](src/) files include [std.h](src/std.h) first (after config.h), which 
 
 ### Modular Architecture
 Legacy code had excessive global variables. Neolith refactors into:
-- Static libraries in [lib/](lib/): `port`, `logger`, `rc`, `misc`, `efuns`, `lpc`, `socket`
+- Static libraries in [lib/](lib/): `port`, `logger`, `rc`, `misc`, `efuns`, `lpc`, `socket`, `async`
 - `stem` object library in [src/](src/): all driver code linked to tests and main executable
 - Cascaded `init_*()`/`deinit_*()` lifecycle, tracked via `get_machine_state()`
+
+### Async Library Architecture
+
+The async library ([lib/async/](lib/async/)) provides platform-agnostic infrastructure for non-blocking operations via worker threads:
+
+**Components**:
+1. **async_queue** - Thread-safe FIFO message queue (worker → main thread communication)
+2. **async_worker** - Managed worker threads with graceful shutdown via `port_event_t`
+3. **async_runtime** - Unified event loop for I/O events and worker completions
+
+**Critical Constraint: NO DOUBLE POLLING**
+
+`async_runtime_wait()` **MUST** be called from a single thread only (the main/backend thread). This is a fundamental requirement:
+
+**✅ CORRECT**:
+- Backend calls `async_runtime_wait()` once per iteration in main event loop
+- Workers call `async_runtime_post_completion()` to notify main thread
+- Main thread processes all returned events before calling `async_runtime_wait()` again
+
+**❌ FORBIDDEN**:
+- Calling `async_runtime_wait()` from multiple threads simultaneously
+- Calling `async_runtime_wait()` again while previous call is still blocked
+- Calling `async_runtime_wait()` from worker threads
+
+**Why This Matters**:
+- Event correlation breaks (completion keys/contexts assume single consumer)
+- Platform APIs not thread-safe for concurrent polling (Windows IOCP, Linux epoll)
+- Driver architecture is single-threaded by design (all LPC execution on main thread)
+
+**Current Implementation**: `do_comm_polling()` in [src/comm.c](src/comm.c) calls `async_runtime_wait()` exclusively from the backend main loop. Never add additional call sites.
+
+**Design Reference**: [docs/internals/async-library.md](docs/internals/async-library.md)
 
 ### Apply Functions Pattern
 "Applies" are LPC functions called by the driver (inverse of efuns). Key examples:
