@@ -116,7 +116,7 @@ static void* console_worker_proc_win32(void* ctx) {
     char line_buffer[CONSOLE_MAX_LINE];
     DWORD chars_read = 0;
 
-    debug_info ("Console worker started (type: %s)\n", console_type_str(cctx->console_type));
+    debug_message ("console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
     while (!async_worker_should_stop(async_worker_current())) {
         /* Wait for stdin to be signaled OR stop event */
@@ -158,12 +158,10 @@ static void* console_worker_proc_win32(void* ctx) {
                 async_runtime_post_completion(cctx->runtime, cctx->completion_key, chars_read);
             } else {
                 /* EOF */
-                debug_info("Console EOF detected\n");
                 break;
             }
         } else if (wait_result == WAIT_OBJECT_0 + 1) {
             /* Stop event signaled - exit cleanly */
-            debug_info("Console worker stop signaled\n");
             break;
         } else {
             /* Error or unexpected result */
@@ -172,7 +170,7 @@ static void* console_worker_proc_win32(void* ctx) {
         }
     }
 
-    debug_info ("Console worker stopped\n");
+    debug_message ("{}\tconsole worker stopped\n");
     return NULL;
 }
 #else

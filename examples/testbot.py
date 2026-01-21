@@ -21,7 +21,14 @@ How it works:
 
 Usage:
     cd examples
-    python testbot.py
+    python testbot.py [driver arguments...]
+    
+    Examples:
+        python testbot.py              # Basic test with default config
+        python testbot.py -r5          # Test with max recursion depth 5
+        python testbot.py --debug      # Test with debug flags
+
+    Any arguments after the script name are passed directly to the driver.
 
 Requirements:
     pip install pexpect
@@ -69,6 +76,11 @@ def test_console_mode():
     
     print(f"✓ Using driver: {driver_path}")
     print(f"✓ Using config: {config_path}")
+    
+    # Get additional command line arguments to pass to driver
+    extra_args = sys.argv[1:]
+    if extra_args:
+        print(f"✓ Extra driver args: {' '.join(extra_args)}")
     print()
     
     print("=" * 60)
@@ -82,6 +94,14 @@ def test_console_mode():
         # Start the driver process using pexpect PopenSpawn
         # PopenSpawn uses subprocess.Popen internally but provides better interactive control
         command = [str(driver_path), "-f", str(config_path), "-c"]
+        
+        # Append any additional command line arguments
+        if extra_args:
+            command.extend(extra_args)
+        
+        print(f"Command: {' '.join(command)}")
+        print()
+        
         child = PopenSpawn(command, timeout=10, encoding='utf-8', codec_errors='replace')
         child.logfile_read = sys.stdout  # Log all output to stdout
         

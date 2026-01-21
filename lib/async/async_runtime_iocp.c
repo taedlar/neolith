@@ -42,15 +42,6 @@ typedef struct iocp_context_s {
 } iocp_context_t;
 
 /**
- * Listening socket entry for tracking sockets that need event notification
- */
-typedef struct listening_socket_s {
-    socket_fd_t fd;
-    void* context;
-    WSAEVENT event_handle;
-} listening_socket_t;
-
-/**
  * Async runtime implementation for Windows
  */
 struct async_runtime_s {
@@ -61,11 +52,6 @@ struct async_runtime_s {
     iocp_context_t** context_pool;
     int pool_size;
     int pool_capacity;
-    
-    /* Listening sockets tracked separately */
-    listening_socket_t* listen_sockets;
-    int listen_count;
-    int listen_capacity;
     
     /* Console support */
     console_type_t console_type;
@@ -133,16 +119,6 @@ async_runtime_t* async_runtime_init(void) {
         return NULL;
     }
     
-    /* Initialize listening socket tracking */
-    runtime->listen_capacity = 16;
-    runtime->listen_sockets = calloc(runtime->listen_capacity, sizeof(listening_socket_t));
-    if (!runtime->listen_sockets) {
-        free(runtime->context_pool);
-        CloseHandle(runtime->iocp_handle);
-        free(runtime);
-        return NULL;
-    }
-    
     /* Initialize console support */
     runtime->console_handle = INVALID_HANDLE_VALUE;
     runtime->console_enabled = 0;
@@ -151,7 +127,6 @@ async_runtime_t* async_runtime_init(void) {
     /* Create wakeup event */
     runtime->wakeup_event = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!runtime->wakeup_event) {
-        free(runtime->listen_sockets);
         free(runtime->context_pool);
         CloseHandle(runtime->iocp_handle);
         free(runtime);
@@ -169,12 +144,6 @@ void async_runtime_deinit(async_runtime_t* runtime) {
         free(runtime->context_pool[i]);
     }
     free(runtime->context_pool);
-    
-    /* Close event handles and free listening sockets */
-    for (int i = 0; i < runtime->listen_count; i++) {
-        WSACloseEvent(runtime->listen_sockets[i].event_handle);
-    }
-    free(runtime->listen_sockets);
     
     if (runtime->console_read_ctx) {
         free(runtime->console_read_ctx);
@@ -200,28 +169,16 @@ int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events,
     BOOL is_listening = FALSE;
     int optlen = sizeof(is_listening);
     if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, (char*)&is_listening, &optlen) == 0 && is_listening) {
-        /* Listening socket - track with WSAEventSelect */
-        if (runtime->listen_count >= runtime->listen_capacity) {
-            int new_capacity = runtime->listen_capacity * 2;
-            listening_socket_t* new_array = realloc(runtime->listen_sockets,
-                                                    new_capacity * sizeof(listening_socket_t));
-            if (!new_array) return -1;
-            runtime->listen_sockets = new_array;
-            runtime->listen_capacity = new_capacity;
-        }
+        /* Listening socket - associate with IOCP like connected sockets
+         * The caller will use accept() in the event handler, which works with IOCP */
+        HANDLE result = CreateIoCompletionPort((HANDLE)fd, runtime->iocp_handle,
+                                              (ULONG_PTR)context, 0);
+        if (!result) return -1;
         
-        WSAEVENT event_obj = WSACreateEvent();
-        if (event_obj == WSA_INVALID_EVENT) return -1;
+        /* Post a dummy completion to trigger accept checking immediately
+         * This ensures pending connections are detected on first poll */
+        PostQueuedCompletionStatus(runtime->iocp_handle, 0, (ULONG_PTR)context, NULL);
         
-        if (WSAEventSelect(fd, event_obj, FD_ACCEPT) == SOCKET_ERROR) {
-            WSACloseEvent(event_obj);
-            return -1;
-        }
-        
-        runtime->listen_sockets[runtime->listen_count].fd = fd;
-        runtime->listen_sockets[runtime->listen_count].context = context;
-        runtime->listen_sockets[runtime->listen_count].event_handle = event_obj;
-        runtime->listen_count++;
         runtime->num_fds++;
         return 0;
     }
@@ -260,20 +217,7 @@ int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t even
 int async_runtime_remove(async_runtime_t* runtime, socket_fd_t fd) {
     if (!runtime) return -1;
     
-    /* Check listening sockets */
-    for (int i = 0; i < runtime->listen_count; i++) {
-        if (runtime->listen_sockets[i].fd == fd) {
-            WSACloseEvent(runtime->listen_sockets[i].event_handle);
-            /* Compact array */
-            memmove(&runtime->listen_sockets[i], &runtime->listen_sockets[i + 1],
-                    (runtime->listen_count - i - 1) * sizeof(listening_socket_t));
-            runtime->listen_count--;
-            runtime->num_fds--;
-            return 0;
-        }
-    }
-    
-    /* For IOCP sockets, just close the socket - pending operations will complete with error */
+    /* Just decrement count - socket will be closed by caller */
     runtime->num_fds--;
     return 0;
 }
@@ -296,23 +240,12 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
     
     int event_count = 0;
     
-    /* Build event array for listening sockets + wakeup */
-    int num_events = runtime->listen_count + 1;
-    WSAEVENT* event_handles = _alloca(num_events * sizeof(WSAEVENT));
-    
-    for (int i = 0; i < runtime->listen_count; i++) {
-        event_handles[i] = runtime->listen_sockets[i].event_handle;
-    }
-    event_handles[runtime->listen_count] = runtime->wakeup_event;
-    
-    /* Check for IOCP completions with minimal timeout if we have listening sockets */
-    DWORD iocp_timeout = (runtime->listen_count > 0) ? 0 : timeout_ms;
-    
+    /* All I/O sources (sockets, workers) use IOCP - single wait point */
     OVERLAPPED_ENTRY entries[64];
     ULONG num_entries = 0;
     
     if (GetQueuedCompletionStatusEx(runtime->iocp_handle, entries, 64,
-                                    &num_entries, iocp_timeout, FALSE)) {
+                                    &num_entries, timeout_ms, FALSE)) {
         /* Process IOCP completions */
         for (ULONG i = 0; i < num_entries && event_count < max_events; i++) {
             iocp_context_t* io_ctx = (iocp_context_t*)entries[i].lpOverlapped;
@@ -338,33 +271,6 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
             }
             
             event_count++;
-        }
-    }
-    
-    /* Check listening sockets if we have time left */
-    if (event_count < max_events && runtime->listen_count > 0) {
-        DWORD wait_result = WSAWaitForMultipleEvents(num_events, event_handles, FALSE,
-                                                      (event_count > 0) ? 0 : timeout_ms, FALSE);
-        
-        if (wait_result >= WSA_WAIT_EVENT_0 && wait_result < WSA_WAIT_EVENT_0 + num_events) {
-            int event_idx = wait_result - WSA_WAIT_EVENT_0;
-            
-            if (event_idx == runtime->listen_count) {
-                /* Wakeup event */
-                ResetEvent(runtime->wakeup_event);
-            } else if (event_idx < runtime->listen_count) {
-                /* Listening socket event */
-                WSAResetEvent(event_handles[event_idx]);
-                
-                events[event_count].fd = runtime->listen_sockets[event_idx].fd;
-                events[event_count].handle = NULL;
-                events[event_count].completion_key = 0;
-                events[event_count].context = runtime->listen_sockets[event_idx].context;
-                events[event_count].event_type = EVENT_READ;  /* FD_ACCEPT */
-                events[event_count].bytes_transferred = 0;
-                events[event_count].buffer = NULL;
-                event_count++;
-            }
         }
     }
     

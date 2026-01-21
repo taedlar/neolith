@@ -5,7 +5,6 @@
 
 /* stem states */
 extern int g_proceeding_shutdown;
-extern int t_flag;
 extern int comp_flag;
 extern time_t boot_time;
 extern int slow_shut_down_to_do;
