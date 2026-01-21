@@ -215,6 +215,9 @@ parse_argument (int key, char *arg, struct argp_state *state)
     case 'p':
       MAIN_OPTION(pedantic) = 1;
       break;
+    case 'r':
+      MAIN_OPTION(timer_flags) = (unsigned int) strtoul (arg, NULL, 0);
+      break;
     case 't':
       MAIN_OPTION(trace_flags) = strtoul (arg, NULL, 0);
       break;
@@ -230,12 +233,13 @@ parse_command_line (int argc, char *argv[])
 {
 #ifdef	HAVE_ARGP_H
   struct argp_option options[] = {
-    {.name = NULL, 'f', "config-file", 0, "Specifies the file path of the configuration file."},
-    {.name = NULL, 'D', "macro[=definition]", 0, "Predefines global preprocessor macro for use in mudlib."},
     {.name = "console-mode", 'c', NULL, 0, "Run the driver in console mode."},
     {.name = "debug", 'd', "debug-level", 0, "Specifies the runtime debug level."},
+    {.name = NULL, 'D', "macro[=definition]", 0, "Predefines global preprocessor macro for use in mudlib."},
     {.name = "epilog", 'e', "epilog-level", 0, "Specifies the epilog level to be passed to the master object."},
+    {.name = NULL, 'f', "config-file", 0, "Specifies the file path of the configuration file."},
     {.name = "pedantic", 'p', NULL, 0, "Enable pedantic clean up."},
+    {.name = "timers", 'r', "timers", 0, "Specifies an integer of timer flags to enable timers (reset, heart_beat, call_out)."},
     {.name = "trace", 't', "trace-flags", 0, "Specifies an integer of trace flags to enable trace messages in debug log."},
     {0}
   };
@@ -250,7 +254,7 @@ parse_command_line (int argc, char *argv[])
 #else /* ! HAVE_ARGP_H */
   int c;
 
-  while ((c = getopt (argc, argv, "f:cd:D:pt:e:")) != -1)
+  while ((c = getopt (argc, argv, "cd:D:e:f:pr:t:")) != -1)
     {
       switch (c)
         {
@@ -282,6 +286,9 @@ parse_command_line (int argc, char *argv[])
           }
         case 'p':
           MAIN_OPTION(pedantic) = 1;
+          break;
+        case 'r':
+          MAIN_OPTION(timer_flags) = (unsigned int) strtoul (optarg, NULL, 0);
           break;
         case 't':
           MAIN_OPTION(trace_flags) = strtoul (optarg, NULL, 0);

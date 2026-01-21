@@ -8,7 +8,6 @@ main_options_t* g_main_options = NULL;
 
 int g_proceeding_shutdown = 0;
 
-int t_flag = 0;			/* Disable heart beat and reset */
 int comp_flag = 0;		/* Trace compilations */
 time_t boot_time = 0L;
 
@@ -25,6 +24,9 @@ int init_stem (int debug_level, unsigned long trace_flags, const char* config_fi
     stem_opts.epilog_level = 0;
     stem_opts.debug_level = debug_level;
     stem_opts.trace_flags = trace_flags;
+    stem_opts.console_mode = 0;
+    stem_opts.pedantic = 0;
+    stem_opts.timer_flags = TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET;
     memset(stem_opts.config_file, 0, PATH_MAX);
     if (config_file)
         strncpy(stem_opts.config_file, config_file, PATH_MAX - 1);

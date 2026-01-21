@@ -203,25 +203,8 @@ void backend (int* exit_code) {
   int nb;
   int i;
   error_context_t econ;
-  timer_error_t timer_err;
 
   opt_info (1, "Entering backend loop.");
-
-  timer_err = timer_port_init(&heartbeat_timer);
-  if (timer_err != TIMER_OK)
-    {
-      opt_warn (0, "Timer initialization failed: %s. heart_beat(), call_out() and reset() disabled.",
-                timer_error_string(timer_err));
-    }
-  else
-    {
-      timer_err = timer_port_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
-      if (timer_err != TIMER_OK)
-        {
-          opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
-                    timer_error_string(timer_err));
-        }
-    }
 
 #ifdef WINSOCK
   {
@@ -236,12 +219,38 @@ void backend (int* exit_code) {
 #endif
   init_user_conn ();		/* initialize user connection socket */
 
-  if (!t_flag)
-    {
-      call_heart_beat ();
-    }
   clear_state ();
   save_context (&econ);
+
+  /* start timer if any of the timer flags are set */
+  if (MAIN_OPTION(timer_flags) & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
+    {
+      timer_error_t timer_err;
+      timer_err = timer_port_init(&heartbeat_timer);
+      if (timer_err != TIMER_OK)
+        {
+          opt_warn (0, "Timer initialization failed: %s. heart_beat(), call_out() and reset() disabled.",
+                    timer_error_string(timer_err));
+        }
+      else
+        {
+          timer_err = timer_port_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
+          if (timer_err != TIMER_OK)
+            {
+              opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
+                        timer_error_string(timer_err));
+            }
+          debug_message ("timer started (timer flags = %d)\n", MAIN_OPTION(timer_flags));
+        }
+    }
+  else
+    {
+      debug_message ("timer not used (timer flags = %d)\n", MAIN_OPTION(timer_flags));
+    }
+  /* do initial timer tick (initialize current_time and allow LPC code to access time).
+   * This is always done even if no timer is started, so that current_time is valid.
+   */
+  call_heart_beat ();
 
   if (setjmp (econ.context))
     restore_context (&econ);
@@ -476,9 +485,12 @@ static int num_hb_to_do = 0;
 static int num_hb_calls = 0;	/* starts */
 static float perc_hb_probes = 100.0;	/* decaying avge of how many complete */
 
-static void
-call_heart_beat ()
-{
+/**
+ * @brief Call all heart_beat() functions in all objects.
+ * Also call the next reset, and the call out.
+ */
+static void call_heart_beat () {
+
   object_t *ob;
   heart_beat_t *curr_hb;
 
@@ -488,7 +500,7 @@ call_heart_beat ()
   opt_trace (TT_BACKEND|1, "current_time: %ul, num_hb_objs: %d", current_time, num_hb_objs);
   current_interactive = 0;
 
-  if ((num_hb_to_do = num_hb_objs))
+  if ((MAIN_OPTION(timer_flags) & TIMER_FLAG_HEARTBEAT) && (num_hb_to_do = num_hb_objs) > 0)
     {
       num_hb_calls++;
       heart_beat_index = 0;
@@ -526,8 +538,10 @@ call_heart_beat ()
     }
   current_prog = 0;
   current_heart_beat = 0;
-  look_for_objects_to_swap (); /* check for LPC object reset() */
-  call_out (); /* check for LPC call_out() */
+  if (MAIN_OPTION(timer_flags) & TIMER_FLAG_RESET)
+    look_for_objects_to_swap (); /* check for LPC object reset() */
+  if (MAIN_OPTION(timer_flags) & TIMER_FLAG_CALLOUT)
+    call_out (); /* check for LPC call_out() */
 }
 
 int query_heart_beat (object_t * ob) {
