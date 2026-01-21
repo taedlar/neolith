@@ -247,6 +247,27 @@ while (running) {
 }
 ```
 
+**CRITICAL CONSTRAINT: No Double Polling**
+
+`async_runtime_wait()` **MUST** be called from a single thread only (the main/backend thread). Violating this requirement causes undefined behavior:
+
+❌ **NEVER DO THIS**:
+- Call `async_runtime_wait()` from multiple threads simultaneously
+- Call `async_runtime_wait()` again while a previous call is still blocked
+- Call `async_runtime_wait()` from worker threads
+
+**Why This Restriction Exists**:
+1. **Event Correlation**: Completion keys and context pointers assume single consumer
+2. **Platform Semantics**:
+   - Windows IOCP: `GetQueuedCompletionStatus()` delivers each event to exactly one thread
+   - Linux epoll: Edge-triggered events may be lost with multiple waiters
+   - Event ordering guarantees break with concurrent consumers
+3. **Driver Architecture**: Neolith's backend is single-threaded by design; all LPC execution happens on main thread
+
+**Current Usage**: The driver calls `async_runtime_wait()` exclusively from `do_comm_polling()` in [src/comm.c](../../src/comm.c), which is invoked only from the main event loop in [src/backend.c](../../src/backend.c). This ensures the constraint is satisfied.
+
+**Worker Threads**: Workers call `async_runtime_post_completion()` to **deliver** events to the main thread, but they never call `async_runtime_wait()` to **consume** events.
+
 ---
 
 ## Use Case Integration Patterns

@@ -180,6 +180,16 @@ int async_runtime_wakeup(async_runtime_t* runtime);
  * - io_event_t.context = listening socket's context
  * - Caller must call accept() to get new connection
  * 
+ * CRITICAL: This function MUST be called from a single thread only (the main thread).
+ * Double polling (calling from multiple threads or calling again while a previous
+ * call is still blocked) will cause undefined behavior:
+ * - Windows IOCP: Events may be delivered to wrong thread or lost
+ * - Linux epoll: Spurious wakeups and event duplication
+ * - Event correlation breaks (completion_key may mismatch context)
+ * 
+ * The driver backend calls this via do_comm_polling() in the main event loop.
+ * Never call this function from worker threads or multiple locations.
+ * 
  * @param runtime Runtime instance
  * @param events Array to store returned events
  * @param max_events Maximum number of events to return
