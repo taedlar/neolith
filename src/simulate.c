@@ -2636,6 +2636,10 @@ void do_shutdown () {
       deinit_strings();
       deinit_config();
     }
+
+#ifdef WINSOCK
+  WSACleanup(); /* for graceful shutdown */
+#endif
   exit (g_exit_code);
 }
 

@@ -346,10 +346,6 @@ void backend () {
   pop_context (&econ);
 
   timer_port_cleanup(&heartbeat_timer);
-
-#ifdef WINSOCK
-  WSACleanup(); /* for graceful shutdown */
-#endif
 }
 
 /**
