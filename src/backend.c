@@ -270,7 +270,15 @@ void backend () {
           if (MAIN_OPTION(pedantic))
             {
               object_t *ob, *next_ob;
-              debug_message ("{}\tperforming pedantic cleanup before shutdown.");
+              debug_message ("{}\tdisconnecting all users\n");
+              for (i = 0; i < max_users; i++)
+                {
+                  if (all_users[i] && all_users[i]->ob != master_ob)
+                    {
+                      remove_interactive (all_users[i]->ob, 0);
+                    }
+                }
+              debug_message ("{}\tdestructing all objects\n");
               current_object = master_ob;
               for (ob = obj_list; ob; ob = next_ob)
                 {

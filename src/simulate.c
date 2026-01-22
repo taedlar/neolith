@@ -923,7 +923,7 @@ void reset_destruct_object_limits() {
   restrict_destruct = NULL;
 }
 
-/*
+/**
  * Remove an object. It is first moved into the destruct list, and
  * not really destructed until later. (see destruct2()).
  */
@@ -2638,11 +2638,9 @@ void do_shutdown () {
 
   if (MAIN_OPTION(pedantic))
     {
-      /* FIXME: Maybe we need to destruct all objects, followed by master and simul_efun
-       * objects here.  For now, we just tear down various subsystems.
-       */
-      debug_message ("{}\ttearing down subsystems");
+      debug_message ("{}\ttearing down world simulation");
       tear_down_simulate();
+      debug_message ("{}\tdeinitializing all subsystems");
       deinit_lpc_compiler();
       deinit_strings();
       deinit_config();
