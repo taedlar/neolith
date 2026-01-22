@@ -896,7 +896,12 @@ f_shadow (void)
 void
 f_shutdown (void)
 {
-  do_shutdown (st_num_arg ? sp->u.number : (*++sp = const0, 0));
+  /* set exit code. return the argument or zero if no argument */
+  if (st_num_arg)
+    g_exit_code = (int)(st_num_arg ? sp->u.number : (*++sp = const0, 0));
+
+  /* initiate shutdown (ends backend loop) */
+  g_proceeding_shutdown++;
 }
 #endif
 

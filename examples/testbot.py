@@ -133,16 +133,10 @@ def test_console_mode():
         
         # Wait for process to exit
         child.expect(pexpect.EOF, timeout=5)
-        
+        # captured output until last expect() in child.before
         print("-" * 60)
-        
-        # Display all captured output
-        print("\nFull output:")
-        print(child.before)
-        
-        print("-" * 60)
-        
-        # Wait for child to fully exit
+
+        # Wait for child process to fully exit
         child.wait()
         exit_code = child.exitstatus
         

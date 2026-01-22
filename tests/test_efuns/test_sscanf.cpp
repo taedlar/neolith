@@ -9,7 +9,7 @@ extern "C" {
 }
 
 TEST_F(EfunsTest, sscanfBasic) {
-    svalue_t *fp = sp + 1; // frame pointer
+    svalue_t *framep = sp + 1; // frame pointer
 
     // mock pc to indicate number of lvalue args
     unsigned char number_of_args = 3;
@@ -23,10 +23,10 @@ TEST_F(EfunsTest, sscanfBasic) {
     // after calling f_sscanf, stack looks like:
     // [number of assignments][arg3][arg2][arg1] <-- sp
 
-    ASSERT_EQ(fp->type, T_NUMBER);
-    ASSERT_EQ(fp->u.number, 3); // number of assignments
+    ASSERT_EQ(framep->type, T_NUMBER);
+    ASSERT_EQ(framep->u.number, 3); // number of assignments
 
-    svalue_t *arg = fp + 1;
+    svalue_t *arg = framep + 1;
     ASSERT_EQ(arg->type, T_REAL);
     ASSERT_DOUBLE_EQ(arg->u.real, 45.67);
 

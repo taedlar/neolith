@@ -87,18 +87,18 @@ extern char *make_shared_string(const char *);
 extern char *ref_string(char *);
 extern void free_string(char *);
 extern void deallocate_string(char *);
-extern int add_string_status(outbuffer_t *, int);
-extern char *extend_string(char *, int);
+extern size_t add_string_status(outbuffer_t *, int);
+extern char *extend_string(char *, size_t);
 
 #ifdef STRING_STATS
 extern int num_distinct_strings;
-extern int bytes_distinct_strings;
+extern size_t bytes_distinct_strings;
 extern int allocd_strings;
-extern int allocd_bytes;
-extern int overhead_bytes;
+extern size_t allocd_bytes;
+extern size_t overhead_bytes;
 #endif
 
 extern char *int_string_copy(const char *);
 extern char *int_string_unlink(char *);
-extern char *int_new_string(int);
+extern char *int_new_string(size_t);
 extern char *int_alloc_cstring(const char *);

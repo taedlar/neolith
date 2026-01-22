@@ -188,7 +188,7 @@ f_find_living (void)
 void
 f_add_action (void)
 {
-  int flag;
+  uint64_t flag;
 
   if (st_num_arg == 3)
     {

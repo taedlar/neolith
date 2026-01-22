@@ -49,9 +49,9 @@ struct object_s {
     char *name;
     struct object_s *next_hash;
     /* the fields above must match lpc_object_t */
-    int load_time;		/* time when this object was created */
-    int next_reset;		/* Time of next reset of this object */
-    int time_of_ref;		/* Time when last referenced. Used by swap */
+    time_t load_time;		/* time when this object was created */
+    time_t next_reset;		/* time of next reset of this object */
+    time_t time_of_ref;		/* time when last referenced. Used by swap */
     program_t *prog;
     struct object_s *next_all;
     struct object_s *next_inv;

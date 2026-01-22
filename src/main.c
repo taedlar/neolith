@@ -57,7 +57,6 @@ static RETSIGTYPE sig_bus (int sig);
 
 int main (int argc, char **argv) {
 
-  int exit_code = EXIT_SUCCESS;
   char* locale = NULL;
   error_context_t econ;
 
@@ -89,7 +88,7 @@ int main (int argc, char **argv) {
 
   /* Change working directory to MudLibDir */
   debug_message ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
-  if (-1 == chdir (CONFIG_STR (__MUD_LIB_DIR__)))
+  if (-1 == CHDIR (CONFIG_STR (__MUD_LIB_DIR__)))
     {
       debug_perror ("chdir", CONFIG_STR (__MUD_LIB_DIR__));
       debug_fatal ("Cannot change working directory to MudLibDir.\n");
@@ -157,7 +156,7 @@ int main (int argc, char **argv) {
 
   /* Run the infinite backend loop */
   debug_message ("{}\t----- entering MUD -----");
-  backend (&exit_code);
+  backend ();
 
   /* NOTE: We do not do active tear down of the runtime environment when running as
    * a long-lived server process. It is not pratical to require the mudlib to destruct
@@ -173,9 +172,7 @@ int main (int argc, char **argv) {
    * is no memory leak. The graceful tear down code can be found in various unit-testing
    * code under the tests/ directory.
    */
-  do_shutdown (exit_code);
-
-  return exit_code;
+  do_shutdown ();
 }
 
 
@@ -422,9 +419,5 @@ sig_hup (int sig)
 {
   (void)sig; /* unused */
   debug_message ("SIGHUP received, reconfiguration not implemented.\n");
-
-#if 0
-  g_proceeding_shutdown = 1;
-#endif
 }
 #endif /* ! _WIN32 */

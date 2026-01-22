@@ -15,6 +15,7 @@
 #include "interpret.h"
 #include "backend.h"
 #include "comm.h"
+#include "simul_efun.h"
 #include "efuns/call_out.h"
 #include "port/timer_port.h"
 #include "async/async_runtime.h"
@@ -197,7 +198,7 @@ void init_console_user(int reconnect) {
 
 /** @brief The main backend loop.
  */
-void backend (int* exit_code) {
+void backend () {
 
   struct timeval timeout;
   int nb;
@@ -264,21 +265,45 @@ void backend (int* exit_code) {
       current_interactive = 0;
       eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
 
-      /* Performs housekeeping tasks and garbage collection */
-      remove_destructed_objects ();
-
       if (g_proceeding_shutdown)
         {
-          do_shutdown (0);
+          if (MAIN_OPTION(pedantic))
+            {
+              object_t *ob, *next_ob;
+              debug_message ("{}\tdisconnecting all users\n");
+              for (i = 0; i < max_users; i++)
+                {
+                  if (all_users[i] && all_users[i]->ob != master_ob)
+                    {
+                      remove_interactive (all_users[i]->ob, 0);
+                    }
+                }
+              debug_message ("{}\tdestructing all objects\n");
+              current_object = master_ob;
+              for (ob = obj_list; ob; ob = next_ob)
+                {
+                  next_ob = ob->next_all;
+                  if (ob == master_ob || ob == simul_efun_ob)
+                    continue;
+                  if (next_ob->flags & O_DESTRUCTED)
+                    next_ob = obj_list; /* restart if next_ob is being destructed */
+                  destruct_object (ob);
+                }
+              /* master_ob and simul_efun_ob can only be destructed in tear_down_simulate(), which
+               * is called after backend() returns.
+               */
+            }
           break;
         }
 
-      if (slow_shut_down_to_do)
-        {
-          int tmp = slow_shut_down_to_do;
+      /* Performs housekeeping tasks and garbage collection */
+      remove_destructed_objects ();
 
-          slow_shut_down_to_do = 0;
-          slow_shut_down (tmp);
+      if (slow_shutdown_to_do)
+        {
+          int tmp = slow_shutdown_to_do;
+          slow_shutdown_to_do = 0;
+          do_slow_shutdown (tmp);
         }
 
       /*
@@ -350,10 +375,6 @@ void backend (int* exit_code) {
   pop_context (&econ);
 
   timer_port_cleanup(&heartbeat_timer);
-
-#ifdef WINSOCK
-  WSACleanup(); /* for graceful shutdown */
-#endif
 }
 
 /**

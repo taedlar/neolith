@@ -9,15 +9,21 @@
 #include <time.h>
 
 #ifdef _WIN32
-#define STDIN_FILENO _fileno(stdin)
-#define STDOUT_FILENO _fileno(stdout)
-#define FILE_OPEN _open
-#define FILE_CLOSE _close
-#include <direct.h>
-#define chdir    _chdir
+    #define STDIN_FILENO _fileno(stdin)
+    #define STDOUT_FILENO _fileno(stdout)
+    #include <io.h>
+    #define FILE_OPEN   _open
+    #define FILE_CLOSE  _close
+    #define FILE_READ   _read
+    #define FILE_WRITE  _write
+    #include <direct.h>
+    #define CHDIR    _chdir
 #else   /* !_WIN32 */
-#define FILE_OPEN open
-#define FILE_CLOSE close
+    #define FILE_OPEN   open
+    #define FILE_CLOSE  close
+    #define FILE_READ   read
+    #define FILE_WRITE  write
+    #define CHDIR       chdir
 #endif  /* !_WIN32 */
 
 #ifdef	HAVE_UNISTD_H
@@ -62,17 +68,17 @@
 #include "port/debug.h"
 
 typedef struct {
-    int real_size;
+    size_t real_size;
     char *buffer;
 } outbuffer_t;
 
 void outbuf_zero(outbuffer_t *);
-void outbuf_add(outbuffer_t *, char *);
+void outbuf_add(outbuffer_t *, const char *);
 void outbuf_addchar(outbuffer_t *, char);
-void outbuf_addv(outbuffer_t *, char *, ...);
+void outbuf_addv(outbuffer_t *, const char *, ...);
 void outbuf_fix(outbuffer_t *);
 void outbuf_push(outbuffer_t *);
-int outbuf_extend(outbuffer_t *, int);
+size_t outbuf_extend(outbuffer_t *, size_t);
 
 #ifndef NO_OPCODES
 #include "efuns_opcode.h"

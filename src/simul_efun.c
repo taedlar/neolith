@@ -33,32 +33,36 @@
  */
 
 int simul_efun_is_loading = 0;
+
 simul_info_t *simuls = 0;
 object_t *simul_efun_ob;
 
+/**
+ * Entry in the simuls_sorted table.
+ */
 typedef struct simul_entry_s {
   char *name;
-  short index; /* index in the simuls table */
-} simul_entry;
+  int index; /* index in the simuls table */
+} simul_entry_t;
 
-static simul_entry *simul_names = 0;
-static int num_simul_efun = 0; /* number of entries in simul_names and simuls */
+static simul_entry_t *simuls_sorted = 0; /* The binary search table of simul_efun names */
 
-static void find_or_add_simul_efun (program_t *, int, int);
+static size_t num_simuls = 0; /* Number of entries in simul_efun tables (simuls and simuls_sorted). */
+
+/* forward declarations */
+
+static void find_or_add_simul_efun (program_t*, function_number_t, function_index_t);
 static void remove_simuls (void);
+static void get_simul_efuns (program_t* prog);
 
-/*
- * If there is a simul_efun file, then take care of it and extract all
- * information we need.
- */
-void
-init_simul_efun (const char *file)
-{
+
+void init_simul_efun (const char *file) {
+
   object_t *new_ob;
 
   if ((NULL == file) || ('\0' == *file))
     {
-      debug_warn ("no simul_efun file");
+      opt_warn (1, "no simul_efun file");
       return;
     }
 
@@ -80,62 +84,69 @@ static void remove_simuls () {
   int i;
   ident_hash_elem_t *ihe;
   /* inactivate all old simul_efuns */
-  for (i = 0; i < num_simul_efun; i++)
+  for (i = 0; i < num_simuls; i++)
     {
       simuls[i].index = 0;
       simuls[i].func = 0;
     }
-  for (i = 0; i < num_simul_efun; i++)
+  for (i = 0; i < num_simuls; i++)
     {
-      if ((ihe = lookup_ident (simul_names[i].name)))
+      if ((ihe = lookup_ident (simuls_sorted[i].name)))
         {
+          opt_trace (TT_SIMUL_EFUN|3, "removing simul efun #%d: %s", i, simuls_sorted[i].name);
           if (ihe->dn.simul_num != -1)
             ihe->sem_value--;
           ihe->dn.simul_num = -1;
           ihe->token &= ~IHE_SIMUL;
-          free_string (simul_names[i].name); /* ref by find_or_add_simul_efun */
+          free_string (simuls_sorted[i].name); /* reference added by find_or_add_simul_efun() */
         }
     }
 }
 
-static void
-get_simul_efuns (program_t * prog)
-{
-  int i;
-  int num_new = prog ? prog->num_functions_total : 0;
+/**
+ * Add all functions in 'prog' as simul_efuns.
+ * If 'prog' is NULL, remove all simul_efuns.
+ * @param prog The new program containing the simul_efuns to add.
+ */
+static void get_simul_efuns (program_t* prog) {
 
-  if (num_simul_efun)
+  function_index_t i;
+  size_t num_new = prog ? prog->num_functions_total : 0; /* total number of functions in prog, including inherited */
+
+  if (num_simuls)
     {
       remove_simuls ();
       if (!num_new)
         {
           opt_trace (TT_SIMUL_EFUN|2, "no new simul_efuns, removing all");
-          FREE (simul_names);
-          simul_names = 0;
+          FREE (simuls_sorted);
+          simuls_sorted = 0;
           FREE (simuls);
           simuls = 0;
-          num_simul_efun = 0;
+          num_simuls = 0;
           return;
         }
       else
         {
           /* will be resized later */
-          simul_names = RESIZE (simul_names, num_simul_efun + num_new, simul_entry, TAG_SIMULS, "get_simul_efuns");
-          simuls = RESIZE (simuls, num_simul_efun + num_new, simul_info_t, TAG_SIMULS, "get_simul_efuns: 2");
+          simuls_sorted = RESIZE (simuls_sorted, num_simuls + num_new, simul_entry_t, TAG_SIMULS, "get_simul_efuns");
+          simuls = RESIZE (simuls, num_simuls + num_new, simul_info_t, TAG_SIMULS, "get_simul_efuns: 2");
         }
     }
   else
     {
       if (num_new)
         {
-          simul_names = CALLOCATE (num_new, simul_entry, TAG_SIMULS, "get_simul_efuns");
+          simuls_sorted = CALLOCATE (num_new, simul_entry_t, TAG_SIMULS, "get_simul_efuns");
           simuls = CALLOCATE (num_new, simul_info_t, TAG_SIMULS, "get_simul_efuns: 2");
         }
     }
+
+  /* examine the functions in the new program */
   for (i = 0; i < num_new; i++)
     {
       program_t *nprog;
-      int index;
+      function_index_t index;
       runtime_function_u *func_entry;
 
       if (prog->function_flags[i] & (NAME_NO_CODE | NAME_STATIC | NAME_PRIVATE))
@@ -154,29 +165,25 @@ get_simul_efuns (program_t * prog)
       find_or_add_simul_efun (nprog, func_entry->def.f_index, i);
     }
 
-  if (num_simul_efun)
+  if (num_simuls)
     {
       /* shrink to fit */
-      simul_names = RESIZE (simul_names, num_simul_efun, simul_entry, TAG_SIMULS, "get_simul_efuns");
-      simuls = RESIZE (simuls, num_simul_efun, simul_info_t, TAG_SIMULS, "get_simul_efuns");
+      simuls_sorted = RESIZE (simuls_sorted, num_simuls, simul_entry_t, TAG_SIMULS, "get_simul_efuns");
+      simuls = RESIZE (simuls, num_simuls, simul_info_t, TAG_SIMULS, "get_simul_efuns");
     }
 }
 
 #define compare_addrs(x,y) (x < y ? -1 : (x > y ? 1 : 0))
 
-/*
- * Test if 'name' is a simul_efun. The string pointer MUST be a pointer to
- * a shared string.
- */
 int find_simul_efun (const char *name) {
   int first = 0;
-  int last = num_simul_efun - 1;
+  int last = (int)num_simuls - 1;
   int i, j;
 
   while (first <= last)
     {
       j = (first + last) / 2; /* binary search */
-      i = compare_addrs (name, simul_names[j].name);
+      i = compare_addrs (name, simuls_sorted[j].name);
       if (i == -1)
         {
           last = j - 1;
@@ -186,31 +193,33 @@ int find_simul_efun (const char *name) {
           first = j + 1;
         }
       else
-        return simul_names[j].index;
+        return simuls_sorted[j].index;
     }
   return -1;
 }
 
-/*
- * Define a new simul_efun
+/**
+ * Find or add a simul_efun function.
+ * @param prog The program containing the function.
+ * @param index The function number in prog's function_table.
+ * @param runtime_index The function index in prog's runtime function table.
  */
-static void find_or_add_simul_efun (program_t * prog, int index, int runtime_index) {
+static void find_or_add_simul_efun (program_t* prog, function_number_t index, function_index_t runtime_index) {
 
   ident_hash_elem_t *ihe;
   int first = 0;
-  int last = num_simul_efun - 1;
+  int last = (int)num_simuls - 1;
   int i, j;
   compiler_function_t *funp = &prog->function_table[index];
 
-  /* funp->name is a shared string but can be considered permanent as long as the
-   * object (simul_efun_on) is loaded. 
+  /* funp->name is a shared string but can be considered permanent as long as
+   * the simul_efun_ob is loaded. 
    */
-  opt_trace (TT_SIMUL_EFUN, "%s: runtime_index=%d", funp->name, runtime_index);
 
-  while (first <= last) /* binary search in simul_names */
+  while (first <= last) /* binary search on address of name in simuls_sorted */
     {
       j = (first + last) / 2;
-      i = compare_addrs (funp->name, simul_names[j].name);
+      i = compare_addrs (funp->name, simuls_sorted[j].name);
       if (i == -1)
         {
           last = j - 1;
@@ -219,75 +228,94 @@ static void find_or_add_simul_efun (program_t * prog, int index, int runtime_ind
         {
           first = j + 1;
         }
-      else /* found: funp->name == simul_names[j].name */
+      else /* found: funp->name == simuls_sorted[j].name */
         {
-          ihe = find_or_add_perm_ident (simul_names[j].name);
+          /* An identifier of the same already exists:
+           * In grammar.y, the rule L_DEFINED_NAME '(' expr_list ')' parses in below order:
+           * 1. If its a locally defined function (including inherited), use that.
+           * 2. Else if its a simul_efun function, use that.
+           * 3. Else if its an efun, use that.
+           * 4. Else, handle forward declaration or error.
+           */
+          ihe = find_or_add_perm_ident (simuls_sorted[j].name);
+          DEBUG_CHECK1 (ihe != NULL,
+                        "find_or_add_perm_ident() returned NULL for simul_efun '%s'\n",
+                        simuls_sorted[j].name);
           ihe->token |= IHE_SIMUL;
           ihe->sem_value++;
-          ihe->dn.simul_num = simul_names[j].index;
-          simuls[simul_names[j].index].index = runtime_index;
-          simuls[simul_names[j].index].func = funp;
+          ihe->dn.simul_num = (short)simuls_sorted[j].index;
+          simuls[simuls_sorted[j].index].index = runtime_index;
+          simuls[simuls_sorted[j].index].func = funp;
+          opt_trace (TT_SIMUL_EFUN|2, "promoted as simul_efun #%d: %s", simuls_sorted[j].index, funp->name);
           return;
         }
     }
-  for (i = num_simul_efun - 1; i > last; i--)
-    simul_names[i + 1] = simul_names[i];
-  simuls[num_simul_efun].index = runtime_index;
-  simuls[num_simul_efun].func = funp;
-  simul_names[first].name = funp->name;
-  simul_names[first].index = num_simul_efun;
+  /* not found, append new entry in simuls and insert to simuls_sorted at position 'first' */
+  for (i = (int)num_simuls - 1; i > last; i--)
+    simuls_sorted[i + 1] = simuls_sorted[i];
+  simuls[num_simuls].index = runtime_index;
+  simuls[num_simuls].func = funp;
+  simuls_sorted[first].name = funp->name;
+  simuls_sorted[first].index = (int)num_simuls;
+  opt_trace (TT_SIMUL_EFUN|2, "added simul_efun #%d: %s", simuls_sorted[first].index, funp->name);
+  /* update identifier hash, so LPC compiler don't have to call find_simul_efun() */
   ihe = find_or_add_perm_ident (funp->name);
+  DEBUG_CHECK1 (ihe != NULL,
+                "find_or_add_perm_ident() returned NULL for simul_efun '%s'\n",
+                funp->name);
   ihe->token |= IHE_SIMUL;
   ihe->sem_value++;
-  ihe->dn.simul_num = num_simul_efun++;
-  ref_string (funp->name);
+  ihe->dn.simul_num = (short)num_simuls++; /* new simul_efun */
+  ref_string (funp->name); /* will be freed in remove_simuls() */
 }
 
-void
-set_simul_efun (object_t * ob)
-{
-  get_simul_efuns (ob->prog);
+void set_simul_efun (object_t* ob) {
 
+  if (!ob || ob->flags & O_DESTRUCTED)
+    error ("Bad simul_efun object\n");
+
+  get_simul_efuns (ob->prog);
   simul_efun_ob = ob;
   add_ref (simul_efun_ob, "set_simul_efun");
 }
 
 void unset_simul_efun () {
-  get_simul_efuns (NULL);
+
+  get_simul_efuns (NULL); /* remove all simul_efuns */
   if (simul_efun_ob) {
     free_object (simul_efun_ob, "unset_simul_efun");
     simul_efun_ob = NULL;
   }
 }
 
-void call_simul_efun (unsigned short index, int num_arg)
+void call_simul_efun (int simul_num, int num_args)
 {
-  compiler_function_t *funp;
-
-  opt_trace (TT_SIMUL_EFUN|2, "index %d, num_arg %d", index, num_arg);
+  if (simul_num < 0 || simul_num >= (int)num_simuls)
+    error ("Bad simul_num %d\n", simul_num);
 
   if (current_object->flags & O_DESTRUCTED)
     {				/* No external calls allowed */
-      opt_trace (TT_SIMUL_EFUN|1, "simul_efun_on destructed: returning undefined");
-      pop_n_elems (num_arg);
+      opt_trace (TT_SIMUL_EFUN|3, "current_object was destructed, returning undefined");
+      pop_n_elems (num_args);
       push_undefined ();
       return;
     }
 
-  if (simuls[index].func)
+  if (simuls[simul_num].func)
     {
       /* Don't need to use apply() since we have the pointer directly;
        * this saves function lookup.
        */
+      compiler_function_t *funp;
       simul_efun_ob->time_of_ref = current_time;
       push_control_stack (FRAME_FUNCTION | FRAME_OB_CHANGE);
       caller_type = ORIGIN_SIMUL_EFUN;
-      csp->num_local_variables = num_arg;
+      csp->num_local_variables = num_args;
       current_prog = simul_efun_ob->prog;
-      funp = setup_new_frame (simuls[index].index);
+      funp = setup_new_frame (simuls[simul_num].index);
       previous_ob = current_object;
       current_object = simul_efun_ob;
-      opt_trace (TT_SIMUL_EFUN, "func: \"%s\" num_arg=%d", funp->name, num_arg);
+      opt_trace (TT_SIMUL_EFUN|2, "simul_num #%d: %s (num_args=%d)", simul_num, funp->name, num_args);
       call_program (current_prog, funp->address);
     }
   else

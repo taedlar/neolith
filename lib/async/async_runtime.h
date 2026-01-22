@@ -57,7 +57,7 @@ typedef struct {
     uintptr_t completion_key;    /**< User-defined key for completion correlation */
     uint32_t event_type;         /**< Bitmask of EVENT_* flags */
     void* context;               /**< User context pointer */
-    int bytes_transferred;       /**< Bytes transferred (completion-based I/O) */
+    size_t bytes_transferred;       /**< Bytes transferred (completion-based I/O) */
     void* buffer;                /**< Buffer associated with I/O operation */
 } io_event_t;
 

@@ -11,7 +11,7 @@
 void
 f_test_bit (void)
 {
-  int ind = (sp--)->u.number;
+  int ind = (int)(sp--)->u.number;
 
   if (ind / 6 >= (int)SVALUE_STRLEN (sp))
     {
@@ -39,11 +39,11 @@ f_test_bit (void)
 void
 f_next_bit (void)
 {
-  int start = (sp--)->u.number;
-  int len = SVALUE_STRLEN (sp);
+  int start = (int)(sp--)->u.number;
+  size_t len = SVALUE_STRLEN (sp);
   int which, bit = 0, value;
 
-  if (!len || start / 6 >= len)
+  if (!len || start / 6 >= (int)len)
     {
       free_string_svalue (sp);
       put_number (-1);
@@ -97,7 +97,7 @@ f_next_bit (void)
             }
         }
       which++;
-      if (which == len)
+      if (which == (int)len)
         {
           bit = -1;
           break;
@@ -116,18 +116,19 @@ void
 f_clear_bit (void)
 {
   char *str;
-  int len, ind, bit;
+  size_t len;
+  int ind, bit;
 
   if (sp->u.number > CONFIG_INT (__MAX_BITFIELD_BITS__))
     error ("clear_bit() bit requested : %d > maximum bits: %d\n",
            sp->u.number, CONFIG_INT (__MAX_BITFIELD_BITS__));
-  bit = (sp--)->u.number;
+  bit = (int) (sp--)->u.number;
   if (bit < 0)
     error ("Bad argument 2 (negative) to clear_bit().\n");
   ind = bit / 6;
   bit %= 6;
   len = SVALUE_STRLEN (sp);
-  if (ind >= len)
+  if (ind >= (int)len)
     return;			/* return first arg unmodified */
   unlink_string_svalue (sp);
   str = sp->u.string;
@@ -144,20 +145,21 @@ void
 f_set_bit (void)
 {
   char *str;
-  int len, old_len, ind, bit;
+  size_t len, old_len;
+  int ind, bit;
 
   if (sp->u.number > CONFIG_INT (__MAX_BITFIELD_BITS__))
     error ("set_bit() bit requested: %d > maximum bits: %d\n", sp->u.number,
            CONFIG_INT (__MAX_BITFIELD_BITS__));
-  bit = (sp--)->u.number;
+  bit = (int) (sp--)->u.number;
   if (bit < 0)
     error ("Bad argument 2 (negative) to set_bit().\n");
   ind = bit / 6;
   bit %= 6;
   old_len = len = SVALUE_STRLEN (sp);
-  if (ind >= len)
+  if (ind >= (int)len)
     len = ind + 1;
-  if (ind < old_len)
+  if (ind < (int)old_len)
     {
       unlink_string_svalue (sp);
       str = sp->u.string;

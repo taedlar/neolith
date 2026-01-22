@@ -75,9 +75,8 @@ static void remove_fake_frame () {
  * if we simply pushed the args from vec at this point.  (Note that the
  * old function pointers are broken in this regard)
  */
-int
-merge_arg_lists (int num_arg, array_t * arr, int start)
-{
+int merge_arg_lists (int num_arg, array_t * arr, int start) {
+
   int num_arr_arg = arr->size - start;
   svalue_t *sptr;
 
@@ -97,7 +96,7 @@ merge_arg_lists (int num_arg, array_t * arr, int start)
       while (--num_arg >= start)
         assign_svalue_no_free (sptr--, &arr->item[num_arg]);
       /* could just return num_arr_arg if num_arg is 0 but .... -Sym */
-      return (sp - sptr);
+      return (int) (sp - sptr);
     }
   return num_arg;
 }

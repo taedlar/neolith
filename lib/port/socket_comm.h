@@ -7,8 +7,8 @@
 #define WINSOCK
 typedef SOCKET socket_fd_t;
 #define INVALID_SOCKET_FD           INVALID_SOCKET
-#define SOCKET_RECV(s, b, l, f)     recv(s, b, l, f)
-#define SOCKET_SEND(s, b, l, f)     send(s, b, l, f)
+#define SOCKET_RECV(s, b, l, f)     recv(s, b, (int)(l), f)
+#define SOCKET_SEND(s, b, l, f)     send(s, b, (int)(l), f)
 #define SOCKET_CLOSE(s)             closesocket(s)
 #define SOCKET_ERRNO                WSAGetLastError()
 /* SOCKET_ERROR defined in winsock2.h */

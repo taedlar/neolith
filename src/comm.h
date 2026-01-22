@@ -52,8 +52,8 @@ typedef struct interactive_s {
 #endif
     char *prompt;               /* prompt string for interactive object    */
     char text[MAX_TEXT];        /* input buffer for interactive object     */
-    int text_end;               /* first free char in buffer               */
-    int text_start;             /* where we are up to in user command buffer */
+    ptrdiff_t text_end;               /* first free char in buffer               */
+    ptrdiff_t text_start;             /* where we are up to in user command buffer */
     struct interactive_s *snoop_on;
     struct interactive_s *snoop_by;
     time_t last_time;           /* time of last command executed           */
@@ -89,6 +89,20 @@ extern interactive_t **all_users;
 extern int max_users;
 
 void new_interactive(socket_fd_t socket_fd);
+
+/**
+ * Poll for events from asynchronous events at runtime.
+ * 
+ * In Neolith, these events includes:
+ * - New incoming connections on listening sockets.
+ * - Data available to read from interactive user sockets.
+ * - Write readiness notifications for interactive user sockets.
+ * - Completed console input lines from console worker.
+ * - Completed async worker tasks (future use).
+ * .
+ * @param timeout Timeout value for polling.
+ * @returns Number of events occurred, or 0 on timeout, or -1 on error.
+ */
 int do_comm_polling(struct timeval* timeout);
 
 void add_vmessage(object_t *, char *, ...);

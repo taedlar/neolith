@@ -68,7 +68,13 @@ static inline void safe_tcsetattr(int fd, struct termios *tio) {
 #define VALIDATE_IP(ip, ob) if (!IP_VALID(ip, ob)) goto failure
 
 #define UCHAR	unsigned char
-#define SCHAR	char
+#ifdef __GNUC__
+/* casting integer to char: standard conforming */
+#define INT_CHAR(x)	((char)x)
+#else
+/* casting integer to char: MSVC requires straight casting */
+#define INT_CHAR(x)	(x)
+#endif
 
 int total_users = 0;
 
@@ -309,13 +315,14 @@ void ipc_remove () {
 
   int i;
 
+  /* close all external ports */
   for (i = 0; i < 5; i++)
     {
       if (!external_port[i].port)
         continue;
       debug_message ("{}\tclosing service on TCP port %d\n", external_port[i].port);
-      if (SOCKET_CLOSE (external_port[i].fd) == -1)
-        debug_perror ("ipc_remove: close", 0);
+      if (SOCKET_CLOSE (external_port[i].fd) == SOCKET_ERROR)
+        debug_error ("SOCKET_CLOSE() failed: %d", SOCKET_ERRNO);
     }
 
   /* Destroy async runtime */
@@ -344,11 +351,6 @@ void ipc_remove () {
 
 }
 
-/**
- * @brief Poll for communication events.
- * @param timeout Timeout value for polling.
- * @return Number of events occurred, or 0 on timeout, or -1 on error.
- */
 int do_comm_polling (struct timeval *timeout) {
   opt_trace (TT_COMM|3, "calling async_runtime_wait(): timeout %ld sec, %ld usec",
              timeout->tv_sec, timeout->tv_usec);
@@ -560,7 +562,7 @@ int flush_message (interactive_t * ip) {
        * [NEOLITH-EXTENSION] if the fd is STDIN_FILENO, use write to STDOUT_FILENO
        */
       num_bytes = (ip->fd == STDIN_FILENO) ?
-        write (STDOUT_FILENO, ip->message_buf + ip->message_consumer, length) :
+        FILE_WRITE (STDOUT_FILENO, ip->message_buf + ip->message_consumer, length) :
         SOCKET_SEND (ip->fd, ip->message_buf + ip->message_consumer, length, ip->out_of_band);
       if (num_bytes == -1)
         {
@@ -605,23 +607,23 @@ int flush_message (interactive_t * ip) {
 #define TS_SB           6
 #define TS_SB_IAC       7
 
-static char telnet_break_response[] = { 28, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_interrupt_response[] = { 127, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_abort_response[] = { (SCHAR) IAC, (SCHAR) DM, 0 };
-static char telnet_do_tm_response[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_do_sga[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_SGA, 0 };
-static char telnet_will_sga[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_SGA, 0 };
-static char telnet_wont_sga[] = { (SCHAR) IAC, (SCHAR) WONT, TELOPT_SGA, 0 };
-static char telnet_do_naws[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_NAWS, 0 };
-static char telnet_do_ttype[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_TTYPE, 0 };
-static char telnet_do_linemode[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_LINEMODE, 0 };
-static char telnet_term_query[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_TTYPE, TELQUAL_SEND, (SCHAR) IAC, (SCHAR) SE, 0 };
-static char telnet_no_echo[] = { (SCHAR) IAC, (SCHAR) WONT, TELOPT_ECHO, 0 };
-static char telnet_yes_echo[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_ECHO, 0 };
-static char telnet_sb_lm_mode[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_LINEMODE, LM_MODE, MODE_ACK, (SCHAR) IAC, (SCHAR) SE, 0 };
-static char telnet_sb_lm_slc[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_LINEMODE, LM_SLC, 0 };
-static char telnet_se[] = { (SCHAR) IAC, (SCHAR) SE, 0 };
-static char telnet_ga[] = { (SCHAR) IAC, (SCHAR) GA, 0 };
+static char telnet_break_response[] = { 28, INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
+static char telnet_interrupt_response[] = { 127, INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
+static char telnet_abort_response[] = { INT_CHAR(IAC), INT_CHAR(DM), 0 };
+static char telnet_do_tm_response[] = { INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
+static char telnet_do_sga[] = { INT_CHAR(IAC), INT_CHAR(DO), TELOPT_SGA, 0 };
+static char telnet_will_sga[] = { INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_SGA, 0 };
+static char telnet_wont_sga[] = { INT_CHAR(IAC), INT_CHAR(WONT), TELOPT_SGA, 0 };
+static char telnet_do_naws[] = { INT_CHAR(IAC), INT_CHAR(DO), TELOPT_NAWS, 0 };
+static char telnet_do_ttype[] = { INT_CHAR(IAC), INT_CHAR(DO), TELOPT_TTYPE, 0 };
+static char telnet_do_linemode[] = { INT_CHAR(IAC), INT_CHAR(DO), TELOPT_LINEMODE, 0 };
+static char telnet_term_query[] = { INT_CHAR(IAC), INT_CHAR(SB), TELOPT_TTYPE, TELQUAL_SEND, INT_CHAR(IAC), INT_CHAR(SE), 0 };
+static char telnet_no_echo[] = { INT_CHAR(IAC), INT_CHAR(WONT), TELOPT_ECHO, 0 };
+static char telnet_yes_echo[] = { INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_ECHO, 0 };
+static char telnet_sb_lm_mode[] = { INT_CHAR(IAC), INT_CHAR(SB), TELOPT_LINEMODE, LM_MODE, MODE_ACK, INT_CHAR(IAC), INT_CHAR(SE), 0 };
+static char telnet_sb_lm_slc[] = { INT_CHAR(IAC), INT_CHAR(SB), TELOPT_LINEMODE, LM_SLC, 0 };
+static char telnet_se[] = { INT_CHAR(IAC), INT_CHAR(SE), 0 };
+static char telnet_ga[] = { INT_CHAR(IAC), INT_CHAR(GA), 0 };
 
 /**
  * @brief Copy input characters from socket read buffer to the interactive command buffer.
@@ -638,9 +640,9 @@ static char telnet_ga[] = { (SCHAR) IAC, (SCHAR) GA, 0 };
  * @param ip Pointer to interactive structure.
  * @return Number of characters copied.
  */
-static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
+static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* ip) {
 
-  int i;
+  size_t i;
   UCHAR *start = to;
 
   /* a simple state-machine that processes TELNET commands */
@@ -680,7 +682,7 @@ static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
               if (ip->sb_pos >= SB_SIZE)
                 break;
               /* IAC IAC is a quoted IAC char */
-              ip->sb_buf[ip->sb_pos++] = (SCHAR) IAC;
+              ip->sb_buf[ip->sb_pos++] = INT_CHAR(IAC);
               ip->state = TS_SB;
               break;
             }
@@ -1227,19 +1229,19 @@ void process_io () {
         {
           /* LPC socket efun */
           lpc_socket_t *sock = (lpc_socket_t*)evt->context;
-          int sock_index = sock - lpc_socks;
+          ptrdiff_t sock_index = sock - lpc_socks;
           
           if (sock->state == CLOSED)
             continue;
           
           if (evt->event_type & EVENT_READ)
             {
-              socket_read_select_handler (sock_index);
+              socket_read_select_handler ((int)sock_index);
             }
           
           if (sock->state != CLOSED && (evt->event_type & EVENT_WRITE))
             {
-              socket_write_select_handler (sock_index);
+              socket_write_select_handler ((int)sock_index);
             }
         }
 #endif
@@ -1421,6 +1423,7 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
   /* Send initial TELNET negotiation if using telnet protocol */
   if (port->kind == PORT_TELNET)
     {
+      query_addr_name (user_ob);
       add_message (user_ob, telnet_do_ttype);
       add_message (user_ob, telnet_do_naws);
       add_message (user_ob, telnet_do_linemode);
@@ -1737,8 +1740,8 @@ hname_handler ()
 static void get_user_data (interactive_t* ip, io_event_t* evt) {
 
   char buf[MAX_TEXT];
-  int text_space;
-  int num_bytes, err = 0;
+  size_t text_space, num_bytes;
+  int err = 0;
 
   /* Console users should never reach this function - they use completion queue.
    * This assertion validates the architecture invariant. */
@@ -1755,16 +1758,16 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
        * escape sequences. Worst case: every byte could become IAC IAC (2 bytes)
        * plus the null terminator expansion for newlines adds another byte.
        */
-      text_space = (MAX_TEXT - ip->text_end - 1) / 3;
+      text_space = (MAX_TEXT - (int)ip->text_end - 1) / 3;
 
       /* shift out processed text from the buffer */
       if (text_space < MAX_TEXT / 16)
         {
-          int l = ip->text_end - ip->text_start;
+          size_t len = ip->text_end - ip->text_start;
 
-          memmove (ip->text, ip->text + ip->text_start, l + 1);
+          memmove (ip->text, ip->text + ip->text_start, len + 1);
           ip->text_start = 0;
-          ip->text_end = l;
+          ip->text_end = len;
           text_space = (MAX_TEXT - ip->text_end - 1) / 3;
           if (text_space < MAX_TEXT / 16)
             {
@@ -2259,18 +2262,19 @@ void remove_interactive (object_t * ob, int dested) {
       console_type_t console_type = async_runtime_get_console_type(g_runtime);
       if (console_type == CONSOLE_TYPE_PIPE || console_type == CONSOLE_TYPE_FILE) {
         debug_message ("Console input closed (pipe/file) - shutting down\n");
-        do_shutdown(0);
-        return;
+        g_proceeding_shutdown++;
       }
 #else
       if (!isatty(STDIN_FILENO)) {
         debug_message ("Console input closed (pipe/file) - shutting down\n");
-        do_shutdown(0);
-        return;
+        g_proceeding_shutdown++;
       }
 #endif
-      /* Real console - allow reconnection */
-      debug_message ("===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
+      else if (console_type == CONSOLE_TYPE_REAL) {
+        /* Real console - allow reconnection */
+        add_message (ob, "===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
+        flush_message (ip);
+      }
     }
   else
     {
@@ -2611,7 +2615,7 @@ telnet_neg (char *to, char *from)
           to -= 1;
           continue;
         default:
-          *to++ = ch;
+          *to++ = INT_CHAR(ch);
           if (ch == 0)
             return;
         }
@@ -2932,14 +2936,14 @@ set_notify_fail_message (char *str)
 }				/* set_notify_fail_message() */
 
 void
-set_notify_fail_function (funptr_t * fp)
+set_notify_fail_function (funptr_t * funp)
 {
   if (!command_giver || !command_giver->interactive)
     return;
   clear_notify (command_giver->interactive);
   command_giver->interactive->iflags |= NOTIFY_FAIL_FUNC;
-  command_giver->interactive->default_err_message.f = fp;
-  fp->hdr.ref++;
+  command_giver->interactive->default_err_message.f = funp;
+  funp->hdr.ref++;
 }				/* set_notify_fail_message() */
 
 int
@@ -2990,26 +2994,24 @@ outbuf_zero (outbuffer_t * outbuf)
   outbuf->buffer = 0;
 }
 
-int
-outbuf_extend (outbuffer_t * outbuf, int l)
+size_t
+outbuf_extend (outbuffer_t * outbuf, size_t len)
 {
-  int limit;
-
-  DEBUG_CHECK (l < 0, "Negative length passed to outbuf_extend.\n");
+  size_t limit;
 
   if (outbuf->buffer)
     {
       limit = MSTR_SIZE (outbuf->buffer);
-      if (outbuf->real_size + l > limit)
+      if (outbuf->real_size + len > limit)
         {
           if (outbuf->real_size == USHRT_MAX)
             return 0;		/* TRUNCATED */
 
           /* assume it's going to grow some more */
-          limit = (outbuf->real_size + l) * 2;
+          limit = (outbuf->real_size + len) * 2;
           if (limit > USHRT_MAX)
             {
-              limit = outbuf->real_size + l;
+              limit = outbuf->real_size + len;
               if (limit > USHRT_MAX)
                 {
                   outbuf->buffer = extend_string (outbuf->buffer, USHRT_MAX);
@@ -3021,33 +3023,33 @@ outbuf_extend (outbuffer_t * outbuf, int l)
     }
   else
     {
-      outbuf->buffer = new_string (l, "outbuf_add");
+      outbuf->buffer = new_string (len, "outbuf_add");
       outbuf->real_size = 0;
     }
-  return l;
+  return len;
 }
 
 void
-outbuf_add (outbuffer_t * outbuf, char *str)
+outbuf_add (outbuffer_t * outbuf, const char *str)
 {
-  int l, limit;
+  size_t len, limit;
 
   if (!outbuf)
     return;
-  l = strlen (str);
+  len = strlen (str);
   if (outbuf->buffer)
     {
       limit = MSTR_SIZE (outbuf->buffer);
-      if (outbuf->real_size + l > limit)
+      if (outbuf->real_size + len > limit)
         {
           if (outbuf->real_size == USHRT_MAX)
             return;		/* TRUNCATED */
 
           /* assume it's going to grow some more */
-          limit = (outbuf->real_size + l) * 2;
+          limit = (outbuf->real_size + len) * 2;
           if (limit > USHRT_MAX)
             {
-              limit = outbuf->real_size + l;
+              limit = outbuf->real_size + len;
               if (limit > USHRT_MAX)
                 {
                   outbuf->buffer = extend_string (outbuf->buffer, USHRT_MAX);
@@ -3063,17 +3065,17 @@ outbuf_add (outbuffer_t * outbuf, char *str)
     }
   else
     {
-      outbuf->buffer = new_string (l, "outbuf_add");
+      outbuf->buffer = new_string (len, "outbuf_add");
       outbuf->real_size = 0;
     }
   strcpy (outbuf->buffer + outbuf->real_size, str);
-  outbuf->real_size += l;
+  outbuf->real_size += len;
 }
 
 void
 outbuf_addchar (outbuffer_t * outbuf, char c)
 {
-  int limit;
+  size_t limit;
 
   if (!outbuf)
     return;
@@ -3113,7 +3115,7 @@ outbuf_addchar (outbuffer_t * outbuf, char c)
 }
 
 void
-outbuf_addv (outbuffer_t * outbuf, char *format, ...)
+outbuf_addv (outbuffer_t * outbuf, const char *format, ...)
 {
   char buf[LARGEST_PRINTABLE_STRING];
   va_list args;
