@@ -68,7 +68,7 @@ static inline void safe_tcsetattr(int fd, struct termios *tio) {
 #define VALIDATE_IP(ip, ob) if (!IP_VALID(ip, ob)) goto failure
 
 #define UCHAR	unsigned char
-#define SCHAR	char
+#define INT_CHAR(x)	((char)(x))
 
 int total_users = 0;
 
@@ -600,23 +600,23 @@ int flush_message (interactive_t * ip) {
 #define TS_SB           6
 #define TS_SB_IAC       7
 
-static char telnet_break_response[] = { 28, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_interrupt_response[] = { 127, (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_abort_response[] = { (SCHAR) IAC, (SCHAR) DM, 0 };
-static char telnet_do_tm_response[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_TM, 0 };
-static char telnet_do_sga[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_SGA, 0 };
-static char telnet_will_sga[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_SGA, 0 };
-static char telnet_wont_sga[] = { (SCHAR) IAC, (SCHAR) WONT, TELOPT_SGA, 0 };
-static char telnet_do_naws[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_NAWS, 0 };
-static char telnet_do_ttype[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_TTYPE, 0 };
-static char telnet_do_linemode[] = { (SCHAR) IAC, (SCHAR) DO, TELOPT_LINEMODE, 0 };
-static char telnet_term_query[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_TTYPE, TELQUAL_SEND, (SCHAR) IAC, (SCHAR) SE, 0 };
-static char telnet_no_echo[] = { (SCHAR) IAC, (SCHAR) WONT, TELOPT_ECHO, 0 };
-static char telnet_yes_echo[] = { (SCHAR) IAC, (SCHAR) WILL, TELOPT_ECHO, 0 };
-static char telnet_sb_lm_mode[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_LINEMODE, LM_MODE, MODE_ACK, (SCHAR) IAC, (SCHAR) SE, 0 };
-static char telnet_sb_lm_slc[] = { (SCHAR) IAC, (SCHAR) SB, TELOPT_LINEMODE, LM_SLC, 0 };
-static char telnet_se[] = { (SCHAR) IAC, (SCHAR) SE, 0 };
-static char telnet_ga[] = { (SCHAR) IAC, (SCHAR) GA, 0 };
+static char telnet_break_response[] = { 28, INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
+static char telnet_interrupt_response[] = { 127, INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
+static char telnet_abort_response[] = { INT_CHAR(IAC), INT_CHAR(DM), 0 };
+static char telnet_do_tm_response[] = { INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
+static char telnet_do_sga[] = { INT_CHAR(IAC), INT_CHAR(DO), TELOPT_SGA, 0 };
+static char telnet_will_sga[] = { INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_SGA, 0 };
+static char telnet_wont_sga[] = { INT_CHAR(IAC), INT_CHAR(WONT), TELOPT_SGA, 0 };
+static char telnet_do_naws[] = { INT_CHAR(IAC), INT_CHAR(DO), TELOPT_NAWS, 0 };
+static char telnet_do_ttype[] = { INT_CHAR(IAC), INT_CHAR(DO), TELOPT_TTYPE, 0 };
+static char telnet_do_linemode[] = { INT_CHAR(IAC), INT_CHAR(DO), TELOPT_LINEMODE, 0 };
+static char telnet_term_query[] = { INT_CHAR(IAC), INT_CHAR(SB), TELOPT_TTYPE, TELQUAL_SEND, INT_CHAR(IAC), INT_CHAR(SE), 0 };
+static char telnet_no_echo[] = { INT_CHAR(IAC), INT_CHAR(WONT), TELOPT_ECHO, 0 };
+static char telnet_yes_echo[] = { INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_ECHO, 0 };
+static char telnet_sb_lm_mode[] = { INT_CHAR(IAC), INT_CHAR(SB), TELOPT_LINEMODE, LM_MODE, MODE_ACK, INT_CHAR(IAC), INT_CHAR(SE), 0 };
+static char telnet_sb_lm_slc[] = { INT_CHAR(IAC), INT_CHAR(SB), TELOPT_LINEMODE, LM_SLC, 0 };
+static char telnet_se[] = { INT_CHAR(IAC), INT_CHAR(SE), 0 };
+static char telnet_ga[] = { INT_CHAR(IAC), INT_CHAR(GA), 0 };
 
 /**
  * @brief Copy input characters from socket read buffer to the interactive command buffer.
@@ -675,7 +675,7 @@ static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
               if (ip->sb_pos >= SB_SIZE)
                 break;
               /* IAC IAC is a quoted IAC char */
-              ip->sb_buf[ip->sb_pos++] = (SCHAR) IAC;
+              ip->sb_buf[ip->sb_pos++] = INT_CHAR(IAC);
               ip->state = TS_SB;
               break;
             }
