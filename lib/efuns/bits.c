@@ -43,7 +43,7 @@ f_next_bit (void)
   size_t len = SVALUE_STRLEN (sp);
   int which, bit = 0, value;
 
-  if (!len || start / 6 >= len)
+  if (!len || start / 6 >= (int)len)
     {
       free_string_svalue (sp);
       put_number (-1);
@@ -97,7 +97,7 @@ f_next_bit (void)
             }
         }
       which++;
-      if (which == len)
+      if (which == (int)len)
         {
           bit = -1;
           break;
@@ -128,7 +128,7 @@ f_clear_bit (void)
   ind = bit / 6;
   bit %= 6;
   len = SVALUE_STRLEN (sp);
-  if (ind >= len)
+  if (ind >= (int)len)
     return;			/* return first arg unmodified */
   unlink_string_svalue (sp);
   str = sp->u.string;
@@ -157,9 +157,9 @@ f_set_bit (void)
   ind = bit / 6;
   bit %= 6;
   old_len = len = SVALUE_STRLEN (sp);
-  if (ind >= len)
+  if (ind >= (int)len)
     len = ind + 1;
-  if (ind < old_len)
+  if (ind < (int)old_len)
     {
       unlink_string_svalue (sp);
       str = sp->u.string;

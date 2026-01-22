@@ -7,11 +7,12 @@
 main_options_t* g_main_options = NULL;
 
 int g_proceeding_shutdown = 0;
+int g_exit_code = EXIT_SUCCESS;
 
 int comp_flag = 0;		/* Trace compilations */
 time_t boot_time = 0L;
 
-int slow_shut_down_to_do = 0;
+int slow_shutdown_to_do = 0;
 
 int init_stem (int debug_level, unsigned long trace_flags, const char* config_file)
 {

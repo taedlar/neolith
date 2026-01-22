@@ -24,7 +24,7 @@ xalloc (size_t size)
           /* after freeing reserved area, we are supposed to be able to write log messages */
           debug_message ("{}\t***** temporarily out of MEMORY. Freeing reserve.");
           reserved_area = 0;
-          slow_shut_down_to_do = 6;
+          slow_shutdown_to_do = 6;
           return xalloc (size);	/* Try again */
         }
       going_to_exit = 1;

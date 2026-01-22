@@ -205,7 +205,7 @@ mapping_t *allocate_mapping (size_t n) {
   mapping_t *newmap;
   mapping_node_t **a;
 
-  if (n > CONFIG_INT (__MAX_MAPPING_SIZE__))
+  if (n > (size_t)CONFIG_INT (__MAX_MAPPING_SIZE__))
     n = CONFIG_INT (__MAX_MAPPING_SIZE__);
   newmap = ALLOCATE (mapping_t, TAG_MAPPING, "allocate_mapping: 1");
   if (newmap == NULL)

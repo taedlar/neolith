@@ -587,7 +587,7 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
 }				/* end of svalue_to_string() */
 
 static void
-add_pad (pad_info_t * pad, int len)
+add_pad (pad_info_t * pad, size_t len)
 {
   char *p;
   int padlen;
@@ -624,7 +624,7 @@ add_pad (pad_info_t * pad, int len)
 }
 
 static inline void
-add_nstr (char *str, int len)
+add_nstr (char *str, size_t len)
 {
   if (outbuf_extend (&obuff, len) != len)
     ERROR (ERR_BUFF_OVERFLOW);

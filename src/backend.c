@@ -197,7 +197,7 @@ void init_console_user(int reconnect) {
 
 /** @brief The main backend loop.
  */
-void backend (int* exit_code) {
+void backend () {
 
   struct timeval timeout;
   int nb;
@@ -268,17 +268,13 @@ void backend (int* exit_code) {
       remove_destructed_objects ();
 
       if (g_proceeding_shutdown)
-        {
-          do_shutdown (0);
-          break;
-        }
+        break;
 
-      if (slow_shut_down_to_do)
+      if (slow_shutdown_to_do)
         {
-          int tmp = slow_shut_down_to_do;
-
-          slow_shut_down_to_do = 0;
-          slow_shut_down (tmp);
+          int tmp = slow_shutdown_to_do;
+          slow_shutdown_to_do = 0;
+          do_slow_shutdown (tmp);
         }
 
       /*

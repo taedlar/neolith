@@ -84,5 +84,5 @@ extern int get_machine_state();
 void fatal(char *, ...) NO_RETURN;
 int in_fatal_error(void);
 
-void do_shutdown (int);
-void slow_shut_down (int);
+void do_shutdown (void) NO_RETURN;
+void do_slow_shutdown (int);

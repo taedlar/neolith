@@ -641,7 +641,7 @@ static char telnet_ga[] = { INT_CHAR(IAC), INT_CHAR(GA), 0 };
  */
 static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* ip) {
 
-  int i;
+  size_t i;
   UCHAR *start = to;
 
   /* a simple state-machine that processes TELNET commands */
@@ -1422,6 +1422,7 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
   /* Send initial TELNET negotiation if using telnet protocol */
   if (port->kind == PORT_TELNET)
     {
+      query_addr_name (user_ob);
       add_message (user_ob, telnet_do_ttype);
       add_message (user_ob, telnet_do_naws);
       add_message (user_ob, telnet_do_linemode);
@@ -2260,18 +2261,18 @@ void remove_interactive (object_t * ob, int dested) {
       console_type_t console_type = async_runtime_get_console_type(g_runtime);
       if (console_type == CONSOLE_TYPE_PIPE || console_type == CONSOLE_TYPE_FILE) {
         debug_message ("Console input closed (pipe/file) - shutting down\n");
-        do_shutdown(0);
-        return;
+        g_proceeding_shutdown++;
       }
 #else
       if (!isatty(STDIN_FILENO)) {
         debug_message ("Console input closed (pipe/file) - shutting down\n");
-        do_shutdown(0);
-        return;
+        g_proceeding_shutdown++;
       }
 #endif
-      /* Real console - allow reconnection */
-      debug_message ("===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
+      else {
+        /* Real console - allow reconnection */
+        debug_message ("===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
+      }
     }
   else
     {
@@ -2996,7 +2997,6 @@ outbuf_extend (outbuffer_t * outbuf, size_t len)
 {
   size_t limit;
 
-  DEBUG_CHECK (len < 0, "Negative length passed to outbuf_extend.\n");
   if (outbuf->buffer)
     {
       limit = MSTR_SIZE (outbuf->buffer);

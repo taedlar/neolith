@@ -2603,7 +2603,7 @@ fatal (char *fmt, ...)
  * We don't call it directly from HUP, because it is dangerous when being
  * in an interrupt.
  */
-void do_shutdown (int exit_code) {
+void do_shutdown () {
 
   int i;
 
@@ -2636,7 +2636,7 @@ void do_shutdown (int exit_code) {
       deinit_strings();
       deinit_config();
     }
-  exit (exit_code);
+  exit (g_exit_code);
 }
 
 /*
@@ -2644,7 +2644,7 @@ void do_shutdown (int exit_code) {
  * Armageddon.
  */
 void
-slow_shut_down (int minutes)
+do_slow_shutdown (int minutes)
 {
   /*
    * Swap out objects, and free some memory.
