@@ -344,11 +344,6 @@ void ipc_remove () {
 
 }
 
-/**
- * @brief Poll for communication events.
- * @param timeout Timeout value for polling.
- * @return Number of events occurred, or 0 on timeout, or -1 on error.
- */
 int do_comm_polling (struct timeval *timeout) {
   opt_trace (TT_COMM|3, "calling async_runtime_wait(): timeout %ld sec, %ld usec",
              timeout->tv_sec, timeout->tv_usec);
@@ -560,7 +555,7 @@ int flush_message (interactive_t * ip) {
        * [NEOLITH-EXTENSION] if the fd is STDIN_FILENO, use write to STDOUT_FILENO
        */
       num_bytes = (ip->fd == STDIN_FILENO) ?
-        write (STDOUT_FILENO, ip->message_buf + ip->message_consumer, length) :
+        FILE_WRITE (STDOUT_FILENO, ip->message_buf + ip->message_consumer, length) :
         SOCKET_SEND (ip->fd, ip->message_buf + ip->message_consumer, length, ip->out_of_band);
       if (num_bytes == -1)
         {

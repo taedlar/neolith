@@ -89,7 +89,7 @@ int main (int argc, char **argv) {
 
   /* Change working directory to MudLibDir */
   debug_message ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
-  if (-1 == chdir (CONFIG_STR (__MUD_LIB_DIR__)))
+  if (-1 == CHDIR (CONFIG_STR (__MUD_LIB_DIR__)))
     {
       debug_perror ("chdir", CONFIG_STR (__MUD_LIB_DIR__));
       debug_fatal ("Cannot change working directory to MudLibDir.\n");
