@@ -37,7 +37,7 @@ allocate_class (class_def_t * cld, int has_values)
     (array_t *) DXALLOC (sizeof (array_t) + sizeof (svalue_t) * (n - 1),
 			 TAG_CLASS, "allocate_class");
   p->ref = 1;
-  p->size = n;
+  p->size = (unsigned short)n;
   if (has_values)
     {
       while (n--)
@@ -60,7 +60,7 @@ allocate_class_by_size (int size)
     (array_t *) DXALLOC (sizeof (array_t) + sizeof (svalue_t) * (size - 1),
 			 TAG_CLASS, "allocate_class");
   p->ref = 1;
-  p->size = size;
+  p->size = (unsigned short)size;
 
   while (size--)
     p->item[size] = const0;

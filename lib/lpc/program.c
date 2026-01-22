@@ -133,8 +133,8 @@ runtime_function_u *find_func_entry (const program_t * prog, int index) {
           else
             first = mid;
         }
-      ret.inh.offset = first;
-      ret.inh.index = index - prog->inherit[first].function_index_offset;
+      ret.inh.offset = (unsigned short)first;
+      ret.inh.index = (unsigned short)index - prog->inherit[first].function_index_offset;
       return &ret; /* FIXME: returning pointer to static variable */
     }
   else

@@ -476,13 +476,11 @@ expand_define ()
           if (n == NARGS)
             {
               yyerror ("Maximum macro argument count exceeded");
-              return 0;
             }
         }
       if (n != p->nargs)
         {
           yyerror ("Wrong number of macro arguments");
-          return 0;
         }
       /* Do expansion */
       b = xbuf;

@@ -76,7 +76,7 @@ f_get_char (void)
     {
       tmp = 1;
       st_num_arg--;		/* Don't count the flag as an arg */
-      flag = arg[1].u.number;
+      flag = (int)arg[1].u.number;
     }
   st_num_arg--;
   i = get_char (arg, flag, st_num_arg, &arg[1 + tmp]);
@@ -104,7 +104,7 @@ f_input_to (void)
     {
       tmp = 1;
       st_num_arg--;		/* Don't count the flag as an arg */
-      flag = arg[1].u.number;
+      flag = (int)arg[1].u.number;
     }
   st_num_arg--;			/* Don't count the name of the func either. */
   i = input_to (arg, flag, st_num_arg, &arg[1 + tmp]);
@@ -171,7 +171,7 @@ void f_remove_interactive (void) {
 void
 f_query_idle (void)
 {
-  int i;
+  int64_t i;
 
   i = query_idle (sp->u.ob);
   free_object (sp->u.ob, "f_query_idle");
