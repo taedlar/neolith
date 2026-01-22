@@ -315,6 +315,7 @@ void ipc_remove () {
 
   int i;
 
+  /* close all external ports */
   for (i = 0; i < 5; i++)
     {
       if (!external_port[i].port)
@@ -2269,9 +2270,10 @@ void remove_interactive (object_t * ob, int dested) {
         g_proceeding_shutdown++;
       }
 #endif
-      else {
+      else if (console_type == CONSOLE_TYPE_REAL) {
         /* Real console - allow reconnection */
-        debug_message ("===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
+        add_message (ob, "===== PRESS ENTER TO RECONNECT CONSOLE =====\n");
+        flush_message (ip);
       }
     }
   else

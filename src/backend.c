@@ -15,6 +15,7 @@
 #include "interpret.h"
 #include "backend.h"
 #include "comm.h"
+#include "simul_efun.h"
 #include "efuns/call_out.h"
 #include "port/timer_port.h"
 #include "async/async_runtime.h"
@@ -264,11 +265,31 @@ void backend () {
       current_interactive = 0;
       eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
 
+      if (g_proceeding_shutdown)
+        {
+          if (MAIN_OPTION(pedantic))
+            {
+              object_t *ob, *next_ob;
+              debug_message ("{}\tperforming pedantic cleanup before shutdown.");
+              current_object = master_ob;
+              for (ob = obj_list; ob; ob = next_ob)
+                {
+                  next_ob = ob->next_all;
+                  if (ob == master_ob || ob == simul_efun_ob)
+                    continue;
+                  if (next_ob->flags & O_DESTRUCTED)
+                    next_ob = obj_list; /* restart if next_ob is being destructed */
+                  destruct_object (ob);
+                }
+              /* master_ob and simul_efun_ob can only be destructed in tear_down_simulate(), which
+               * is called after backend() returns.
+               */
+            }
+          break;
+        }
+
       /* Performs housekeeping tasks and garbage collection */
       remove_destructed_objects ();
-
-      if (g_proceeding_shutdown)
-        break;
 
       if (slow_shutdown_to_do)
         {

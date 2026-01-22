@@ -2598,32 +2598,43 @@ fatal (char *fmt, ...)
     exit (EXIT_FAILURE);
 }
 
-/*
- * This one is called from the command "shutdown".
- * We don't call it directly from HUP, because it is dangerous when being
- * in an interrupt.
+/**
+ * In original LPMud/MudOS, this is called from the shutdown() efun and
+ * exit the driver process in the middle of execution. This is a bad practice
+ * if the driver will integrate with other services, so we separate the shutdown
+ * logic from the efun call.
+ *
+ * In Neolith, the shutdown() efun raises the g_proceeding_shutdown flag, and the
+ * backend loop will return to main() which call this function to perform the
+ * actual shutdown.
+ *
+ * @return This function does not return. It exits the process and return the
+ *         g_exit_code to the operating system.
  */
 void do_shutdown () {
 
   int i;
 
   ipc_remove ();
+
+  /* force close all LPC sockets if mudlib doesn't close them */
   for (i = 0; i < max_lpc_socks; i++)
     {
-      if (lpc_socks[i].state == CLOSED)
-        continue;
-      while (close (lpc_socks[i].fd) == -1 && errno == EINTR)
-        ;
-    }
-  for (i = 0; i < max_users; i++)
-    {
-      if (all_users[i] && !(all_users[i]->iflags & CLOSING))
-        flush_message (all_users[i]);
+      if (lpc_socks[i].state != CLOSED)
+        (void) SOCKET_CLOSE (lpc_socks[i].fd);
     }
 
-#ifdef PROFILING
-  monitor (0, 0, 0, 0, 0);	/* cause gmon.out to be written */
-#endif
+  /* TODO: perform pedantic mudlib shutdown */
+  for (i = 0; i < max_users; i++)
+    {
+      if (!all_users[i] || all_users[i]->fd == STDIN_FILENO)
+        continue;
+      if (!(all_users[i]->iflags & CLOSING))
+        {
+          flush_message (all_users[i]); /* flush any pending output before closing */
+          (void) SOCKET_CLOSE (all_users[i]->fd);
+        }
+    }
 
   if (MAIN_OPTION(pedantic))
     {
@@ -2640,6 +2651,11 @@ void do_shutdown () {
 #ifdef WINSOCK
   WSACleanup(); /* for graceful shutdown */
 #endif
+
+#ifdef PROFILING
+  monitor (0, 0, 0, 0, 0);	/* cause gmon.out to be written */
+#endif
+
   exit (g_exit_code);
 }
 
