@@ -52,8 +52,8 @@ typedef struct interactive_s {
 #endif
     char *prompt;               /* prompt string for interactive object    */
     char text[MAX_TEXT];        /* input buffer for interactive object     */
-    int text_end;               /* first free char in buffer               */
-    int text_start;             /* where we are up to in user command buffer */
+    ptrdiff_t text_end;               /* first free char in buffer               */
+    ptrdiff_t text_start;             /* where we are up to in user command buffer */
     struct interactive_s *snoop_on;
     struct interactive_s *snoop_by;
     time_t last_time;           /* time of last command executed           */

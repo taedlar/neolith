@@ -68,7 +68,13 @@ static inline void safe_tcsetattr(int fd, struct termios *tio) {
 #define VALIDATE_IP(ip, ob) if (!IP_VALID(ip, ob)) goto failure
 
 #define UCHAR	unsigned char
-#define INT_CHAR(x)	((char)(x))
+#ifdef __GNUC__
+/* casting integer to char: standard conforming */
+#define INT_CHAR(x)	((char)x)
+#else
+/* casting integer to char: MSVC requires straight casting */
+#define INT_CHAR(x)	(x)
+#endif
 
 int total_users = 0;
 
@@ -633,7 +639,7 @@ static char telnet_ga[] = { INT_CHAR(IAC), INT_CHAR(GA), 0 };
  * @param ip Pointer to interactive structure.
  * @return Number of characters copied.
  */
-static int copy_chars (UCHAR* from, UCHAR* to, int count, interactive_t* ip) {
+static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* ip) {
 
   int i;
   UCHAR *start = to;
@@ -1222,19 +1228,19 @@ void process_io () {
         {
           /* LPC socket efun */
           lpc_socket_t *sock = (lpc_socket_t*)evt->context;
-          int sock_index = sock - lpc_socks;
+          ptrdiff_t sock_index = sock - lpc_socks;
           
           if (sock->state == CLOSED)
             continue;
           
           if (evt->event_type & EVENT_READ)
             {
-              socket_read_select_handler (sock_index);
+              socket_read_select_handler ((int)sock_index);
             }
           
           if (sock->state != CLOSED && (evt->event_type & EVENT_WRITE))
             {
-              socket_write_select_handler (sock_index);
+              socket_write_select_handler ((int)sock_index);
             }
         }
 #endif
@@ -1732,8 +1738,8 @@ hname_handler ()
 static void get_user_data (interactive_t* ip, io_event_t* evt) {
 
   char buf[MAX_TEXT];
-  int text_space;
-  int num_bytes, err = 0;
+  size_t text_space, num_bytes;
+  int err = 0;
 
   /* Console users should never reach this function - they use completion queue.
    * This assertion validates the architecture invariant. */
@@ -1750,16 +1756,16 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
        * escape sequences. Worst case: every byte could become IAC IAC (2 bytes)
        * plus the null terminator expansion for newlines adds another byte.
        */
-      text_space = (MAX_TEXT - ip->text_end - 1) / 3;
+      text_space = (MAX_TEXT - (int)ip->text_end - 1) / 3;
 
       /* shift out processed text from the buffer */
       if (text_space < MAX_TEXT / 16)
         {
-          int l = ip->text_end - ip->text_start;
+          size_t len = ip->text_end - ip->text_start;
 
-          memmove (ip->text, ip->text + ip->text_start, l + 1);
+          memmove (ip->text, ip->text + ip->text_start, len + 1);
           ip->text_start = 0;
-          ip->text_end = l;
+          ip->text_end = len;
           text_space = (MAX_TEXT - ip->text_end - 1) / 3;
           if (text_space < MAX_TEXT / 16)
             {
@@ -2606,7 +2612,7 @@ telnet_neg (char *to, char *from)
           to -= 1;
           continue;
         default:
-          *to++ = ch;
+          *to++ = INT_CHAR(ch);
           if (ch == 0)
             return;
         }
@@ -2927,14 +2933,14 @@ set_notify_fail_message (char *str)
 }				/* set_notify_fail_message() */
 
 void
-set_notify_fail_function (funptr_t * fp)
+set_notify_fail_function (funptr_t * funp)
 {
   if (!command_giver || !command_giver->interactive)
     return;
   clear_notify (command_giver->interactive);
   command_giver->interactive->iflags |= NOTIFY_FAIL_FUNC;
-  command_giver->interactive->default_err_message.f = fp;
-  fp->hdr.ref++;
+  command_giver->interactive->default_err_message.f = funp;
+  funp->hdr.ref++;
 }				/* set_notify_fail_message() */
 
 int
@@ -2985,26 +2991,25 @@ outbuf_zero (outbuffer_t * outbuf)
   outbuf->buffer = 0;
 }
 
-int
-outbuf_extend (outbuffer_t * outbuf, int l)
+size_t
+outbuf_extend (outbuffer_t * outbuf, size_t len)
 {
-  int limit;
+  size_t limit;
 
-  DEBUG_CHECK (l < 0, "Negative length passed to outbuf_extend.\n");
-
+  DEBUG_CHECK (len < 0, "Negative length passed to outbuf_extend.\n");
   if (outbuf->buffer)
     {
       limit = MSTR_SIZE (outbuf->buffer);
-      if (outbuf->real_size + l > limit)
+      if (outbuf->real_size + len > limit)
         {
           if (outbuf->real_size == USHRT_MAX)
             return 0;		/* TRUNCATED */
 
           /* assume it's going to grow some more */
-          limit = (outbuf->real_size + l) * 2;
+          limit = (outbuf->real_size + len) * 2;
           if (limit > USHRT_MAX)
             {
-              limit = outbuf->real_size + l;
+              limit = outbuf->real_size + len;
               if (limit > USHRT_MAX)
                 {
                   outbuf->buffer = extend_string (outbuf->buffer, USHRT_MAX);
@@ -3016,33 +3021,33 @@ outbuf_extend (outbuffer_t * outbuf, int l)
     }
   else
     {
-      outbuf->buffer = new_string (l, "outbuf_add");
+      outbuf->buffer = new_string (len, "outbuf_add");
       outbuf->real_size = 0;
     }
-  return l;
+  return len;
 }
 
 void
-outbuf_add (outbuffer_t * outbuf, char *str)
+outbuf_add (outbuffer_t * outbuf, const char *str)
 {
-  int l, limit;
+  size_t len, limit;
 
   if (!outbuf)
     return;
-  l = strlen (str);
+  len = strlen (str);
   if (outbuf->buffer)
     {
       limit = MSTR_SIZE (outbuf->buffer);
-      if (outbuf->real_size + l > limit)
+      if (outbuf->real_size + len > limit)
         {
           if (outbuf->real_size == USHRT_MAX)
             return;		/* TRUNCATED */
 
           /* assume it's going to grow some more */
-          limit = (outbuf->real_size + l) * 2;
+          limit = (outbuf->real_size + len) * 2;
           if (limit > USHRT_MAX)
             {
-              limit = outbuf->real_size + l;
+              limit = outbuf->real_size + len;
               if (limit > USHRT_MAX)
                 {
                   outbuf->buffer = extend_string (outbuf->buffer, USHRT_MAX);
@@ -3058,17 +3063,17 @@ outbuf_add (outbuffer_t * outbuf, char *str)
     }
   else
     {
-      outbuf->buffer = new_string (l, "outbuf_add");
+      outbuf->buffer = new_string (len, "outbuf_add");
       outbuf->real_size = 0;
     }
   strcpy (outbuf->buffer + outbuf->real_size, str);
-  outbuf->real_size += l;
+  outbuf->real_size += len;
 }
 
 void
 outbuf_addchar (outbuffer_t * outbuf, char c)
 {
-  int limit;
+  size_t limit;
 
   if (!outbuf)
     return;
@@ -3108,7 +3113,7 @@ outbuf_addchar (outbuffer_t * outbuf, char c)
 }
 
 void
-outbuf_addv (outbuffer_t * outbuf, char *format, ...)
+outbuf_addv (outbuffer_t * outbuf, const char *format, ...)
 {
   char buf[LARGEST_PRINTABLE_STRING];
   va_list args;

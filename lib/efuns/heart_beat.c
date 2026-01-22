@@ -10,7 +10,8 @@
 void
 f_set_heart_beat (void)
 {
-  set_heart_beat (current_object, (sp--)->u.number);
+  int tick = (int)(sp--)->u.number;
+  set_heart_beat (current_object, tick);
 }
 #endif
 

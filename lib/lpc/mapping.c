@@ -200,7 +200,7 @@ free_node (mapping_node_t * mn)
  *  @param n An estimate of the number of elements the mapping will hold.
  *  @return A pointer to the newly allocated mapping.
  */
-mapping_t *allocate_mapping (int n) {
+mapping_t *allocate_mapping (size_t n) {
 
   mapping_t *newmap;
   mapping_node_t **a;

@@ -17,9 +17,13 @@ int init_stem (int debug_level, unsigned long trace_flags, const char* config_fi
 {
     static main_options_t stem_opts;
 
+#ifdef _WIN32
+    _tzset ();
+#else
     tzset ();
+#endif
     current_time = boot_time = time(NULL);
-    srand (boot_time);
+    srand ((unsigned int)boot_time);
 
     stem_opts.epilog_level = 0;
     stem_opts.debug_level = debug_level;

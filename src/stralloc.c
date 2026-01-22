@@ -57,10 +57,10 @@
 
 #ifdef STRING_STATS
 int num_distinct_strings = 0;
-int bytes_distinct_strings = 0;
-int overhead_bytes = 0;
+size_t bytes_distinct_strings = 0;
+size_t overhead_bytes = 0;
 int allocd_strings = 0;
-int allocd_bytes = 0;
+size_t allocd_bytes = 0;
 int search_len = 0;
 int num_str_searches = 0;
 #endif
@@ -196,7 +196,7 @@ alloc_new_string (const char *string, int h)
   strncpy (STRING (b), string, len);
   STRING (b)[len] = '\0';	/* strncpy doesn't put on \0 if 'from' too
                                  * long */
-  SIZE (b) = (len > USHRT_MAX ? USHRT_MAX : len);
+  SIZE (b) = (unsigned short)(len > USHRT_MAX ? USHRT_MAX : len);
   REFS (b) = 1;
   NEXT (b) = base_table[h];
   base_table[h] = b;
@@ -321,9 +321,8 @@ deallocate_string (char *str)
   FREE (b);
 }
 
-int
-add_string_status (outbuffer_t * out, int verbose)
-{
+size_t add_string_status (outbuffer_t * out, int verbose) {
+
 #ifdef STRING_STATS
   if (verbose == 1)
     {
@@ -362,14 +361,14 @@ char *the_null_string = (char *)&the_null_string_blocks[1];
 */
 
 char *
-int_new_string (int size)
+int_new_string (size_t size)
 {
   malloc_block_t *mbt;
 
   mbt = (malloc_block_t *) DXALLOC (size + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, tag);
   if (size < USHRT_MAX)
     {
-      mbt->size = size;
+      mbt->size = (unsigned short)size;
       ADD_NEW_STRING (size, sizeof (malloc_block_t));
     }
   else
@@ -382,7 +381,7 @@ int_new_string (int size)
   return (char *) (mbt + 1);
 }
 
-char *extend_string (char *str, int len) {
+char *extend_string (char *str, size_t len) {
 
   malloc_block_t *mbt;
 #ifdef STRING_STATS
@@ -392,7 +391,7 @@ char *extend_string (char *str, int len) {
   mbt = (malloc_block_t *) DREALLOC (MSTR_BLOCK (str), len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "extend_string");
   if (len < USHRT_MAX)
     {
-      mbt->size = len;
+      mbt->size = (unsigned short)len;
     }
   else
     {
@@ -446,12 +445,12 @@ int_string_unlink (char *str)
 
   if (mbt->size == USHRT_MAX)
     {
-      int l = strlen (str + USHRT_MAX) + USHRT_MAX;	/* ouch */
+      size_t len = strlen (str + USHRT_MAX) + USHRT_MAX;	/* ouch */
 
       newmbt =
-        (malloc_block_t *) DXALLOC (l + sizeof (malloc_block_t) + 1,
+        (malloc_block_t *) DXALLOC (len + sizeof (malloc_block_t) + 1,
                                     TAG_MALLOC_STRING, desc);
-      memcpy ((char *) (newmbt + 1), (char *) (mbt + 1), l + 1);
+      memcpy ((char *) (newmbt + 1), (char *) (mbt + 1), len + 1);
       newmbt->size = USHRT_MAX;
       ADD_NEW_STRING (USHRT_MAX, sizeof (malloc_block_t));
     }
@@ -513,10 +512,10 @@ unlink_string_svalue (svalue_t * s)
       break;
     case STRING_SHARED:
       {
-        int l = SHARED_STRLEN (s->u.string);
+        size_t len = SHARED_STRLEN (s->u.string);
 
-        str = new_string (l, "unlink_string_svalue");
-        strncpy (str, s->u.string, l + 1);
+        str = new_string (len, "unlink_string_svalue");
+        strncpy (str, s->u.string, len + 1);
         free_string (s->u.string);
         s->subtype = STRING_MALLOC;
         s->u.string = str;

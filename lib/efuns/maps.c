@@ -12,7 +12,7 @@ void
 f_allocate_mapping (void)
 {
   sp->type = T_MAPPING;
-  sp->u.map = allocate_mapping (sp->u.number);
+  sp->u.map = allocate_mapping ((size_t)sp->u.number);
 }
 #endif
 

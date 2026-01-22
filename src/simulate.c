@@ -259,7 +259,7 @@ static svalue_t *load_virtual_object (const char *name) {
 void set_master (object_t * ob) {
   int first_load = (!master_ob);
   svalue_t *ret;
-  char *root_uid = NULL;
+  char *uid = NULL;
 
   master_ob = ob;
 
@@ -268,13 +268,13 @@ void set_master (object_t * ob) {
 
   ret = apply_master_ob (APPLY_GET_ROOT_UID, 0);
   if (ret && (ret->type == T_STRING))
-    root_uid = ret->u.string;
+    uid = ret->u.string;
 
   if (first_load)
     {
-      if (root_uid)
+      if (uid)
         {
-          master_ob->uid = set_root_uid (root_uid);
+          master_ob->uid = set_root_uid (uid);
           master_ob->euid = master_ob->uid;
         }
 
@@ -290,9 +290,9 @@ void set_master (object_t * ob) {
       if (ret && (ret->type == T_STRING))
         set_backbone_uid (ret->u.string);
     }
-  else if (root_uid)
+  else if (uid)
     {
-      master_ob->uid = add_uid (root_uid);
+      master_ob->uid = add_uid (uid);
       master_ob->euid = master_ob->uid;
     }
 }

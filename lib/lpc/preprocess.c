@@ -97,7 +97,7 @@ add_define (const char *name, int nargs, const char *exps)
 
 static void
 #ifdef LEXER
-handle_elif (char *sp)
+handle_elif (char *expr)
 #else
 handle_elif ()
 #endif
@@ -116,7 +116,7 @@ handle_elif ()
 
 #ifdef LEXER
           *--outptr = '\0';
-          add_input (sp);
+          add_input (expr);
 #endif
           cond = cond_get_exp (0);
 #ifdef LEXER

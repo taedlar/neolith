@@ -39,7 +39,7 @@ void free_buffer (buffer_t * b)
 }				/* free_buffer() */
 
 buffer_t *
-allocate_buffer (int size)
+allocate_buffer (size_t size)
 {
   buffer_t *buf;
 
@@ -55,7 +55,7 @@ allocate_buffer (int size)
   /* using calloc() so that memory will be zero'd out when allocated */
   buf = (buffer_t *) DCALLOC (sizeof (buffer_t) + size - 1, 1,
                               TAG_BUFFER, "allocate_buffer");
-  buf->size = size;
+  buf->size = (unsigned short)size;
   buf->ref = 1;
   return buf;
 #else

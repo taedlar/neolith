@@ -65,14 +65,14 @@ f_geteuid (void)
     }
   else if (sp->type & T_FUNCTION)
     {
-      funptr_t *fp;
-      if ((fp = sp->u.fp)->hdr.owner && fp->hdr.owner->euid)
+      funptr_t *funp;
+      if ((funp = sp->u.fp)->hdr.owner && funp->hdr.owner->euid)
         {
-          put_constant_string (fp->hdr.owner->euid->name);
-          free_funp (fp);
+          put_constant_string (funp->hdr.owner->euid->name);
+          free_funp (funp);
           return;
         }
-      free_funp (fp);
+      free_funp (funp);
       *sp = const0;
     }
 }

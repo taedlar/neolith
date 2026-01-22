@@ -116,11 +116,11 @@ typedef struct lname_linked_buf_s {
 } lname_linked_buf_t;
 
 static lname_linked_buf_t *lnamebuf = 0;
-static int lb_index = 4096;
+static size_t lb_index = 4096;
 
 static char *alloc_local_name (const char *name)
 {
-  int len = strlen (name) + 1;
+  size_t len = strlen (name) + 1;
   char *res;
 
   if (lb_index + len > 4096)

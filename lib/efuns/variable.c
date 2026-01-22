@@ -79,7 +79,7 @@ f_save_variable (void)
 /* Beek */
 #ifdef F_VARIABLES
 static void
-fv_recurse (array_t * arr, int *idx, program_t * prog, int type, int flag)
+fv_recurse (array_t * arr, int *idx, program_t * prog, int type, uint64_t flag)
 {
   int i;
   array_t *subarr;
@@ -120,7 +120,7 @@ f_variables (void)
 {
   int idx = 0;
   array_t *arr;
-  int flag = (sp--)->u.number;
+  uint64_t flag = (sp--)->u.number;
   program_t *prog = sp->u.ob->prog;
 
   arr = allocate_empty_array (prog->num_variables_total);
