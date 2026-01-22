@@ -408,7 +408,7 @@ static void look_for_objects_to_swap () {
 
   for (ob = obj_list; ob; ob = next_ob)
     {
-      int ref_time;
+      time_t ref_time;
 
       /*
        * Objects can be destructed, which means that next object to
@@ -766,19 +766,19 @@ void
 update_load_av ()
 {
   static time_t last_time;
-  int n;
+  time_t duration;
   double c;
   static int acc = 0;
 
   acc++;
   if (current_time == last_time)
     return;
-  n = current_time - last_time;
-  if (n < NUM_CONSTS)
-    c = consts[n];
+  duration = current_time - last_time;
+  if (duration < NUM_CONSTS)
+    c = consts[duration];
   else
-    c = exp (-n / 900.0);
-  load_av = c * load_av + acc * (1 - c) / n;
+    c = exp (-duration / 900.0);
+  load_av = c * load_av + acc * (1 - c) / duration;
   last_time = current_time;
   acc = 0;
 }				/* update_load_av() */
@@ -789,19 +789,19 @@ void
 update_compile_av (int lines)
 {
   static time_t last_time;
-  int n;
+  time_t duration;
   double c;
   static int acc = 0;
 
   acc += lines;
   if (current_time == last_time)
     return;
-  n = current_time - last_time;
-  if (n < NUM_CONSTS)
-    c = consts[n];
+  duration = current_time - last_time;
+  if (duration < NUM_CONSTS)
+    c = consts[duration];
   else
-    c = exp (-n / 900.0);
-  compile_av = c * compile_av + acc * (1 - c) / n;
+    c = exp (-duration / 900.0);
+  compile_av = c * compile_av + acc * (1 - c) / duration;
   last_time = current_time;
   acc = 0;
 }				/* update_compile_av() */

@@ -119,7 +119,7 @@ void
 f_replace_program (int num_arg, int instruction)
 {
   replace_ob_t *tmp;
-  int name_len;
+  size_t name_len;
   char *name, *xname;
   program_t *new_prog;
   int var_offset;
@@ -157,7 +157,7 @@ f_replace_program (int num_arg, int instruction)
       obj_list_replace = tmp;
     }
   tmp->new_prog = new_prog;
-  tmp->var_offset = var_offset;
+  tmp->var_offset = (unsigned short)var_offset;
   free_string_svalue (sp--);
 }
 

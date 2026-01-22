@@ -30,18 +30,18 @@ void
 f_ctime (void)
 {
   char *cp, *nl, *p;
-  int l;
+  size_t len;
   time_t t = (time_t)sp->u.number;
 
   cp = ctime (&t);
   if ((nl = strchr (cp, '\n')))
-    l = nl - cp;
+    len = nl - cp;
   else
-    l = strlen (cp);
+    len = strlen (cp);
 
-  p = new_string (l, "f_ctime");
-  strncpy (p, cp, l);
-  p[l] = '\0';
+  p = new_string (len, "f_ctime");
+  strncpy (p, cp, len);
+  p[len] = '\0';
   put_malloced_string (p);
 }
 #endif

@@ -28,13 +28,13 @@ f_dump_prog (void)
   if (st_num_arg == 2)
     {
       ob = sp[-1].u.ob;
-      d = sp->u.number;
+      d = (int)sp->u.number;
       where = 0;
     }
   else if (st_num_arg == 3)
     {
       ob = sp[-2].u.ob;
-      d = sp[-1].u.number;
+      d = (int)sp[-1].u.number;
       where = (sp->type == T_STRING) ? sp->u.string : 0;
     }
   else
@@ -63,7 +63,7 @@ f_dump_prog (void)
  * 2 - dump line number table
  */
 static void
-dump_prog (program_t * prog, char *fn, int flags)
+dump_prog (program_t * prog, char *fn, int dump_flags)
 {
   char *fname;
   FILE *f;
@@ -156,12 +156,12 @@ dump_prog (program_t * prog, char *fn, int flags)
       fputc ('\n', f);
     }
 
-  if (flags & 1)
+  if (dump_flags & 1)
     {
       fprintf (f, "\n;;;  *** Disassembly ***\n");
       disassemble (f, prog->program, 0, prog->program_size, prog);
     }
-  if (flags & 2)
+  if (dump_flags & 2)
     {
       fprintf (f, "\n;;;  *** Line Number Info ***\n");
       dump_line_numbers (f, prog);
