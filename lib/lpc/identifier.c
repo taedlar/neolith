@@ -9,9 +9,9 @@
 ident_hash_elem_list_t *ihe_list = NULL;
 
 static int num_free = 0;
-static ident_hash_elem_t **ident_hash_table;
-static ident_hash_elem_t **ident_hash_head;
-static ident_hash_elem_t **ident_hash_tail;
+static ident_hash_elem_t **ident_hash_table; /* ident hash, current position */
+static ident_hash_elem_t **ident_hash_head;  /* ident hash, head of permanent idents */
+static ident_hash_elem_t **ident_hash_tail;  /* ident hash, tail of permanent idents */
 
 static ident_hash_elem_t *ident_dirty_list = 0;
 
@@ -31,38 +31,49 @@ static ident_hash_elem_t *ident_dirty_list = 0;
  *    hash value are used often within close proximity in the source.
  *    This should be rare, esp since the hash table is fairly sparse.
  *
- * ident_hash_table[hash] points to our current position (last lookup)
- * ident_hash_head[hash] points to the first permanent identifier
- * ident_hash_tail[hash] points to the last one
+ * ident_hash_table[hash] points to our current position (last successful lookup) in the bucket
+ * ident_hash_head[hash] points to the first permanent identifier in the bucket
+ * ident_hash_tail[hash] points to the last permanent identifier in the bucket
  * ident_dirty_list is a linked list of identifiers that need to be cleaned
  * when we're done; this happens if you define a global or function with
- * the same name (hashed) as an efun or sefun.
+ * the same name (hashed) as an efun or simul efun.
  */
 
 #define CHECK_ELEM(x, y, z) if (!strcmp((x)->name, (y))) { \
       if (((x)->token & IHE_RESWORD) || ((x)->sem_value)) { z } \
       else return 0; }
 
+/**
+ * Lookup an identifier by name in the identifier hash table.
+ * Each bucket in the hash table is a circular linked list.
+ * In the case of collisions, the bucket is searched starting from current position (last lookup).
+ * When found, the found element is rotated to the front of the list for faster future access.
+ * 
+ * @param name The name of the identifier.
+ * @return A pointer to the identifier hash element, or NULL if not found.
+ */
 ident_hash_elem_t *lookup_ident (const char *name) {
   int h = IdentHash (name);
   ident_hash_elem_t *hptr, *hptr2;
 
-  if (ident_hash_table && (hptr = ident_hash_table[h]))
+  if (ident_hash_table && (hptr = ident_hash_table[h])) /* non-empty bucket */
     {
-      CHECK_ELEM (hptr, name, return hptr;);
+      CHECK_ELEM (hptr, name, return hptr;); /* if found, already at front */
       hptr2 = hptr->next;
       while (hptr2 != hptr)
         {
-          CHECK_ELEM (hptr2, name, ident_hash_table[h] = hptr2;
-                      return hptr2;);
+          CHECK_ELEM (hptr2, name, ident_hash_table[h] = hptr2; return hptr2;); /* if found, rotate to here */
           hptr2 = hptr2->next;
         }
     }
-  return 0;
+  return 0; /* not found */
 }
 
 /**
- * @brief Find or add a permanent identifier.
+ * Find or add a permanent identifier. The following identifiers are added as permanent:
+ * - efuns
+ * - simul efuns
+ * (reserved words are also permanent, but they are added by add_keyword() in lex.c)
  * @param name The name of the identifier. No reference is made to the string after this call.
  * @return A pointer to the identifier hash element.
  */
@@ -92,8 +103,8 @@ ident_hash_elem_t* find_or_add_perm_ident (char *name) {
     {
       /* no collision, add to hash table */
       hptr = (ident_hash_table[h] = ALLOCATE (ident_hash_elem_t, TAG_PERM_IDENT, "find_or_add_perm_ident:2"));
-      ident_hash_head[h] = hptr;
-      ident_hash_tail[h] = hptr;
+      ident_hash_head[h] = hptr; /* first permanent ident */
+      ident_hash_tail[h] = hptr; /* last permanent ident */
       hptr->next = hptr;
     }
   
@@ -118,12 +129,16 @@ typedef struct lname_linked_buf_s {
 static lname_linked_buf_t *lnamebuf = 0;
 static size_t lb_index = 4096;
 
-static char *alloc_local_name (const char *name)
-{
-  size_t len = strlen (name) + 1;
+/**
+ * Allocate a local name string.
+ * @param name The name to allocate.
+ * @return A pointer to the allocated name string.
+ */
+static char *alloc_local_name (const char *name) {
+  size_t len = strlen (name) + 1; /* include null terminator */
   char *res;
 
-  if (lb_index + len > 4096)
+  if (lb_index + len > sizeof (lnamebuf->block))
     {
       lname_linked_buf_t *new_buf;
       new_buf = ALLOCATE (lname_linked_buf_t, TAG_COMPILER, "alloc_local_name");
@@ -137,9 +152,10 @@ static char *alloc_local_name (const char *name)
   return res;
 }
 
-void
-free_unused_identifiers ()
-{
+/**
+ * Free unused identifiers from the identifier hash table.
+ */
+void free_unused_identifiers () {
   ident_hash_elem_list_t *ihel, *next;
   lname_linked_buf_t *lnb, *lnbn;
   int i;
@@ -165,10 +181,12 @@ free_unused_identifiers ()
       ident_dirty_list = ident_dirty_list->next_dirty;
     }
 
+  /* remove non-permanent identifier hash elements from hash table */
   for (i = 0; i < IDENT_HASH_SIZE; i++)
     if ((ident_hash_table[i] = ident_hash_head[i]))
       ident_hash_tail[i]->next = ident_hash_head[i];
 
+  /* free all non-permanent identifier hash elements */
   ihel = ihe_list;
   while (ihel)
     {
@@ -179,6 +197,7 @@ free_unused_identifiers ()
   ihe_list = 0;
   num_free = 0;
 
+  /* free all allocated local name buffers */
   lnb = lnamebuf;
   while (lnb)
     {
@@ -190,13 +209,14 @@ free_unused_identifiers ()
   lb_index = 4096;
 }
 
-static ident_hash_elem_t *
-quick_alloc_ident_entry ()
-{
+/**
+ * Quickly allocate an identifier hash element.
+ * @return A pointer to the allocated identifier hash element.
+ */
+static ident_hash_elem_t* quick_alloc_ident_entry () {
   if (num_free)
     {
       num_free--;
-      return &(ihe_list->items[num_free]);
     }
   else
     {
@@ -204,9 +224,9 @@ quick_alloc_ident_entry ()
       ihel = ALLOCATE (ident_hash_elem_list_t, TAG_COMPILER, "quick_alloc_ident_entry");
       ihel->next = ihe_list;
       ihe_list = ihel;
-      num_free = 127;
-      return &(ihe_list->items[127]);
+      num_free = sizeof (ihe_list->items) / sizeof (ihe_list->items[0]) - 1;
     }
+  return &(ihe_list->items[num_free]);
 }
 
 ident_hash_elem_t *find_or_add_ident (char *name, int flags) {
@@ -283,9 +303,16 @@ ident_hash_elem_t *find_or_add_ident (char *name, int flags) {
 }
 
 /**
- * @brief Add a keyword to the identifier hash table.
+ * Add a keyword to the identifier hash table.
+ * 
+ * A keyword is a permanent identifier that is always defined (can be found by lookup_ident
+ * regardless of sem_value).
+ * 
+ * @param name The name of the keyword.
+ * @param entry Pointer to the keyword entry. This must point to a mutable memory location
+ * that remains valid until deinit_identifiers() is called.
  */
-void add_keyword_t (char *name, keyword_t * entry) {
+void add_keyword (const char *name, keyword_t* entry) {
   int h = IdentHash (name);
 
   if (ident_hash_table[h])
@@ -325,7 +352,9 @@ void init_identifiers () {
 }
 
 /**
- * @brief Deinitialize identifier management structures. All identifiers including permanents are freed.
+ * Deinitialize identifier management structures.
+ * All identifiers including permanents are freed.
+ * (reserved words are not freed since they point to static memory locations)
  */
 void deinit_identifiers () {
   int i, n = 0;
@@ -346,7 +375,7 @@ void deinit_identifiers () {
           else
             {
               if (!(hptr->token & IHE_RESWORD))
-                debug_warn ("leaked identifier: %s", hptr->name);
+                debug_warn ("leaked identifier (token: 0x%x): %s", hptr->token, hptr->name);
               hptr = hptr->next;
             }
         }

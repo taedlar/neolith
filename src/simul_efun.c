@@ -16,6 +16,8 @@
 #include "lpc/object.h"
 #include "lpc/include/origin.h"
 
+#include <assert.h>
+
 /*
  * This file rewritten by Beek because it was inefficient and slow.  We
  * now keep track of two mappings:
@@ -78,7 +80,8 @@ void init_simul_efun (const char *file) {
 }
 
 /**
- * @brief Remove all old simul_efuns from the tables and identifier hash.
+ * Remove all current simul efuns from the simuls/simuls_sorted tables and
+ * turn off IHE_SIMUL flag of the simul efun name identifier hash.
  */
 static void remove_simuls () {
   int i;
@@ -98,15 +101,16 @@ static void remove_simuls () {
             ihe->sem_value--;
           ihe->dn.simul_num = -1;
           ihe->token &= ~IHE_SIMUL;
-          free_string (simuls_sorted[i].name); /* reference added by find_or_add_simul_efun() */
+          /* the simul efun could be overriding an efun, do not remove the permanent identifier here */
         }
+      free_string (simuls_sorted[i].name); /* reference added by find_or_add_simul_efun() */
     }
 }
 
 /**
- * Add all functions in 'prog' as simul_efuns.
- * If 'prog' is NULL, remove all simul_efuns.
- * @param prog The new program containing the simul_efuns to add.
+ * Add all functions in 'prog' as simul efuns.
+ * If 'prog' is NULL, remove all simul efuns.
+ * @param prog The new program containing the simul efuns to add.
  */
 static void get_simul_efuns (program_t* prog) {
 
@@ -118,7 +122,7 @@ static void get_simul_efuns (program_t* prog) {
       remove_simuls ();
       if (!num_new)
         {
-          opt_trace (TT_SIMUL_EFUN|2, "no new simul_efuns, removing all");
+          opt_trace (TT_SIMUL_EFUN|2, "no new simul efuns, removing all");
           FREE (simuls_sorted);
           simuls_sorted = 0;
           FREE (simuls);
@@ -161,7 +165,6 @@ static void get_simul_efuns (program_t* prog) {
           index = func_entry->inh.index;
           func_entry = FIND_FUNC_ENTRY (nprog, index);
         }
-
       find_or_add_simul_efun (nprog, func_entry->def.f_index, i);
     }
 
@@ -271,21 +274,19 @@ static void find_or_add_simul_efun (program_t* prog, function_number_t index, fu
 
 void set_simul_efun (object_t* ob) {
 
-  if (!ob || ob->flags & O_DESTRUCTED)
+  if (ob && ob->flags & O_DESTRUCTED)
     error ("Bad simul_efun object\n");
 
-  get_simul_efuns (ob->prog);
-  simul_efun_ob = ob;
+  if (simul_efun_ob)
+    {
+      get_simul_efuns (NULL); /* remove all simul_efuns */
+      free_object (simul_efun_ob, "set_simul_efun");
+    }
+
+  if (!(simul_efun_ob = ob))
+    return;
+  get_simul_efuns (simul_efun_ob->prog);
   add_ref (simul_efun_ob, "set_simul_efun");
-}
-
-void unset_simul_efun () {
-
-  get_simul_efuns (NULL); /* remove all simul_efuns */
-  if (simul_efun_ob) {
-    free_object (simul_efun_ob, "unset_simul_efun");
-    simul_efun_ob = NULL;
-  }
 }
 
 void call_simul_efun (int simul_num, int num_args)

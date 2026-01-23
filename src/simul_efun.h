@@ -36,12 +36,6 @@ extern void init_simul_efun(const char *file);
 extern void set_simul_efun (object_t *ob);
 
 /**
- * Unset the current simul_efun object.
- * @return Upon return, the simul_efun object is unset and its reference is released.
- */
-extern void unset_simul_efun();
-
-/**
  * Find the index (simul_num) of a simul_efun function by its name string pointer.
  * The search uses binary search on the address of the name string (not string comparison).
  * 
@@ -57,8 +51,14 @@ extern void unset_simul_efun();
 extern int find_simul_efun(const char *func_name);
 
 /**
- * Call a simul_efun by its index in the simul_efun table.
+ * Call a simul_efun by its index (simul_num) in the simul_efun table.
+ * 
  * The LPC opcode F_SIMUL_EFUN uses this function.
+ * Note that the simul_num is stored in the compiled opcode, which is bounded to the simul efun name at compile time.
+ * If the simul_efun object changes, the opcode still uses the same simul_num to refer to the simul efun.
+ * If the new simul_efun object does not have a function of that name or changed the order of function definitions,
+ * the behavior is undefined.
+ * 
  * @param simul_num The index in the simul_efun table. It is stored in LPC opcode as a 16-bit unsigned integer.
  * @param num_args The number of arguments on the stack.
  * @return Upon return, the return value is on the stack.

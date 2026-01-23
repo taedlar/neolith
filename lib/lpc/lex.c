@@ -3510,7 +3510,7 @@ void init_keywords (void) {
   for (i = 0; i < sizeof(reswords) / sizeof(reswords[0]); i++)
     {
       keyword_t *entry = &reswords[i];
-      add_keyword_t (entry->word, entry);
+      add_keyword (entry->word, entry);
     }
 }
 

@@ -28,6 +28,7 @@
 #include "efuns/sprintf.h"
 #include "port/ansi.h"
 
+#include <assert.h>
 #include <sys/stat.h>
 
 /*
@@ -261,10 +262,21 @@ void set_master (object_t * ob) {
   svalue_t *ret;
   char *uid = NULL;
 
-  master_ob = ob;
+  if (ob && ob->flags & O_DESTRUCTED)
+    error ("Bad master object\n");
+
+  if (master_ob)
+    {
+      /* release reference to the old master_ob */
+      assert (master_ob->ref > 1);
+      free_object (master_ob, "set_master");
+    }
+  if (!(master_ob = ob))
+    return;
 
   /* Make sure master_ob is never made a dangling pointer. */
   add_ref (master_ob, "set_master");
+  opt_trace (TT_EVAL|1, "master object ref = %d", master_ob->ref);
 
   ret = apply_master_ob (APPLY_GET_ROOT_UID, 0);
   if (ret && (ret->type == T_STRING))
@@ -938,7 +950,19 @@ void destruct_object (object_t * ob) {
     error ("*Only this_object() can be destructed from move_or_destruct.");
 
   if ((ob == simul_efun_ob) && master_ob)
-    error ("*Cannot destruct simul_efun_object while master_object exists.");
+    {
+      /* simul efun object is a special object that the F_SIMUL_EFUN instruction in compiled LPC
+       * opcodes relies on the correct associations of simul_num and the function defined in
+       * simul_efun_ob. If both master_object and simul_efun_object exist, then
+       * destructing simul_efun_object would break this association and possibly corrupt the
+       * program of master object.
+       * 
+       * In Neolith, we allow the simul_efun_object to be destructed only when the
+       * master_object does not exist, such as during mudlib reloading. More validations are
+       * checked in the set_simul_efun() function when replacing the simul_efun_ob with a new object.
+       */
+      error ("*Cannot destruct simul_efun_object while master_object exists.");
+    }
 
   /*
    * check if object has an efun socket referencing it for a callback. if
@@ -1058,8 +1082,10 @@ void destruct_object (object_t * ob) {
         vital_obj_name = CONFIG_STR (__MASTER_FILE__);
       else if (ob == simul_efun_ob)
         vital_obj_name = CONFIG_STR (__SIMUL_EFUN_FILE__);
+
       if (vital_obj_name)
         {
+          /* reload vital object */
           char new_name[PATH_MAX];
           if (!strip_name (vital_obj_name, new_name, sizeof (new_name)))
             {
@@ -1069,36 +1095,28 @@ void destruct_object (object_t * ob) {
             }
           opt_trace (TT_EVAL|1, "reloading vital object: /%s", tmp);
           new_ob = load_object (tmp, 0);
+          if (!new_ob)
+            {
+              ob->name = tmp;
+              sp--;
+              error ("*Destruct on vital object failed: new copy failed to reload.");
+            }
         }
 
-      /* handle these two carefully, since they are rather vital */
-      if (vital_obj_name && !new_ob)
-        {
-          ob->name = tmp;
-          sp--;
-          error ("*Destruct on vital object failed: new copy failed to reload.");
-        }
-
-      free_object (ob, "vital object reference");
       if (ob == master_ob)
         {
-          if (new_ob)
-            set_master(new_ob);
-          else
-            master_ob = NULL;
+          set_master (new_ob);
         }
       else if (ob == simul_efun_ob)
         {
-          simul_efun_ob = NULL; /* prevents recursively calling destruct_object() on simul_efun_ob*/
-          unset_simul_efun ();
-          if (new_ob)
-            set_simul_efun (new_ob);
+          set_simul_efun (new_ob);
         }
+
+      sp--;			/* error handler */
 
       /* Set the name back so we can remove it from the hash table.
          Also be careful not to remove the new object, which has
          the same name. */
-      sp--;			/* error handler */
       ob->name = tmp;
       if (new_ob)
         {
@@ -1110,7 +1128,7 @@ void destruct_object (object_t * ob) {
         new_ob->name = tmp;
     }
   else
-    remove_object_hash (ob);
+    remove_object_hash (ob); /* not vital object */
   opt_trace (TT_EVAL|1, "removed /%s from object name hash table", ob->name);
 
   /*
@@ -1141,7 +1159,6 @@ void destruct_object (object_t * ob) {
   ob->contains = 0;
   ob->next_all = obj_list_destruct;
   obj_list_destruct = ob;
-  opt_trace (TT_EVAL|1, "added /%s to destruct list", ob->name);
 
   set_heart_beat (ob, 0);
   ob->flags |= O_DESTRUCTED; /* mark as destructed */
@@ -1149,7 +1166,7 @@ void destruct_object (object_t * ob) {
   /* moved this here from destruct2() -- see comments in destruct2() */
   if (ob->interactive)
     {
-      opt_trace (TT_EVAL|1, "disconnecting /%s as interactive object", ob->name);
+      opt_trace (TT_COMM|1, "disconnecting /%s as interactive object", ob->name);
       remove_interactive (ob, 1);
     }
   opt_trace (TT_EVAL|1, "finished destructing: /%s", ob->name);
@@ -2816,7 +2833,6 @@ void tear_down_simulate() {
       CLEAR_CONFIG_STR(__MASTER_FILE__); /* do not reload master_ob */
       current_object = master_ob;
       destruct_object (master_ob);
-      master_ob = NULL;
   }
   /* simul_efun_ob, if loaded, must be the LAST object to be destructed in the simulated virtual world
    * because the LPC compiler uses index of simul_efuns in the generated opcode. The program_t of
@@ -2824,10 +2840,8 @@ void tear_down_simulate() {
    */
   if (simul_efun_ob) {
       CLEAR_CONFIG_STR(__SIMUL_EFUN_FILE__); /* do not reload simul_efun_ob */
-      object_t* old_simul_efun_ob = simul_efun_ob;
-      unset_simul_efun();
-      current_object = old_simul_efun_ob;
-      destruct_object (old_simul_efun_ob);
+      current_object = simul_efun_ob;
+      destruct_object (simul_efun_ob);
   }
   remove_destructed_objects(); // actually free destructed objects
   clear_apply_cache(); // clear shared strings referenced by apply cache

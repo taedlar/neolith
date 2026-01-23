@@ -9,15 +9,16 @@
 
 #define INDENT_HASH_SIZE 1024 /* must be a power of 2 */
 
-typedef struct {
+/* identifier semantics */
+typedef struct defined_name_s {
   short local_num, global_num, efun_num;
   short function_num, simul_num, class_num;
 } defined_name_t;
 
 typedef struct ident_hash_elem_s {
     char *name;
-    short token; /* only flags */
-    short sem_value; /* for these, a count of the ambiguity */
+    short token;                /* only flags */
+    short sem_value;            /* 0: reserved word or not defined, >1 a count of the ambiguity */
     struct ident_hash_elem_s *next;
 /* the fields above must correspond to struct keyword_t */
     struct ident_hash_elem_s *next_dirty;
@@ -31,7 +32,7 @@ typedef struct ident_hash_elem_list_s {
 
 extern ident_hash_elem_list_t *ihe_list;
 
-typedef struct {
+typedef struct keyword_s {
     char *word;
     unsigned short token;       /* flags here too */
     short sem_value;            /* semantic value for predefined tokens */
@@ -56,6 +57,6 @@ ident_hash_elem_t *find_or_add_ident(char *, int);
 ident_hash_elem_t *find_or_add_perm_ident(char *);
 ident_hash_elem_t *lookup_ident(const char *);
 void free_unused_identifiers(void);
-void add_keyword_t (char *name, keyword_t * entry);
+void add_keyword (const char *name, keyword_t * entry);
 void init_identifiers(void);
 void deinit_identifiers(void);
