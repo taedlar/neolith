@@ -31,7 +31,6 @@ extern char *xalloc(size_t);
 #include "stralloc.h"
 
 #define string_copy(x,y) int_string_copy(x)
-#define string_unlink(x,y) int_string_unlink(x)
 #define new_string(x,y) int_new_string(x)
 #define alloc_cstring(x,y) int_alloc_cstring(x)
 

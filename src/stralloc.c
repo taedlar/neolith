@@ -8,11 +8,15 @@
 #include "stralloc.h"
 #include "hash.h"
 
+#include <assert.h>
+
+/* block_t only */
 #define NEXT(x)		(x)->next
 #define REFS(x)		(x)->refs
-#define EXTRA_REF(x)	(x)->extra_ref
-#define SIZE(x)		(x)->size
 #define BLOCK(x)	(((block_t *)(x)) - 1)	/* pointer arithmetic */
+
+/* block_t or malloc_block_t */
+#define SIZE(x)		(x)->size
 #define STRING(x)	((char *)(x + 1))
 
 /*
@@ -85,12 +89,15 @@ static size_t htable_size;
 static size_t htable_size_minus_one;
 static size_t max_string_length;
 
-static inline block_t *alloc_new_string (const char *, int);
+static block_t *sfindblock (const char *s, int h);
+static void dealloc_string (const char *str);
+static block_t* alloc_new_string (const char *, int);
 
 /**
  * @brief init_strings: Initialize the shared string table.
  */
 void init_strings (size_t hash_size, size_t max_len) {
+
   size_t x;
 
   /* ensure that htable size is a power of 2 */
@@ -108,8 +115,6 @@ void init_strings (size_t hash_size, size_t max_len) {
     }
 
   max_string_length = max_len;
-  //debug_trace ("sizeof malloc_block_t = %d", sizeof(malloc_block_t));
-  //debug_trace ("sizeof block_t = %d", sizeof(block_t));
 }
 
 void deinit_strings(void) {
@@ -117,20 +122,19 @@ void deinit_strings(void) {
     {
       if (num_distinct_strings > 0)
         debug_message ("Warning: deinit_strings with %d strings still allocated.\n", num_distinct_strings);
+      /* TODO: free all strings */
       FREE (base_table);
-      base_table = NULL;
+      base_table = 0;
     }
 }
 
-/*
+/**
  * Looks for a string in the table.  If it finds it, returns a pointer to
  * the start of the string part, and moves the entry for the string to
- * the head of the pointer chain.  One thing (blech!) - puts the previous
- * pointer on the hash chain into fs_prev.
+ * the head of the pointer chain.
  */
+static block_t *sfindblock (const char *s, int h) {
 
-static block_t *sfindblock (const char *s, int h)
-{
   block_t *curr, *prev;
 
   if (!base_table)
@@ -147,9 +151,14 @@ static block_t *sfindblock (const char *s, int h)
       search_len++;
 #endif
       if (*(STRING (curr)) == *s && !strcmp (STRING (curr), s))
-        {			/* found it */
+        {
+          /* found it */
           if (prev)
-            {			/* not at head of list */
+            {
+              /* Move the found block to the head of the list.
+               * This improves performance for strings that are
+               * looked up frequently.
+               */
               NEXT (prev) = NEXT (curr);
               NEXT (curr) = base_table[h];
               base_table[h] = curr;
@@ -163,7 +172,7 @@ static block_t *sfindblock (const char *s, int h)
 }
 
 /**
- * @brief findstring: Find a shared string in the string table.
+ * Find a shared string in the string table or return NULL if not found.
  */
 char* findstring (const char *s) {
   block_t *b;
@@ -178,28 +187,49 @@ char* findstring (const char *s) {
     }
 }
 
-/* alloc_new_string: Make a space for a string.  */
-static block_t *
-alloc_new_string (const char *string, int h)
-{
+/**
+ * Make a space for a string and add it to the hash table.
+ * This is the internal function of the string manager.
+ * For external use, see make_shared_string().
+ * 
+ * @param string The string to add.
+ * @param h The hash value of the string.
+ * @return A pointer to the newly allocated string block entry.
+ * @see make_shared_string
+ */
+static block_t* alloc_new_string (const char *string, int h) {
+
   block_t *b;
   size_t len = strlen (string);
   size_t size;
 
-  opt_trace (TT_MEMORY|2, "first ref: \"%s\"", string);
+  opt_trace (TT_MEMORY|1, "first ref: \"%s\"", string);
   if (len > max_string_length)
     {
       len = max_string_length;
     }
+
+  /* A shared string is allocated with a block_t header followed by
+   * the string data itself:
+   *  +-----------------+----------------+------+
+   *  | block_t header  | string data... | '\0' |
+   *  +-----------------+----------------+------+
+   */
   size = sizeof (block_t) + len + 1;
   b = (block_t *) DXALLOC (size, TAG_SHARED_STRING, "alloc_new_string");
   strncpy (STRING (b), string, len);
-  STRING (b)[len] = '\0';	/* strncpy doesn't put on \0 if 'from' too
-                                 * long */
+  STRING (b)[len] = '\0';	/* truncate string if its length exceeds max_string_length */
+
+  /* The 'size' field stores a 16-bit length of the string.
+   * If the string length exceeds USHRT_MAX (0xffff), the 'size' is set to USHRT_MAX.
+   * Note that the string data itself is always allocated with the full length regardless.
+   */
   SIZE (b) = (unsigned short)(len > USHRT_MAX ? USHRT_MAX : len);
   REFS (b) = 1;
+  /* add to string hash table */
   NEXT (b) = base_table[h];
   base_table[h] = b;
+  /* update string stats */
   ADD_NEW_STRING (SIZE (b), sizeof (block_t));
   ADD_STRING (SIZE (b));
 
@@ -207,11 +237,19 @@ alloc_new_string (const char *string, int h)
 }
 
 /**
- * @brief make_shared_string: Create a shared string (reference counted).
+ * Create or retrieve a shared string (reference counted).
+ * - If the string already exists in the string table, its reference count
+ *   is incremented and a pointer to the existing string is returned.
+ * - If the string does not exist, a new entry is created in the string table
+ *   and a pointer to the new string (with reference count 1) is returned.
+ * @param str The string to share.
+ * @return A pointer to the shared string.
  */
 char* make_shared_string (const char *str) {
   block_t *b;
   int h;
+
+  assert(str != NULL);
 
   b = hfindblock (str, h);	/* hfindblock macro sets h = StrHash(s) */
   if (!b)
@@ -222,32 +260,30 @@ char* make_shared_string (const char *str) {
     {
       if (REFS (b)) /* if reference count overflown, let it stay zero ... */
         {
-          opt_trace (TT_EVAL|3, "add ref (was %d): \"%s\"", REFS (b), str);
+          opt_trace (TT_MEMORY|2, "add ref (was %d): \"%s\"", REFS (b), str);
           REFS (b)++;
         }
       ADD_STRING (SIZE (b));
     }
+
+  /* Return a pointer to the string data. The block_t header is hidden from the caller. */
   return (STRING (b));
 }
 
 /**
- * @brief ref_string: Increase the reference count of a shared string.
- * @details Fatal to call this function on a string that isn't shared.
+ * Increase the reference count of a shared string.
+ * It is fatal to call this function on a string that isn't shared.
  */
 char* ref_string (char *str) {
   block_t *b;
 
+  assert (str != NULL);
   b = BLOCK (str);
-#ifdef DEBUG
-  if (b != findblock (str))
-    {
-      fatal ("stralloc.c: called ref_string on non-shared string: %s.\n",
-             str);
-    }
-#endif /* defined(DEBUG) */
+  assert (b == findblock (str)); /* ensure it's a shared string */
+
   if (REFS (b)) /* if reference count overflown, let it stay zero ... */
     {
-      opt_trace (TT_EVAL|3, "add ref (was %d): \"%s\"", REFS (b), str);
+      opt_trace (TT_MEMORY|2, "add ref (was %d): \"%s\"", REFS (b), str);
       REFS (b)++;
     }
   ADD_STRING (SIZE (b));
@@ -255,20 +291,20 @@ char* ref_string (char *str) {
 }
 
 /**
- *
- * @brief free_string - reduce the ref count on a string.
+ * Reduce the reference count on a string.
  * Various sanity checks applied.
- * It's fatal to call free_string on a non-shared string.
+ * It's fatal to call this function on a non-shared string.
  * 
- * @details If the ref count goes to zero, the string is removed from the
+ * If the reference count goes to zero, the string is removed from the
  * hash table and the memory is freed.
  */
 void free_string (char *str) {
   block_t **prev, *b;
   int h;
 
+  assert (str != NULL);
   b = BLOCK (str);
-  DEBUG_CHECK1 (b != findblock (str), "stralloc.c: free_string called on non-shared string: %s.\n", str);
+  assert (b == findblock (str)); /* ensure it's a shared string */
 
   /*
    * if a string has been ref'd USHRT_MAX times then we assume that its used
@@ -279,11 +315,12 @@ void free_string (char *str) {
     return;
   }
 
-  opt_trace (TT_EVAL|3, "release ref (was %d): \"%s\"", REFS (b), str);
+  opt_trace (TT_MEMORY|2, "release ref (was %d): \"%s\"", REFS (b), str);
   SUB_STRING (SIZE (b));
   if (--REFS (b) > 0)
     return;
 
+  /* remove from hash table */
   h = StrHash (str);
   prev = base_table + h;
   while ((b = *prev))
@@ -296,13 +333,22 @@ void free_string (char *str) {
       prev = &(NEXT (b));
     }
 
+  /* free the shared string */
   SUB_NEW_STRING (SIZE (b), sizeof (block_t));
+  opt_trace (TT_MEMORY|1, "dealloc: \"%s\"", str);
   FREE (b);
 }
 
-void
-deallocate_string (char *str)
-{
+/**
+ * Deallocate a shared string in the string hash table.
+ * This function ignores the reference count and locate the string in the hash table
+ * by the looking for the string data memory address directly.
+ * If the string is not found, this is no-op.
+ * 
+ * @param str Pointer to the string to deallocate.
+ */
+static void dealloc_string (const char *str) {
+
   int h;
   block_t *b, **prev;
 
@@ -317,12 +363,11 @@ deallocate_string (char *str)
         }
       prev = &(NEXT (b));
     }
-  DEBUG_CHECK1 (!b, "stralloc.c: deallocate_string called on non-shared string: %s.\n", str);
-  FREE (b);
+  if (b)
+    FREE (b);
 }
 
 size_t add_string_status (outbuffer_t * out, int verbose) {
-
 #ifdef STRING_STATS
   if (verbose == 1)
     {
@@ -346,23 +391,17 @@ size_t add_string_status (outbuffer_t * out, int verbose) {
   return (bytes_distinct_strings + overhead_bytes);
 #else
   if (verbose)
-    outbuf_add (out,
-                "<String statistics disabled, no information available>\n");
+    outbuf_add (out, "<String statistics disabled, no information available>\n");
   return 0;
 #endif
 }
 
-#define DME
-
-/* This stuff needs a bit more work, otherwise FREE_MSTR() will crash on this
-malloc_block_t the_null_string_blocks[2] = { { DME 0, 1 }, { DME 0, 0 } };
-
-char *the_null_string = (char *)&the_null_string_blocks[1];
-*/
-
-char *
-int_new_string (size_t size)
-{
+/**
+ * Create a new reference counted string (STRING_MALLOC) of specified size.
+ * @param size The size of the string to allocate.
+ * @return A pointer to the newly allocated string (uninitialized).
+ */
+char* int_new_string (size_t size) {
   malloc_block_t *mbt;
 
   mbt = (malloc_block_t *) DXALLOC (size + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, tag);
@@ -374,20 +413,50 @@ int_new_string (size_t size)
   else
     {
       mbt->size = USHRT_MAX;
-      ADD_NEW_STRING (USHRT_MAX, sizeof (malloc_block_t));
+      ADD_NEW_STRING (USHRT_MAX, sizeof (malloc_block_t)); /* FIXME: this is probably incorrect ... */
     }
   mbt->ref = 1;
   ADD_STRING (mbt->size);
-  return (char *) (mbt + 1);
+  return STRING(mbt);
 }
 
-char *extend_string (char *str, size_t len) {
+/**
+ * Create a copy of a string as a reference counted string (STRING_MALLOC).
+ * If the string length exceeds max_string_length, it is truncated.
+ * @param str The string to copy. This can be any null-terminated string.
+ * @return A pointer to the newly allocated string.
+ */
+char *int_string_copy (const char *str) {
+  char *p;
+  size_t len;
 
+  assert (str != NULL);
+  len = strlen (str);
+  if (len > max_string_length)
+    {
+      len = max_string_length;
+      p = new_string (len, desc);
+      (void) strncpy (p, str, len); /* truncate */
+      p[len] = '\0';
+    }
+  else
+    {
+      p = new_string (len, desc);
+      (void) strncpy (p, str, len + 1); /* copy including null byte */
+    }
+  return p;
+}
+
+/**
+ * Extend a reference counted string (STRING_MALLOC).
+ */
+char *extend_string (char *str, size_t len) {
   malloc_block_t *mbt;
+
+  assert (str != NULL);
 #ifdef STRING_STATS
   int oldsize = MSTR_SIZE (str);
 #endif
-
   mbt = (malloc_block_t *) DREALLOC (MSTR_BLOCK (str), len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "extend_string");
   if (len < USHRT_MAX)
     {
@@ -398,82 +467,71 @@ char *extend_string (char *str, size_t len) {
       mbt->size = USHRT_MAX;
     }
   ADD_STRING_SIZE (mbt->size - oldsize);
-
-  return (char *) (mbt + 1);
+  return STRING(mbt);
 }
 
-char *
-int_alloc_cstring (const char *str)
-{
+/**
+ * Allocate a new C string and copy the given string into it.
+ * This function does exactly what strdup() does but uses the
+ * driver memory allocation functions. No block header is added.
+ * @param str The string to copy. This can be any null-terminated string.
+ * @return A pointer to the newly allocated string.
+ */
+char *int_alloc_cstring (const char *str) {
   char *ret;
 
+  assert (str != NULL);
   ret = (char *) DXALLOC (strlen (str) + 1, TAG_STRING, tag);
   strcpy (ret, str);
   return ret;
 }
 
-char *
-int_string_copy (const char *str)
-{
-  char *p;
-  size_t len;
+/**
+ * Unlink a reference counted string (STRING_MALLOC or STRING_SHARED) by creating a new copy
+ * of it as a STRING_MALLOC string.
+ * The reference count of the original string is decremented.
+ * @param str The string to unlink. This must be a STRING_MALLOC string with reference count > 1.
+ * @return A pointer to the newly allocated string.
+ */
+static char *int_string_unlink (char *str) {
+  malloc_block_t *newmbt;
 
-  DEBUG_CHECK (!str, "Null string passed to string_copy.\n");
-  len = strlen (str);
-  if (len > max_string_length)
-    {
-      len = max_string_length;
-      p = new_string (len, desc);
-      (void) strncpy (p, str, len);
-      p[len] = '\0';
-    }
-  else
-    {
-      p = new_string (len, desc);
-      (void) strncpy (p, str, len + 1);
-    }
-  return p;
-}
+  assert (str != NULL);
+  assert (MSTR_REF (str) > 1);
+  MSTR_REF (str)--; /* decrement reference count */
 
-char *
-int_string_unlink (char *str)
-{
-  malloc_block_t *mbt, *newmbt;
-
-  mbt = ((malloc_block_t *) str) - 1;
-  mbt->ref--;
-
-  if (mbt->size == USHRT_MAX)
+  if (MSTR_SIZE (str) == USHRT_MAX)
     {
       size_t len = strlen (str + USHRT_MAX) + USHRT_MAX;	/* ouch */
 
-      newmbt =
-        (malloc_block_t *) DXALLOC (len + sizeof (malloc_block_t) + 1,
-                                    TAG_MALLOC_STRING, desc);
-      memcpy ((char *) (newmbt + 1), (char *) (mbt + 1), len + 1);
+      newmbt = (malloc_block_t *) DXALLOC (len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "int_string_unlink");
+      memcpy (STRING(newmbt), str, len + 1);
       newmbt->size = USHRT_MAX;
-      ADD_NEW_STRING (USHRT_MAX, sizeof (malloc_block_t));
+      ADD_NEW_STRING (USHRT_MAX, sizeof (malloc_block_t)); /* FIXME: this is probably incorrect ... */
     }
   else
     {
-      newmbt =
-        (malloc_block_t *) DXALLOC (mbt->size + sizeof (malloc_block_t) + 1,
-                                    TAG_MALLOC_STRING, desc);
-      memcpy ((char *) (newmbt + 1), (char *) (mbt + 1), mbt->size + 1);
-      newmbt->size = mbt->size;
-      ADD_NEW_STRING (mbt->size, sizeof (malloc_block_t));
+      newmbt = (malloc_block_t *) DXALLOC (MSTR_SIZE (str) + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "int_string_unlink");
+      memcpy (STRING(newmbt), str, MSTR_SIZE (str) + 1);
+      newmbt->size = MSTR_SIZE (str);
+      ADD_NEW_STRING (MSTR_SIZE (str), sizeof (malloc_block_t));
     }
   newmbt->ref = 1;
-
-  return (char *) (newmbt + 1);
+  return STRING(newmbt);
 }
 
-void
-free_string_svalue (svalue_t * v)
-{
+/**
+ * Free a string svalue.
+ * If the string is reference counted (STRING_MALLOC or STRING_SHARED),
+ * decrease the reference count and free the string if the count reaches zero.
+ * If the string is not reference counted (string constant), do nothing.
+ * @param v Pointer to the string svalue to free.
+ */
+void free_string_svalue (svalue_t * v) {
+
   char *str = v->u.string;
 
-  if (v->subtype & STRING_COUNTED)
+  if (v->subtype & STRING_COUNTED) /* refence counted string? (STRING_MALLOC or STRING_SHARED) */
     {
 #ifdef STRING_STATS
       int size = MSTR_SIZE (str);
@@ -481,12 +539,12 @@ free_string_svalue (svalue_t * v)
       if (DEC_COUNTED_REF (str))
         {
           SUB_STRING (size);
-          if (v->subtype & STRING_HASHED)
+          if (v->subtype & STRING_HASHED) /* STRING_SHARED */
             {
               SUB_NEW_STRING (size, sizeof (block_t));
-              deallocate_string (str);
+              dealloc_string (str);
             }
-          else
+          else /* STRING_MALLOC */
             {
               SUB_NEW_STRING (size, sizeof (malloc_block_t));
               FREE (MSTR_BLOCK (str));
@@ -499,16 +557,15 @@ free_string_svalue (svalue_t * v)
     }
 }
 
-void
-unlink_string_svalue (svalue_t * s)
-{
+void unlink_string_svalue (svalue_t * s) {
+
   char *str;
 
   switch (s->subtype)
     {
     case STRING_MALLOC:
       if (MSTR_REF (s->u.string) > 1)
-        s->u.string = string_unlink (s->u.string, "unlink_string_svalue");
+        s->u.string = int_string_unlink (s->u.string, "unlink_string_svalue");
       break;
     case STRING_SHARED:
       {

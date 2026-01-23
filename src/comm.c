@@ -94,6 +94,7 @@ static void telnet_neg (char *, char *);
 static void query_addr_name (object_t *);
 static void got_addr_number (char *, char *);
 static void add_ip_entry (long, const char *);
+static void reset_ip_names (void);
 static void clear_notify (interactive_t *);
 static void setup_accepted_connection (port_def_t *, socket_fd_t, struct sockaddr_in *);
 static void new_user_handler (port_def_t *);
@@ -349,6 +350,7 @@ void ipc_remove () {
       g_runtime = NULL;
     }
 
+  reset_ip_names ();
 }
 
 int do_comm_polling (struct timeval *timeout) {
@@ -2830,6 +2832,19 @@ static void add_ip_entry (long addr, const char *name) {
     free_string (iptable[ipcur].name);
   iptable[ipcur].name = make_shared_string (name);
   ipcur = (ipcur + 1) % IPSIZE;
+}
+
+static void reset_ip_names (void) {
+  int i;
+  for (i = 0; i < IPSIZE; i++)
+    {
+      if (iptable[i].name)
+        {
+          free_string (iptable[i].name);
+          iptable[i].name = NULL;
+        }
+      iptable[i].addr = 0;
+    }
 }
 
 char *query_ip_number (object_t * ob) {
