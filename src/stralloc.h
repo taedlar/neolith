@@ -1,5 +1,12 @@
 #pragma once
 
+/**
+ * Shared string (STRING_SHARED) block header.
+ * The string hash table consists of linked lists of these blocks.
+ * - A shared string is reference counted and should be used as right-hand
+ *   side of an assignment only.
+ * - A shared string is always freed through release of its reference count.
+ */
 typedef struct block_s {
     struct block_s *next;	/* next block in the hash chain */
     /* these two must be last */
@@ -7,6 +14,16 @@ typedef struct block_s {
     unsigned short refs;	/* reference count    */
 } block_t;
 
+/**
+ * Malloc block header for STRING_MALLOC and STRING_SHARED strings.
+ * The layout is designed to align with block_t for efficient access.
+ * 
+ * - MSTR_* macros depend on this structure.
+ * - MSTR_REF and MSTR_SIZE is compatible to both STRING_MALLOC and STRING_SHARED.
+ * - A malloc string is *NOT* added to the string hash table. It's reference count is set to 1
+ *   when created that allows it to be freed in free_string_svalue(). This allows malloc strings
+ *   to be used as left-hand-side string values without worrying about sharing.
+ */
 typedef struct malloc_block_s {
     block_t* unused;		/* to force MSTR_BLOCK align with block_t */
     unsigned short size;
@@ -14,7 +31,6 @@ typedef struct malloc_block_s {
 } malloc_block_t;
 
 #define MSTR_BLOCK(x) (((malloc_block_t *)(x)) - 1) 
-#define MSTR_EXTRA_REF(x) (MSTR_BLOCK(x)->extra_ref)
 #define MSTR_REF(x) (MSTR_BLOCK(x)->ref)
 #define MSTR_SIZE(x) (MSTR_BLOCK(x)->size)
 #define MSTR_UPDATE_SIZE(x, y) do {\
@@ -77,18 +93,8 @@ typedef struct malloc_block_s {
                                      MSTR_SIZE((x)->u.string) != \
                                      MSTR_SIZE((y)->u.string) : 0)
 
-/*
- * stralloc.c
- */
 extern void init_strings(size_t hash_size, size_t max_len);
 extern void deinit_strings();
-extern char *findstring(const char *);
-extern char *make_shared_string(const char *);
-extern char *ref_string(char *);
-extern void free_string(char *);
-extern void deallocate_string(char *);
-extern size_t add_string_status(outbuffer_t *, int);
-extern char *extend_string(char *, size_t);
 
 #ifdef STRING_STATS
 extern int num_distinct_strings;
@@ -97,8 +103,16 @@ extern int allocd_strings;
 extern size_t allocd_bytes;
 extern size_t overhead_bytes;
 #endif
+extern size_t add_string_status(outbuffer_t *, int);
 
-extern char *int_string_copy(const char *);
-extern char *int_string_unlink(char *);
+/* STRING_SHARED */
+extern char *findstring(const char *);
+extern char *make_shared_string(const char *);
+extern char *ref_string(char *);
+extern void free_string(char *);
+
+/* STRING_MALLOC */
 extern char *int_new_string(size_t);
+extern char *int_string_copy(const char *);
+extern char *extend_string(char *, size_t);
 extern char *int_alloc_cstring(const char *);
