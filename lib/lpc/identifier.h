@@ -54,7 +54,7 @@ typedef struct keyword_s {
 #define FOA_NEEDS_MALLOC       0x2
 ident_hash_elem_t *find_or_add_ident(char *, int);
 
-ident_hash_elem_t *find_or_add_perm_ident(char *);
+ident_hash_elem_t *find_or_add_perm_ident(char *, short);
 ident_hash_elem_t *lookup_ident(const char *);
 void free_unused_identifiers(void);
 void add_keyword (const char *name, keyword_t * entry);

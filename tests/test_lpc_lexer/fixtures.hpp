@@ -39,7 +39,6 @@ protected:
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
         init_instrs();
         init_identifiers();
-        init_keywords ();
         init_predefines ();
         set_inc_list (CONFIG_STR (__INCLUDE_DIRS__)); // automatically freed in deinit_lpc_compiler()
     }

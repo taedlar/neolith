@@ -101,6 +101,18 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
     else {
         current_object = master_ob;
         destruct_object (simul_efun_ob); // should raise error
+        /*
+         * The reason to prevent simul_efun_ob from being destructed while master_ob exists:
+         * 1. The order of function definitions in simul_efun_ob is used as simul_num in the permanent identifier table.
+         * 2. When a LPC object that calls simul_efun is loaded, the corresponding simul_num is stored in the compiled
+         *    opcode F_SIMUL_EFUN at compile time.
+         * 3. If simul_efun_ob is destructed and reloaded, the order of function definitions may change,
+         *    causing the simul_num to refer to a different function than intended.
+         * 
+         * In original LPMud and MudOS, the simul_efun_ob is never destructed once loaded.
+         * Neolith allows destructing simul_efun_ob only when master_ob does not exist, which can only be triggered by
+         * using the --pedantic option that enables subsystem teardown when the driver.
+         */
     }
     pop_context (&econ);
     FAIL() << "destruct_object(simul_efun_ob) did not raise error when master object exists.";
