@@ -22,6 +22,7 @@
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
 #include "socket/socket_efuns.h"
+#include "efuns/call_out.h"
 #include "efuns/ed.h"
 #include "efuns/file_utils.h"
 #include "efuns/replace_program.h"
@@ -536,6 +537,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
   ob->name = alloc_cstring (name, "load_object");
+  
   ob->prog = prog;
   ob->flags |= O_WILL_RESET;	/* must be before reset is first called */
   ob->next_all = obj_list;
@@ -686,6 +688,7 @@ object_t *clone_object (const char *str1, int num_arg) {
 
   new_ob->next_all = obj_list;
   obj_list = new_ob;
+  opt_info (1, "cloning object /%s", obj_list->name);
   enter_object_hash (new_ob);	/* Add name to fast object lookup table */
   call_create (new_ob, num_arg);
   command_giver = save_command_giver;
@@ -987,41 +990,41 @@ void destruct_object (object_t * ob) {
     }
 
   remove_object_from_stack (ob);
+  if (apply_ret_value.type == T_OBJECT && apply_ret_value.u.ob == ob)
+    {
+      /* clear apply_ret_value if it references the destructed object */
+      free_svalue (&apply_ret_value, "destruct_object");
+      apply_ret_value = const0;
+    }
 
   /* try to move our contents somewhere */
   super = ob->super;
 
-  if (ob->contains)
+  while (ob->contains)
     {
-      while (ob->contains)
+      object_t *otmp = ob->contains;
+      /*
+      * An error here will not leave destruct() in an inconsistent
+      * stage.
+      */
+      if (!g_proceeding_shutdown) /* if we are shutting down, don't move objects */
         {
-          object_t *otmp;
-
-          otmp = ob->contains;
-          /*
-          * An error here will not leave destruct() in an inconsistent
-          * stage.
-          */
           if (super && !(super->flags & O_DESTRUCTED))
             push_object (super);
           else
             push_number (0);
 
-          if (!g_proceeding_shutdown) /* if we are shutting down, don't move objects */
-            {
-              restrict_destruct = ob->contains;
-              (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
-              restrict_destruct = save_restrict_destruct;
+          restrict_destruct = ob->contains;
+          (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
+          restrict_destruct = save_restrict_destruct;
 
-              /* OUCH! we could be dested by this. -Beek */
-              if (ob->flags & O_DESTRUCTED)
-                return;
-            }
-
-          if (otmp == ob->contains)
-            destruct_object (otmp); /* see move_or_destruct() apply*/
+          /* OUCH! we could be dested by this. -Beek */
+          if (ob->flags & O_DESTRUCTED)
+            return;
         }
-      opt_trace (TT_EVAL|1, "all contents of /%s moved or destructed", ob->name);
+
+      if (otmp == ob->contains) /* not moved elsewhere ... see move_or_destruct() apply */
+        destruct_object (otmp);
     }
 
 #ifdef OLD_ED
@@ -1206,6 +1209,8 @@ destruct2 (object_t * ob)
           ob->variables[i] = const0u;
         }
     }
+  if (ob->ref > 1)
+    opt_warn (1, "object /%s has ref count %d\n", ob->name, ob->ref);
   free_object (ob, "destruct_object");
 }
 
@@ -2834,16 +2839,6 @@ void tear_down_simulate() {
 
   if (MAIN_OPTION(pedantic))
     {
-      int i;
-      object_t *ob;
-      debug_message ("{}\tdisconnecting all users\n");
-      for (i = 0; i < max_users; i++)
-        {
-          if (all_users[i] && all_users[i]->ob != master_ob)
-            {
-              remove_interactive (all_users[i]->ob, 0);
-            }
-        }
       debug_message ("{}\tdestructing all objects\n");
       current_object = master_ob;
       /* destruct everything until only master_ob and simul_efun_ob are left */
@@ -2854,6 +2849,7 @@ void tear_down_simulate() {
               obj_list = obj_list->next_all;
               continue;
             }
+          remove_all_call_out (obj_list);
           destruct_object (obj_list);
         }
     }
