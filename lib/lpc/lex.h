@@ -96,7 +96,7 @@ extern int efun_arg_types[];
 extern char yytext[MAXLINE];
 extern keyword_t predefs[];
 
-void init_keywords (void);
+size_t init_keywords (void);
 void init_predefines (void);
 
 void push_function_context(void);

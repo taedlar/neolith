@@ -240,11 +240,10 @@ static void find_or_add_simul_efun (program_t* prog, function_number_t index, fu
            * 3. Else if its an efun, use that.
            * 4. Else, handle forward declaration or error.
            */
-          ihe = find_or_add_perm_ident (simuls_sorted[j].name);
+          ihe = find_or_add_perm_ident (simuls_sorted[j].name, IHE_SIMUL);
           DEBUG_CHECK1 (ihe != NULL,
                         "find_or_add_perm_ident() returned NULL for simul_efun '%s'\n",
                         simuls_sorted[j].name);
-          ihe->token |= IHE_SIMUL;
           ihe->sem_value++;
           ihe->dn.simul_num = (short)simuls_sorted[j].index;
           simuls[simuls_sorted[j].index].index = runtime_index;
@@ -262,11 +261,10 @@ static void find_or_add_simul_efun (program_t* prog, function_number_t index, fu
   simuls_sorted[first].index = (int)num_simuls;
   opt_trace (TT_SIMUL_EFUN|2, "added simul_efun #%d: %s", simuls_sorted[first].index, funp->name);
   /* update identifier hash, so LPC compiler don't have to call find_simul_efun() */
-  ihe = find_or_add_perm_ident (funp->name);
+  ihe = find_or_add_perm_ident (funp->name, IHE_SIMUL);
   DEBUG_CHECK1 (ihe != NULL,
                 "find_or_add_perm_ident() returned NULL for simul_efun '%s'\n",
                 funp->name);
-  ihe->token |= IHE_SIMUL;
   ihe->sem_value++;
   ihe->dn.simul_num = (short)num_simuls++; /* new simul_efun */
   ref_string (funp->name); /* will be freed in remove_simuls() */

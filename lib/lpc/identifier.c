@@ -5,9 +5,11 @@
 #include "src/std.h"
 #include "hash.h"
 #include "identifier.h"
+#include "lex.h"
 
 ident_hash_elem_list_t *ihe_list = NULL;
 
+static size_t num_keywords = 0;
 static int num_free = 0;
 static ident_hash_elem_t **ident_hash_table; /* ident hash, current position */
 static ident_hash_elem_t **ident_hash_head;  /* ident hash, head of permanent idents */
@@ -77,19 +79,25 @@ ident_hash_elem_t *lookup_ident (const char *name) {
  * @param name The name of the identifier. No reference is made to the string after this call.
  * @return A pointer to the identifier hash element.
  */
-ident_hash_elem_t* find_or_add_perm_ident (char *name) {
+ident_hash_elem_t* find_or_add_perm_ident (char *name, short token_flag) {
   int h = IdentHash (name);
   ident_hash_elem_t *hptr, *hptr2;
 
   if ((hptr = ident_hash_table[h]))
     {
       if (!strcmp (hptr->name, name))
-        return hptr; /* found */
+        {
+          hptr->token |= token_flag;
+          return hptr; /* found */
+        }
       hptr2 = hptr->next;
       while (hptr2 != hptr)
         {
           if (!strcmp (hptr2->name, name))
-            return hptr2; /* found */
+            {
+              hptr2->token |= token_flag;
+              return hptr2; /* found */
+            }
           hptr2 = hptr2->next;
         }
       /* collision, add to slot, a circular linked list */
@@ -110,7 +118,7 @@ ident_hash_elem_t* find_or_add_perm_ident (char *name) {
   
   /* a new permanent identifier is added */
   hptr->name = name;
-  hptr->token = 0;
+  hptr->token = token_flag;
   hptr->sem_value = 0;
   hptr->dn.simul_num = -1;
   hptr->dn.local_num = -1;
@@ -349,6 +357,9 @@ void init_identifiers () {
     {
       ident_hash_table[i] = 0;
     }
+
+  /* add keywords */
+  num_keywords = init_keywords ();
 }
 
 /**
@@ -357,27 +368,30 @@ void init_identifiers () {
  * (reserved words are not freed since they point to static memory locations)
  */
 void deinit_identifiers () {
-  int i, n = 0;
+  int i, n = 0, r = 0;
   free_unused_identifiers ();
-  /* free identifiers with IHE_EFUN flag */
+  /* free permanent identifiers without IHE_RESWORD flag */
   for (i = 0; i < IDENT_HASH_SIZE; i++)
     {
       ident_hash_elem_t *head, *hptr = head = ident_hash_table[i];
-      while (hptr && (hptr->next != head))
+      while (hptr)
         {
-          if (hptr->token & IHE_EFUN)
+          ident_hash_elem_t *tmp = hptr;
+          hptr = hptr->next;
+          if (!(tmp->token & IHE_RESWORD))
             {
-              ident_hash_elem_t *tmp = hptr;
-              hptr = hptr->next;
-              FREE (tmp); /* allocated by find_or_add_perm_ident() */
+              /* non-reserved words permanent identifiers includes efuns and simul_efuns.
+               * They are allocated in find_or_add_perm_ident() and never freed when finished compiling.
+               * So we free them here.
+               */
+              FREE (tmp);
               n++;
             }
           else
-            {
-              if (!(hptr->token & IHE_RESWORD))
-                debug_warn ("leaked identifier (token: 0x%x): %s", hptr->token, hptr->name);
-              hptr = hptr->next;
-            }
+            r++; /* reserved words are actually global variables of type keyword_t, and cannot be freed */
+          
+          if (hptr == head) /* end of circular linked list */
+            break;
         }
       ident_hash_table[i] = NULL;
     }
@@ -385,5 +399,5 @@ void deinit_identifiers () {
   ident_hash_table = NULL;
   ident_hash_head = NULL;
   ident_hash_tail = NULL;
-  opt_trace (TT_MEMORY|3, "freed %d identifiers", n);
+  debug_info ("freed %d permanent identifiers (leaked %d).", n, r - (int)num_keywords);
 }

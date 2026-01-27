@@ -3504,7 +3504,7 @@ const char* main_file_name () {
   return is->file;
 }
 
-void init_keywords (void) {
+size_t init_keywords (void) {
   size_t i;
 
   for (i = 0; i < sizeof(reswords) / sizeof(reswords[0]); i++)
@@ -3512,6 +3512,7 @@ void init_keywords (void) {
       keyword_t *entry = &reswords[i];
       add_keyword (entry->word, entry);
     }
+  return i;
 }
 
 void init_predefines (void) {
@@ -3520,8 +3521,7 @@ void init_predefines (void) {
   ident_hash_elem_t *ihe;
   for (i = 0; i < sizeof(predefs) / sizeof(predefs[0]); i++)
     {
-      ihe = find_or_add_perm_ident (predefs[i].word);
-      ihe->token |= IHE_EFUN;
+      ihe = find_or_add_perm_ident (predefs[i].word, IHE_EFUN);
       ihe->sem_value++;
       ihe->dn.efun_num = i;
     }
