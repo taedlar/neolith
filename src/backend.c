@@ -267,32 +267,6 @@ void backend () {
 
       if (g_proceeding_shutdown)
         {
-          if (MAIN_OPTION(pedantic))
-            {
-              object_t *ob, *next_ob;
-              debug_message ("{}\tdisconnecting all users\n");
-              for (i = 0; i < max_users; i++)
-                {
-                  if (all_users[i] && all_users[i]->ob != master_ob)
-                    {
-                      remove_interactive (all_users[i]->ob, 0);
-                    }
-                }
-              debug_message ("{}\tdestructing all objects\n");
-              current_object = master_ob;
-              for (ob = obj_list; ob; ob = next_ob)
-                {
-                  next_ob = ob->next_all;
-                  if (ob == master_ob || ob == simul_efun_ob)
-                    continue;
-                  if (next_ob->flags & O_DESTRUCTED)
-                    next_ob = obj_list; /* restart if next_ob is being destructed */
-                  destruct_object (ob);
-                }
-              /* master_ob and simul_efun_ob can only be destructed in tear_down_simulate(), which
-               * is called after backend() returns.
-               */
-            }
           break;
         }
 

@@ -118,14 +118,33 @@ void init_strings (size_t hash_size, size_t max_len) {
 }
 
 void deinit_strings(void) {
+  size_t i, s = 0;
   if (base_table)
     {
-      if (num_distinct_strings > 0)
-        debug_message ("Warning: deinit_strings with %d strings still allocated.\n", num_distinct_strings);
-      /* TODO: free all strings */
+      /* dump all strings */
+      for (i = 0; i < htable_size; i++)
+        {
+          block_t *b, *next;
+
+          b = base_table[i];
+          while (b)
+            {
+              next = NEXT (b);
+              opt_trace (TT_MEMORY|1, "leaked (ref=%d): \"%s\"", REFS (b), STRING (b));
+              FREE (b);
+              s++;
+              b = next;
+            }
+        }
+      if (s)
+        debug_warn ("%d shared strings still allocated.\n", s);
       FREE (base_table);
       base_table = 0;
     }
+#ifdef STRING_STATS
+  if (num_distinct_strings > 0)
+    debug_warn ("%d reference counting strings still allocated.\n", num_distinct_strings);
+#endif
 }
 
 /**
@@ -203,7 +222,7 @@ static block_t* alloc_new_string (const char *string, int h) {
   size_t len = strlen (string);
   size_t size;
 
-  opt_trace (TT_MEMORY|1, "first ref: \"%s\"", string);
+  opt_trace (TT_MEMORY|2, "first ref: \"%s\"", string);
   if (len > max_string_length)
     {
       len = max_string_length;
@@ -260,7 +279,7 @@ char* make_shared_string (const char *str) {
     {
       if (REFS (b)) /* if reference count overflown, let it stay zero ... */
         {
-          opt_trace (TT_MEMORY|2, "add ref (was %d): \"%s\"", REFS (b), str);
+          opt_trace (TT_MEMORY|3, "add ref (was %d): \"%s\"", REFS (b), str);
           REFS (b)++;
         }
       ADD_STRING (SIZE (b));
@@ -283,7 +302,7 @@ char* ref_string (char *str) {
 
   if (REFS (b)) /* if reference count overflown, let it stay zero ... */
     {
-      opt_trace (TT_MEMORY|2, "add ref (was %d): \"%s\"", REFS (b), str);
+      opt_trace (TT_MEMORY|3, "add ref (was %d): \"%s\"", REFS (b), str);
       REFS (b)++;
     }
   ADD_STRING (SIZE (b));
@@ -315,7 +334,7 @@ void free_string (char *str) {
     return;
   }
 
-  opt_trace (TT_MEMORY|2, "release ref (was %d): \"%s\"", REFS (b), str);
+  opt_trace (TT_MEMORY|3, "release ref (was %d): \"%s\"", REFS (b), str);
   SUB_STRING (SIZE (b));
   if (--REFS (b) > 0)
     return;
@@ -335,7 +354,7 @@ void free_string (char *str) {
 
   /* free the shared string */
   SUB_NEW_STRING (SIZE (b), sizeof (block_t));
-  opt_trace (TT_MEMORY|1, "dealloc: \"%s\"", str);
+  opt_trace (TT_MEMORY|2, "dealloc: \"%s\"", str);
   FREE (b);
 }
 

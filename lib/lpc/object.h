@@ -79,8 +79,8 @@ struct object_s {
 
 extern object_t **hashed_living;
 extern object_t *previous_ob;
-extern int tot_alloc_object;
-extern int tot_alloc_object_size;
+extern size_t tot_alloc_object;
+extern size_t tot_alloc_object_size;
 extern int save_svalue_depth;
 
 void init_objects();

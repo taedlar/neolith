@@ -922,8 +922,7 @@ void init_master (const char *master_file) {
 static char *saved_master_name = "";
 static char *saved_simul_name = "";
 
-static void
-fix_object_names ()
+static void fix_object_names (void)
 {
   master_ob->name = saved_master_name;
   simul_efun_ob->name = saved_simul_name;
@@ -936,8 +935,9 @@ void reset_destruct_object_limits() {
 }
 
 /**
- * Remove an object. It is first moved into the destruct list, and
- * not really destructed until later. (see destruct2()).
+ * Remove an object. It is first moved into the \c ob_list_destruct linked
+ * list, and not really deallocated until later. (see destruct2()).
+ * @param ob The object to destruct.
  */
 void destruct_object (object_t * ob) {
   object_t **pp;
@@ -1007,13 +1007,16 @@ void destruct_object (object_t * ob) {
           else
             push_number (0);
 
-          restrict_destruct = ob->contains;
-          (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
-          restrict_destruct = save_restrict_destruct;
+          if (!g_proceeding_shutdown) /* if we are shutting down, don't move objects */
+            {
+              restrict_destruct = ob->contains;
+              (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
+              restrict_destruct = save_restrict_destruct;
 
-          /* OUCH! we could be dested by this. -Beek */
-          if (ob->flags & O_DESTRUCTED)
-            return;
+              /* OUCH! we could be dested by this. -Beek */
+              if (ob->flags & O_DESTRUCTED)
+                return;
+            }
 
           if (otmp == ob->contains)
             destruct_object (otmp); /* see move_or_destruct() apply*/
@@ -1083,7 +1086,7 @@ void destruct_object (object_t * ob) {
       else if (ob == simul_efun_ob)
         vital_obj_name = CONFIG_STR (__SIMUL_EFUN_FILE__);
 
-      if (vital_obj_name)
+      if (vital_obj_name && !g_proceeding_shutdown)
         {
           /* reload vital object */
           char new_name[PATH_MAX];
@@ -1105,11 +1108,11 @@ void destruct_object (object_t * ob) {
 
       if (ob == master_ob)
         {
-          set_master (new_ob);
+          set_master (new_ob); /* could be NULL */
         }
       else if (ob == simul_efun_ob)
         {
-          set_simul_efun (new_ob);
+          set_simul_efun (new_ob); /* could be NULL */
         }
 
       sp--;			/* error handler */
@@ -2829,11 +2832,38 @@ void setup_simulate() {
 void tear_down_simulate() {
   opt_trace (TT_BACKEND, "Tearing down simulated virtual world...\n");
 
+  if (MAIN_OPTION(pedantic))
+    {
+      int i;
+      object_t *ob;
+      debug_message ("{}\tdisconnecting all users\n");
+      for (i = 0; i < max_users; i++)
+        {
+          if (all_users[i] && all_users[i]->ob != master_ob)
+            {
+              remove_interactive (all_users[i]->ob, 0);
+            }
+        }
+      debug_message ("{}\tdestructing all objects\n");
+      current_object = master_ob;
+      /* destruct everything until only master_ob and simul_efun_ob are left */
+      while (obj_list)
+        {
+          if ((obj_list == simul_efun_ob) || (obj_list == master_ob))
+            {
+              obj_list = obj_list->next_all;
+              continue;
+            }
+          destruct_object (obj_list);
+        }
+    }
+
   if (master_ob) {
       CLEAR_CONFIG_STR(__MASTER_FILE__); /* do not reload master_ob */
       current_object = master_ob;
       destruct_object (master_ob);
   }
+
   /* simul_efun_ob, if loaded, must be the LAST object to be destructed in the simulated virtual world
    * because the LPC compiler uses index of simul_efuns in the generated opcode. The program_t of
    * simul_efun_ob must remain unchanged or the generated opcode will be corrupted.

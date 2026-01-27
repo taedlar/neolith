@@ -26,7 +26,7 @@
           MAX_SAVE_SVALUE_DEPTH);
 
 object_t *previous_ob;
-int tot_alloc_object, tot_alloc_object_size;
+size_t tot_alloc_object = 0, tot_alloc_object_size = 0;
 
 char *save_mapping (mapping_t * m);
 static int restore_array (char **str, svalue_t *);
@@ -2202,4 +2202,6 @@ void deinit_objects () {
       FREE (hashed_living);
       hashed_living = NULL;
     }
+  if (tot_alloc_object)
+    debug_warn ("Memory leak: %zu objects still allocated at shutdown.\n", tot_alloc_object);
 }
