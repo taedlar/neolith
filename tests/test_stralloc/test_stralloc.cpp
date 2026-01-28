@@ -28,7 +28,7 @@ protected:
 TEST_F(StrAllocTest, initialState) {
     EXPECT_EQ(num_distinct_strings, 0);
     EXPECT_EQ(bytes_distinct_strings, 0);
-    EXPECT_EQ(overhead_bytes, sizeof(block_t*) * 16384);
+    EXPECT_EQ(overhead_bytes, sizeof(block_t*) * 16384); // 15000 rounded up to next power of two
 }
 
 TEST_F(StrAllocTest, makeSharedString) {

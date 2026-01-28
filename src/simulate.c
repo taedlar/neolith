@@ -22,6 +22,7 @@
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
 #include "socket/socket_efuns.h"
+#include "efuns/call_out.h"
 #include "efuns/ed.h"
 #include "efuns/file_utils.h"
 #include "efuns/replace_program.h"
@@ -536,6 +537,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
   ob->name = alloc_cstring (name, "load_object");
+  
   ob->prog = prog;
   ob->flags |= O_WILL_RESET;	/* must be before reset is first called */
   ob->next_all = obj_list;
@@ -686,6 +688,7 @@ object_t *clone_object (const char *str1, int num_arg) {
 
   new_ob->next_all = obj_list;
   obj_list = new_ob;
+  opt_info (1, "cloning object /%s", obj_list->name);
   enter_object_hash (new_ob);	/* Add name to fast object lookup table */
   call_create (new_ob, num_arg);
   command_giver = save_command_giver;
@@ -922,8 +925,7 @@ void init_master (const char *master_file) {
 static char *saved_master_name = "";
 static char *saved_simul_name = "";
 
-static void
-fix_object_names ()
+static void fix_object_names (void)
 {
   master_ob->name = saved_master_name;
   simul_efun_ob->name = saved_simul_name;
@@ -936,8 +938,9 @@ void reset_destruct_object_limits() {
 }
 
 /**
- * Remove an object. It is first moved into the destruct list, and
- * not really destructed until later. (see destruct2()).
+ * Remove an object. It is first moved into the \c ob_list_destruct linked
+ * list, and not really deallocated until later. (see destruct2()).
+ * @param ob The object to destruct.
  */
 void destruct_object (object_t * ob) {
   object_t **pp;
@@ -987,21 +990,25 @@ void destruct_object (object_t * ob) {
     }
 
   remove_object_from_stack (ob);
+  if (apply_ret_value.type == T_OBJECT && apply_ret_value.u.ob == ob)
+    {
+      /* clear apply_ret_value if it references the destructed object */
+      free_svalue (&apply_ret_value, "destruct_object");
+      apply_ret_value = const0;
+    }
 
   /* try to move our contents somewhere */
   super = ob->super;
 
-  if (ob->contains)
+  while (ob->contains)
     {
-      while (ob->contains)
+      object_t *otmp = ob->contains;
+      /*
+      * An error here will not leave destruct() in an inconsistent
+      * stage.
+      */
+      if (!g_proceeding_shutdown) /* if we are shutting down, don't move objects */
         {
-          object_t *otmp;
-
-          otmp = ob->contains;
-          /*
-          * An error here will not leave destruct() in an inconsistent
-          * stage.
-          */
           if (super && !(super->flags & O_DESTRUCTED))
             push_object (super);
           else
@@ -1014,11 +1021,10 @@ void destruct_object (object_t * ob) {
           /* OUCH! we could be dested by this. -Beek */
           if (ob->flags & O_DESTRUCTED)
             return;
-
-          if (otmp == ob->contains)
-            destruct_object (otmp); /* see move_or_destruct() apply*/
         }
-      opt_trace (TT_EVAL|1, "all contents of /%s moved or destructed", ob->name);
+
+      if (otmp == ob->contains) /* not moved elsewhere ... see move_or_destruct() apply */
+        destruct_object (otmp);
     }
 
 #ifdef OLD_ED
@@ -1083,7 +1089,7 @@ void destruct_object (object_t * ob) {
       else if (ob == simul_efun_ob)
         vital_obj_name = CONFIG_STR (__SIMUL_EFUN_FILE__);
 
-      if (vital_obj_name)
+      if (vital_obj_name && !g_proceeding_shutdown)
         {
           /* reload vital object */
           char new_name[PATH_MAX];
@@ -1105,11 +1111,11 @@ void destruct_object (object_t * ob) {
 
       if (ob == master_ob)
         {
-          set_master (new_ob);
+          set_master (new_ob); /* could be NULL */
         }
       else if (ob == simul_efun_ob)
         {
-          set_simul_efun (new_ob);
+          set_simul_efun (new_ob); /* could be NULL */
         }
 
       sp--;			/* error handler */
@@ -1203,6 +1209,8 @@ destruct2 (object_t * ob)
           ob->variables[i] = const0u;
         }
     }
+  if (ob->ref > 1)
+    opt_warn (1, "object /%s has ref count %d\n", ob->name, ob->ref);
   free_object (ob, "destruct_object");
 }
 
@@ -2829,11 +2837,29 @@ void setup_simulate() {
 void tear_down_simulate() {
   opt_trace (TT_BACKEND, "Tearing down simulated virtual world...\n");
 
+  if (MAIN_OPTION(pedantic))
+    {
+      debug_message ("{}\tdestructing all objects\n");
+      current_object = master_ob;
+      /* destruct everything until only master_ob and simul_efun_ob are left */
+      while (obj_list)
+        {
+          if ((obj_list == simul_efun_ob) || (obj_list == master_ob))
+            {
+              obj_list = obj_list->next_all;
+              continue;
+            }
+          remove_all_call_out (obj_list);
+          destruct_object (obj_list);
+        }
+    }
+
   if (master_ob) {
       CLEAR_CONFIG_STR(__MASTER_FILE__); /* do not reload master_ob */
       current_object = master_ob;
       destruct_object (master_ob);
   }
+
   /* simul_efun_ob, if loaded, must be the LAST object to be destructed in the simulated virtual world
    * because the LPC compiler uses index of simul_efuns in the generated opcode. The program_t of
    * simul_efun_ob must remain unchanged or the generated opcode will be corrupted.
