@@ -35,6 +35,18 @@ static timer_port_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
 
 size_t eval_cost = 0;
 
+/*
+ * Async Runtime - Unified event loop for I/O events and worker completions
+ *
+ * Uses async_runtime for platform-agnostic event-driven I/O multiplexing.
+ * See docs/internals/async-library.md for design.
+ */
+async_runtime_t *g_runtime = NULL;
+
+/* Console worker globals */
+console_worker_context_t *g_console_worker = NULL;
+async_queue_t *g_console_queue = NULL;
+
 static void look_for_objects_to_swap (void);
 static void call_heart_beat (void);
 

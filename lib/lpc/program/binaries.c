@@ -658,7 +658,7 @@ program_t *int_load_binary (const char *name)
   prog->id_number = get_id_number ();
 
   total_prog_block_size += prog->total_size;
-  total_num_prog_blocks += 1;
+  total_num_prog_blocks++;
 
   reference_prog (prog, "load_binary");
   for (i = 0; (unsigned) i < prog->num_inherited; i++)

@@ -2225,7 +2225,7 @@ static program_t *epilog ()
 
   prog->id_number = get_id_number ();
   total_prog_block_size += prog->total_size;
-  total_num_prog_blocks += 1;
+  total_num_prog_blocks++;
 
   /* Format is now:
    * <short total-size-in-bytes> <short offset-to-line-info> <file info blob> <line info blob>

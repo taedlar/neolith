@@ -242,8 +242,8 @@ typedef struct program_s
     unsigned short num_inherited;
 } program_t;
 
-extern int total_num_prog_blocks;
-extern int total_prog_block_size;
+extern size_t total_num_prog_blocks;
+extern size_t total_prog_block_size;
 void reference_prog(program_t *, char *);
 void free_prog(program_t *, int);
 void deallocate_program(program_t *);

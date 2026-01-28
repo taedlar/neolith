@@ -5,7 +5,7 @@
 #include "src/std.h"
 #include "program.h"
 
-int total_num_prog_blocks, total_prog_block_size;
+size_t total_num_prog_blocks, total_prog_block_size;
 
 void reference_prog (program_t * progp, char *from) {
   (void) from;		/* unused */
@@ -16,7 +16,7 @@ void deallocate_program (program_t * progp) {
   int i;
 
   total_prog_block_size -= progp->total_size;
-  total_num_prog_blocks -= 1;
+  total_num_prog_blocks--;
 
   /* Free all function names. */
   for (i = 0; i < (int) progp->num_functions_defined; i++)
@@ -39,7 +39,7 @@ void deallocate_program (program_t * progp) {
   FREE ((char *) progp);
 }
 
-/*
+/**
  * Decrement reference count for a program. If it is 0, then free the prgram.
  * The flag free_sub_strings tells if the propgram plus all used strings
  * should be freed. They normally are, except when objects are swapped,
@@ -58,7 +58,7 @@ void free_prog (program_t * progp, int free_sub_strings) {
   else
     {
       total_prog_block_size -= progp->total_size;
-      total_num_prog_blocks -= 1;
+      total_num_prog_blocks--;
       FREE ((char *) progp);
     }
 }
