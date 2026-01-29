@@ -300,8 +300,10 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
       /* we have to search the function
        * The old entry was for a nonexistent function and had to
        * be allocated
-       */
+       *
       if (!entry->progp && entry->id)
+       */
+      if (entry->id && entry->name)
         free_string (entry->name);
 #ifdef CACHE_STATS
       if (!entry->id)

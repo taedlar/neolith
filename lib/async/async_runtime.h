@@ -20,6 +20,7 @@
 #ifndef ASYNC_RUNTIME_H
 #define ASYNC_RUNTIME_H
 
+#include "port/socket_comm.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>

@@ -342,11 +342,10 @@ sort_function_table (program_t * prog)
 /* crude hack to check both .B and .b */
 #define OUT_OF_DATE 0
 
-program_t *int_load_binary (const char *name)
+program_t *load_binary (const char *name)
 {
   char file_name_buf[400];
-  char *buf, *iname, *file_name = file_name_buf, *file_name_two =
-    &file_name_buf[200];
+  char *buf, *iname, *file_name = file_name_buf, *file_name_two = &file_name_buf[200];
   int fd;
   FILE *f;
   int i, buf_size, ilen;
@@ -370,17 +369,18 @@ program_t *int_load_binary (const char *name)
 
   comp_flag = 1;
   opt_trace (TT_COMPILE|1, "expected binary: /%s", file_name);
-  fd = open (file_name, O_RDONLY);
+  fd = FILE_OPEN (file_name, O_RDONLY);
   if (-1 == fd)
     return OUT_OF_DATE;
+
   if (fstat (fd, &st) == -1) {
-    close (fd);
+    FILE_CLOSE (fd);
     return OUT_OF_DATE;
   }
   mtime = st.st_mtime;
 
-  if (!(f = fdopen (fd, "r"))) {
-    close (fd);
+  if (!(f = FILE_FDOPEN (fd, "r"))) {
+    FILE_CLOSE (fd);
     return OUT_OF_DATE;
   }
   opt_trace (TT_COMPILE|1, "found saved binary: /%s", file_name);
@@ -392,7 +392,8 @@ program_t *int_load_binary (const char *name)
       fclose (f);
       return OUT_OF_DATE;
     }
-  buf = DXALLOC (buf_size = SMALL_STRING_SIZE, TAG_TEMPORARY, "ALLOC_BUF");
+  buf_size = SMALL_STRING_SIZE;
+  buf = DXALLOC (buf_size, TAG_TEMPORARY, "ALLOC_BUF");
 
   /*
    * Read preamble.  This must match, or we assume a different driver or
@@ -431,7 +432,7 @@ program_t *int_load_binary (const char *name)
       return OUT_OF_DATE;
     }
   ALLOC_BUF (len);
-  if (fread (buf, sizeof (char), len, f) != (unsigned int)len)
+  if (fread (buf, sizeof (char), len, f) != (size_t)len)
     {
       opt_trace (TT_COMPILE|1, "failed reading include list.");
       fclose (f);
@@ -460,7 +461,7 @@ program_t *int_load_binary (const char *name)
   if (len > 0)
     {
       ALLOC_BUF (len + 1);
-      if (fread (buf, sizeof (char), len, f) != (unsigned int)len)
+      if (fread (buf, sizeof (char), len, f) != (size_t)len)
         {
           opt_trace (TT_COMPILE|1, "failed reading binary name.");
           fclose (f);
@@ -505,7 +506,7 @@ program_t *int_load_binary (const char *name)
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
         {
           ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
+          if (fread (buf, sizeof (char), len, f) == (size_t)len)
             buf[len] = '\0';
         }
       if (!buf[0])
@@ -557,7 +558,7 @@ program_t *int_load_binary (const char *name)
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
         {
           ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
+          if (fread (buf, sizeof (char), len, f) == (size_t)len)
             {
               buf[len] = '\0';
               p->strings[i] = make_shared_string (buf);
@@ -565,11 +566,14 @@ program_t *int_load_binary (const char *name)
             }
         }
       opt_trace (TT_COMPILE|1, "string table corrupted.");
+      while (i-- > 0)
+        {
+          free_string (p->strings[i]);
+        }
       fclose (f);
       free_string (p->name);
       FREE (p);
       FREE (buf);
-      /* TODO: free shared strings */
       return OUT_OF_DATE;
     }
 
@@ -579,7 +583,7 @@ program_t *int_load_binary (const char *name)
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
         {
           ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
+          if (fread (buf, sizeof (char), len, f) == (size_t)len)
             {
               buf[len] = '\0';
               p->variable_table[i] = make_shared_string (buf);
@@ -587,11 +591,19 @@ program_t *int_load_binary (const char *name)
             }
         }
       opt_trace (TT_COMPILE|1, "variable table corrupted.");
+      while (i-- > 0)
+        {
+          free_string (p->variable_table[i]);
+        }
+      i = p->num_strings;
+      while (i-- > 0)
+        {
+          free_string (p->strings[i]);
+        }
       fclose (f);
       free_string (p->name);
       FREE (p);
       FREE (buf);
-      /* TODO: free shared strings */
       return OUT_OF_DATE;
     }
 
@@ -601,7 +613,7 @@ program_t *int_load_binary (const char *name)
       if (fread ((char *) &len, sizeof len, 1, f) == 1)
         {
           ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == (unsigned int)len)
+          if (fread (buf, sizeof (char), len, f) == (size_t)len)
             {
               buf[len] = '\0';
               p->function_table[i].name = make_shared_string (buf);
@@ -609,11 +621,24 @@ program_t *int_load_binary (const char *name)
             }
         }
       opt_trace (TT_COMPILE|1, "function table corrupted.");
+      while (i-- > 0)
+        {
+          free_string (p->function_table[i].name);
+        }
+      i = p->num_variables_defined;
+      while (i-- > 0)
+        {
+          free_string (p->variable_table[i]);
+        }
+      i = p->num_strings;
+      while (i-- > 0)
+        {
+          free_string (p->strings[i]);
+        }
       fclose (f);
       free_string (p->name);
       FREE (p);
       FREE (buf);
-      /* TODO: free shared strings */
       return OUT_OF_DATE;
     }
   sort_function_table (p);
@@ -622,18 +647,35 @@ program_t *int_load_binary (const char *name)
   if (fread ((char *) &len, sizeof len, 1, f) == 1)
     {
       p->file_info = (unsigned short *) DXALLOC (len, TAG_LINENUMBERS, "load binary");
-      if (fread ((char *) p->file_info, len, 1, f) != 1)
+      if (fread ((char *) p->file_info, len, 1, f) == 1)
+        {
+          p->line_info = (unsigned char *) &p->file_info[p->file_info[1]];
+        }
+      else
         {
           opt_trace (TT_COMPILE|1, "line number info corrupted.");
+          i = p->num_functions_defined;
+          while (i-- > 0)
+            {
+              free_string (p->function_table[i].name);
+            }
+          i = p->num_variables_defined;
+          while (i-- > 0)
+            {
+              free_string (p->variable_table[i]);
+            }
+          i = p->num_strings;
+          while (i-- > 0)
+            {
+              free_string (p->strings[i]);
+            }
           fclose (f);
           free_string (p->name);
           FREE (p->file_info);
           FREE (p);
           FREE (buf);
-          /* TODO: free shared strings */
           return OUT_OF_DATE;
         }
-      p->line_info = (unsigned char *) &p->file_info[p->file_info[1]];
     }
 
 
@@ -658,7 +700,7 @@ program_t *int_load_binary (const char *name)
   prog->id_number = get_id_number ();
 
   total_prog_block_size += prog->total_size;
-  total_num_prog_blocks += 1;
+  total_num_prog_blocks++;
 
   reference_prog (prog, "load_binary");
   for (i = 0; (unsigned) i < prog->num_inherited; i++)
@@ -670,9 +712,8 @@ program_t *int_load_binary (const char *name)
   return prog;
 }
 
-void
-init_binaries ()
-{
+void init_binaries () {
+
   if (CONFIG_STR(__SAVE_BINARIES_DIR__))
     {
       /* The compiled LPC program contains opcode that uses simul_efun indexes.

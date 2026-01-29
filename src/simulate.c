@@ -439,7 +439,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
     }
 
   /* Get the program by loading from binary or compiling from the source */
-  if (!(prog = load_binary (real_name, lpc_obj)) && !inherit_file)
+  if (!(prog = load_binary (real_name)) && !inherit_file)
     {
       opt_trace (TT_COMPILE|2, "no binary found, compiling: \"%s\"", real_name);
 
@@ -2649,7 +2649,6 @@ void do_shutdown () {
         (void) SOCKET_CLOSE (lpc_socks[i].fd);
     }
 
-  /* TODO: perform pedantic mudlib shutdown */
   for (i = 0; i < max_users; i++)
     {
       if (!all_users[i] || all_users[i]->fd == STDIN_FILENO)
@@ -2659,6 +2658,30 @@ void do_shutdown () {
           flush_message (all_users[i]); /* flush any pending output before closing */
           (void) SOCKET_CLOSE (all_users[i]->fd);
         }
+    }
+
+  /* shutdown console worker if active */
+  if (g_console_worker)
+    {
+      if (!console_worker_shutdown(g_console_worker, 5000))
+        {
+          debug_warn ("Console worker did not stop within timeout\n");
+        }
+      console_worker_destroy(g_console_worker);
+      g_console_worker = NULL;
+    }
+
+  if (g_console_queue)
+    {
+      async_queue_destroy(g_console_queue);
+      g_console_queue = NULL;
+    }
+      
+  /* destroy async runtime */
+  if (g_runtime)
+    {
+      async_runtime_deinit (g_runtime);
+      g_runtime = NULL;
     }
 
   if (MAIN_OPTION(pedantic))
@@ -2835,11 +2858,10 @@ void setup_simulate() {
 }
 
 void tear_down_simulate() {
-  opt_trace (TT_BACKEND, "Tearing down simulated virtual world...\n");
 
   if (MAIN_OPTION(pedantic))
     {
-      debug_message ("{}\tdestructing all objects\n");
+      opt_trace (TT_MEMORY|2, "destructing all objects");
       current_object = master_ob;
       /* destruct everything until only master_ob and simul_efun_ob are left */
       while (obj_list)
@@ -2858,6 +2880,7 @@ void tear_down_simulate() {
       CLEAR_CONFIG_STR(__MASTER_FILE__); /* do not reload master_ob */
       current_object = master_ob;
       destruct_object (master_ob);
+      set_master (0);
   }
 
   /* simul_efun_ob, if loaded, must be the LAST object to be destructed in the simulated virtual world
@@ -2868,10 +2891,16 @@ void tear_down_simulate() {
       CLEAR_CONFIG_STR(__SIMUL_EFUN_FILE__); /* do not reload simul_efun_ob */
       current_object = simul_efun_ob;
       destruct_object (simul_efun_ob);
+      set_simul_efun (0);
   }
   remove_destructed_objects(); // actually free destructed objects
   clear_apply_cache(); // clear shared strings referenced by apply cache
+
   reset_interpreter ();   // clear stack machine
+  if (total_num_prog_blocks)
+    {
+      opt_trace (TT_MEMORY|1, "leaked program blocks: %zu\n", total_num_prog_blocks);
+    }
 
   deinit_uids();      // free all uids
   deinit_objects();   // free living name hash table

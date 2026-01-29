@@ -37,7 +37,7 @@ TEST_F(LPCCompilerTest, saveBinary) {
      * 2. The binary's driver_id and config_id must match the current ones
      * 3. The source file, included files and all inherited files must be older than the binary
      */
-    prog = load_binary("save_binary.c", UNIT_TESTING);
+    prog = load_binary("save_binary.c");
     EXPECT_TRUE(prog != nullptr) << "load_binary failed to load saved binary.";
     free_prog(prog, 1);
 }

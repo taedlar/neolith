@@ -11,9 +11,6 @@
 #include "interpret.h"
 #include "socket/socket_efuns.h"
 #include "port/socket_comm.h"
-#include "async/async_runtime.h"
-#include "async/async_queue.h"
-#include "async/console_worker.h"
 #include "efuns/ed.h"
 
 #include "lpc/include/origin.h"
@@ -117,19 +114,8 @@ int max_users = 0;
 
 /* static declarations */
 
-/*
- * Async Runtime - Unified event loop for I/O events and worker completions
- *
- * Uses async_runtime for platform-agnostic event-driven I/O multiplexing.
- * See docs/internals/async-library.md for design.
- */
-static async_runtime_t *g_runtime = NULL;
 static io_event_t g_io_events[512];  /* Event buffer for async_runtime_wait() */
 static int g_num_io_events = 0;
-
-/* Console worker globals */
-static console_worker_context_t *g_console_worker = NULL;
-static async_queue_t *g_console_queue = NULL;
 
 static int addr_server_fd = -1;
 
@@ -324,30 +310,6 @@ void ipc_remove () {
       debug_message ("{}\tclosing service on TCP port %d\n", external_port[i].port);
       if (SOCKET_CLOSE (external_port[i].fd) == SOCKET_ERROR)
         debug_error ("SOCKET_CLOSE() failed: %d", SOCKET_ERRNO);
-    }
-
-  /* Destroy async runtime */
-  if (g_runtime)
-    {
-      /* Shutdown console worker if active */
-      if (g_console_worker)
-        {
-          if (!console_worker_shutdown(g_console_worker, 5000))
-            {
-              debug_warn ("Console worker did not stop within timeout\n");
-            }
-          console_worker_destroy(g_console_worker);
-          g_console_worker = NULL;
-        }
-      
-      if (g_console_queue)
-        {
-          async_queue_destroy(g_console_queue);
-          g_console_queue = NULL;
-        }
-      
-      async_runtime_deinit (g_runtime);
-      g_runtime = NULL;
     }
 
   reset_ip_names ();

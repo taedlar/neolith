@@ -1,10 +1,17 @@
 #pragma once
 #include "interpret.h"
+#include "async/async_runtime.h"
+#include "async/async_queue.h"
+#include "async/console_worker.h"
 
 extern time_t current_time;
 extern int heart_beat_flag;
 extern object_t *current_heart_beat;
 extern size_t eval_cost;
+
+extern async_runtime_t *g_runtime;
+extern console_worker_context_t *g_console_worker;
+extern async_queue_t *g_console_queue;
 
 void preload_objects(int);
 void backend (void);
