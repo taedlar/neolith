@@ -12,6 +12,7 @@
 #include <winsock2.h>
 #include <windows.h>
 #include "async/async_runtime.h"
+#include "async/console_worker.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -503,14 +504,8 @@ int async_runtime_add_console(async_runtime_t* runtime, void* context) {
     runtime->console_context = context;
     runtime->console_enabled = 1;
     
-    /* Determine console type */
-    DWORD mode;
-    if (GetConsoleMode(runtime->console_handle, &mode)) {
-        runtime->console_type = CONSOLE_TYPE_REAL;
-    } else {
-        DWORD type = GetFileType(runtime->console_handle);
-        runtime->console_type = (type == FILE_TYPE_PIPE) ? CONSOLE_TYPE_PIPE : CONSOLE_TYPE_FILE;
-    }
+    /* Use console_detect_type() to avoid code duplication */
+    runtime->console_type = console_detect_type();
     
     return 0;
 }
