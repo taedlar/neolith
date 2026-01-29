@@ -12,14 +12,16 @@
     #define STDIN_FILENO _fileno(stdin)
     #define STDOUT_FILENO _fileno(stdout)
     #include <io.h>
-    #define FILE_OPEN   _open
-    #define FILE_CLOSE  _close
-    #define FILE_READ   _read
-    #define FILE_WRITE  _write
+    #define FILE_OPEN       _open
+    #define FILE_FDOPEN     _fdopen
+    #define FILE_CLOSE      _close
+    #define FILE_READ       _read
+    #define FILE_WRITE      _write
     #include <direct.h>
-    #define CHDIR    _chdir
+    #define CHDIR           _chdir
 #else   /* !_WIN32 */
     #define FILE_OPEN   open
+    #define FILE_FDOPEN fdopen
     #define FILE_CLOSE  close
     #define FILE_READ   read
     #define FILE_WRITE  write

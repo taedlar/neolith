@@ -439,7 +439,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
     }
 
   /* Get the program by loading from binary or compiling from the source */
-  if (!(prog = load_binary (real_name, lpc_obj)) && !inherit_file)
+  if (!(prog = load_binary (real_name)) && !inherit_file)
     {
       opt_trace (TT_COMPILE|2, "no binary found, compiling: \"%s\"", real_name);
 
@@ -2880,6 +2880,7 @@ void tear_down_simulate() {
       CLEAR_CONFIG_STR(__MASTER_FILE__); /* do not reload master_ob */
       current_object = master_ob;
       destruct_object (master_ob);
+      set_master (0);
   }
 
   /* simul_efun_ob, if loaded, must be the LAST object to be destructed in the simulated virtual world
@@ -2890,6 +2891,7 @@ void tear_down_simulate() {
       CLEAR_CONFIG_STR(__SIMUL_EFUN_FILE__); /* do not reload simul_efun_ob */
       current_object = simul_efun_ob;
       destruct_object (simul_efun_ob);
+      set_simul_efun (0);
   }
   remove_destructed_objects(); // actually free destructed objects
   clear_apply_cache(); // clear shared strings referenced by apply cache

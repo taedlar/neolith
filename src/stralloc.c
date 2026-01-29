@@ -130,9 +130,14 @@ void deinit_strings(void) {
           while (b)
             {
               next = NEXT (b);
-              opt_trace (TT_MEMORY|1, "leaked (ref=%d): \"%s\"", REFS (b), STRING (b));
+              if (REFS (b) > 0)
+                {
+                  opt_trace (TT_MEMORY|1, "leaked (ref=%d): \"%s\"", REFS (b), STRING (b));
+                  s++;
+                }
+              else
+                num_distinct_strings--; /* immortal strings, we free them here */
               FREE (b);
-              s++;
               b = next;
             }
         }
