@@ -589,7 +589,7 @@ void unlink_string_svalue (svalue_t * s) {
     {
     case STRING_MALLOC:
       if (MSTR_REF (s->u.string) > 1)
-        s->u.string = int_string_unlink (s->u.string, "unlink_string_svalue");
+        s->u.string = int_string_unlink (s->u.string);
       break;
     case STRING_SHARED:
       {

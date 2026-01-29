@@ -2221,9 +2221,9 @@ void remove_interactive (object_t * ob, int dested) {
 
   if (MAIN_OPTION(console_mode) && ip->fd == STDIN_FILENO)
     {
+      console_type_t console_type = async_runtime_get_console_type(g_runtime);
       /* Check if stdin is a pipe/file - if so, exit instead of trying to reconnect */
 #ifdef _WIN32
-      console_type_t console_type = async_runtime_get_console_type(g_runtime);
       if (console_type == CONSOLE_TYPE_PIPE || console_type == CONSOLE_TYPE_FILE) {
         debug_message ("Console input closed (pipe/file) - shutting down\n");
         g_proceeding_shutdown++;

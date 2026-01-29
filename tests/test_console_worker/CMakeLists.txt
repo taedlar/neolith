@@ -8,6 +8,7 @@ add_executable(test_console_worker
     test_console_worker_main.cpp
     test_console_worker_lifecycle.cpp
     test_console_worker_detection.cpp
+    test_async_runtime_console.cpp
 )
 
 # Link to async library (includes console_worker) and logger

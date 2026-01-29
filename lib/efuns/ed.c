@@ -1395,7 +1395,9 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
  * optimize for this editor.   Dworkin 920510
  */
 #define error(s)               { ED_OUTPUTV(ED_DEST, s, lineno); errs++; return; }
+#ifndef bool
 #define bool char
+#endif
 static int lineno, errs;
 static int shi;			/* the current shift (negative for left
                                  * shift) */
