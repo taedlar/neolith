@@ -23,12 +23,9 @@ typedef struct mapping_node_block_s {
 
 struct mapping_s {
     unsigned short ref;         /* how many times this map has been referenced */
-#ifdef DEBUG
-    int extra_ref;
-#endif
     mapping_node_t **table;     /* the hash table */
     unsigned short table_size;  /* bit-mask for # of buckets in hash table == power of 2 minus one */
-    unsigned short unfilled;    /* # of buckets among 80% of total buckets that do not have entries */
+    unsigned short unfilled;    /* number of buckets among 80% of total buckets that do not have entries */
     int count;                  /* total # of nodes actually in mapping  */
 };
 
@@ -58,7 +55,7 @@ typedef struct minfo_s {
  * mapping.c
  */
 extern int num_mappings;
-extern int total_mapping_size;
+extern size_t total_mapping_size;
 extern int total_mapping_nodes;
 
 int msameval(svalue_t *, svalue_t *);

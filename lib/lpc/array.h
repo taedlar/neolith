@@ -3,9 +3,6 @@
 
 struct array_s {
     unsigned short ref;
-#ifdef DEBUG
-    int extra_ref;
-#endif
     unsigned short size;
     svalue_t item[1];
 };
@@ -16,13 +13,13 @@ extern array_t the_null_array;
  * array.c
  */
 #ifdef ARRAY_STATS
-extern int num_arrays;
-extern int total_array_size;
+extern size_t num_arrays;
+extern size_t total_array_size;
 #endif
 
 int sameval(svalue_t *, svalue_t *);
 array_t *allocate_array(int);
-array_t *allocate_empty_array(int);
+array_t *allocate_empty_array(size_t);
 void free_array(array_t *);
 void free_empty_array(array_t *);
 void check_for_destr(array_t *);

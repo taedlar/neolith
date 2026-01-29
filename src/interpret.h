@@ -30,7 +30,7 @@
 #define FRAME_EXTERNAL     8
 
 typedef struct {
-    short framekind;            /* see above FRAME_**/
+    int framekind;            /* see above FRAME_**/
     union {
         int table_index;
         funptr_t *funp;
@@ -43,7 +43,7 @@ typedef struct {
     svalue_t *fp;               /* Frame pointer */
     int function_index_offset;  /* Used when executing functions in inherited programs */
     int variable_index_offset;  /* Same */
-    short caller_type;          /* was this a locally called function? */
+    int caller_type;          /* was this a locally called function? */
 } control_stack_t;
 
 typedef struct {
@@ -67,8 +67,8 @@ typedef struct {
 /* add to an svalue */
 #define EXTEND_SVALUE_STRING(x, y, z) do {\
         char *ess_res; \
-        int ess_len; \
-        int ess_r; \
+        size_t ess_len; \
+        size_t ess_r; \
         ess_len = (ess_r = SVALUE_STRLEN(x)) + strlen(y); \
         if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
           ess_res = (char *) extend_string((x)->u.string, ess_len); \
@@ -86,7 +86,7 @@ typedef struct {
 
 /* <something that needs no free> + string svalue */
 #define SVALUE_STRING_ADD_LEFT(y, z) do {\
-        char *pss_res; int pss_r; int pss_len; \
+        char *pss_res; size_t pss_r; size_t pss_len; \
         pss_len = SVALUE_STRLEN(sp) + (pss_r = strlen(y)); \
         pss_res = new_string(pss_len, z); \
         strcpy(pss_res, y); \
@@ -99,7 +99,7 @@ typedef struct {
 
 /* basically, string + string; faster than using extend b/c of SVALUE_STRLEN */
 #define SVALUE_STRING_JOIN(x, y, z) do {\
-        char *ssj_res; int ssj_r; int ssj_len; \
+        char *ssj_res; size_t ssj_r; size_t ssj_len; \
         ssj_r = SVALUE_STRLEN(x); \
         ssj_len = ssj_r + SVALUE_STRLEN(y); \
         if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
@@ -200,7 +200,7 @@ extern svalue_t *end_of_stack;
 extern control_stack_t* control_stack;
 
 extern program_t *current_prog;
-extern short caller_type;
+extern int caller_type;
 extern const char *pc;
 extern svalue_t *sp;
 extern svalue_t *fp;

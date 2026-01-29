@@ -12,10 +12,10 @@
 #include "src/interpret.h"
 
 int num_mappings = 0;
-int total_mapping_size = 0;
+size_t total_mapping_size = 0;
 int total_mapping_nodes = 0;
 
-static int node_hash (mapping_node_t * mn)
+static intptr_t node_hash (mapping_node_t * mn)
 {
   return MAP_POINTER_HASH (mn->values[0].u.number);
 }
@@ -56,8 +56,8 @@ int growMap (mapping_t * m) {
   /* hash table doubles in size -- keep track of the memory used */
   total_mapping_size += oldsize * sizeof (mapping_node_t *);
 
-  m->unfilled = oldsize * (unsigned) FILL_PERCENT / (unsigned) 100;
-  m->table_size = newsize - 1;
+  m->unfilled = (unsigned short)(oldsize * (unsigned) FILL_PERCENT / (unsigned) 100);
+  m->table_size = (unsigned short)(newsize - 1);
 
   /* zero out the new storage area (2nd half of table) */
   a += oldsize;
@@ -137,21 +137,16 @@ void dealloc_mapping (mapping_t * m) {
             free_svalue (elt->values + 1, "free_mapping");
             free_svalue (elt->values, "free_mapping");
             free_node (elt);
-
           }
       }
     while (j--);
-
-
     FREE ((char *) a);
   }
-
   FREE ((char *) m);
 }
 
-void
-free_mapping (mapping_t * m)
-{
+void free_mapping (mapping_t * m) {
+
   /* some other object is still referencing this mapping */
   if (--m->ref > 0)
     return;
@@ -161,9 +156,8 @@ free_mapping (mapping_t * m)
 static mapping_node_t *free_nodes = 0;
 mapping_node_block_t *mapping_node_blocks = 0;
 
-mapping_node_t *
-new_map_node ()
-{
+mapping_node_t* new_map_node () {
+
   mapping_node_block_t *mnb;
   mapping_node_t *ret;
   int i;
@@ -186,14 +180,15 @@ new_map_node ()
   return ret;
 }
 
-void
-free_node (mapping_node_t * mn)
-{
+/**
+ * Free a mapping node, adding it to the free list.
+ */
+void free_node (mapping_node_t * mn) {
   mn->next = free_nodes;
   free_nodes = mn;
 }
 
-/** @brief Allocate a new, empty mapping.
+/** Allocate a new, empty mapping.
  *  call with n == 0 if you will be doing many deletions from the map.
  *  call with n == "approx. # of insertions you plan to do" if you won't be
  *  doing many deletions from the map.
@@ -218,10 +213,10 @@ mapping_t *allocate_mapping (size_t n) {
       n |= n >> 4;
       if (n & 0xff00)
         n |= n >> 8;
-      newmap->table_size = n++;
+      newmap->table_size = (unsigned short)n++;
     }
   else
-    newmap->table_size = (n = MAP_HASH_TABLE_SIZE) - 1;
+    newmap->table_size = (unsigned short)((n = MAP_HASH_TABLE_SIZE) - 1);
   /* The size is actually 1 higher */
   newmap->unfilled = (unsigned short) (n * FILL_PERCENT / 100);
   a = newmap->table =
@@ -241,9 +236,8 @@ mapping_t *allocate_mapping (size_t n) {
   copyMapping: make a copy of a mapping
 */
 
-mapping_t *
-copyMapping (mapping_t * m)
-{
+static mapping_t* copyMapping (mapping_t * m) {
+
   mapping_t *newmap;
   int k = m->table_size;
   mapping_node_t *elt, *nelt, **a, **b = m->table, **c;
@@ -251,7 +245,7 @@ copyMapping (mapping_t * m)
   newmap = ALLOCATE (mapping_t, TAG_MAPPING, "copy_mapping: 1");
   if (newmap == NULL)
     error ("copyMapping - out of memory.\n");
-  newmap->table_size = k++;
+  newmap->table_size = (unsigned short)k++;
   newmap->unfilled = m->unfilled;
   newmap->ref = 1;
   c = newmap->table = CALLOCATE (k, mapping_node_t *, TAG_MAP_TBL, "copy_mapping: 2");
@@ -284,9 +278,7 @@ copyMapping (mapping_t * m)
   return newmap;
 }
 
-int
-restore_hash_string (char **val, svalue_t * sv)
-{
+int restore_hash_string (char **val, svalue_t * sv) {
   register char *cp = *val;
   char c, *start = cp;
 
@@ -344,13 +336,19 @@ restore_hash_string (char **val, svalue_t * sv)
   return 0;
 }
 
-/*
- * svalue_t_to_int: Converts an svalue into an integer index.
+/**
+ * Converts an svalue into an integer index that can be used as hash
+ * of the mapping (index of bucket).
+ * @param v The svalue to convert.
+ * @return The integer hash value.
  */
+static int64_t svalue_to_int_and_promote (svalue_t * v) {
 
-int
-svalue_to_int (svalue_t * v)
-{
+  if (v->type == T_NUMBER)
+    return v->u.number;
+  else if (v->type == T_REAL)
+    return (int64_t)v->u.real;
+
   if (v->type == T_STRING && v->subtype != STRING_SHARED)
     {
       char *p = make_shared_string (v->u.string);
@@ -358,16 +356,19 @@ svalue_to_int (svalue_t * v)
       v->subtype = STRING_SHARED;
       v->u.string = p;
     }
-  /* The bottom bits of pointers tend to be bad ... 
-   * Note that this means close groups of numbers don't hash particularly
-   * well, but then one wonders why they aren't using an array ...
-   */
-  return MAP_POINTER_HASH (v->u.number);
+  return MAP_POINTER_HASH (v->u.string);
 }
 
-int
-msameval (svalue_t * arg1, svalue_t * arg2)
-{
+/**
+ * Compare two svalues for equality in the context of mapping keys.
+ * Number and real svalues are compared by value, all other types
+ * are compared by pointer.
+ * @param arg1 The first svalue.
+ * @param arg2 The second svalue.
+ * @return Non-zero if the svalues are equal, zero otherwise.
+ */
+int msameval (svalue_t * arg1, svalue_t * arg2) {
+
   switch (arg1->type | arg2->type)
     {
     case T_NUMBER:
@@ -375,23 +376,22 @@ msameval (svalue_t * arg1, svalue_t * arg2)
     case T_REAL:
       return arg1->u.real == arg2->u.real;
     default:
+      /* pointer */
       return arg1->u.arr == arg2->u.arr;
     }
 }
 
-/*
+/**
  * node_find_in_mapping: Like find_for_insert(), but doesn't attempt
  * to add anything if a value is not found.  The returned pointer won't
  * necessarily have any meaningful value.
  */
+mapping_node_t* node_find_in_mapping (mapping_t * m, svalue_t * lv) {
 
-mapping_node_t *
-node_find_in_mapping (mapping_t * m, svalue_t * lv)
-{
   int i;
   mapping_node_t *elt, **a = m->table;
 
-  i = svalue_to_int (lv) & m->table_size;
+  i = svalue_to_int_and_promote (lv) & m->table_size;
   for (elt = a[i]; elt; elt = elt->next)
     {
       if (msameval (elt->values, lv))
@@ -400,14 +400,12 @@ node_find_in_mapping (mapping_t * m, svalue_t * lv)
   return (mapping_node_t *) 0;
 }
 
-/*
-   mapping_delete: delete an element from the mapping
-*/
+/**
+ * Delete an element from the mapping.
+ */
+void mapping_delete (mapping_t * m, svalue_t * lv) {
 
-void
-mapping_delete (mapping_t * m, svalue_t * lv)
-{
-  int i = svalue_to_int (lv) & m->table_size;
+  int i = svalue_to_int_and_promote (lv) & m->table_size;
   mapping_node_t **prev = m->table + i, *elt;
 
   if ((elt = *prev))
@@ -436,17 +434,15 @@ mapping_delete (mapping_t * m, svalue_t * lv)
     }
 }
 
-/*
- * find_for_insert: Tries to find an address at which an rvalue
- * can be inserted in a mapping.  This can also be used by the
- * microcode interpreter, to translate an expression <mapping>[index]
- * into an lvalue.
+/**
+ * Tries to find an address at which an rvalue can be inserted in a mapping.
+ * This can also be used by the microcode interpreter, to translate an expression
+ * <mapping>[index] into an lvalue.
  */
 
-svalue_t *
-find_for_insert (mapping_t * m, svalue_t * lv, int doTheFree)
-{
-  int oi = svalue_to_int (lv);
+svalue_t* find_for_insert (mapping_t * m, svalue_t * lv, int doTheFree) {
+
+  int64_t oi = svalue_to_int_and_promote (lv);
   unsigned short i = oi & m->table_size;
   mapping_node_t *n, *newnode, **a = m->table + i;
 
@@ -554,8 +550,9 @@ f_unique_mapping (void)
   svalue_t *arg = sp - st_num_arg + 1, *sv;
   unique_node_t **table, *uptr, *nptr;
   array_t *v = arg->u.arr, *ret;
-  unsigned short oi, i, numkeys = 0, mask, size;
-  unsigned short num_arg = st_num_arg;
+  int64_t oi;
+  unsigned short i, numkeys = 0, mask, size;
+  int num_arg = st_num_arg;
   unsigned short nmask;
   mapping_t *m;
   mapping_node_t **mtable, *elt;
@@ -586,8 +583,7 @@ f_unique_mapping (void)
   else
     mask = (size = MAP_HASH_TABLE_SIZE) - 1;
 
-  table = (unique_node_t **) DXALLOC (size *= sizeof (unique_node_t *),
-                                      100, "f_unique_mapping:1");
+  table = (unique_node_t **) DXALLOC (size *= sizeof (unique_node_t *), 100, "f_unique_mapping:1");
   if (!table)
     error ("Unique_mapping - Out of memory.\n");
   memset (table, 0, size);
@@ -606,7 +602,7 @@ f_unique_mapping (void)
     {
       push_svalue (v->item + size);
       sv = call_efun_callback (&ftc, 1);
-      i = (oi = svalue_to_int (sv)) & mask;
+      i = (oi = svalue_to_int_and_promote (sv)) & mask;
       if ((uptr = table[i]))
         {
           do
@@ -682,8 +678,7 @@ f_unique_mapping (void)
                           uptr = table[--j];
                         }
                       while (j >= 0);
-                      total_mapping_size +=
-                        sizeof (mapping_node_t) * (m->count = numkeys);
+                      total_mapping_size += sizeof (mapping_node_t) * (m->count = numkeys);
                       total_mapping_nodes += numkeys;
                       free_mapping (m);
                       error ("Out of memory\n");
@@ -693,7 +688,8 @@ f_unique_mapping (void)
               elt = ALLOCATE (mapping_node_t, 105, "f_unique_mapping:6");
               *elt->values = uptr->key;
               (elt->values + 1)->type = T_ARRAY;
-              ret = (elt->values + 1)->u.arr = allocate_empty_array (size = uptr->count);
+              size = (unsigned short)uptr->count;
+              ret = (elt->values + 1)->u.arr = allocate_empty_array (size);
               ind = uptr->indices;
               while (size--)
                 {
@@ -728,11 +724,11 @@ f_unique_mapping (void)
  * array of svalues. Format of data: LHS RHS LHS2 RHS2... (uses hash table)
  */
 
-mapping_t *
-load_mapping_from_aggregate (svalue_t * sp, int n)
-{
+mapping_t* load_mapping_from_aggregate (svalue_t * sv, int n) {
+
   mapping_t *m;
-  int mask, i, oi, count = 0;
+  int64_t oi;
+  int mask, i, count = 0;
   mapping_node_t **a, *elt, *elt2;
 
   m = allocate_mapping (n >> 1);
@@ -742,18 +738,16 @@ load_mapping_from_aggregate (svalue_t * sp, int n)
   a = m->table;
   do
     {
-      i = (oi = svalue_to_int (++sp)) & mask;
+      i = (oi = svalue_to_int_and_promote (++sv)) & mask;
       if ((elt2 = elt = a[i]))
         {
           do
             {
-              if (msameval (sp, elt->values))
+              if (msameval (sv, elt->values))
                 {
-                  free_svalue (sp++,
-                               "load_mapping_from_aggregate: duplicate key");
-                  free_svalue (elt->values + 1,
-                               "load_mapping_from_aggregate");
-                  *(elt->values + 1) = *sp;
+                  free_svalue (sv++, "load_mapping_from_aggregate: duplicate key");
+                  free_svalue (elt->values + 1, "load_mapping_from_aggregate");
+                  *(elt->values + 1) = *sv;
                   break;
                 }
             }
@@ -773,8 +767,7 @@ load_mapping_from_aggregate (svalue_t * sp, int n)
             }
           else
             {
-              total_mapping_size += sizeof (mapping_node_t) * (m->count =
-                                                               count);
+              total_mapping_size += sizeof (mapping_node_t) * (m->count = count);
               total_mapping_nodes += count;
               free_mapping (m);
               error ("Out of memory\n");
@@ -791,8 +784,8 @@ load_mapping_from_aggregate (svalue_t * sp, int n)
         }
 
       elt = new_map_node ();
-      *elt->values = *sp++;
-      *(elt->values + 1) = *sp;
+      *elt->values = *sv++;
+      *(elt->values + 1) = *sv++;
       (a[i] = elt)->next = elt2;
     }
   while (n -= 2);
@@ -806,7 +799,7 @@ load_mapping_from_aggregate (svalue_t * sp, int n)
 svalue_t *
 find_in_mapping (mapping_t * m, svalue_t * lv)
 {
-  int i = svalue_to_int (lv) & m->table_size;
+  int i = svalue_to_int_and_promote (lv) & m->table_size;
   mapping_node_t *n = m->table[i];
 
   while (n)
@@ -828,7 +821,7 @@ find_string_in_mapping (mapping_t * m, char *p)
 
   if (!ss)
     return &const0u;
-  i = MAP_POINTER_HASH (ss);
+  i = (int)MAP_POINTER_HASH (ss);
   n = m->table[i & m->table_size];
 
   while (n)
@@ -858,7 +851,7 @@ add_to_mapping (mapping_t * m1, mapping_t * m2, int free_flag)
     {
       for (elt2 = a2[j]; elt2; elt2 = elt2->next)
         {
-          i = (oi = node_hash (elt2)) & mask;
+          i = (oi = (int)node_hash (elt2)) & mask;
           sv = elt2->values;
           if ((n = elt1 = a1[i]))
             {
@@ -942,7 +935,7 @@ unique_add_to_mapping (mapping_t * m1, mapping_t * m2, int free_flag)
     {
       for (elt2 = a2[j]; elt2; elt2 = elt2->next)
         {
-          i = (oi = node_hash (elt2)) & mask;
+          i = (oi = (int)node_hash (elt2)) & mask;
           sv = elt2->values;
           if ((n = elt1 = a1[i]))
             {
@@ -1130,14 +1123,14 @@ filter_mapping (svalue_t * arg, int num_arg)
             break;
           else if (ret->type != T_NUMBER || ret->u.number)
             {
-              tb_index = node_hash (elt) & size;
+              tb_index = (unsigned short)node_hash (elt) & size;
               b = newmap->table + tb_index;
               if (!(n = *b) && !(--newmap->unfilled))
                 {
                   if (growMap (newmap))
                     {
                       size = newmap->table_size;
-                      tb_index = node_hash (elt) & size;
+                      tb_index = (unsigned short)node_hash (elt) & size;
                       n = *(b = newmap->table + tb_index);
                     }
                   else
@@ -1201,7 +1194,7 @@ compose_mapping (mapping_t * m1, mapping_t * m2, unsigned short flag)
           do
             {
               sv = elt->values + 1;
-              if ((elt2 = b[svalue_to_int (sv) & mask]))
+              if ((elt2 = b[svalue_to_int_and_promote (sv) & mask]))
                 {
                   do
                     {

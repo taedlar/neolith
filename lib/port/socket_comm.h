@@ -30,6 +30,11 @@ typedef int socket_fd_t;
 #include <poll.h>
 #endif
 
+#ifndef HAVE_GETTIMEOFDAY
+/* Windows defines struct timeval in winsock2.h */
+int gettimeofday (struct timeval* tp, void* tzp);
+#endif /* !HAVE_GETTIMEOFDAY */
+
 /**
  * @brief Create a connected socket pair for testing.
  * 
