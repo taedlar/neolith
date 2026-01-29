@@ -63,16 +63,16 @@ typedef struct {
 } io_event_t;
 
 /**
- * Console input types (Windows-specific)
+ * Console input types
+ * - Windows: REAL uses ReadConsoleInputW, PIPE/FILE use ReadFile
+ * - POSIX: REAL uses termios, PIPE/FILE use regular read()
  */
-#ifdef _WIN32
 typedef enum {
     CONSOLE_TYPE_NONE = 0,
-    CONSOLE_TYPE_REAL,    /**< Real console (ReadConsoleInputW) */
-    CONSOLE_TYPE_PIPE,    /**< Pipe (synchronous ReadFile) */
-    CONSOLE_TYPE_FILE     /**< File (synchronous ReadFile) */
+    CONSOLE_TYPE_REAL,    /**< Real console (Windows) or TTY (POSIX with termios) */
+    CONSOLE_TYPE_PIPE,    /**< Pipe (e.g., testbot.py piping input) */
+    CONSOLE_TYPE_FILE     /**< File (stdin redirected from file) */
 } console_type_t;
-#endif
 
 /**
  * Opaque runtime handle
@@ -255,13 +255,15 @@ int async_runtime_post_write(async_runtime_t* runtime, socket_fd_t fd, void* buf
 
 /*
  * =============================================================================
- * Console Support (Windows-specific)
+ * Console Support
  * =============================================================================
  */
 
-#ifdef _WIN32
 /**
- * Register Windows console input for event monitoring
+ * Register console input for event monitoring
+ * 
+ * On Windows: Detects console type (REAL/PIPE/FILE) via GetConsoleMode/GetFileType
+ * On POSIX: Detects console type using isatty() and fstat()
  * 
  * @param runtime Runtime instance
  * @param context User context pointer
@@ -272,10 +274,15 @@ int async_runtime_add_console(async_runtime_t* runtime, void* context);
 /**
  * Get console type
  * 
+ * Returns console type detected during async_runtime_add_console().
+ * On POSIX, distinguishes between TTY (uses termios) vs pipe/file.
+ * 
  * @param runtime Runtime instance
  * @returns Console type
  */
 console_type_t async_runtime_get_console_type(async_runtime_t* runtime);
+
+#ifdef _WIN32
 
 /**
  * Get console event handle for piped stdin

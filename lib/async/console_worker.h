@@ -23,21 +23,6 @@
 #include <stdint.h>
 
 /**
- * Console types (platform-specific)
- * 
- * Note: On Windows, this is already defined in async_runtime.h
- * On POSIX, we define it here for consistency
- */
-#ifndef _WIN32
-typedef enum {
-    CONSOLE_TYPE_NONE = 0,     /**< Not a console (e.g., detached process) */
-    CONSOLE_TYPE_REAL = 1,     /**< Real interactive console (Windows) or TTY (POSIX) */
-    CONSOLE_TYPE_PIPE = 2,     /**< Piped stdin (e.g., testbot.py) */
-    CONSOLE_TYPE_FILE = 3      /**< Redirected from file */
-} console_type_t;
-#endif
-
-/**
  * Console worker context
  */
 typedef struct console_worker_context_s {

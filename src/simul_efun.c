@@ -87,12 +87,12 @@ static void remove_simuls () {
   int i;
   ident_hash_elem_t *ihe;
   /* inactivate all old simul_efuns */
-  for (i = 0; i < num_simuls; i++)
+  for (i = 0; i < (int)num_simuls; i++)
     {
       simuls[i].index = 0;
       simuls[i].func = 0;
     }
-  for (i = 0; i < num_simuls; i++)
+  for (i = 0; i < (int)num_simuls; i++)
     {
       if ((ihe = lookup_ident (simuls_sorted[i].name)))
         {
