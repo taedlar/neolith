@@ -4,13 +4,14 @@
 
 ## SYNOPSIS
 ~~~cxx
-void max_eval_cost()
+int max_eval_cost()
 ~~~
 
 ## DESCRIPTION
-max_eval_cost() returns the number of instructions that can
-be executed before the driver decides it is in an infinite
-loop.
+max_eval_cost() returns the number of instructions that can be executed before the driver decides it is in an infinite loop.
+
+> [!NOTE]
+> This is an alias of `set_eval_limit(1)`.
 
 ## SEE ALSO
 [catch()](catch.md), [error()](error.md), [throw()](throw.md), [error_handler()](error_handler.md),
