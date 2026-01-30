@@ -25,7 +25,7 @@
 #include "efuns_vector.h"
 
 int num_varargs;
-short caller_type;
+int caller_type;
 program_t *current_prog;
 
 static void do_loop_cond_number (void);
@@ -373,17 +373,19 @@ pop_stack ()
 svalue_t global_lvalue_byte = { .type = T_LVALUE_BYTE };
 
 
-/*
+/**
  * Compute the address of an array element.
+ * Used by the F_INDEX_LVALUE and F_RINDEX_LVALUE opcodes.
+ * The index is on the stack, as is the lvalue to be indexed.
  */
-static void push_indexed_lvalue (int code) {
-  int ind;
+static void push_indexed_lvalue (int reverse) {
+  int64_t ind;
   svalue_t *lv;
 
   if (sp->type == T_LVALUE)
     {
       lv = sp->u.lvalue;
-      if (!code && lv->type == T_MAPPING)
+      if (!reverse && lv->type == T_MAPPING)
         {
           sp--;
           if (!(lv = find_for_insert (lv->u.map, sp, 0)))
@@ -403,23 +405,22 @@ static void push_indexed_lvalue (int code) {
         {
         case T_STRING:
           {
-            int len = SVALUE_STRLEN (lv);
+            size_t len = SVALUE_STRLEN (lv);
 
-            if (code)
+            if (reverse)
               ind = len - ind;
-            if (ind >= len || ind < 0)
+            if (ind >= (int64_t)len || ind < 0)
               error ("*Index out of bounds in string index lvalue.");
             unlink_string_svalue (lv);
             sp->type = T_LVALUE;
             sp->u.lvalue = &global_lvalue_byte;
-            global_lvalue_byte.u.lvalue_byte =
-              (unsigned char *) &lv->u.string[ind];
+            global_lvalue_byte.u.lvalue_byte = (unsigned char *) &lv->u.string[ind];
             break;
           }
 
         case T_BUFFER:
           {
-            if (code)
+            if (reverse)
               ind = lv->u.buf->size - ind;
             if (ind >= (int)lv->u.buf->size || ind < 0)
               error ("*Buffer index out of bounds.");
@@ -431,7 +432,7 @@ static void push_indexed_lvalue (int code) {
 
         case T_ARRAY:
           {
-            if (code)
+            if (reverse)
               ind = lv->u.arr->size - ind;
             if (ind >= lv->u.arr->size || ind < 0)
               error ("*Array index out of bounds.");
@@ -452,7 +453,7 @@ static void push_indexed_lvalue (int code) {
       /* Where x is a _valid_ lvalue */
       /* Hence the reference to sp is at least 2 :) */
 
-      if (!code && (sp->type == T_MAPPING))
+      if (!reverse && (sp->type == T_MAPPING))
         {
           if (!(lv = find_for_insert (sp->u.map, sp - 1, 0)))
             mapping_too_large ();
@@ -478,7 +479,7 @@ static void push_indexed_lvalue (int code) {
 
         case T_BUFFER:
           {
-            if (code)
+            if (reverse)
               ind = sp->u.buf->size - ind;
             if (ind >= (int)sp->u.buf->size || ind < 0)
               error ("*Buffer index out of bounds.");
@@ -491,7 +492,7 @@ static void push_indexed_lvalue (int code) {
 
         case T_ARRAY:
           {
-            if (code)
+            if (reverse)
               ind = sp->u.arr->size - ind;
             if (ind >= sp->u.arr->size || ind < 0)
               error ("*Array index out of bounds.");
@@ -518,9 +519,7 @@ global_lvalue_range;
 
 static svalue_t global_lvalue_range_sv = { .type = T_LVALUE_RANGE };
 
-static void
-push_lvalue_range (int code)
-{
+static void push_lvalue_range (int code) {
   int ind1, ind2, size = 0;
   svalue_t *lv;
 
@@ -533,7 +532,7 @@ push_lvalue_range (int code)
           break;
         case T_STRING:
           {
-            size = SVALUE_STRLEN (lv);
+            size = (int)SVALUE_STRLEN (lv);
             unlink_string_svalue (lv);
             break;
           }
@@ -551,14 +550,14 @@ push_lvalue_range (int code)
   if (!((--sp)->type == T_NUMBER))
     error ("*Illegal 2nd index type to range lvalue.");
 
-  ind2 = (code & 0x01) ? (size - sp->u.number) : sp->u.number;
+  ind2 = (code & 0x01) ? (size - (int)sp->u.number) : (int)sp->u.number;
   if (++ind2 < 0 || (ind2 > size))
     error ("*The 2nd index to range lvalue must be >= -1 and < sizeof(indexed value)");
 
   if (!((--sp)->type == T_NUMBER))
     error ("*Illegal 1st index type to range lvalue");
 
-  ind1 = (code & 0x10) ? (size - sp->u.number) : sp->u.number;
+  ind1 = (code & 0x10) ? (size - (int)sp->u.number) : (int)sp->u.number;
 
   if (ind1 < 0 || ind1 > size)
     error ("*The 1st index to range lvalue must be >= 0 and <= sizeof(indexed value)");
@@ -658,7 +657,8 @@ copy_lvalue_range (svalue_t * from)
         if (from->type != T_STRING)
           error ("*Illegal rhs to string range lvalue.");
 
-        if ((fsize = SVALUE_STRLEN (from)) == ind2 - ind1)
+        fsize = (int)SVALUE_STRLEN (from);
+        if (fsize == ind2 - ind1)
           {
             /* since fsize >= 0, ind2 - ind1 <= strlen(orig string) */
             /* because both of them can only range from 0 to len */
@@ -789,7 +789,8 @@ assign_lvalue_range (svalue_t * from)
         if (from->type != T_STRING)
           error ("*Illegal rhs to string range lvalue.");
 
-        if ((fsize = SVALUE_STRLEN (from)) == ind2 - ind1)
+        fsize = (int)SVALUE_STRLEN (from);
+        if (fsize == ind2 - ind1)
           {
             /* since fsize >= 0, ind2 - ind1 <= strlen(orig string) */
             /* because both of them can only range from 0 to len */
@@ -1399,11 +1400,11 @@ void eval_instruction (const char *p) {
             s = fp + EXTRACT_UCHAR (pc++);
             if (s->type == T_NUMBER)
               {
-                i = s->u.number--;
+                i = (int)s->u.number--;
               }
             else if (s->type == T_REAL)
               {
-                i = s->u.real--;
+                i = (int)s->u.real--;
               }
             else
               {
@@ -1867,7 +1868,7 @@ void eval_instruction (const char *p) {
                 }
               else if (sp->type == T_REAL)
                 {
-                  lval->u.number += sp->u.real;
+                  lval->u.number += (long)sp->u.real;
                   /* both sides are numbers, no freeing required */
                 }
               else
@@ -1934,7 +1935,7 @@ void eval_instruction (const char *p) {
                 if (sp->type != T_NUMBER)
                   error ("*Bad right type to += of char lvalue.");
 
-                c = *global_lvalue_byte.u.lvalue_byte + sp->u.number;
+                c = *global_lvalue_byte.u.lvalue_byte + (char)sp->u.number;
 
                 if (c == '\0')
                   error ("*Strings cannot contain 0 bytes.");
@@ -1992,7 +1993,7 @@ void eval_instruction (const char *p) {
               {
                 (++sp)->type = T_NUMBER;
                 sp->u.lvalue_byte = (unsigned char *) ((sp - 1)->u.string);
-                sp->subtype = SVALUE_STRLEN (sp - 1);
+                sp->subtype = (unsigned short)SVALUE_STRLEN (sp - 1);
               }
             else
               {
@@ -2143,7 +2144,7 @@ void eval_instruction (const char *p) {
             array_t *v;
 
             LOAD_SHORT (offset, pc);
-            offset += num_varargs;
+            offset += (unsigned short)num_varargs;
             num_varargs = 0;
             v = allocate_empty_array ((int) offset);
             /*
@@ -2161,7 +2162,7 @@ void eval_instruction (const char *p) {
 
             LOAD_SHORT (offset, pc);
 
-            offset += num_varargs;
+            offset += (unsigned short)num_varargs;
             num_varargs = 0;
             m = load_mapping_from_aggregate (sp -= offset, offset);
             (++sp)->type = T_MAPPING;
@@ -2255,7 +2256,7 @@ void eval_instruction (const char *p) {
             const char* name;
 
             LOAD_SHORT (offset, pc);
-            offset += function_index_offset;
+            offset += (unsigned short)function_index_offset;
             /*
              * Find the function in the function table. As the
              * function may have been redefined by inheritance, we
@@ -2463,7 +2464,7 @@ void eval_instruction (const char *p) {
               break;
             case T_REAL:
               sp->type = T_REAL;
-              sp->u.real = ++lval->u.number;
+              sp->u.real = (double)++lval->u.number;
               break;
             case T_LVALUE_BYTE:
               if (*global_lvalue_byte.u.lvalue_byte == (unsigned char) 255)
@@ -2535,7 +2536,7 @@ void eval_instruction (const char *p) {
                 if ((sp - 1)->type != T_NUMBER)
                   error ("*Buffer indexes must be integers.");
 
-                i = (sp - 1)->u.number;
+                i = (int)(sp - 1)->u.number;
                 if ((i > (int)sp->u.buf->size) || (i < 0))
                   error ("*Buffer index out of bounds.");
                 i = sp->u.buf->item[i];
@@ -2550,7 +2551,7 @@ void eval_instruction (const char *p) {
                   {
                     error ("*String indexes must be integers.");
                   }
-                i = (sp - 1)->u.number;
+                i = (int)(sp - 1)->u.number;
                 if ((i > (int)SVALUE_STRLEN (sp)) || (i < 0))
                   error ("*String index out of bounds.");
                 i = (unsigned char) sp->u.string[i];
@@ -2564,7 +2565,7 @@ void eval_instruction (const char *p) {
 
                 if ((sp - 1)->type != T_NUMBER)
                   error ("*Array indexes must be integers.");
-                i = (sp - 1)->u.number;
+                i = (int)(sp - 1)->u.number;
                 if (i < 0)
                   error ("*Array index must be positive or zero.");
                 arr = sp->u.arr;
@@ -2600,7 +2601,7 @@ void eval_instruction (const char *p) {
                 if ((sp - 1)->type != T_NUMBER)
                   error ("*Indexing a buffer with an illegal type.");
 
-                i = sp->u.buf->size - (sp - 1)->u.number;
+                i = sp->u.buf->size - (int)(sp - 1)->u.number;
                 if ((i > (int)sp->u.buf->size) || (i < 0))
                   error ("*Buffer index out of bounds.");
 
@@ -2612,13 +2613,13 @@ void eval_instruction (const char *p) {
               }
             case T_STRING:
               {
-                int len = SVALUE_STRLEN (sp);
+                size_t len = SVALUE_STRLEN (sp);
                 if ((sp - 1)->type != T_NUMBER)
                   {
                     error ("*Indexing a string with an illegal type.");
                   }
-                i = len - (sp - 1)->u.number;
-                if ((i > len) || (i < 0))
+                i = (int)(len - (sp - 1)->u.number);
+                if ((i > (int)len) || (i < 0))
                   error ("*String index out of bounds.");
                 i = (unsigned char) sp->u.string[i];
                 free_string_svalue (sp);
@@ -2631,8 +2632,8 @@ void eval_instruction (const char *p) {
 
                 if ((sp - 1)->type != T_NUMBER)
                   error ("*Indexing an array with an illegal type.");
-                i = arr->size - (sp - 1)->u.number;
-                if (i < 0 || i >= arr->size)
+                i = arr->size - (int)(sp - 1)->u.number;
+                if (i < 0 || i >= (int)(arr->size))
                   error ("*Array index out of bounds.");
                 assign_svalue_no_free (--sp, &arr->item[i]);
                 free_array (arr);
@@ -3011,7 +3012,7 @@ void eval_instruction (const char *p) {
              */
             ((char *) &offset)[0] = pc[0];
             ((char *) &offset)[1] = pc[1];
-            offset = pc + offset - current_prog->program;
+            offset = (unsigned short)(pc + offset - current_prog->program);
             pc += 2;
 
             do_catch (pc, offset);
@@ -3042,7 +3043,7 @@ void eval_instruction (const char *p) {
             long usec;
 
             gettimeofday (&tv, NULL);
-            usec = (tv.tv_sec - (sp - 1)->u.number) * 1000000 + (tv.tv_usec - sp->u.number);
+            usec = (tv.tv_sec - (long)(sp - 1)->u.number) * 1000000 + (tv.tv_usec - (long)sp->u.number);
             sp -= 2;
             push_number (usec);
             break;
@@ -3077,7 +3078,7 @@ void eval_instruction (const char *p) {
           continue;
         case F_EFUNV:
           {
-            int i, num;
+            int num;
             st_num_arg = EXTRACT_UCHAR (pc++) + num_varargs;
             num_varargs = 0;
             instruction = EXTRACT_UCHAR (pc++);
@@ -3104,11 +3105,19 @@ void call_efun(int instruction) {
   (*efun_table[instruction - BASE]) ();
 }
 
-static void
-do_catch (const char *pc, unsigned short new_pc_offset)
-{
+/**
+ * Execute a 'catch' block.
+ * This effectively calls eval_instruction() with a setjmp/longjmp
+ * error handling around it.
+ * If error or throw is called during the evaluation, control
+ * returns here, and the caught value is left on the stack.
+ * @param p The program code to execute.
+ * @param new_pc_offset The pc offset to continue after the catch block.
+ */
+static void do_catch (const char *p, unsigned short new_pc_offset) {
+
   error_context_t econ;
-  (void)new_pc_offset; /* unused */
+  (void)new_pc_offset; /* unused, new program counter is restored by restore_context */
 
   /*
    * Save some global variables that must be restored separately after a
@@ -3146,7 +3155,11 @@ do_catch (const char *pc, unsigned short new_pc_offset)
     {
       assign_svalue (&catch_value, &const1);
       /* note, this will work, since csp->extern_call won't be used */
-      eval_instruction (pc);
+      eval_instruction (p);
+
+      /* if no error, the program counter points to the end of catch block and
+       * we continue after it.
+       */
     }
   pop_context (&econ);
 }

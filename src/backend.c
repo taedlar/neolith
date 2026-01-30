@@ -478,8 +478,8 @@ static void look_for_objects_to_swap () {
 typedef struct
 {
   object_t *ob;
-  short heart_beat_ticks;
-  short time_to_heart_beat;
+  short heart_beat_ticks; /* ticks until next heart beat */
+  short time_to_heart_beat; /* configured heart beat interval (tick counts) */
 }
 heart_beat_t;
 
@@ -566,12 +566,14 @@ int query_heart_beat (object_t * ob) {
 }				/* query_heart_beat() */
 
 /**
- * @brief Add or remove an object from the heart beat list; does the major check...
+ * Add or remove an object from the heart beat list; does the major check...
  * If an object removes something from the list from within a heart beat,
  * various pointers in call_heart_beat could be stuffed, so we must
  * check current_heart_beat and adjust pointers.
+ * @param ob The object to modify.
+ * @param to If zero, disable heart beat. If positive, enable/set heart beat
+ * @return 1 if successful, 0 on failure (e.g., trying to disable non-enabled heart beat).
  */
-
 int set_heart_beat (object_t * ob, int to) {
   int index;
 
@@ -619,7 +621,7 @@ int set_heart_beat (object_t * ob, int to) {
           if (heart_beats[index].ob == ob)
             {
               heart_beats[index].time_to_heart_beat =
-                heart_beats[index].heart_beat_ticks = to;
+                heart_beats[index].heart_beat_ticks = (short)to;
               break;
             }
         }
@@ -645,8 +647,7 @@ int set_heart_beat (object_t * ob, int to) {
       hb->ob = ob;
       if (to < 0)
         to = 1;
-      hb->time_to_heart_beat = to;
-      hb->heart_beat_ticks = to;
+      hb->time_to_heart_beat = hb->heart_beat_ticks = (short)to;
       ob->flags |= O_HEART_BEAT;
     }
 

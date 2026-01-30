@@ -73,8 +73,7 @@ optimize (parse_node_t * expr)
             {
               if (!optimizer_state)
                 {
-                  int x = expr->r.expr->l.number;
-
+                  int64_t x = expr->r.expr->l.number;
                   if (last_local_refs[x])
                     {
                       last_local_refs[x]->v.number = F_TRANSFER_LOCAL;
@@ -478,19 +477,16 @@ lpc_tree_form (parse_node_t * expr, parse_node_t * dest)
 }
 #endif
 
-short
-generate (parse_node_t * node)
-{
-  short where = CURRENT_PROGRAM_SIZE;
+short generate (parse_node_t * node) {
+
+  ptrdiff_t where = CURRENT_PROGRAM_SIZE;
 
   if (num_parse_error)
     return 0;
-  {
-    i_generate_node (node);
-  }
+  i_generate_node (node);
   free_tree ();
 
-  return where;
+  return (short)where;
 }
 
 void
@@ -526,10 +522,8 @@ optimizer_end_function (void)
     }
 }
 
-short
-generate_function (compiler_function_t * f, parse_node_t * node, int num)
-{
-  short ret;
+short generate_function (compiler_function_t* f, parse_node_t * node, int num) {
+
   (void)f; /* unused */
   if (pragmas & PRAGMA_OPTIMIZE)
     {
@@ -538,21 +532,16 @@ generate_function (compiler_function_t * f, parse_node_t * node, int num)
       node = optimize (node);
       optimizer_end_function ();
     }
-  ret = generate (node);
-  return ret;
+  return generate (node);
 }
 
-int
-node_always_true (parse_node_t * node)
-{
+int node_always_true (parse_node_t * node) {
   if (node->kind == NODE_NUMBER)
-    return node->v.number;
+    return (int)node->v.number;
   return 0;
 }
 
-int
-generate_conditional_branch (parse_node_t * node)
-{
+int generate_conditional_branch (parse_node_t * node) {
   int branch;
 
   /* only have to handle while (x != 0) since while (x == 0) will be

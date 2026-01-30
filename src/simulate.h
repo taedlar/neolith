@@ -25,7 +25,7 @@ char *strput_int(char *, char *, int);
 void check_legal_string(const char *);
 
 int user_parser(char *);
-int command_for_object(char *);
+int64_t command_for_object(char *);
 void enable_commands(int);
 void add_action(svalue_t *, char *, int);
 int remove_action(char *, char *);

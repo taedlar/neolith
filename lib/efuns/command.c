@@ -253,7 +253,7 @@ f_query_verb (void)
 void
 f_command (void)
 {
-  int i;
+  int64_t i;
 
   i = command_for_object (sp->u.string);
   free_string_svalue (sp);

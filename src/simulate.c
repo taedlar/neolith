@@ -740,18 +740,17 @@ int process_command (char *str, object_t * ob)
   return (res);
 }				/* process_command() */
 
-/*
- * Execute a command for an object. Copy the command into a
- * new buffer, because 'process_command()' can modify the command.
- * If the object is not current object, static functions will not
- * be executed. This will prevent forcing users to do illegal things.
+/**
+ * Execute a command for an object.
+ * Copy the command into a new buffer, because 'process_command()' can modify the command.
+ * If the object is not current object, static functions will not * be executed.
+ * This will prevent forcing users to do illegal things.
  *
  * Return cost of the command executed if success (> 0).
  * When failure, return 0.
  */
-int
-command_for_object (char *str)
-{
+int64_t command_for_object (char *str) {
+
   char buff[1000];
   int64_t save_eval_cost = eval_cost;
 
@@ -834,12 +833,20 @@ object_present (svalue_t * v, object_t * ob)
   return 0;
 }
 
-static object_t *
-object_present2 (char *str, object_t * ob)
-{
+/**
+ * Help function for object_present().
+ * Looks for an object named 'str' in the inventory 'ob'.
+ * An optional number following the object name indicates which one to find.
+ * For example, "sword 2" finds the second sword in the inventory.
+ * @param str The name of the object to find, possibly with a number suffix.
+ * @param ob The inventory to search in.
+ * @return The found object, or NULL if not found.
+ */
+static object_t* object_present2 (char *str, object_t * ob) {
+
   svalue_t *ret;
   char *p;
-  int count = 0, length;
+  size_t count = 0, length;
 
   if ((length = strlen (str)))
     {
@@ -1824,7 +1831,7 @@ user_parser (char *buff)
   char verb_buff[MAX_VERB_BUFF];
   sentence_t *s;
   char *p;
-  int length;
+  ptrdiff_t length;
   object_t *save_command_giver = command_giver;
   char *user_verb = 0;
   int where;
@@ -1871,7 +1878,7 @@ user_parser (char *buff)
   strncpy (verb_buff, user_verb, MAX_VERB_BUFF - 1);
   if (p)
     {
-      int pos;
+      ptrdiff_t pos;
 
       pos = p - buff;
       if (pos < MAX_VERB_BUFF)
@@ -1901,8 +1908,8 @@ user_parser (char *buff)
 
       if (s->flags & V_NOSPACE)
         {
-          int l1 = strlen (s->verb);
-          int l2 = strlen (verb_buff);
+          size_t l1 = strlen (s->verb);
+          size_t l2 = strlen (verb_buff);
 
           if (l1 < l2)
             last_verb = verb_buff + l1;
@@ -2137,7 +2144,7 @@ find_line (const char *p, const program_t * progp, char **ret_file, int *ret_lin
   if (!progp->line_info)
     return 4;
 
-  offset = p - progp->program;
+  offset = (int)(p - progp->program);
   if (offset > (int) progp->program_size)
     {
       opt_warn (1, "illegal offset %+d in object /%s", offset, progp->name);
