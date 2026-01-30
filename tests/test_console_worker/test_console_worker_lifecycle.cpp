@@ -2,6 +2,9 @@
  * @file test_console_worker_lifecycle.cpp
  * @brief Tests for console worker lifecycle management
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
 #include <gtest/gtest.h>
 #include <thread>

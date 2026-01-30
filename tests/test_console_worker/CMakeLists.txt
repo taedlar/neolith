@@ -5,7 +5,6 @@ project(test_console_worker)
 
 # Test executable
 add_executable(test_console_worker
-    test_console_worker_main.cpp
     test_console_worker_lifecycle.cpp
     test_console_worker_detection.cpp
     test_async_runtime_console.cpp
@@ -15,7 +14,7 @@ add_executable(test_console_worker
 target_link_libraries(test_console_worker PRIVATE
     async
     logger
-    GTest::gtest
+    GTest::gtest_main
 )
 
 # Windows needs ws2_32 for socket functions

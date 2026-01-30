@@ -2,6 +2,9 @@
  * @file test_async_runtime_console.cpp
  * @brief Tests for async_runtime console type detection functions
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
 #include <gtest/gtest.h>
 
