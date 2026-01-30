@@ -24,18 +24,18 @@
 
 #ifdef F_ERROR
 void f_error (void) {
-  int l = SVALUE_STRLEN (sp);
+  size_t len = SVALUE_STRLEN (sp);
   char err_buf[2048];
 
-  if (sp->u.string[l - 1] == '\n')
-    l--;
-  if (l > 2045)
-    l = 2045;
+  if (sp->u.string[len - 1] == '\n')
+    len--;
+  if (len > 2045)
+    len = 2045;
 
   err_buf[0] = '*';
-  strncpy (err_buf + 1, sp->u.string, l);
-  err_buf[l + 1] = '\n';
-  err_buf[l + 2] = 0;
+  strncpy (err_buf + 1, sp->u.string, len);
+  err_buf[len + 1] = '\n';
+  err_buf[len + 2] = 0;
 
   error_handler (err_buf);
 }

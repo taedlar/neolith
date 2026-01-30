@@ -30,7 +30,7 @@
 #define FRAME_EXTERNAL     8
 
 typedef struct {
-    short framekind;            /* see above FRAME_**/
+    int framekind;            /* see above FRAME_**/
     union {
         int table_index;
         funptr_t *funp;
@@ -43,7 +43,7 @@ typedef struct {
     svalue_t *fp;               /* Frame pointer */
     int function_index_offset;  /* Used when executing functions in inherited programs */
     int variable_index_offset;  /* Same */
-    short caller_type;          /* was this a locally called function? */
+    int caller_type;          /* was this a locally called function? */
 } control_stack_t;
 
 typedef struct {
@@ -198,7 +198,7 @@ extern svalue_t *end_of_stack;
 extern control_stack_t* control_stack;
 
 extern program_t *current_prog;
-extern short caller_type;
+extern int caller_type;
 extern const char *pc;
 extern svalue_t *sp;
 extern svalue_t *fp;

@@ -7,7 +7,7 @@
 extern time_t current_time;
 extern int heart_beat_flag;
 extern object_t *current_heart_beat;
-extern size_t eval_cost;
+extern int64_t eval_cost;
 
 extern async_runtime_t *g_runtime;
 extern console_worker_context_t *g_console_worker;
