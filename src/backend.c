@@ -33,7 +33,7 @@ object_t *current_heart_beat;
 
 static timer_port_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
 
-size_t eval_cost = 0;
+int64_t eval_cost = 0;
 
 /*
  * Async Runtime - Unified event loop for I/O events and worker completions

@@ -753,7 +753,7 @@ int
 command_for_object (char *str)
 {
   char buff[1000];
-  int save_eval_cost = eval_cost;
+  int64_t save_eval_cost = eval_cost;
 
   if (strlen (str) > sizeof (buff) - 1)
     error ("*Too long command.");

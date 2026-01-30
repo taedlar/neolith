@@ -785,7 +785,7 @@ f_set_eval_limit (void)
       sp->u.number = CONFIG_INT (__MAX_EVAL_COST__);
       break;
     default:
-      CONFIG_INT (__MAX_EVAL_COST__) = sp->u.number;
+      CONFIG_INT (__MAX_EVAL_COST__) = (int)sp->u.number;
       break;
     }
 }
