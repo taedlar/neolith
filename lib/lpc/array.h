@@ -22,7 +22,7 @@ extern int total_array_size;
 
 int sameval(svalue_t *, svalue_t *);
 array_t *allocate_array(int);
-array_t *allocate_empty_array(int);
+array_t *allocate_empty_array(size_t);
 void free_array(array_t *);
 void free_empty_array(array_t *);
 void check_for_destr(array_t *);

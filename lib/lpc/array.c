@@ -63,12 +63,11 @@ allocate_array (int n)
   return p;
 }
 
-array_t *
-allocate_empty_array (int n)
-{
+array_t* allocate_empty_array (size_t n) {
+
   array_t *p;
 
-  if (n < 0 || n > CONFIG_INT (__MAX_ARRAY_SIZE__))
+  if (n > CONFIG_INT (__MAX_ARRAY_SIZE__))
     error ("Illegal array size.\n");
   if (!n)
     return &the_null_array;
