@@ -17,11 +17,11 @@ extern array_t the_null_array;
  */
 #ifdef ARRAY_STATS
 extern int num_arrays;
-extern int total_array_size;
+extern size_t total_array_size;
 #endif
 
 int sameval(svalue_t *, svalue_t *);
-array_t *allocate_array(int);
+array_t *allocate_array(size_t);
 array_t *allocate_empty_array(size_t);
 void free_array(array_t *);
 void free_empty_array(array_t *);

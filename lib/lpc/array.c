@@ -17,15 +17,15 @@
 
 #ifdef ARRAY_STATS
 int num_arrays;
-int total_array_size;
+size_t total_array_size;
 #endif
 
-static inline int builtin_sort_array_cmp_fwd (svalue_t *, svalue_t *);
-static inline int builtin_sort_array_cmp_rev (svalue_t *, svalue_t *);
-static inline int sort_array_cmp (svalue_t *, svalue_t *);
+static int builtin_sort_array_cmp_fwd (svalue_t *, svalue_t *);
+static int builtin_sort_array_cmp_rev (svalue_t *, svalue_t *);
+static int sort_array_cmp (svalue_t *, svalue_t *);
 static int deep_inventory_count (object_t *);
 static void deep_inventory_collect (object_t *, array_t *, int *);
-static inline int alist_cmp (svalue_t *, svalue_t *);
+static int alist_cmp (svalue_t *, svalue_t *);
 
 /*
  * Make an empty array for everyone to use, never to be deallocated.
@@ -40,12 +40,11 @@ array_t the_null_array = {
 /*
  * Allocate an array of size 'n'.
  */
-array_t *
-allocate_array (int n)
-{
+array_t* allocate_array (size_t n) {
+
   array_t *p;
 
-  if (n < 0 || n > CONFIG_INT (__MAX_ARRAY_SIZE__))
+  if (n > CONFIG_INT (__MAX_ARRAY_SIZE__))
     error ("Illegal array size.\n");
   if (n == 0)
     {
@@ -57,7 +56,7 @@ allocate_array (int n)
 #endif
   p = ALLOC_ARRAY (n);
   p->ref = 1;
-  p->size = n;
+  p->size = (unsigned short)n;
   while (n--)
     p->item[n] = const0;
   return p;
@@ -77,7 +76,7 @@ array_t* allocate_empty_array (size_t n) {
 #endif
   p = ALLOC_ARRAY (n);
   p->ref = 1;
-  p->size = n;
+  p->size = (unsigned short)n;
   return p;
 }
 
@@ -316,10 +315,10 @@ explode_string (char *str, int slen, char *del, int len)
   return ret;
 }
 
-char *
-implode_string (array_t * arr, char *del, int del_len)
-{
-  int size, i, num;
+char* implode_string (array_t * arr, char *del, int del_len) {
+
+  size_t size;
+  int i, num;
   char *p, *q;
   svalue_t *sv = arr->item;
 
@@ -355,10 +354,8 @@ implode_string (array_t * arr, char *del, int del_len)
   return q;
 }
 
-void
-implode_array (funptr_t * fp, array_t * arr, svalue_t * dest,
-               int first_on_stack)
-{
+void implode_array (funptr_t * funp, array_t * arr, svalue_t * dest, int first_on_stack) {
+
   int i = 0, n;
   svalue_t *v;
 
@@ -390,7 +387,7 @@ implode_array (funptr_t * fp, array_t * arr, svalue_t * dest,
   while (1)
     {
       push_svalue (&arr->item[i++]);
-      v = call_function_pointer (fp, 2);
+      v = call_function_pointer (funp, 2);
 
       if (!v)
         {
@@ -406,9 +403,8 @@ implode_array (funptr_t * fp, array_t * arr, svalue_t * dest,
   assign_svalue_no_free (dest, v);
 }
 
-array_t *
-users ()
-{
+array_t* users () {
+
   register object_t *ob;
   int i, j;
   int display_hidden = 0;
@@ -492,7 +488,7 @@ slice_array (array_t * p, int from, int to)
       while (cnt--)
         free_svalue (sv2++, "slice_array:3");
       p = RESIZE_ARRAY (p, to - from + 1);
-      p->size = to - from + 1;
+      p->size = (unsigned short)(to - from + 1);
       p->ref = 1;
       return p;
     }
@@ -732,12 +728,12 @@ f_unique_array (void)
   svalue_t *skipval, *sv, *svp;
   unique_list_t *unlist;
   unique_t **head, *uptr, *nptr;
-  funptr_t *fp = 0;
+  funptr_t *funp = 0;
   char *func = NULL;
 
   size = (v = (sp - num_arg + 1)->u.arr)->size;
   if (!size)
-    {				/* �Ű}�C(size=0)���̨ΤơG���� return */
+    {
       if (num_arg == 3)
         free_svalue (sp--, "f_unique_array");
       free_svalue (sp--, "f_unique_array");
@@ -748,7 +744,7 @@ f_unique_array (void)
     {
       skipval = sp;
       if ((sp - 1)->type == T_FUNCTION)
-        fp = (sp - 1)->u.fp;
+        funp = (sp - 1)->u.fp;
       else
         func = (sp - 1)->u.string;
     }
@@ -756,7 +752,7 @@ f_unique_array (void)
     {
       skipval = &const0;
       if (sp->type == T_FUNCTION)
-        fp = sp->u.fp;
+        funp = sp->u.fp;
       else
         func = sp->u.string;
     }
@@ -772,10 +768,10 @@ f_unique_array (void)
 
   for (i = 0; i < size; i++)
     {
-      if (fp)
+      if (funp)
         {
           push_svalue (v->item + i);
-          sv = call_function_pointer (fp, 1);
+          sv = call_function_pointer (funp, 1);
         }
       else if ((v->item + i)->type == T_OBJECT)
         {
@@ -802,8 +798,7 @@ f_unique_array (void)
             {
               numkeys++;
               uptr = ALLOCATE (unique_t, TAG_TEMPORARY, "f_unique_array:3");
-              uptr->indices =
-                ALLOCATE (int, TAG_TEMPORARY, "f_unique_array:4");
+              uptr->indices = ALLOCATE (int, TAG_TEMPORARY, "f_unique_array:4");
               uptr->count = 1;
               uptr->indices[0] = i;
               uptr->next = *head;
@@ -908,7 +903,7 @@ add_array (array_t * p, array_t * r)
       total_array_size += sizeof (svalue_t) * (r->size);
 #endif
       /* d->ref = 1;     d is p, and p's ref was already one -Beek */
-      d->size = res;
+      d->size = (unsigned short)res;
     }
   else
     {
@@ -1044,7 +1039,7 @@ map_string (svalue_t * arg, int num_arg)
 {
   char *arr = arg->u.string;
   char *p;
-  funptr_t *fp = 0;
+  funptr_t *funp = 0;
   int numex = 0;
   object_t *ob = NULL;
   svalue_t *extra = NULL, *v;
@@ -1060,7 +1055,7 @@ map_string (svalue_t * arg, int num_arg)
 
   if (arg[1].type == T_FUNCTION)
     {
-      fp = arg[1].u.fp;
+      funp = arg[1].u.fp;
       if (num_arg > 2)
         extra = arg + 2, numex = num_arg - 2;
     }
@@ -1091,10 +1086,7 @@ map_string (svalue_t * arg, int num_arg)
       push_number ((unsigned char) *p);
       if (numex)
         push_some_svalues (extra, numex);
-      v =
-        fp ? call_function_pointer (fp, numex + 1) : apply (func, ob,
-                                                            1 + numex,
-                                                            ORIGIN_EFUN);
+      v = funp ? call_function_pointer (funp, numex + 1) : apply (func, ob, 1 + numex, ORIGIN_EFUN);
       /* no function or illegal return value is unaltered.
        * Anyone got a better idea?  A few idea:
        * (1) insert strings? - algorithm needs changing
@@ -1118,19 +1110,16 @@ static function_to_call_t *sort_array_ftc;
 
 #define COMPARE_NUMS(x,y) (x < y ? -1 : (x > y ? 1 : 0))
 
-array_t *
-builtin_sort_array (array_t * inlist, int dir)
-{
+array_t* builtin_sort_array (array_t * inlist, int dir) {
+
   quickSort ((char *) inlist->item, inlist->size, sizeof (inlist->item),
-             (dir <
-              0) ? builtin_sort_array_cmp_rev : builtin_sort_array_cmp_fwd);
+             (dir < 0) ? builtin_sort_array_cmp_rev : builtin_sort_array_cmp_fwd);
 
   return inlist;
 }
 
-static inline int
-builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2)
-{
+static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
+
   switch (p1->type | p2->type)
     {
     case T_STRING:
@@ -1186,9 +1175,8 @@ builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2)
   return 0;
 }
 
-static inline int
-builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2)
-{
+static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
+
   switch (p1->type | p2->type)
     {
     case T_STRING:
@@ -1244,9 +1232,8 @@ builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2)
   return 0;
 }
 
-static inline int
-sort_array_cmp (svalue_t * p1, svalue_t * p2)
-{
+static int sort_array_cmp (svalue_t * p1, svalue_t * p2) {
+
   svalue_t *d;
 
   push_svalue (p1);
@@ -1260,7 +1247,7 @@ sort_array_cmp (svalue_t * p1, svalue_t * p2)
     }
   else
     {
-      return d->u.number;
+      return (int)d->u.number;
     }
 }
 
@@ -1277,7 +1264,7 @@ f_sort_array (void)
     {
     case T_NUMBER:
       {
-        tmp = builtin_sort_array (copy_array (tmp), arg[1].u.number);
+        tmp = builtin_sort_array (copy_array (tmp), (int)arg[1].u.number);
         break;
       }
 
@@ -1427,21 +1414,17 @@ deep_inventory (object_t * ob, int take_top)
   return dinv;
 }
 
-static inline int
-alist_cmp (svalue_t * p1, svalue_t * p2)
-{
-  register int d;
+static int alist_cmp (svalue_t * p1, svalue_t * p2) {
 
-  if ((d = p1->u.number - p2->u.number))
-    return d;
-  if ((d = p1->type - p2->type))
-    return d;
+  if (p1->u.number != p2->u.number)
+    return (int)(p1->u.number - p2->u.number);
+  if (p1->type != p2->type)
+    return (int)(p1->type - p2->type);
   return 0;
 }
 
-static inline svalue_t *
-alist_sort (array_t * inlist)
-{
+static svalue_t* alist_sort (array_t * inlist) {
+
   int size, j, curix, parix, child1, child2, flag;
   svalue_t *sv_tab, *tmp, *table, *sv_ptr, val;
   char *str;
@@ -1450,8 +1433,7 @@ alist_sort (array_t * inlist)
     return (svalue_t *) NULL;
   if ((flag = (inlist->ref > 1)))
     {
-      sv_tab =
-        CALLOCATE (size, svalue_t, TAG_TEMPORARY, "alist_sort: sv_tab");
+      sv_tab = CALLOCATE (size, svalue_t, TAG_TEMPORARY, "alist_sort: sv_tab");
       sv_ptr = inlist->item;
       for (j = 0; j < size; j++)
         {
@@ -1461,8 +1443,7 @@ alist_sort (array_t * inlist)
               free_object (tmp->u.ob, "alist_sort");
               sv_tab[j] = *tmp = const0;
             }
-          else if ((tmp->type == T_STRING)
-                   && !(tmp->subtype == STRING_SHARED))
+          else if ((tmp->type == T_STRING) && !(tmp->subtype == STRING_SHARED))
             {
               sv_tab[j].u.string = make_shared_string (tmp->u.string);
               (tmp = sv_tab + j)->subtype = STRING_SHARED;
@@ -1493,14 +1474,12 @@ alist_sort (array_t * inlist)
       sv_tab = inlist->item;
       for (j = 0; j < size; j++)
         {
-          if (((tmp = (sv_tab + j))->type == T_OBJECT)
-              && (tmp->u.ob->flags & O_DESTRUCTED))
+          if (((tmp = (sv_tab + j))->type == T_OBJECT) && (tmp->u.ob->flags & O_DESTRUCTED))
             {
               free_object (tmp->u.ob, "alist_sort");
               *tmp = const0;
             }
-          else if ((tmp->type == T_STRING)
-                   && !(tmp->subtype == STRING_SHARED))
+          else if ((tmp->type == T_STRING) && !(tmp->subtype == STRING_SHARED))
             {
               str = make_shared_string (tmp->u.string);
               free_string_svalue (tmp);
@@ -1511,7 +1490,6 @@ alist_sort (array_t * inlist)
           if ((curix = j))
             {
               val = *tmp;
-
               do
                 {
                   parix = (curix - 1) >> 1;
@@ -1531,7 +1509,6 @@ alist_sort (array_t * inlist)
   for (j = 0; j < size; j++)
     {
       table[j] = sv_tab[0];
-
       for (curix = 0;;)
         {
           child1 = (curix << 1) + 1;
@@ -1560,12 +1537,12 @@ alist_sort (array_t * inlist)
   return table;
 }
 
-array_t *
-subtract_array (array_t * minuend, array_t * subtrahend)
-{
+array_t* subtract_array (array_t * minuend, array_t * subtrahend) {
+
   array_t *difference;
   svalue_t *source, *dest, *svt;
-  int i, size, o, d, l, h, msize;
+  int i, size, o, d, l, h;
+  ptrdiff_t msize;
 
   if (!(size = subtrahend->size))
     {
@@ -1579,12 +1556,10 @@ subtract_array (array_t * minuend, array_t * subtrahend)
     }
   svt = alist_sort (subtrahend);
   difference = ALLOC_ARRAY (msize);
-  for (source = minuend->item, dest = difference->item, i = msize; i--; source++)
+  for (source = minuend->item, dest = difference->item, i = (int)msize; i--; source++)
     {
-
       l = 0;
       o = (h = size - 1) >> 1;
-
       if ((source->type == T_OBJECT) && (source->u.ob->flags & O_DESTRUCTED))
         {
           free_object (source->u.ob, "subtract_array");
@@ -1658,7 +1633,7 @@ subtract_array (array_t * minuend, array_t * subtrahend)
       return &the_null_array;
     }
   difference = RESIZE_ARRAY (difference, msize);
-  difference->size = msize;
+  difference->size = (unsigned short)msize;
   difference->ref = 1;
 #ifdef ARRAY_STATS
   total_array_size += sizeof (array_t) + sizeof (svalue_t[1]) * (msize - 1);
@@ -1685,8 +1660,7 @@ intersect_array (array_t * a1, array_t * a2)
   svt_1 = alist_sort (a1);
   if ((flag = (a2->ref > 1)))
     {
-      sv_tab =
-        CALLOCATE (a2s, svalue_t, TAG_TEMPORARY, "intersect_array: sv2_tab");
+      sv_tab = CALLOCATE (a2s, svalue_t, TAG_TEMPORARY, "intersect_array: sv2_tab");
       sv_ptr = a2->item;
       for (j = 0; j < a2s; j++)
         {
@@ -1851,7 +1825,7 @@ settle_business:
     }
   a3 = RESIZE_ARRAY (a3, l);
   a3->ref = 1;
-  a3->size = l;
+  a3->size = (unsigned short)l;
 #ifdef ARRAY_STATS
   total_array_size += sizeof (array_t) + (l - 1) * sizeof (svalue_t);
   num_arrays++;
@@ -2007,12 +1981,11 @@ inherit_list (object_t * ob)
   return ret;
 }
 
-array_t *
-children (char *str)
-{
+array_t* children (char *str) {
+
   int i, j;
   int t_sz;
-  int sl, ol;
+  size_t sl, ol;
   object_t *ob;
   object_t **tmp_children;
   array_t *ret;
@@ -2257,7 +2230,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
         struct reg_match *next;
       }
        *rmp = (struct reg_match *) 0, *rmph = (struct reg_match *) 0;
-      int num_match = 0, length;
+      int num_match = 0;
       svalue_t *sv1, *sv2, *sv;
       int index;
       struct regexp *tmpreg;
@@ -2313,15 +2286,11 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
               num_match++;
               if (rmp)
                 {
-                  rmp->next = ALLOCATE (struct reg_match,
-                                        TAG_TEMPORARY,
-                                        "reg_assoc : rmp->next");
+                  rmp->next = ALLOCATE (struct reg_match, TAG_TEMPORARY, "reg_assoc : rmp->next");
                   rmp = rmp->next;
                 }
               else
-                rmph = rmp =
-                  ALLOCATE (struct reg_match, TAG_TEMPORARY,
-                            "reg_assoc : rmp");
+                rmph = rmp = ALLOCATE (struct reg_match, TAG_TEMPORARY, "reg_assoc : rmp");
               tmpreg = rgpp[index];
               rmp->begin = tmpreg->startp[0];
               rmp->end = tmp = tmpreg->endp[0];
@@ -2352,6 +2321,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
       while (num_match--)
         {
           char *svtmp;
+          size_t length;
 
           length = rmp->begin - tmp;
           sv1->type = T_STRING;
@@ -2400,8 +2370,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
       temp->u.string = string_copy (str, "reg_assoc");
       sv = &ret->item[1];
       sv->type = T_ARRAY;
-      assign_svalue_no_free ((sv->u.arr = allocate_empty_array (1))->item,
-                             def);
+      assign_svalue_no_free ((sv->u.arr = allocate_empty_array (1))->item, def);
       return ret;
     }
 }
