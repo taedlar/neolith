@@ -2,6 +2,9 @@
  * @file test_console_worker_detection.cpp
  * @brief Tests for console type detection
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
 #include <gtest/gtest.h>
 

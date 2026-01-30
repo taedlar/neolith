@@ -30,6 +30,10 @@ typedef int socket_fd_t;
 #include <poll.h>
 #endif
 
+#ifndef HAVE_GETTIMEOFDAY
+int gettimeofday(struct timeval *tv, void *tz);
+#endif
+
 /**
  * @brief Create a connected socket pair for testing.
  * 
