@@ -11,10 +11,6 @@
 #include "generate.h"
 #include "lpc/compiler.h"
 
-#ifndef _WIN32
-typedef unsigned char BYTE;
-#endif
-
 static void ins_real (double);
 static void ins_short (short val);
 static void upd_short (ptrdiff_t offset, short val);
@@ -716,7 +712,7 @@ void i_generate_node (parse_node_t * expr) {
                 pn = pn->l.expr;
               }
             ins_int ((int)expr->v.expr->r.number);
-            mem_block[current_block].block[addr - 1] = 0xfe;
+            mem_block[current_block].block[addr - 1] = (char)0xfe;
           }
         else
           {
