@@ -712,7 +712,11 @@ void i_generate_node (parse_node_t * expr) {
                 pn = pn->l.expr;
               }
             ins_int ((int)expr->v.expr->r.number);
+#ifdef _MSC_VER
+            mem_block[current_block].block[addr - 1] = 0xfe;
+#else
             mem_block[current_block].block[addr - 1] = (char)0xfe;
+#endif
           }
         else
           {

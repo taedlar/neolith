@@ -18,9 +18,7 @@ static void handle_cond (int);
 static defn_t *defns[DEFHASH];
 static ifstate_t *iftop = 0;
 
-defn_t *
-lookup_definition (const char *s)
-{
+defn_t* lookup_definition (const char *s) {
   defn_t *p;
   int h;
 
@@ -31,9 +29,7 @@ lookup_definition (const char *s)
   return 0;
 }
 
-defn_t *
-lookup_define (const char *s)
-{
+defn_t* lookup_define (const char *s) {
   defn_t *p = lookup_definition (s);
 
   if (p && (p->flags & DEF_IS_UNDEFINED))
@@ -42,9 +38,7 @@ lookup_define (const char *s)
     return p;
 }
 
-static void
-add_define (const char *name, int nargs, const char *exps)
-{
+static void add_define (const char *name, int nargs, const char *exps) {
   defn_t *p = lookup_definition (name);
   int h;
 
@@ -95,13 +89,11 @@ add_define (const char *name, int nargs, const char *exps)
     }
 }
 
-static void
 #ifdef LEXER
-handle_elif (char *expr)
+static void handle_elif (char *expr) {
 #else
-handle_elif ()
+static void handle_elif () {
 #endif
-{
   if (iftop)
     {
       if (iftop->state == EXPECT_ELSE)
@@ -148,9 +140,7 @@ handle_elif ()
     }
 }
 
-static void
-handle_else (void)
-{
+static void handle_else (void) {
   if (iftop)
     {
       if (iftop->state == EXPECT_ELSE)
@@ -168,9 +158,7 @@ handle_else (void)
     }
 }
 
-static void
-handle_endif (void)
-{
+static void handle_endif (void) {
   if (iftop && (iftop->state == EXPECT_ENDIF || iftop->state == EXPECT_ELSE))
     {
       ifstate_t *p = iftop;
@@ -210,28 +198,21 @@ handle_endif (void)
 #define QMARK 19
 
 static char _optab[] =
-  { 0, 4, 0, 0, 0, 26, 56, 0, 0, 0, 18, 14, 0, 10, 0, 22, 0, 0, 0, 0, 0, 0, 0,
-0, 0, 0, 0, 0, 30, 50, 40, 74,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 70, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 63, 0, 1
+{ 0, 4, 0, 0, 0, 26, 56, 0, 0, 0, 18, 14, 0, 10, 0, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 30, 50, 40, 74,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 70, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63, 0, 1
 };
 static char optab2[] =
-  { BNOT, 0, 0, LNOT, '=', NEQ, 7, 0, 0, UMINUS, 0, BMINUS, 10, UPLUS, 0,
-BPLUS, 10,
+{ BNOT, 0, 0, LNOT, '=', NEQ, 7, 0, 0, UMINUS, 0, BMINUS, 10, UPLUS, 0, BPLUS, 10,
   0, 0, MULT, 11, 0, 0, DIV, 11, 0, 0, MOD, 11,
-  0, '<', LSHIFT, 9, '=', LEQ, 8, 0, LESS, 8, 0, '>', RSHIFT, 9, '=', GEQ, 8,
-    0, GREAT, 8,
+  0, '<', LSHIFT, 9, '=', LEQ, 8, 0, LESS, 8, 0, '>', RSHIFT, 9, '=', GEQ, 8, 0, GREAT, 8,
   0, '=', EQ, 7, 0, 0, 0, '&', LAND, 3, 0, BAND, 6, 0, '|', LOR, 2, 0, BOR, 4,
   0, 0, XOR, 5, 0, 0, QMARK, 1
 };
 
 #define optab1 (_optab-' ')
 
-static int
-cond_get_exp (int priority)
-{
+static int cond_get_exp (int priority) {
   int c;
   int value, value2, x;
 
@@ -468,9 +449,7 @@ cond_get_exp (int priority)
   return value;
 }
 
-static void
-handle_cond (int c)
-{
+static void handle_cond (int c) {
   ifstate_t *p;
 
   if (!c)

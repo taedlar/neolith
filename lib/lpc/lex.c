@@ -418,9 +418,7 @@ static int inc_open (char *buf, const char *name) {
         current_line++;\
         } while(0)
 
-static void
-handle_include (const char *inc_name, int optional)
-{
+static void handle_include (const char *inc_name, int optional) {
   char *p, *name;
   char fname[PATH_MAX];
   static char buf[1024];
@@ -884,9 +882,7 @@ static int get_text_block (char *term) {
   return res;
 }
 
-static void
-skip_line ()
-{
+static void skip_line () {
   int c;
   register char *yyp = outptr;
 
@@ -898,9 +894,7 @@ skip_line ()
   outptr = yyp;
 }
 
-static void
-skip_comment ()
-{
+static void skip_comment () {
   int c = '*';
   register char *yyp = outptr;
 
@@ -975,8 +969,7 @@ static void deltrail (char *str) {
        break;\
     }
 
-typedef struct
-{
+typedef struct pragma_s {
   char *name;
   int value;
 }
@@ -992,9 +985,7 @@ static pragma_t our_pragmas[] = {
   {0, 0}
 };
 
-static void
-handle_pragma (char *str)
-{
+static void handle_pragma (char *str) {
   int i;
   int no_flag;
 
@@ -1024,9 +1015,7 @@ handle_pragma (char *str)
   yywarn ("Unknown #pragma, ignored.");
 }
 
-char *
-show_error_context ()
-{
+char* show_error_context () {
   static char buf[60];
   extern int yychar;
   char sub_context[25];
@@ -1223,8 +1212,7 @@ static void refill_buffer () {
 
 static int function_flag = 0;
 
-void push_function_context ()
-{
+void push_function_context () {
   function_context_t *fc;
   parse_node_t *node;
 
@@ -1247,16 +1235,12 @@ void push_function_context ()
   current_function_context = fc;
 }
 
-void
-pop_function_context ()
-{
+void pop_function_context () {
   current_function_context = current_function_context->parent;
   last_function_context--;
 }
 
-static int
-old_func ()
-{
+static int old_func () {
   add_input (yytext);
   push_function_context ();
   return L_FUNCTION_OPEN;
@@ -2505,9 +2489,7 @@ void end_new_file () {
     }
 }
 
-static void
-add_quoted_predefine (char *def, char *val)
-{
+static void add_quoted_predefine (char *def, char *val) {
   char save_buf[1024];
 
   strcpy (save_buf, "\"");
@@ -2516,9 +2498,7 @@ add_quoted_predefine (char *def, char *val)
   add_predefine (def, -1, save_buf);
 }
 
-void
-add_predefines ()
-{
+void add_predefines () {
   int i;
   lpc_predef_t *tmpf;
 
@@ -2622,9 +2602,7 @@ void start_new_file (int fd, const char* pre_text) {
 
 #define add_instr_name(w, x, y, z) int_add_instr_name(w, y, z)
 
-static void
-int_add_instr_name (char *name, int n, short t)
-{
+static void int_add_instr_name (char *name, int n, short t) {
   if (n < 0 || n >= MAX_INSTRS)
     {
       fatal ("int_add_instr_name: instruction number %d out of range", n);
@@ -2841,9 +2819,7 @@ const char *query_opcode_name (int n) {
     } \
     *q++ = 0
 
-static int
-cmygetc ()
-{
+static int cmygetc () {
   int c;
 
   for (;;)
@@ -2871,9 +2847,7 @@ cmygetc ()
     }
 }
 
-static void
-refill ()
-{
+static void refill () {
   char *p;
   int c;
 
@@ -2898,9 +2872,7 @@ refill ()
   current_line++;
 }
 
-static void
-handle_define (char *yyt)
-{
+static void handle_define (char *yyt) {
   char namebuf[NSIZE];
   char args[NARGS][NSIZE];
   char mtext[MLEN];
@@ -3084,9 +3056,7 @@ static void add_input (const char *p) {
   memcpy (outptr, p, len);
 }
 
-static void
-add_predefine (char *name, int nargs, char *exps)
-{
+static void add_predefine (char *name, int nargs, char *exps) {
   defn_t *p;
   int h;
 
@@ -3156,9 +3126,7 @@ void free_defines (int include_predefs) {
 
 
 /* Check if yytext is a macro and expand if it is. */
-static int
-expand_define ()
-{
+static int expand_define () {
   defn_t *p;
   char expbuf[DEFMAX];
   char *args[NARGS];
@@ -3344,9 +3312,7 @@ expand_define ()
 */
 #define SKPW 	do{c=*outptr++;}while(is_wspace(c)); outptr--
 
-static int
-exgetc ()
-{
+static int exgetc () {
   register char c, *yyp;
 
   c = *outptr++;
