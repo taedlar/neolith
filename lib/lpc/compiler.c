@@ -70,7 +70,7 @@ static program_t NULL_program;
 
 static short string_idx[0x100];
 static unsigned char string_tags[0x20];
-static short freed_string;
+static int freed_string;
 
 size_t num_local_variables_allowed = 0;
 
@@ -634,7 +634,7 @@ static void overload_function (program_t * prog, function_index_t index,
     FUNCTION_ALIAS (oldindex)++;
 }
 
-/*
+/**
  * Copy all function definitions from an inherited object. They are added
  * as undefined, so that they can be redefined by a local definition.
  * If they are not redefined, then they will be updated, so that they
@@ -645,8 +645,10 @@ static void overload_function (program_t * prog, function_index_t index,
  * done through this entry (because this entry can be replaced by a new
  * definition). If an function defined by inheritance is called, then one
  * special definition will be made at first call.
+ * 
+ * @returns function index to the initializer function, or -1 if none.
  */
-int copy_functions (program_t * from, int typemod) {
+int copy_functions (program_t* from, int typemod) {
 
   int i, initializer = -1, num_functions = from->num_functions_total;
   ident_hash_elem_t *ihe;
@@ -888,7 +890,7 @@ void arrange_call_inherited (char *name, parse_node_t * node) {
  * @return Returns an index into function definitions table (A_COMPILER_FUNCTIONS
  * area, not the full function list). Returns -1 for prototypes.
  */
-function_number_t define_new_function (char *name, int num_arg, int num_local, function_flags_t flags, int type) {
+function_number_t define_new_function (char *name, int num_arg, int num_local, uint64_t flags, int type) {
 
   int runtime_num, num = 0;
   unsigned short argument_start_index;
@@ -1025,7 +1027,7 @@ function_number_t define_new_function (char *name, int num_arg, int num_local, f
 
   if (exact_types)
     flags |= NAME_STRICT_TYPES;
-  FUNCTION_FLAGS (runtime_num) = (type & NAME_TYPE_MOD) | flags;
+  FUNCTION_FLAGS (runtime_num) = (function_flags_t)((type & NAME_TYPE_MOD) | flags);
 
   FUNCTION_RENTRY (runtime_num)->def.num_local = (unsigned char)num_local;
   FUNCTION_RENTRY (runtime_num)->def.num_arg = (unsigned char)num_arg;
@@ -1171,7 +1173,8 @@ char* get_type_name (char *where, char *end, int type) {
 
 short store_prog_string (const char *string_data) {
 
-  short i, next, *next_tab, *idxp;
+  short i, next;
+  short *next_tab, *idxp;
   char **p, *str;
   intptr_t hash;
   unsigned char mask, *tagp;
@@ -1194,8 +1197,7 @@ short store_prog_string (const char *string_data) {
         {
           if (p[i] == str)
             {
-              free_string (str);	/* needed as string is only free'ed
-                                         * once. */
+              free_string (str);	/* needed as string is only freed once. */
               ((short *) mem_block[A_STRING_REFS].block)[i]++;
               return i;
             }
@@ -1216,7 +1218,7 @@ short store_prog_string (const char *string_data) {
     {
       /* reuse freed string */
       int top;
-      i = freed_string;
+      i = (short)freed_string;
       top = (int)(mem_block[A_STRINGS].current_size / sizeof (char*));
       for (freed_string++; freed_string < top; freed_string++)
         {
@@ -1242,14 +1244,15 @@ short store_prog_string (const char *string_data) {
   return i;
 }
 
-void free_prog_string (short num) {
+void free_prog_string (int num) {
 
-  short i, prv, *next_tab, top, *idxp;
+  int i, prv, top;
+  short *next_tab, *idxp;
   char **p, *str;
   intptr_t hash;
   unsigned char mask;
 
-  top = (short)(mem_block[A_STRINGS].current_size / sizeof (char *)) - 1;
+  top = (int)(mem_block[A_STRINGS].current_size / sizeof (char *)) - 1;
   if (num < 0 || num > top)
     {
       yyerror ("free_prog_string: index out of range.\n");

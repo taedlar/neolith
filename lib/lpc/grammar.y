@@ -28,7 +28,7 @@
       SWITCH_RANGES      - a range has been found
       SWITCH_DEFAULT     - a default has been found
  */
-int context;
+int64_t context;
 
 /*
  * bison & yacc don't prototype this in y.tab.h
@@ -109,10 +109,8 @@ int yyparse(void);
 /*
  * YYTYPE
  *
- * Anything with size > 4 is commented.  Sizes assume typical 32 bit
- * architecture.  This size of the largest element of this union should
- * be kept as small as possible to optimize copying of compiler stack
- * elements.
+ * This size of the largest element of this union should be kept as small
+ * as possible to optimize copying of compiler stack elements.
  */
 %union
 
@@ -228,13 +226,9 @@ inheritance
             scratch_free($3);
 
             inherit.prog = ob->prog;
-            inherit.function_index_offset =
-                mem_block[A_RUNTIME_FUNCTIONS].current_size /
-                sizeof (runtime_function_u);
-            inherit.variable_index_offset =
-                mem_block[A_VAR_TEMP].current_size /
-                sizeof (variable_t);
-            inherit.type_mod = $1;
+            inherit.function_index_offset = (function_index_t)(mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u));
+            inherit.variable_index_offset = (unsigned short)(mem_block[A_VAR_TEMP].current_size / sizeof (variable_t));
+            inherit.type_mod = (unsigned short)$1;
 
             add_to_mem_block(A_INHERITS, (char *)&inherit, sizeof inherit);
             copy_variables(ob->prog, $1);
@@ -247,8 +241,9 @@ inheritance
                  * appropriate entry in our table and generates
                  * a call to it
                  */
+                int inherit_index = (int)(mem_block[A_INHERITS].current_size/sizeof(inherit_t) - 1);
                 switch_to_block(A_INITIALIZER);
-                generate_inherited_init_call(mem_block[A_INHERITS].current_size/sizeof(inherit_t) - 1, initializer);
+                generate_inherited_init_call(inherit_index, initializer);
                 switch_to_block(A_PROGRAM);
               }
         }
@@ -403,7 +398,7 @@ type_decl
                 p = strput(p, end, $3);
                 yyerror(buf);
             }
-            ihe->dn.class_num = mem_block[A_CLASS_DEF].current_size / sizeof(class_def_t);
+            ihe->dn.class_num = (short)(mem_block[A_CLASS_DEF].current_size / sizeof(class_def_t));
         }
         member_list '}'
         {
@@ -412,9 +407,9 @@ type_decl
             int i;
 
             sd = (class_def_t *)allocate_in_mem_block(A_CLASS_DEF, sizeof(class_def_t));
-            i = sd->size = current_number_of_locals;
-            sd->index = mem_block[A_CLASS_MEMBER].current_size / sizeof(class_member_entry_t);
-            sd->name = $<number>5;
+            i = sd->size = (unsigned short)current_number_of_locals;
+            sd->index = (unsigned short)(mem_block[A_CLASS_MEMBER].current_size / sizeof(class_member_entry_t));
+            sd->name = (unsigned short)$<number>5;
 
             sme = (class_member_entry_t *)allocate_in_mem_block(A_CLASS_MEMBER, sizeof(class_member_entry_t) * current_number_of_locals);
 
@@ -1216,7 +1211,7 @@ expr0:
             }
     |   expr0 '&' expr0
             {
-                int t1 = $1->type, t3 = $3->type;
+                lpc_type_t t1 = $1->type, t3 = $3->type;
                 if (is_boolean($1) && is_boolean($3))
                     yywarn("bitwise operation on boolean values.");
                 if ((t1 & TYPE_MOD_ARRAY) || (t3 & TYPE_MOD_ARRAY)) {
@@ -1364,10 +1359,10 @@ expr0:
             }
     |   expr0 '+' expr0 
             {
-                int result_type;
+                lpc_type_t result_type;
 
                 if (exact_types) {
-                    int t1 = $1->type, t3 = $3->type;
+                    lpc_type_t t1 = $1->type, t3 = $3->type;
 
                     if (t1 == t3){
 #ifdef CAST_CALL_OTHERS
@@ -1515,10 +1510,10 @@ add_error:
             }
     |   expr0 '-' expr0
             {
-                int result_type;
+                lpc_type_t result_type;
 
                 if (exact_types) {
-                    int t1 = $1->type, t3 = $3->type;
+                    lpc_type_t t1 = $1->type, t3 = $3->type;
 
                     if (t1 == t3){
                         switch(t1){
@@ -1609,10 +1604,10 @@ add_error:
             }
     |   expr0 '*' expr0
             {
-                int result_type;
+                lpc_type_t result_type;
 
                 if (exact_types){
-                    int t1 = $1->type, t3 = $3->type;
+                    lpc_type_t t1 = $1->type, t3 = $3->type;
 
                     if (t1 == t3){
                         switch(t1){
@@ -1627,7 +1622,7 @@ add_error:
                                 result_type = TYPE_ANY;
                         }
                     } else if (t1 == TYPE_ANY || t3 == TYPE_ANY){
-                        int t = (t1 == TYPE_ANY) ? t3 : t1;
+                        lpc_type_t t = (t1 == TYPE_ANY) ? t3 : t1;
                         switch(t){
                             case TYPE_NUMBER:
                             case TYPE_REAL:
@@ -1693,10 +1688,10 @@ add_error:
             }
     |   expr0 '/' expr0
             {
-                int result_type;
+                lpc_type_t result_type;
 
                 if (exact_types){
-                    int t1 = $1->type, t3 = $3->type;
+                    lpc_type_t t1 = $1->type, t3 = $3->type;
 
                     if (t1 == t3){
                         switch(t1){
@@ -1872,9 +1867,9 @@ add_error:
             }
     |   '-' expr0  %prec L_NOT
             {
-                int result_type;
+                lpc_type_t result_type;
                 if (exact_types){
-                    int t = $2->type;
+                    lpc_type_t t = $2->type;
                     if (!COMP_TYPE(t, TYPE_NUMBER)){
                         type_error("Bad argument to unary '-'", t);
                         result_type = TYPE_ANY;
@@ -2782,14 +2777,11 @@ function_call:
                     
                     if ((node = $5)) {
                         CREATE_TWO_VALUES($$, type, 0, 0);
-                        $$->l.expr = reorder_class_values($4->dn.class_num,
-                                                        node);
-                        CREATE_OPCODE_1($$->r.expr, F_NEW_CLASS,
-                                        type, $4->dn.class_num);
+                        $$->l.expr = reorder_class_values($4->dn.class_num, node);
+                        CREATE_OPCODE_1($$->r.expr, F_NEW_CLASS, type, $4->dn.class_num);
                         
                     } else {
-                        CREATE_OPCODE_1($$, F_NEW_EMPTY_CLASS,
-                                        type, $4->dn.class_num);
+                        CREATE_OPCODE_1($$, F_NEW_EMPTY_CLASS, type, $4->dn.class_num);
                     }
                 }
             }
@@ -2834,17 +2826,16 @@ function_call:
                  *
                  * Don't complain, just grok it.
                  */
-                int cf, f;
+                int cf, index;
 
                 if (current_function_context)
                     current_function_context->bindable = FP_NOT_BINDABLE;
                 
-                cf = define_new_function($1->name, 0, 0, 
-                                         NAME_UNDEFINED | NAME_PROTOTYPE, 0);
-                f = COMPILER_FUNC(cf)->runtime_index;
+                cf = define_new_function($1->name, 0, 0, NAME_UNDEFINED | NAME_PROTOTYPE, 0);
+                index = COMPILER_FUNC(cf)->runtime_index;
                 $$->kind = NODE_CALL_1;
                 $$->v.number = F_CALL_FUNCTION_BY_ADDRESS;
-                $$->l.number = f; /* runtime index */
+                $$->l.number = index; /* runtime index */
                 $$->type = TYPE_ANY; /* just a guess */
                 if (exact_types) {
                     char buf[256];
@@ -2856,8 +2847,8 @@ function_call:
                      * inherited function we prevent redeclaration errors
                      * if it shows up later
                      */
-                    FUNCTION_FLAGS(f) &= ~NAME_UNDEFINED;
-                    FUNCTION_FLAGS(f) |= NAME_INHERITED;
+                    FUNCTION_FLAGS(index) &= ~NAME_UNDEFINED;
+                    FUNCTION_FLAGS(index) |= NAME_INHERITED;
                     COMPILER_FUNC(cf)->type |= NAME_VARARGS;
                     p = strput(buf, end, "Undefined function ");
                     p = strput(p, end, n);
@@ -3012,7 +3003,7 @@ function_name:
         L_IDENTIFIER
     |   L_COLON_COLON identifier
             {
-                int l = strlen($2) + 1;
+                size_t l = strlen($2) + 1;
                 char *p;
                 /* here we be a bit cute.  we put a : on the front so we
                  * don't have to strchr for it.  Here we do:
@@ -3026,7 +3017,7 @@ function_name:
             }
     |   L_BASIC_TYPE L_COLON_COLON identifier
             {
-                int z, l = strlen($3) + 1;
+                size_t z, l = strlen($3) + 1;
                 char *p;
                 /* <type> and "name" -> ":type::name" */
                 z = strlen(compiler_type_names[$1]) + 3; /* length of :type:: */
@@ -3041,7 +3032,7 @@ function_name:
             }
     |   identifier L_COLON_COLON identifier
             {
-                int l = strlen($1);
+                size_t l = strlen($1);
                 /* "ob" and "name" -> ":ob::name" */
                 $$ = scratch_alloc(l + strlen($3) + 4);
                 *($$) = ':';
