@@ -512,7 +512,7 @@ argument_list
     :	new_arg
         {
             $$.num_arg = 1;
-            $$.flags = $1;
+            $$.flags = (char)$1;
         }
     |   argument_list ',' new_arg
         {
@@ -822,7 +822,7 @@ for:
                 $7 = insert_pop_value($7);
                 if ($7 && IS_NODE($7, NODE_UNARY_OP, F_INC)
                     && IS_NODE($7->r.expr, NODE_OPCODE_1, F_LOCAL_LVALUE)) {
-                    int lvar = $7->r.expr->l.number;
+                    int64_t lvar = $7->r.expr->l.number;
                     CREATE_OPCODE_1($7, F_LOOP_INCR, 0, lvar);
                 }
 
@@ -1281,7 +1281,7 @@ expr0:
                         char *p;
                         
                         p = strput(buf, end, "Bad left argument to '");
-                        p = strput(p, end, query_opcode_name($2));
+                        p = strput(p, end, query_opcode_name((int)$2));
                         p = strput(p, end, "' : \"");
                         p = get_type_name(p, end, t1);
                         p = strput(p, end, "\"");
@@ -1293,7 +1293,7 @@ expr0:
                         char *p;
                         
                         p = strput(buf, end, "Bad right argument to '");
-                        p = strput(p, end, query_opcode_name($2));
+                        p = strput(p, end, query_opcode_name((int)$2));
                         p = strput(p, end, "' : \"");
                         p = get_type_name(p, end, t3);
                         p = strput(p, end, "\"");
@@ -1304,7 +1304,7 @@ expr0:
                         char *p;
                         
                         p = strput(buf, end, "Arguments to ");
-                        p = strput(p, end, query_opcode_name($2));
+                        p = strput(p, end, query_opcode_name((int)$2));
                         p = strput(p, end, " do not have compatible types : ");
                         p = get_two_types(p, end, t1, t3);
                         yyerror(buf);
@@ -1475,10 +1475,10 @@ add_error:
                         /* Combine strings */
                         int n1, n2;
                         char *s_new, *s1, *s2;
-                        int l;
+                        size_t l;
 
-                        n1 = $1->v.number;
-                        n2 = $3->v.number;
+                        n1 = (int)$1->v.number;
+                        n2 = (int)$3->v.number;
                         s1 = PROG_STRING(n1);
                         s2 = PROG_STRING(n2);
                         s_new = (char *)DXALLOC( (l = strlen(s1))+strlen(s2)+1, TAG_COMPILER, "combine string" );
@@ -1705,7 +1705,7 @@ add_error:
                                 result_type = TYPE_ANY;
                         }
                     } else if (t1 == TYPE_ANY || t3 == TYPE_ANY){
-                        int t = (t1 == TYPE_ANY) ? t3 : t1;
+                        lpc_type_t t = (t1 == TYPE_ANY) ? t3 : t1;
                         if (t == TYPE_REAL || t == TYPE_NUMBER)
                             result_type = t; 
                         else {
@@ -1784,7 +1784,7 @@ add_error:
     |   cast expr0  %prec L_NOT
             {
                 $$ = $2;
-                $$->type = $1;
+                $$->type = (lpc_type_t)$1;
 
                 if (exact_types &&
                     $2->type != $1 &&
@@ -2306,9 +2306,8 @@ expr4:
             }
     |   expr4 '[' '<' comma_expr ']'
             {
-                if (IS_NODE($1, NODE_CALL, F_AGGREGATE)
-                    && $4->kind == NODE_NUMBER) {
-                    int i = $4->v.number;
+                if (IS_NODE($1, NODE_CALL, F_AGGREGATE) && $4->kind == NODE_NUMBER) {
+                    int64_t i = $4->v.number;
                     if (i < 1 || i > $1->l.number)
                         yyerror("Illegal index to array constant.");
                     else {
@@ -2361,7 +2360,7 @@ expr4:
                  * which of course expands to the above.
                  */
                 if (IS_NODE($1, NODE_CALL, F_AGGREGATE) && $3->kind == NODE_NUMBER) {
-                    int i = $3->v.number;
+                    int64_t i = $3->v.number;
                     if (i < 0 || i >= $1->l.number)
                         yyerror("Illegal index to array constant.");
                     else {
@@ -2407,11 +2406,11 @@ expr4:
     |   L_BASIC_TYPE
             {
                 if ($1 != TYPE_FUNCTION) yyerror("Reserved type name unexpected.");
-                $<func_block>$.num_local = current_number_of_locals;
-                $<func_block>$.max_num_locals = max_num_locals;
-                $<func_block>$.context = context;
-                $<func_block>$.save_current_type = current_type;
-                $<func_block>$.save_exact_types = exact_types;
+                $<func_block>$.num_local = (char)current_number_of_locals;
+                $<func_block>$.max_num_locals = (char)max_num_locals;
+                $<func_block>$.context = (short)context;
+                $<func_block>$.save_current_type = (short)current_type;
+                $<func_block>$.save_exact_types = (short)exact_types;
                 if (type_of_locals_ptr + max_num_locals + num_local_variables_allowed >= &type_of_locals[type_of_locals_size])
                     reallocate_locals();
                 deactivate_current_locals();
@@ -2508,7 +2507,7 @@ expr4:
                 switch ($1 & 0xff) {
                 case FP_EFUN: {
                     int *argp;
-                    int f = $1 >>8;
+                    int f = (int)($1 >>8);
                     int num = $3->kind;
                     int max_arg = predefs[f].max_args;
                     
@@ -2642,7 +2641,7 @@ catch:
 sscanf:
         L_SSCANF '(' expr0 ',' expr0 lvalue_list ')'
             {
-                int p = $6->v.number;
+                lpc_type_t p = (lpc_type_t)$6->v.number;
                 CREATE_LVALUE_EFUN($$, TYPE_NUMBER, $6);
                 CREATE_BINARY_OP_1($$->l.expr, F_SSCANF, 0, $3, $5, p);
             }
@@ -2651,10 +2650,9 @@ sscanf:
 parse_command:
         L_PARSE_COMMAND '(' expr0 ',' expr0 ',' expr0 lvalue_list ')'
             {
-                int p = $8->v.number;
+                lpc_type_t p = (lpc_type_t)$8->v.number;
                 CREATE_LVALUE_EFUN($$, TYPE_NUMBER, $8);
-                CREATE_TERNARY_OP_1($$->l.expr, F_PARSE_COMMAND, 0, 
-                                    $3, $5, $7, p);
+                CREATE_TERNARY_OP_1($$->l.expr, F_PARSE_COMMAND, 0, $3, $5, $7, p);
             }
     ;
 
@@ -2744,7 +2742,7 @@ opt_class_init:
 function_call:
         efun_override '(' expr_list ')'
             {
-              $$ = validate_efun_call($1,$3);
+              $$ = validate_efun_call((int)$1,$3);
             }
         | L_NEW '(' expr_list ')'
             {
@@ -2773,7 +2771,7 @@ function_call:
                         node = node->r.expr;
                     }
                 } else {
-                    int type = $4->dn.class_num | TYPE_MOD_CLASS;
+                    lpc_type_t type = $4->dn.class_num | TYPE_MOD_CLASS;
                     
                     if ((node = $5)) {
                         CREATE_TWO_VALUES($$, type, 0, 0);

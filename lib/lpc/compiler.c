@@ -1308,7 +1308,13 @@ void free_prog_string (int num) {
     }
 }
 
-int validate_function_call (function_index_t f, parse_node_t * args) {
+/**
+ * @brief Validate a function call against its definition.
+ * @param f Function index.
+ * @param args Parse tree of arguments.
+ * @return Return type of the function.
+ */
+lpc_type_t validate_function_call (int f, parse_node_t * args) {
 
   compiler_function_t *funp = FUNCTION_DEF (f);
   runtime_defined_t *fundefp = &(FUNCTION_DEF_RENTRY (f)->def);
@@ -2436,7 +2442,7 @@ int string_case_compare (parse_node_t ** c1, parse_node_t ** c2) {
   return (int)(p1 - p2);
 }
 
-void prepare_cases (parse_node_t * pn, int start) {
+void prepare_cases (parse_node_t * pn, size_t start) {
   parse_node_t **ce_start, **ce_end, **ce;
   size_t end;
   int last_key, this_key;
