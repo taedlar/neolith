@@ -144,9 +144,7 @@ void deinit_locals() {
 }
 
 void free_all_local_names () {
-
   int i;
-
   for (i = 0; i < current_number_of_locals; i++)
     {
       locals_ptr[i]->sem_value--;
@@ -157,20 +155,16 @@ void free_all_local_names () {
 }
 
 void deactivate_current_locals () {
-
   int i;
-
   for (i = 0; i < current_number_of_locals; i++)
     {
-      runtime_locals_ptr[i] = locals_ptr[i]->dn.local_num;
+      runtime_locals_ptr[i] = (char)locals_ptr[i]->dn.local_num;
       locals_ptr[i]->dn.local_num = -1;
     }
 }
 
 void reactivate_current_locals () {
-
   int i;
-
   for (i = 0; i < current_number_of_locals; i++)
     {
       locals_ptr[i]->dn.local_num = runtime_locals_ptr[i];
@@ -179,9 +173,7 @@ void reactivate_current_locals () {
 }
 
 void clean_up_locals () {
-
   ptrdiff_t offset;
-
   offset = (locals_ptr + current_number_of_locals) - locals;
   while (offset--)
     {
@@ -196,7 +188,6 @@ void clean_up_locals () {
 }
 
 void pop_n_locals (int num) {
-
   while (num--)
     {
       locals_ptr[--current_number_of_locals]->sem_value--;
@@ -220,14 +211,12 @@ int add_local_name (char *str, int type) {
       locals_ptr[current_number_of_locals++] = ihe;
       if (ihe->dn.local_num == -1)
         ihe->sem_value++;
-      return (ihe->dn.local_num = max_num_locals++);
+      return (ihe->dn.local_num = (short)max_num_locals++);
     }
 }
 
 void reallocate_locals () {
-
   ptrdiff_t offset;
-
   offset = type_of_locals_ptr - type_of_locals;
   type_of_locals = RESIZE (type_of_locals,
     (type_of_locals_size += num_local_variables_allowed),
@@ -258,9 +247,7 @@ void reallocate_locals () {
  * same index.
  */
 void copy_variables (program_t * from, int type) {
-
   int i;
-
   for (i = 0; i < from->num_inherited; i++)
     copy_variables (from->inherit[i].prog, type | from->inherit[i].type_mod);
   for (i = 0; i < from->num_variables_defined; i++)
@@ -328,7 +315,7 @@ static void copy_function (program_t * prog, function_index_t index,
   FUNCTION_TEMP (where)->prog = defprog;
   FUNCTION_TEMP (where)->u.func = defprog->function_table + defindex;
 
-  FUNCTION_RENTRY (where)->inh.offset = NUM_INHERITS - 1;
+  FUNCTION_RENTRY (where)->inh.offset = (unsigned short)(NUM_INHERITS - 1);
   FUNCTION_RENTRY (where)->inh.index = index;
   FUNCTION_ALIAS (where) = 1;
 
@@ -422,8 +409,8 @@ void copy_structures (program_t * prog) {
   class_member_entry_t *sme;
   ident_hash_elem_t *ihe;
   char *str;
-  int sm_off = mem_block[A_CLASS_MEMBER].current_size / sizeof (class_member_entry_t);
-  int sd_off = mem_block[A_CLASS_DEF].current_size / sizeof (class_def_t);
+  size_t sm_off = mem_block[A_CLASS_MEMBER].current_size / sizeof (class_member_entry_t);
+  size_t sd_off = mem_block[A_CLASS_DEF].current_size / sizeof (class_def_t);
   int i, num = 0;
 
   sd = (class_def_t *) allocate_in_mem_block (A_CLASS_DEF, prog->num_classes * sizeof (class_def_t));
@@ -431,7 +418,7 @@ void copy_structures (program_t * prog) {
     {
       sd[i].size = prog->classes[i].size;
       num += sd[i].size;
-      sd[i].index = prog->classes[i].index + sm_off;
+      sd[i].index = (unsigned short)(prog->classes[i].index + sm_off);
       str = prog->strings[prog->classes[i].name];
       sd[i].name = store_prog_string (str);
       ihe = find_or_add_ident (str, FOA_GLOBAL_SCOPE);
@@ -439,8 +426,7 @@ void copy_structures (program_t * prog) {
         ihe->sem_value++;
       else
         {
-          /* Possibly, this should check if the definitions are
-             consistent */
+          /* Possibly, this should check if the definitions are consistent */
           char buf[256];
           char *end = EndOf (buf);
           char *p;
@@ -449,7 +435,7 @@ void copy_structures (program_t * prog) {
           p = strput (p, end, str);
           yyerror (buf);
         }
-      ihe->dn.class_num = i + sd_off;
+      ihe->dn.class_num = (short)(i + sd_off);
     }
 
   sme = (class_member_entry_t *) allocate_in_mem_block (A_CLASS_MEMBER, sizeof (class_member_entry_t) * num);
@@ -608,7 +594,7 @@ static void overload_function (program_t * prog, function_index_t index,
    */
   alias = add_new_function_entry ();
   FUNCTION_FLAGS (alias) = NAME_INHERITED | NAME_ALIAS;
-  FUNCTION_RENTRY (alias)->inh.offset = NUM_INHERITS - 1;
+  FUNCTION_RENTRY (alias)->inh.offset = (unsigned short)(NUM_INHERITS - 1);
   FUNCTION_RENTRY (alias)->inh.index = index;
   FUNCTION_ALIAS (alias) = oldindex;
 
@@ -640,7 +626,7 @@ static void overload_function (program_t * prog, function_index_t index,
       FUNCTION_TEMP (oldindex)->prog = defprog;
       FUNCTION_TEMP (oldindex)->u.func = defprog->function_table + defindex;
 
-      FUNCTION_RENTRY (oldindex)->inh.offset = NUM_INHERITS - 1;
+      FUNCTION_RENTRY (oldindex)->inh.offset = (unsigned short)(NUM_INHERITS - 1);
       FUNCTION_RENTRY (oldindex)->inh.index = index;
     }
 
@@ -692,11 +678,11 @@ int copy_functions (program_t * from, int typemod) {
       if (ihe && ((num = ihe->dn.function_num) != -1))
         {
           /* The function has already been defined in this object */
-          overload_function (from, i, prog, func_entry->def.f_index, num, typemod);
+          overload_function (from, (function_index_t)i, prog, func_entry->def.f_index, (function_index_t)num, typemod);
         }
       else
         {
-          copy_function (from, i, prog, func_entry->def.f_index, typemod);
+          copy_function (from, (function_index_t)i, prog, func_entry->def.f_index, typemod);
         }
     }
   return initializer;
@@ -838,7 +824,7 @@ static int find_matching_function (program_t * prog, char *name, parse_node_t * 
 void arrange_call_inherited (char *name, parse_node_t * node) {
 
   inherit_t *ip;
-  int num_inherits = 0;
+  size_t num_inherits = 0;
   size_t super_length = 0;
   char *super_name = NULL, *p, *real_name = name;
   char *shared_string;
@@ -882,7 +868,6 @@ void arrange_call_inherited (char *name, parse_node_t * node) {
   {
     char buff[256];
     char *end = EndOf (buff);
-    char *p;
 
     p = strput (buff, end, "No such inherited function ");
     p = strput (p, end, name);
@@ -1018,7 +1003,7 @@ function_number_t define_new_function (char *name, int num_arg, int num_local, f
   if (!funp)
     {
       /* add a new compiler_function_t at end of A_COMPILER_FUNCTIONS area */
-      num = mem_block[A_COMPILER_FUNCTIONS].current_size / sizeof (compiler_function_t);
+      num = (int)(mem_block[A_COMPILER_FUNCTIONS].current_size / sizeof (compiler_function_t));
       funp = (compiler_function_t *) allocate_in_mem_block (A_COMPILER_FUNCTIONS, sizeof (compiler_function_t));
 
       funp->name = make_shared_string (name);
@@ -1036,14 +1021,14 @@ function_number_t define_new_function (char *name, int num_arg, int num_local, f
         }
     }
   FUNCTION_TEMP (runtime_num)->prog = 0;
-  FUNCTION_TEMP (runtime_num)->u.index = num;
+  FUNCTION_TEMP (runtime_num)->u.index = (function_index_t)num;
 
   if (exact_types)
     flags |= NAME_STRICT_TYPES;
   FUNCTION_FLAGS (runtime_num) = (type & NAME_TYPE_MOD) | flags;
 
-  FUNCTION_RENTRY (runtime_num)->def.num_local = num_local;
-  FUNCTION_RENTRY (runtime_num)->def.num_arg = num_arg;
+  FUNCTION_RENTRY (runtime_num)->def.num_local = (unsigned char)num_local;
+  FUNCTION_RENTRY (runtime_num)->def.num_arg = (unsigned char)num_arg;
   FUNCTION_RENTRY (runtime_num)->def.f_index = (function_number_t)num;
   FUNCTION_ALIAS (runtime_num)++;
 
@@ -1058,7 +1043,7 @@ function_number_t define_new_function (char *name, int num_arg, int num_local, f
 
   if (exact_types && num_arg)
     {
-      *((unsigned short *) mem_block[A_ARGUMENT_INDEX].block + num) = mem_block[A_ARGUMENT_TYPES].current_size / sizeof (unsigned short);
+      *((unsigned short *) mem_block[A_ARGUMENT_INDEX].block + num) = (unsigned short)(mem_block[A_ARGUMENT_TYPES].current_size / sizeof (unsigned short));
       add_to_mem_block (A_ARGUMENT_TYPES, (char *) type_of_locals_ptr, num_arg * sizeof (*type_of_locals_ptr));
     }
   return (function_number_t)num;
@@ -1070,13 +1055,13 @@ int define_variable (char *name, int type, int hide) {
   int n;
   ident_hash_elem_t *ihe;
 
-  n = (mem_block[A_VAR_TEMP].current_size / sizeof (variable_t));
+  n = (int)(mem_block[A_VAR_TEMP].current_size / sizeof (variable_t));
 
   ihe = find_or_add_ident (name, FOA_GLOBAL_SCOPE);
   if (ihe->dn.global_num == -1)
     {
       ihe->sem_value++;
-      ihe->dn.global_num = n;
+      ihe->dn.global_num = (short)n;
     }
   else
     {
@@ -1101,13 +1086,13 @@ int define_variable (char *name, int type, int hide) {
          invisible; we only add them above (in the !hide case) for better
          error messages */
       if (!hide)
-        ihe->dn.global_num = n;
+        ihe->dn.global_num = (short)n;
     }
 
   dummy =
     (variable_t *) allocate_in_mem_block (A_VAR_TEMP, sizeof (variable_t));
   dummy->name = name;
-  dummy->type = type;
+  dummy->type = (lpc_type_t)type;
 
   if (hide)
     dummy->type |= NAME_HIDDEN;
@@ -1129,7 +1114,7 @@ int define_new_variable (char *name, int type) {
   tp =
     (unsigned short *) allocate_in_mem_block (A_VAR_TYPE,
                                               sizeof (unsigned short));
-  *tp = type;
+  *tp = (unsigned short)type;
 
   return n;
 }
@@ -1181,14 +1166,15 @@ char* get_type_name (char *where, char *end, int type) {
 }
 
 #define STRING_HASH(var,str) \
-    var = (long)str ^ (long)str >> 16; \
+    var = (intptr_t)(str) ^ (intptr_t)(str) >> 16; \
     var = (var ^ var >> 8) & 0xff;
 
 short store_prog_string (const char *string_data) {
 
   short i, next, *next_tab, *idxp;
   char **p, *str;
-  unsigned char hash, mask, *tagp;
+  intptr_t hash;
+  unsigned char mask, *tagp;
 
   str = make_shared_string (string_data);
   STRING_HASH (hash, str);
@@ -1230,10 +1216,8 @@ short store_prog_string (const char *string_data) {
     {
       /* reuse freed string */
       int top;
-
       i = freed_string;
-
-      top = mem_block[A_STRINGS].current_size / sizeof str;
+      top = (int)(mem_block[A_STRINGS].current_size / sizeof (char*));
       for (freed_string++; freed_string < top; freed_string++)
         {
           if (p[freed_string] == 0)
@@ -1245,11 +1229,11 @@ short store_prog_string (const char *string_data) {
   else
     {
       /* grow by one element. */
-      add_to_mem_block (A_STRINGS, 0, sizeof str);
+      add_to_mem_block (A_STRINGS, 0, sizeof (char *));
       add_to_mem_block (A_STRING_NEXT, 0, sizeof (short));
       add_to_mem_block (A_STRING_REFS, 0, sizeof (short));
       /* test if number of strings isn't too large ? */
-      i = mem_block[A_STRINGS].current_size / sizeof str - 1;
+      i = (short)(mem_block[A_STRINGS].current_size / sizeof (char *)) - 1;
     }
   PROG_STRING (i) = str;
   ((short *) mem_block[A_STRING_NEXT].block)[i] = next;
@@ -1262,9 +1246,10 @@ void free_prog_string (short num) {
 
   short i, prv, *next_tab, top, *idxp;
   char **p, *str;
-  unsigned char hash, mask;
+  intptr_t hash;
+  unsigned char mask;
 
-  top = mem_block[A_STRINGS].current_size / sizeof (char *) - 1;
+  top = (short)(mem_block[A_STRINGS].current_size / sizeof (char *)) - 1;
   if (num < 0 || num > top)
     {
       yyerror ("free_prog_string: index out of range.\n");
@@ -1314,7 +1299,7 @@ void free_prog_string (short num) {
   else
     {
       /* shrink table */
-      mem_block[A_STRINGS].current_size -= sizeof str;
+      mem_block[A_STRINGS].current_size -= sizeof (char *);
       mem_block[A_STRING_REFS].current_size -= sizeof (short);
       mem_block[A_STRING_NEXT].current_size -= sizeof (short);
     }
@@ -1575,10 +1560,9 @@ throw_away_mapping (parse_node_t * pn)
   return ret;
 }
 
-parse_node_t *
-validate_efun_call (int f, parse_node_t * args)
-{
-  int num = args->v.number;
+parse_node_t* validate_efun_call (int f, parse_node_t * args) {
+
+  int num = (int)args->v.number;
   int min_arg, max_arg, def, *argp;
   int num_var = 0;
   parse_node_t *pn = args->r.expr;
@@ -1839,11 +1823,9 @@ get_id_number ()
   return current_id_number++;
 }
 
-void
-copy_in (int which, char **start)
-{
+void copy_in (int which, char **start) {
   char *block;
-  int size;
+  size_t size;
 
   size = mem_block[which].current_size;
   if (!size)
@@ -1949,7 +1931,7 @@ copy_and_sort_function_table (program_t * prog, char **p)
             /* remember the function entries have 'moved' */
             int oldix = FUNCTION_RENTRY (j)->def.f_index;
             DEBUG_CHECK (oldix >= num, "Function index out of range");
-            FUNCTION_RENTRY (j)->def.f_index = inverse[oldix];
+            FUNCTION_RENTRY (j)->def.f_index = (function_number_t)inverse[oldix];
           }
       }
     for (i = 0; i < n_def; i++)
@@ -1960,7 +1942,7 @@ copy_and_sort_function_table (program_t * prog, char **p)
             /* remember the function entries have 'moved' */
             int oldix = FUNCTION_RENTRY (n_real + i)->def.f_index;
             DEBUG_CHECK (oldix >= num, "Function index out of range");
-            FUNCTION_RENTRY (n_real + i)->def.f_index = inverse[oldix];
+            FUNCTION_RENTRY (n_real + i)->def.f_index = (function_number_t)inverse[oldix];
           }
       }
   }
@@ -1982,14 +1964,14 @@ copy_and_sort_function_table (program_t * prog, char **p)
 
   if (mem_block[A_ARGUMENT_TYPES].current_size)
     {
-      unsigned short *dest;
+      unsigned short *dst;
 
       prog->argument_types = (unsigned short *) *p;
       copy_in (A_ARGUMENT_TYPES, p);
 
-      dest = prog->type_start = (unsigned short *) *p;
+      dst = prog->type_start = (unsigned short *) *p;
       for (i = 0; i < new_num; i++)
-        dest[i] = *((unsigned short *) mem_block[A_ARGUMENT_INDEX].block + temp[i]);
+        dst[i] = *((unsigned short *) mem_block[A_ARGUMENT_INDEX].block + temp[i]);
 
       *p += ALIGN_SIZE (new_num * sizeof (unsigned short));
     }
@@ -2014,14 +1996,13 @@ copy_and_sort_function_table (program_t * prog, char **p)
 #ifdef COMPRESS_FUNCTION_TABLES
 #define EXPECTED_INDEX(rfu) (INHERIT(rfu->inh.offset)->function_index_offset + rfu->inh.index)
 
-void
-compress_function_tables ()
-{
+void compress_function_tables () {
+
   compressed_offset_table_t *cftp;
   runtime_function_u *p;
   int f_ov, l_ov, f_def, n_def, n_tot, n_ov, i, j;
 
-  n_tot = (mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u));
+  n_tot = (int)(mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u));
   f_def = n_tot - 1;
   while (f_def >= 0)
     {
@@ -2054,9 +2035,9 @@ compress_function_tables ()
   n_ov = l_ov - f_ov + 1;
   cftp = (compressed_offset_table_t *) allocate_in_mem_block (A_RUNTIME_COMPRESSED, sizeof (compressed_offset_table_t) + (n_ov - 1));
 
-  cftp->first_defined = f_def;
-  cftp->first_overload = f_ov;
-  cftp->num_compressed = f_def - n_ov;
+  cftp->first_defined = (function_index_t)f_def;
+  cftp->first_overload = (function_index_t) f_ov;
+  cftp->num_compressed = (unsigned short)(f_def - n_ov);
 
   for (i = 0, j = 0; i < n_ov; i++)
     {
@@ -2066,12 +2047,12 @@ compress_function_tables ()
         cftp->index[i] = 255;
       else
         {
-          cftp->index[i] = j++;
+          cftp->index[i] = (unsigned char)j++;
           if (j == 256)
             {
               /* Woops.  Fix things up a bit */
-              cftp->first_defined = f_def = f_ov + i;
-              cftp->num_compressed = i;
+              cftp->first_defined = (function_index_t)(f_def = f_ov + i);
+              cftp->num_compressed = (unsigned short)i;
               for (j = i; j < n_ov; j++)
                 cftp->index[j] = 255;
               j = 255;
@@ -2079,7 +2060,7 @@ compress_function_tables ()
             }
         }
     }
-  cftp->num_deleted = cftp->first_defined - j;
+  cftp->num_deleted = (unsigned short)(cftp->first_defined - j);
 
   /* Now modify A_RUNTIME_FUNCTIONS */
   if (j + n_def == 0)
@@ -2169,7 +2150,7 @@ static program_t *epilog ()
    * overloading during compile time, but here we want to make sure
    * they're all the same again.
    */
-  num_fun = mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u);
+  num_fun = (int)(mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u));
   for (i = 0; i < num_fun; i++)
     {
       function_flags_t funflags = FUNCTION_FLAGS (i);
@@ -2230,8 +2211,8 @@ static program_t *epilog ()
   /* Format is now:
    * <short total-size-in-bytes> <short offset-to-line-info> <file info blob> <line info blob>
    */
-  lnoff = 2 + (mem_block[A_FILE_INFO].current_size / sizeof (short));
-  lnsz = lnoff * sizeof (short) + mem_block[A_LINENUMBERS].current_size;
+  lnoff = 2 + (int)(mem_block[A_FILE_INFO].current_size / sizeof (short));
+  lnsz = (int)(lnoff * sizeof (short) + mem_block[A_LINENUMBERS].current_size);
 
   prog->file_info = (unsigned short *) DXALLOC (lnsz, TAG_LINENUMBERS, "epilog");
   prog->file_info[0] = (unsigned short) lnsz;
@@ -2245,7 +2226,7 @@ static program_t *epilog ()
   p += ALIGN_SIZE (sizeof (program_t));
 
   prog->program = p;
-  prog->program_size = mem_block[A_PROGRAM].current_size;
+  prog->program_size = (unsigned short)mem_block[A_PROGRAM].current_size;
   copy_in (A_PROGRAM, &p);
 
   prog->num_functions_total = (function_index_t)num_fun;
@@ -2267,25 +2248,25 @@ static program_t *epilog ()
   copy_in (A_FUNCTION_FLAGS, &p);
 
   prog->classes = (class_def_t *) p;
-  prog->num_classes = mem_block[A_CLASS_DEF].current_size / sizeof (class_def_t);
+  prog->num_classes = (unsigned short)(mem_block[A_CLASS_DEF].current_size / sizeof (class_def_t));
   copy_in (A_CLASS_DEF, &p);
 
   prog->class_members = (class_member_entry_t *) p;
   copy_in (A_CLASS_MEMBER, &p);
 
   prog->strings = (char **) p;
-  prog->num_strings = mem_block[A_STRINGS].current_size / sizeof (char *);
+  prog->num_strings = (unsigned short)(mem_block[A_STRINGS].current_size / sizeof (char *));
   copy_in (A_STRINGS, &p);
 
-  prog->num_variables_defined = mem_block[A_VAR_NAME].current_size / sizeof (char *);
-  prog->num_variables_total = mem_block[A_VAR_TEMP].current_size / sizeof (variable_t);
+  prog->num_variables_defined = (unsigned short)(mem_block[A_VAR_NAME].current_size / sizeof (char *));
+  prog->num_variables_total = (unsigned short)(mem_block[A_VAR_TEMP].current_size / sizeof (variable_t));
 
   prog->variable_table = (char **) p;
   copy_in (A_VAR_NAME, &p);
   prog->variable_types = (unsigned short *) p;
   copy_in (A_VAR_TYPE, &p);
 
-  prog->num_inherited = mem_block[A_INHERITS].current_size / sizeof (inherit_t);
+  prog->num_inherited = (unsigned short)(mem_block[A_INHERITS].current_size / sizeof (inherit_t));
   if (prog->num_inherited)
     {
       prog->inherit = (inherit_t *) p;
@@ -2386,12 +2367,12 @@ static void clean_parser ()
       if (funp->name)
         free_string (funp->name);
     }
-  n = mem_block[A_STRINGS].current_size / sizeof (char *);
+  n = (int)(mem_block[A_STRINGS].current_size / sizeof (char *));
   for (i = 0; i < n; i++)
     {
       free_string (*((char **) mem_block[A_STRINGS].block + i));
     }
-  n = mem_block[A_VAR_NAME].current_size / sizeof (char *);
+  n = (int)(mem_block[A_VAR_NAME].current_size / sizeof (char *));
   for (i = 0; i < n; i++)
     {
       free_string (*((char **) mem_block[A_VAR_NAME].block + i));
@@ -2408,7 +2389,7 @@ char *
 the_file_name (char *name)
 {
   char *tmp;
-  int len;
+  size_t len;
 
   len = strlen (name);
   if (len < 3)
@@ -2426,21 +2407,17 @@ the_file_name (char *name)
   return tmp;
 }
 
-int
-case_compare (parse_node_t ** c1, parse_node_t ** c2)
-{
+int case_compare (parse_node_t ** c1, parse_node_t ** c2) {
   if ((*c1)->kind == NODE_DEFAULT)
     return -1;
   if ((*c2)->kind == NODE_DEFAULT)
     return 1;
 
-  return ((*c1)->r.number - (*c2)->r.number);
+  return (int)((*c1)->r.number - (*c2)->r.number);
 }
 
-int
-string_case_compare (parse_node_t ** c1, parse_node_t ** c2)
-{
-  int i1, i2;
+int string_case_compare (parse_node_t ** c1, parse_node_t ** c2) {
+  int64_t i1, i2;
   char *p1, *p2;
 
   if ((*c1)->kind == NODE_DEFAULT)
@@ -2453,14 +2430,13 @@ string_case_compare (parse_node_t ** c1, parse_node_t ** c2)
   p1 = (i1 ? PROG_STRING (i1) : 0);
   p2 = (i2 ? PROG_STRING (i2) : 0);
 
-  return (p1 - p2);
+  return (int)(p1 - p2);
 }
 
-void
-prepare_cases (parse_node_t * pn, int start)
-{
+void prepare_cases (parse_node_t * pn, int start) {
   parse_node_t **ce_start, **ce_end, **ce;
-  int end, last_key, this_key;
+  size_t end;
+  int last_key, this_key;
   int direct = 1;
 
   ce_start = (parse_node_t **) & mem_block[A_CASES].block[start];
@@ -2476,9 +2452,9 @@ prepare_cases (parse_node_t * pn, int start)
     }
 
   if (pn->kind == NODE_SWITCH_STRINGS)
-    quickSort ((char *) ce_start, ce_end - ce_start, sizeof (parse_node_t *), string_case_compare);
+    quickSort ((char *) ce_start, (int)(ce_end - ce_start), sizeof (parse_node_t *), string_case_compare);
   else
-    quickSort ((char *) ce_start, ce_end - ce_start, sizeof (parse_node_t *), case_compare);
+    quickSort ((char *) ce_start, (int)(ce_end - ce_start), sizeof (parse_node_t *), case_compare);
 
   ce = ce_start;
   if ((*ce)->kind == NODE_DEFAULT)
@@ -2496,19 +2472,19 @@ prepare_cases (parse_node_t * pn, int start)
     }
   if ((*ce)->v.expr)
     {
-      last_key = (*ce)->v.expr->r.number;
+      last_key = (int)(*ce)->v.expr->r.number;
       direct = 0;
     }
   else
-    last_key = (*ce)->r.number;
+    last_key = (int)(*ce)->r.number;
   ce++;
   while (ce < ce_end)
     {
-      this_key = (*ce)->r.number;
+      this_key = (int)(*ce)->r.number;
       if (pn->kind == NODE_SWITCH_RANGES && this_key <= last_key)
         {
           char buf[1024];
-          char *end = EndOf (buf);
+          char *buf_end = EndOf (buf);
           char *p;
           char *f1, *f2;
           int fi1, fi2;
@@ -2523,29 +2499,29 @@ prepare_cases (parse_node_t * pn, int start)
           f1 = PROG_STRING (fi1);
           f2 = PROG_STRING (fi2);
 
-          p = strput (buf, end, "Overlapping cases: ");
+          p = strput (buf, buf_end, "Overlapping cases: ");
           if (f1)
             {
-              p = strput (p, end, f1);
-              p = strput (p, end, ":");
+              p = strput (p, buf_end, f1);
+              p = strput (p, buf_end, ":");
             }
           else
-            p = strput (p, end, "line ");
-          p = strput (p, end, " and ");
+            p = strput (p, buf_end, "line ");
+          p = strput (p, buf_end, " and ");
           if (f2)
             {
-              p = strput (p, end, f2);
-              p = strput (p, end, ":");
+              p = strput (p, buf_end, f2);
+              p = strput (p, buf_end, ":");
             }
           else
-            p = strput (p, end, "line ");
-          p = strput (p, end, ".");
+            p = strput (p, buf_end, "line ");
+          p = strput (p, buf_end, ".");
           yyerror (buf);
         }
       (*(ce - 1))->l.expr = *ce;
       if ((*ce)->v.expr)
         {
-          last_key = (*ce)->v.expr->r.number;
+          last_key = (int)(*ce)->v.expr->r.number;
           direct = 0;
         }
       else
@@ -2570,8 +2546,8 @@ void save_file_info (int file_id, int lines) {
   opt_trace (TT_COMPILE|2, "file_id: %d, lines: %d", file_id, lines);
   short fi[2];
 
-  fi[0] = lines;
-  fi[1] = file_id;
+  fi[0] = (short)lines;
+  fi[1] = (short)file_id;
   if (mem_block[A_FILE_INFO].block)
     add_to_mem_block (A_FILE_INFO, (char *) &fi[0], sizeof (fi));
 }

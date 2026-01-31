@@ -142,13 +142,11 @@ f_ed (void)
       /* ed(fname,exitfn,restricted) / ed(fname,writefn,exitfn) */
       if (sp->type == T_NUMBER)
         {
-          ed_start ((sp - 2)->u.string, 0, (sp - 1)->u.string, sp->u.number,
-                    current_object);
+          ed_start ((sp - 2)->u.string, 0, (sp - 1)->u.string, (int)sp->u.number, current_object);
         }
       else if (sp->type == T_STRING)
         {
-          ed_start ((sp - 2)->u.string, (sp - 1)->u.string, sp->u.string, 0,
-                    current_object);
+          ed_start ((sp - 2)->u.string, (sp - 1)->u.string, sp->u.string, 0, current_object);
         }
       else
         {
@@ -164,7 +162,7 @@ f_ed (void)
       if (!(sp->type == T_NUMBER))
         bad_argument (sp, T_NUMBER, 4, F_ED);
       ed_start ((sp - 3)->u.string, (sp - 2)->u.string, (sp - 1)->u.string,
-                sp->u.number, current_object);
+                (int)sp->u.number, current_object);
       pop_n_elems (4);
     }
 }
@@ -300,18 +298,16 @@ f_find_object (void)
 
 
 #ifdef F_FUNCTION_EXISTS
-void
-f_function_exists (void)
-{
+void f_function_exists (void) {
+
   char *str, *res;
-  int l;
   object_t *ob;
   int flag = 0;
 
   if (st_num_arg > 1)
     {
       if (st_num_arg > 2)
-        flag = (sp--)->u.number;
+        flag = (int)((sp--)->u.number);
       ob = (sp--)->u.ob;
       free_object (ob, "f_function_exists");
     }
@@ -330,12 +326,11 @@ f_function_exists (void)
   free_string_svalue (sp);
   if (str)
     {
-      l = SHARED_STRLEN (str) - 2;	/* no .c */
-      res = new_string (l + 1, "function_exists");
+      size_t len = SHARED_STRLEN (str) - 2;	/* no .c */
+      res = new_string (len + 1, "function_exists");
       res[0] = '/';
-      strncpy (res + 1, str, l);
-      res[l + 1] = 0;
-
+      strncpy (res + 1, str, len);
+      res[len + 1] = 0;
       sp->subtype = STRING_MALLOC;
       sp->u.string = res;
     }
@@ -456,7 +451,7 @@ f_member_array (void)
 
   if (st_num_arg > 2)
     {
-      i = (sp--)->u.number;
+      i = (int)((sp--)->u.number);
       if (i < 0)
         bad_arg (3, F_MEMBER_ARRAY);
     }
