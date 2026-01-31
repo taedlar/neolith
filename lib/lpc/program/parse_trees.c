@@ -27,9 +27,7 @@ static parse_node_t *last_node = 0;
 static int last_prog_size = 1;
 
 /* called by code generation when it is done with the tree */
-void
-free_tree ()
-{
+void free_tree () {
   parse_node_block_t *cur_block;
 
   if (!(cur_block = parse_block_list))
@@ -47,9 +45,7 @@ free_tree ()
 }
 
 /* called when the parser cleans up */
-void
-release_tree ()
-{
+void release_tree () {
   parse_node_block_t *cur_block;
   parse_node_block_t *next_block;
 
@@ -65,15 +61,13 @@ release_tree ()
 }
 
 /* get a new node to add to the tree */
-parse_node_t *
-new_node ()
-{
+parse_node_t* new_node () {
   parse_node_block_t *cur_block;
 
   /* fast case */
   if (next_node < last_node)
     {
-      next_node->line = current_line_base + current_line;
+      next_node->line = (short)(current_line_base + current_line);
       return next_node++;
     }
 
@@ -92,7 +86,7 @@ new_node ()
   /* point the nodes correctly */
   next_node = &cur_block->nodes[0];
   last_node = &cur_block->nodes[NODES_PER_BLOCK];
-  next_node->line = current_line_base + current_line;
+  next_node->line = (short)(current_line_base + current_line);
   return next_node++;
 }
 
@@ -100,9 +94,7 @@ new_node ()
  * This should be used for nodes that hold expressions together but don't
  * generate any code themselves (NODE_IF, etc)
  */
-parse_node_t *
-new_node_no_line ()
-{
+parse_node_t* new_node_no_line () {
   parse_node_block_t *cur_block;
 
   /* fast case */
@@ -131,9 +123,7 @@ new_node_no_line ()
 }
 
 /* quick routine to make a generic branched node */
-parse_node_t *
-make_branched_node (short kind, char type, parse_node_t * l, parse_node_t * r)
-{
+parse_node_t* make_branched_node (short kind, char type, parse_node_t * l, parse_node_t * r) {
   parse_node_t *ret;
 
   ret = new_node ();
@@ -145,9 +135,7 @@ make_branched_node (short kind, char type, parse_node_t * l, parse_node_t * r)
 }
 
 /* create an optimized typical binary integer operator */
-parse_node_t *
-binary_int_op (parse_node_t * l, parse_node_t * r, char op, char *name)
-{
+parse_node_t* binary_int_op (parse_node_t * l, parse_node_t * r, char op, char *name) {
   parse_node_t *ret;
 
   if (exact_types)
@@ -226,10 +214,7 @@ binary_int_op (parse_node_t * l, parse_node_t * r, char op, char *name)
   return ret;
 }
 
-parse_node_t *
-make_range_node (int code, parse_node_t * expr, parse_node_t * l,
-                 parse_node_t * r)
-{
+parse_node_t* make_range_node (int code, parse_node_t * expr, parse_node_t * l, parse_node_t * r) {
   parse_node_t *newnode;
 
   if (r)
@@ -271,9 +256,7 @@ make_range_node (int code, parse_node_t * expr, parse_node_t * l,
   return newnode;
 }
 
-parse_node_t *
-insert_pop_value (parse_node_t * expr)
-{
+parse_node_t* insert_pop_value (parse_node_t * expr) {
   parse_node_t *replacement;
 
   if (!expr)
@@ -431,7 +414,7 @@ insert_pop_value (parse_node_t * expr)
         case F_ASSIGN:
           if (IS_NODE (expr->r.expr, NODE_OPCODE_1, F_LOCAL_LVALUE))
             {
-              int tmp = expr->r.expr->l.number;
+              int64_t tmp = expr->r.expr->l.number;
               expr->kind = NODE_UNARY_OP_1;
               expr->r.expr = expr->l.expr;
               expr->v.number = F_VOID_ASSIGN_LOCAL;
@@ -458,9 +441,7 @@ insert_pop_value (parse_node_t * expr)
   return replacement;
 }
 
-int
-is_boolean (parse_node_t * pn)
-{
+int is_boolean (parse_node_t * pn) {
   switch (pn->kind)
     {
     case NODE_UNARY_OP:
@@ -478,9 +459,7 @@ is_boolean (parse_node_t * pn)
   return 0;
 }
 
-parse_node_t *
-optimize_loop_test (parse_node_t * pn)
-{
+parse_node_t* optimize_loop_test (parse_node_t * pn) {
   parse_node_t *ret;
 
   if (IS_NODE (pn, NODE_BINARY_OP, F_LT) &&
@@ -502,7 +481,7 @@ optimize_loop_test (parse_node_t * pn)
   else if (IS_NODE (pn, NODE_UNARY_OP, F_POST_DEC) &&
            IS_NODE (pn->r.expr, NODE_OPCODE_1, F_LOCAL_LVALUE))
     {
-      int lvar = pn->r.expr->l.number;
+      int64_t lvar = pn->r.expr->l.number;
       CREATE_OPCODE_1 (ret, F_WHILE_DEC, 0, lvar);
     }
   else

@@ -22,6 +22,6 @@ void i_update_forward_branch_links(BYTE kind, parse_node_t* link_start);
 void i_generate_else(void);
 void i_initialize_parser(void);
 void i_generate_final_program(int);
-void i_generate_inherited_init_call(int, short);
+void i_generate_inherited_init_call(int index, int initializer);
 
 void optimize_icode(char *, char *, char *);

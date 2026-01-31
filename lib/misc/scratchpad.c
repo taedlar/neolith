@@ -154,16 +154,11 @@ scratch_free (char *ptr)
     }
 }
 
-char *
-scratch_large_alloc (int size)
-{
+char* scratch_large_alloc (size_t size) {
   sp_block_t *spt;
 
-  SDEBUG (printf ("scratch_large_alloc(%i)\n", size));
-
-  spt =
-    (sp_block_t *) DMALLOC (SIZE_WITH_HDR (size), TAG_COMPILER,
-			    "scratch_alloc");
+  SDEBUG (printf ("scratch_large_alloc(%zu)\n", size));
+  spt = (sp_block_t *) DMALLOC (SIZE_WITH_HDR (size), TAG_COMPILER, "scratch_alloc");
   if ((spt->next = scratch_head.next))
     spt->next->prev = spt;
   spt->prev = (sp_block_t *) & scratch_head;
@@ -173,9 +168,7 @@ scratch_large_alloc (int size)
 }
 
 /* warning: unlike REALLOC(), this one only allows increases */
-char *
-scratch_realloc (char *ptr, int size)
-{
+char* scratch_realloc (char *ptr, size_t size) {
   SDEBUG (printf ("scratch_realloc(%s): ", ptr));
 
   if (Ptr == scr_last)
@@ -239,9 +232,7 @@ scratch_realloc (char *ptr, int size)
 }
 
 /* the routines above are better than this */
-char *
-scratch_alloc (int size)
-{
+char* scratch_alloc (size_t size) {
   SDEBUG (printf ("scratch_alloc(%i)\n", size));
   if (size < 256 && (scr_tail + size + 1) < scratch_end)
     {

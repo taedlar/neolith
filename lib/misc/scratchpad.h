@@ -40,10 +40,10 @@ extern unsigned char *scratch_end;
  */
 void scratch_destroy(void);
 char *scratch_copy(char *);
-char *scratch_alloc(int);
+char *scratch_alloc(size_t);
 void scratch_free(char *);
 char *scratch_join(char *, char *);
 char *scratch_join2(char *, char *);
-char *scratch_realloc(char *, int);
+char *scratch_realloc(char *, size_t);
 char *scratch_copy_string(char *);
-char *scratch_large_alloc(int);
+char *scratch_large_alloc(size_t);

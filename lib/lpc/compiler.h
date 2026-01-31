@@ -156,7 +156,7 @@ extern int var_defined;
 
 #define NOVALUE_USED_FLAG        1024
 
-int validate_function_call(function_index_t, parse_node_t *);
+lpc_type_t validate_function_call(int, parse_node_t *);
 parse_node_t *validate_efun_call(int, parse_node_t *);
 extern mem_block_t mem_block[];
 extern int exact_types, global_modifiers;
@@ -202,11 +202,11 @@ void type_error(char *, int);
 int compatible_types(int, int);
 int compatible_types2(int, int);
 void arrange_call_inherited(char *, parse_node_t *);
-function_number_t define_new_function(char *, int, int, function_flags_t, int);
+function_number_t define_new_function(char *, int, int, uint64_t, int);
 int define_new_variable(char *, int);
 short store_prog_string(const char *);
-void free_prog_string(short);
-void prepare_cases(parse_node_t *, int);
+void free_prog_string(int);
+void prepare_cases(parse_node_t *, size_t);
 void push_func_block(void);
 void pop_func_block(void);
 
