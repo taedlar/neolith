@@ -66,12 +66,12 @@ allocate_buffer (size_t size)
 int
 write_buffer (buffer_t * buf, long start, char *str, size_t theLength)
 {
-  int size;
+  size_t size;
 
   size = buf->size;
   if (start < 0)
     {
-      start = size + start;
+      start = (long)size + start;
       if (start < 0)
         {
           return 0;
@@ -81,7 +81,7 @@ write_buffer (buffer_t * buf, long start, char *str, size_t theLength)
    * can't write past the end of the buffer since we can't reallocate the
    * buffer here (no easy way to propagate back the changes to the caller
    */
-  if ((start + theLength) > size)
+  if ((size_t)start + theLength > size)
     {
       return 0;
     }
@@ -91,10 +91,7 @@ write_buffer (buffer_t * buf, long start, char *str, size_t theLength)
 
 char* read_buffer (buffer_t * b, long start, size_t len, size_t *rlen) {
   char *str;
-  unsigned int size;
-
-  if (len < 0)
-    return 0;
+  size_t size;
 
   size = b->size;
   if (start < 0)
@@ -109,15 +106,15 @@ char* read_buffer (buffer_t * b, long start, size_t len, size_t *rlen) {
     {
       len = size;
     }
-  if (start >= (int)size)
+  if ((size_t)start >= size)
     {
       return 0;
     }
-  if ((start + len) > (int)size)
+  if ((size_t)start + len > size)
     {
       len = (size - start);
     }
-  for (str = (char *) b->item + start, size = 0; *str && (int)size < len;
+  for (str = (char *) b->item + start, size = 0; *str && size < len;
        str++, size++)
     ;
   str = new_string (size, "read_buffer: str");

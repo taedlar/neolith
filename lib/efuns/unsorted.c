@@ -1225,7 +1225,7 @@ deep_copy_mapping (mapping_t * arg)
   mapping_t *map;
 
   map = allocate_mapping (0);	/* this should be fixed.  -Beek */
-  mapTraverse (arg, doCopy, map);
+  mapTraverse (arg, (map_func_t)doCopy, map);
   return map;
 }
 

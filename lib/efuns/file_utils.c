@@ -358,7 +358,7 @@ remove_file (char *path)
   return 1;
 }
 
-/*
+/**
  * Check that it is an legal path. No '..' are allowed.
  */
 int legal_path (const char *path) {
@@ -367,13 +367,17 @@ int legal_path (const char *path) {
   if (path == NULL)
     return 0;
   if (path[0] == '/')
-    return 0;
+    {
+      opt_trace (TT_EVAL|0, "absolute path '/...' rejected\n");
+      return 0;
+    }
   /*
    * disallowing # seems the easiest way to solve a bug involving loading
    * files containing that character
    */
   if (strchr (path, '#'))
     {
+      opt_trace (TT_EVAL|0, "path with '#' rejected\n");
       return 0;
     }
   p = path;
@@ -392,7 +396,7 @@ int legal_path (const char *path) {
       if (p)
         p++;			/* step over `/' */
     }
-#if defined(AMIGA) || defined(LATTICE) || defined(WIN32)
+#if defined(AMIGA) || defined(LATTICE) || defined(_WIN32)
   /*
    * I don't know what the proper define should be, just leaving an
    * appropriate place for the right stuff to happen here - Wayfarer
@@ -510,8 +514,6 @@ char *read_file (const char *path, long start, size_t len)
   size_t size;
   size_t n_read = 0;
 
-  if (len < 0)
-    return 0;
   strncpy (path_copy, path, PATH_MAX - 1);
   path_copy[PATH_MAX - 1] = '\0';
   file = check_valid_path (path_copy, current_object, "read_file", 0);
@@ -542,10 +544,10 @@ char *read_file (const char *path, long start, size_t len)
 
   /* read entire file if actual file size <= MAX_READ_FILE_SIZE */
   size = st.st_size;
-  if (size > CONFIG_INT (__MAX_READ_FILE_SIZE__))
+  if (size > (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__))
     {
       if (start || len)
-        size = CONFIG_INT (__MAX_READ_FILE_SIZE__); /* read fixed-size block for skip lines below */
+        size = (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__); /* read fixed-size block for skip lines below */
       else
         {
           fclose (f);
@@ -555,10 +557,10 @@ char *read_file (const char *path, long start, size_t len)
   if (start < 1)
     start = 1;
   if (len < 1)
-    len = CONFIG_INT (__MAX_READ_FILE_SIZE__); /* max number of lines possible in max read size */
+    len = (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__); /* max number of lines possible in max read size */
 
   opt_trace (TT_EVAL|0, "actual size: %ld bytes, requested: (start line %d) %d lines or < %d bytes\n",
-    st.st_size, start, (len ? len : CONFIG_INT (__MAX_READ_FILE_SIZE__)), size);
+    st.st_size, start, (len ? len : (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__)), size);
 
   if (!size)
     {
@@ -606,7 +608,7 @@ char *read_file (const char *path, long start, size_t len)
   /* now `p` points to the start of desired file contents, and `end` points to the
    * end of read buffer. Check if we need to read more for desired number of lines.
    */
-  if (len < CONFIG_INT (__MAX_READ_FILE_SIZE__) && !feof (f))
+  if (len < (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__) && !feof (f))
     {
       /* move `len` lines of text starting from `p` to the beginning of the buffer */
       for (p2 = str; p != end;)
@@ -682,8 +684,6 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
   char *str;
   size_t size;
 
-  if (len < 0)
-    return 0;
   file = check_valid_path (file, current_object, "read_bytes", 0);
   if (!file)
     return 0;
@@ -698,20 +698,20 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
 
   if (len == 0)
     len = size;
-  if (len > CONFIG_INT (__MAX_BYTE_TRANSFER__))
+  if (len > (size_t)CONFIG_INT (__MAX_BYTE_TRANSFER__))
     {
       error ("Transfer exceeded maximum allowed number of bytes.\n");
       return 0;
     }
-  if (start >= size)
+  if ((size_t)start >= size)
     {
       fclose (f);
       return 0;
     }
-  if ((start + len) > size)
+  if ((size_t)start + len > size)
     len = size - start;
 
-  if ((size = fseek (f, start, 0)) < 0)
+  if (fseek (f, start, 0) < 0)
     return 0;
 
   str = new_string (len, "read_bytes: str");
@@ -746,7 +746,7 @@ write_bytes (char *file, long start, char *str, size_t theLength)
 
   if (!file)
     return 0;
-  if (theLength > CONFIG_INT (__MAX_BYTE_TRANSFER__))
+  if (theLength > (size_t)CONFIG_INT (__MAX_BYTE_TRANSFER__))
     return 0;
 
   fd = open (file, O_CREAT | O_RDWR
@@ -836,7 +836,7 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
 
   if (v == (svalue_t *) - 1)
     {
-      opt_trace(TT_EVAL|1, "master object not loaded yet");
+      debug_warn ("master object not loaded yet");
       v = 0;
     }
   else if (v)
@@ -847,30 +847,25 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
         {
           ret_path = v->u.string;
         }
-      else
-        {
-          free_svalue (&apply_ret_value, "check_valid_path");
-          apply_ret_value.type = T_STRING;
-          apply_ret_value.subtype = STRING_MALLOC;
-          ret_path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
-        }
     }
-  else
-    return 0;
 
-  if (ret_path)
+  if (!ret_path)
     {
-      if (ret_path[0] == '/')
-        ret_path++;
-      if (ret_path[0] == '\0')
-        ret_path = current_dir;
-      if (legal_path (ret_path))
-        {
-          opt_trace(TT_EVAL, "legal path: %s (%s)", path, ret_path);
-          return ret_path;
-        }
+      free_svalue (&apply_ret_value, "check_valid_path");
+      apply_ret_value.type = T_STRING;
+      apply_ret_value.subtype = STRING_MALLOC;
+      ret_path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
     }
 
+  if (ret_path[0] == '/')
+    ret_path++;
+  if (ret_path[0] == '\0')
+    ret_path = current_dir;
+  if (legal_path (ret_path))
+    {
+      opt_trace(TT_EVAL, "legal path: %s (%s)", path, ret_path);
+      return ret_path;
+    }
   opt_trace(TT_EVAL, "not legal path: %s", path);
   return 0;
 }
