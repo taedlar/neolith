@@ -148,10 +148,10 @@ void check_for_destr (array_t * v) {
     }
 }
 
-/* explode_string() - Split a string into sub-strings separated by delimiter, return an array of sub-strings. */
-array_t *
-explode_string (char *str, int slen, char *del, int len)
-{
+/**
+ * Split a string into sub-strings separated by delimiter, return an array of sub-strings.
+ */
+array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
   char *p, *beg, *end;
 #ifndef REVERSIBLE_EXPLODE_STRING
   char *lastdel = (char *) NULL;
@@ -315,7 +315,7 @@ explode_string (char *str, int slen, char *del, int len)
   return ret;
 }
 
-char* implode_string (array_t * arr, char *del, int del_len) {
+char* implode_string (array_t * arr, char *del, size_t del_len) {
 
   size_t size;
   int i, num;

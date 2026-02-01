@@ -10,4 +10,4 @@
   typedef unsigned int	uint32_t
 #endif
 
-uint32_t compute_crc32(unsigned char *, int);
+uint32_t compute_crc32(unsigned char *, size_t);

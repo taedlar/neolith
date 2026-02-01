@@ -2,7 +2,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-
 #include "src/std.h"
 #include "src/interpret.h"
 #include "rc.h"
@@ -13,11 +12,8 @@
 #include "lpc/operator.h"
 #include "sprintf.h"
 
-
 #ifdef F_CAPITALIZE
-void
-f_capitalize (void)
-{
+void f_capitalize (void) {
   if (islower (sp->u.string[0]))
     {
       unlink_string_svalue (sp);
@@ -28,9 +24,7 @@ f_capitalize (void)
 
 
 #ifdef F_LOWER_CASE
-void
-f_lower_case (void)
-{
+void f_lower_case (void) {
   register char *str;
 
   str = sp->u.string;
@@ -39,9 +33,9 @@ f_lower_case (void)
     {
       if (isupper (*str))
         {
-          int l = str - sp->u.string;
+          size_t len = str - sp->u.string;
           unlink_string_svalue (sp);
-          str = sp->u.string + l;
+          str = sp->u.string + len;
           *str += 'a' - 'A';
           for (str++; *str; str++)
             {
@@ -56,9 +50,7 @@ f_lower_case (void)
 
 
 #ifdef F_UPPER_CASE
-void
-f_upper_case (void)
-{
+void f_upper_case (void) {
   register char *str;
 
   str = sp->u.string;
@@ -67,9 +59,9 @@ f_upper_case (void)
     {
       if (islower (*str))
         {
-          int l = str - sp->u.string;
+          size_t len = str - sp->u.string;
           unlink_string_svalue (sp);
-          str = sp->u.string + l;
+          str = sp->u.string + len;
           *str -= 'a' - 'A';
           for (str++; *str; str++)
             {
@@ -84,10 +76,8 @@ f_upper_case (void)
 
 
 #ifdef F_STRWRAP
-void
-f_strwrap (void)
-{
-  int indent = 0, width = 0;
+void f_strwrap (void) {
+  size_t indent = 0, width = 0;
 
   if (st_num_arg == 3)
     indent = (sp--)->u.number;
@@ -101,11 +91,9 @@ f_strwrap (void)
 
 
 #ifdef F_REPEAT_STRING
-void
-f_repeat_string (void)
-{
+void f_repeat_string (void) {
   char *str;
-  int repeat, len;
+  size_t repeat, len;
   char *ret, *p;
   int i;
 
@@ -147,9 +135,7 @@ f_repeat_string (void)
 char *crypt (const char *key, const char *salt);
 #endif
 
-void
-f_crypt (void)
-{
+void f_crypt (void) {
   char *res, *p, salt[SALT_LEN + 1];
   char *choice = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
 
@@ -177,9 +163,7 @@ f_crypt (void)
 #endif
 
 #ifdef F_OLDCRYPT
-void
-f_oldcrypt (void)
-{
+void f_oldcrypt (void) {
   char *res, salt[3];
   char *choice = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
 
@@ -204,10 +188,8 @@ f_oldcrypt (void)
 #endif
 
 #ifdef F_CRC32
-void
-f_crc32 (void)
-{
-  int len;
+void f_crc32 (void) {
+  size_t len;
   unsigned char *buf;
   uint32_t crc;
 
@@ -234,9 +216,7 @@ f_crc32 (void)
 
 
 #ifdef F_IMPLODE
-void
-f_implode (void)
-{
+void f_implode (void) {
   array_t *arr;
   int flag;
   svalue_t *args;
@@ -283,9 +263,7 @@ f_implode (void)
 
 
 #ifdef F_EXPLODE
-void
-f_explode (void)
-{
+void f_explode (void) {
   array_t *vec;
 
   vec = explode_string ((sp - 1)->u.string, SVALUE_STRLEN (sp - 1),
@@ -298,9 +276,7 @@ f_explode (void)
 
 
 #ifdef F_REG_ASSOC
-void
-f_reg_assoc (void)
-{
+void f_reg_assoc (void) {
   svalue_t *arg;
   array_t *vec;
 
@@ -325,9 +301,7 @@ f_reg_assoc (void)
 
 
 #ifdef F_REGEXP
-void
-f_regexp (void)
-{
+void f_regexp (void) {
   array_t *v;
   int flag;
 
@@ -337,7 +311,7 @@ f_regexp (void)
         error ("Bad argument 3 to regexp()\n");
       if (sp[-2].type == T_STRING)
         error ("3rd argument illegal for regexp(string, string)\n");
-      flag = (sp--)->u.number;
+      flag = (int)(sp--)->u.number;
     }
   else
     flag = 0;
@@ -351,7 +325,6 @@ f_regexp (void)
   else
     {
       v = match_regexp ((sp - 1)->u.arr, sp->u.string, flag);
-
       free_string_svalue (sp--);
       free_array (sp->u.arr);
       sp->u.arr = v;
@@ -387,43 +360,38 @@ f_regexp (void)
 */
 
 #ifdef F_REPLACE_STRING
-
-/*
-syntax for replace_string is now:
+/**
+ * Syntax for replace_string is now:
     string replace_string(src, pat, rep);   // or
     string replace_string(src, pat, rep, max);  // or
     string replace_string(src, pat, rep, first, last);
 
-The 4th/5th args are optional (to retain backward compatibility).
-- src, pat, and rep are all strings.
-- max is an integer. It will replace all occurances up to max
-  matches (starting as 1 as the first), with a value of 0 meaning
-  'replace all')
-- first and last are just a range to replace between, with
-  the following constraints
-    first < 1: change all from start
-    last == 0 || last > max matches:    change all to end
-    first > last: return unmodified array.
-(i.e, with 4 args, it's like calling it with:
-    replace_string(src, pat, rep, 0, max);
-)
-*/
-
-void
-f_replace_string (void)
-{
-  int plen, rlen, dlen, slen, first, last, cur, j;
+ * The 4th/5th args are optional (to retain backward compatibility).
+ * - src, pat, and rep are all strings.
+ * - max is an integer. It will replace all occurances up to max
+ *   matches (starting as 1 as the first), with a value of 0 meaning
+ *   'replace all')
+ * - first and last are just a range to replace between, with
+ *   the following constraints
+ *    first < 1: change all from start
+ *    last == 0 || last > max matches:    change all to end
+ *    first > last: return unmodified array.
+ *    (i.e, with 4 args, it's like calling it with:
+ *      replace_string(src, pat, rep, 0, max);
+ *    )
+ */
+void f_replace_string (void) {
+  size_t plen, rlen, dlen, slen, first, last, cur, j;
 
   char *pattern;
   char *replace;
   register char *src, *dst1, *dst2;
   svalue_t *arg;
-  int skip_table[256];
+  size_t skip_table[256];
   char *slimit = NULL;
   char *flimit = NULL;
   char *climit = NULL;
-  int probe = 0;
-  int skip;
+  size_t probe = 0, skip;
 
   if (st_num_arg > 5)
     {
@@ -663,7 +631,7 @@ f_replace_string (void)
                   dlen++;
                 }
             }
-          if (CONFIG_INT (__MAX_STRING_LENGTH__) - dlen <= (slimit - src))
+          if ((ptrdiff_t)(CONFIG_INT (__MAX_STRING_LENGTH__) - dlen) <= (slimit - src))
             {
               pop_n_elems (st_num_arg);
               push_svalue (&const0u);
@@ -734,13 +702,12 @@ f_replace_string (void)
  * Added support for unicode character by Annihilator.
  */
 
-void
-f_strsrch (void)
-{
+void f_strsrch (void) {
   register char *big, *little, *pos;
   wchar_t wch[2];
   char mbs[10];
-  int i, blen, llen;
+  int i;
+  size_t blen, llen;
 
   sp--;
   big = (sp - 1)->u.string;
@@ -816,9 +783,7 @@ f_strsrch (void)
 
 
 #ifdef F_STRCMP
-void
-f_strcmp (void)
-{
+void f_strcmp (void) {
   int i;
 
   i = strcmp ((sp - 1)->u.string, sp->u.string);
