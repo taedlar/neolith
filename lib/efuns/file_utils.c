@@ -697,7 +697,7 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
     start = (long)size + start;
 
   if (len == 0)
-    len = (int)size;
+    len = size;
   if (len > CONFIG_INT (__MAX_BYTE_TRANSFER__))
     {
       error ("Transfer exceeded maximum allowed number of bytes.\n");
@@ -709,7 +709,7 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
       return 0;
     }
   if ((start + len) > size)
-    len = (int)(size - start);
+    len = size - start;
 
   if ((size = fseek (f, start, 0)) < 0)
     return 0;
@@ -817,10 +817,11 @@ file_size (char *file)
  *  If the path was '/', then '.' is returned.
  *  Otherwise, the returned path is temporarily allocated by apply(), which means it will be deallocated at next apply().
  */
-char *check_valid_path (char *path, object_t * call_object, const char *call_fun, int writeflg) {
+char *check_valid_path (const char *path, object_t * call_object, const char *call_fun, int writeflg) {
 
   static char current_dir[] = ".";
   svalue_t *v;
+  char* ret_path = 0;
 
   if (call_object == 0 || call_object->flags & O_DESTRUCTED)
     return 0;
@@ -838,32 +839,36 @@ char *check_valid_path (char *path, object_t * call_object, const char *call_fun
       opt_trace(TT_EVAL|1, "master object not loaded yet");
       v = 0;
     }
-
-  if (v)
+  else if (v)
     {
       if (v->type == T_NUMBER && v->u.number == 0)
         return 0;
       if (v->type == T_STRING)
         {
-          path = v->u.string;
+          ret_path = v->u.string;
         }
       else
         {
           free_svalue (&apply_ret_value, "check_valid_path");
           apply_ret_value.type = T_STRING;
           apply_ret_value.subtype = STRING_MALLOC;
-          path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
+          ret_path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
         }
     }
+  else
+    return 0;
 
-  if (path[0] == '/')
-    path++;
-  if (path[0] == '\0')
-    path = current_dir;
-  if (legal_path (path))
+  if (ret_path)
     {
-      opt_trace(TT_EVAL, "legal path: %s", path);
-      return path;
+      if (ret_path[0] == '/')
+        ret_path++;
+      if (ret_path[0] == '\0')
+        ret_path = current_dir;
+      if (legal_path (ret_path))
+        {
+          opt_trace(TT_EVAL, "legal path: %s (%s)", path, ret_path);
+          return ret_path;
+        }
     }
 
   opt_trace(TT_EVAL, "not legal path: %s", path);

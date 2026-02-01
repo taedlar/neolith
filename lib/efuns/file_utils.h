@@ -23,7 +23,7 @@
  */
 
 int legal_path(const char *);
-char *check_valid_path(char *, object_t *, const char *, int);
+char *check_valid_path(const char* path, object_t *, const char *, int);
 void smart_log(char *, int, char *, int);
 void dump_file_descriptors(outbuffer_t *);
 
