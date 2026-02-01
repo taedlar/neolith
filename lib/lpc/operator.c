@@ -22,9 +22,7 @@
 #include "efuns/parse.h"
 #include "efuns/sscanf.h"
 
-void
-dealloc_funp (funptr_t * funptr)
-{
+void dealloc_funp (funptr_t * funptr) {
   free_object (funptr->hdr.owner, "free_funp");
   if (funptr->hdr.args)
     free_array (funptr->hdr.args);
@@ -38,9 +36,7 @@ dealloc_funp (funptr_t * funptr)
   FREE (funptr);
 }
 
-void
-free_funp (funptr_t * funptr)
-{
+void free_funp (funptr_t * funptr) {
   funptr->hdr.ref--;
   if (funptr->hdr.ref > 0)
     {
@@ -49,9 +45,7 @@ free_funp (funptr_t * funptr)
   dealloc_funp (funptr);
 }
 
-void
-f_and ()
-{
+void f_and () {
   if (sp->type == T_ARRAY && (sp - 1)->type == T_ARRAY)
     {
       sp--;
@@ -65,9 +59,7 @@ f_and ()
   sp->subtype = 0;
 }
 
-void
-f_and_eq ()
-{
+void f_and_eq () {
   svalue_t *argp;
 
   if ((argp = sp->u.lvalue)->type != T_NUMBER)
@@ -78,9 +70,7 @@ f_and_eq ()
   sp->subtype = 0;
 }
 
-void
-f_div_eq ()
-{
+void f_div_eq () {
   svalue_t *argp = (sp--)->u.lvalue; /* lvalue of left operand */
 
   switch (argp->type | sp->type)
@@ -130,9 +120,7 @@ f_div_eq ()
     }
 }
 
-void
-f_eq ()
-{
+void f_eq () {
   int i;
 
   switch (sp->type | (sp - 1)->type)
@@ -227,9 +215,7 @@ f_eq ()
   put_number (i);
 }
 
-void
-f_ge ()
-{
+void f_ge () {
   int i = sp->type;
   switch ((--sp)->type | i)
     {
@@ -275,9 +261,7 @@ f_ge ()
     }
 }
 
-void
-f_gt ()
-{
+void f_gt () {
   int i = sp->type;
   switch ((--sp)->type | i)
     {
@@ -322,9 +306,7 @@ f_gt ()
     }
 }
 
-void
-f_le ()
-{
+void f_le () {
   int i = sp->type;
   switch ((--sp)->type | i)
     {
@@ -374,9 +356,7 @@ f_le ()
   sp->subtype = 0;
 }
 
-void
-f_lt ()
-{
+void f_lt () {
   int i = sp->type;
   switch (i | (--sp)->type)
     {
@@ -418,18 +398,14 @@ f_lt ()
   sp->subtype = 0;
 }
 
-void
-f_lsh ()
-{
+void f_lsh () {
   CHECK_TYPES ((sp - 1), T_NUMBER, 1, F_LSH);
   CHECK_TYPES (sp, T_NUMBER, 2, F_LSH);
   sp--;
   sp->u.number <<= (sp + 1)->u.number;
 }
 
-void
-f_lsh_eq ()
-{
+void f_lsh_eq () {
   svalue_t *argp;
 
 
@@ -441,9 +417,7 @@ f_lsh_eq ()
   sp->subtype = 0;
 }
 
-void
-f_mod_eq ()
-{
+void f_mod_eq () {
   svalue_t *argp;
 
   if ((argp = sp->u.lvalue)->type != T_NUMBER)
@@ -456,36 +430,46 @@ f_mod_eq ()
   sp->subtype = 0;
 }
 
-void
-f_mult_eq ()
-{
-  svalue_t *argp = (sp--)->u.lvalue;
+/**
+ * LPC operator *=.
+ * Supports:
+ *  number *= number
+ *  real *= real
+ *  number *= real
+ *  real *= number
+ *  mapping *= mapping
+ * @returns Performs in-place multiplication; the expression's result is left on the stack.
+ */
+void f_mult_eq () {
+  svalue_t *argp = (sp--)->u.lvalue; /* lvalue of left operand */
 
   switch (argp->type | sp->type)
     {
-    case T_NUMBER:
+    case T_NUMBER: /* number *= number (result: number) */
       {
-        sp->u.number = argp->u.number *= sp->u.number;
+        sp->u.number = (argp->u.number *= sp->u.number);
         sp->subtype = 0;
         break;
       }
 
-    case T_REAL:
+    case T_REAL: /* real *= real (result: real) */
       {
-        sp->u.real = argp->u.real *= sp->u.real;
+        sp->u.real = (argp->u.real *= sp->u.real);
         break;
       }
 
     case T_NUMBER | T_REAL:
       {
-        if (sp->type == T_NUMBER)
+        if (sp->type == T_NUMBER) /* real *= number (result: real) */
           {
             sp->type = T_REAL;
-            sp->u.real = argp->u.real *= sp->u.number;
+            sp->u.real = (argp->u.real *= sp->u.number);
           }
-        else
+        else /* number *= real (result: real; implicit cast to number when assign back) */
           {
-            sp->u.real = argp->u.number *= sp->u.real;
+            double temp = argp->u.number * sp->u.real;
+            sp->u.real = temp;
+            argp->u.number = (int64_t)temp;
           }
         break;
       }
@@ -512,10 +496,7 @@ f_mult_eq ()
     }
 }
 
-
-void
-f_ne ()
-{
+void f_ne () {
   int i;
 
   switch (sp->type | (sp - 1)->type)
@@ -613,18 +594,14 @@ f_ne ()
   sp->u.number = i;
 }
 
-void
-f_or ()
-{
+void f_or () {
   CHECK_TYPES ((sp - 1), T_NUMBER, 1, F_OR);
   CHECK_TYPES (sp, T_NUMBER, 2, F_OR);
   sp--;
   sp->u.number |= (sp + 1)->u.number;
 }
 
-void
-f_or_eq ()
-{
+void f_or_eq () {
   svalue_t *argp;
 
   if ((argp = sp->u.lvalue)->type != T_NUMBER)
@@ -636,10 +613,11 @@ f_or_eq ()
 }
 
 
-void
-f_range (int code)
-{
-  int from, to, len;
+/**
+ * Array, String, or Buffer range operator [from .. to]
+ */
+void f_range (int code) {
+  int64_t from, to, len; /* to support longest string possible */
 
   if ((sp - 2)->type != T_NUMBER)
     error ("Start of range [ .. ] interval must be a number.\n");
@@ -652,7 +630,7 @@ f_range (int code)
       {
         char *res = sp->u.string;
 
-        len = SVALUE_STRLEN (sp);
+        len = (int64_t)SVALUE_STRLEN (sp);
         to = (--sp)->u.number;
         if (code & 0x01)
           to = len - to;
@@ -745,7 +723,7 @@ f_range (int code)
         from = (--sp)->u.number;
         if (code & 0x10)
           from = v->size - from;
-        put_array (slice_array (v, from, to));
+        put_array (slice_array (v, (int)from, (int)to));
         break;
       }
 
@@ -754,10 +732,12 @@ f_range (int code)
     }
 }
 
-void
-f_extract_range (int code)
-{
-  int from, len;
+/**
+ * LPC operator extract_range: [from .. ]
+ * Supports arrays, strings, and buffers.
+ */
+void f_extract_range (int code) {
+  int64_t from, len;
 
   if ((sp - 1)->type != T_NUMBER)
     error ("Start of range [ .. ] interval must be a number.\n");
@@ -768,7 +748,7 @@ f_extract_range (int code)
       {
         char *res = sp->u.string;
 
-        len = SVALUE_STRLEN (sp);
+        len = (int64_t)SVALUE_STRLEN (sp);
         from = (--sp)->u.number;
         if (code)
           from = len - from;
@@ -828,7 +808,7 @@ f_extract_range (int code)
         from = (--sp)->u.number;
         if (code)
           from = v->size - from;
-        put_array (slice_array (v, from, v->size - 1));
+        put_array (slice_array (v, (int)from, (int)(v->size - 1)));
         break;
       }
 
@@ -837,18 +817,14 @@ f_extract_range (int code)
     }
 }
 
-void
-f_rsh ()
-{
+void f_rsh () {
   CHECK_TYPES ((sp - 1), T_NUMBER, 1, F_RSH);
   CHECK_TYPES (sp, T_NUMBER, 2, F_RSH);
   sp--;
   sp->u.number >>= (sp + 1)->u.number;
 }
 
-void
-f_rsh_eq ()
-{
+void f_rsh_eq () {
   svalue_t *argp;
 
   if ((argp = sp->u.lvalue)->type != T_NUMBER)
@@ -859,21 +835,28 @@ f_rsh_eq ()
   sp->subtype = 0;
 }
 
-void
-f_sub_eq ()
-{
+/**
+ * LPC operator -=.
+ * Supports:
+ *   number -= number
+ *   real -= real
+ *   number -= real
+ *   real -= number
+ *   array -= array
+ */
+void f_sub_eq () {
   svalue_t *argp = (sp--)->u.lvalue;
 
   switch (argp->type | sp->type)
     {
-    case T_NUMBER:
+    case T_NUMBER: /* number -= number */
       {
         sp->u.number = argp->u.number -= sp->u.number;
         sp->subtype = 0;
         break;
       }
 
-    case T_REAL:
+    case T_REAL: /* real -= real */
       {
         sp->u.real = argp->u.real -= sp->u.real;
         break;
@@ -881,13 +864,17 @@ f_sub_eq ()
 
     case T_NUMBER | T_REAL:
       {
-        if (sp->type == T_NUMBER)
+        if (sp->type == T_NUMBER) /* real -= number */
           {
             sp->type = T_REAL;
             sp->u.real = argp->u.real -= sp->u.number;
           }
         else
-          sp->u.real = argp->u.number -= sp->u.real;
+          { /* number -= real */
+            double temp = argp->u.number - sp->u.real;
+            sp->u.real = temp;
+            argp->u.number = (int64_t)temp;
+          }
         break;
       }
 
@@ -953,9 +940,7 @@ f_sub_eq ()
 #define U_UPPER	0
 #define U_ADDR	(sizeof(char *))
 
-void
-f_switch ()
-{
+void f_switch () {
   unsigned short offset, end_off;
   int d;
   intptr_t s = 0;
@@ -1183,18 +1168,14 @@ f_switch ()
   opt_trace (TT_EVAL, "jump to %+d", offset);
 }
 
-void
-f_xor ()
-{
+void f_xor () {
   CHECK_TYPES ((sp - 1), T_NUMBER, 1, F_XOR);
   CHECK_TYPES (sp, T_NUMBER, 2, F_XOR);
   sp--;
   sp->u.number ^= (sp + 1)->u.number;
 }
 
-void
-f_xor_eq ()
-{
+void f_xor_eq () {
   svalue_t *argp;
 
   if ((argp = sp->u.lvalue)->type != T_NUMBER)
@@ -1205,9 +1186,13 @@ f_xor_eq ()
   sp->subtype = 0;
 }
 
-funptr_t *
-make_efun_funp (int opcode, svalue_t * args)
-{
+/**
+ * Create an efun function pointer from an opcode and optional arguments.
+ * @param opcode the efun opcode
+ * @param args optional array of arguments to bind to the function pointer
+ * @return the created efun function pointer
+ */
+funptr_t* make_efun_funp (int opcode, svalue_t * args) {
   funptr_t *funptr;
 
   funptr = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (efun_ptr_t), TAG_FUNP, "make_efun_funp");
@@ -1215,7 +1200,7 @@ make_efun_funp (int opcode, svalue_t * args)
   add_ref (current_object, "make_efun_funp");
   funptr->hdr.type = FP_EFUN;
 
-  funptr->f.efun.index = opcode;
+  funptr->f.efun.index = (function_index_t)opcode;
 
   if (args->type == T_ARRAY)
     {
@@ -1229,9 +1214,13 @@ make_efun_funp (int opcode, svalue_t * args)
   return funptr;
 }
 
-funptr_t *
-make_lfun_funp (int index, svalue_t * args)
-{
+/**
+ * Create a local function pointer from an index and optional arguments.
+ * @param index the local function index
+ * @param args optional array of arguments to bind to the function pointer
+ * @return the created local function pointer
+ */
+funptr_t* make_lfun_funp (int index, svalue_t * args) {
   funptr_t *funptr;
 
   funptr = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (local_ptr_t), TAG_FUNP, "make_efun_funp");
@@ -1239,7 +1228,7 @@ make_lfun_funp (int index, svalue_t * args)
   add_ref (current_object, "make_efun_funp");
   funptr->hdr.type = FP_LOCAL | FP_NOT_BINDABLE;
 
-  funptr->f.local.index = index + function_index_offset;
+  funptr->f.local.index = (function_index_t)(index + function_index_offset);
 
   if (args->type == T_ARRAY)
     {
@@ -1253,9 +1242,13 @@ make_lfun_funp (int index, svalue_t * args)
   return funptr;
 }
 
-funptr_t *
-make_simul_funp (int index, svalue_t * args)
-{
+/**
+ * Create a simul efun function pointer from an index and optional arguments.
+ * @param index the simul efun function index
+ * @param args optional array of arguments to bind to the function pointer
+ * @return the created simul efun function pointer
+ */
+funptr_t* make_simul_funp (int index, svalue_t * args) {
   funptr_t *funptr;
 
   funptr = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (simul_ptr_t), TAG_FUNP, "make_efun_funp");
@@ -1263,7 +1256,7 @@ make_simul_funp (int index, svalue_t * args)
   add_ref (current_object, "make_efun_funp");
   funptr->hdr.type = FP_SIMUL;
 
-  funptr->f.simul.index = index;
+  funptr->f.simul.index = (function_index_t)index;
 
   if (args->type == T_ARRAY)
     {
@@ -1277,32 +1270,38 @@ make_simul_funp (int index, svalue_t * args)
   return funptr;
 }
 
-funptr_t *
-make_functional_funp (short num_arg, short num_local, short len,
-                      svalue_t * args, int flag)
-{
+/**
+ * Create a functional or anonymous function pointer.
+ * @param num_arg number of arguments the function takes
+ * @param num_local number of local variables (only for anonymous functions)
+ * @param len length of the functional code
+ * @param args optional array of arguments to bind to the function pointer
+ * @param flag FP_NOT_BINDABLE if the function is not bindable
+ * @return the created functional or anonymous function pointer
+ */
+funptr_t* make_functional_funp (int num_arg, int num_local, int len, svalue_t * args, int flag) {
   funptr_t *funptr;
 
   funptr = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (functional_t), TAG_FUNP, "make_functional_funp");
   funptr->hdr.owner = current_object;
   add_ref (current_object, "make_functional_funp");
-  funptr->hdr.type = FP_FUNCTIONAL + flag;
+  funptr->hdr.type = (short)(FP_FUNCTIONAL | flag);
 
   current_prog->func_ref++;
 
   funptr->f.functional.prog = current_prog;
-  funptr->f.functional.offset = pc - current_prog->program;
-  funptr->f.functional.num_arg = num_arg;
-  funptr->f.functional.num_local = num_local;
-  funptr->f.functional.fio = function_index_offset;
-  funptr->f.functional.vio = variable_index_offset;
+  funptr->f.functional.offset = (short)(pc - current_prog->program);
+  funptr->f.functional.num_arg = (unsigned char)num_arg;
+  funptr->f.functional.num_local = (unsigned char)num_local;
+  funptr->f.functional.fio = (short)function_index_offset;
+  funptr->f.functional.vio = (short)variable_index_offset;
   pc += len;
 
   if (args && args->type == T_ARRAY)
     {
       funptr->hdr.args = args->u.arr;
       args->u.arr->ref++;
-      funptr->f.functional.num_arg += args->u.arr->size;
+      funptr->f.functional.num_arg += (unsigned char)args->u.arr->size;
     }
   else
     funptr->hdr.args = 0;
@@ -1311,26 +1310,20 @@ make_functional_funp (short num_arg, short num_local, short len,
   return funptr;
 }
 
-void
-push_refed_funp (funptr_t * funptr)
-{
+void push_refed_funp (funptr_t * funptr) {
   sp++;
   sp->type = T_FUNCTION;
   sp->u.fp = funptr;
 }
 
-void
-push_funp (funptr_t * funptr)
-{
+void push_funp (funptr_t * funptr) {
   sp++;
   sp->type = T_FUNCTION;
   sp->u.fp = funptr;
   funptr->hdr.ref++;
 }
 
-void
-f_function_constructor ()
-{
+void f_function_constructor () {
   funptr_t *funptr = NULL;
   int kind;
   unsigned short index;
@@ -1361,23 +1354,19 @@ f_function_constructor ()
 
         num_arg = EXTRACT_UCHAR (pc++);	/* number of arguments */
         LOAD_SHORT (index, pc);	/* length of functional */
-        funptr =
-          make_functional_funp (num_arg, 0, index, sp,
-                                kind & FP_NOT_BINDABLE);
+        funptr = make_functional_funp (num_arg, 0, index, sp, kind & FP_NOT_BINDABLE);
         pop_stack ();
         break;
       }
     case FP_ANONYMOUS:
     case FP_ANONYMOUS | FP_NOT_BINDABLE:
       {
-        int num_arg, locals;
+        int num_arg, num_local;
 
         num_arg = EXTRACT_UCHAR (pc++);
-        locals = EXTRACT_UCHAR (pc++);
+        num_local = EXTRACT_UCHAR (pc++);
         LOAD_SHORT (index, pc);	/* length */
-        funptr =
-          make_functional_funp (num_arg, locals, index, 0,
-                                kind & FP_NOT_BINDABLE);
+        funptr = make_functional_funp (num_arg, num_local, index, 0, kind & FP_NOT_BINDABLE);
         break;
       }
     default:
@@ -1386,9 +1375,7 @@ f_function_constructor ()
   push_refed_funp (funptr);
 }
 
-void
-f_evaluate (void)
-{
+void f_evaluate (void) {
   svalue_t *v;
   svalue_t *arg = sp - st_num_arg + 1;
 
@@ -1410,9 +1397,7 @@ f_evaluate (void)
 
 
 #ifdef F_FUNCTIONP
-void
-f_functionp (void)
-{
+void f_functionp (void) {
   int i;
 
   if (sp->type == T_FUNCTION)
@@ -1432,9 +1417,7 @@ f_functionp (void)
 
 
 #ifdef F_BIND
-void
-f_bind (void)
-{
+void f_bind (void) {
   object_t *ob = sp->u.ob;
   funptr_t *old_fp = (sp - 1)->u.fp;
   funptr_t *new_fp;

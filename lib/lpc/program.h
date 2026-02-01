@@ -84,7 +84,6 @@ typedef unsigned short function_flags_t;    /* function flags saved in A_FUNCTIO
 #define TYPE_MOD_ARRAY      0x0020	/* Pointer to a basic type */
 #define TYPE_MOD_CLASS      0x0040  /* a class */
 
-typedef unsigned short function_index_t; /* an integer type for program_t's function_offsets indices (runtime_function_u) */
 typedef unsigned short function_number_t; /* an integer type for program_t's function_table indices (compiler_function_t) */
 typedef unsigned short function_address_t; /* an integer type for function addresses in the program (char) */
 

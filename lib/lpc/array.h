@@ -29,7 +29,7 @@ void check_for_destr(array_t *);
 array_t *add_array(array_t *, array_t *);
 void implode_array(funptr_t *, array_t *, svalue_t *, int);
 array_t *subtract_array(array_t *, array_t *);
-array_t *slice_array(array_t *, int, int);
+array_t *slice_array(array_t* a, int from, int to);
 array_t *explode_string(char *, int, char *, int);
 char *implode_string(array_t *, char *, int);
 array_t *users(void);

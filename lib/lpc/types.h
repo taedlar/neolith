@@ -7,6 +7,7 @@
 #endif
 
 typedef unsigned short lpc_type_t; /* entry type in A_ARGUMENT_TYPES area */
+typedef unsigned short function_index_t; /* an integer type for LPC function index (runtime_function_u) */
 
 /* forward declarations */
 typedef struct array_s			array_t;

@@ -447,9 +447,7 @@ array_t* users () {
  * Slice of an array.
  * It now frees the passed array
  */
-array_t *
-slice_array (array_t * p, int from, int to)
-{
+array_t* slice_array (array_t * p, int from, int to) {
   int cnt;
   svalue_t *sv1, *sv2;
 
