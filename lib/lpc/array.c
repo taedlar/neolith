@@ -233,7 +233,7 @@ array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
       /* Advance one multibyte character, don't compare with
           delimiter in the middle of a multibyte character */
       int mb = mblen (p, end - p);
-      if ((len >= mb) && (strncmp (p, del, len) == 0))
+      if (((int)len >= mb) && (strncmp (p, del, len) == 0))
         {
           num++;
 #ifndef REVERSIBLE_EXPLODE_STRING
@@ -273,7 +273,7 @@ array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
       /* Advance one multibyte character, don't compare with
           delimiter in the middle of a multibyte character */
       int mb = mblen (p, end - p);
-      if ((len >= mb) && (strncmp (p, del, len) == 0))
+      if (((int)len >= mb) && (strncmp (p, del, len) == 0))
         {
           if (num >= ret->size)
             fatal ("Index out of bounds in explode!\n");

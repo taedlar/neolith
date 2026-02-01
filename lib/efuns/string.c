@@ -95,7 +95,7 @@ void f_repeat_string (void) {
   char *str;
   size_t repeat, len;
   char *ret, *p;
-  int i;
+  size_t i;
 
   repeat = (sp--)->u.number;
   if (repeat <= 0)
@@ -109,7 +109,7 @@ void f_repeat_string (void) {
     {
       str = sp->u.string;
       len = SVALUE_STRLEN (sp);
-      if (len * repeat > CONFIG_INT (__MAX_STRING_LENGTH__))
+      if (len * repeat > (size_t)CONFIG_INT (__MAX_STRING_LENGTH__))
         error ("repeat_string: String too large.\n");
 //      repeat = CONFIG_INT(__MAX_STRING_LENGTH__) / len;
       p = ret = new_string (len * repeat, "f_repeat_string");
