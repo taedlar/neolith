@@ -104,21 +104,20 @@ encode_stat (svalue_t * vp, int flags, char *str, struct stat *st)
 #define MAX_FNAME_SIZE 255
 #define MAX_PATH_LEN   1024
 
-array_t *
-get_dir (char *path, int flags)
-{
+array_t* get_dir (char *path, int flags) {
   array_t *v;
   int i, count = 0;
 #ifdef HAVE_DIRENT_H
   DIR *dirp;
+  struct dirent *de;
 #elif _WIN32
   HANDLE dirp;
   WIN32_FIND_DATA findFileData;
   char searchPath[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
 #endif
-  int namelen, do_match = 0;
+  size_t namelen;
+  int do_match = 0;
 
-  struct dirent *de;
   struct stat st;
   char *endtemp;
   char temppath[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
@@ -359,7 +358,7 @@ remove_file (char *path)
   return 1;
 }
 
-/*
+/**
  * Check that it is an legal path. No '..' are allowed.
  */
 int legal_path (const char *path) {
@@ -368,13 +367,17 @@ int legal_path (const char *path) {
   if (path == NULL)
     return 0;
   if (path[0] == '/')
-    return 0;
+    {
+      opt_trace (TT_EVAL|0, "absolute path '/...' rejected\n");
+      return 0;
+    }
   /*
    * disallowing # seems the easiest way to solve a bug involving loading
    * files containing that character
    */
   if (strchr (path, '#'))
     {
+      opt_trace (TT_EVAL|0, "path with '#' rejected\n");
       return 0;
     }
   p = path;
@@ -393,7 +396,7 @@ int legal_path (const char *path) {
       if (p)
         p++;			/* step over `/' */
     }
-#if defined(AMIGA) || defined(LATTICE) || defined(WIN32)
+#if defined(AMIGA) || defined(LATTICE) || defined(_WIN32)
   /*
    * I don't know what the proper define should be, just leaving an
    * appropriate place for the right stuff to happen here - Wayfarer
@@ -490,7 +493,7 @@ int write_file (char *file, char *str, int flags)
     }
   n_written = fwrite (str, strlen (str), 1, f);
   fclose (f);
-  return n_written == 1;
+  return (n_written == 1);
 }				/* write_file() */
 
 /**
@@ -499,7 +502,7 @@ int write_file (char *file, char *str, int flags)
  *  @param start The line number to start reading from (1-based). If < 1, start from line 1.
  *  @param len The number of lines to read. If < 1, read the entire file.
  */
-char *read_file (const char *path, int start, int len)
+char *read_file (const char *path, long start, size_t len)
 {
   char path_copy[PATH_MAX];
   char* file;
@@ -508,11 +511,9 @@ char *read_file (const char *path, int start, int len)
   FILE *f;
   char *str, *end;
   register char *p, *p2;
-  int size;
+  size_t size;
   size_t n_read = 0;
 
-  if (len < 0)
-    return 0;
   strncpy (path_copy, path, PATH_MAX - 1);
   path_copy[PATH_MAX - 1] = '\0';
   file = check_valid_path (path_copy, current_object, "read_file", 0);
@@ -543,10 +544,10 @@ char *read_file (const char *path, int start, int len)
 
   /* read entire file if actual file size <= MAX_READ_FILE_SIZE */
   size = st.st_size;
-  if (size > CONFIG_INT (__MAX_READ_FILE_SIZE__))
+  if (size > (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__))
     {
       if (start || len)
-        size = CONFIG_INT (__MAX_READ_FILE_SIZE__); /* read fixed-size block for skip lines below */
+        size = (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__); /* read fixed-size block for skip lines below */
       else
         {
           fclose (f);
@@ -556,10 +557,10 @@ char *read_file (const char *path, int start, int len)
   if (start < 1)
     start = 1;
   if (len < 1)
-    len = CONFIG_INT (__MAX_READ_FILE_SIZE__); /* max number of lines possible in max read size */
+    len = (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__); /* max number of lines possible in max read size */
 
   opt_trace (TT_EVAL|0, "actual size: %ld bytes, requested: (start line %d) %d lines or < %d bytes\n",
-    st.st_size, start, (len ? len : CONFIG_INT (__MAX_READ_FILE_SIZE__)), size);
+    st.st_size, start, (len ? len : (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__)), size);
 
   if (!size)
     {
@@ -607,7 +608,7 @@ char *read_file (const char *path, int start, int len)
   /* now `p` points to the start of desired file contents, and `end` points to the
    * end of read buffer. Check if we need to read more for desired number of lines.
    */
-  if (len < CONFIG_INT (__MAX_READ_FILE_SIZE__) && !feof (f))
+  if (len < (size_t)CONFIG_INT (__MAX_READ_FILE_SIZE__) && !feof (f))
     {
       /* move `len` lines of text starting from `p` to the beginning of the buffer */
       for (p2 = str; p != end;)
@@ -677,51 +678,47 @@ char *read_file (const char *path, int start, int len)
   return str;
 }				/* read_file() */
 
-char *
-read_bytes (char *file, int start, int len, int *rlen)
-{
+char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
   struct stat st;
-  FILE *fp;
+  FILE *f;
   char *str;
-  int size;
+  size_t size;
 
-  if (len < 0)
-    return 0;
   file = check_valid_path (file, current_object, "read_bytes", 0);
   if (!file)
     return 0;
-  fp = fopen (file, "rb");
-  if (fp == NULL)
+  f = fopen (file, "rb");
+  if (f == NULL)
     return 0;
-  if (fstat (fileno (fp), &st) == -1)
+  if (fstat (fileno (f), &st) == -1)
     fatal ("Could not stat an open file.\n");
   size = st.st_size;
   if (start < 0)
-    start = size + start;
+    start = (long)size + start;
 
   if (len == 0)
     len = size;
-  if (len > CONFIG_INT (__MAX_BYTE_TRANSFER__))
+  if (len > (size_t)CONFIG_INT (__MAX_BYTE_TRANSFER__))
     {
       error ("Transfer exceeded maximum allowed number of bytes.\n");
       return 0;
     }
-  if (start >= size)
+  if ((size_t)start >= size)
     {
-      fclose (fp);
+      fclose (f);
       return 0;
     }
-  if ((start + len) > size)
-    len = (size - start);
+  if ((size_t)start + len > size)
+    len = size - start;
 
-  if ((size = fseek (fp, start, 0)) < 0)
+  if (fseek (f, start, 0) < 0)
     return 0;
 
   str = new_string (len, "read_bytes: str");
 
-  size = fread (str, 1, len, fp);
+  size = fread (str, 1, len, f);
 
-  fclose (fp);
+  fclose (f);
 
   if (size <= 0)
     {
@@ -738,18 +735,18 @@ read_bytes (char *file, int start, int len, int *rlen)
 }
 
 int
-write_bytes (char *file, int start, char *str, int theLength)
+write_bytes (char *file, long start, char *str, size_t theLength)
 {
   struct stat st;
   size_t size;
   int fd;
-  FILE *fp;
+  FILE *f;
 
   file = check_valid_path (file, current_object, "write_bytes", 1);
 
   if (!file)
     return 0;
-  if (theLength > CONFIG_INT (__MAX_BYTE_TRANSFER__))
+  if (theLength > (size_t)CONFIG_INT (__MAX_BYTE_TRANSFER__))
     return 0;
 
   fd = open (file, O_CREAT | O_RDWR
@@ -760,8 +757,8 @@ write_bytes (char *file, int start, char *str, int theLength)
   if (-1 == fd)
     return 0;
 
-  fp = fdopen (fd, "r+");
-  if (!fp) {
+  f = fdopen (fd, "r+");
+  if (!f) {
     close (fd);
     return 0;
   }
@@ -770,20 +767,20 @@ write_bytes (char *file, int start, char *str, int theLength)
     fatal ("Could not stat an open file.\n");
   size = st.st_size;
   if (start < 0) /* negative start position means offset from end-of-file */
-    start = size + start;
+    start = (long)size + start;
   if (start < 0 || start > (int)size)
     {
-      fclose (fp);
+      fclose (f);
       return 0;
     }
-  if ((size = fseek (fp, start, 0)) != 0)
+  if ((size = fseek (f, start, 0)) != 0)
     {
-      fclose (fp);
+      fclose (f);
       return 0;
     }
-  size = fwrite (str, 1, theLength, fp);
+  size = fwrite (str, 1, theLength, f);
 
-  fclose (fp);
+  fclose (f);
 
   if (size <= 0)
     {
@@ -820,10 +817,11 @@ file_size (char *file)
  *  If the path was '/', then '.' is returned.
  *  Otherwise, the returned path is temporarily allocated by apply(), which means it will be deallocated at next apply().
  */
-char *check_valid_path (char *path, object_t * call_object, const char *call_fun, int writeflg) {
+char *check_valid_path (const char *path, object_t * call_object, const char *call_fun, int writeflg) {
 
   static char current_dir[] = ".";
   svalue_t *v;
+  char* ret_path = 0;
 
   if (call_object == 0 || call_object->flags & O_DESTRUCTED)
     return 0;
@@ -838,37 +836,36 @@ char *check_valid_path (char *path, object_t * call_object, const char *call_fun
 
   if (v == (svalue_t *) - 1)
     {
-      opt_trace(TT_EVAL|1, "master object not loaded yet");
+      debug_warn ("master object not loaded yet");
       v = 0;
     }
-
-  if (v)
+  else if (v)
     {
       if (v->type == T_NUMBER && v->u.number == 0)
         return 0;
       if (v->type == T_STRING)
         {
-          path = v->u.string;
-        }
-      else
-        {
-          free_svalue (&apply_ret_value, "check_valid_path");
-          apply_ret_value.type = T_STRING;
-          apply_ret_value.subtype = STRING_MALLOC;
-          path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
+          ret_path = v->u.string;
         }
     }
 
-  if (path[0] == '/')
-    path++;
-  if (path[0] == '\0')
-    path = current_dir;
-  if (legal_path (path))
+  if (!ret_path)
     {
-      opt_trace(TT_EVAL, "legal path: %s", path);
-      return path;
+      free_svalue (&apply_ret_value, "check_valid_path");
+      apply_ret_value.type = T_STRING;
+      apply_ret_value.subtype = STRING_MALLOC;
+      ret_path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
     }
 
+  if (ret_path[0] == '/')
+    ret_path++;
+  if (ret_path[0] == '\0')
+    ret_path = current_dir;
+  if (legal_path (ret_path))
+    {
+      opt_trace(TT_EVAL, "legal path: %s (%s)", path, ret_path);
+      return ret_path;
+    }
   opt_trace(TT_EVAL, "not legal path: %s", path);
   return 0;
 }
@@ -1027,11 +1024,8 @@ copy (char *from, char *to)
 /* Move FROM onto TO.  Handles cross-filesystem moves.
    If TO is a directory, FROM must be also.
    Return 0 if successful, 1 if an error occurred.  */
-
 #ifdef F_RENAME
-static int
-do_move (char *from, char *to, int flag)
-{
+static int do_move (char *from, char *to, int flag) {
   if (flag == F_RENAME)
     {
       if (0 == rename (from, to))
@@ -1071,12 +1065,10 @@ do_move (char *from, char *to, int flag)
  */
 
 #ifdef F_RENAME
-int
-do_rename (char *fr, char *t, int flag)
-{
+int do_rename (char *fr, char *t, int flag) {
   char *from, *to, tbuf[3];
   char newfrom[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
-  int flen;
+  size_t flen;
   static svalue_t from_sv = { .type = T_NUMBER };
   static svalue_t to_sv = { .type = T_NUMBER };
   extern svalue_t apply_ret_value;
@@ -1111,7 +1103,7 @@ do_rename (char *fr, char *t, int flag)
   if (flen > 1 && from[flen - 1] == '/')
     {
       char *p = from + flen - 2;
-      int n;
+      ptrdiff_t n;
 
       while (*p == '/' && (p > from))
         p--;
@@ -1227,9 +1219,9 @@ copy_file (char *from, char *to)
   return 1;			/* success */
 }
 
-void
-dump_file_descriptors (outbuffer_t * out)
-{
+void dump_file_descriptors (outbuffer_t * out) {
+  (void) out;
+#ifndef _WIN32
   int i;
   dev_t dev;
   struct stat stbuf;
@@ -1237,7 +1229,6 @@ dump_file_descriptors (outbuffer_t * out)
   outbuf_add (out, "Fd  Device Number  Inode   Mode    Uid    Gid      Size\n");
   outbuf_add (out, "--  -------------  -----  ------  -----  -----  ----------\n");
 
-#ifndef _WIN32
   for (i = 0; i < FD_SETSIZE; i++)
     {
       /* bug in NeXT OS 2.1, st_mode == 0 for sockets */

@@ -17,6 +17,7 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "src/std.h"
+#include "efuns/file_utils.h"
 #include "lpc/object.h"
 #include "lpc/otable.h"
 #include "lpc/include/runtime_config.h"

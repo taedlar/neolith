@@ -463,10 +463,9 @@ f_member_array (void)
       char *res;
       CHECK_TYPES (sp - 1, T_NUMBER, 1, F_MEMBER_ARRAY);
       if (i > (int)SVALUE_STRLEN (sp))
-        error
-          ("Index to start search from in member_array() is > string length.\n");
-      if ((res = strchr (sp->u.string + i, (sp - 1)->u.number)))
-        i = res - sp->u.string;
+        error ("Index to start search from in member_array() is > string length.\n");
+      if ((res = strchr (sp->u.string + i, (char)(sp - 1)->u.number)))
+        i = (int)(res - sp->u.string);
       else
         i = -1;
       free_string_svalue (sp--);
@@ -610,14 +609,12 @@ f_message (void)
 
 
 #ifdef F_PREVIOUS_OBJECT
-void
-f_previous_object (void)
-{
-  object_t *ob;
+void f_previous_object (void) {
+  object_t *ob = 0;
   control_stack_t *p;
-  int i;
+  int i = (int)(sp->u.number);
 
-  if ((i = sp->u.number) > 0)
+  if (i > 0)
     {
       if (i >= CONFIG_INT (__MAX_CALL_DEPTH__))
         {
@@ -905,7 +902,7 @@ f_shutdown (void)
 void
 f_sizeof (void)
 {
-  int i;
+  int64_t i;
 
   switch (sp->type)
     {
@@ -1208,17 +1205,17 @@ deep_copy_array (array_t * arg)
 static int
 doCopy (mapping_t * map, mapping_node_t * elt, mapping_t * dest)
 {
-  svalue_t *sp;
+  svalue_t *sv;
   (void) map; /* unused */
 
-  sp = find_for_insert (dest, &elt->values[0], 1);
-  if (!sp)
+  sv = find_for_insert (dest, &elt->values[0], 1);
+  if (!sv)
     {
       mapping_too_large ();
       return 1;
     }
 
-  deep_copy_svalue (&elt->values[1], sp);
+  deep_copy_svalue (&elt->values[1], sv);
   return 0;
 }
 
@@ -1228,7 +1225,7 @@ deep_copy_mapping (mapping_t * arg)
   mapping_t *map;
 
   map = allocate_mapping (0);	/* this should be fixed.  -Beek */
-  mapTraverse (arg, (int (*)()) doCopy, map);
+  mapTraverse (arg, (map_func_t)doCopy, map);
   return map;
 }
 
@@ -1293,7 +1290,7 @@ f_functions (void)
   runtime_function_u *func_entry;
   compiler_function_t *funp;
   program_t *prog;
-  int flag = (sp--)->u.number;
+  int flag = (int)(sp--)->u.number;
   unsigned short *types;
   char buf[256];
   char *end = EndOf (buf);
@@ -1391,14 +1388,12 @@ f_function_owner (void)
 
 
 #ifdef F_RUSAGE
-void
-f_rusage (void)
-{
+void f_rusage (void) {
   mapping_t *m;
-  long usertime, stime;
-  int maxrss;
 
 #ifdef HAVE_SYS_RESOURCE_H
+  long usertime, stime;
+  int maxrss;
   struct rusage rus;
   if (getrusage (RUSAGE_SELF, &rus) < 0)
     {

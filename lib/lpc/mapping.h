@@ -63,7 +63,8 @@ extern int total_mapping_nodes;
 
 int msameval(svalue_t *, svalue_t *);
 int mapping_save_size(mapping_t *);
-mapping_t *mapTraverse(mapping_t *, int (*) (mapping_t *, mapping_node_t *, void *), void *);
+typedef int(*map_func_t)(mapping_t *, mapping_node_t *, void *);
+mapping_t *mapTraverse(mapping_t *, map_func_t, void *);
 mapping_t *load_mapping_from_aggregate(svalue_t *, int);
 mapping_t *allocate_mapping(size_t);
 void free_mapping(mapping_t *);

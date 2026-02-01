@@ -123,7 +123,7 @@ void f_stat (void) {
           return;
         }
     }
-  v = get_dir (sp->u.string, (sp + 1)->u.number);
+  v = get_dir (sp->u.string, (int)(sp + 1)->u.number);
   free_string_svalue (sp);
   if (v)
     {
@@ -138,16 +138,17 @@ void f_stat (void) {
 #ifdef F_READ_FILE
 void f_read_file (void) {
   char *str;
-  int start, len;
+  long start;
+  size_t len;
 
   if (st_num_arg == 3)
     {
-      len = (sp--)->u.number;
+      len = (size_t)(sp--)->u.number;
     }
   else
     len = 0;
   if (st_num_arg > 1)
-    start = (sp--)->u.number;
+    start = (long)(sp--)->u.number;
   else
     start = 0;
 
@@ -170,7 +171,7 @@ void f_write_file (void) {
 
   if (st_num_arg == 3)
     {
-      flags = (sp--)->u.number;
+      flags = (int)(sp--)->u.number;
     }
   flags = write_file ((sp - 1)->u.string, sp->u.string, flags);
   free_string_svalue (sp--);
@@ -189,18 +190,16 @@ void f_file_size (void) {
 
 
 #ifdef F_FILE_LENGTH
-/*
+/**
  * file_length() efun, returns the number of lines in a file.
  * Returns -1 if no privs or file doesn't exist.
  */
-int
-file_length (char *file)
-{
+int file_length (char *file) {
   struct stat st;
   int fd;
   FILE *f;
   int ret = 0;
-  int num;
+  size_t num;
   char buf[2049];
   char *p, *newp;
 
@@ -256,7 +255,7 @@ void f_file_length (void) {
 void f_get_dir (void) {
   array_t *vec;
 
-  vec = get_dir ((sp - 1)->u.string, sp->u.number);
+  vec = get_dir ((sp - 1)->u.string, (int)(sp->u.number));
   free_string_svalue (--sp);
   if (vec)
     {
@@ -295,15 +294,17 @@ void f_link (void) {
 #ifdef F_READ_BYTES
 void f_read_bytes (void) {
   char *str;
-  int start = 0, len = 0, rlen = 0, num_arg = st_num_arg;
+  long start = 0;
+  size_t len = 0, rlen = 0;
+  int num_arg = st_num_arg;
   svalue_t *arg;
 
   arg = sp - num_arg + 1;
   if (num_arg > 1)
-    start = arg[1].u.number;
+    start = (long)arg[1].u.number;
   if (num_arg == 3)
     {
-      len = arg[2].u.number;
+      len = (size_t)arg[2].u.number;
     }
   str = read_bytes (arg[0].u.string, start, len, &rlen);
   pop_n_elems (num_arg);
@@ -320,16 +321,18 @@ void f_read_bytes (void) {
 #ifdef F_READ_BUFFER
 void f_read_buffer (void) {
   char *str;
-  int start = 0, len = 0, rlen = 0, num_arg = st_num_arg;
+  long start = 0;
+  size_t len = 0, rlen = 0;
+  int num_arg = st_num_arg;
   int from_file = 0;		/* new line */
   svalue_t *arg = sp - num_arg + 1;
 
   if (num_arg > 1)
     {
-      start = arg[1].u.number;
+      start = (long)arg[1].u.number;
       if (num_arg == 3)
         {
-          len = arg[2].u.number;
+          len = (size_t)arg[2].u.number;
         }
     }
   if (arg[0].type == T_STRING)
@@ -377,18 +380,18 @@ void f_write_bytes (void) {
 
         if (!sp->u.number)
           bad_arg (3, F_WRITE_BYTES);
-        netint = htonl (sp->u.number);	/* convert to network byte-order */
+        netint = htonl ((unsigned long)sp->u.number);	/* convert to network byte-order */
         netbuf = (char *) &netint;
-        i = write_bytes ((sp - 2)->u.string, (sp - 1)->u.number, netbuf, sizeof (int));
+        i = write_bytes ((sp - 2)->u.string, (long)(sp - 1)->u.number, netbuf, sizeof (int));
         break;
       }
 
     case T_BUFFER:
-      i = write_bytes ((sp - 2)->u.string, (sp - 1)->u.number,
+      i = write_bytes ((sp - 2)->u.string, (long)(sp - 1)->u.number,
                        (char *) sp->u.buf->item, sp->u.buf->size);
       break;
     case T_STRING:
-      i = write_bytes ((sp - 2)->u.string, (sp - 1)->u.number,
+      i = write_bytes ((sp - 2)->u.string, (long)(sp - 1)->u.number,
                        sp->u.string, SVALUE_STRLEN (sp));
       break;
     default:
@@ -417,18 +420,18 @@ void f_write_buffer (void) {
         int netint;
         char *netbuf;
 
-        netint = htonl (sp->u.number);	/* convert to network byte-order */
+        netint = htonl ((unsigned long)sp->u.number);	/* convert to network byte-order */
         netbuf = (char *) &netint;
-        i = write_buffer ((sp - 2)->u.buf, (sp - 1)->u.number, netbuf, sizeof (int));
+        i = write_buffer ((sp - 2)->u.buf, (long)(sp - 1)->u.number, netbuf, sizeof (int));
         break;
       }
 
     case T_BUFFER:
-      i = write_buffer ((sp - 2)->u.buf, (sp - 1)->u.number,
+      i = write_buffer ((sp - 2)->u.buf, (long)(sp - 1)->u.number,
                         (char *) sp->u.buf->item, sp->u.buf->size);
       break;
     case T_STRING:
-      i = write_buffer ((sp - 2)->u.buf, (sp - 1)->u.number,
+      i = write_buffer ((sp - 2)->u.buf, (long)(sp - 1)->u.number,
                         sp->u.string, SVALUE_STRLEN (sp));
       break;
     default:
@@ -445,7 +448,7 @@ void f_write_buffer (void) {
 void f_restore_object (void) {
   int flag;
 
-  flag = (st_num_arg > 1) ? (sp--)->u.number : 0;
+  flag = (st_num_arg > 1) ? (int)(sp--)->u.number : 0;
   flag = restore_object (current_object, sp->u.string, flag);
   free_string_svalue (sp);
   put_number (flag);
