@@ -64,7 +64,7 @@ allocate_buffer (size_t size)
 }
 
 int
-write_buffer (buffer_t * buf, int start, char *str, int theLength)
+write_buffer (buffer_t * buf, long start, char *str, size_t theLength)
 {
   int size;
 
@@ -89,9 +89,7 @@ write_buffer (buffer_t * buf, int start, char *str, int theLength)
   return 1;
 }				/* write_buffer() */
 
-char *
-read_buffer (buffer_t * b, int start, int len, int *rlen)
-{
+char* read_buffer (buffer_t * b, long start, size_t len, size_t *rlen) {
   char *str;
   unsigned int size;
 

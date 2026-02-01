@@ -17,6 +17,10 @@ char* stpcpy (char* dest, const char* src);     /* POSIX-1.2008, <string.h> */
 char* stpncpy (char* dest, const char* src, size_t n);     /* POSIX-1.2008, <string.h> */
 #endif	/* ! HAVE_STPNCPY */
 
+#ifndef HAVE_UNISTD_H
+int symlink (const char* target, const char* linkpath);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

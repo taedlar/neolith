@@ -13,7 +13,7 @@
   #define unlink _unlink
   #define read _read
   #define write _write
-  #define mkdir _mkdir
+  #define mkdir(dir,mode) _mkdir(dir)
   #define rmdir _rmdir
   #define getcwd _getcwd
 #endif
@@ -27,10 +27,10 @@ char *check_valid_path(char *, object_t *, const char *, int);
 void smart_log(char *, int, char *, int);
 void dump_file_descriptors(outbuffer_t *);
 
-char *read_file(const char *file, int start, int len);
-char *read_bytes(char *, int, int, int *);
-int write_file(char *, char *, int);
-int write_bytes(char *, int, char *, int);
+char *read_file(const char *file, long start, size_t len);
+char *read_bytes(const char *file, long start, size_t len, size_t *rlen);
+int write_file(char* file, char* str, int flags);
+int write_bytes(char* file, long start, char *, size_t len);
 array_t *get_dir(char *, int);
 int tail(char *);
 int file_size(char *);
