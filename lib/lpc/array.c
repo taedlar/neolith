@@ -148,10 +148,10 @@ void check_for_destr (array_t * v) {
     }
 }
 
-/* explode_string() - Split a string into sub-strings separated by delimiter, return an array of sub-strings. */
-array_t *
-explode_string (char *str, int slen, char *del, int len)
-{
+/**
+ * Split a string into sub-strings separated by delimiter, return an array of sub-strings.
+ */
+array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
   char *p, *beg, *end;
 #ifndef REVERSIBLE_EXPLODE_STRING
   char *lastdel = (char *) NULL;
@@ -233,7 +233,7 @@ explode_string (char *str, int slen, char *del, int len)
       /* Advance one multibyte character, don't compare with
           delimiter in the middle of a multibyte character */
       int mb = mblen (p, end - p);
-      if ((len >= mb) && (strncmp (p, del, len) == 0))
+      if (((int)len >= mb) && (strncmp (p, del, len) == 0))
         {
           num++;
 #ifndef REVERSIBLE_EXPLODE_STRING
@@ -273,7 +273,7 @@ explode_string (char *str, int slen, char *del, int len)
       /* Advance one multibyte character, don't compare with
           delimiter in the middle of a multibyte character */
       int mb = mblen (p, end - p);
-      if ((len >= mb) && (strncmp (p, del, len) == 0))
+      if (((int)len >= mb) && (strncmp (p, del, len) == 0))
         {
           if (num >= ret->size)
             fatal ("Index out of bounds in explode!\n");
@@ -315,7 +315,7 @@ explode_string (char *str, int slen, char *del, int len)
   return ret;
 }
 
-char* implode_string (array_t * arr, char *del, int del_len) {
+char* implode_string (array_t * arr, char *del, size_t del_len) {
 
   size_t size;
   int i, num;
@@ -447,9 +447,7 @@ array_t* users () {
  * Slice of an array.
  * It now frees the passed array
  */
-array_t *
-slice_array (array_t * p, int from, int to)
-{
+array_t* slice_array (array_t * p, int from, int to) {
   int cnt;
   svalue_t *sv1, *sv2;
 

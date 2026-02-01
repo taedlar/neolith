@@ -130,11 +130,9 @@ static long cr3tab[] = {	/* CRC polynomial 0xedb88320 */
    by others.  See the comments in the file (crctab.h) for the credits.
 */
 
-uint32_t
-compute_crc32 (unsigned char *buf, int len)
-{
-  register uint32_t crc = 0xFFFFFFFFL;
-  register int j;
+uint32_t compute_crc32 (unsigned char *buf, size_t len) {
+  uint32_t crc = 0xFFFFFFFFL;
+  size_t j;
 
   j = len;
   while (j--)

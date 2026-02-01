@@ -3,7 +3,7 @@
 
 /* FP_LOCAL */
 typedef struct {
-    short index;
+    function_index_t index;
 } local_ptr_t;
 
 /* FP_SIMUL */
@@ -33,10 +33,10 @@ typedef struct {
 struct funptr_s {
     funptr_hdr_t hdr;
     union {
-	efun_ptr_t efun;
-	local_ptr_t local;
-	simul_ptr_t simul;
-	functional_t functional;
+        efun_ptr_t efun;
+        local_ptr_t local;
+        simul_ptr_t simul;
+        functional_t functional;
     } f;
 };
 

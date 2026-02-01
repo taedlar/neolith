@@ -222,9 +222,9 @@ static char *reg (int, int *);
 static char *regbranch (int *);
 static char *regpiece (int *);
 static char *regatom (int *);
-static char *regnode (char);
+static char *regnode (int);
 static char *regnext (char *);
-static void regc (char);
+static void regc (int);
 static void reginsert (char, char *);
 static void regtail (char *, char *);
 static void regoptail (char *, char *);
@@ -264,7 +264,7 @@ regcomp (unsigned char *exp, int excompat)	/* \( \) operators like in unix ex */
   register regexp *r;
   register unsigned char *scan;
   register char *longest;
-  register int len;
+  size_t len;
   int flags;
   short *exp2, *dest, c;
 
@@ -336,7 +336,7 @@ regcomp (unsigned char *exp, int excompat)	/* \( \) operators like in unix ex */
   regnpar = 1;
   regsize = 0L;
   regcode = &regdummy;
-  regc ((char) MAGIC);
+  regc (MAGIC);
   if (reg (0, &flags) == (char *) NULL)
     {
       FREE (exp2);
@@ -363,7 +363,7 @@ regcomp (unsigned char *exp, int excompat)	/* \( \) operators like in unix ex */
   regparse = exp2;
   regnpar = 1;
   regcode = (char *) (r->program);
-  regc ((char) MAGIC);
+  regc (MAGIC);
   if (reg (0, &flags) == NULL)
     {
       FREE (exp2);
@@ -403,7 +403,7 @@ regcomp (unsigned char *exp, int excompat)	/* \( \) operators like in unix ex */
                scan = (unsigned char *) regnext ((char *) scan))
             {
               char *tmp = (char *) OPERAND (scan);
-              int tlen;
+              size_t tlen;
               if (OP (scan) == EXACTLY && (tlen = strlen (tmp)) >= len)
                 {
                   longest = tmp;
@@ -411,7 +411,7 @@ regcomp (unsigned char *exp, int excompat)	/* \( \) operators like in unix ex */
                 }
             }
           r->regmust = longest;
-          r->regmlen = len;
+          r->regmlen = (int)len;
         }
     }
   FREE ((char *) exp2);
@@ -733,9 +733,7 @@ regatom (int *flagp)
 /*
  - regnode - emit a node
  */
-static char *
-regnode (char op)
-{
+static char* regnode (int op) {
   register char *ret;
   register char *ptr;
 
@@ -746,7 +744,7 @@ regnode (char op)
       return (ret);
     }
   ptr = ret;
-  *ptr++ = op;
+  *ptr++ = (char)op;
   *ptr++ = '\0';		/* Null "nxt" pointer. */
   *ptr++ = '\0';
   regcode = ptr;
@@ -757,11 +755,9 @@ regnode (char op)
 /*
  - regc - emit (if appropriate) a byte of code
  */
-static void
-regc (char b)
-{
+static void regc (int b) {
   if (regcode != &regdummy)
-    *regcode++ = b;
+    *regcode++ = (char)b;
   else
     regsize++;
 }
@@ -819,9 +815,9 @@ regtail (char *p, char *val)
     }
 
   if (OP (scan) == BACK)
-    offset = scan - val;
+    offset = (int)(scan - val);
   else
-    offset = val - scan;
+    offset = (int)(val - scan);
   *(scan + 1) = (offset >> 8) & 0377;
   *(scan + 2) = offset & 0377;
 }
@@ -927,19 +923,19 @@ static int
 regtry (regexp * prog, char *string)
 {
   register int i;
-  register char **sp;
-  register char **ep;
+  register char **start;
+  register char **end;
 
   reginput = string;
   regstartp = prog->startp;
   regendp = prog->endp;
 
-  sp = prog->startp;
-  ep = prog->endp;
+  start = prog->startp;
+  end = prog->endp;
   for (i = NSUBEXP; i > 0; i--)
     {
-      *sp++ = (char *) NULL;
-      *ep++ = (char *) NULL;
+      *start++ = (char *) NULL;
+      *end++ = (char *) NULL;
     }
   if (regmatch (prog->program + 1))
     {
@@ -1003,7 +999,7 @@ regmatch (char *prog)
           break;
         case EXACTLY:
           {
-            register int len;
+            size_t len;
             register char *opnd;
 
             opnd = OPERAND (scan);
@@ -1171,7 +1167,7 @@ regmatch (char *prog)
 static int
 regrepeat (char *p)
 {
-  register int count = 0;
+  size_t count = 0;
   register char *scan;
   register char *opnd;
 
@@ -1211,7 +1207,7 @@ regrepeat (char *p)
     }
   reginput = scan;
 
-  return (count);
+  return (int)count;
 }
 
 
@@ -1246,7 +1242,7 @@ regsub (regexp * prog, char *source, char *dest, int n)
   register char *dst;
   register char c;
   register int no;
-  register int len;
+  size_t len;
 
   if (prog == (regexp *) NULL ||
       source == (char *) NULL || dest == (char *) NULL)
@@ -1284,8 +1280,9 @@ regsub (regexp * prog, char *source, char *dest, int n)
       else if (prog->startp[no] != (char *) NULL &&
                prog->endp[no] != (char *) NULL)
         {
-          len = prog->endp[no] - prog->startp[no];
-          if ((n -= len) < 0)
+          len = (size_t)(prog->endp[no] - prog->startp[no]);
+          n -= (int)len;
+          if (n < 0)
             {			/* amylaar */
               regerror ("line too long\n");
               return NULL;
