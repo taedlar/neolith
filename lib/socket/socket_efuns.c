@@ -1131,9 +1131,7 @@ char *socket_error (int error) {
 /*
  * Return the remote address for an LPC efun socket
  */
-int
-get_socket_address (int i, char *addr, int *port)
-{
+int get_socket_address (int i, char *addr, int *port) {
   if (i < 0 || i >= max_lpc_socks)
     {
       addr[0] = '\0';
@@ -1141,7 +1139,7 @@ get_socket_address (int i, char *addr, int *port)
       return EEFDRANGE;
     }
   *port = (int) ntohs (lpc_socks[i].r_addr.sin_port);
-  sprintf (addr, "%s", inet_ntoa (lpc_socks[i].r_addr.sin_addr));
+  inet_ntop (AF_INET, &lpc_socks[i].r_addr.sin_addr, addr, ADDR_BUF_SIZE);
   return EESUCCESS;
 }
 
