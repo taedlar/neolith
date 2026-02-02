@@ -4,7 +4,7 @@
 void call_out(void);
 int find_call_out_by_handle(int);
 int remove_call_out_by_handle(int);
-int new_call_out(object_t *, svalue_t *, int, int, svalue_t *);
+int new_call_out(object_t *, svalue_t *, time_t, int, svalue_t *);
 int remove_call_out(object_t *, char *);
 void remove_all_call_out(object_t *);
 int find_call_out(object_t *, char *);

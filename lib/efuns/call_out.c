@@ -15,7 +15,7 @@
 
 typedef struct pending_call_s
 {
-  int delta;
+  time_t delta;
   string_or_func_t function;
   object_t *ob;
   array_t *vs;
@@ -29,7 +29,8 @@ pending_call_t;
 
 static pending_call_t *call_list[CALLOUT_CYCLE_SIZE];
 static pending_call_t *call_list_free;
-static int num_call, call_out_time = 0;
+static time_t call_out_time = 0;
+static int num_call;
 static int unique = 0;
 
 static void free_call (pending_call_t *);
@@ -71,13 +72,10 @@ free_call (pending_call_t * cop)
 }
 
 
-/*
+/**
  * Setup a new call out.
  */
-int
-new_call_out (object_t * ob, svalue_t * fun, int delay, int num_args,
-              svalue_t * arg)
-{
+int new_call_out (object_t * ob, svalue_t * fun, time_t delay, int num_args, svalue_t* arg) {
   pending_call_t *cop, **copp;
   int tm;
 
@@ -129,8 +127,7 @@ new_call_out (object_t * ob, svalue_t * fun, int delay, int num_args,
 
   /* Find out which slot this one fits in */
   tm = (delay + current_time) & (CALLOUT_CYCLE_SIZE - 1);
-  delay =
-    (1 + (delay + current_time - call_out_time - 1) / CALLOUT_CYCLE_SIZE);
+  delay = (1 + (delay + current_time - call_out_time - 1) / CALLOUT_CYCLE_SIZE);
 
   for (copp = &call_list[tm]; *copp; copp = &(*copp)->next)
     {
@@ -269,9 +266,7 @@ call_out ()
 }
 
 
-static int
-time_left (int slot, int delay)
-{
+static time_t time_left (int slot, time_t delay) {
   int current_slot = call_out_time & (CALLOUT_CYCLE_SIZE - 1);
   if (slot > current_slot)
     {
@@ -291,11 +286,9 @@ time_left (int slot, int delay)
  * The time left until execution is returned.
  * -1 is returned if no call out pending.
  */
-int
-remove_call_out (object_t * ob, char *fun)
-{
+int remove_call_out (object_t * ob, char *fun) {
   pending_call_t **copp, *cop;
-  int delay;
+  time_t delay;
   int i;
 
   if (!ob)
@@ -313,21 +306,18 @@ remove_call_out (object_t * ob, char *fun)
                 cop->next->delta += cop->delta;
               *copp = cop->next;
               free_call (cop);
-              return time_left (i, delay);
+              return (int)time_left (i, delay);
             }
         }
     }
   return -1;
 }
 
-int
-remove_call_out_by_handle (int handle)
-{
+int remove_call_out_by_handle (int handle) {
   pending_call_t **copp, *cop;
-  int delay = 0;
+  time_t delay = 0;
 
-  for (copp = &call_list[handle & (CALLOUT_CYCLE_SIZE - 1)]; *copp;
-       copp = &(*copp)->next)
+  for (copp = &call_list[handle & (CALLOUT_CYCLE_SIZE - 1)]; *copp; copp = &(*copp)->next)
     {
       delay += (*copp)->delta;
       if ((*copp)->handle == handle)
@@ -337,33 +327,29 @@ remove_call_out_by_handle (int handle)
             cop->next->delta += cop->delta;
           *copp = cop->next;
           free_call (cop);
-          return time_left (handle & (CALLOUT_CYCLE_SIZE - 1), delay);
+          return (int)time_left (handle & (CALLOUT_CYCLE_SIZE - 1), delay);
         }
     }
   return -1;
 }
 
-int
-find_call_out_by_handle (int handle)
-{
+int find_call_out_by_handle (int handle) {
   pending_call_t *cop;
-  int delay = 0;
+  time_t delay = 0;
 
   for (cop = call_list[handle & (CALLOUT_CYCLE_SIZE - 1)]; cop;
        cop = cop->next)
     {
       delay += cop->delta;
       if (cop->handle == handle)
-        return time_left (handle & (CALLOUT_CYCLE_SIZE - 1), delay);
+        return (int)time_left (handle & (CALLOUT_CYCLE_SIZE - 1), delay);
     }
   return -1;
 }
 
-int
-find_call_out (object_t * ob, char *fun)
-{
+int find_call_out (object_t * ob, char *fun) {
   pending_call_t *cop;
-  int delay;
+  time_t delay;
   int i;
 
   if (!ob)
@@ -375,7 +361,7 @@ find_call_out (object_t * ob, char *fun)
         {
           delay += cop->delta;
           if (cop->ob == ob && strcmp (cop->function.s, fun) == 0)
-            return time_left (i, delay);
+            return (int)time_left (i, delay);
         }
     }
   return -1;
@@ -415,10 +401,9 @@ print_call_out_usage (outbuffer_t * ob, int verbose)
  * 1:	The function (string).
  * 2:	The delay.
  */
-array_t *
-get_all_call_outs ()
-{
-  int i, j, delay, tm;
+array_t* get_all_call_outs () {
+  time_t delay;
+  int i, j, tm;
   pending_call_t *cop;
   array_t *v;
 
@@ -520,7 +505,7 @@ void f_call_out (void) {
 
   if (!(current_object->flags & O_DESTRUCTED))
     {
-      ret = new_call_out (current_object, arg, arg[1].u.number, num, arg + 2);
+      ret = new_call_out (current_object, arg, (time_t)arg[1].u.number, num, arg + 2);
       /* args have been transfered; don't free them;
          also don't need to free the int */
       sp -= num + 1;
@@ -537,7 +522,7 @@ void f_call_out (void) {
 #else
   if (!(current_object->flags & O_DESTRUCTED))
     {
-      new_call_out (current_object, arg, arg[1].u.number, num, arg + 2);
+      new_call_out (current_object, arg, (time_t)arg[1].u.number, num, arg + 2);
       sp -= num + 1;
     }
   else
@@ -557,7 +542,7 @@ void f_find_call_out (void) {
 #ifdef CALLOUT_HANDLES
   if (sp->type == T_NUMBER)
     {
-      i = find_call_out_by_handle (sp->u.number);
+      i = find_call_out_by_handle ((int)sp->u.number);
     }
   else
     {				/* T_STRING */
@@ -588,7 +573,7 @@ void f_remove_call_out (void) {
         }
       else
         {
-          i = remove_call_out_by_handle (sp->u.number);
+          i = remove_call_out_by_handle ((int)sp->u.number);
         }
 #endif
     }
