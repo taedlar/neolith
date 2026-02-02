@@ -90,7 +90,7 @@ static void print_prompt (interactive_t *);
 static void telnet_neg (char *, char *);
 static void query_addr_name (object_t *);
 static void got_addr_number (char *, char *);
-static void add_ip_entry (long, const char *);
+static void add_ip_entry (unsigned long, const char *);
 static void reset_ip_names (void);
 static void clear_notify (interactive_t *);
 static void setup_accepted_connection (port_def_t *, socket_fd_t, struct sockaddr_in *);
@@ -1613,7 +1613,7 @@ hname_handler ()
   int num_bytes;
   int tmp;
   char *pp, *q;
-  long laddr;
+  unsigned long laddr;
 
   if (addr_server_fd < 0)
     return;
@@ -2579,7 +2579,7 @@ telnet_neg (char *to, char *from)
           to -= 1;
           continue;
         default:
-          *to++ = INT_CHAR(ch);
+          *to++ = (char)ch;
           if (ch == 0)
             return;
         }
@@ -2637,7 +2637,7 @@ query_addr_number (char *name, char *call_back)
 {
   static char buf[100];
   static char *dbuf = &buf[sizeof (int) + sizeof (int) + sizeof (int)];
-  int msglen;
+  size_t msglen;
   int msgtype;
 
   if ((addr_server_fd < 0) || (strlen (name) >= 100 - (sizeof (msgtype) + sizeof (msglen) + sizeof (int))))
@@ -2759,7 +2759,7 @@ got_addr_number (char *number, char *name)
 #undef IPSIZE
 #define IPSIZE 200
 typedef struct ipentry_s {
-  long addr;
+  unsigned long addr;
   char *name;
 } ipentry_t;
 
@@ -2781,7 +2781,7 @@ char *query_ip_name (object_t * ob) {
   return (inet_ntoa (ob->interactive->addr.sin_addr));
 }
 
-static void add_ip_entry (long addr, const char *name) {
+static void add_ip_entry (unsigned long addr, const char *name) {
   int i;
 
   for (i = 0; i < IPSIZE; i++)

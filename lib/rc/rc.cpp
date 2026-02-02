@@ -119,7 +119,7 @@ read_config_malloc (const char *filename)
 static char *
 scan_config (char *config, const char *name, int required, char *def)
 {
-  int sz_name;
+  size_t sz_name;
   char *term, *p;
 
   sz_name = strlen (name);
@@ -336,7 +336,7 @@ extern "C" int get_config_item (svalue_t * res, svalue_t * arg)
 {
   int num;
 
-  num = arg->u.number;
+  num = (int)arg->u.number;
 
   if (num < 0 || num >= RUNTIME_CONFIG_NEXT)
     return 0;
