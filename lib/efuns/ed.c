@@ -612,7 +612,7 @@ egets (char *str, int size, FILE * stream)
                 c = c & 127;	/* strip eigth bit */
               P_NONASCII++;	/* count it */
             }
-          *cp++ = c;		/* not null, keep it */
+          *cp++ = (char)c;		/* not null, keep it */
           count++;
         }
     }
@@ -681,12 +681,13 @@ dowrite (int from, int to, char *fname, int apflg)
   FILE *f;
   int lin, err;
   unsigned int lines;
-  unsigned int bytes;
+  size_t bytes;
   char *str;
   ed_line_t *lptr;
 
   err = 0;
-  lines = bytes = 0;
+  lines = 0;
+  bytes = 0;
 
 #ifdef OLD_ED
   if (ED_BUFFER->write_fn)
@@ -1065,7 +1066,7 @@ ins (char *str)
 {
   char *cp;
   ed_line_t *new_ln, *nxt;
-  int len;
+  size_t len;
 
   do
     {
@@ -1073,8 +1074,7 @@ ins (char *str)
       len = cp - str;
       /* cp now points to end of first or only line */
 
-      if ((new_ln = (ed_line_t *) DXALLOC (sizeof (ed_line_t) + len,
-                                        TAG_ED, "ins: new")) == NULL)
+      if ((new_ln = (ed_line_t *) DXALLOC (sizeof (ed_line_t) + len, TAG_ED, "ins: new")) == NULL)
         return (MEM_FAIL);	/* no memory */
 
       new_ln->l_stat = 0;
@@ -1319,9 +1319,7 @@ set_ed_buf ()
 
 /*	subst.c	*/
 
-static int
-subst (regexp * pat, char *sub, int gflg, int pflag)
-{
+static int subst (regexp * pat, char *sub, int gflg, int pflag) {
   int nchngd = 0;
   char *txtptr;
   char *newp, *old, buf[ED_MAXLINE];
@@ -1345,7 +1343,7 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
           do
             {
               /* Copy leading text */
-              int diff = pat->startp[0] - txtptr;
+              int diff = (int)(pat->startp[0] - txtptr);
 
               if ((space -= diff) < 0)	/* amylaar */
                 return SUB_FAIL;
@@ -1354,7 +1352,7 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
               /* Do substitution */
               old = newp;
               newp = regsub (pat, sub, newp, space);
-              if (!newp || (space -= newp - old) < 0)	/* amylaar */
+              if (!newp || (space -= (int)(newp - old)) < 0)	/* amylaar */
                 return SUB_FAIL;
               if (txtptr == pat->endp[0])
                 {		/* amylaar : prevent infinite
@@ -1375,7 +1373,7 @@ subst (regexp * pat, char *sub, int gflg, int pflag)
            * amylaar : always check for enough space left BEFORE altering
            * memory
            */
-          if ((space -= strlen (txtptr) + 1) < 0)
+          if ((space -= (int)strlen (txtptr) + 1) < 0)
             return SUB_FAIL;
           strcpy (newp, txtptr);
           del (P_CURLN, P_CURLN);
@@ -1495,13 +1493,11 @@ static int last_term_len;
  *              and last but not least everyone has his own taste of
  *              indentation.
  */
-static void
-indent (char *buf)
-{
+static void indent (char *buf) {
   static char f[] = { 7, 1, 7, 1, 2, 1, 1, 6, 4, 2, 6, 7, 7, 2, 0, };
   static char g[] = { 2, 2, 1, 7, 1, 5, 5, 1, 3, 6, 2, 2, 2, 2, 0, };
   char text[ED_MAXLINE], ident[ED_MAXLINE];
-  register char *p, *sp;
+  register char *p, *tsp;
   register int *ip;
   register long indent_index;
   register int top, token;
@@ -1804,11 +1800,11 @@ indent (char *buf)
         }
 
       /* parse */
-      sp = stack;
+      tsp = stack;
       ip = ind;
       for (;;)
         {
-          top = *sp;
+          top = *tsp;
           if (top == LOPERATOR && token == RHOOK)
             {
               /* ) after LOPERATOR is ROPERATOR */
@@ -1818,7 +1814,7 @@ indent (char *buf)
             {			/* shift the token on the stack */
               register int i;
 
-              if (sp == stackbot)
+              if (tsp == stackbot)
                 {
                   /* out of stack */
                   error ("Nesting too deep in line %d\n");
@@ -1827,8 +1823,8 @@ indent (char *buf)
               i = *ip;
               /* if needed, reduce indentation prior to shift */
               if ((token == LBRACKET &&
-                   (*sp == ROPERATOR || *sp == ELSE || *sp == XDO)) ||
-                  token == RBRACKET || (token == IF && *sp == ELSE))
+                   (*tsp == ROPERATOR || *tsp == ELSE || *tsp == XDO)) ||
+                  token == RBRACKET || (token == IF && *tsp == ELSE))
                 {
                   /* back up */
                   i -= P_SHIFTWIDTH;
@@ -1841,7 +1837,7 @@ indent (char *buf)
               if (do_indent)
                 {
                   shi = i - indent_index;
-                  if (token == TOKEN && *sp == LBRACKET &&
+                  if (token == TOKEN && *tsp == LBRACKET &&
                       (strcmp (ident, "case") == 0 ||
                        strcmp (ident, "default") == 0))
                     {
@@ -1874,7 +1870,7 @@ indent (char *buf)
                 case SEMICOLON:
                   {
                     /* in case it is followed by a comment */
-                    if (*sp == ROPERATOR || *sp == ELSE)
+                    if (*tsp == ROPERATOR || *tsp == ELSE)
                       {
                         i -= P_SHIFTWIDTH;
                       }
@@ -1882,19 +1878,19 @@ indent (char *buf)
                   }
                 }
 
-              *--sp = token;
+              *--tsp = (char)token;
               *--ip = i;
               break;
             }
           /* reduce handle */
           do
             {
-              top = *sp++;
+              top = *tsp++;
               ip++;
             }
-          while (f[(int) *sp] >= g[top]);
+          while (f[(int) *tsp] >= g[top]);
         }
-      stack = sp;
+      stack = tsp;
       ind = ip;
       after_keyword_t = (token >= IF);	/* but not after ELSE */
     }
