@@ -193,7 +193,7 @@ static int add_table (cst ** table);
  * Signal an LPC sprintf() error.  Note that we call error, so this routine never returns.
  * Anything that has been allocated should be somewhere it can be found and freed later.
  */
-static void sprintf_error (int which) NO_RETURN {
+static void sprintf_error (int which) {
   char lbuf[2048];
   char *err;
 
@@ -1292,7 +1292,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                     }
                   else
                     {		/* not column or table */
-                      if (pres && pres < slen)
+                      if (pres && pres < (int)slen)
                         slen = pres;
                       add_justified (carg->u.string, slen, &pad, fs, finfo, (
                         ((format_str[fpos] != '\n') && (format_str[fpos] != '\0')) ||
