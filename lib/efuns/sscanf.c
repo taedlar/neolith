@@ -42,7 +42,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
   int number_of_matches;
   int skipme;           /* Encountered a '*' ? */
   int base = 10;
-  int num;
+  int64_t num;
   char *match, old_char;
   register char *tmp;
 
@@ -117,7 +117,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
         case 'd':
           {
             tmp = in_string;
-            num = (int) strtol (in_string, &in_string, base);
+            num = (int) strtoll (in_string, &in_string, base);
             if (tmp == in_string)
               return number_of_matches;
             if (!skipme)
@@ -173,7 +173,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                     continue;
                   }
                 {
-                  int n = tmp - fmt;
+                  size_t n = (size_t)(tmp - fmt);
                   char *buf = (char *) DXALLOC (n + 1, TAG_TEMPORARY, "sscanf regexp");
                   memcpy (buf, fmt, n);
                   buf[n] = 0;
@@ -186,7 +186,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                     return number_of_matches;
                   if (!skipme)
                     {
-                      n = *reg->endp - in_string;
+                      n = (size_t)(*reg->endp - in_string);
                       buf = new_string (n, "sscanf regexp return");
                       memcpy (buf, in_string, n);
                       buf[n] = 0;
@@ -304,7 +304,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                         continue;
                       }
                     {
-                      int n = tmp - fmt;
+                      size_t n = (size_t)(tmp - fmt);
                       char *buf = (char *) DXALLOC (n + 1, TAG_TEMPORARY, "sscanf regexp");
                       memcpy (buf, fmt, n);
                       buf[n] = 0;
@@ -326,7 +326,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                         {
                           if (!skipme)
                             {
-                              match = new_string (num = (*reg->startp - in_string), "inter_sscanf");
+                              match = new_string (num = (size_t)(*reg->startp - in_string), "inter_sscanf");
                               memcpy (match, in_string, num);
                               match[num] = 0;
                               SSCANF_ASSIGN_SVALUE_STRING (match);
@@ -334,7 +334,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                           in_string = *reg->endp;
                           if (!skipme2)
                             {
-                              match = new_string (num = (*reg->endp - *reg->startp), "inter_sscanf");
+                              match = new_string (num = (size_t)(*reg->endp - *reg->startp), "inter_sscanf");
                               memcpy (match, *reg->startp, num);
                               match[num] = 0;
                               SSCANF_ASSIGN_SVALUE_STRING (match);
@@ -418,7 +418,8 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                 {
                   char *newmatch;
 
-                  newmatch = new_string (skipme = (in_string - match), "inter_sscanf");
+                  skipme = (int)(in_string - match);
+                  newmatch = new_string (skipme, "inter_sscanf");
                   memcpy (newmatch, match, skipme);
                   newmatch[skipme] = 0;
                   SSCANF_ASSIGN_SVALUE_STRING (newmatch);
@@ -502,7 +503,7 @@ double strtod (const char *nptr, char **endptr)
 
 #ifdef F_SSCANF
 void f_sscanf () {
-  svalue_t *fp;
+  svalue_t *ret;
   int i;
   int num_arg;
 
@@ -517,18 +518,18 @@ void f_sscanf () {
    * perform some stack manipulation; note: source and template strings are
    * already on the stack by this time
    */
-  fp = sp;
+  ret = sp;
   sp += num_arg + 1;
-  *sp = *(fp--);        /* move format description to top of stack */
-  *(sp - 1) = *(fp);    /* move source string just below the format desc. */
-  fp->type = T_NUMBER;  /* this svalue isn't invalidated below, and
+  *sp = *(ret--);        /* move format description to top of stack */
+  *(sp - 1) = *(ret);    /* move source string just below the format desc. */
+  ret->type = T_NUMBER;  /* this svalue isn't invalidated below, and
                          * if we don't change it to something safe,
                          * it will get freed twice if an error occurs */
   /*
    * prep area for rvalues
    */
   for (i = 1; i <= num_arg; i++)
-    fp[i].type = T_INVALID;
+    ret[i].type = T_INVALID;
 
   /*
    * do it...
@@ -543,7 +544,7 @@ void f_sscanf () {
   /*
    * save number of matches on stack
    */
-  fp->u.number = i;
-  fp->subtype = 0;
+  ret->u.number = i;
+  ret->subtype = 0;
 }
 #endif
