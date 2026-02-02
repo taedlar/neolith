@@ -96,7 +96,7 @@ char* read_buffer (buffer_t * b, long start, size_t len, size_t *rlen) {
   size = b->size;
   if (start < 0)
     {
-      start = size + start;
+      start = (long)size + start;
       if (start < 0)
         {
           return 0;

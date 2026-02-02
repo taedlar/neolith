@@ -82,7 +82,8 @@ void f_cache_stats (void) {
 
 #ifdef F_CALL_STACK
 void f_call_stack (void) {
-  int i, n = csp - &control_stack[0] + 1;
+  int i;
+  int n = (int)(csp - &control_stack[0] + 1);
   array_t *ret;
 
   if (sp->u.number < 0 || sp->u.number > 3)
@@ -256,14 +257,13 @@ f_malloc_status (void)
 
 
 #ifdef F_MUD_STATUS
-void
-f_mud_status (void)
-{
-  int tot, res, verbose = 0;
+void f_mud_status (void) {
+  size_t tot;
+  int res, verbose = 0;
   outbuffer_t ob;
 
   outbuf_zero (&ob);
-  verbose = (sp--)->u.number;
+  verbose = (int)(sp--)->u.number;
 
   if (reserved_area)
     res = CONFIG_INT (__RESERVED_MEM_SIZE__);
@@ -359,15 +359,14 @@ f_dump_file_descriptors (void)
 
 
 #ifdef F_MEMORY_INFO
-void
-f_memory_info (void)
-{
+void f_memory_info (void) {
   int mem;
   object_t *ob;
 
   if (st_num_arg == 0)
     {
-      int res, tot;
+      int res;
+      size_t tot;
 
       if (reserved_area)
         res = CONFIG_INT (__RESERVED_MEM_SIZE__);
@@ -402,12 +401,10 @@ f_memory_info (void)
 
 
 #ifdef F_MEMORY_SUMMARY
-static int memory_share (svalue_t *);
+static size_t memory_share (svalue_t *);
 
-static int
-node_share (mapping_t * m, mapping_node_t * elt, void *tp)
-{
-  int *t = (int *) tp;
+static int node_share (mapping_t * m, mapping_node_t * elt, void *tp) {
+  size_t *t = (size_t *) tp;
   (void)m; /* unused */
 
   *t += sizeof (mapping_node_t) - 2 * sizeof (svalue_t);
@@ -417,11 +414,9 @@ node_share (mapping_t * m, mapping_node_t * elt, void *tp)
   return 0;
 }
 
-static int
-memory_share (svalue_t * sv)
-{
-  int i, total = sizeof (svalue_t);
-  int subtotal;
+static size_t memory_share (svalue_t * sv) {
+  size_t total = sizeof (svalue_t), subtotal;
+  int i;
 
   switch (sv->type)
     {
@@ -458,8 +453,7 @@ memory_share (svalue_t * sv)
         tmp.u.arr = sv->u.fp->hdr.args;
 
         if (tmp.u.arr)
-          subtotal =
-            sizeof (funptr_hdr_t) + memory_share (&tmp) - sizeof (svalue_t);
+          subtotal = sizeof (funptr_hdr_t) + memory_share (&tmp) - sizeof (svalue_t);
         else
           subtotal = sizeof (funptr_hdr_t);
         switch (sv->u.fp->hdr.type)
@@ -509,7 +503,7 @@ fms_recurse (mapping_t * map, object_t * ob, int *idx, program_t * prog)
 
   for (i = 0; i < prog->num_variables_defined; i++)
     {
-      int size = memory_share (ob->variables + *idx + i);
+      size_t size = memory_share (ob->variables + *idx + i);
 
       sv.u.string = prog->variable_table[i];
       entry = find_for_insert (map, &sv, 0);
