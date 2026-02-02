@@ -83,7 +83,7 @@ void f_cache_stats (void) {
 #ifdef F_CALL_STACK
 void f_call_stack (void) {
   int i;
-  size_t n = csp - &control_stack[0] + 1;
+  int n = (int)(csp - &control_stack[0] + 1);
   array_t *ret;
 
   if (sp->u.number < 0 || sp->u.number > 3)

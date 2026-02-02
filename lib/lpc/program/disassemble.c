@@ -456,7 +456,8 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
                     COPY_SHORT (&sarg, p + sizeof (char *));
                     if (ttype == 1 || !parg)
                       {
-                        fprintf (f, "\t%-4lld\t%04lx\n", (intptr_t) parg, (long) sarg);
+                        intptr_t parg_int = (intptr_t) parg;
+                        fprintf (f, "\t%-4ld\t%04lx\n", (long) parg_int, (long) sarg);
                       }
                     else
                       {

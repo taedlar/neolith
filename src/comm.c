@@ -1601,19 +1601,15 @@ int process_user_command () {
 }				/* process_user_command() */
 
 #define HNAME_BUF_SIZE 200
-/*
+/**
  * This is the hname input data handler. This function is called by the
  * master handler when data is pending on the hname socket (addr_server_fd).
  */
-
-static void
-hname_handler ()
-{
+static void hname_handler () {
   static char hname_buf[HNAME_BUF_SIZE];
   int num_bytes;
   int tmp;
   char *pp, *q;
-  unsigned long laddr;
 
   if (addr_server_fd < 0)
     return;
@@ -1647,22 +1643,20 @@ hname_handler ()
       hname_buf[num_bytes] = '\0';
       if (hname_buf[0] >= '0' && hname_buf[0] <= '9')
         {
-          laddr = inet_addr (hname_buf);
-          if (laddr != -1)
+          struct in_addr addr;
+          if (inet_aton (hname_buf, &addr))
             {
               pp = strchr (hname_buf, ' ');
               if (pp)
                 {
-                  *pp = 0;
-                  pp++;
+                  *pp++ = 0;
                   q = strchr (pp, '\n');
                   if (q)
                     {
                       *q = 0;
                       if (strcmp (pp, "0"))
-                        add_ip_entry (laddr, pp);
-                      got_addr_number (pp, hname_buf);	/* Recognises this as
-                                                         * failure. */
+                        add_ip_entry (addr.s_addr, pp);
+                      got_addr_number (pp, hname_buf);	/* Recognises this as failure. */
                     }
                 }
             }
