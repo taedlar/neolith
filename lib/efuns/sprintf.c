@@ -137,36 +137,29 @@ typedef unsigned int format_info;
 #define ERR_UNEXPECTED_EOS	0xB	/* fs terminated unexpectedly */
 #define ERR_NULL_PS		0xC	/* pad string is null */
 #define ERR_ARRAY_EXPECTED      0xD	/* Yep!  You guessed it. */
-#define ERR_RECOVERY_ONLY       0xE	/* err msg already done...just
-                                         * recover */
 
 #define ADD_CHAR(x) {\
   outbuf_addchar(&obuff, x);\
-  if (obuff.real_size == USHRT_MAX) ERROR(ERR_BUFF_OVERFLOW); \
+  if (obuff.real_size == USHRT_MAX) sprintf_error(ERR_BUFF_OVERFLOW); \
 }
 
 #define GET_NEXT_ARG {\
-  if (++cur_arg >= argc) ERROR(ERR_TO_FEW_ARGS); \
+  if (++cur_arg >= argc) sprintf_error(ERR_TO_FEW_ARGS); \
   carg = (argv+cur_arg);\
 }
 
-typedef struct
-{
+typedef struct pad_info_s {
   char *what;
   int len;
-}
-pad_info_t;
+} pad_info_t;
 
-typedef struct
-{
+typedef struct tab_data_s {
   char *start;
   char *cur;
-}
-tab_data_t;
+} tab_data_t;
 
 /* slash here means 'or' */
-typedef struct ColumnSlashTable
-{
+typedef struct ColumnSlashTable {
   union CSTData
   {
     char *col;			/* column data */
@@ -181,31 +174,26 @@ typedef struct ColumnSlashTable
   int pres;			/* presision */
   format_info info;		/* formatting data */
   struct ColumnSlashTable *next;
-}
-cst;				/* Columns Slash Tables */
+} cst;				/* Columns Slash Tables */
 
 static outbuffer_t obuff;
 static int guard = 0;
-cst *csts = 0;
+static cst *csts = 0;
 static int cur_arg;		/* current arg number */
 static svalue_t clean = { .type = T_NUMBER };
 
-static void numadd (outbuffer_t *, int num);
+static void sprintf_error (int) NO_RETURN;
+static void numadd (outbuffer_t *, int64_t num);
 static void add_space (outbuffer_t *, int indent);
-static void add_justified (char *str, int slen, pad_info_t * pad, int fs,
-                           format_info finfo, short int trailing);
+static void add_justified (char *str, size_t slen, pad_info_t * pad, int fs, format_info finfo, short int trailing);
 static int add_column (cst ** column, int trailing);
 static int add_table (cst ** table);
 
-#define ERROR(x) sprintf_error(x, 0)
-
-/* Signal an error.  Note that we call error, so this routine never returns.
- * Anything that has been allocated should be somewhere it can be found and
- * freed later.
+/**
+ * Signal an LPC sprintf() error.  Note that we call error, so this routine never returns.
+ * Anything that has been allocated should be somewhere it can be found and freed later.
  */
-void
-sprintf_error (int which, char *premade)
-{
+static void sprintf_error (int which) {
   char lbuf[2048];
   char *err;
 
@@ -250,9 +238,6 @@ sprintf_error (int which, char *premade)
     case ERR_ARRAY_EXPECTED:
       err = "Array expected.";
       break;
-    case ERR_RECOVERY_ONLY:
-      err = premade;
-      break;
     default:
       err = "undefined error in (s)printf!\n";
       break;
@@ -261,20 +246,20 @@ sprintf_error (int which, char *premade)
   error (lbuf);
 }
 
-static void
-numadd (outbuffer_t * outbuf, int num)
-{
-  int i, num_l,			/* length of num as a string */
-    nve;			/* true if num negative */
-  int space;
-  int chop;
+/**
+ * Output number num to outbuf as decimal.
+ */
+static void numadd (outbuffer_t * outbuf, int64_t num) {
+  int64_t i;
+  size_t num_l; /* length of num as a string */
+  int nve;      /* true if num negative */
+  size_t space;
+  size_t chop;
   char *p;
 
   if (num < 0)
     {
-      /* Beek: yes, it's possible for num < 0, and num * -1 < 0. */
-      /* Beek: This shouldn't be a hardcoded const (assumes int is 4 bytes) */
-      num = (num * -1) & 0x7fffffff;
+      num = llabs (num);
       nve = 1;
     }
   else
@@ -299,12 +284,10 @@ numadd (outbuffer_t * outbuf, int num)
           num /= 10;
         }
     }
-}				/* end of numadd() */
+}
 
-static void
-add_space (outbuffer_t * outbuf, int indent)
-{
-  int l;
+static void add_space (outbuffer_t * outbuf, int indent) {
+  size_t l;
 
   if ((l = outbuf_extend (outbuf, indent)))
     {
@@ -314,16 +297,12 @@ add_space (outbuffer_t * outbuf, int indent)
     }
 }
 
-/*
+/**
  * Converts any LPC datatype into an arbitrary string format
  * and returns a pointer to this string.
  * Scary number of parameters for a recursive function.
  */
-
-void
-svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
-                  char delimiter, int flags)
-{
+void svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent, char delimiter, int flags) {
   int i;
 
   /* prevent an infinite recursion on self-referential structures */
@@ -438,9 +417,11 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
 #endif
           for (i = 0; i < obj->u.arr->size; i++)
             {
-              svalue_to_string (&(obj->u.arr->item[i]), outbuf, indent + 2,
-                                (i==obj->u.arr->size-1 && (flags & SV2STR_NOINDENT))?0:',',
-                                flags);
+              svalue_to_string (
+                &(obj->u.arr->item[i]), outbuf, indent + 2,
+                (i==obj->u.arr->size-1 && (flags & SV2STR_NOINDENT))?0:',',
+                flags
+              );
             }
           if (indent > 0 && 0==(flags & SV2STR_NOINDENT))
             add_space (outbuf, indent);
@@ -454,15 +435,11 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
 
     case T_FUNCTION:
       {
-        // svalue_t tmp;
-        // tmp.type = T_ARRAY;
-
         outbuf_add (outbuf, "(: ");
         switch (obj->u.fp->hdr.type)
           {
           case FP_LOCAL | FP_NOT_BINDABLE:
-            outbuf_add (outbuf, function_name (obj->u.fp->hdr.owner->prog,
-                                               obj->u.fp->f.local.index));
+            outbuf_add (outbuf, function_name (obj->u.fp->hdr.owner->prog, obj->u.fp->f.local.index));
             break;
           case FP_SIMUL:
             outbuf_add (outbuf, simuls[obj->u.fp->f.simul.index].func->name);
@@ -489,7 +466,6 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
             }
           case FP_EFUN:
             {
-              int i;
               i = obj->u.fp->f.efun.index;
               outbuf_add (outbuf, instrs[i].name);
               break;
@@ -500,8 +476,7 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
             for (i = 0; i < obj->u.fp->hdr.args->size; i++)
               {
                 outbuf_add (outbuf, ", ");
-                svalue_to_string (&(obj->u.fp->hdr.args->item[i]), outbuf,
-                                  indent, 0, flags);
+                svalue_to_string (&(obj->u.fp->hdr.args->item[i]), outbuf, indent, 0, flags);
               }
           }
       }
@@ -531,11 +506,12 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
 
               for (elm = obj->u.map->table[i]; elm; elm = elm->next)
                 {
-                  svalue_to_string (&(elm->values[0]), outbuf, indent + 2, ':',
-                                    flags | SV2STR_NONEWLINE);
-                  svalue_to_string (&(elm->values[1]), outbuf, indent + 2,
-                                ((++count==obj->u.map->count) && (flags & SV2STR_NOINDENT)) ? 0 : ',',
-                                flags | SV2STR_DONEINDENT);
+                  svalue_to_string (&(elm->values[0]), outbuf, indent + 2, ':', flags | SV2STR_NONEWLINE);
+                  svalue_to_string (
+                    &(elm->values[1]), outbuf, indent + 2,
+                    ((++count==obj->u.map->count) && (flags & SV2STR_NOINDENT)) ? 0 : ',',
+                    flags | SV2STR_DONEINDENT
+                  );
                 }
             }
           if (indent > 0 && 0==(flags & SV2STR_NOINDENT))
@@ -572,7 +548,7 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
         break;
       }
     default:
-      outbuf_add (outbuf, "!ERROR: GARBAGE SVALUE!");
+      outbuf_add (outbuf, "!ERROR: garbage svalue!");
     }				/* end of switch (obj->type) */
 
   if (delimiter)
@@ -586,14 +562,12 @@ svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent,
     }
 }				/* end of svalue_to_string() */
 
-static void
-add_pad (pad_info_t * pad, size_t len)
-{
+static void add_pad (pad_info_t * pad, size_t len) {
   char *p;
   int padlen;
 
   if (outbuf_extend (&obuff, len) != len)
-    ERROR (ERR_BUFF_OVERFLOW);
+    sprintf_error (ERR_BUFF_OVERFLOW);
   p = obuff.buffer + obuff.real_size;
   obuff.real_size += len;
   p[len] = 0;
@@ -623,30 +597,35 @@ add_pad (pad_info_t * pad, size_t len)
     memset (p, ' ', len);
 }
 
-static inline void
-add_nstr (char *str, size_t len)
-{
+static void add_nstr (char *str, size_t len) {
   if (outbuf_extend (&obuff, len) != len)
-    ERROR (ERR_BUFF_OVERFLOW);
+    sprintf_error (ERR_BUFF_OVERFLOW);
   memcpy (obuff.buffer + obuff.real_size, str, len);
   obuff.real_size += len;
   obuff.buffer[obuff.real_size] = 0;
 }
 
-/*
- * Adds the string "str" to the buff after justifying it within "fs".
+/**
+ * Adds the string "str" to the buff after justifying it within field size "fs".
+ * Field size "fs" is adjusted to take into account any ANSI escape sequences
+ * within "str".
  * "trailing" is a flag which is set if trailing justification is to be done.
- * "str" is unmodified.  trailing is, of course, ignored in the case
- * of right justification.
+ * "str" is added verbatim.
+ * trailing is, of course, ignored in the case of right justification.
+ * 
+ * @param str The string to be justified.
+ * @param slen The length of the string.
+ * @param pad The pad info to use.
+ * @param fs The field size.
+ * @param finfo The format info.
+ * @param trailing A flag indicating if trailing justification is to be done.
  */
-static void
-add_justified (char *str, int slen, pad_info_t * pad, int fs,
-               format_info finfo, short int trailing)
-{
+static void add_justified (char *str, size_t slen, pad_info_t * pad, int fs, format_info finfo, short int trailing) {
+  /* compensate field size by adding count of characters for ANSI escape sequences */
   const char *pstr;
-  for (pstr = str; pstr - str < slen;)
+  for (pstr = str; pstr - str < (ptrdiff_t)slen;)
     {
-      if (*pstr == '\x1B')
+      if (*pstr == '\x1B') /* ESC */
         {
           pstr++;
           fs += 2;
@@ -665,14 +644,14 @@ add_justified (char *str, int slen, pad_info_t * pad, int fs,
       pstr++;
     }
 
-  fs -= slen;
-
+  fs -= (int)slen;
   if (fs <= 0)
     {
       add_nstr (str, slen);
     }
   else
     {
+      /* add paddings */
       int i;
       switch (finfo & INFO_J)
         {
@@ -695,7 +674,7 @@ add_justified (char *str, int slen, pad_info_t * pad, int fs,
           add_nstr (str, slen);
         }
     }
-}				/* end of add_justified() */
+}
 
 /*
  * Adds "column" to the buffer.
@@ -703,9 +682,7 @@ add_justified (char *str, int slen, pad_info_t * pad, int fs,
  * Returns 1 if column completed.
  * Returns 2 if column completed has a \n at the end.
  */
-static int
-add_column (cst ** column, int trailing)
-{
+static int add_column (cst ** column, int trailing) {
   register unsigned int done;
   char c;
   unsigned int space = (unsigned int)-1;
@@ -763,14 +740,12 @@ add_column (cst ** column, int trailing)
  * Returns 0 if table not completed.
  * Returns 1 if table completed.
  */
-static int
-add_table (cst ** table)
-{
+static int add_table (cst ** table) {
   int done, i;
-  cst *tab = *table;		/* always (*table) */
-  tab_data_t *tab_d = tab->d.tab;	/* always tab->d.tab */
-  char *tab_di;			/* always tab->d.tab[i].cur */
-  int end;
+  cst *tab = *table; /* always (*table) */
+  tab_data_t *tab_d = tab->d.tab; /* always tab->d.tab */
+  char *tab_di; /* always tab->d.tab[i].cur */
+  ptrdiff_t end;
 
   for (i = 0; i < tab->nocols && (tab_di = tab_d[i].cur); i++)
     {
@@ -815,9 +790,7 @@ add_table (cst ** table)
   return 0;
 }				/* end of add_table() */
 
-static int
-get_curpos ()
-{
+static int get_curpos () {
   char *p1, *p2;
 
   if (!obuff.buffer)
@@ -827,17 +800,15 @@ get_curpos ()
   while (p2 > obuff.buffer && *p2 != '\n')
     p2--;
   if (*p2 != '\n')
-    return p1 - p2 + 1;
+    return (int)(p1 - p2 + 1);
   else
-    return p1 - p2;
+    return (int)(p1 - p2);
 }
 
 /* We can't use a pointer to a local in a table or column, since it
  * could get overwritten by another on the same line.
  */
-pad_info_t *
-make_pad (pad_info_t * p)
-{
+pad_info_t* make_pad (pad_info_t * p) {
   pad_info_t *x;
   if (p->len == 0)
     return 0;
@@ -854,9 +825,7 @@ make_pad (pad_info_t * p)
  * this function is called again, or if it's going to be modified (esp.
  * if it risks being free()ed).
  */
-char *
-string_print_formatted (char *format_str, int argc, svalue_t * argv)
-{
+char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
   format_info finfo;
   svalue_t *carg;		/* current arg */
   unsigned int nelemno = 0;	/* next offset into array */
@@ -872,8 +841,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
   if (guard)
     {
       guard = 0;
-      error
-        ("Illegal to use sprintf() within the object_name() master call.\n");
+      error ("Illegal to use sprintf() within the object_name() master call.\n");
     }
 
   /* free anything that is sitting around here from errors */
@@ -994,8 +962,8 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                       if (format_str[fpos] == '*')
                         {
                           if (carg->type != T_NUMBER)
-                            ERROR (ERR_INVALID_STAR);
-                          pres = carg->u.number;
+                            sprintf_error (ERR_INVALID_STAR);
+                          pres = (int)carg->u.number;
                           GET_NEXT_ARG;
                           continue;
                         }
@@ -1022,8 +990,8 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                           if (format_str[fpos] == '*')
                             {
                               if (carg->type != T_NUMBER)
-                                ERROR (ERR_INVALID_STAR);
-                              fs = carg->u.number;
+                                sprintf_error (ERR_INVALID_STAR);
+                              fs = (int)carg->u.number;
                               if (fs < 0)
                                 fs = 0;
                               if (pres == -2)
@@ -1105,17 +1073,17 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                   while (1)
                     {
                       if (!format_str[fpos])
-                        ERROR (ERR_UNEXPECTED_EOS);
+                        sprintf_error (ERR_UNEXPECTED_EOS);
                       if (format_str[fpos] == '\\')
                         {
                           if (!format_str[++fpos])
-                            ERROR (ERR_UNEXPECTED_EOS);
+                            sprintf_error (ERR_UNEXPECTED_EOS);
                         }
                       else if (format_str[fpos] == '\'')
                         {
-                          pad.len = format_str + fpos - pad.what;
+                          pad.len = (int)(format_str + fpos - pad.what);
                           if (!pad.len)
-                            ERROR (ERR_NULL_PS);
+                            sprintf_error (ERR_NULL_PS);
                           break;
                         }
                       fpos++;
@@ -1126,14 +1094,14 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                 }
             }			/* end of for () */
           if (pres < 0)
-            ERROR (ERR_PRES_EXPECTED);
+            sprintf_error (ERR_PRES_EXPECTED);
           /*
            * now handle the different arg types...
            */
           if (finfo & INFO_ARRAY)
             {
               if (carg->type != T_ARRAY)
-                ERROR (ERR_ARRAY_EXPECTED);
+                sprintf_error (ERR_ARRAY_EXPECTED);
               if (carg->u.arr->size == 0)
                 {
                   last = fpos;
@@ -1162,11 +1130,11 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                 }
               if ((finfo & INFO_T) == INFO_T_ERROR)
                 {
-                  ERROR (ERR_INVALID_FORMAT_STR);
+                  sprintf_error (ERR_INVALID_FORMAT_STR);
                 }
               else if ((finfo & INFO_T) == INFO_T_STRING)
                 {
-                  int slen;
+                  size_t slen;
 
                   /*
                    * %s null handling added 930709 by Luke Mewburn
@@ -1181,7 +1149,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                     }
                   else if (carg->type != T_STRING)
                     {
-                      ERROR (ERR_INCORRECT_ARG_S);
+                      sprintf_error (ERR_INCORRECT_ARG_S);
                     }
                   slen = SVALUE_STRLEN (carg);
                   if ((finfo & INFO_COLS) || (finfo & INFO_TABLE))
@@ -1189,7 +1157,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                       cst **temp;
 
                       if (!fs)
-                        ERROR (ERR_CST_REQUIRES_FS);
+                        sprintf_error (ERR_CST_REQUIRES_FS);
 
                       temp = &csts;
                       while (*temp)
@@ -1225,8 +1193,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
 
 #define TABLE carg->u.string
 
-                          (*temp) =
-                            ALLOCATE (cst, TAG_TEMPORARY, "string_print: 4");
+                          (*temp) = ALLOCATE (cst, TAG_TEMPORARY, "string_print: 4");
                           (*temp)->d.tab = 0;
                           (*temp)->pad = make_pad (&pad);
                           (*temp)->info = finfo;
@@ -1241,7 +1208,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                               if (*p1 == '\n')
                                 {
                                   if (p1 - p2 > max_len)
-                                    max_len = p1 - p2;
+                                    max_len = (unsigned int)(p1 - p2);
                                   p1++;
                                   if (*(p2 = p1))
                                     n++;
@@ -1253,7 +1220,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                             {
                               /* the null terminated word */
                               if (p1 - p2 > max_len)
-                                max_len = p1 - p2;
+                                max_len = (unsigned int)(p1 - p2);
                               pres = fs / (max_len + 2);	/* at least two
                                                                  * separating spaces */
                               if (!pres)
@@ -1290,10 +1257,8 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                               pres = n;
                             }
 
-                          (*temp)->d.tab = CALLOCATE (pres + 1, tab_data_t,
-                                                      TAG_TEMPORARY,
-                                                      "string_print: 5");
-                          (*temp)->nocols = pres;	/* heavy sigh */
+                          (*temp)->d.tab = CALLOCATE (pres + 1, tab_data_t, TAG_TEMPORARY, "string_print: 5");
+                          (*temp)->nocols = (unsigned short)pres;	/* heavy sigh */
                           (*temp)->d.tab[0].start = TABLE;
                           if (pres == 1)
                             {
@@ -1327,16 +1292,14 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                     }
                   else
                     {		/* not column or table */
-                      if (pres && pres < slen)
+                      if (pres && pres < (int)slen)
                         slen = pres;
-                      add_justified (carg->u.string, slen, &pad, fs, finfo,
-                                     (((format_str
-                                        [fpos] != '\n')
-                                       && (format_str[fpos] != '\0'))
-                                      || ((finfo & INFO_ARRAY)
-                                          && (nelemno <
-                                              (argv + cur_arg)->u.arr->size)))
-                                     || carg->u.string[slen - 1] != '\n');
+                      add_justified (carg->u.string, slen, &pad, fs, finfo, (
+                        ((format_str[fpos] != '\n') && (format_str[fpos] != '\0')) ||
+                        ((finfo & INFO_ARRAY) && (nelemno < (argv + cur_arg)->u.arr->size))
+                        ) ||
+                        carg->u.string[slen - 1] != '\n'
+                      );
                     }
                 }
               else if (finfo & INFO_T_INT)
@@ -1360,7 +1323,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                     {
                       cheat[i++] = '.';
                       sprintf (cheat + i, "%d", pres);
-                      i += strlen (cheat + i);
+                      i += (int)strlen (cheat + i);
                     }
                   switch (finfo & INFO_T)
                     {
@@ -1383,7 +1346,7 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                       cheat[i++] = 'X';
                       break;
                     default:
-                      ERROR (ERR_BAD_INT_TYPE);
+                      sprintf_error (ERR_BAD_INT_TYPE);
                     }
                   if ((cheat[i - 1] == 'f' && carg->type != T_REAL)
                       || (cheat[i - 1] != 'f' && carg->type != T_NUMBER))
@@ -1401,19 +1364,15 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
                   else
                     sprintf (temp, cheat, carg->u.number);
                   {
-                    int tmpl = strlen (temp);
+                    int tmpl = (int)strlen (temp);
 
                     add_justified (temp, tmpl, &pad, fs, finfo,
-                                   (((format_str
-                                      [fpos] != '\n')
-                                     && (format_str[fpos] != '\0'))
-                                    || ((finfo & INFO_ARRAY)
-                                        && (nelemno <
-                                            (argv + cur_arg)->u.arr->size))));
+                                   (((format_str[fpos] != '\n') && (format_str[fpos] != '\0'))
+                                    || ((finfo & INFO_ARRAY) && (nelemno < (argv + cur_arg)->u.arr->size))));
                   }
                 }
               else		/* type not found */
-                ERROR (ERR_UNDEFINED_TYPE);
+                sprintf_error (ERR_UNDEFINED_TYPE);
               if (clean.type != T_NUMBER)
                 {
                   free_svalue (&clean, "string_print_formatted");
@@ -1436,6 +1395,8 @@ string_print_formatted (char *format_str, int argc, svalue_t * argv)
   obuff.buffer = 0;
   return retvalue;
 }				/* end of string_print_formatted() */
+
+#endif /* defined(F_SPRINTF) || defined(F_PRINTF) */
 
 
 #ifdef F_SPRINTF
@@ -1463,9 +1424,7 @@ void f_sprintf (void) {
 
 
 #ifdef F_PRINTF
-void
-f_printf (void)
-{
+void f_printf (void) {
   int num_arg = st_num_arg;
   char *ret;
 
@@ -1483,5 +1442,3 @@ f_printf (void)
   pop_n_elems (num_arg);
 }
 #endif
-
-#endif /* defined(F_SPRINTF) || defined(F_PRINTF) */

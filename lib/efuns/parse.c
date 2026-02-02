@@ -422,7 +422,7 @@ load_lpc_info (int ix, object_t * ob)
 
 /* Some leak prevention: */
 static void
-parse_clean_up ()
+parse_clean_up (void)
 {
   parse_global_t *pg;
 
@@ -513,7 +513,7 @@ parse (char *cmd,		/* Command to parse */
        svalue_t * stack_args,	/* Pointer to lvalue args on stack */
        int num_arg)
 {
-  int pix, cix, six, fail, fword, ocix, fpix;
+  int pix, cix, six, fail = 0, fword, ocix, fpix;
   svalue_t *pval;
   array_t *obarr = NULL;
 
@@ -856,7 +856,7 @@ one_parse (array_t * obarr, char *pat, array_t * warr, int *cix_in, int *fail,
   ch = pat[0];
   if (ch == '%')
     {
-      ch = ((isupper (pat[1])) ? tolower (pat[1]) : pat[1]);
+      ch = isupper (pat[1]) ? (char)tolower (pat[1]) : pat[1];
     }
   pval = 0;
 
@@ -1494,7 +1494,7 @@ check_adjectiv (int obix, array_t * warr, int from, int to)
 
   for (sum = 0, fail = 0, il = from; il <= to; il++)
     {
-      sum += strlen (warr->item[il].u.string) + 1;
+      sum += (int)strlen (warr->item[il].u.string) + 1;
       if ((member_string (warr->item[il].u.string, ids) < 0) &&
           (member_string (warr->item[il].u.string, gAdjid_list_d) < 0))
         {
@@ -1645,7 +1645,7 @@ parse_one_plural (char *str)
   int sl;
   static char pbuf[100];	/* Words > 100 letters? In Wales maybe... */
 
-  sl = strlen (str) - 1;
+  sl = (int)strlen (str) - 1;
   if ((sl < 2) || (sl > 90))
     return str;
 
@@ -1718,11 +1718,9 @@ parse_one_plural (char *str)
 ***************************************************************/
 
 #ifdef F_PARSE_COMMAND
-void
-f_parse_command ()
-{
+void f_parse_command () {
   svalue_t *arg;
-  svalue_t *fp;
+  svalue_t *ret;
   int i;
   int num_arg;
 
@@ -1744,25 +1742,24 @@ f_parse_command ()
    * allocate stack frame for rvalues and return value (number of matches);
    * perform some stack manipulation;
    */
-  fp = sp;
+  ret = sp;
   sp += num_arg + 1;
   arg = sp;
-  *(arg--) = *(fp--);		/* move pattern to top of stack */
-  *(arg--) = *(fp--);		/* move source object or array to just below 
-                                   the pattern */
-  *(arg) = *(fp);		/* move source string just below the object */
-  fp->type = T_NUMBER;
+  *(arg--) = *(ret--); /* move pattern to top of stack */
+  *(arg--) = *(ret--); /* move source object or array to just below the pattern */
+  *(arg) = *(ret);     /* move source string just below the object */
+  ret->type = T_NUMBER;
 
   /*
    * prep area for rvalues
    */
   for (i = 1; i <= num_arg; i++)
-    fp[i].type = T_INVALID;
+    ret[i].type = T_INVALID;
 
   /*
    * do it...
    */
-  i = parse (arg[0].u.string, &arg[1], arg[2].u.string, &fp[1], num_arg);
+  i = parse (arg[0].u.string, &arg[1], arg[2].u.string, &ret[1], num_arg);
 
   /*
    * remove mandatory parameters
@@ -1772,7 +1769,7 @@ f_parse_command ()
   /*
    * save return value on stack
    */
-  fp->u.number = i;
-  fp->subtype = 0;
+  ret->u.number = i;
+  ret->subtype = 0;
 }
 #endif
