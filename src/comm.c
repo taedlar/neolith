@@ -1344,8 +1344,9 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
   object_t *user_ob;
   char addr_str[50];
 
+  inet_ntop (AF_INET, &addr->sin_addr.s_addr, addr_str, sizeof(addr_str));
   opt_trace (TT_COMM, "Connection from %s:%d on port %d (fd=%d)\n",
-            inet_ntoa (addr->sin_addr), ntohs (addr->sin_port), port->port, (int)new_socket_fd);
+            addr_str, ntohs (addr->sin_port), port->port, (int)new_socket_fd);
 
   /* Set non-blocking mode on accepted socket */
   if (set_socket_nonblocking (new_socket_fd, 1) == SOCKET_ERROR)
@@ -1373,7 +1374,6 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
 #endif
 
   /* Call master->connect() to get user object and transfer interactive */
-  snprintf (addr_str, sizeof(addr_str), "%s", inet_ntoa (addr->sin_addr));
   user_ob = mudlib_connect (port->port, addr_str);
   
   if (!user_ob)
@@ -1644,7 +1644,7 @@ static void hname_handler () {
       if (hname_buf[0] >= '0' && hname_buf[0] <= '9')
         {
           struct in_addr addr;
-          if (inet_aton (hname_buf, &addr))
+          if (inet_pton (AF_INET, hname_buf, &addr))
             {
               pp = strchr (hname_buf, ' ');
               if (pp)
@@ -2760,6 +2760,12 @@ typedef struct ipentry_s {
 static ipentry_t iptable[IPSIZE];
 static int ipcur;
 
+/**
+ * @brief Return the cached name for the IP address of an interactive object.
+ * If no name is cached, return the IP address as a string.
+ * @param ob The interactive object. If NULL, use command_giver.
+ * @return The cached name or the IP address as a string.
+ */
 char *query_ip_name (object_t * ob) {
   int i;
 
@@ -2772,7 +2778,7 @@ char *query_ip_name (object_t * ob) {
       if (iptable[i].addr == ob->interactive->addr.sin_addr.s_addr && iptable[i].name)
         return (iptable[i].name);
     }
-  return (inet_ntoa (ob->interactive->addr.sin_addr));
+  return query_ip_number (ob); /* fallback to return IP address as string */
 }
 
 static void add_ip_entry (unsigned long addr, const char *name) {
@@ -2803,12 +2809,20 @@ static void reset_ip_names (void) {
     }
 }
 
+/**
+ * @brief Return the IP address of an interactive object as a string.
+ * If the object is NULL, use command_giver.
+ * @param ob The interactive object.
+ * @return The IP address as a string, or "N/A" if not interactive.
+ */
 char *query_ip_number (object_t * ob) {
+  static char ip_name[50];
   if (ob == 0)
     ob = command_giver;
   if (!ob || ob->interactive == 0)
     return "N/A";
-  return (inet_ntoa (ob->interactive->addr.sin_addr));
+  inet_ntop (AF_INET, &ob->interactive->addr.sin_addr, ip_name, sizeof (ip_name));
+  return ip_name;
 }
 
 char *query_host_name () {
