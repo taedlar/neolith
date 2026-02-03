@@ -1806,21 +1806,20 @@ program_t *compile_file (int fd, const char *name, const char* pre_text) {
     error ("Object cannot be loaded during compilation.\n");
   guard = 1;
 
-  opt_trace (TT_COMPILE, "starting compiling: \"%s\"", name);
+  opt_trace (TT_COMPILE|2, "starting compiling: \"%s\"", name);
   prolog (name);
   start_new_file (fd, pre_text); /* initalize the lexer */
 
   /* start parsing */
-  opt_trace (TT_COMPILE, "parsing source...");
+  opt_trace (TT_COMPILE|2, "parsing source...");
   yyparse ();
 
   /* code generation */
-  opt_trace (TT_COMPILE, "finished parsing.");
+  opt_trace (TT_COMPILE|2, "finished parsing.");
   prog = epilog ();
 
   if (prog)
-    opt_trace (TT_COMPILE, "finished compiling: \"%s\"", name);
-
+    opt_trace (TT_COMPILE|2, "finished compiling: \"%s\"", name);
   guard = 0;
   return prog;
 }

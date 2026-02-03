@@ -137,7 +137,11 @@ int debug_message (const char *fmt, ...)
 int
 debug_message_with_src (const char* log_type, const char* func, const char* src, int line, const char *fmt, ...)
 {
+#ifdef _WIN32
+  const char* abbrev_src = strstr(src, "\\neolith\\");
+#else
   const char* abbrev_src = strstr(src, "/neolith/");
+#endif
   if (abbrev_src)
     src = abbrev_src + 9; /* length of "/neolith/" */
 
@@ -156,7 +160,11 @@ debug_message_with_src (const char* log_type, const char* func, const char* src,
 int
 debug_perror_with_src (const char* func, const char* src, int line, const char *what, const char *file)
 {
+#ifdef _WIN32
+  const char* abbrev_src = strstr(src, "\\neolith\\");
+#else
   const char* abbrev_src = strstr(src, "/neolith/");
+#endif
   if (abbrev_src)
     src = abbrev_src + 9; /* length of "/neolith/" */
   if (file)

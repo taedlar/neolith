@@ -506,7 +506,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
         }
       else
         {
-          opt_trace (TT_COMPILE, "loading inherit file: /%s", inhbuf);
+          opt_trace (TT_COMPILE|2, "loading inherit file: /%s", inhbuf);
           inh_obj = load_object (inhbuf, 0);
         }
       if (!inh_obj)
@@ -543,12 +543,12 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
   ob->next_all = obj_list;
   obj_list = ob;
 
-  opt_trace (TT_COMPILE, "adding to otable: \"%s\"", real_name);
+  opt_trace (TT_COMPILE|2, "adding to otable: \"%s\"", real_name);
   enter_object_hash (ob);	/* add name to fast object lookup table */
 
   if (get_machine_state() >= MS_MUDLIB_LIMBO)
     {
-      opt_trace (TT_COMPILE, "calling master apply: valid_object() for: \"%s\"", name);
+      opt_trace (TT_COMPILE|3, "calling master apply: valid_object() for: \"%s\"", name);
       push_object (ob);
       mret = apply_master_ob (APPLY_VALID_OBJECT, 1);
       if (mret && !MASTER_APPROVED (mret))
@@ -560,7 +560,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
 
   if (init_object (ob))
     {
-      opt_trace (TT_COMPILE, "calling object create(): \"%s\"", name);
+      opt_trace (TT_COMPILE|3, "calling object create(): \"%s\"", name);
       call_create (ob, 0);
     }
 
