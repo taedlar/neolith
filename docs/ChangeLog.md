@@ -2,6 +2,39 @@
 
 ## neolith-1.0.0-alpha (unreleased)
 
+### 1.0.0-alpha.6 — 2026-02-03
+
+#### Changes since 1.0.0-alpha.5
+- e1b21f6 fix: lpc warnings (Ted Zhang)
+- 99d564a fix: sprintf warnings (Ted Zhang)
+- 1c7dc1c fix: windows compile warnings (Ted Zhang)
+- 8ecb713 fix: file utils warnings (Ted Zhang)
+- dabbe3e fix: various warnings (Ted Zhang)
+- 896c84f fix: misc. warnings (Ted Zhang)
+- 58c736e fix: warnings in compiler.c (taedlar)
+- c284ac9 fix: misc int type warnings (Ted Zhang)
+- bbea0b8 clean: update set_eval_limit docs (Ted Zhang)
+- 80b8eb7 fix: console worker unit tests (Ted Zhang)
+- 1518362 clean: console type detection on windows (Ted Zhang)
+- 0e99d28 fix: posix console type (Ted Zhang)
+- d3979d5 fix: leaked shared strings (Ted Zhang)
+- 0fafe10 fix: destruct objects in tear down (Ted Zhang)
+- 0e313ee fix: free permanent identifiers (Ted Zhang)
+- 8428eea fix: updating vital objects (Ted Zhang)
+- 32eb865 fix: free ip entry string (Ted Zhang)
+- 31de21f clean: fix misc warnings (Ted Zhang)
+- ec67b2b clean: fix windows build warnings (Ted Zhang)
+- 8691abe fix: accept worker for windows iocp integration (Ted Zhang)
+- 16727e7 feat: add timer flags (Ted Zhang)
+- 89c1b34 feat: integrate async_worker with port_event_t (Ted Zhang)
+- fb84ba3 fix: windows line mode setting (Ted Zhang)
+- d8ac4e8 feat: integrate console mode with lib/async (Ted Zhang)
+- 96ef28b feat: add library async to unify io reactor and worker threads (Ted Zhang)
+- caa079f doc: add design for lib/async (Ted Zhang)
+- a31965b feat: use pexpect for testbot (Ted Zhang)
+- 6f6f8d7 feat: added console testbot (Ted Zhang)
+- 47617f4 clean: simplify lpc compiler init (Ted Zhang)
+
 ### Security & Fairness
 - **Fixed command processing fairness exploit**: Implemented turn-based token system to prevent single users from monopolizing backend cycles through command buffering. Each connected user now processes exactly one buffered command per backend cycle, ensuring fair round-robin scheduling. See [docs/internals/user-command-turn.md](internals/user-command-turn.md) for design details.
   - Added `HAS_CMD_TURN` flag to `interactive_t->iflags`
