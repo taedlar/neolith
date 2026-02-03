@@ -12,6 +12,7 @@
     credits intact.
 */
 
+#include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -27,25 +28,32 @@
 #include "hash.h"
 
 static char *magic_id = "NEOL";
-static unsigned int driver_id = 0x20260113; /* increment when driver changes */
-static time_t config_id = 0;
+static uint32_t driver_id = 0x20260113; /* increment when driver changes */
+static uint64_t config_id = 0;
 
 static FILE *crdir_fopen(char *);
-static void patch_out (program_t *, short *, int);
-static void patch_in (program_t *, short *, int);
+static void patch_out (program_t *, short *, size_t);
+static void patch_in (program_t *, short *, size_t);
 static int str_case_cmp (char *, char *);
 static int check_times (time_t, const char *);
 static int locate_in (program_t *);
 static int locate_out (program_t *);
 
-void
-save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
-{
+/**
+ * Save the binary version of a program.
+ * @param prog the program to save
+ * @param includes memory block containing the list of include files
+ * @param patches memory block containing the patch information
+ */
+void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches) {
+
   char file_name_buf[200];
   char *file_name = file_name_buf;
   FILE *f;
-  int i, tmp;
-  short len;
+  int i;
+  uint16_t bin_count;
+  uint32_t bin_size;
+  size_t len;
   program_t *p;
   struct stat st;
 
@@ -93,26 +101,34 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
     }
 
   /*
-   * Write out preamble.  Includes magic number, etc, all of which must
-   * match while loading.
+   * [WRITE_BINARY_PREAMBLE]
+   * Includes magic id, driver id and config id. All of which must match while loading:
+   * - 4 characters magic id
+   * - 4 bytes driver id
+   * - 8 bytes config id
    */
   if (fwrite (magic_id, strlen (magic_id), 1, f) != 1 ||
-      fwrite ((char *) &driver_id, sizeof driver_id, 1, f) != 1 ||
-      fwrite ((char *) &config_id, sizeof config_id, 1, f) != 1)
+      fwrite ((char *) &driver_id, sizeof (driver_id), 1, f) != 1 ||
+      fwrite ((char *) &config_id, sizeof (config_id), 1, f) != 1)
     {
       debug_perror ("fwrite()", file_name);
       fclose (f);
       return;
     }
+
   /*
-   * Write out list of include files.
+   * [WRITE_INCLUDE_LIST]
+   * Write out list of include files:
+   * - 16-bit length of include list
+   * - include list (null-terminated strings)
    */
-  len = includes->current_size;
-  fwrite ((char *) &len, sizeof len, 1, f);
+  assert (includes->current_size <= USHRT_MAX);
+  bin_count = (uint16_t) includes->current_size;
+  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
   fwrite (includes->block, includes->current_size, 1, f);
 
   /*
-   * copy and patch program
+   * Make a copy and patch program
    */
   p = (program_t *) DXALLOC (prog->total_size, TAG_TEMPORARY, "save_binary");
   /* convert to relative pointers, copy, then convert back */
@@ -125,70 +141,117 @@ save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches)
       patch_out (p, (short *) patches->block, patches->current_size / sizeof (short));
       locate_out (p);
     }
+
   /*
-   * write out prog.  The prog structure is mostly setup, but strings will
-   * have to be stored specially.
+   * [WRITE_PROGRAM_NAME]
+   * Write out program name:
+   * - 16-bit length of program name
+   * - program name
    */
-  len = SHARED_STRLEN (p->name);
-  fwrite ((char *) &len, sizeof len, 1, f);
-  fwrite (p->name, sizeof (char), len, f);
-  fwrite ((char *) &p->total_size, sizeof p->total_size, 1, f);
+  bin_count = (uint16_t)SHARED_STRLEN (p->name);
+  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
+  fwrite (p->name, sizeof (char), bin_count, f);
+
+  /*
+   * [WRITE_PROGRAM_STRUCTURE]
+   * Write out program structure:
+   * - 32-bit size of program_t struct
+   * - program_t struct
+   */
+  bin_size = (uint32_t) p->total_size;
+  fwrite ((char *) &bin_size, sizeof (bin_size), 1, f);
   fwrite ((char *) p, p->total_size, 1, f);
   FREE (p);
   p = prog;
 
-  /* inherit names */
+  /*
+   * [WRITE_INHERIT_NAMES]
+   * Write out inherit names (num_inherited already in program_t):
+   * - 16-bit length of inherit name
+   * - inherit name
+   */
   for (i = 0; i < (int) p->num_inherited; i++)
     {
-      len = SHARED_STRLEN (p->inherit[i].prog->name);
-      fwrite ((char *) &len, sizeof len, 1, f);
-      fwrite (p->inherit[i].prog->name, sizeof (char), len, f);
+      bin_count = (uint16_t)SHARED_STRLEN (p->inherit[i].prog->name);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
+      fwrite (p->inherit[i].prog->name, sizeof (char), bin_count, f);
     }
-
-  /* string table */
-  for (i = 0; i < (int) p->num_strings; i++)
-    {
-      tmp = SHARED_STRLEN (p->strings[i]);
-      if (tmp > (int) USHRT_MAX)
-        {			/* possible? */
-          fclose (f);
-          error ("String too long for save_binary.\n");
-          return;
-        }
-      len = tmp;
-      fwrite ((char *) &len, sizeof len, 1, f);
-      fwrite (p->strings[i], sizeof (char), len, f);
-    }
-
-  /* var names */
-  for (i = 0; i < (int) p->num_variables_defined; i++)
-    {
-      len = SHARED_STRLEN (p->variable_table[i]);
-      fwrite ((char *) &len, sizeof len, 1, f);
-      fwrite (p->variable_table[i], sizeof (char), len, f);
-    }
-
-  /* function names */
-  for (i = 0; i < (int) p->num_functions_defined; i++)
-    {
-      len = SHARED_STRLEN (p->function_table[i].name);
-      fwrite ((char *) &len, sizeof len, 1, f);
-      fwrite (p->function_table[i].name, sizeof (char), len, f);
-    }
-
-  /* line_numbers */
-  if (p->line_info)
-    len = p->file_info[0];
-  else
-    len = 0;
-  fwrite ((char *) &len, sizeof len, 1, f);
-  fwrite ((char *) p->file_info, len, 1, f);
 
   /*
-   * patches
+   * [WRITE_STRING_TABLE]
+   * Write out string table (num_strings already in program_t):
+   * - 16-bit length of string
+   * - string
+   * 
+   * TODO: allow strings longer than 65535 characters
    */
-  len = patches->current_size;
-  fwrite ((char *) &len, sizeof len, 1, f);
+  for (i = 0; i < (int) p->num_strings; i++)
+    {
+      size_t length = SHARED_STRLEN (p->strings[i]);
+      if (length >= USHRT_MAX)
+        {
+          fclose (f);
+          /* TODO: remove the incomplete binary file */
+          error ("String too long for save_binary.\n");
+        }
+      bin_count = (uint16_t)length;
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
+      fwrite (p->strings[i], sizeof (char), bin_count, f);
+    }
+
+  /*
+   * [WRITE_VARIABLE_NAMES]
+   * Write out variable names (num_variables_defined already in program_t):
+   * - 16-bit length of variable name
+   * - variable name
+   */
+  for (i = 0; i < (int) p->num_variables_defined; i++)
+    {
+      bin_count = (uint16_t)SHARED_STRLEN (p->variable_table[i]);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
+      fwrite (p->variable_table[i], sizeof (char), bin_count, f);
+    }
+
+  /*
+   * [WRITE_FUNCTION_NAMES]
+   * Write out function names (num_functions_defined already in program_t):
+   * - 16-bit length of function name
+   * - function name
+   */
+  for (i = 0; i < (int) p->num_functions_defined; i++)
+    {
+      bin_count = (uint16_t)SHARED_STRLEN (p->function_table[i].name);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
+      fwrite (p->function_table[i].name, sizeof (char), bin_count, f);
+    }
+
+  /*
+   * [WRITE_LINE_NUMBERS]
+   * Write out line numbers (line_info already in program_t):
+   * - 16-bit length of line info
+   * - line info
+   */
+  if (p->line_info)
+    {
+      bin_count = (uint16_t)p->file_info[0];
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
+      fwrite ((char *) p->file_info, bin_count, 1, f);
+    }
+  else
+    {
+      bin_count = 0;
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
+    }
+
+  /*
+   * [WRITE_PATCHES]
+   * Write out patch information:
+   * - 16-bit length of patch info
+   * - patch info
+   */
+  assert (patches->current_size <= USHRT_MAX);
+  bin_count = (uint16_t)patches->current_size;
+  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
   fwrite (patches->block, patches->current_size, 1, f);
 
   fclose (f);
@@ -296,7 +359,7 @@ sort_function_table (program_t * prog)
           {
             int oldix = prog->function_offsets[j].def.f_index;
             DEBUG_CHECK (oldix >= num, "Function index out of range");
-            prog->function_offsets[j].def.f_index = inverse[oldix];
+            prog->function_offsets[j].def.f_index = (function_number_t)inverse[oldix];
           }
       }
     for (i = 0; i < n_def; i++)
@@ -306,7 +369,7 @@ sort_function_table (program_t * prog)
           {
             int oldix = prog->function_offsets[n_real + i].def.f_index;
             DEBUG_CHECK (oldix >= num, "Function index out of range");
-            prog->function_offsets[n_real + i].def.f_index = inverse[oldix];
+            prog->function_offsets[n_real + i].def.f_index = (function_number_t)inverse[oldix];
           }
       }
   }
@@ -343,16 +406,24 @@ sort_function_table (program_t * prog)
 /* crude hack to check both .B and .b */
 #define OUT_OF_DATE 0
 
-program_t *load_binary (const char *name)
-{
+/**
+ * Load the binary version of a program.
+ * @param name the name of the program to load
+ * @return the loaded program, or OUT_OF_DATE if the binary is out of date
+ */
+program_t *load_binary (const char *name) {
+
   char file_name_buf[400];
   char *buf, *iname, *file_name = file_name_buf, *file_name_two = &file_name_buf[200];
   int fd;
   FILE *f;
-  int i, buf_size, ilen;
-  unsigned int bin_driver_id;
-  time_t bin_config_id, mtime;
-  short len;
+  int i;
+  uint32_t bin_driver_id; /* saved driver_id */
+  uint64_t bin_config_id; /* saved config_id */
+  time_t mtime;
+  uint16_t bin_count;
+  uint32_t bin_size;
+  size_t buf_size, len;
   program_t *p, *prog;
   object_t *ob;
   struct stat st;
@@ -367,73 +438,90 @@ program_t *load_binary (const char *name)
     file_name++;
   len = strlen (file_name);
   file_name[len - 1] = 'b';
-
   comp_flag = 1;
-  opt_trace (TT_COMPILE|1, "expected binary: /%s", file_name);
-  fd = FILE_OPEN (file_name, O_RDONLY);
-  if (-1 == fd)
-    return OUT_OF_DATE;
 
-  if (fstat (fd, &st) == -1) {
-    FILE_CLOSE (fd);
-    return OUT_OF_DATE;
-  }
+  /* Open the file and get file stat */
+#ifdef _WIN32
+  fd = FILE_OPEN (file_name, O_RDONLY | O_BINARY);
+#else
+  fd = FILE_OPEN (file_name, O_RDONLY);
+#endif
+  if (-1 == fd)
+    {
+      opt_trace (TT_COMPILE|3, "unable to open expected binary: %s", file_name);
+      return OUT_OF_DATE;
+    }
+  if (fstat (fd, &st) == -1)
+    {
+      opt_trace (TT_COMPILE|3, "unable to stat expected binary: %s", file_name);
+      FILE_CLOSE (fd);
+      return OUT_OF_DATE;
+    }
   mtime = st.st_mtime;
 
-  if (!(f = FILE_FDOPEN (fd, "r"))) {
+  /* Open file stream */
+  if (!(f = FILE_FDOPEN (fd, "rb"))) {
+    opt_trace (TT_COMPILE|3, "unable to open expected binary: %s", file_name);
     FILE_CLOSE (fd);
     return OUT_OF_DATE;
   }
-  opt_trace (TT_COMPILE|1, "found saved binary: /%s", file_name);
 
-  /* see if we're out of date with source */
+  opt_trace (TT_COMPILE|3, "found saved binary: %s", file_name);
+
+  /* Check if the source file is newer. */
   if (check_times (mtime, name) <= 0)
     {
-      opt_trace (TT_COMPILE|1, "out of date (source file newer).");
+      opt_trace (TT_COMPILE|3, "out of date (source file newer).");
       fclose (f);
       return OUT_OF_DATE;
     }
+
   buf_size = SMALL_STRING_SIZE;
   buf = DXALLOC (buf_size, TAG_TEMPORARY, "ALLOC_BUF");
 
   /*
-   * Read preamble.  This must match, or we assume a different driver or
-   * configuration.
+   * [READ_BINARY_PREAMBLE]
+    * Check magic id, driver id and config id.
    */
   if (fread (buf, strlen (magic_id), 1, f) != 1 ||
       strncmp (buf, magic_id, strlen (magic_id)) != 0)
     {
-      opt_trace (TT_COMPILE|1, "out of date. (bad magic number)\n");
+      opt_trace (TT_COMPILE|3, "out of date. (bad magic number)\n");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
-  if ((fread ((char *) &bin_driver_id, sizeof bin_driver_id, 1, f) != 1 || driver_id != bin_driver_id))
+  if ((fread ((char *) &bin_driver_id, sizeof (bin_driver_id), 1, f) != 1) ||
+      (driver_id != bin_driver_id))
     {
-      opt_trace (TT_COMPILE|1, "out of date. (driver changed)\n");
+      opt_trace (TT_COMPILE|3, "out of date. (driver changed)\n");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
-  if (fread ((char *) &bin_config_id, sizeof bin_config_id, 1, f) != 1 || config_id != bin_config_id)
+  if ((fread ((char *) &bin_config_id, sizeof (bin_config_id), 1, f) != 1) ||
+      (config_id != bin_config_id))
     {
-      opt_trace (TT_COMPILE|1, "out of date. (config file changed)\n");
+      opt_trace (TT_COMPILE|3, "out of date. (config file changed)\n");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
+
   /*
-   * read list of includes and check times
+   * [READ_INCLUDE_LIST]
+   * Check include file times. If any are newer, binary is out of date.
    */
-  if (fread ((char *) &len, sizeof len, 1, f) != 1)
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) != 1)
     {
       opt_trace (TT_COMPILE|1, "failed reading include list size.");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
+  len = (size_t) bin_count;
   ALLOC_BUF (len);
-  if (fread (buf, sizeof (char), len, f) != (size_t)len)
+  if (fread (buf, sizeof (char), len, f) != len)
     {
       opt_trace (TT_COMPILE|1, "failed reading include list.");
       fclose (f);
@@ -444,25 +532,30 @@ program_t *load_binary (const char *name)
     {
       if (check_times (mtime, iname) <= 0)
         {
-          opt_trace (TT_COMPILE|1, "out of date (include file is newer).");
+          opt_trace (TT_COMPILE|3, "out of date (include file is newer).");
           fclose (f);
           FREE (buf);
           return OUT_OF_DATE;
         }
     }
+  opt_trace (TT_COMPILE|3, "include files (%d) modification check ok.", bin_count);
 
-  /* check program name */
-  if (fread ((char *) &len, sizeof len, 1, f) != 1)
+  /*
+   * [READ_PROGRAM_NAME]
+   * Check program name. If it doesn't match, binary is probably moved or out of date.
+   */
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) != 1)
     {
       opt_trace (TT_COMPILE|1, "failed reading binary name length.");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
+  len = (size_t) bin_count;
   if (len > 0)
     {
       ALLOC_BUF (len + 1);
-      if (fread (buf, sizeof (char), len, f) != (size_t)len)
+      if (fread (buf, sizeof (char), len, f) != len)
         {
           opt_trace (TT_COMPILE|1, "failed reading binary name.");
           fclose (f);
@@ -472,7 +565,7 @@ program_t *load_binary (const char *name)
       buf[len] = '\0';
       if (strcmp (name, buf) != 0)
         {
-          opt_trace (TT_COMPILE|1, "binary name [%d]%s inconsistent with file (%s).", (unsigned int)len, buf, name);
+          opt_trace (TT_COMPILE|1, "binary name [%zd]%s inconsistent with file (%s).", len, buf, name);
           fclose (f);
           FREE (buf);
           return OUT_OF_DATE;
@@ -480,17 +573,21 @@ program_t *load_binary (const char *name)
     }
 
   /*
+   * [READ_PROGRAM_STRUCTURE]
    * Read program structure.
+   * - 32-bit size of program_t struct
+   * - program_t struct
    */
-  if (fread ((char *) &ilen, sizeof ilen, 1, f) != 1)
+  if (fread ((char *) &bin_size, sizeof (bin_size), 1, f) != 1)
     {
       opt_trace (TT_COMPILE|1, "failed reading program struct size");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
     }
-  p = (program_t *) DXALLOC (ilen, TAG_PROGRAM, "load_binary");
-  if (fread ((char *) p, ilen, 1, f) != 1)
+  len = (size_t) bin_size;
+  p = (program_t *) DXALLOC (len, TAG_PROGRAM, "load_binary");
+  if (fread ((char *) p, len, 1, f) != 1)
     {
       opt_trace (TT_COMPILE|1, "failed reading program struct");
       fclose (f);
@@ -499,15 +596,20 @@ program_t *load_binary (const char *name)
     }
   locate_in (p);		/* from swap.c */
   p->name = make_shared_string (name);
+  opt_trace (TT_COMPILE|3, "loaded program structure ok. size = %zu bytes.", len);
 
-  /* Read inherit names and find prog.  Check mod times also. */
+  /*
+   * [READ_INHERIT_NAMES]
+   * Read inherit names and find prog.  Check mod times also.
+   */
   for (i = 0; i < (int) p->num_inherited; i++)
     {
       buf[0] = '\0';
-      if (fread ((char *) &len, sizeof len, 1, f) == 1)
+      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
         {
+          len = (size_t) bin_count;
           ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == (size_t)len)
+          if (fread (buf, sizeof (char), len, f) == len)
             buf[len] = '\0';
         }
       if (!buf[0])
@@ -552,14 +654,19 @@ program_t *load_binary (const char *name)
         }
       p->inherit[i].prog = ob->prog;
     }
+  opt_trace (TT_COMPILE|3, "loaded inherit names ok. num_inherited = %d.", p->num_inherited);
 
-  /* Read string table */
+  /*
+   * [READ_STRING_TABLE]
+   * Read string table. (num_strings already in program_t)
+   */
   for (i = 0; i < (int) p->num_strings; i++)
     {
-      if (fread ((char *) &len, sizeof len, 1, f) == 1)
+      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
         {
+          len = (size_t) bin_count;
           ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == (size_t)len)
+          if (fread (buf, sizeof (char), len, f) == len)
             {
               buf[len] = '\0';
               p->strings[i] = make_shared_string (buf);
@@ -577,14 +684,19 @@ program_t *load_binary (const char *name)
       FREE (buf);
       return OUT_OF_DATE;
     }
+  opt_trace (TT_COMPILE|3, "loaded string table ok. num_strings = %d.", p->num_strings);
 
-  /* var names */
+  /*
+   * [READ_VARIABLE_NAMES]
+   * Read variable names. (num_variables_defined already in program_t)
+   */
   for (i = 0; i < (int) p->num_variables_defined; i++)
     {
-      if (fread ((char *) &len, sizeof len, 1, f) == 1)
+      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
         {
+          len = (size_t) bin_count;
           ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == (size_t)len)
+          if (fread (buf, sizeof (char), len, f) == len)
             {
               buf[len] = '\0';
               p->variable_table[i] = make_shared_string (buf);
@@ -607,14 +719,19 @@ program_t *load_binary (const char *name)
       FREE (buf);
       return OUT_OF_DATE;
     }
+  opt_trace (TT_COMPILE|3, "loaded variable table ok. num_variables_defined = %d.", p->num_variables_defined);
 
-  /* function names */
+  /*
+   * [READ_FUNCTION_NAMES]
+   * Read function names. (num_functions_defined already in program_t)
+   */
   for (i = 0; i < (int) p->num_functions_defined; i++)
     {
-      if (fread ((char *) &len, sizeof len, 1, f) == 1)
+      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
         {
+          len = (size_t) bin_count;
           ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == (size_t)len)
+          if (fread (buf, sizeof (char), len, f) == len)
             {
               buf[len] = '\0';
               p->function_table[i].name = make_shared_string (buf);
@@ -643,10 +760,15 @@ program_t *load_binary (const char *name)
       return OUT_OF_DATE;
     }
   sort_function_table (p);
+  opt_trace (TT_COMPILE|3, "loaded function table ok. num_functions_defined = %d.", p->num_functions_defined);
 
-  /* line numbers */
-  if (fread ((char *) &len, sizeof len, 1, f) == 1)
+  /*
+   * [READ_LINE_NUMBERS]
+   * Read line numbers.
+   */
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
     {
+      len = (size_t) bin_count;
       p->file_info = (unsigned short *) DXALLOC (len, TAG_LINENUMBERS, "load binary");
       if (fread ((char *) p->file_info, len, 1, f) == 1)
         {
@@ -678,11 +800,15 @@ program_t *load_binary (const char *name)
           return OUT_OF_DATE;
         }
     }
+  opt_trace (TT_COMPILE|3, "loaded line number info ok.");
 
-
-  /* patches */
-  if (fread ((char *) &len, sizeof len, 1, f) == 1)
+  /*
+   * [READ_PATCHES]
+   * Read patch information and fix up program.
+   */
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
     {
+      len = (size_t) bin_count;
       ALLOC_BUF (len);
       if (fread (buf, len, 1, f) == 1)
         {
@@ -690,6 +816,7 @@ program_t *load_binary (const char *name)
           patch_in (p, (short *) buf, len / sizeof (short));
         }
     }
+  opt_trace (TT_COMPILE|3, "applied patches ok.");
 
   fclose (f);
   FREE (buf);
@@ -727,7 +854,7 @@ void init_binaries () {
           struct stat st;
           if (0 == stat (CONFIG_STR(__SIMUL_EFUN_FILE__), &st))
             {
-              config_id = st.st_mtime;
+              config_id = (uint64_t)st.st_mtime;
             }
         }
       debug_message ("{}\tusing #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
@@ -767,7 +894,7 @@ check_times (time_t mtime, const char *nm)
  * that might need patching.
  */
 static void
-patch_out (program_t * prog, short *patches, int len)
+patch_out (program_t * prog, short *patches, size_t len)
 {
   int i;
   char *p;
@@ -811,11 +938,11 @@ str_case_cmp (char *a, char *b)
   COPY_PTR (&s1, a);
   COPY_PTR (&s2, b);
 
-  return s1 - s2;
+  return (int)(s1 - s2);
 }				/* str_case_cmp() */
 
 static void
-patch_in (program_t * prog, short *patches, int len)
+patch_in (program_t * prog, short *patches, size_t len)
 {
   int i;
   char *p;

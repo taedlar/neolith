@@ -28,7 +28,7 @@ struct mapping_s {
 #endif
     mapping_node_t **table;     /* the hash table */
     unsigned short table_size;  /* bit-mask for # of buckets in hash table == power of 2 minus one */
-    unsigned short unfilled;    /* # of buckets among 80% of total buckets that do not have entries */
+    unsigned short unfilled;    /* threshold to call growMap(), # of buckets among 80% of total buckets that do not have entries */
     int count;                  /* total # of nodes actually in mapping  */
 };
 
