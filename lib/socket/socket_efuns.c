@@ -747,7 +747,7 @@ int socket_write (int i, svalue_t * message, char *name) {
           return EESEND;
         }
     }
-  if (off < len)
+  if (off < (int)len)
     {
       lpc_socks[i].flags |= S_BLOCKED;
       lpc_socks[i].w_buf = buf;

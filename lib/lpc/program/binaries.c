@@ -441,7 +441,11 @@ program_t *load_binary (const char *name) {
   comp_flag = 1;
 
   /* Open the file and get file stat */
+#ifdef _WIN32
   fd = FILE_OPEN (file_name, O_RDONLY | O_BINARY);
+#else
+  fd = FILE_OPEN (file_name, O_RDONLY);
+#endif
   if (-1 == fd)
     {
       opt_trace (TT_COMPILE|3, "unable to open expected binary: %s", file_name);

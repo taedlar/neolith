@@ -655,7 +655,7 @@ void f_unique_mapping (void) {
                           while ((uptr = nptr));
                           uptr = table[--j];
                         }
-                      while (j >= 0);
+                      while (j);
                       total_mapping_size +=
                         sizeof (mapping_node_t) * (m->count = numkeys);
                       total_mapping_nodes += numkeys;
