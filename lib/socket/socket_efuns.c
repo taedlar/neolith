@@ -10,6 +10,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <assert.h>
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -88,7 +89,7 @@ int more_lpc_sockets () {
   i = max_lpc_socks;
   while (--i >= max_lpc_socks - 10)
     {
-      lpc_socks[i].fd = -1;
+      lpc_socks[i].fd = INVALID_SOCKET_FD;
       lpc_socks[i].flags = 0;
       lpc_socks[i].mode = MUD;
       lpc_socks[i].state = CLOSED;
@@ -250,7 +251,8 @@ int find_new_socket (void) {
  */
 int socket_create (enum socket_mode mode, svalue_t * read_callback, svalue_t * close_callback) {
 
-  int type, i, fd, optval;
+  socket_fd_t fd;
+  int type, i, optval;
   int binary = 0;
 
   if (mode == STREAM_BINARY)
@@ -410,7 +412,7 @@ int socket_listen (int i, svalue_t * callback) {
   return EESUCCESS;
 }
 
-/*
+/**
  * Accept a connection on an LPC efun socket
  */
 int socket_accept (int s, svalue_t * read_callback, svalue_t * write_callback) {
@@ -419,7 +421,9 @@ int socket_accept (int s, svalue_t * read_callback, svalue_t * write_callback) {
   socket_fd_t accept_fd;
   int i;
   struct sockaddr_in sin;
+#if 0
   struct hostent *hp;
+#endif
 
   if (s < 0 || s >= max_lpc_socks)
     return EEFDRANGE;
@@ -480,14 +484,9 @@ int socket_accept (int s, svalue_t * read_callback, svalue_t * write_callback) {
       lpc_socks[i].w_off = 0;
       lpc_socks[i].w_len = 0;
 
-#ifdef cray
-/* cray can't take addresses of bitfields */
-      hp = gethostbyaddr ((char *) &sin.sin_addr,
-                          (int) sizeof (sin.sin_addr), AF_INET);
-#else
-      hp = gethostbyaddr ((char *) &sin.sin_addr.s_addr,
-                          (int) sizeof (sin.sin_addr.s_addr), AF_INET);
-#endif
+      /* FIXME: name resolution should be optional, to prevent DDoS attack */
+#if 0
+      hp = gethostbyaddr ((char *) &sin.sin_addr.s_addr, (int) sizeof (sin.sin_addr.s_addr), AF_INET);
       if (hp != NULL)
         {
           strncpy (lpc_socks[i].name, hp->h_name, ADDR_BUF_SIZE);
@@ -495,6 +494,7 @@ int socket_accept (int s, svalue_t * read_callback, svalue_t * write_callback) {
         }
       else
         lpc_socks[i].name[0] = '\0';
+#endif
 
       lpc_socks[i].owner_ob = current_object;
       set_read_callback (i, read_callback);
@@ -504,7 +504,7 @@ int socket_accept (int s, svalue_t * read_callback, svalue_t * write_callback) {
       current_object->flags |= O_EFUN_SOCKET;
     }
   else
-    close (accept_fd);
+    SOCKET_CLOSE (accept_fd);
 
   return i;
 }
@@ -581,12 +581,17 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
   return EESUCCESS;
 }
 
-/*
+/**
  * Write a message on an LPC efun socket
+ * @param i the socket index
+ * @param message the message to send
+ * @param name the address to send to (for datagram sockets)
+ * @return error code
  */
 int socket_write (int i, svalue_t * message, char *name) {
 
-  int len, off;
+  size_t len;
+  int off;
   char *buf, *p;
   struct sockaddr_in sin;
 
@@ -660,26 +665,25 @@ int socket_write (int i, svalue_t * message, char *name) {
           break;
         case T_ARRAY:
           {
-            int n, limit;
+            size_t n, limit;
             svalue_t *el;
 
-            len = message->u.arr->size * sizeof (int);
+            assert(sizeof(int64_t) == sizeof(double));
+            len = message->u.arr->size * sizeof (int64_t);
             buf = (char *) DMALLOC (len + 1, TAG_TEMPORARY, "socket_write: T_ARRAY");
             if (buf == NULL)
               fatal ("Out of memory");
             el = message->u.arr->item;
-            limit = len / sizeof (int);
+            limit = len / sizeof (int64_t);
             for (n = 0; n < limit; n++)
               {
                 switch (el[n].type)
                   {
                   case T_NUMBER:
-                    memcpy ((char *) &buf[n * sizeof (int)],
-                            (char *) &el[n].u.number, sizeof (int));
+                    memcpy ((char *) &buf[n * sizeof (int64_t)], (char *) &el[n].u.number, sizeof (int64_t));
                     break;
                   case T_REAL:
-                    memcpy ((char *) &buf[n * sizeof (int)],
-                            (char *) &el[n].u.real, sizeof (int));
+                    memcpy ((char *) &buf[n * sizeof (double)], (char *) &el[n].u.real, sizeof (double));
                     break;
                   default:
                     break;
@@ -697,7 +701,7 @@ int socket_write (int i, svalue_t * message, char *name) {
         {
         case T_STRING:
           if (sendto (lpc_socks[i].fd, (char *) message->u.string,
-                      strlen (message->u.string) + 1, 0,
+                      (int)strlen (message->u.string) + 1, 0,
                       (struct sockaddr *) &sin, sizeof (sin)) == -1)
             {
               debug_error ("sendto() failed: %d", SOCKET_ERRNO);
@@ -748,7 +752,7 @@ int socket_write (int i, svalue_t * message, char *name) {
       lpc_socks[i].flags |= S_BLOCKED;
       lpc_socks[i].w_buf = buf;
       lpc_socks[i].w_off = off;
-      lpc_socks[i].w_len = len - off;
+      lpc_socks[i].w_len = (int)(len - off);
       return EECALLBACK;
     }
   FREE (buf);
@@ -825,7 +829,8 @@ socket_read_select_handler (int i)
           if (cc <= 0)
             break;
           buf[cc] = '\0';
-          sprintf (addr, "%s %d", inet_ntoa (sin.sin_addr), (int) ntohs (sin.sin_port));
+          inet_ntop (AF_INET, &sin.sin_addr, addr, ADDR_BUF_SIZE);
+          snprintf (addr + strlen(addr), sizeof(addr) - strlen(addr), " %d", (int) ntohs (sin.sin_port));
           push_number (i);
           if (lpc_socks[i].flags & S_BINARY)
             {
@@ -1048,7 +1053,7 @@ int socket_close (int i, int flags) {
       return EESUCCESS;
     }
 
-  while (close (lpc_socks[i].fd) == -1 && SOCKET_ERRNO == EINTR)
+  while (SOCKET_CLOSE (lpc_socks[i].fd) == -1 && SOCKET_ERRNO == EINTR)
     ;				/* empty while */
   lpc_socks[i].state = CLOSED;
   if (lpc_socks[i].r_buf != NULL)
@@ -1172,12 +1177,10 @@ assign_socket_owner (svalue_t * sv, object_t * ob)
     assign_svalue_no_free (sv, &const0u);
 }
 
-/*
+/**
  * Convert a string representation of an address to a sockaddr_in
  */
-static int
-socket_name_to_sin (char *name, struct sockaddr_in *sin)
-{
+static int socket_name_to_sin (char *name, struct sockaddr_in *sin) {
   int port;
   char *cp, addr[ADDR_BUF_SIZE];
 
@@ -1193,17 +1196,15 @@ socket_name_to_sin (char *name, struct sockaddr_in *sin)
 
   sin->sin_family = AF_INET;
   sin->sin_port = htons ((u_short) port);
-  sin->sin_addr.s_addr = inet_addr (addr);
+  inet_pton (AF_INET, addr, &sin->sin_addr);
 
   return 1;
 }
 
-/*
+/**
  * Close any sockets owned by ob
  */
-void
-close_referencing_sockets (object_t * ob)
-{
+void close_referencing_sockets (object_t * ob) {
   int i;
 
   for (i = 0; i < max_lpc_socks; i++)
@@ -1212,19 +1213,18 @@ close_referencing_sockets (object_t * ob)
       socket_close (i, SC_FORCE);
 }
 
-/*
+/**
  * Return the string representation of a sockaddr_in
  */
-static char *
-inet_address (struct sockaddr_in *sin)
-{
+static char* inet_address (struct sockaddr_in *sin) {
   static char addr[23], port[7];
 
   if (ntohl (sin->sin_addr.s_addr) == INADDR_ANY)
     strcpy (addr, "*");
   else
-    strcpy (addr, inet_ntoa (sin->sin_addr));
+    inet_ntop (AF_INET, &sin->sin_addr.s_addr, addr, sizeof(addr));
   strcat (addr, ".");
+
   if (ntohs (sin->sin_port) == 0)
     strcpy (port, "*");
   else
@@ -1234,18 +1234,14 @@ inet_address (struct sockaddr_in *sin)
   return (addr);
 }
 
-/*
+/**
  * Dump the LPC efun socket array
  */
-void
-dump_socket_status (outbuffer_t * out)
-{
+void dump_socket_status (outbuffer_t * out) {
   int i;
 
-  outbuf_add (out,
-              "Fd    State      Mode       Local Address          Remote Address\n");
-  outbuf_add (out,
-              "--  ---------  --------  ---------------------  ---------------------\n");
+  outbuf_add (out, "Fd    State      Mode       Local Address          Remote Address\n");
+  outbuf_add (out, "--  ---------  --------  ---------------------  ---------------------\n");
 
   for (i = 0; i < max_lpc_socks; i++)
     {
