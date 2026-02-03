@@ -167,12 +167,14 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
             char tmp[32];
             int flags = EXTRACT_UCHAR (p++);
 
-            sprintf (buff, "(%s) %s %i", (flags & 4) ? "mapping" : "array",
-                     (flags & 1) ? "global" : "local", EXTRACT_UCHAR (p++));
+            sprintf (buff, "(%s) %s %i",
+              (flags & 4) ? "mapping" : "array",
+              (flags & 1) ? "global" : "local",
+              EXTRACT_UCHAR (p++)
+            );
             if (flags & 4)
               {
-                sprintf (tmp, ", %s %i", (flags & 2) ? "global" : "local",
-                         EXTRACT_UCHAR (p++));
+                sprintf (tmp, ", %s %i", (flags & 2) ? "global" : "local", EXTRACT_UCHAR (p++));
                 strcat (buff, tmp);
               }
             break;

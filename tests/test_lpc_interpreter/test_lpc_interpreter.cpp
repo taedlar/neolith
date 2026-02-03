@@ -88,3 +88,57 @@ TEST_F(LPCInterpreterTest, evalCostLimit) {
     free_prog(prog, 1);
     FAIL() << "Expected too long evaluation error was not raised.";
 }
+
+TEST_F(LPCInterpreterTest, foreachUtf8String) {
+    // Test foreach loop iterating over UTF-8 characters in a string
+    // The loop should iterate over each character correctly, handling multi-byte UTF-8 sequences
+    // Note: We use hex escapes for UTF-8 bytes to ensure correct encoding across platforms
+    program_t* prog = compile_file(-1, "utf8_foreach.c",
+        "int* test_utf8_foreach() {\n"
+        "    string s = \"Hello\\xe4\\xb8\\x96\\xe7\\x95\\x8c\";\n"  // "Hello世界" in UTF-8 bytes
+        "    int* result = allocate(7);\n"
+        "    int i = 0;\n"
+        "    foreach(int ch in s) {\n"
+        "        result[i++] = ch;\n"
+        "    }\n"
+        "    return result;\n"
+        "}\n"
+    );
+    ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
+    EXPECT_EQ(prog->num_functions_defined, 1) << "Expected 1 defined function.";
+
+    // Find and call the function
+    int index, fio, vio;
+    svalue_t ret;
+    program_t* found_prog = find_function(prog, findstring("test_utf8_foreach"), &index, &fio, &vio);
+    ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program.";
+    int runtime_index = found_prog->function_table[index].runtime_index;
+
+    call_function(prog, runtime_index, 0, &ret);
+
+    // Verify the return value is an array
+    EXPECT_EQ(ret.type, T_ARRAY) << "Expected return type to be T_ARRAY.";
+    ASSERT_TRUE(ret.u.arr != nullptr) << "Expected non-null array.";
+    EXPECT_EQ(ret.u.arr->size, 7) << "Expected array size to be 7.";
+
+    // Verify the array contains the correct Unicode code points:
+    // 'H' = 72, 'e' = 101, 'l' = 108, 'l' = 108, 'o' = 111
+    // '世' = 0x4E16 (19990), '界' = 0x754C (30028)
+    EXPECT_EQ(ret.u.arr->item[0].type, T_NUMBER);
+    EXPECT_EQ(ret.u.arr->item[0].u.number, 72) << "Expected 'H' (72).";
+    EXPECT_EQ(ret.u.arr->item[1].type, T_NUMBER);
+    EXPECT_EQ(ret.u.arr->item[1].u.number, 101) << "Expected 'e' (101).";
+    EXPECT_EQ(ret.u.arr->item[2].type, T_NUMBER);
+    EXPECT_EQ(ret.u.arr->item[2].u.number, 108) << "Expected 'l' (108).";
+    EXPECT_EQ(ret.u.arr->item[3].type, T_NUMBER);
+    EXPECT_EQ(ret.u.arr->item[3].u.number, 108) << "Expected 'l' (108).";
+    EXPECT_EQ(ret.u.arr->item[4].type, T_NUMBER);
+    EXPECT_EQ(ret.u.arr->item[4].u.number, 111) << "Expected 'o' (111).";
+    EXPECT_EQ(ret.u.arr->item[5].type, T_NUMBER);
+    EXPECT_EQ(ret.u.arr->item[5].u.number, 19990) << "Expected '世' (0x4E16 = 19990).";
+    EXPECT_EQ(ret.u.arr->item[6].type, T_NUMBER);
+    EXPECT_EQ(ret.u.arr->item[6].u.number, 30028) << "Expected '界' (0x754C = 30028).";
+
+    free_svalue(&ret, "test");
+    free_prog(prog, 1);
+}

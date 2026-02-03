@@ -97,3 +97,54 @@ TEST_F(EfunsTest, stringExplode) {
     ASSERT_STREQ(sp->u.arr->item[0].u.string, "小星星"); // delimiter not found, not even at character boundary
 }
 
+TEST_F(EfunsTest, stringExplodeUtf8) {
+    // Test explode efun with UTF-8 multibyte characters
+    // When delimiter is empty, explode should split into individual Unicode characters
+    // Each character should be returned as a multibyte UTF-8 string
+    
+    // Test with mixed ASCII and UTF-8: "Hello世界" 
+    // Using hex escapes to ensure proper encoding: Hello\xe4\xb8\x96\xe7\x95\x8c
+    push_constant_string("Hello\xe4\xb8\x96\xe7\x95\x8c");
+    push_constant_string("");
+    f_explode();
+    
+    ASSERT_EQ(sp->type, T_ARRAY) << "Expected array result from explode";
+    ASSERT_EQ(sp->u.arr->size, 7) << "Expected 7 characters: 5 ASCII + 2 UTF-8";
+    
+    // Verify ASCII characters (single bytes)
+    ASSERT_EQ(sp->u.arr->item[0].type, T_STRING);
+    ASSERT_STREQ(sp->u.arr->item[0].u.string, "H");
+    ASSERT_EQ(sp->u.arr->item[1].type, T_STRING);
+    ASSERT_STREQ(sp->u.arr->item[1].u.string, "e");
+    ASSERT_EQ(sp->u.arr->item[2].type, T_STRING);
+    ASSERT_STREQ(sp->u.arr->item[2].u.string, "l");
+    ASSERT_EQ(sp->u.arr->item[3].type, T_STRING);
+    ASSERT_STREQ(sp->u.arr->item[3].u.string, "l");
+    ASSERT_EQ(sp->u.arr->item[4].type, T_STRING);
+    ASSERT_STREQ(sp->u.arr->item[4].u.string, "o");
+    
+    // Verify UTF-8 multibyte characters (3 bytes each for Chinese characters)
+    ASSERT_EQ(sp->u.arr->item[5].type, T_STRING);
+    ASSERT_STREQ(sp->u.arr->item[5].u.string, "\xe4\xb8\x96"); // '世'
+    ASSERT_EQ(strlen(sp->u.arr->item[5].u.string), 3) << "UTF-8 '世' should be 3 bytes";
+    
+    ASSERT_EQ(sp->u.arr->item[6].type, T_STRING);
+    ASSERT_STREQ(sp->u.arr->item[6].u.string, "\xe7\x95\x8c"); // '界'
+    ASSERT_EQ(strlen(sp->u.arr->item[6].u.string), 3) << "UTF-8 '界' should be 3 bytes";
+    
+    pop_stack(); // Clean up the result array
+    
+    // Test with only UTF-8 characters: "日本語" (Japanese)
+    push_constant_string("\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e");
+    push_constant_string("");
+    f_explode();
+    
+    ASSERT_EQ(sp->type, T_ARRAY);
+    ASSERT_EQ(sp->u.arr->size, 3) << "Expected 3 Japanese characters";
+    
+    ASSERT_STREQ(sp->u.arr->item[0].u.string, "\xe6\x97\xa5"); // '日'
+    ASSERT_STREQ(sp->u.arr->item[1].u.string, "\xe6\x9c\xac"); // '本'
+    ASSERT_STREQ(sp->u.arr->item[2].u.string, "\xe8\xaa\x9e"); // '語'
+    
+    pop_stack();
+}

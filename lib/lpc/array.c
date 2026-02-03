@@ -354,6 +354,16 @@ char* implode_string (array_t * arr, char *del, size_t del_len) {
   return q;
 }
 
+/**
+  * Implode an array using a function pointer.
+  * The function pointer is called with two arguments, both strings,
+  * and must return a string.
+  * The first argument is the accumulated string so far, the second
+  * argument is the next array element.
+  * If the first_on_stack flag is set, the first argument is the
+  * next array element, and the accumulated string is on the stack.
+  * This is to allow for efuns like reduce() to be implemented.
+  */
 void implode_array (funptr_t * funp, array_t * arr, svalue_t * dest, int first_on_stack) {
 
   int i = 0, n;

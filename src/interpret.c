@@ -1969,41 +1969,47 @@ void eval_instruction (const char *p) {
           f_function_constructor ();
           break;
 
-        case F_FOREACH:
+        case F_FOREACH: /* start iteration of string/array/mapping svalue */
           {
             int flags = EXTRACT_UCHAR (pc++);
 
-            if (flags & 4)
+            if (flags & 4) /* mapping */
               {
                 CHECK_TYPES (sp, T_MAPPING, 2, F_FOREACH);
 
+                /* push array of keys */
                 push_refed_array (mapping_indices (sp->u.map));
 
+                /* push the hidden iterator */
                 (++sp)->type = T_NUMBER;
                 sp->u.lvalue = (sp - 1)->u.arr->item;
                 sp->subtype = (sp - 1)->u.arr->size;
 
+                /* push lvalue for key */
                 (++sp)->type = T_LVALUE;
                 if (flags & 2)
                   sp->u.lvalue = find_value ((int)(EXTRACT_UCHAR (pc++) + variable_index_offset));
                 else
                   sp->u.lvalue = fp + EXTRACT_UCHAR (pc++);
               }
-            else if (sp->type == T_STRING)
+            else if (sp->type == T_STRING) /* string */
               {
+                /* push hidden iterator */
                 (++sp)->type = T_NUMBER;
                 sp->u.lvalue_byte = (unsigned char *) ((sp - 1)->u.string);
                 sp->subtype = (unsigned short)SVALUE_STRLEN (sp - 1);
               }
-            else
+            else /* array */
               {
                 CHECK_TYPES (sp, T_ARRAY, 2, F_FOREACH);
 
+                /* push the hidden iterator */
                 (++sp)->type = T_NUMBER;
                 sp->u.lvalue = (sp - 1)->u.arr->item;
                 sp->subtype = (sp - 1)->u.arr->size;
               }
 
+            /* push lvalue for mapping value, string character, or array element */
             (++sp)->type = T_LVALUE;
             if (flags & 1)
               sp->u.lvalue = find_value ((int)(EXTRACT_UCHAR (pc++) + variable_index_offset));
@@ -2011,25 +2017,76 @@ void eval_instruction (const char *p) {
               sp->u.lvalue = fp + EXTRACT_UCHAR (pc++);
             break;
           }
-        case F_NEXT_FOREACH:
+        case F_NEXT_FOREACH: /* assign next foreach lvalue(s) */
           if ((sp - 1)->type == T_LVALUE)
             {
-              /* mapping */
+              /* mapping
+               * sp - 4: mapping
+               * sp - 3: array of keys
+               * sp - 2: hidden iterator (u.lvalue = next key, subtype = number of keys left)
+               * sp - 1: lvalue for key
+               * sp    : lvalue for value
+               */
               if ((sp - 2)->subtype--)
                 {
                   svalue_t *key = (sp - 2)->u.lvalue++;
                   svalue_t *value = find_in_mapping ((sp - 4)->u.map, key);
 
-                  assign_svalue ((sp - 1)->u.lvalue, key);
-                  assign_svalue (sp->u.lvalue, value);
+                  assign_svalue ((sp - 1)->u.lvalue, key); /* re-assign key lvalue */
+                  assign_svalue (sp->u.lvalue, value);     /* re-assign value lvalue */
                   COPY_SHORT (&offset, pc);
-                  pc -= offset;
+                  pc -= offset; /* repeat loop */
+                  break;
+                }
+            }
+          else if ((sp - 2)->type == T_STRING)
+            {
+              /* string
+               * sp - 2: string
+               * sp - 1: hidden iterator (u.lvalue_byte = next character, subtype = number of characters left)
+               * sp    : lvalue for character
+               * 
+               * [NEOLITH-EXTENSION] If next multibyte character is an UTF-8 character, return unicode code point as number
+               * and advance iterator by the multibyte character length.
+               * Otherwise, return next character as number and advance iterator by 1.
+               */
+              if ((sp - 1)->subtype != 0)
+                {
+                  wchar_t wc;
+                  int char_len = mbtowc (&wc, (char *)(sp - 1)->u.lvalue_byte, (sp - 1)->subtype);
+                  if (char_len > 1)
+                    {
+                      /* Multibyte UTF-8 character - return the Unicode code point */
+                      free_svalue (sp->u.lvalue, "foreach-string-mb");
+                      sp->u.lvalue->type = T_NUMBER;
+                      sp->u.lvalue->subtype = 0;
+                      sp->u.lvalue->u.number = (int64_t)wc;
+                      (sp - 1)->u.lvalue_byte += char_len;
+                    }
+                  else /* if (char_len == 1) or any invalid utf-8 sequence */
+                    {
+                      char c = *((sp - 1)->u.lvalue_byte)++;
+                      free_svalue (sp->u.lvalue, "foreach-string");
+                      sp->u.lvalue->type = T_NUMBER;
+                      sp->u.lvalue->subtype = 0;
+                      sp->u.lvalue->u.number = c;
+                    }
+                  mbtowc (NULL, NULL, 0); /* reset conversion state */
+                  /* Decrement bytes remaining and continue loop */
+                  if (char_len > 0)
+                    (sp - 1)->subtype -= (short)char_len;
+                  COPY_SHORT (&offset, pc);
+                  pc -= offset; /* repeat loop - will check subtype at next iteration */
                   break;
                 }
             }
           else
             {
-              /* array or string */
+              /* array
+               * sp - 2: string or array
+               * sp - 1: hidden iterator (u.lvalue = next element, subtype = number of elements left)
+               * sp    : lvalue for element
+               */
               if ((sp - 1)->subtype--)
                 {
                   if ((sp - 2)->type == T_STRING)
@@ -2041,10 +2098,10 @@ void eval_instruction (const char *p) {
                     }
                   else
                     {
-                      assign_svalue (sp->u.lvalue, (sp - 1)->u.lvalue++);
+                      assign_svalue (sp->u.lvalue, (sp - 1)->u.lvalue++); /* re-assign element lvalue */
                     }
                   COPY_SHORT (&offset, pc);
-                  pc -= offset;
+                  pc -= offset; /* repeat loop */
                   break;
                 }
             }
