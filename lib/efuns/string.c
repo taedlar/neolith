@@ -225,8 +225,7 @@ void f_implode (void) {
     {
       args = (sp - 2);
       if (args[1].type == T_STRING)
-        error
-          ("Third argument to implode() is illegal with implode(array, string)\n");
+        error ("Third argument to implode() is illegal with implode(array, string)\n");
       flag = 1;
     }
   else

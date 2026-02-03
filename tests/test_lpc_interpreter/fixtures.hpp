@@ -11,6 +11,7 @@ extern "C" {
     #include "lpc/types.h"
     #include "lpc/object.h"
     #include "lpc/otable.h"
+    #include "lpc/array.h"
 }
 
 using namespace testing;
