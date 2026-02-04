@@ -53,20 +53,13 @@ static void call_heart_beat (void);
 /**
  * @brief Heart beat timer callback.
  * Sets the heart_beat_flag to trigger heart beat processing.
- * On Windows, also wakes up the async runtime to interrupt blocking wait.
+ * Wakes up the async runtime blocking wait to run timer-related tasks.
  */
 static void heartbeat_timer_callback(void) {
-  heart_beat_flag = 1;
-  
-#ifdef _WIN32
-  /* On Windows, wake up the async runtime waiting in GetQueuedCompletionStatusEx().
-   * On POSIX, this is not needed because SIGALRM automatically interrupts
-   * blocking syscalls with EINTR. */
   async_runtime_t *reactor = get_async_runtime();
-  if (reactor) {
+  heart_beat_flag = 1;
+  if (reactor)
     async_runtime_wakeup(reactor);
-  }
-#endif
 }
 
 /*
