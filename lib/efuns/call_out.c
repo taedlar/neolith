@@ -191,13 +191,13 @@ call_out ()
             call_list[tm] = call_list[tm]->next;
             if (cop->ob && (cop->ob->flags & O_DESTRUCTED))
               {
-                opt_trace (TT_BACKEND, "removing call_out to destructed object %s", cop->ob->name);
+                opt_trace (TT_BACKEND|2, "removing call_out to destructed object %s", cop->ob->name);
                 free_call (cop);
                 cop = 0;
               }
             else
               {
-                opt_trace (TT_BACKEND, "executing call_out to %s \"%s\"",
+                opt_trace (TT_BACKEND|2, "executing call_out to %s \"%s\"",
                            cop->ob ? cop->ob->name : "(function)",
                            cop->ob ? cop->function.s : "");
                 if (setjmp (econ.context))

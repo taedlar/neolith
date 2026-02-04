@@ -31,6 +31,7 @@
 
 /* Completion keys for special events */
 #define ACCEPT_COMPLETION_KEY  ((uintptr_t)-2)
+#define WAKEUP_COMPLETION_KEY  ((uintptr_t)-3)
 
 /**
  * IOCP context for each I/O operation
@@ -80,9 +81,6 @@ struct async_runtime_s {
     void* console_context;
     int console_enabled;
     iocp_context_t* console_read_ctx;
-    
-    /* Wakeup event for interrupting wait */
-    HANDLE wakeup_event;
 };
 
 /* Context pool management */
@@ -230,16 +228,6 @@ async_runtime_t* async_runtime_init(void) {
     runtime->console_enabled = 0;
     runtime->console_read_ctx = NULL;
     
-    /* Create wakeup event */
-    runtime->wakeup_event = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!runtime->wakeup_event) {
-        free(runtime->listen_sockets);
-        free(runtime->context_pool);
-        CloseHandle(runtime->iocp_handle);
-        free(runtime);
-        return NULL;
-    }
-    
     return runtime;
 }
 
@@ -268,10 +256,6 @@ void async_runtime_deinit(async_runtime_t* runtime) {
     
     if (runtime->iocp_handle && runtime->iocp_handle != INVALID_HANDLE_VALUE) {
         CloseHandle(runtime->iocp_handle);
-    }
-    
-    if (runtime->wakeup_event) {
-        CloseHandle(runtime->wakeup_event);
     }
     
     free(runtime);
@@ -370,8 +354,17 @@ int async_runtime_remove(async_runtime_t* runtime, socket_fd_t fd) {
 }
 
 int async_runtime_wakeup(async_runtime_t* runtime) {
-    if (!runtime || !runtime->wakeup_event) return -1;
-    return SetEvent(runtime->wakeup_event) ? 0 : -1;
+    if (!runtime || !runtime->iocp_handle) return -1;
+    
+    /* Post special wakeup completion to interrupt GetQueuedCompletionStatusEx */
+    BOOL result = PostQueuedCompletionStatus(
+        runtime->iocp_handle,
+        0,  /* No data */
+        WAKEUP_COMPLETION_KEY,
+        NULL  /* NULL overlapped */
+    );
+    
+    return result ? 0 : -1;
 }
 
 /* Event loop */
@@ -415,7 +408,13 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
                 }
                 free_iocp_context(runtime, io_ctx);
             } else {
-                /* NULL overlapped - either worker completion or accepted connection */
+                /* NULL overlapped - either worker completion, accepted connection, or wakeup */
+                
+                /* Skip wakeup completions - they're just to interrupt the wait */
+                if (entries[i].lpCompletionKey == WAKEUP_COMPLETION_KEY) {
+                    continue;
+                }
+                
                 /* Accept worker posts accepted FD in dwNumberOfBytesTransferred */
                 socket_fd_t accepted_fd = (socket_fd_t)entries[i].dwNumberOfBytesTransferred;
                 
@@ -426,9 +425,9 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
                 events[event_count].event_type = EVENT_READ;  /* Listening socket ready or worker completion */
                 events[event_count].bytes_transferred = 0;
                 events[event_count].buffer = NULL;
+                
+                event_count++;
             }
-            
-            event_count++;
         }
     }
     

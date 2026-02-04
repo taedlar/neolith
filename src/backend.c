@@ -504,7 +504,7 @@ static void call_heart_beat () {
   heart_beat_flag = 0;
 
   current_time = time (NULL);
-  opt_trace (TT_BACKEND|1, "current_time: %ul, num_hb_objs: %d", current_time, num_hb_objs);
+  opt_trace (TT_BACKEND, "current_time: %u, num_hb_objs: %d", current_time, num_hb_objs);
   current_interactive = 0;
 
   if ((MAIN_OPTION(timer_flags) & TIMER_FLAG_HEARTBEAT) && (num_hb_to_do = num_hb_objs) > 0)
@@ -527,8 +527,7 @@ static void call_heart_beat () {
                   if (!(command_giver->flags & O_ENABLE_COMMANDS))
                     command_giver = 0;
                   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-                  /* this should be looked at ... */
-                  opt_trace (TT_BACKEND|2, "total: %d/%d, current: %s", heart_beat_index + 1, num_hb_to_do, ob->name);
+                  opt_trace (TT_BACKEND|3, "total: %d/%d, current: %s", heart_beat_index + 1, num_hb_to_do, ob->name);
                   call_function (ob->prog, ob->prog->heart_beat, 0, 0);
                   command_giver = 0;
                   current_object = 0;
