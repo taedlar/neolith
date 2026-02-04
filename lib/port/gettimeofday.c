@@ -14,11 +14,12 @@
 int gettimeofday (struct timeval* tp, void* tzp) {
    FILETIME file_time;
    ULARGE_INTEGER ularge;
-   const uint64_t EPOCH = 116444736000000000ULL; // Epoch offset in 100-nanosecond intervals
+   const uint64_t EPOCH = 116444736000000000ULL;
+   (void)tzp;
    GetSystemTimeAsFileTime(&file_time);
    ularge.LowPart = file_time.dwLowDateTime;
    ularge.HighPart = file_time.dwHighDateTime;
-   uint64_t time = (ularge.QuadPart - EPOCH) / 10; // Convert to microseconds
+   uint64_t time = (ularge.QuadPart - EPOCH) / 10;
    tp->tv_sec = (long)(time / 1000000);
    tp->tv_usec = (long)(time % 1000000);
    return 0;

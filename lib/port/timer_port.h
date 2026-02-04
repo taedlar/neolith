@@ -32,30 +32,10 @@ typedef enum {
 /* Timer callback function type */
 typedef void (*timer_callback_t)(void);
 
-/* Timer handle type - platform specific */
-#ifdef _WIN32
-#include <windows.h>
+/* Timer handle type - opaque structure for C++11 implementation */
 typedef struct {
-    HANDLE timer_handle;
-    HANDLE timer_thread;
-    HANDLE stop_event;
-    timer_callback_t callback;
-    volatile int active;
+    void* internal;  /* Points to C++ timer_port_internal structure */
 } timer_port_t;
-#elif defined(HAVE_LIBRT)
-#include <time.h>
-#include <signal.h>
-typedef struct {
-    timer_t timer_id;
-    struct sigaction old_sigaction;
-    volatile int active;
-} timer_port_t;
-#else
-typedef struct {
-    int dummy;  /* Fallback for systems without timer support */
-    volatile int active;
-} timer_port_t;
-#endif
 
 /**
  * @brief Initialize the timer system

@@ -107,7 +107,7 @@ scratch_copy (char *str)
       scr_last = scr_tail + 1;
       *to++ = 0;
       scr_tail = to;
-      *to = to - scr_last;
+      *to = (unsigned char)(to - scr_last);
       return (char *) scr_last;
     }
   SDEBUG (printf (" mallocing ... "));
@@ -177,7 +177,7 @@ char* scratch_realloc (char *ptr, size_t size) {
 	{
 	  SDEBUG (printf ("on scratchpad\n"));
 	  scr_tail = scr_last + size;
-	  *scr_tail = size;
+	  *scr_tail = (unsigned char)size;
 	  return ptr;
 	}
       else
@@ -217,7 +217,7 @@ char* scratch_realloc (char *ptr, size_t size) {
 	  scr_last = scr_tail + 1;
 	  Strcpy (scr_last, ptr);
 	  scr_tail = scr_last + size;
-	  *scr_tail = size;
+	  *scr_tail = (unsigned char)size;
 	  res = (char *) scr_last;
 	}
       else
@@ -238,7 +238,7 @@ char* scratch_alloc (size_t size) {
     {
       scr_last = scr_tail + 1;
       scr_tail = scr_last + size;
-      *scr_tail = size;
+      *scr_tail = (unsigned char)size;
       return (char *) scr_last;
     }
   else
@@ -254,7 +254,7 @@ scratch_join (char *s1, char *s2)
   SDEBUG (printf ("scratch_join\n"));
   if (*(s1 - 2) || *(s2 - 2))
     {
-      int l = strlen (s1);
+      size_t l = strlen (s1);
 
       DEBUG_CHECK (*(S1 - 2)
 		   && *(S1 - 2) != SCRATCH_MAGIC,
@@ -277,7 +277,7 @@ scratch_join (char *s1, char *s2)
       DEBUG_CHECK (S1 != (scr_last - 1 - (*(scr_last - 1))),
 		   "Argument 1 to scratch_join was not the second to last allocated string.\n");
 
-      if ((tmp = ((scr_tail - S1) - 2)) < 256)
+      if ((tmp = (int)(scr_tail - S1) - 2) < 256)
 	{
 	  scr_tail = scr_last - 2;
 	  do
@@ -285,7 +285,7 @@ scratch_join (char *s1, char *s2)
 	      *scr_tail = *(scr_tail + 2);
 	    }
 	  while (*scr_tail++);
-	  *scr_tail = tmp;
+	  *scr_tail = (unsigned char)tmp;
 	  scr_last = S1;
 	  return s1;
 	}
@@ -304,7 +304,7 @@ scratch_join (char *s1, char *s2)
 char *
 scratch_copy_string (char *s)
 {
-  int l;
+  size_t l;
   register unsigned char *to = scr_tail + 1;
   char *res;
 
@@ -346,7 +346,7 @@ scratch_copy_string (char *s)
 	  scr_last = scr_tail + 1;
 	  *to++ = 0;
 	  scr_tail = to;
-	  *to = to - scr_last;
+	  *to = (unsigned char)(to - scr_last);
 	  return (char *) scr_last;
 	}
       else

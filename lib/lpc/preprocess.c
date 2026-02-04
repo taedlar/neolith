@@ -248,7 +248,9 @@ static int cond_get_exp (int priority) {
       if (!x)
         {
           yyerrorp ("illegal character in %cif");
+#ifdef LEXER
           return 0;
+#endif
         }
       value = cond_get_exp (12);
       switch (optab2[x - 1])
@@ -286,7 +288,9 @@ static int cond_get_exp (int priority) {
             }
           else
             yyerrorp ("illegal character in %cif");
+#ifdef LEXER
           return 0;
+#endif
         }
       value = 0;
       if (c != '0')
@@ -344,7 +348,9 @@ static int cond_get_exp (int priority) {
               if (!optab2[x + 1])
                 {
                   yyerrorp ("illegal operator use in %cif");
+#ifdef LEXER
                   return 0;
+#endif
                 }
               break;
             }

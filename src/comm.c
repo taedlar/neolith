@@ -225,7 +225,7 @@ void init_user_conn () {
           exit (10);
         }
     }
-  opt_trace (TT_BACKEND, "finished initializing user connection sockets.\n");
+  opt_trace (TT_BACKEND|1, "finished initializing user connection sockets.\n");
 
   /* Create async runtime */
   g_runtime = async_runtime_init();
@@ -250,7 +250,7 @@ void init_user_conn () {
                        external_port[i].port);
           exit (12);
         }
-      opt_trace (TT_BACKEND, "registered listening socket for port %d with async runtime\n",
+      opt_trace (TT_BACKEND|1, "registered listening socket for port %d with async runtime\n",
                  external_port[i].port);
     }
 
@@ -275,7 +275,7 @@ void init_user_conn () {
             }
           else
             {
-              opt_trace(TT_BACKEND, "Console worker initialized (type: %s)\n",
+              opt_trace(TT_BACKEND|1, "Console worker initialized (type: %s)\n",
                        console_type_str(g_console_worker->console_type));
             }
         }

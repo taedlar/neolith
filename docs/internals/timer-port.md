@@ -2,13 +2,14 @@
 
 ## Overview
 
-The timer port API provides a platform-agnostic interface for periodic timer callbacks in the Neolith driver. It abstracts three different timer implementations:
+The timer port API provides a platform-agnostic interface for periodic timer callbacks in the Neolith driver. It uses a single portable C++11 implementation leveraging:
 
-1. **Windows**: `CreateWaitableTimer()` with dedicated callback thread
-2. **POSIX**: `timer_create()` with `SIGALRM` signal handler (librt)
-3. **Fallback**: `pthread` thread sleeping in a loop
+- **`std::thread`**: Background timer execution
+- **`std::chrono::steady_clock`**: High-precision monotonic timing
+- **`std::condition_variable`**: Efficient waiting without busy-polling
+- **`std::mutex`** and **`std::atomic`**: Thread-safe state management
 
-All implementations share a common interface defined in [lib/port/timer_port.h](../../lib/port/timer_port.h).
+The C API is defined in [lib/port/timer_port.h](../../lib/port/timer_port.h), implemented in [lib/port/timer_port.cpp](../../lib/port/timer_port.cpp).
 
 ## Error Handling
 
@@ -50,10 +51,10 @@ Initializes timer structure. Must be called before `timer_port_start()`.
 - `TIMER_ERR_NULL_PARAM`: timer is NULL
 - `TIMER_ERR_SYSTEM`: System resource allocation failed (Windows/fallback only)
 
-**Platform Behavior**:
-- **Windows**: Creates unnamed event and waitable timer objects
-- **POSIX**: No initialization needed (signal handler set up during start)
-- **Fallback**: Initializes mutex
+**Implementation Behavior**:
+- Allocates internal `timer_port_internal` structure containing C++ objects
+- Initializes `std::atomic` flags to inactive state
+- Zero-initializes interval and callback pointer
 
 ### timer_port_start()
 
@@ -78,10 +79,13 @@ Starts periodic timer with specified interval and callback.
 - `TIMER_ERR_SYSTEM`: System call failed (POSIX: signal/timer setup)
 - `TIMER_ERR_THREAD`: Thread creation failed (Windows/fallback)
 
-**Platform Behavior**:
-- **Windows**: Creates timer thread, sets waitable timer with due time
-- **POSIX**: Installs `SIGALRM` handler, creates `CLOCK_REALTIME` timer
-- **Fallback**: Creates pthread that sleeps in loop
+**Implementation Behavior**:
+- Stores interval as `std::chrono::microseconds`
+- Stores callback function pointer
+- Sets `active` and `stop_requested` atomic flags
+- Creates `std::thread` executing timer loop
+- Timer loop uses `std::condition_variable::wait_until()` for precise timing
+- Implements drift correction by maintaining absolute next-tick time
 
 **Important**: Timer must be started only once during initialization. Calling this while timer is active returns `TIMER_ERR_ALREADY_ACTIVE`.
 
@@ -100,10 +104,11 @@ Stops active timer.
 - `TIMER_OK`: Timer stopped successfully
 - `TIMER_ERR_NULL_PARAM`: timer is NULL
 
-**Platform Behavior**:
-- **Windows**: Cancels waitable timer, signals event, joins thread
-- **POSIX**: Disarms timer (keeps signal handler installed)
-- **Fallback**: Sets stop flag, joins thread
+**Implementation Behavior**:
+- Sets `stop_requested` atomic flag to signal thread exit
+- Notifies `condition_variable` to wake sleeping thread
+- Calls `std::thread::join()` to wait for thread completion
+- Clears callback pointer
 
 **Note**: Safe to call even if timer not running (idempotent).
 
@@ -111,35 +116,26 @@ Stops active timer.
 
 ### timer_port_t
 
-Platform-specific union containing timer state:
+Opaque handle to internal C++ timer state:
 
 ```c
-typedef struct timer_port_t {
-#ifdef _WIN32
-    struct {
-        HANDLE timer_handle;
-        HANDLE timer_event;
-        HANDLE timer_thread;
-        volatile int active;
-        uint64_t interval_us;
-        timer_callback_t callback;
-    } win32;
-#elif defined(HAVE_LIBRT)
-    struct {
-        timer_t timer_id;
-        volatile int active;
-        timer_callback_t callback;
-    } posix;
-#else
-    struct {
-        pthread_t thread;
-        pthread_mutex_t mutex;
-        volatile int active;
-        uint64_t interval_us;
-        timer_callback_t callback;
-    } fallback;
-#endif
+typedef struct {
+    void* internal;  /* Points to timer_port_internal structure */
 } timer_port_t;
+```
+
+The `internal` pointer references a C++ structure (not exposed in the public API):
+
+```cpp
+struct timer_port_internal {
+    std::thread timer_thread;
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::chrono::microseconds interval;
+    timer_callback_t callback;
+    std::atomic<bool> active;
+    std::atomic<bool> stop_requested;
+};
 ```
 
 ### timer_callback_t
@@ -148,12 +144,11 @@ typedef struct timer_port_t {
 typedef void (*timer_callback_t)(void);
 ```
 
-Callback function signature. Called from:
-- **Windows**: Timer thread context
-- **POSIX**: Signal handler context (restrictions apply)
-- **Fallback**: Timer thread context
+Callback function signature. 
 
-**Signal Safety (POSIX)**: Callback executes in signal handler, so it must only call async-signal-safe functions. In Neolith, the callback just sets `heart_beat_flag = 1`.
+**Execution Context**: Callback runs in the timer thread created by `std::thread`, separate from the main driver thread.
+
+**Thread Safety**: Since the callback executes in a separate thread, it must be careful with shared state. In Neolith, the callback sets `heart_beat_flag = 1` (atomic operation) and on Windows calls `async_runtime_wakeup()` to interrupt the event loop.
 
 ## Integration with Backend
 
@@ -190,10 +185,18 @@ if (timer_err != TIMER_OK) {
 ```c
 static void heartbeat_timer_callback(void) {
     heart_beat_flag = 1;
+    
+#ifdef _WIN32
+    /* Wake up async runtime to interrupt GetQueuedCompletionStatusEx() */
+    async_runtime_t *reactor = get_async_runtime();
+    if (reactor) {
+        async_runtime_wakeup(reactor);
+    }
+#endif
 }
 ```
 
-The callback simply sets a flag checked by the main event loop. The actual heartbeat processing happens in `call_heart_beat()`, which does NOT restart the timer.
+The callback sets a flag checked by the main event loop. On Windows, it also wakes the IOCP event loop to ensure timely processing (on POSIX, signals naturally interrupt blocking calls). The actual heartbeat processing happens in `call_heart_beat()`, which does NOT restart the timer.
 
 ### Main Loop Integration
 
@@ -223,15 +226,13 @@ When `heart_beat_flag` is set, the main loop uses zero timeout for immediate pro
 - Timer interval configured at CMake time based on platform capabilities
 - All three implementations support microsecond precision
 
-## Platform Selection
+## Build Requirements
 
-Build system selects implementation at configure time:
+- **C++11 compiler**: Required for `std::thread`, `std::chrono`, `std::condition_variable`
+- **Thread library**: CMake automatically links `Threads::Threads` (pthread on Unix, native on Windows)
+- **No platform-specific dependencies**: Replaces previous librt (POSIX) and kernel32 (Windows) requirements
 
-1. **Windows** (`_WIN32`): Always uses Win32 timer
-2. **Linux/Unix with librt** (`HAVE_LIBRT`): Uses POSIX timer
-3. **Fallback**: Any POSIX system without librt (pthread only)
-
-See [lib/port/CMakeLists.txt](../../lib/port/CMakeLists.txt) for selection logic.
+See [lib/port/CMakeLists.txt](../../lib/port/CMakeLists.txt) for build configuration.
 
 ## Testing
 
@@ -250,19 +251,17 @@ All tests verify error codes using `TIMER_OK` constant.
 ## Common Pitfalls
 
 1. **Don't restart timer in callback**: Timer runs continuously; restarting returns `TIMER_ERR_ALREADY_ACTIVE`
-2. **POSIX signal safety**: Callback must only use async-signal-safe functions
-3. **Zero interval**: Returns `TIMER_ERR_INVALID_INTERVAL` (validation added in all implementations)
+2. **Thread safety**: Callback executes in separate thread - use atomic operations or proper synchronization for shared state
+3. **Zero interval**: Returns `TIMER_ERR_INVALID_INTERVAL` 
 4. **Null checks**: All functions validate parameters and return `TIMER_ERR_NULL_PARAM` if NULL
-5. **Thread safety**: Windows/fallback use threads; POSIX uses signals. Callback should only set atomic flags.
+5. **Cleanup order**: Call `timer_port_cleanup()` before program exit to ensure thread joins cleanly
 
 ## Implementation Files
 
-- **Header**: [lib/port/timer_port.h](../../lib/port/timer_port.h)
-- **Windows**: [lib/port/win32_timer.c](../../lib/port/win32_timer.c)
-- **POSIX**: [lib/port/posix_timer.c](../../lib/port/posix_timer.c)
-- **Fallback**: [lib/port/fallback_timer.c](../../lib/port/fallback_timer.c)
-- **Backend Integration**: [src/backend.c](../../src/backend.c)
-- **Tests**: [tests/test_backend/test_backend_timer.cpp](../../tests/test_backend/test_backend_timer.cpp)
+- **Header**: [lib/port/timer_port.h](../../lib/port/timer_port.h) - C API declaration
+- **Implementation**: [lib/port/timer_port.cpp](../../lib/port/timer_port.cpp) - Single C++11 implementation
+- **Backend Integration**: [src/backend.c](../../src/backend.c) - Driver usage
+- **Tests**: [tests/test_backend/test_backend_timer.cpp](../../tests/test_backend/test_backend_timer.cpp) - GoogleTest suite
 
 ## Historical Notes
 
@@ -270,3 +269,9 @@ All tests verify error codes using `TIMER_OK` constant.
 - Updated January 2026 to use platform-agnostic `timer_error_t` enum with specific error codes
 - Added `timer_error_string()` for better diagnostics
 - Fixed backend integration bug where timer was incorrectly restarted in callback (returned `TIMER_ERR_ALREADY_ACTIVE` on every heartbeat after the first)
+- **February 2026**: Replaced three platform-specific implementations (win32_timer.c, posix_timer.c, fallback_timer.c) with single portable C++11 implementation (timer_port.cpp)
+  - Reduced codebase from ~600 lines to ~220 lines (70% reduction)
+  - Eliminated platform-specific #ifdef complexity
+  - Improved timing precision with `std::chrono::steady_clock`
+  - Better resource management via RAII (C++ destructors)
+  - Fixed wakeup mechanism: changed from `SetEvent()` (which doesn't interrupt IOCP) to `PostQueuedCompletionStatus()` with special `WAKEUP_COMPLETION_KEY`
