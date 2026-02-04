@@ -48,30 +48,24 @@ f_ctime (void)
 
 
 #ifdef F_LOCALTIME
-/* FIXME: most of the #ifdefs here should be based on configure checks
-   instead.  Same for rusage() */
-void
-f_localtime (void)
-{
+void f_localtime (void) {
   struct tm local_tm;
   struct tm *tm = &local_tm;
   array_t *vec;
-  time_t lt;
+  time_t lt = (time_t)sp->u.number;
 
-#ifdef sequent
-  struct timezone tz;
-#endif
-
-  lt = (time_t)sp->u.number;
 #ifdef _WIN32
-  _localtime64_s (&local_tm, (__time64_t *)&sp->u.number);
-#else
-  tm = localtime (&lt);
-#endif
-  if (!tm)
+  if (0 != localtime_s (&local_tm, &lt))
     {
-      error ("Bad time value %lu passed to localtime()\n", (unsigned long)lt);
+      debug_perror ("localtime_s failed", 0);
+      error ("Bad time value %lld passed to localtime()\n", (long long)sp->u.number);
     }
+#else
+  if (!localtime_r (&lt, &local_tm))
+    {
+      error ("Bad time value %lld passed to localtime()\n", (long long)sp->u.number);
+    }
+#endif
 
   vec = allocate_empty_array (10);
   vec->item[LT_SEC].type = T_NUMBER;
@@ -93,49 +87,15 @@ f_localtime (void)
   vec->item[LT_GMTOFF].type = T_NUMBER;
   vec->item[LT_ZONE].type = T_STRING;
   vec->item[LT_ZONE].subtype = STRING_MALLOC;
-#if defined(BSD42) || defined(apollo) || defined(_AUX_SOURCE) \
-	|| defined(OLD_ULTRIX)
-  /* 4.2 BSD doesn't seem to provide any way to get these last two values */
-  vec->item[LT_GMTOFF].u.number = 0;
-  vec->item[LT_ZONE].type = T_NUMBER;
-  vec->item[LT_ZONE].u.number = 0;
-#else /* BSD42 */
-#if defined(sequent)
-  vec->item[LT_GMTOFF].u.number = 0;
-  gettimeofday (NULL, &tz);
-  vec->item[LT_GMTOFF].u.number = tz.tz_minuteswest;
-  vec->item[LT_ZONE].u.string =
-    string_copy (timezone (tz.tz_minuteswest, tm->tm_isdst), "f_localtime");
-#else /* sequent */
-#if (defined(hpux) || defined(_SEQUENT_) || defined(_AIX) || defined(SunOS_5) \
-	|| defined(SVR4) || defined(sgi) || defined(__linux__) || defined(cray) \
-	|| defined(LATTICE) || defined(SCO))
-  if (!tm->tm_isdst)
-    {
-      vec->item[LT_GMTOFF].u.number = timezone;
-      vec->item[LT_ZONE].u.string = string_copy (tzname[0], "f_localtime");
-    }
-  else
-    {
-#if (defined(_AIX) || defined(hpux) || defined(__linux__) || defined(cray) \
-	|| defined(LATTICE))
-      vec->item[LT_GMTOFF].u.number = timezone;
-#else
-      vec->item[LT_GMTOFF].u.number = altzone;
-#endif
-      vec->item[LT_ZONE].u.string = string_copy (tzname[1], "f_localtime");
-    }
-#else
-#ifndef _WIN32
-  vec->item[LT_GMTOFF].u.number = tm->tm_gmtoff;
-  vec->item[LT_ZONE].u.string = string_copy (tm->tm_zone, "f_localtime");
-#else
+
+#ifdef _WIN32
   vec->item[LT_GMTOFF].u.number = _timezone;
   vec->item[LT_ZONE].u.string = string_copy (_tzname[_daylight ? 1 : 0], "f_localtime");
+#else
+  vec->item[LT_GMTOFF].u.number = tm->tm_gmtoff;
+  vec->item[LT_ZONE].u.string = string_copy (tm->tm_zone, "f_localtime");
 #endif
-#endif
-#endif /* sequent */
-#endif /* BSD42 */
+
   put_array (vec);
 }
 #endif
