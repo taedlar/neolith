@@ -30,13 +30,6 @@ target_include_directories(stem PUBLIC
     ${CMAKE_SOURCE_DIR}
 )
 
-# check POSIX realtime extension library
-if(HAVE_LIBRT)
-    target_link_libraries(stem PUBLIC -lrt)
-else()
-    message(STATUS "POSIX LIBRT not found, using platform dependent timers.")
-endif()
-
 # ================================================================
 # build neolith executable
 add_executable(neolith main.c ${neolith_SOURCES})
