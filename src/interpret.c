@@ -2,7 +2,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#define SUPPRESS_COMPILER_INLINES
 #include "std.h"
 #include "rc.h"
 #include "comm.h"
@@ -30,7 +29,6 @@ program_t *current_prog;
 
 static void do_loop_cond_number (void);
 static void do_loop_cond_local (void);
-static void do_catch (const char *, unsigned short);
 
 /*
  * Inheritance:
@@ -53,41 +51,13 @@ static void do_catch (const char *, unsigned short);
  * interesting values, as it will terminate execution.
  */
 const char *pc;         /* Program pointer. */
-svalue_t *fp;           /* Pointer to first argument. */
-svalue_t *sp;           /* Pointer to stack top. */
 
 int function_index_offset;	/* Needed for inheritance */
 int variable_index_offset;	/* Needed for inheritance */
-int st_num_arg;
-
-svalue_t *start_of_stack = 0;
-svalue_t *end_of_stack;
-
-control_stack_t *control_stack = 0;
-control_stack_t *csp;		/* Points to last element pushed */
-
-svalue_t const0, const1, const0u;
 
 /* -1 indicates that we have never had a master object.  This is so the
  * simul_efun object can load before the master. */
 object_t *master_ob = 0;
-
-static int error_state = 0;
-
-void set_error_state (int flag) {
-  error_state |= flag;
-}
-
-/*
- *	get_error_state() - return current error state flags
- */
-int get_error_state (int mask) {
-  return (error_state & mask);
-}
-
-void clear_error_state () {
-  error_state = 0;
-}
 
 /*
  * Information about assignments of values:
@@ -108,118 +78,11 @@ void clear_error_state () {
  */
 
 /*
- * Push an object pointer on the stack. Note that the reference count is
- * incremented.
- * A destructed object must never be pushed onto the stack.
- */
-void
-push_object (object_t * ob)
-{
-  CHECK_AND_PUSH(1);
-  sp->type = T_OBJECT;
-  sp->u.ob = ob;
-  add_ref (ob, "push_object");
-}
-
-/*
- * Push a number on the value stack.
- */
-void push_number (int64_t n) {
-  CHECK_AND_PUSH(1);
-  sp->type = T_NUMBER;
-  sp->subtype = 0;
-  sp->u.number = n;
-}
-
-void push_real (double n) {
-  CHECK_AND_PUSH(1);
-  sp->type = T_REAL;
-  sp->u.real = n;
-}
-
-/*
- * Push undefined (const0u) onto the value stack.
- */
-void push_undefined () {
-  CHECK_AND_PUSH(1);
-  *sp = const0u;
-}
-
-void push_undefineds (int num) {
-  STACK_CHECK(num);
-  while (num--)
-    *++sp = const0u;
-}
-
-void copy_and_push_string (const char *p) {
-  CHECK_AND_PUSH(1);
-  sp->type = T_STRING;
-  sp->subtype = STRING_MALLOC;
-  sp->u.string = string_copy (p, "copy_and_push_string");
-}
-
-void share_and_push_string (const char *p) {
-  CHECK_AND_PUSH(1);
-  sp->type = T_STRING;
-  sp->subtype = STRING_SHARED;
-  sp->u.string = make_shared_string (p);
-}
-
-/*
  * Get address to a valid global variable.
  */
 #define find_value(num) (&current_object->variables[num])
 
-/*
- * Free the data that an svalue is pointing to. Not the svalue
- * itself.
- * Use the free_svalue() define to call this
- */
-void
-int_free_svalue (svalue_t * v)
-{
-
-  if (v->type == T_STRING)
-    {
-      free_string_svalue (v);
-    }
-  else if (v->type & T_REFED)
-    {
-      if (!(--v->u.refed->ref))
-        {
-          switch (v->type)
-            {
-            case T_OBJECT:
-              dealloc_object (v->u.ob, "free_svalue");
-              break;
-            case T_CLASS:
-              dealloc_class (v->u.arr);
-              break;
-            case T_ARRAY:
-              dealloc_array (v->u.arr);
-              break;
-            case T_BUFFER:
-              if (v->u.buf != &null_buf)
-                FREE ((char *) v->u.buf);
-              break;
-            case T_MAPPING:
-              dealloc_mapping (v->u.map);
-              break;
-            case T_FUNCTION:
-              dealloc_funp (v->u.fp);
-              break;
-            }
-        }
-    }
-  else if (v->type == T_ERROR_HANDLER)
-    {
-      (*v->u.error_handler) ();
-    }
-}
-
-void
-process_efun_callback (int narg, function_to_call_t * ftc, int f)
-{
+void process_efun_callback (int narg, function_to_call_t * ftc, int f) {
   svalue_t *arg = sp - st_num_arg + 1 + narg;
 
   if (arg->type == T_FUNCTION)
@@ -261,9 +124,7 @@ process_efun_callback (int narg, function_to_call_t * ftc, int f)
     }
 }
 
-svalue_t *
-call_efun_callback (function_to_call_t * ftc, int n)
-{
+svalue_t* call_efun_callback (function_to_call_t * ftc, int n) {
   svalue_t *v;
 
   if (ftc->narg)
@@ -281,97 +142,7 @@ call_efun_callback (function_to_call_t * ftc, int n)
   return v;
 }
 
-
-/*
- * Free several svalues, and free up the space used by the svalues.
- * The svalues must be sequentially located.
- */
-void
-free_some_svalues (svalue_t * v, int num)
-{
-  while (num--)
-    free_svalue (v + num, "free_some_svalues");
-  FREE (v);
-}
-
-/*
- * Assign to a svalue.
- * This is done either when element in array, or when to an identifier
- * (as all identifiers are kept in a array pointed to by the object).
- */
-
-void
-assign_svalue_no_free (svalue_t * to, svalue_t * from)
-{
-  DEBUG_CHECK (from == 0, "Attempt to assign_svalue() from a null ptr.\n");
-  DEBUG_CHECK (to == 0, "Attempt to assign_svalue() to a null ptr.\n");
-  *to = *from;
-
-  if (from->type == T_STRING)
-    {
-      if (from->subtype & STRING_COUNTED)
-        {
-          INC_COUNTED_REF (to->u.string);
-/*	    ADD_STRING(MSTR_SIZE(to->u.string)); */
-        }
-    }
-  else if (from->type & T_REFED)
-    {
-      from->u.refed->ref++;
-    }
-}
-
-void
-assign_svalue (svalue_t * dest, svalue_t * v)
-{
-  /* First deallocate the previous value. */
-  free_svalue (dest, "assign_svalue");
-  assign_svalue_no_free (dest, v);
-}
-
-void
-push_some_svalues (svalue_t * v, int num)
-{
-  STACK_CHECK (num);
-  while (num--)
-    push_svalue (v++);
-}
-
-/*
- * Copies an array of svalues to another location, which should be
- * free space.
- */
-void
-copy_some_svalues (svalue_t * dest, svalue_t * v, int num)
-{
-  while (num--)
-    assign_svalue_no_free (dest + num, v + num);
-}
-
-void
-transfer_push_some_svalues (svalue_t * v, int num)
-{
-  STACK_CHECK (num);
-  memcpy (sp + 1, v, num * sizeof (svalue_t));
-  sp += num;
-}
-
-
-/*
- * Pop the top-most value of the stack.
- * Don't do this if it is a value that will be used afterwards, as the
-  * data may be sent to FREE(), and destroyed.
-  */
-void
-pop_stack ()
-{
-  DEBUG_CHECK (sp < start_of_stack, "Stack underflow.\n");
-  free_svalue (sp--, "pop_stack");
-}
-
-
-svalue_t global_lvalue_byte = { .type = T_LVALUE_BYTE };
-
+static svalue_t global_lvalue_byte = { .type = T_LVALUE_BYTE };
 
 /**
  * Compute the address of an array element.
@@ -449,10 +220,13 @@ static void push_indexed_lvalue (int reverse) {
     }
   else
     {
-      /* It is now coming from (x <assign_type> y)[index]... = rhs */
-      /* Where x is a _valid_ lvalue */
-      /* Hence the reference to sp is at least 2 :) */
-
+      /* It is now coming from:
+       *
+       *   (x <assign_type> y)[index]... = rhs;
+       * 
+       * where x is a valid lvalue.
+       * Hence the reference to sp is at least 2 :)
+       */
       if (!reverse && (sp->type == T_MAPPING))
         {
           if (!(lv = find_for_insert (sp->u.map, sp - 1, 0)))
@@ -510,12 +284,10 @@ static void push_indexed_lvalue (int reverse) {
     }
 }
 
-static struct lvalue_range
-{
+static struct lvalue_range {
   int ind1, ind2, size;
   svalue_t *owner;
-}
-global_lvalue_range;
+} global_lvalue_range;
 
 static svalue_t global_lvalue_range_sv = { .type = T_LVALUE_RANGE };
 
@@ -569,9 +341,7 @@ static void push_lvalue_range (int code) {
   sp->u.lvalue = &global_lvalue_range_sv;
 }
 
-void
-copy_lvalue_range (svalue_t * from)
-{
+static void copy_lvalue_range (svalue_t * from) {
   int ind1, ind2, size, fsize;
   svalue_t *owner;
 
@@ -726,9 +496,7 @@ copy_lvalue_range (svalue_t * from)
     }
 }
 
-void
-assign_lvalue_range (svalue_t * from)
-{
+static void assign_lvalue_range (svalue_t * from) {
   int ind1, ind2, size, fsize;
   svalue_t *owner;
 
@@ -857,328 +625,6 @@ assign_lvalue_range (svalue_t * from)
     }
 }
 
-
-/*
- * Deallocate 'n' values from the stack.
- */
-void pop_n_elems (size_t n) {
-  while (n--)
-    {
-      pop_stack ();
-    }
-}
-
-
-/*
- * Deallocate 2 values from the stack.
- */
-void
-pop_2_elems ()
-{
-  free_svalue (sp--, "pop_2_elems");
-  DEBUG_CHECK (sp < start_of_stack, "Stack underflow.\n");
-  free_svalue (sp--, "pop_2_elems");
-}
-
-
-/*
- * Deallocate 3 values from the stack.
- */
-void
-pop_3_elems ()
-{
-  free_svalue (sp--, "pop_3_elems");
-  free_svalue (sp--, "pop_3_elems");
-  DEBUG_CHECK (sp < start_of_stack, "Stack underflow.\n");
-  free_svalue (sp--, "pop_3_elems");
-}
-
-void
-push_control_stack (int frkind)
-{
-  if (csp == &control_stack[CONFIG_INT (__MAX_CALL_DEPTH__) - 1])
-    {
-      error_state |= ES_STACK_FULL;
-      error ("***Too deep recursion.");
-    }
-  csp++;
-  csp->caller_type = caller_type;
-  csp->ob = current_object;
-  csp->framekind = frkind;
-  csp->prev_ob = previous_ob;
-  csp->fp = fp;
-  csp->prog = current_prog;
-  csp->pc = pc; // save return location
-  csp->function_index_offset = function_index_offset;
-  csp->variable_index_offset = variable_index_offset;
-}
-
-/*
- * Pop the control stack one element, and restore registers.
- * extern_call must not be modified here, as it is used imediately after pop.
- */
-void
-pop_control_stack ()
-{
-  DEBUG_CHECK (csp == (control_stack - 1), "Popped out of the control stack\n");
-#ifdef PROFILE_FUNCTIONS
-  if ((csp->framekind & FRAME_MASK) == FRAME_FUNCTION)
-    {
-      long secs, usecs, dsecs;
-      compiler_function_t *cfp =
-        &current_prog->function_table[csp->fr.table_index];
-
-      get_cpu_times ((unsigned long *) &secs, (unsigned long *) &usecs);
-      dsecs = (((secs - csp->entry_secs) * 1000000)
-               + (usecs - csp->entry_usecs));
-      cfp->self += dsecs;
-      if (csp != control_stack)
-        {
-          if (((csp - 1)->framekind & FRAME_MASK) == FRAME_FUNCTION)
-            {
-              csp->prog->function_table[(csp - 1)->fr.table_index].children +=
-                dsecs;
-            }
-        }
-    }
-#endif
-  current_object = csp->ob;
-  current_prog = csp->prog;
-  previous_ob = csp->prev_ob;
-  caller_type = csp->caller_type;
-  pc = csp->pc; // return
-  fp = csp->fp;
-  function_index_offset = csp->function_index_offset;
-  variable_index_offset = csp->variable_index_offset;
-  csp--;
-}
-
-
-/*
- * Push a pointer to a array on the stack. Note that the reference count
- * is incremented. Newly created arrays normally have a reference count
- * initialized to 1.
- */
-void
-push_array (array_t * v)
-{
-  v->ref++;
-  sp++;
-  sp->type = T_ARRAY;
-  sp->u.arr = v;
-}
-
-void
-push_refed_array (array_t * v)
-{
-  sp++;
-  sp->type = T_ARRAY;
-  sp->u.arr = v;
-}
-
-void
-push_buffer (buffer_t * b)
-{
-  b->ref++;
-  sp++;
-  sp->type = T_BUFFER;
-  sp->u.buf = b;
-}
-
-void
-push_refed_buffer (buffer_t * b)
-{
-  sp++;
-  sp->type = T_BUFFER;
-  sp->u.buf = b;
-}
-
-/*
- * Push a mapping on the stack.  See push_array(), above.
- */
-void
-push_mapping (mapping_t * m)
-{
-  m->ref++;
-  sp++;
-  sp->type = T_MAPPING;
-  sp->u.map = m;
-}
-
-void
-push_refed_mapping (mapping_t * m)
-{
-  sp++;
-  sp->type = T_MAPPING;
-  sp->u.map = m;
-}
-
-/*
- * Push a class on the stack.  See push_array(), above.
- */
-void
-push_class (array_t * v)
-{
-  v->ref++;
-  sp++;
-  sp->type = T_CLASS;
-  sp->u.arr = v;
-}
-
-void
-push_refed_class (array_t * v)
-{
-  sp++;
-  sp->type = T_CLASS;
-  sp->u.arr = v;
-}
-
-/*
- * Push a string on the stack that is already malloced.
- */
-void
-push_malloced_string (char *p)
-{
-  sp++;
-  sp->type = T_STRING;
-  sp->u.string = p;
-  sp->subtype = STRING_MALLOC;
-}
-
-/*
- * Pushes a known shared string.  Note that this references, while 
- * push_malloced_string doesn't.
- */
-void
-push_shared_string (char *p)
-{
-  sp++;
-  sp->type = T_STRING;
-  sp->u.string = p;
-  sp->subtype = STRING_SHARED;
-  ref_string (p);
-}
-
-/*
- * Push a string on the stack that is already constant.
- */
-void
-push_constant_string (const char *p)
-{
-  CHECK_AND_PUSH(1);
-  sp->type = T_STRING;
-  sp->subtype = STRING_CONSTANT;
-  sp->u.const_string = p;
-}
-
-
-/*
- * Argument is the function to execute. If it is defined by inheritance,
- * then search for the real definition, and return it.
- * There is a number of arguments on the stack. Normalize them and initialize
- * local variables, so that the called function is pleased.
- */
-void setup_variables (int actual, int local, int num_arg) {
-  int tmp;
-
-  if ((tmp = actual - num_arg) > 0)
-    {
-      /* Remove excessive arguments */
-      pop_n_elems (tmp);
-      push_undefineds (local);
-    }
-  else
-    {
-      /* Correct number of arguments and local variables */
-      push_undefineds (local - tmp);
-    }
-  fp = sp - (csp->num_local_variables = local + num_arg) + 1;
-}
-
-
-void setup_varargs_variables (int actual, int local, int num_arg) {
-  array_t *arr;
-  if (actual >= num_arg)
-    {
-      int n = actual - num_arg + 1;
-      /* Aggregate excessive arguments */
-      arr = allocate_empty_array (n);
-      while (n--)
-        arr->item[n] = *sp--;
-    }
-  else
-    {
-      /* Correct number of arguments and local variables */
-      push_undefineds (num_arg - 1 - actual);
-      arr = &the_null_array;
-    }
-  push_refed_array (arr);
-  push_undefineds (local);
-  fp = sp - (csp->num_local_variables = local + num_arg) + 1;
-}
-
-compiler_function_t* setup_new_frame (int index) {
-
-  runtime_function_u *func_entry = FIND_FUNC_ENTRY (current_prog, index);
-  function_number_t findex;
-
-  function_index_offset = variable_index_offset = 0;
-
-  while (current_prog->function_flags[index] & NAME_INHERITED)
-    {
-      int offset = func_entry->inh.offset;
-      function_index_offset += current_prog->inherit[offset].function_index_offset;
-      variable_index_offset += current_prog->inherit[offset].variable_index_offset;
-      current_prog = current_prog->inherit[offset].prog;
-      index = func_entry->inh.index;
-      func_entry = FIND_FUNC_ENTRY (current_prog, index);
-    }
-
-  findex = func_entry->def.f_index;
-  csp->fr.table_index = findex;
-#ifdef PROFILE_FUNCTIONS
-  get_cpu_times (&(csp->entry_secs), &(csp->entry_usecs));
-  current_prog->function_table[findex].calls++;
-#endif
-
-  /* Remove excessive arguments */
-  if (current_prog->function_flags[index] & NAME_TRUE_VARARGS)
-    setup_varargs_variables (csp->num_local_variables, func_entry->def.num_local, func_entry->def.num_arg);
-  else
-    setup_variables (csp->num_local_variables, func_entry->def.num_local, func_entry->def.num_arg);
-  return &current_prog->function_table[findex];
-}
-
-compiler_function_t* setup_inherited_frame (int index) {
-
-  runtime_function_u *func_entry = FIND_FUNC_ENTRY (current_prog, index);
-  function_number_t findex;
-
-  while (current_prog->function_flags[index] & NAME_INHERITED)
-    {
-      int offset = func_entry->inh.offset;
-      function_index_offset += current_prog->inherit[offset].function_index_offset;
-      variable_index_offset += current_prog->inherit[offset].variable_index_offset;
-      current_prog = current_prog->inherit[offset].prog;
-      index = func_entry->inh.index;
-      func_entry = FIND_FUNC_ENTRY (current_prog, index);
-    }
-
-  findex = func_entry->def.f_index;
-  csp->fr.table_index = findex;
-#ifdef PROFILE_FUNCTIONS
-  get_cpu_times (&(csp->entry_secs), &(csp->entry_usecs));
-  current_prog->function_table[findex].calls++;
-#endif
-
-  /* Remove excessive arguments */
-  if (current_prog->function_flags[index] & NAME_TRUE_VARARGS)
-    setup_varargs_variables (csp->num_local_variables, func_entry->def.num_local, func_entry->def.num_arg);
-  else
-    setup_variables (csp->num_local_variables, func_entry->def.num_local, func_entry->def.num_arg);
-  return &current_prog->function_table[findex];
-}
-
 /* do_loop_cond() coded by John Garnett, 1993/06/01
    
    Optimizes these four cases (with 'int i'):
@@ -1188,10 +634,7 @@ compiler_function_t* setup_inherited_frame (int index) {
    3) while (i < integer_variable) statement;
    4) while (i < integer_constant) statement;
    */
-
-static void
-do_loop_cond_local ()
-{
+static void do_loop_cond_local () {
   svalue_t *s1, *s2;
   int i;
 
@@ -1253,10 +696,7 @@ do_loop_cond_local ()
     pc += 2;
 }
 
-
-static void
-do_loop_cond_number ()
-{
+static void do_loop_cond_number () {
   svalue_t *s1;
   int i;
 
@@ -1321,7 +761,7 @@ void eval_instruction (const char *p) {
           /* [NEOLITH-EXTENSION] allows eval_instruction without current_object */
           if (current_object)
             debug_message ("object /%s: eval_cost too big %d\n", current_object->name, CONFIG_INT (__MAX_EVAL_COST__));
-          error_state |= ES_MAX_EVAL_COST;
+          set_error_state (ES_MAX_EVAL_COST);
 
           eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
           error ("*Too long evaluation. Execution aborted.");
@@ -3162,65 +2602,6 @@ void call_efun(int instruction) {
   (*efun_table[instruction - BASE]) ();
 }
 
-/**
- * Execute a 'catch' block.
- * This effectively calls eval_instruction() with a setjmp/longjmp
- * error handling around it.
- * If error or throw is called during the evaluation, control
- * returns here, and the caught value is left on the stack.
- * @param p The program code to execute.
- * @param new_pc_offset The pc offset to continue after the catch block.
- */
-static void do_catch (const char *p, unsigned short new_pc_offset) {
-
-  error_context_t econ;
-  (void)new_pc_offset; /* unused, new program counter is restored by restore_context */
-
-  /*
-   * Save some global variables that must be restored separately after a
-   * longjmp. The stack will have to be manually popped all the way.
-   */
-  if (!save_context (&econ))
-    error ("*Can't catch too deep recursion error.");
-
-  push_control_stack (FRAME_CATCH);
-
-  if (setjmp (econ.context))
-    {
-      /*
-       * They did a throw() or error. That means that the control stack
-       * must be restored manually here.
-       */
-      restore_context (&econ);
-      sp++;
-      *sp = catch_value;
-      catch_value = const1;
-
-      /* if it's too deep or max eval, we can't let them catch it */
-      if (get_error_state (ES_MAX_EVAL_COST))
-        {
-          pop_context (&econ);
-          error ("*Can't catch eval cost too big error.");
-        }
-      if (get_error_state (ES_STACK_FULL))
-        {
-          pop_context (&econ);
-          error ("*Can't catch too deep recursion error.");
-        }
-    }
-  else
-    {
-      assign_svalue (&catch_value, &const1);
-      /* note, this will work, since csp->extern_call won't be used */
-      eval_instruction (p);
-
-      /* if no error, the program counter points to the end of catch block and
-       * we continue after it.
-       */
-    }
-  pop_context (&econ);
-}
-
 #ifndef NO_SHADOWS
 /*
    is_static: returns 1 if a function named 'fun' is declared 'static' in 'ob';
@@ -3300,71 +2681,3 @@ void call_function (program_t *progp, int runtime_index, int num_args, svalue_t 
   else
     pop_stack ();
 }
-
-/**
- * @brief Reset the virtual stack machine.
- * 
- * All values on the stack are removed, and the stack pointers
- */
-void reset_interpreter (void) {
-  static int _init = 0;
-
-  const0.type = T_NUMBER;
-  const0.u.number = 0;
-  const1.type = T_NUMBER;
-  const1.u.number = 1;
-  const0u.type = T_NUMBER;
-  const0u.subtype = T_UNDEFINED;
-  const0u.u.number = 0;
-
-  free_svalue (&apply_ret_value, "reset_interpreter");
-  apply_ret_value = const0u;
-
-  csp = control_stack - 1;
-
-  if (!_init)
-    {
-      int size = CONFIG_INT (__EVALUATOR_STACK_SIZE__);
-
-      start_of_stack = (svalue_t *) calloc (size, sizeof (svalue_t));
-      end_of_stack = start_of_stack + size - 5;
-      sp = start_of_stack - 1;
-
-      control_stack = (control_stack_t *) calloc (CONFIG_INT (__MAX_CALL_DEPTH__), sizeof (control_stack_t));
-      csp = control_stack - 1;
-
-      if (!start_of_stack || !control_stack)
-        {
-          debug_message ("***** Failed allocating LPC stacks, server will shutdown.\n");
-          exit (EXIT_FAILURE);
-        }
-
-      _init = 1;
-    }
-  else
-    {
-      pop_n_elems (sp - start_of_stack + 1);
-    }
-}
-
-/*
- * When an object is destructed, all references to it must be removed
- * from the stack.
- */
-void
-remove_object_from_stack (object_t * ob)
-{
-  svalue_t *svp;
-
-  for (svp = start_of_stack; svp <= sp; svp++)
-    {
-      if (svp->type != T_OBJECT)
-        continue;
-      if (svp->u.ob != ob)
-        continue;
-      free_object (svp->u.ob, "remove_object_from_stack");
-      svp->type = T_NUMBER;
-      svp->u.number = 0;
-    }
-}
-

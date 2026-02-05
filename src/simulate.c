@@ -45,6 +45,7 @@ int illegal_sentence_action;
 
 object_t *obj_list, *obj_list_destruct;
 object_t *current_object;	/* The object interpreting a function. */
+object_t *previous_ob;  /* The object that called the current_object. */
 object_t *command_giver;	/* Where the current command came from. */
 object_t *current_interactive;	/* The user who caused this execution */
 

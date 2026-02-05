@@ -13,10 +13,12 @@ set(stem_SOURCES
     backend.c
     comm.c
     error_context.c
+    frame.c
     interpret.c
     malloc.c
     simul_efun.c
     simulate.c
+    stack.c
     stem.c
     stralloc.c
 )

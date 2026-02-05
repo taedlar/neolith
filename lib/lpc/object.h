@@ -78,7 +78,6 @@ struct object_s {
 #define ROB_ERROR 63
 
 extern object_t **hashed_living;
-extern object_t *previous_ob;
 extern size_t tot_alloc_object;
 extern size_t tot_alloc_object_size;
 extern int save_svalue_depth;

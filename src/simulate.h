@@ -13,6 +13,7 @@ extern object_t *master_ob;
 extern object_t *obj_list;
 extern object_t *obj_list_destruct;
 extern object_t *current_object;
+extern object_t *previous_ob;
 extern object_t *command_giver;
 extern object_t *current_interactive;
 extern char *inherit_file;
