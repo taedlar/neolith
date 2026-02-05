@@ -481,7 +481,7 @@ Implementation deferred pending Phase 1-3 completion and mudlib developer feedba
 
 ### Related Infrastructure
 - [io_reactor.h](../../lib/port/io_reactor.h) - Current location (to be moved to lib/async/async_runtime.h)
-- [port_sync.h](../../lib/port/port_sync.h) - Internal synchronization primitives
+- [sync.h](../../lib/port/sync.h) - Internal synchronization primitives
 
 ### External References
 - [libuv Design](https://docs.libuv.org/en/v1.x/design.html) - Similar async runtime architecture

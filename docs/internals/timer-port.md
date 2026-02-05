@@ -9,7 +9,7 @@ The timer port API provides a platform-agnostic interface for periodic timer cal
 - **`std::condition_variable`**: Efficient waiting without busy-polling
 - **`std::mutex`** and **`std::atomic`**: Thread-safe state management
 
-The C API is defined in [lib/port/timer_port.h](../../lib/port/timer_port.h), implemented in [lib/port/timer_port.cpp](../../lib/port/timer_port.cpp).
+The C API is defined in [lib/port/timer.h](../../lib/port/timer.h), implemented in [lib/port/timer.cpp](../../lib/port/timer.cpp).
 
 ## Error Handling
 
@@ -35,13 +35,13 @@ Converts error codes to human-readable strings for logging/debugging.
 
 ## API Functions
 
-### timer_port_init()
+### platform_timer_init()
 
 ```c
-timer_error_t timer_port_init(timer_port_t *timer);
+timer_error_t platform_timer_init(platform_timer_t *timer);
 ```
 
-Initializes timer structure. Must be called before `timer_port_start()`.
+Initializes timer structure. Must be called before `platform_timer_start()`.
 
 **Parameters**:
 - `timer`: Pointer to timer structure
@@ -52,14 +52,14 @@ Initializes timer structure. Must be called before `timer_port_start()`.
 - `TIMER_ERR_SYSTEM`: System resource allocation failed (Windows/fallback only)
 
 **Implementation Behavior**:
-- Allocates internal `timer_port_internal` structure containing C++ objects
+- Allocates internal `platform_timer_internal` structure containing C++ objects
 - Initializes `std::atomic` flags to inactive state
 - Zero-initializes interval and callback pointer
 
-### timer_port_start()
+### platform_timer_start()
 
 ```c
-timer_error_t timer_port_start(timer_port_t *timer, 
+timer_error_t platform_timer_start(platform_timer_t *timer, 
                                uint64_t interval_us,
                                timer_callback_t callback);
 ```
@@ -89,10 +89,10 @@ Starts periodic timer with specified interval and callback.
 
 **Important**: Timer must be started only once during initialization. Calling this while timer is active returns `TIMER_ERR_ALREADY_ACTIVE`.
 
-### timer_port_stop()
+### platform_timer_stop()
 
 ```c
-timer_error_t timer_port_stop(timer_port_t *timer);
+timer_error_t platform_timer_stop(platform_timer_t *timer);
 ```
 
 Stops active timer.
@@ -114,20 +114,20 @@ Stops active timer.
 
 ## Data Structures
 
-### timer_port_t
+### platform_timer_t
 
 Opaque handle to internal C++ timer state:
 
 ```c
 typedef struct {
-    void* internal;  /* Points to timer_port_internal structure */
-} timer_port_t;
+    void* internal;  /* Points to platform_timer_internal structure */
+} platform_timer_t;
 ```
 
 The `internal` pointer references a C++ structure (not exposed in the public API):
 
 ```cpp
-struct timer_port_internal {
+struct platform_timer_internal {
     std::thread timer_thread;
     std::mutex mutex;
     std::condition_variable cv;
@@ -155,7 +155,7 @@ Callback function signature.
 The driver uses a single global timer for heartbeat processing:
 
 ```c
-static timer_port_t heartbeat_timer;
+static platform_timer_t heartbeat_timer;
 ```
 
 ### Initialization Pattern
@@ -165,12 +165,12 @@ In [backend()](../../src/backend.c#L212-L226):
 ```c
 timer_error_t timer_err;
 
-timer_err = timer_port_init(&heartbeat_timer);
+timer_err = platform_timer_init(&heartbeat_timer);
 if (timer_err != TIMER_OK) {
     opt_warn(0, "Timer initialization failed: %s. heart_beat(), call_out() and reset() disabled.",
              timer_error_string(timer_err));
 } else {
-    timer_err = timer_port_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
+    timer_err = platform_timer_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
     if (timer_err != TIMER_OK) {
         opt_warn(0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
                  timer_error_string(timer_err));
@@ -254,12 +254,12 @@ All tests verify error codes using `TIMER_OK` constant.
 2. **Thread safety**: Callback executes in separate thread - use atomic operations or proper synchronization for shared state
 3. **Zero interval**: Returns `TIMER_ERR_INVALID_INTERVAL` 
 4. **Null checks**: All functions validate parameters and return `TIMER_ERR_NULL_PARAM` if NULL
-5. **Cleanup order**: Call `timer_port_cleanup()` before program exit to ensure thread joins cleanly
+5. **Cleanup order**: Call `platform_timer_cleanup()` before program exit to ensure thread joins cleanly
 
 ## Implementation Files
 
-- **Header**: [lib/port/timer_port.h](../../lib/port/timer_port.h) - C API declaration
-- **Implementation**: [lib/port/timer_port.cpp](../../lib/port/timer_port.cpp) - Single C++11 implementation
+- **Header**: [lib/port/timer.h](../../lib/port/timer.h) - C API declaration
+- **Implementation**: [lib/port/timer.cpp](../../lib/port/timer.cpp) - Single C++11 implementation
 - **Backend Integration**: [src/backend.c](../../src/backend.c) - Driver usage
 - **Tests**: [tests/test_backend/test_backend_timer.cpp](../../tests/test_backend/test_backend_timer.cpp) - GoogleTest suite
 
@@ -269,7 +269,7 @@ All tests verify error codes using `TIMER_OK` constant.
 - Updated January 2026 to use platform-agnostic `timer_error_t` enum with specific error codes
 - Added `timer_error_string()` for better diagnostics
 - Fixed backend integration bug where timer was incorrectly restarted in callback (returned `TIMER_ERR_ALREADY_ACTIVE` on every heartbeat after the first)
-- **February 2026**: Replaced three platform-specific implementations (win32_timer.c, posix_timer.c, fallback_timer.c) with single portable C++11 implementation (timer_port.cpp)
+- **February 2026**: Replaced three platform-specific implementations (win32_timer.c, posix_timer.c, fallback_timer.c) with single portable C++11 implementation (timer.cpp)
   - Reduced codebase from ~600 lines to ~220 lines (70% reduction)
   - Eliminated platform-specific #ifdef complexity
   - Improved timing precision with `std::chrono::steady_clock`

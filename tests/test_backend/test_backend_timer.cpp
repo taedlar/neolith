@@ -1,6 +1,6 @@
 /**
  * @file test_backend_timer.cpp
- * @brief Tests for backend timer integration with timer_port
+ * @brief Tests for backend timer integration with platform_timer
  */
 
 #ifdef HAVE_CONFIG_H
@@ -14,7 +14,7 @@
 extern "C" {
     #include "std.h"
     #include "backend.h"
-    #include "port/timer_port.h"
+    #include "port/timer.h"
 }
 
 using namespace testing;
@@ -35,7 +35,7 @@ protected:
  * @brief Test that heart_beat_flag is set by timer callback
  */
 TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
-    timer_port_t test_timer;
+    platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
 
     auto test_callback = +[]() {
@@ -43,11 +43,11 @@ TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
     };
 
     // Initialize timer
-    ASSERT_EQ(timer_port_init(&test_timer), TIMER_OK) << "Failed to initialize timer";
+    ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK) << "Failed to initialize timer";
 
     // Start timer with 100ms interval (100,000 microseconds)
     heart_beat_flag = 0;
-    ASSERT_EQ(timer_port_start(&test_timer, 100000, test_callback), TIMER_OK)
+    ASSERT_EQ(platform_timer_start(&test_timer, 100000, test_callback), TIMER_OK)
         << "Failed to start timer";
 
     // Wait for at least one timer expiration
@@ -57,17 +57,17 @@ TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
     EXPECT_EQ(heart_beat_flag, 1) << "heart_beat_flag should be set by timer callback";
 
     // Stop timer
-    ASSERT_EQ(timer_port_stop(&test_timer), TIMER_OK) << "Failed to stop timer";
+    ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK) << "Failed to stop timer";
 
     // Cleanup
-    timer_port_cleanup(&test_timer);
+    platform_timer_cleanup(&test_timer);
 }
 
 /**
  * @brief Test multiple timer callbacks over time
  */
 TEST_F(BackendTimerTest, MultipleTimerCallbacks) {
-    timer_port_t test_timer;
+    platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
 
@@ -76,31 +76,31 @@ TEST_F(BackendTimerTest, MultipleTimerCallbacks) {
     };
 
     // Initialize and start timer
-    ASSERT_EQ(timer_port_init(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK);
 
     callback_count = 0;
     // Use 200ms interval for more reliable testing
-    ASSERT_EQ(timer_port_start(&test_timer, 200000, counting_callback), TIMER_OK);
+    ASSERT_EQ(platform_timer_start(&test_timer, 200000, counting_callback), TIMER_OK);
 
     // Wait for ~1 second (should get ~5 callbacks)
     std::this_thread::sleep_for(std::chrono::milliseconds(1100));
 
     // Stop timer
-    timer_port_stop(&test_timer);
+    platform_timer_stop(&test_timer);
 
     // Should have received between 4 and 6 callbacks (allowing for timing variations)
     EXPECT_GE(callback_count, 4) << "Should have at least 4 callbacks in 1.1 seconds";
     EXPECT_LE(callback_count, 6) << "Should have at most 6 callbacks in 1.1 seconds";
 
     // Cleanup
-    timer_port_cleanup(&test_timer);
+    platform_timer_cleanup(&test_timer);
 }
 
 /**
  * @brief Test timer stop prevents further callbacks
  */
 TEST_F(BackendTimerTest, TimerStopPreventsFurtherCallbacks) {
-    timer_port_t test_timer;
+    platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
 
@@ -109,16 +109,16 @@ TEST_F(BackendTimerTest, TimerStopPreventsFurtherCallbacks) {
     };
 
     // Initialize and start timer
-    ASSERT_EQ(timer_port_init(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK);
 
     callback_count = 0;
-    ASSERT_EQ(timer_port_start(&test_timer, 100000, counting_callback), TIMER_OK);
+    ASSERT_EQ(platform_timer_start(&test_timer, 100000, counting_callback), TIMER_OK);
 
     // Wait for a few callbacks
     std::this_thread::sleep_for(std::chrono::milliseconds(350));
 
     // Stop timer
-    ASSERT_EQ(timer_port_stop(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK);
     int count_at_stop = callback_count;
 
     // Wait again - count should not increase
@@ -128,14 +128,14 @@ TEST_F(BackendTimerTest, TimerStopPreventsFurtherCallbacks) {
         << "Callback count should not increase after timer stopped";
 
     // Cleanup
-    timer_port_cleanup(&test_timer);
+    platform_timer_cleanup(&test_timer);
 }
 
 /**
  * @brief Test timer restart functionality
  */
 TEST_F(BackendTimerTest, TimerRestart) {
-    timer_port_t test_timer;
+    platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
 
@@ -144,58 +144,58 @@ TEST_F(BackendTimerTest, TimerRestart) {
     };
 
     // Initialize timer
-    ASSERT_EQ(timer_port_init(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK);
 
     // First run
     callback_count = 0;
-    ASSERT_EQ(timer_port_start(&test_timer, 100000, counting_callback), TIMER_OK);
+    ASSERT_EQ(platform_timer_start(&test_timer, 100000, counting_callback), TIMER_OK);
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
-    ASSERT_EQ(timer_port_stop(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK);
     int first_count = callback_count;
     EXPECT_GE(first_count, 1) << "Should have callbacks from first run";
 
     // Restart timer
     callback_count = 0;
-    ASSERT_EQ(timer_port_start(&test_timer, 100000, counting_callback), TIMER_OK);
+    ASSERT_EQ(platform_timer_start(&test_timer, 100000, counting_callback), TIMER_OK);
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
-    ASSERT_EQ(timer_port_stop(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK);
     int second_count = callback_count;
     EXPECT_GE(second_count, 1) << "Should have callbacks from second run";
 
     // Cleanup
-    timer_port_cleanup(&test_timer);
+    platform_timer_cleanup(&test_timer);
 }
 
 /**
  * @brief Test timer is_active status
  */
 TEST_F(BackendTimerTest, TimerActiveStatus) {
-    timer_port_t test_timer;
+    platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
 
     auto dummy_callback = +[]() { };
 
     // Initialize timer
-    ASSERT_EQ(timer_port_init(&test_timer), TIMER_OK);
-    EXPECT_EQ(timer_port_is_active(&test_timer), TIMER_OK) << "Timer should not be active after init";
+    ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK);
+    EXPECT_EQ(platform_timer_is_active(&test_timer), TIMER_OK) << "Timer should not be active after init";
 
     // Start timer
-    ASSERT_EQ(timer_port_start(&test_timer, 100000, dummy_callback), TIMER_OK);
-    EXPECT_EQ(timer_port_is_active(&test_timer), 1) << "Timer should be active after start";
+    ASSERT_EQ(platform_timer_start(&test_timer, 100000, dummy_callback), TIMER_OK);
+    EXPECT_EQ(platform_timer_is_active(&test_timer), 1) << "Timer should be active after start";
 
     // Stop timer
-    ASSERT_EQ(timer_port_stop(&test_timer), TIMER_OK);
-    EXPECT_EQ(timer_port_is_active(&test_timer), TIMER_OK) << "Timer should not be active after stop";
+    ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK);
+    EXPECT_EQ(platform_timer_is_active(&test_timer), TIMER_OK) << "Timer should not be active after stop";
 
     // Cleanup
-    timer_port_cleanup(&test_timer);
+    platform_timer_cleanup(&test_timer);
 }
 
 /**
  * @brief Test HEARTBEAT_INTERVAL timer interval (2 seconds)
  */
 TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
-    timer_port_t test_timer;
+    platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
     
@@ -204,19 +204,19 @@ TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
     };
 
     // Initialize timer
-    ASSERT_EQ(timer_port_init(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK);
 
     // Start timer with HEARTBEAT_INTERVAL (2 seconds = 2,000,000 microseconds)
     callback_count = 0;
     auto start_time = std::chrono::steady_clock::now();
-    ASSERT_EQ(timer_port_start(&test_timer, HEARTBEAT_INTERVAL, counting_callback), TIMER_OK);
+    ASSERT_EQ(platform_timer_start(&test_timer, HEARTBEAT_INTERVAL, counting_callback), TIMER_OK);
 
     // Wait for ~4.5 seconds (should get 2 callbacks at 2s and 4s)
     std::this_thread::sleep_for(std::chrono::milliseconds(4500));
     auto end_time = std::chrono::steady_clock::now();
 
     // Stop timer
-    timer_port_stop(&test_timer);
+    platform_timer_stop(&test_timer);
 
     // Should have received 2 callbacks (allowing for timing variations)
     EXPECT_GE(callback_count, 2) << "Should have at least 2 callbacks in 4.5 seconds";
@@ -229,7 +229,7 @@ TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
     EXPECT_LE(elapsed_ms, 4700) << "Test should run for ~4.5 seconds";
 
     // Cleanup
-    timer_port_cleanup(&test_timer);
+    platform_timer_cleanup(&test_timer);
 }
 
 /**
@@ -246,14 +246,14 @@ TEST_F(BackendTimerTest, QueryHeartBeatIntegration) {
     // This test ensures the timer infrastructure doesn't interfere
     // with the existing heart beat object tracking
 
-    timer_port_t test_timer;
+    platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
-    ASSERT_EQ(timer_port_init(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK);
     
     // Just verify timer can start/stop without affecting other systems
     auto dummy_callback = +[]() { };
-    ASSERT_EQ(timer_port_start(&test_timer, 100000, dummy_callback), TIMER_OK);
-    ASSERT_EQ(timer_port_stop(&test_timer), TIMER_OK);
+    ASSERT_EQ(platform_timer_start(&test_timer, 100000, dummy_callback), TIMER_OK);
+    ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK);
     
-    timer_port_cleanup(&test_timer);
+    platform_timer_cleanup(&test_timer);
 }

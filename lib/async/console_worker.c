@@ -87,14 +87,18 @@ console_type_t console_detect_type(void) {
 static void* console_worker_proc_win32(void* ctx) {
     console_worker_context_t* cctx = (console_worker_context_t*)ctx;
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-    port_event_t* stop_event = async_worker_get_stop_event(async_worker_current());
+    platform_event_t* stop_event = async_worker_get_stop_event(async_worker_current());
     
-    if (!stop_event || !stop_event->event) {
+    if (!stop_event) {
         debug_error("Failed to get stop event\n");
         return NULL;
     }
     
-    HANDLE hStopEvent = stop_event->event;
+    HANDLE hStopEvent = (HANDLE)platform_event_get_native_handle(stop_event);
+    if (!hStopEvent) {
+        debug_error("Failed to get native event handle\n");
+        return NULL;
+    }
     
     /* Set UTF-8 code page */
     SetConsoleCP(CP_UTF8);

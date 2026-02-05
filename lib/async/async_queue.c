@@ -4,7 +4,7 @@
  */
 
 #include "async/async_queue.h"
-#include "port/port_sync.h"
+#include "port/sync.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,9 +12,9 @@
  * Queue implementation using circular buffer
  */
 struct async_queue_s {
-    port_mutex_t mutex;        /* Protects queue state */
-    port_event_t not_full;     /* Signaled when space available (for BLOCK_WRITER) */
-    port_event_t not_empty;    /* Signaled when data available (for SIGNAL_ON_DATA) */
+    platform_mutex_t mutex;        /* Protects queue state */
+    platform_event_t not_full;     /* Signaled when space available (for BLOCK_WRITER) */
+    platform_event_t not_empty;    /* Signaled when data available (for SIGNAL_ON_DATA) */
     
     void* buffer;              /* Circular buffer storage */
     size_t capacity;           /* Maximum number of messages */
@@ -49,26 +49,26 @@ async_queue_t* async_queue_create(size_t capacity, size_t max_msg_size, async_qu
     }
     
     /* Initialize mutex */
-    if (!port_mutex_init(&queue->mutex)) {
+    if (!platform_mutex_init(&queue->mutex)) {
         free(queue);
         return NULL;
     }
     
     /* Initialize events if needed */
     if (flags & ASYNC_QUEUE_BLOCK_WRITER) {
-        if (!port_event_init(&queue->not_full, false, true)) {
-            port_mutex_destroy(&queue->mutex);
+        if (!platform_event_init(&queue->not_full, false, true)) {
+            platform_mutex_destroy(&queue->mutex);
             free(queue);
             return NULL;
         }
     }
     
     if (flags & ASYNC_QUEUE_SIGNAL_ON_DATA) {
-        if (!port_event_init(&queue->not_empty, false, false)) {
+        if (!platform_event_init(&queue->not_empty, false, false)) {
             if (flags & ASYNC_QUEUE_BLOCK_WRITER) {
-                port_event_destroy(&queue->not_full);
+                platform_event_destroy(&queue->not_full);
             }
-            port_mutex_destroy(&queue->mutex);
+            platform_mutex_destroy(&queue->mutex);
             free(queue);
             return NULL;
         }
@@ -79,12 +79,12 @@ async_queue_t* async_queue_create(size_t capacity, size_t max_msg_size, async_qu
     queue->buffer = calloc(capacity, queue->msg_slot_size);
     if (!queue->buffer) {
         if (flags & ASYNC_QUEUE_SIGNAL_ON_DATA) {
-            port_event_destroy(&queue->not_empty);
+            platform_event_destroy(&queue->not_empty);
         }
         if (flags & ASYNC_QUEUE_BLOCK_WRITER) {
-            port_event_destroy(&queue->not_full);
+            platform_event_destroy(&queue->not_full);
         }
-        port_mutex_destroy(&queue->mutex);
+        platform_mutex_destroy(&queue->mutex);
         free(queue);
         return NULL;
     }
@@ -110,14 +110,14 @@ void async_queue_destroy(async_queue_t* queue) {
     }
     
     if (queue->flags & ASYNC_QUEUE_SIGNAL_ON_DATA) {
-        port_event_destroy(&queue->not_empty);
+        platform_event_destroy(&queue->not_empty);
     }
     
     if (queue->flags & ASYNC_QUEUE_BLOCK_WRITER) {
-        port_event_destroy(&queue->not_full);
+        platform_event_destroy(&queue->not_full);
     }
     
-    port_mutex_destroy(&queue->mutex);
+    platform_mutex_destroy(&queue->mutex);
     free(queue);
 }
 
@@ -126,7 +126,7 @@ bool async_queue_enqueue(async_queue_t* queue, const void* data, size_t size) {
         return false;
     }
     
-    port_mutex_lock(&queue->mutex);
+    platform_mutex_lock(&queue->mutex);
     
     /* Check if queue is full */
     while (queue->count >= queue->capacity) {
@@ -137,14 +137,14 @@ bool async_queue_enqueue(async_queue_t* queue, const void* data, size_t size) {
             queue->dropped_count++;
         } else if (queue->flags & ASYNC_QUEUE_BLOCK_WRITER) {
             /* Wait for space (release mutex while waiting) */
-            port_mutex_unlock(&queue->mutex);
-            port_event_wait(&queue->not_full, -1);
-            port_mutex_lock(&queue->mutex);
+            platform_mutex_unlock(&queue->mutex);
+            platform_event_wait(&queue->not_full, -1);
+            platform_mutex_lock(&queue->mutex);
             /* Re-check after waking up */
             continue;
         } else {
             /* Queue full, fail immediately */
-            port_mutex_unlock(&queue->mutex);
+            platform_mutex_unlock(&queue->mutex);
             return false;
         }
     }
@@ -160,10 +160,10 @@ bool async_queue_enqueue(async_queue_t* queue, const void* data, size_t size) {
     
     /* Signal not_empty if configured */
     if (queue->flags & ASYNC_QUEUE_SIGNAL_ON_DATA) {
-        port_event_set(&queue->not_empty);
+        platform_event_set(&queue->not_empty);
     }
     
-    port_mutex_unlock(&queue->mutex);
+    platform_mutex_unlock(&queue->mutex);
     
     return true;
 }
@@ -173,10 +173,10 @@ bool async_queue_dequeue(async_queue_t* queue, void* buffer, size_t buffer_size,
         return false;
     }
     
-    port_mutex_lock(&queue->mutex);
+    platform_mutex_lock(&queue->mutex);
     
     if (queue->count == 0) {
-        port_mutex_unlock(&queue->mutex);
+        platform_mutex_unlock(&queue->mutex);
         return false;
     }
     
@@ -186,7 +186,7 @@ bool async_queue_dequeue(async_queue_t* queue, void* buffer, size_t buffer_size,
     
     if (msg_size > buffer_size) {
         /* Buffer too small */
-        port_mutex_unlock(&queue->mutex);
+        platform_mutex_unlock(&queue->mutex);
         return false;
     }
     
@@ -202,10 +202,10 @@ bool async_queue_dequeue(async_queue_t* queue, void* buffer, size_t buffer_size,
     
     /* Signal not_full if configured */
     if (queue->flags & ASYNC_QUEUE_BLOCK_WRITER) {
-        port_event_set(&queue->not_full);
+        platform_event_set(&queue->not_full);
     }
     
-    port_mutex_unlock(&queue->mutex);
+    platform_mutex_unlock(&queue->mutex);
     
     return true;
 }
@@ -213,9 +213,9 @@ bool async_queue_dequeue(async_queue_t* queue, void* buffer, size_t buffer_size,
 bool async_queue_is_empty(const async_queue_t* queue) {
     if (!queue) return true;
     
-    port_mutex_lock((port_mutex_t*)&queue->mutex);
+    platform_mutex_lock((platform_mutex_t*)&queue->mutex);
     bool empty = (queue->count == 0);
-    port_mutex_unlock((port_mutex_t*)&queue->mutex);
+    platform_mutex_unlock((platform_mutex_t*)&queue->mutex);
     
     return empty;
 }
@@ -223,9 +223,9 @@ bool async_queue_is_empty(const async_queue_t* queue) {
 bool async_queue_is_full(const async_queue_t* queue) {
     if (!queue) return false;
     
-    port_mutex_lock((port_mutex_t*)&queue->mutex);
+    platform_mutex_lock((platform_mutex_t*)&queue->mutex);
     bool full = (queue->count >= queue->capacity);
-    port_mutex_unlock((port_mutex_t*)&queue->mutex);
+    platform_mutex_unlock((platform_mutex_t*)&queue->mutex);
     
     return full;
 }
@@ -233,22 +233,22 @@ bool async_queue_is_full(const async_queue_t* queue) {
 void async_queue_clear(async_queue_t* queue) {
     if (!queue) return;
     
-    port_mutex_lock(&queue->mutex);
+    platform_mutex_lock(&queue->mutex);
     queue->head = 0;
     queue->tail = 0;
     queue->count = 0;
-    port_mutex_unlock(&queue->mutex);
+    platform_mutex_unlock(&queue->mutex);
 }
 
 void async_queue_get_stats(const async_queue_t* queue, async_queue_stats_t* stats) {
     if (!queue || !stats) return;
     
-    port_mutex_lock((port_mutex_t*)&queue->mutex);
+    platform_mutex_lock((platform_mutex_t*)&queue->mutex);
     stats->capacity = queue->capacity;
     stats->current_size = queue->count;
     stats->max_msg_size = queue->max_msg_size;
     stats->enqueue_count = queue->enqueue_count;
     stats->dequeue_count = queue->dequeue_count;
     stats->dropped_count = queue->dropped_count;
-    port_mutex_unlock((port_mutex_t*)&queue->mutex);
+    platform_mutex_unlock((platform_mutex_t*)&queue->mutex);
 }

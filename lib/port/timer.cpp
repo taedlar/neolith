@@ -1,5 +1,5 @@
 /**
- * @file timer_port.cpp
+ * @file timer.cpp
  * @brief Portable C++11 timer implementation using chrono and thread
  * 
  * This replaces platform-specific implementations (win32_timer.c, posix_timer.c, fallback_timer.c)
@@ -10,7 +10,7 @@
 #include <config.h>
 #endif
 
-#include "timer_port.h"
+#include "timer.h"
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -24,7 +24,7 @@
  * The timer thread waits on a condition variable with a timeout,
  * providing precise timing without busy-waiting.
  */
-struct timer_port_internal {
+struct platform_timer_internal {
     std::thread timer_thread;
     std::mutex mutex;
     std::condition_variable cv;
@@ -33,7 +33,7 @@ struct timer_port_internal {
     std::atomic<bool> active;
     std::atomic<bool> stop_requested;
     
-    timer_port_internal() : callback(nullptr), active(false), stop_requested(false) {}
+    platform_timer_internal() : callback(nullptr), active(false), stop_requested(false) {}
 };
 
 /**
@@ -44,7 +44,7 @@ struct timer_port_internal {
  * 
  * @param internal Pointer to internal timer state
  */
-static void timer_thread_func(timer_port_internal* internal) {
+static void timer_thread_func(platform_timer_internal* internal) {
     auto next_tick = std::chrono::steady_clock::now() + internal->interval;
     
     while (!internal->stop_requested.load()) {
@@ -79,13 +79,13 @@ static void timer_thread_func(timer_port_internal* internal) {
 /**
  * @brief Initialize timer system
  */
-extern "C" timer_error_t timer_port_init(timer_port_t* timer) {
+extern "C" timer_error_t platform_timer_init(platform_timer_t* timer) {
     if (!timer) {
         return TIMER_ERR_NULL_PARAM;
     }
     
     try {
-        timer->internal = new timer_port_internal();
+        timer->internal = new platform_timer_internal();
         return TIMER_OK;
     } catch (...) {
         return TIMER_ERR_SYSTEM;
@@ -95,7 +95,7 @@ extern "C" timer_error_t timer_port_init(timer_port_t* timer) {
 /**
  * @brief Start the periodic timer
  */
-extern "C" timer_error_t timer_port_start(timer_port_t* timer, unsigned long interval_us, timer_callback_t callback) {
+extern "C" timer_error_t platform_timer_start(platform_timer_t* timer, unsigned long interval_us, timer_callback_t callback) {
     if (!timer || !timer->internal || !callback) {
         return TIMER_ERR_NULL_PARAM;
     }
@@ -104,7 +104,7 @@ extern "C" timer_error_t timer_port_start(timer_port_t* timer, unsigned long int
         return TIMER_ERR_INVALID_INTERVAL;
     }
     
-    timer_port_internal* internal = static_cast<timer_port_internal*>(timer->internal);
+    platform_timer_internal* internal = static_cast<platform_timer_internal*>(timer->internal);
     
     // Check if already active
     if (internal->active.load()) {
@@ -131,12 +131,12 @@ extern "C" timer_error_t timer_port_start(timer_port_t* timer, unsigned long int
 /**
  * @brief Stop the timer
  */
-extern "C" timer_error_t timer_port_stop(timer_port_t* timer) {
+extern "C" timer_error_t platform_timer_stop(platform_timer_t* timer) {
     if (!timer || !timer->internal) {
         return TIMER_ERR_NULL_PARAM;
     }
     
-    timer_port_internal* internal = static_cast<timer_port_internal*>(timer->internal);
+    platform_timer_internal* internal = static_cast<platform_timer_internal*>(timer->internal);
     
     if (!internal->active.load()) {
         return TIMER_OK;  // Already stopped
@@ -166,15 +166,15 @@ extern "C" timer_error_t timer_port_stop(timer_port_t* timer) {
 /**
  * @brief Cleanup timer resources
  */
-extern "C" void timer_port_cleanup(timer_port_t* timer) {
+extern "C" void platform_timer_cleanup(platform_timer_t* timer) {
     if (!timer || !timer->internal) {
         return;
     }
     
-    timer_port_internal* internal = static_cast<timer_port_internal*>(timer->internal);
+    platform_timer_internal* internal = static_cast<platform_timer_internal*>(timer->internal);
     
     // Stop timer if running
-    timer_port_stop(timer);
+    platform_timer_stop(timer);
     
     // Delete internal structure
     delete internal;
@@ -184,12 +184,12 @@ extern "C" void timer_port_cleanup(timer_port_t* timer) {
 /**
  * @brief Check if timer is active
  */
-extern "C" int timer_port_is_active(const timer_port_t* timer) {
+extern "C" int platform_timer_is_active(const platform_timer_t* timer) {
     if (!timer || !timer->internal) {
         return 0;
     }
     
-    const timer_port_internal* internal = static_cast<const timer_port_internal*>(timer->internal);
+    const platform_timer_internal* internal = static_cast<const platform_timer_internal*>(timer->internal);
     return internal->active.load() ? 1 : 0;
 }
 
