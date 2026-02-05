@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 /**
- * @file timer_port.h
+ * @file timer.h
  * @brief Cross-platform timer abstraction layer
  * 
  * Provides a unified interface for high-resolution periodic timers
@@ -34,15 +34,15 @@ typedef void (*timer_callback_t)(void);
 
 /* Timer handle type - opaque structure for C++11 implementation */
 typedef struct {
-    void* internal;  /* Points to C++ timer_port_internal structure */
-} timer_port_t;
+    void* internal;  /* Points to C++ platform_timer_internal structure */
+} platform_timer_t;
 
 /**
  * @brief Initialize the timer system
  * @param timer Pointer to timer handle structure
  * @return TIMER_OK on success, error code on failure
  */
-timer_error_t timer_port_init(timer_port_t *timer);
+timer_error_t platform_timer_init(platform_timer_t *timer);
 
 /**
  * @brief Start a periodic timer
@@ -51,27 +51,27 @@ timer_error_t timer_port_init(timer_port_t *timer);
  * @param callback Function to call on each timer expiration
  * @return TIMER_OK on success, error code on failure
  */
-timer_error_t timer_port_start(timer_port_t *timer, unsigned long interval_us, timer_callback_t callback);
+timer_error_t platform_timer_start(platform_timer_t *timer, unsigned long interval_us, timer_callback_t callback);
 
 /**
  * @brief Stop the timer
  * @param timer Pointer to timer handle
  * @return TIMER_OK on success, error code on failure
  */
-timer_error_t timer_port_stop(timer_port_t *timer);
+timer_error_t platform_timer_stop(platform_timer_t *timer);
 
 /**
  * @brief Cleanup timer resources
  * @param timer Pointer to timer handle
  */
-void timer_port_cleanup(timer_port_t *timer);
+void platform_timer_cleanup(platform_timer_t *timer);
 
 /**
  * @brief Check if timer is currently active
  * @param timer Pointer to timer handle
  * @return 1 if active, 0 if not active
  */
-int timer_port_is_active(const timer_port_t *timer);
+int platform_timer_is_active(const platform_timer_t *timer);
 
 /**
  * @brief Convert timer error code to string

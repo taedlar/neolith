@@ -8,7 +8,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
-#include "port/port_sync.h"
+#include "port/sync.h"
 
 typedef struct async_worker_s async_worker_t;
 
@@ -93,6 +93,6 @@ async_worker_state_t async_worker_get_state(const async_worker_t* worker);
  * @param worker Worker to query (use async_worker_current())
  * @returns Pointer to stop event, or NULL if invalid
  */
-port_event_t* async_worker_get_stop_event(async_worker_t* worker);
+platform_event_t* async_worker_get_stop_event(async_worker_t* worker);
 
 #endif /* ASYNC_WORKER_H */

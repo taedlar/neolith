@@ -17,7 +17,7 @@
 #include "comm.h"
 #include "simul_efun.h"
 #include "efuns/call_out.h"
-#include "port/timer_port.h"
+#include "port/timer.h"
 #include "async/async_runtime.h"
 
 #ifdef HAVE_TERMIOS_H
@@ -31,7 +31,7 @@ int heart_beat_flag = 0;
 
 object_t *current_heart_beat;
 
-static timer_port_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
+static platform_timer_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
 
 int64_t eval_cost = 0;
 
@@ -232,7 +232,7 @@ void backend () {
   if (MAIN_OPTION(timer_flags) & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
     {
       timer_error_t timer_err;
-      timer_err = timer_port_init(&heartbeat_timer);
+      timer_err = platform_timer_init(&heartbeat_timer);
       if (timer_err != TIMER_OK)
         {
           opt_warn (0, "Timer initialization failed: %s. heart_beat(), call_out() and reset() disabled.",
@@ -240,7 +240,7 @@ void backend () {
         }
       else
         {
-          timer_err = timer_port_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
+          timer_err = platform_timer_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
           if (timer_err != TIMER_OK)
             {
               opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
@@ -353,7 +353,7 @@ void backend () {
     }
   pop_context (&econ);
 
-  timer_port_cleanup(&heartbeat_timer);
+  platform_timer_cleanup(&heartbeat_timer);
 }
 
 /**

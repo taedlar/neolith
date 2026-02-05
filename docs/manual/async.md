@@ -138,7 +138,7 @@ Semantic correctness: Runtime manages async operations (lib/async), not platform
 **API**: See [async_runtime.h](../../lib/async/async_runtime.h)  
 **Implementation**: [async_runtime_iocp.c](../../lib/async/async_runtime_iocp.c), [async_runtime_epoll.c](../../lib/async/async_runtime_epoll.c), [async_runtime_poll.c](../../lib/async/async_runtime_poll.c)
 
-**Note**: Synchronization primitives ([port_sync.h](../../lib/port/port_sync.h)) are internal to async library. User code should use async_queue/async_worker APIs, never call mutexes/events directly.
+**Note**: Synchronization primitives ([sync.h](../../lib/port/sync.h)) are internal to async library. User code should use async_queue/async_worker APIs, never call mutexes/events directly.
 
 ## Common Patterns
 

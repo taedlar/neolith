@@ -5,7 +5,8 @@ set(port_SOURCES
     xcalloc.c
     xstrdup.c
     socket_comm.c
-    timer_port.cpp
+    timer.cpp
+    sync.cpp
 )
 
 if(MSVC)
@@ -14,14 +15,8 @@ if(MSVC)
         crypt.c
         getopt.c
         gettimeofday.c
-        port_sync_win32.c
         realpath.c
         symlink.c
-    )
-else()
-    # POSIX-compatible implementations
-    list(APPEND port_SOURCES
-        port_sync_pthread.c
     )
 endif()
 
@@ -29,7 +24,7 @@ add_library(port STATIC ${port_SOURCES})
 target_sources(port INTERFACE
     FILE_SET HEADERS
     BASE_DIRS ..
-    FILES ansi.h debug.h wrapper.h byte_code.h timer_port.h socket_comm.h port_sync.h
+    FILES ansi.h debug.h wrapper.h byte_code.h timer.h socket_comm.h sync.h
 )
 
 # C++11 required for timer implementation
