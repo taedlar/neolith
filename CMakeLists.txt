@@ -61,16 +61,7 @@ check_symbol_exists(strtod stdlib.h HAVE_STRTOD)
 # check for libraries
 include(CheckLibraryExists)
 if(UNIX)
-    check_library_exists(rt clock_gettime "" HAVE_LIBRT)
-endif()
-
-# Set timer support flags
-if(WIN32)
-    set(HAVE_WIN32_TIMER TRUE)
-elseif(HAVE_LIBRT)
-    set(HAVE_POSIX_TIMER TRUE)
-else()
-    set(HAVE_FALLBACK_TIMER TRUE)
+    # check_library_exists(rt clock_gettime "" HAVE_LIBRT)
 endif()
 
 # check dependencies

@@ -487,21 +487,20 @@ static float perc_hb_probes = 100.0;	/* decaying avge of how many complete */
 
 /**
  * @brief Call all heart_beat() functions in all objects.
- * Also call the next reset, and the call out.
+ * Also process invocation of LPC reset() and LPC call_out().
  */
 static void call_heart_beat () {
 
   object_t *ob;
-  heart_beat_t *curr_hb;
-
   heart_beat_flag = 0;
-
-  current_time = time (NULL);
-  opt_trace (TT_BACKEND, "current_time: %u, num_hb_objs: %d", current_time, num_hb_objs);
+  time (&current_time);
+  opt_trace (TT_BACKEND|1, "tick: current_time=%u", current_time);
   current_interactive = 0;
+  num_hb_to_do = num_hb_objs;
 
-  if ((MAIN_OPTION(timer_flags) & TIMER_FLAG_HEARTBEAT) && (num_hb_to_do = num_hb_objs) > 0)
+  if ((MAIN_OPTION(timer_flags) & TIMER_FLAG_HEARTBEAT) && (num_hb_to_do > 0))
     {
+      heart_beat_t *curr_hb;
       num_hb_calls++;
       heart_beat_index = 0;
       while (!heart_beat_flag)
@@ -520,7 +519,7 @@ static void call_heart_beat () {
                   if (!(command_giver->flags & O_ENABLE_COMMANDS))
                     command_giver = 0;
                   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-                  opt_trace (TT_BACKEND|3, "total: %d/%d, current: %s", heart_beat_index + 1, num_hb_to_do, ob->name);
+                  opt_trace (TT_BACKEND|3, "calling heart beat #%d/%d: %s", heart_beat_index + 1, num_hb_to_do, ob->name);
                   call_function (ob->prog, ob->prog->heart_beat, 0, 0);
                   command_giver = 0;
                   current_object = 0;
@@ -537,8 +536,10 @@ static void call_heart_beat () {
     }
   current_prog = 0;
   current_heart_beat = 0;
+
   if (MAIN_OPTION(timer_flags) & TIMER_FLAG_RESET)
     look_for_objects_to_swap (); /* check for LPC object reset() */
+
   if (MAIN_OPTION(timer_flags) & TIMER_FLAG_CALLOUT)
     call_out (); /* check for LPC call_out() */
 }
