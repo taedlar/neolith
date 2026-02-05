@@ -16,6 +16,7 @@ set(lpc_SOURCES
     object.c
     operator.c
     otable.c
+    svalue.c
     program.c
     program/binaries.c
     program/disassemble.c
@@ -27,7 +28,7 @@ add_library(lpc STATIC ${lpc_SOURCES} ${BISON_grammar_OUTPUTS})
 target_sources(lpc INTERFACE
     FILE_SET HEADERS
     BASE_DIRS ..
-    FILES array.h buffer.h class.h functional.h mapping.h object.h otable.h program.h types.h
+    FILES array.h buffer.h class.h functional.h mapping.h object.h otable.h program.h svalue.h types.h
 )
 target_include_directories(lpc PUBLIC
     ${CMAKE_SOURCE_DIR}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lpc/svalue.h"
 #include "apply.h"
 
 #define PUSH_STRING    (0 << 6)
@@ -116,10 +117,6 @@ typedef struct {
         (x)->u.string = ssj_res; \
         } while(0)
 
-#define CHECK_AND_PUSH(n)	do {\
-        if ((sp += n) >= end_of_stack) \
-          { sp -= n; set_error_state(ES_STACK_FULL); error("***Stack overflow!"); } \
-        } while (0)
 #define STACK_CHECK(n)		do {\
         if (sp + n >= end_of_stack) \
           { set_error_state(ES_STACK_FULL); error("***Stack overflow!"); } \
@@ -127,8 +124,6 @@ typedef struct {
 
 /* macro calls */
 #define call_program(prog, offset) eval_instruction ((prog)->program + (offset))
-
-#define free_svalue(x,y) int_free_svalue(x)
 
 #define push_svalue(x) do{++sp;assign_svalue_no_free(sp, (x));}while(0)
 
@@ -210,7 +205,6 @@ extern int st_num_arg;
 extern svalue_t const0;
 extern svalue_t const1;
 extern svalue_t const0u;
-extern svalue_t global_lvalue_byte;
 extern int num_varargs;
 
 /* LPC interpreter */
@@ -234,18 +228,13 @@ void clear_error_state ();
 void reset_interpreter (void);
 
 /* stack manipulation */
-void assign_svalue(svalue_t *, svalue_t *);
-void assign_svalue_no_free(svalue_t *, svalue_t *);
-void copy_some_svalues(svalue_t *, svalue_t *, int);
 void transfer_push_some_svalues(svalue_t *, int);
 void push_some_svalues(svalue_t *, int);
-void int_free_svalue(svalue_t *);
-void free_string_svalue(svalue_t *);
-void free_some_svalues(svalue_t *, int);
 void push_object(object_t *);
 void push_number(int64_t);
 void push_real(double);
 void push_undefined(void);
+void push_undefineds (int num);
 void copy_and_push_string(const char *);
 void share_and_push_string(const char *);
 void push_array(array_t *);
@@ -264,9 +253,10 @@ void pop_n_elems(size_t);
 void pop_2_elems(void);
 void pop_3_elems(void);
 
+void remove_object_from_stack(object_t *);
+
+void free_string_svalue(svalue_t *);
 void unlink_string_svalue(svalue_t *);
-void copy_lvalue_range(svalue_t *);
-void assign_lvalue_range(svalue_t *);
 
 compiler_function_t *setup_new_frame(int runtime_index);
 compiler_function_t *setup_inherited_frame(int runtime_index);
@@ -274,8 +264,7 @@ void setup_variables (int actual, int local, int num_arg);
 void setup_varargs_variables (int actual, int local, int num_arg);
 void pop_control_stack(void);
 void push_control_stack(int);
-
-void remove_object_from_stack(object_t *);
+void do_catch (const char *, unsigned short);
 
 #ifdef __cplusplus
 }

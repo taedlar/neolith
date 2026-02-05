@@ -24,7 +24,6 @@
 #define too_deep_save_error() \
     error("Mappings and/or arrays nested too deep (%d) for save_object\n", MAX_SAVE_SVALUE_DEPTH);
 
-object_t *previous_ob;
 size_t tot_alloc_object = 0, tot_alloc_object_size = 0;
 
 char *save_mapping (mapping_t * m);
