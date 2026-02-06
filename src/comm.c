@@ -78,7 +78,9 @@ int total_users = 0;
 /*
  * local function prototypes.
  */
+#ifndef WINSOCK
 static void sigpipe_handler (int);
+#endif
 static void hname_handler (void);
 static void get_user_data (interactive_t *, io_event_t *);
 static char *get_user_command (void);
