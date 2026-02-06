@@ -1,5 +1,7 @@
 #pragma once
 
+#include "outbuf.h"
+
 /**
  * Shared string (STRING_SHARED) block header.
  * The string hash table consists of linked lists of these blocks.

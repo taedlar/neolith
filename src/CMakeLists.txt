@@ -16,6 +16,7 @@ set(stem_SOURCES
     frame.c
     interpret.c
     malloc.c
+    outbuf.c
     simul_efun.c
     simulate.c
     stack.c
