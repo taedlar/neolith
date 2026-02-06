@@ -1,6 +1,8 @@
 // vim: syntax=lpc
 #include "m3_config.h"
 
+inherit "char.c";
+
 private void logon()
 {
   write("Welcome to the M3 Mud!\n");

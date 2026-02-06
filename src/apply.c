@@ -144,7 +144,7 @@ program_t *find_function (program_t * prog, const char *name, int *index, int *f
           *index = mid;
           *fio = 0;
           *vio = 0;
-          return prog;
+          return prog; /* locally defined function */
         }
     }
 

@@ -1456,8 +1456,7 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
       if (num_arg)
         {
           i = num_arg * sizeof (svalue_t);
-          if ((x = (svalue_t *)DMALLOC (i, TAG_INPUT_TO, "input_to: 1")) == NULL)
-            fatal ("Out of memory!\n");
+          x = (svalue_t *)DXALLOC (i, TAG_INPUT_TO, "input_to: 1");
           memcpy (x, args, i);
         }
       else

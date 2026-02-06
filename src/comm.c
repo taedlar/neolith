@@ -1073,7 +1073,7 @@ void process_io () {
                * the accepted socket FD. The FD is in evt->fd. */
               if (evt->fd != INVALID_SOCKET)
                 {
-                  opt_trace (TT_COMM, "Accept worker accepted connection on port %d (fd=%d)\n", 
+                  opt_trace (TT_COMM|1, "Accept worker accepted connection on port %d (fd=%d)\n", 
                             port->port, (int)evt->fd);
                   
                   /* Get peer address for the already-accepted socket */
@@ -1092,12 +1092,12 @@ void process_io () {
               else
                 {
                   /* Fallback: call accept() synchronously (shouldn't happen with accept worker) */
-                  opt_trace (TT_COMM, "Fallback: synchronous accept on port %d\n", port->port);
+                  opt_trace (TT_COMM|1, "Fallback: synchronous accept on port %d\n", port->port);
                   new_user_handler (port);
                 }
 #else
               /* On POSIX, listening socket is ready - call accept() */
-              opt_trace (TT_COMM, "New connection on port %d\n", port->port);
+              opt_trace (TT_COMM|1, "New connection on port %d\n", port->port);
               new_user_handler (port);
 #endif
             }
@@ -1128,7 +1128,7 @@ void process_io () {
               if (!console_ip)
                 {
                   /* Console user disconnected - reconnect first */
-                  opt_trace(TT_COMM, "Console user re-connecting\n");
+                  opt_trace(TT_COMM|1, "Console user re-connecting\n");
                   init_console_user(1);
                   
                   /* Find newly connected console user */
@@ -1170,7 +1170,7 @@ void process_io () {
           if (evt->event_type & (EVENT_ERROR | EVENT_CLOSE))
             {
               /* Network error or connection closed */
-              opt_trace (TT_COMM, "Connection closed on fd %d\n", ip->fd);
+              opt_trace (TT_COMM|1, "Connection closed on fd %d\n", ip->fd);
               remove_interactive (ip->ob, 0);
               continue;
             }
@@ -1347,7 +1347,7 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
   char addr_str[50];
 
   inet_ntop (AF_INET, &addr->sin_addr.s_addr, addr_str, sizeof(addr_str));
-  opt_trace (TT_COMM, "Connection from %s:%d on port %d (fd=%d)\n",
+  opt_trace (TT_COMM|1, "Connection from %s:%d on port %d (fd=%d)\n",
             addr_str, ntohs (addr->sin_port), port->port, (int)new_socket_fd);
 
   /* Set non-blocking mode on accepted socket */
@@ -1399,7 +1399,7 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
   /* Call logon() apply */
   mudlib_logon (user_ob);
   
-  opt_trace (TT_COMM, "Connection established for %s (fd=%d, ob=%s)\n",
+  opt_trace (TT_COMM|1, "Connection established for %s (fd=%d, ob=%s)\n",
             addr_str, (int)new_socket_fd, user_ob->name);
 }
 
@@ -1837,7 +1837,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
            * copy_chars() implements the TELNET state machine.
            */
           ip->text_end += copy_chars ((UCHAR *) buf, (UCHAR *) ip->text + ip->text_end, num_bytes, ip);
-          opt_trace (TT_COMM, "Command buffer contains %d characters\n", ip->text_end - ip->text_start);
+          opt_trace (TT_COMM|3, "Command buffer contains %d characters\n", ip->text_end - ip->text_start);
           /*
            * now, ip->text_end is just after the last character read. If the last character
            * is a newline, the character before ip->text_end will be null.
@@ -1855,7 +1855,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
            */
           if (cmd_in_buf (ip))
             {
-              opt_trace (TT_COMM, "Command available in buffer for fd %d\n", ip->fd);
+              opt_trace (TT_COMM|3, "Command available in buffer for fd %d\n", ip->fd);
               ip->iflags |= CMD_IN_BUF;
             }
           break;
