@@ -47,6 +47,11 @@ typedef union {
 
 extern program_t fake_prog;
 
+funptr_t *make_efun_funp(int, svalue_t *);
+funptr_t *make_lfun_funp(int, svalue_t *);
+funptr_t *make_simul_funp(int, svalue_t *);
+funptr_t* make_functional_funp (int num_arg, int num_local, int len, svalue_t * args, int flag);
+
 void dealloc_funp(funptr_t *);
 void push_refed_funp(funptr_t *);
 
