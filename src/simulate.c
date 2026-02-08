@@ -523,7 +523,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
       return ob;
     }
 
-  opt_trace (TT_COMPILE|2, "creating object: \"/%s\"", name);
+  opt_trace (TT_COMPILE|TT_MEMORY, "creating object: \"/%s\"", name);
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
   ob->name = alloc_cstring (name, "load_object");
@@ -668,6 +668,7 @@ object_t *clone_object (const char *str1, int num_arg) {
     (void) set_heart_beat (ob, 0);
   new_ob = get_empty_object (ob->prog->num_variables_total);
   new_ob->name = make_new_name (ob->name);
+  opt_trace (TT_MEMORY, "clone object name: \"/%s\"", new_ob->name);
   new_ob->flags |= (O_CLONE | (ob->flags & (O_WILL_CLEAN_UP | O_WILL_RESET)));
   new_ob->load_time = ob->load_time;
   new_ob->prog = ob->prog;
@@ -1170,6 +1171,31 @@ void destruct_object (object_t * ob) {
           free_sentence (s);
         }
       ob->sent = NULL;
+    }
+
+  /* Clean up any input_to references pointing to this object.
+   * Without this, destructed objects remain in memory if users with pending
+   * input_to prompts go AFK before typing anything. */
+  for (int i = 0; i < max_users; i++)
+    {
+      interactive_t *ip = all_users[i];
+      if (ip && ip->input_to && ip->input_to->ob == ob)
+        {
+          opt_trace (TT_EVAL|1, "clearing input_to for /%s from user /%s",
+                     ob->name, ip->ob->name);
+          free_sentence (ip->input_to);
+          ip->input_to = 0;
+          
+          /* Clear single-char mode if it was set for this input_to */
+          if (ip->iflags & SINGLE_CHAR)
+            {
+              ip->iflags &= ~SINGLE_CHAR;
+              /* Note: We don't call set_telnet_single_char() here because:
+               * 1. It's static in comm.c and would require API changes
+               * 2. The flag will be properly reset on next input_to/get_char call
+               * 3. User will revert to line mode on next input naturally */
+            }
+        }
     }
 
   ob->flags &= ~O_ENABLE_COMMANDS;

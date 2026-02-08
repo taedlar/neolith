@@ -1917,6 +1917,7 @@ void dealloc_object (object_t * ob, const char *from) {
 #endif
   if (ob->name)
     {
+      opt_trace (TT_MEMORY, "freed object name \"/%s\"", ob->name);
       DEBUG_CHECK1 (lookup_object_hash (ob->name) == ob,
                     "Freeing object /%s but name still in name table",
                     ob->name);
@@ -1933,6 +1934,7 @@ void dealloc_object (object_t * ob, const char *from) {
  * @param from A string indicating where the free was initiated from.
  */
 void free_object (object_t * ob, const char *from) {
+  opt_trace (TT_MEMORY|3, "releasing object name \"/%s\" (ref=%d)", ob->name, ob->ref - 1);
   if (--ob->ref > 0)
     return;
   dealloc_object (ob, from);
