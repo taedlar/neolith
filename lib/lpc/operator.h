@@ -26,8 +26,3 @@ void f_xor(void);
 void f_xor_eq(void);
 void f_function_constructor(void);
 void f_evaluate(void);
-
-
-funptr_t *make_efun_funp(int, svalue_t *);
-funptr_t *make_lfun_funp(int, svalue_t *);
-funptr_t *make_simul_funp(int, svalue_t *);

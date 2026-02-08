@@ -44,7 +44,8 @@ TEST_F(LPCInterpreterTest, callFunction) {
     svalue_t ret;
     program_t* found_prog = find_function(prog, findstring("add"), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for add().";
-    int runtime_index = found_prog->function_table[index].runtime_index;
+    //int runtime_index = found_prog->function_table[index].runtime_index;
+    int runtime_index = index + fio; // since we are calling directly without an object, the runtime index should be the same as the function table index
 
     push_number(1);
     push_number(2);
@@ -53,6 +54,24 @@ TEST_F(LPCInterpreterTest, callFunction) {
     EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
     EXPECT_EQ(ret.u.number, 3) << "Expected return value of add(1,2) to be 3.";
     free_prog(prog, 1);
+}
+
+TEST_F(LPCInterpreterTest, callInheritedFunction) {
+    init_master("master.c");
+    object_t* obj = load_object("user.c", 0);
+    ASSERT_NE(obj, nullptr) << "load_object returned null object.";
+
+    int index, fio, vio;
+    svalue_t ret;
+    program_t* found_prog = find_function(obj->prog, findstring("is_char"), &index, &fio, &vio);
+    ASSERT_NE(found_prog, obj->prog) << "find_function did not return inherited program for is_char().";
+    int runtime_index = index + fio;
+
+    call_function (obj->prog, runtime_index, 0, &ret);
+
+    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
+    EXPECT_EQ(ret.u.number, 123) << "Expected return value of is_char() to be 123.";
+    destruct_object(obj);
 }
 
 TEST_F(LPCInterpreterTest, evalCostLimit) {

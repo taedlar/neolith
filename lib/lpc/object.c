@@ -1811,6 +1811,50 @@ void tell_object (object_t * ob, char *str) {
     tell_npc (ob, str);
 }
 
+static sentence_t *sent_free = 0;
+int tot_alloc_sentence;
+
+sentence_t* alloc_sentence () {
+  sentence_t *p;
+
+  if (sent_free == 0)
+    {
+      p = ALLOCATE (sentence_t, TAG_SENTENCE, "alloc_sentence");
+      tot_alloc_sentence++;
+    }
+  else
+    {
+      p = sent_free;
+      sent_free = sent_free->next;
+    }
+  p->verb = 0;
+  p->function.s = 0;
+  p->next = 0;
+  return p;
+}
+
+void free_sentence (sentence_t * p) {
+  if (p->flags & V_FUNCTION)
+    {
+      if (p->function.f)
+        free_funp (p->function.f);
+      p->function.f = 0;
+    }
+  else
+    {
+      if (p->function.s)
+        free_string (p->function.s);
+      p->function.s = 0;
+    }
+
+  if (p->verb)
+    free_string (p->verb);
+
+  p->verb = 0;
+  p->next = sent_free;
+  sent_free = p;
+}
+
 /**
  * @brief Deallocate an object structure.
  * 
