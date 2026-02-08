@@ -2,8 +2,18 @@
 
 **Goal**: Separate comm.c into stream processing (comm.c) and command dispatch (user_command.c) using object-as-primary-interface design (Option 1), with `interactive_t` becoming opaque to the command layer.
 
-**Status**: Planning Phase  
-**Date**: 2026-02-06
+**Status**: Blocked on [sentence-args-refactor-plan.md](sentence-args-refactor-plan.md)  
+**Date**: 2026-02-08  
+**Update**: Merged input_to/add_action refactor into prerequisite plan
+
+## Prerequisites
+
+**MUST COMPLETE FIRST**: [Sentence Arguments Refactoring](sentence-args-refactor-plan.md)
+
+This refactor depends on completing the sentence-args refactor because:
+1. Removes `carryover`/`num_carry` from `interactive_t` (no accessor functions needed)
+2. Moves `input_to()`/`get_char()` logic to use `sentence_t->args` (cleaner code to move)
+3. Validates argument handling before architectural split (reduces risk)
 
 ## Architecture Overview
 
@@ -125,8 +135,7 @@ if (!ret)
 sentence_t* comm_get_input_to(object_t *ob);
 void comm_set_input_to(object_t *ob, sentence_t *sent);
 void comm_clear_input_to(object_t *ob);
-void comm_set_carryover_args(object_t *ob, svalue_t *args, int num);
-svalue_t* comm_get_carryover_args(object_t *ob, int *num_out);
+// NOTE: No carryover accessors needed after sentence-args refactor completes
 
 // Prompt and notify_fail
 const char* comm_get_prompt(object_t *ob);
@@ -176,6 +185,7 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
 - ✅ `input_to()` and `get_char()` moved from simulate.c to user_command.c (command-layer concerns)
 - ✅ F_TRACE will NOT be defined (no trace accessors needed)
 - ✅ OLD_ED will be defined (ed_buffer accessors required)
+- ✅ After sentence-args refactor: No `carryover`/`num_carry` fields (no accessors needed)
 
 **Steps**:
 
@@ -238,36 +248,14 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
    - Move declarations from `comm.h` to `user_command.h` as appropriate
    - Add `input_to()` and `get_char()` declarations to `user_command.h`
    - Update `simulate.h` to forward-declare or include `user_command.h`
-   
-   // Protocol mode control (Windows, Linux)
-- All existing tests pass
-- No behavioral changes
-- Line count: comm.c ~1800, user_command.c ~1200, simulate.c reduced by ~150 lines
-- Verify `input_to()` and `get_char()` still work from mudlib
-   char* query_ip_name(object_t *ob);
-   char* query_ip_number(object_t *ob);
-   time_t query_idle(object_t *ob);
-   ```
-
-4. **Update CMakeLists.txt**:
-   ```cmake
-   # src/CMakeLists.txt
-   add_library(stem OBJECT
-       # ... existing files
-       comm.c
-       user_command.c
-   )
-   ```
-
-5. **Update exports**:
-   - Move declarations from `comm.h` to `user_command.h` as appropriate
-   - Both headers remain public for Phase 1
 
 **Validation**:
 - Build succeeds on all platforms
 - All existing tests pass
 - No behavioral changes
-- Line count: comm.c ~1800, user_command.c ~1200
+- Line count: comm.c ~1800, user_command.c ~1200, simulate.c reduced by ~150 lines
+- Verify `input_to()` and `get_char()` still work from mudlib (already tested in prerequisite)
+- Verify `add_action()` with carryover args works (new capability from prerequisite)
 
 ### Phase 2: Fix Protocol Error Handling (1-2 days)
 
@@ -619,7 +607,7 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
        comm_set_input_to(ob, sent, NULL, 0);
        
    cope Based on Decisions**:
-- ✅ Include carryover args accessors (for `input_to()`/`get_char()`)
+- ❌ Skip carryover args accessors (eliminated in sentence-args refactor prerequisite)
 - ✅ Include OLD_ED accessors (`ed_buffer`, net_dead check)
 - ✅ Include efun accessors (local_port, peer_ip, peer_port)
 - ❌ Skip F_TRACE accessors (feature disabled)
@@ -645,9 +633,11 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
 - get_char() single character mode works
 - Console and TELNET both work correctly
 
-### Phase 6: Create Accessor Functions (4-5 days)
+### Phase 6: Create Accessor Functions (3-4 days)
 
 **Goal**: Implement all accessors for interactive_t fields needed by user_command.c.
+
+**Note**: Reduced scope - no carryover accessors needed (eliminated in prerequisite refactor)
 
 **Steps**:
 
@@ -790,22 +780,75 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
 
 2. **Update existing tests**:
    - `test_backend/` - Verify command processing loop
-   - `test_efuns/test_i
+   - `test_efuns/test_input_to/` - Verify input_to() and get_char() still work  
+   - `test_simul_efuns/` - Verify no breakage from simulate.c changes
+
+3. **New test cases**:
+   ```cpp
+   TEST(CommSeparation, CommandTurnFairness) {
+       // Grant turns, verify each user gets exactly one command processed
+   }
+   
+   TEST(CommSeparation, ProtocolCallbackSafetyDestruct) {
+       // Mudlib destructs during terminal_type callback, verify graceful handling
+   }
+   
+   TEST(CommSeparation, BufferAPIRoundRobin) {
+       // Multiple users with commands, verify round-robin processing
+   }
+   
+   #ifdef OLD_ED
+   TEST(CommSeparation, EdBufferAccessors) {
+       // Verify ed_buffer get/set works correctly
+   }
+   #endif
+   ```
+
+**Note**: input_to() and get_char() test coverage already extensive from sentence-args refactor prerequisite
+
+
+**Scope Based on Decisions**:
+- ❌ Skip carryover args accessors (eliminated in sentence-args refactor prerequisite)
+- ✅ Include OLD_ED accessors (`ed_buffer`, net_dead check)
+- ✅ Include efun accessors (local_port, peer_ip, peer_port)
+- ❌ Skip F_TRACE accessors (feature disabled)
+
+**Implementation**:
 - See full accessor list in "Required Accessors" section
-- ~25-30 accessor functions for interactive_t state
+- ~20-25 accessor functions for interactive_t state (reduced from 25-30)
 - Includes OLD_ED support (ed_buffer accessors)
-- No F_TRACE accessors (feature disabled) still works
+- No carryover or F_TRACE accessors needed
 
 ### Integration Tests
 
 1. **Manual testing script** (testbot.py):
    ```python
-   # Test input_to callbacks
+   # Test input_to callbacks (already extensively tested in prerequisite)
    send("input_to_echo_test\\n")
-- **input_to/get_char relocation** - Moving from simulate.c to user_command.c
-  - Mitigation: Maintain exact semantics, test with mudlib objects, verify carryover args
+   expect("Enter text:")
+   send("hello world\\n")
+   expect("You entered: hello world")
+   
+   # Test add_action with carryover args (new capability from prerequisite)
+   send("test_add_action_args\\n")
+   expect("Command executed with context")
+   
+   # Test get_char single character mode
+   send("get_char_test\\n")
+   expect("Press any key:")
+   send("x")  # Single character
+   expect("You pressed: x")
+   ```
 
-### Medium Risk
+2. **Mudlib integration**:
+   - Load existing M3 mudlib
+   - Test login sequence (uses input_to for password)
+   - Test editor integration (if OLD_ED enabled)
+   - Test command processing under load
+
+## Risk Assessment
+
+### High Risk
 - **Performance regression** - Accessor overhead
   - Mitigation: Inline functions, measure benchmarks
   
@@ -815,28 +858,42 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
 - **OLD_ED integration** - ed_buffer accessor testing
   - Mitigation: Test with OLD_ED enabled, verify ed integration
 
-### Low Risk300 lines, simulate.c reduced
+### Low Risk
+- **Behavioral changes** - Command processing semantics
+  - Mitigation: Move code as-is, refactor later
+
+## Success Criteria
+
+1. ✅ **Modularity**: comm.c ~1800 lines, user_command.c ~1200 lines, simulate.c reduced by ~150 lines
 2. ✅ **Encapsulation**: `interactive_t` opaque to user_command.c
 3. ✅ **Safety**: All protocol callbacks have error handling
-4. ✅ **Functionality**: `input_to()` and `get_char()` work correctly in new location
-5. ✅ **Testing**: Full test coverage, no regressions
-6. ✅ **Performance**: <5% overhead on command processing
-7. ✅ **OLD_ED Support**: ed_buffer accessors work correctly
-8 ✅ **F_TRACE accessors** - Not needed (feature disabled)
-- ✅ **Socket efun refactoring** - Use existing query_ip_number() where possible
-3-4 days (module boundary + input_to/get_char move)
+4. ✅ **Functionality**: `input_to()` and `get_char()` work correctly in new location (already refactored in prerequisite)
+5. ✅ **add_action() carryover**: New varargs capability works (from prerequisite)
+6. ✅ **Testing**: Full test coverage, no regressions
+7. ✅ **Performance**: <5% overhead on command processing
+8. ✅ **OLD_ED Support**: ed_buffer accessors work correctly
+9. ✅ **Documentation**: Update internals.md with new architecture
+
+## Timeline Estimate
+
+- **Phase 1**: 2-3 days (module boundary, input_to/get_char move)
 - **Phase 2**: 1-2 days (error handling)
 - **Phase 3**: 2-3 days (backend integration)
 - **Phase 4**: 3-4 days (buffer API)
 - **Phase 5**: 2-3 days (protocol mode API)
-- **Phase 6**: 5-6 days (accessors + OLD_ED support)
+- **Phase 6**: 3-4 days (accessors, no carryover accessors needed)
 - **Phase 7**: 1-2 days (opaque type)
 
-**Total**: ~17-24 working days (~3.5-5 weeks)
+**Prerequisites**: ~9-11 days for sentence-args refactor (see [sentence-args-refactor-plan.md](sentence-args-refactor-plan.md))
+
+**This Refactor**: ~15-20 working days (~3-4 weeks)
+
+**Total with Prerequisites**: ~24-31 working days (~5-6 weeks)
 
 **Adjustment rationale**:
-- Phase 1: +1 day for input_to/get_char relocation and testing
-- Phase 6: +1 day for OLD_ED accessor implementation and verification
+- Phase 1: Reduced complexity (input_to/get_char already refactored)
+- Phase 6: -1 day (no carryover accessors needed)
+- Prerequisites add initial ~2 weeks but reduce overall risk
 
 ### Regression Testing
 

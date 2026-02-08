@@ -48,7 +48,6 @@ struct object_s {
     unsigned short flags;	/* Bits or'ed together from above */
     char *name;
     struct object_s *next_hash;
-    /* the fields above must match lpc_object_t */
     time_t load_time;		/* time when this object was created */
     time_t next_reset;		/* time of next reset of this object */
     time_t time_of_ref;		/* time when last referenced. Used by swap */
@@ -84,6 +83,8 @@ extern int save_svalue_depth;
 
 void init_objects();
 void deinit_objects();
+sentence_t* alloc_sentence ();
+void free_sentence(sentence_t *);
 void bufcat(char **, char *);
 size_t svalue_save_size(const svalue_t *);
 void save_svalue(svalue_t *, char **);

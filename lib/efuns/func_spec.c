@@ -132,7 +132,7 @@ void tell_room(object | string, string | object | int | float, void | object *);
 object present(object | string, void | object);
 void move_object(object | string);
 
-void add_action(string | function, string | string *, void | int);
+void add_action(string | function, string | string *, void | int, ...);
 string query_verb();
 int command(string);
 int remove_action(string, string);

@@ -1444,11 +1444,20 @@ static void new_user_handler (port_def_t *port) {
 }
 
 /**
- *  @brief This is the user command handler.
- *  This function is called when a user command needs to be processed.
- *  This function calls \c get_user_command() to iterate over all connected users
- *  in sequence and dispatch next user command. One user command is processed
+ *  User command turn handler.
+ *
+ *  This function is called by the backend after unblocked from a communication polling.
+ *  Network traffics from all connected users are buffered in each user's command buffer and
+ *  marked with CMD_IN_BUF flag if a complete command is available.
+ * 
+ *  This function calls \c get_user_command() to iterate over all connected users,
+ *  assigining \c command_giver to each user in turn, and checking for pending commands.
+ *  If a command is pending, it is processed by \c process_command() or \c apply() to the user
+ *  object as appropriate.
+ *  
+ *  User commands are processed in sequence (round-robin) that one user command is processed
  *  per execution of this function.
+ * 
  *  @return Returns 1 if a user command was processed, 0 if no more user commands are pending.
  */
 int process_user_command () {

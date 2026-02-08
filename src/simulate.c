@@ -54,7 +54,6 @@ static int init_object (object_t *);
 static svalue_t *load_virtual_object (const char *);
 static char *make_new_name (const char *);
 static void send_say (object_t *, char *, array_t *);
-static sentence_t *alloc_sentence (void);
 static void remove_sent (object_t *, object_t *);
 
 
@@ -65,9 +64,7 @@ static void remove_sent (object_t *, object_t *);
 static object_t *command_giver_stack[1024];
 static object_t **cgsp = command_giver_stack;
 
-void
-save_command_giver (object_t * new_command_giver)
-{
+void save_command_giver (object_t * new_command_giver) {
   if (cgsp >= EndOf (command_giver_stack))
     fatal ("*****Command giver stack overflow!");
 
@@ -78,9 +75,7 @@ save_command_giver (object_t * new_command_giver)
   command_giver = new_command_giver;
 }
 
-void
-restore_command_giver ()
-{
+void restore_command_giver () {
   if (command_giver)
     free_object (command_giver, "restore_command_giver");
 
@@ -138,9 +133,7 @@ char *strput (char *x, char *limit, const char *y) {
 #endif
 }
 
-char *
-strput_int (char *x, char *limit, int num)
-{
+char* strput_int (char *x, char *limit, int num) {
   char buf[20];
   sprintf (buf, "%d", num);
   return strput (x, limit, buf);
@@ -152,9 +145,7 @@ strput_int (char *x, char *limit, int num)
  * 
  *  An object must have a uid. The euid may be NULL.
  */
-static int
-give_uid_to_object (object_t * ob)
-{
+static int give_uid_to_object (object_t * ob) {
   svalue_t *ret;
   char *creator_name = NULL;
 
@@ -232,9 +223,7 @@ give_uid_to_object (object_t * ob)
 }
 
 
-static int
-init_object (object_t * ob)
-{
+static int init_object (object_t * ob) {
   return give_uid_to_object (ob);
 }
 
@@ -699,9 +688,7 @@ object_t *clone_object (const char *str1, int num_arg) {
   return (new_ob);
 }
 
-object_t *
-environment (svalue_t * arg)
-{
+object_t* environment (svalue_t * arg) {
   object_t *ob = current_object;
 
   if (arg && arg->type == T_OBJECT)
@@ -718,8 +705,7 @@ environment (svalue_t * arg)
  * The command can also come from a NPC.
  * Beware that 'str' can be modified and extended !
  */
-int process_command (char *str, object_t * ob)
-{
+int process_command (char *str, object_t * ob) {
   object_t *save = command_giver;
   int res;
 
@@ -777,9 +763,7 @@ int64_t command_for_object (char *str) {
 
 static object_t *object_present2 (char *, object_t *);
 
-object_t *
-object_present (svalue_t * v, object_t * ob)
-{
+object_t* object_present (svalue_t * v, object_t * ob) {
   svalue_t *ret;
   object_t *ret_ob;
   int specific = 0;
@@ -933,8 +917,7 @@ void init_master (const char *master_file) {
 static char *saved_master_name = "";
 static char *saved_simul_name = "";
 
-static void fix_object_names (void)
-{
+static void fix_object_names (void) {
   master_ob->name = saved_master_name;
   simul_efun_ob->name = saved_simul_name;
 }
@@ -1190,9 +1173,7 @@ void destruct_object (object_t * ob) {
 /*
  * This one is called when no program is executing from the main loop.
  */
-void
-destruct2 (object_t * ob)
-{
+void destruct2 (object_t * ob) {
   /*
    * We must deallocate variables here, not in 'free_object()'. That is
    * because one of the local variables may point to this object, and
@@ -1252,9 +1233,7 @@ void remove_destructed_objects () {
  * rewritten, bobf@metronet.com (Blackthorn) 9/6/93
  */
 
-static void
-send_say (object_t * ob, char *text, array_t * avoid)
-{
+static void send_say (object_t * ob, char *text, array_t * avoid) {
   int valid, j;
 
   for (valid = 1, j = 0; j < avoid->size; j++)
@@ -1274,9 +1253,7 @@ send_say (object_t * ob, char *text, array_t * avoid)
   tell_object (ob, text);
 }
 
-void
-say (svalue_t * v, array_t * avoid)
-{
+void say (svalue_t * v, array_t * avoid) {
   object_t *ob, *origin, *save_command_giver = command_giver;
   char *buff;
 
@@ -1326,9 +1303,7 @@ say (svalue_t * v, array_t * avoid)
  * Revised, bobf@metronet.com 9/6/93
  */
 #ifdef F_TELL_ROOM
-void
-tell_room (object_t * room, svalue_t * v, array_t * avoid)
-{
+void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
   object_t *ob;
   char *buff;
   int valid, j;
@@ -1393,9 +1368,7 @@ tell_room (object_t * room, svalue_t * v, array_t * avoid)
 }
 #endif
 
-void
-shout_string (char *str)
-{
+void shout_string (char *str) {
   object_t *ob;
 
   check_legal_string (str);
@@ -1435,7 +1408,7 @@ void enable_commands (int num) {
 }
 
 /**
- *  @brief Set up a function in this object to be called with the next user input string.
+ *  Set up a function in this object to be called with the next user input string.
  */
 int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
 
@@ -1485,13 +1458,11 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
 }
 
 
-/*
+/**
  * Set up a function in this object to be called with the next
  * user input character.
  */
-int
-get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args)
-{
+int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   sentence_t *s;
   svalue_t *x;
   int i;
@@ -1509,9 +1480,7 @@ get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args)
       if (num_arg)
         {
           i = num_arg * sizeof (svalue_t);
-          if ((x = (svalue_t *)
-               DMALLOC (i, TAG_TEMPORARY, "get_char: 1")) == NULL)
-            fatal ("Out of memory!\n");
+          x = (svalue_t *)DXALLOC (i, TAG_INPUT_TO, "input_to: 1");
           memcpy (x, args, i);
         }
       else
@@ -1538,9 +1507,7 @@ get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args)
   return 0;
 }
 
-void
-print_svalue (svalue_t * arg)
-{
+void print_svalue (svalue_t * arg) {
   char tbuf[2048];
 
   if (arg == 0)
@@ -1586,9 +1553,7 @@ print_svalue (svalue_t * arg)
 }
 
 
-void
-do_write (svalue_t * arg)
-{
+void do_write (svalue_t * arg) {
   object_t *save_command_giver = command_giver;
 
   if (!command_giver)
@@ -1651,9 +1616,7 @@ object_t *find_object_by_name (const char *str) {
  * The main work is to update all command definitions, depending on what is
  * living or not. Note that all objects in the same inventory are affected.
  */
-void
-move_object (object_t * item, object_t * dest)
-{
+void move_object (object_t * item, object_t * dest) {
   object_t **pp, *ob;
   object_t *next_ob;
   object_t *save_cmd = command_giver;
@@ -1768,56 +1731,6 @@ move_object (object_t * item, object_t * dest)
 }
 
 
-static sentence_t *sent_free = 0;
-int tot_alloc_sentence;
-
-static sentence_t *
-alloc_sentence ()
-{
-  sentence_t *p;
-
-  if (sent_free == 0)
-    {
-      p = ALLOCATE (sentence_t, TAG_SENTENCE, "alloc_sentence");
-      tot_alloc_sentence++;
-    }
-  else
-    {
-      p = sent_free;
-      sent_free = sent_free->next;
-    }
-  p->verb = 0;
-  p->function.s = 0;
-  p->next = 0;
-  return p;
-}
-
-
-void
-free_sentence (sentence_t * p)
-{
-  if (p->flags & V_FUNCTION)
-    {
-      if (p->function.f)
-        free_funp (p->function.f);
-      p->function.f = 0;
-    }
-  else
-    {
-      if (p->function.s)
-        free_string (p->function.s);
-      p->function.s = 0;
-    }
-
-  if (p->verb)
-    free_string (p->verb);
-
-  p->verb = 0;
-  p->next = sent_free;
-  sent_free = p;
-}
-
-
 /*
  * Find the sentence for a command from the user.
  * Return success status.
@@ -1825,9 +1738,7 @@ free_sentence (sentence_t * p)
 
 #define MAX_VERB_BUFF 100
 
-int
-user_parser (char *buff)
-{
+int user_parser (char *buff) {
   char verb_buff[MAX_VERB_BUFF];
   sentence_t *s;
   char *p;
@@ -2009,9 +1920,7 @@ user_parser (char *buff)
  * If the call is from a shadow, make it look like it is really from
  * the shadowed object.
  */
-void
-add_action (svalue_t * str, char *cmd, int flag)
-{
+void add_action (svalue_t * str, char *cmd, int flag) {
   sentence_t *p;
   object_t *ob;
 
@@ -2062,9 +1971,7 @@ add_action (svalue_t * str, char *cmd, int flag)
  * if success.  If command_giver, remove his action, otherwise
  * remove current_object's action.
  */
-int
-remove_action (char *act, char *verb)
-{
+int remove_action (char *act, char *verb) {
   object_t *ob;
   sentence_t **s;
 
@@ -2095,13 +2002,10 @@ remove_action (char *act, char *verb)
 }
 
 
-/*
- * Remove all commands (sentences) defined by object 'ob' in object
- * 'user'
+/**
+ * Remove all commands (sentences) defined by object 'ob' in object 'user'
  */
-static void
-remove_sent (object_t * ob, object_t * user)
-{
+static void remove_sent (object_t * ob, object_t * user) {
   sentence_t **s;
 
   for (s = &user->sent; *s;)
@@ -2120,9 +2024,7 @@ remove_sent (object_t * ob, object_t * user)
     }
 }
 
-static int
-find_line (const char *p, const program_t * progp, char **ret_file, int *ret_line)
-{
+static int find_line (const char *p, const program_t * progp, char **ret_file, int *ret_line) {
   int offset;
   unsigned char *lns;
   short abs_line;
@@ -2214,9 +2116,7 @@ typedef struct function_trace_details_s {
         int program_offset;
 } function_trace_details_t;
 
-static void
-get_trace_details (const program_t* prog, int index, function_trace_details_t* ftd)
-{
+static void get_trace_details (const program_t* prog, int index, function_trace_details_t* ftd) {
   compiler_function_t *cfp = &prog->function_table[index];
   runtime_function_u *func_entry = FIND_FUNC_ENTRY (prog, cfp->runtime_index);
 
@@ -2233,9 +2133,7 @@ get_trace_details (const program_t* prog, int index, function_trace_details_t* f
  * Write out a trace. If there is a heart_beat(), then return the
  * object that had that heart beat.
  */
-char *
-dump_trace (int how)
-{
+char* dump_trace (int how) {
   const control_stack_t *p;
   char *ret = 0;
   int num_arg = -1, num_local = -1;
@@ -2381,16 +2279,13 @@ dump_trace (int how)
   return ret;
 }
 
-static void get_explicit_line_number_info (const char *p, program_t * prog, char **ret_file, int *ret_line)
-{
+static void get_explicit_line_number_info (const char *p, program_t * prog, char **ret_file, int *ret_line) {
   find_line (p, prog, ret_file, ret_line);
   if (!(*ret_file))
     *ret_file = prog->name;
 }
 
-array_t *
-get_svalue_trace (int how)
-{
+array_t* get_svalue_trace (int how) {
   control_stack_t *p;
   array_t *v;
   mapping_t *m;
@@ -2549,9 +2444,7 @@ int in_fatal_error() {
   return (proceeding_fatal_error != 0);
 }
 
-void
-fatal (char *fmt, ...)
-{
+void fatal (char *fmt, ...) {
   char *msg = "(error message buffer cannot be allocated)";
   va_list args;
 
@@ -2716,9 +2609,7 @@ void do_shutdown () {
  * Call this one when there is only little memory left. It will start
  * Armageddon.
  */
-void
-do_slow_shutdown (int minutes)
-{
+void do_slow_shutdown (int minutes) {
   /*
    * Swap out objects, and free some memory.
    */
@@ -2742,10 +2633,7 @@ do_slow_shutdown (int minutes)
 }
 
 
-void
-do_message (svalue_t * msg_class, svalue_t * msg, array_t * scope,
-            array_t * exclude, int recurse)
-{
+void do_message (svalue_t * msg_class, svalue_t * msg, array_t * scope, array_t * exclude, int recurse) {
   int i, j, valid;
   object_t *ob;
 
@@ -2796,9 +2684,7 @@ do_message (svalue_t * msg_class, svalue_t * msg, array_t * scope,
 
 
 #ifdef LAZY_RESETS
-void
-try_reset (object_t * ob)
-{
+void try_reset (object_t * ob) {
   if ((ob->next_reset < current_time) && !(ob->flags & O_RESET_STATE))
     {
       /* need to set the flag here to prevent infinite loops in apply_low */
@@ -2810,9 +2696,7 @@ try_reset (object_t * ob)
 
 
 #ifdef F_FIRST_INVENTORY
-object_t *
-first_inventory (svalue_t * arg)
-{
+object_t* first_inventory (svalue_t * arg) {
   object_t *ob;
 
   if (arg->type == T_STRING)
@@ -2843,8 +2727,7 @@ first_inventory (svalue_t * arg)
 }
 #endif
 
-int get_machine_state()
-{
+int get_machine_state() {
   if (!start_of_stack || !control_stack)
     return -1; /* stack machine not yet initialized */
   if (!master_ob)
