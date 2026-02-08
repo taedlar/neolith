@@ -1829,12 +1829,18 @@ sentence_t* alloc_sentence () {
     }
   p->verb = 0;
   p->function.s = 0;
+  p->ob = 0;
+  p->flags = 0;
   p->next = 0;
   p->args = NULL;  /* initialize carryover args */
   return p;
 }
 
 void free_sentence (sentence_t * p) {
+  /* Free object reference first (object might be destructed but not yet freed) */
+  if (p->ob)
+    free_object (p->ob, "free_sentence");
+
   if (p->flags & V_FUNCTION)
     {
       if (p->function.f)
@@ -1856,6 +1862,8 @@ void free_sentence (sentence_t * p) {
     free_array (p->args);
 
   p->verb = 0;
+  p->ob = 0;
+  p->flags = 0;
   p->args = NULL;
   p->next = sent_free;
   sent_free = p;
@@ -1875,8 +1883,7 @@ void dealloc_object (object_t * ob, const char *from) {
   if (!(ob->flags & O_DESTRUCTED))
     {
       /* This is fatal, and should never happen. */
-      fatal ("FATAL: Object 0x%x /%s ref count 0, but not destructed (from %s).\n",
-         ob, ob->name, from);
+      fatal ("FATAL: Object 0x%x /%s ref count 0, but not destructed (from %s).\n", ob, ob->name, from);
     }
   DEBUG_CHECK (ob->interactive, "Tried to free an interactive object.\n");
 
@@ -1891,13 +1898,18 @@ void dealloc_object (object_t * ob, const char *from) {
       free_prog (ob->prog, 1);
       ob->prog = 0;
     }
-  for (s = ob->sent; s;)
+  /* Free sentences if not already freed during destruct_object().
+   * With the fix to free sentences earlier, ob->sent should already be NULL.
+   * This code remains as a safety net for backwards compatibility. */
+  if (ob->sent)
     {
-      sentence_t *next;
-
-      next = s->next;
-      free_sentence (s);
-      s = next;
+      for (s = ob->sent; s;)
+        {
+          sentence_t *next = s->next;
+          free_sentence (s);
+          s = next;
+        }
+      ob->sent = NULL;
     }
 #ifdef PRIVS
   if (ob->privs)
@@ -1921,9 +1933,7 @@ void dealloc_object (object_t * ob, const char *from) {
  * @param from A string indicating where the free was initiated from.
  */
 void free_object (object_t * ob, const char *from) {
-  ob->ref--;
-
-  if (ob->ref > 0)
+  if (--ob->ref > 0)
     return;
   dealloc_object (ob, from);
 }
@@ -2183,6 +2193,12 @@ void deinit_objects () {
         debug_message ("Warning: deinit_objects with %d living names still set.\n", num_living_names);
       FREE (hashed_living);
       hashed_living = NULL;
+    }
+  while (sent_free)
+    {
+      sentence_t *next = sent_free->next;
+      FREE (sent_free);
+      sent_free = next;
     }
   if (tot_alloc_object)
     debug_warn ("Memory leak: %zu objects still allocated at shutdown.\n", tot_alloc_object);

@@ -544,7 +544,7 @@ Remove carryover cleanup (currently lines ~2261-2264):
 
 ---
 
-### Phase 5: Extend `add_action()` with Carryover Args (2-3 days)
+### Phase 5: Extend `add_action()` with Carryover Args (2-3 days) ✅ COMPLETE
 
 **Goal**: Enable `add_action()` to accept varargs, following same pattern as `input_to()`.
 

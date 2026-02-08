@@ -998,7 +998,13 @@ void destruct_object (object_t * ob) {
       * An error here will not leave destruct() in an inconsistent
       * stage.
       */
-      if (!g_proceeding_shutdown) /* if we are shutting down, don't move objects */
+      if (g_proceeding_shutdown) /* if we are shutting down, don't move objects */
+        {
+          move_object (otmp, NULL);
+          destruct_object (otmp);
+          continue;
+        }
+      else
         {
           if (super && !(super->flags & O_DESTRUCTED))
             push_object (super);
@@ -1148,6 +1154,22 @@ void destruct_object (object_t * ob) {
     {
       opt_trace (TT_EVAL|1, "removing /%s (%s) from living objects list", ob->name, ob->living_name);
       remove_living_name (ob);
+    }
+
+  /* Free all sentences defined by this object (actions it can respond to).
+   * This must be done before deallocation to properly release references
+   * to other objects. Without this, cross-referencing objects (e.g., NPCs
+   * that add_action to each other) will trigger ref count warnings. */
+  if (ob->sent)
+    {
+      sentence_t *s, *next;
+      opt_trace (TT_EVAL|1, "freeing sentences for /%s", ob->name);
+      for (s = ob->sent; s; s = next)
+        {
+          next = s->next;
+          free_sentence (s);
+        }
+      ob->sent = NULL;
     }
 
   ob->flags &= ~O_ENABLE_COMMANDS;
@@ -1641,11 +1663,22 @@ object_t *find_object_by_name (const char *str) {
   return 0;
 }
 
-/*
+/**
  * Transfer an object.
  * The object has to be taken from one inventory list and added to another.
  * The main work is to update all command definitions, depending on what is
  * living or not. Note that all objects in the same inventory are affected.
+ *
+ * @param item The object to move.
+ * @param dest The destination object to move to. If NULL, the object will
+ *    be moved to the top level (no environment). This is a Neolith extension.
+ * @note Recursive moves (moving an object inside itself) are not allowed
+ *    and will raise an error. Moving to a destructed object is also not
+ *    allowed and will raise an error.
+ * @note The init() function of the destination object and all present objects
+ *    will be called after the move, which may cause further moves or even
+ *    destruction. The function will check for such changes and handle them
+ *    properly to avoid crashes or inconsistent states.
  */
 void move_object (object_t * item, object_t * dest) {
   object_t **pp, *ob;
@@ -1657,8 +1690,12 @@ void move_object (object_t * item, object_t * dest) {
     if (ob == item)
       error ("*Can't move object inside itself.");
 
+  if (dest && dest->flags & O_DESTRUCTED)
+    error ("*Can't move to a destructed object.");
+
 #ifdef LAZY_RESETS
-  try_reset (dest);
+  if (dest)
+    try_reset (dest);
 #endif
 
   if (item->super)
@@ -1687,9 +1724,17 @@ void move_object (object_t * item, object_t * dest) {
     }
 
   /* link object into target's inventory list */
-  item->next_inv = dest->contains;
-  dest->contains = item;
   item->super = dest;
+  if (dest)
+    {
+      item->next_inv = dest->contains;
+      dest->contains = item;
+    }
+  else
+    {
+      item->next_inv = 0;
+      return;
+    }
 
   /*
    * Setup the new commands. The order is very important, as commands in
@@ -1836,6 +1881,10 @@ int user_parser (char *buff) {
     {
       svalue_t *ret;
 
+      /* Skip sentences from destructed objects (ref counting keeps memory valid) */
+      if (s->ob->flags & O_DESTRUCTED)
+        continue;
+
       if (s->flags & (V_NOSPACE | V_SHORT))
         {
           if (strncmp (buff, s->verb, strlen (s->verb)) != 0)
@@ -1873,6 +1922,7 @@ int user_parser (char *buff) {
        */
       where = (current_object ? ORIGIN_EFUN : ORIGIN_DRIVER);
 
+      /* Push command args FIRST (correct LPC order) */
       if (s->flags & V_NOSPACE)
         copy_and_push_string (&buff[strlen (s->verb)]);
       else if (buff[length] == ' ')
@@ -1880,13 +1930,25 @@ int user_parser (char *buff) {
       else
         push_undefined ();
 
+      /* Push carryover args AFTER command args */
+      int num_args = 1;  /* Command args */
+      if (s->args)
+        {
+          for (int i = 0; i < s->args->size; i++)
+            {
+              push_svalue (&s->args->item[i]);
+            }
+          num_args += s->args->size;
+        }
+
+      /* Call function with all args */
       if (s->flags & V_FUNCTION)
-        ret = call_function_pointer (s->function.f, 1);
+        ret = call_function_pointer (s->function.f, num_args);
       else
         {
           if (s->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
             error ("*Illegal function name.");
-          ret = apply (s->function.s, s->ob, 1, where);
+          ret = apply (s->function.s, s->ob, num_args, where);
 //        ret = apply (s->function.s, s->ob, 1, ORIGIN_DRIVER);
         }
 
@@ -1945,13 +2007,16 @@ int user_parser (char *buff) {
  * The optinal third argument is a flag that will state that the verb should
  * only match against leading characters.
  *
+ * The optional varargs after the flag are carryover arguments that will be
+ * passed to the action function after the command argument.
+ *
  * The object must be near the command giver, so that we ensure that the
  * sentence is removed when the command giver leaves.
  *
  * If the call is from a shadow, make it look like it is really from
  * the shadowed object.
  */
-void add_action (svalue_t * str, char *cmd, int flag) {
+void add_action (svalue_t * str, char *cmd, int flag, int num_carry, svalue_t *carry_args) {
   sentence_t *p;
   object_t *ob;
 
@@ -1990,7 +2055,22 @@ void add_action (svalue_t * str, char *cmd, int flag) {
       p->flags = flag | V_FUNCTION;
     }
   p->ob = ob;
+  add_ref (ob, "add_action");
   p->verb = make_shared_string (cmd);
+
+  /* Store carryover args in sentence */
+  if (num_carry > 0)
+    {
+      array_t *arg_array = allocate_empty_array (num_carry);
+      for (int i = 0; i < num_carry; i++)
+        assign_svalue_no_free (&arg_array->item[i], &carry_args[i]);
+      p->args = arg_array;
+    }
+  else
+    {
+      p->args = NULL;
+    }
+
   /* This is ok; adding to the top of the list doesn't harm anything */
   p->next = command_giver->sent;
   command_giver->sent = p;

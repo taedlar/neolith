@@ -2255,7 +2255,6 @@ void remove_interactive (object_t * ob, int dested) {
   clear_notify (ip);
   if (ip->input_to)
     {
-      free_object (ip->input_to->ob, "remove_interactive");
       free_sentence (ip->input_to);
       ip->input_to = 0;
     }
@@ -2295,7 +2294,6 @@ static int call_function_interactive (interactive_t * i, char *str) {
   if (sent->ob->flags & O_DESTRUCTED)
     {
       /* The object has self-destructed earlier */
-      free_object (sent->ob, "call_function_interactive");
       free_sentence (sent);
       i->input_to = 0;
       return (0);
@@ -2308,13 +2306,11 @@ static int call_function_interactive (interactive_t * i, char *str) {
 
   /* Extract args from SENTENCE, not interactive_t */
   args = sent->args;
+  if (args)
+    args->ref++; /* Hold reference during call */
   num_arg = args ? args->size : 0;
 
-  free_object (sent->ob, "call_function_interactive");
-
-  /* Clear sentence but keep funp and args temporarily */
-  sent->function.f = NULL; /* Prevent double-free of funptr */
-  sent->args = NULL;       /* Prevent double-free of args */
+  /* Free sentence (handles sent->ob, sent->function.f, sent->args) */
   free_sentence (sent);
   i->input_to = 0;
 
