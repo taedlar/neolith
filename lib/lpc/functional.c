@@ -187,9 +187,10 @@ funptr_t* make_lfun_funp_by_name(const char *name, svalue_t *args) {
   add_ref (current_object, "make_lfun_funp_by_name");
   funptr->hdr.type = FP_LOCAL | FP_NOT_BINDABLE;
 
-  // Use runtime index directly (index + fio) - no function_index_offset adjustment needed
-  // because we're looking up globally by name, not relative to a call context
-  funptr->f.local.index = (function_index_t)(index + fio);
+  // Convert compiler index to runtime index, then add inheritance offset
+  // found_prog->function_table[index].runtime_index gives runtime index in found_prog
+  // Adding fio translates it to runtime index in current_object->prog
+  funptr->f.local.index = (function_index_t)(found_prog->function_table[index].runtime_index + fio);
 
   if (args && args->type == T_ARRAY)
     {
@@ -284,9 +285,8 @@ void push_funp (funptr_t * funptr) {
   funptr->hdr.ref++;
 }
 
-svalue_t *
-call_function_pointer (funptr_t * funp, int num_arg)
-{
+svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
+
   if (funp->hdr.owner->flags & O_DESTRUCTED)
     error ("*Owner (/%s) of function pointer is destructed.", funp->hdr.owner->name);
 
@@ -375,7 +375,6 @@ call_function_pointer (funptr_t * funp, int num_arg)
         current_prog = funp->hdr.owner->prog;
 
         caller_type = ORIGIN_LOCAL;
-
         if (funp->hdr.args)
           {
             array_t *v = funp->hdr.args;
@@ -387,6 +386,8 @@ call_function_pointer (funptr_t * funp, int num_arg)
         csp->num_local_variables = num_arg;
         func = setup_new_frame (funp->f.local.index);
 
+        opt_trace (TT_COMM|2, "Calling local function pointer %s::%s with %d args.\n",
+                   current_object->name, func->name, num_arg);
         call_program (current_prog, func->address);
         break;
       }

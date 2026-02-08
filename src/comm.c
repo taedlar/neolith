@@ -4,6 +4,7 @@
 
 #include "std.h"
 #include "lpc/object.h"
+#include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "comm.h"
 #include "rc.h"
@@ -1277,7 +1278,6 @@ void new_interactive (socket_fd_t socket_fd) {
   master_ob->interactive->text[0] = '\0';
   master_ob->interactive->text_end = 0;
   master_ob->interactive->text_start = 0;
-  master_ob->interactive->carryover = NULL;
   master_ob->interactive->snoop_on = 0;
   master_ob->interactive->snoop_by = 0;
   master_ob->interactive->last_time = current_time;
@@ -1291,7 +1291,6 @@ void new_interactive (socket_fd_t socket_fd) {
   master_ob->interactive->message_producer = 0;
   master_ob->interactive->message_consumer = 0;
   master_ob->interactive->message_length = 0;
-  master_ob->interactive->num_carry = 0;
   master_ob->interactive->state = TS_DATA; /* initial telnet state when connection is established */
   master_ob->interactive->out_of_band = 0;
   all_users[i] = master_ob->interactive;
@@ -2258,10 +2257,6 @@ void remove_interactive (object_t * ob, int dested) {
     {
       free_object (ip->input_to->ob, "remove_interactive");
       free_sentence (ip->input_to);
-      if (ip->num_carry > 0)
-        free_some_svalues (ip->carryover, ip->num_carry);
-      ip->carryover = NULL;
-      ip->num_carry = 0;
       ip->input_to = 0;
     }
   for (idx = 0; idx < max_users; idx++)
@@ -2277,17 +2272,15 @@ void remove_interactive (object_t * ob, int dested) {
 }				/* remove_interactive() */
 
 /**
- *  @brief Call a function on an interactive object set up by input_to() if any.
+ *  Call a function on an interactive object set up by input_to() if any.
  *  @param i The interactive structure for the user.
  *  @param str The input string to pass to the function.
  *  @return 1 if a function was called, otherwise returns 0.
  */
 static int call_function_interactive (interactive_t * i, char *str) {
 
-  object_t *ob;
   funptr_t *funp = NULL;
-  char *function;
-  svalue_t *args;
+  array_t *args;
   sentence_t *sent;
   int num_arg;
 
@@ -2305,82 +2298,50 @@ static int call_function_interactive (interactive_t * i, char *str) {
       free_object (sent->ob, "call_function_interactive");
       free_sentence (sent);
       i->input_to = 0;
-      if (i->num_carry)
-        free_some_svalues (i->carryover, i->num_carry);
-      i->carryover = NULL;
-      i->num_carry = 0;
       return (0);
     }
-  /*
-   * We must all references to input_to fields before the call to apply(),
-   * because someone might want to set up a new input_to().
-   */
+
+  /* Extract function pointer (always V_FUNCTION now after Phase 3 refactor) */
+  DEBUG_CHECK (!(sent->flags & V_FUNCTION), "input_to must be function pointer");
+  funp = sent->function.f;
+  funp->hdr.ref++; /* Hold reference during call */
+
+  /* Extract args from SENTENCE, not interactive_t */
+  args = sent->args;
+  num_arg = args ? args->size : 0;
+
   free_object (sent->ob, "call_function_interactive");
-  /* we put the function on the stack in case of an error */
-  sp++;
-  if (sent->flags & V_FUNCTION)
-    {
-      function = 0;
-      sp->type = T_FUNCTION;
-      sp->u.fp = funp = sent->function.f;
-      funp->hdr.ref++;
-    }
-  else
-    {
-      sp->type = T_STRING;
-      sp->subtype = STRING_SHARED;
-      sp->u.string = function = sent->function.s;
-      ref_string (function);
-    }
-  ob = sent->ob;
+
+  /* Clear sentence but keep funp and args temporarily */
+  sent->function.f = NULL; /* Prevent double-free of funptr */
+  sent->args = NULL;       /* Prevent double-free of args */
   free_sentence (sent);
-
-  /*
-   * If we have args, we have to copy them, so the svalues on the
-   * interactive struct can be FREEd
-   */
-  num_arg = i->num_carry;
-  if (num_arg)
-    {
-      args = i->carryover;
-      i->num_carry = 0;
-      i->carryover = NULL;
-    }
-  else
-    args = NULL;
-
   i->input_to = 0;
+
+  /* Disable single char mode if needed */
   if (i->iflags & SINGLE_CHAR)
     {
-      /*
-       * clear single character mode
-       */
       i->iflags &= ~SINGLE_CHAR;
       set_telnet_single_char (i, 0);
     }
 
+  /* Push input FIRST (correct LPC order) */
   copy_and_push_string (str);
-  /*
-   * If we have args, we have to push them onto the stack in the order they
-   * were in when we got them.  They will be popped off by the called
-   * function.
-   */
+
+  /* Push carryover args AFTER input */
   if (args)
     {
-      transfer_push_some_svalues (args, num_arg);
-      FREE (args);
+      for (int j = 0; j < args->size; j++)
+        {
+          push_svalue (&args->item[j]);
+        }
+      free_array (args);
     }
-  /* current_object no longer set */
-  if (function)
-    {
-      if (function[0] == APPLY___INIT_SPECIAL_CHAR)
-        error ("Illegal function name.\n");
-      (void) apply (function, ob, num_arg + 1, ORIGIN_DRIVER);
-    }
-  else
-    call_function_pointer (funp, num_arg + 1);
 
-  pop_stack ();			/* remove `function' from stack */
+  /* Call function (WITHOUT using funp->hdr.args - wrong order) */
+  call_function_pointer (funp, num_arg + 1);
+
+  free_funp (funp);
 
   return (1);
 }				/* call_function_interactive() */

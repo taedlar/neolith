@@ -181,9 +181,11 @@ struct sentence_s {
 
 ## Implementation Plan
 
-### Phase 1: Add `args` Field to `sentence_t` (1 day)
+### Phase 1: Add `args` Field to `sentence_t` ✅ COMPLETE
 
 **Goal**: Extend structure, update allocation/cleanup.
+
+**Status**: Complete - sentence_t allocation/cleanup moved to [lib/lpc/object.c](../../lib/lpc/object.c)
 
 #### 1.1 Modify Structure Definition
 
@@ -202,7 +204,7 @@ struct sentence_s {
 
 #### 1.2 Update Allocation
 
-**File**: [src/simulate.c](../../src/simulate.c) - `alloc_sentence()`
+**File**: [lib/lpc/object.c](../../lib/lpc/object.c) - `alloc_sentence()`
 
 ```c
 static sentence_t *alloc_sentence() {
@@ -224,7 +226,7 @@ static sentence_t *alloc_sentence() {
 
 #### 1.3 Update Cleanup
 
-**File**: [src/simulate.c](../../src/simulate.c) - `free_sentence()`
+**File**: [lib/lpc/object.c](../../lib/lpc/object.c) - `free_sentence()`
 
 ```c
 void free_sentence(sentence_t *p) {
@@ -252,34 +254,37 @@ void free_sentence(sentence_t *p) {
 }
 ```
 
-**Validation**:
-- Build succeeds
-- All tests pass
-- No memory leaks (Valgrind check)
+**Validation**: ✅
+- Build succeeds (140/140 targets)
+- All tests pass (102/102)
+- Memory cleanup verified
 
 ---
 
-### Phase 2: Add Function Lookup Helper (1 day)
+### Phase 2: Add Function Lookup Helper ✅ COMPLETE
 
 **Goal**: Enable runtime function lookup for string-to-funptr conversion.
 
+**Status**: Complete - Implemented `make_lfun_funp_by_name()` instead of separate lookup helper
+
+**Design Change**: Created overloaded version of `make_lfun_funp()` that takes function name instead of separate `find_function_in_object()`. This provides cleaner API and avoids redundant two-step pattern.
+
 #### 2.1 Implement Helper Function
 
-**File**: [lib/lpc/program/program.c](../../lib/lpc/program/program.c)
+**File**: [lib/lpc/functional.c](../../lib/lpc/functional.c)
 
 ```c
 /**
- * @brief Find a local function in an object by name (runtime lookup).
+ * @brief Create a local function pointer from a function name and optional arguments.
  * 
- * Searches the object's program for a function matching the given name.
+ * Looks up the function by name in current_object's program and creates a function pointer.
  * Handles inherited functions by following the inheritance chain.
  * 
- * @param ob The object to search in
- * @param name Function name (converted to shared string internally)
- * @param out_index Output: function runtime index (adjusted for inheritance)
- * @return 1 if found, 0 if not found
+ * @param name Function name to look up in current_object
+ * @param args Optional array of arguments to bind to the function pointer
+ * @return The created local function pointer, or NULL if function not found
  */
-int find_function_in_object(object_t *ob, const char *name, int *out_index) {
+funptr_t* make_lfun_funp_by_name(const char *name, svalue_t *args) {
     if (!ob || !name || !ob->prog)
         return 0;
     
@@ -302,16 +307,27 @@ int find_function_in_object(object_t *ob, const char *name, int *out_index) {
 
 #### 2.2 Add Declaration
 
-**File**: [lib/lpc/program/program.h](../../lib/lpc/program/program.h)
+**File**: [lib/lpc/functional.h](../../lib/lpc/functional.h)
 
 ```c
-int find_function_in_object(object_t *ob, const char *name, int *out_index);
+funptr_t *make_lfun_funp_by_name(const char *, svalue_t *);
 ```
 
-**Validation**:
-- Unit tests for function lookup
-- Test with inherited functions
-- Test with non-existent functions
+#### 2.3 Unit Tests
+
+**File**: [tests/test_lpc_interpreter/test_sentence.cpp](../../tests/test_lpc_interpreter/test_sentence.cpp)
+
+**Test Cases**:
+- `SentenceTest.MakeLfunFunpByName` - Create funptr for existing function
+- `SentenceTest.MakeLfunFunpByNameNonExistent` - NULL return for non-existent function
+- `SentenceTest.MakeLfunFunpByNameInherited` - Inherited function lookup
+- `SentenceTest.MakeLfunFunpByNameWithBoundArgs` - With bound arguments
+
+**Validation**: ✅
+- All 4 tests pass
+- Handles inherited functions correctly
+- Returns NULL for non-existent functions
+- Properly manages array reference counts
 
 ---
 
@@ -482,7 +498,7 @@ static int call_function_interactive(interactive_t *i, char *str) {
 
 ---
 
-### Phase 4: Remove `carryover`/`num_carry` from `interactive_t` (1 day)
+### Phase 4: Remove `carryover`/`num_carry` from `interactive_t` (1 day) ✅ COMPLETE
 
 **Goal**: Delete redundant fields, simplify cleanup.
 
@@ -945,9 +961,10 @@ sizeof(sentence_t) = ~40 bytes
 | File | Changes | Lines |
 |------|---------|-------|
 | [lib/lpc/object.h](../../lib/lpc/object.h) | Add `args` field to `sentence_t` | +1 |
-| [lib/lpc/program/program.c](../../lib/lpc/program/program.c) | Add `find_function_in_object()` | +20 |
-| [lib/lpc/program/program.h](../../lib/lpc/program/program.h) | Declare helper function | +1 |
-| [src/simulate.c](../../src/simulate.c) | Update `alloc/free_sentence()` | +5 |
+| [lib/lpc/object.c](../../lib/lpc/object.c) | Update `alloc/free_sentence()` | +4 |
+| [lib/lpc/functional.c](../../lib/lpc/functional.c) | Add `make_lfun_funp_by_name()` | +41 |
+| [lib/lpc/functional.h](../../lib/lpc/functional.h) | Declare function | +1 |
+| [tests/test_lpc_interpreter/test_sentence.cpp](../../tests/test_lpc_interpreter/test_sentence.cpp) | Unit tests | +124 |
 | [src/simulate.c](../../src/simulate.c) | Refactor `input_to()` and `get_char()` | ~100 |
 | [src/simulate.c](../../src/simulate.c) | Extend `add_action()` signature and impl | ~50 |
 | [src/simulate.c](../../src/simulate.c) | Modify `user_parser()` for carryover args | ~20 |

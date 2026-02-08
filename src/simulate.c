@@ -1413,48 +1413,63 @@ void enable_commands (int num) {
 int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
 
   sentence_t *s;
-  svalue_t *x;
-  int i;
+  funptr_t *callback_funp;
 
   if (!command_giver || command_giver->flags & O_DESTRUCTED)
     return 0;
 
   s = alloc_sentence ();
-  if (set_call (command_giver, s, flag & ~I_SINGLE_CHAR))
+  if (!set_call (command_giver, s, flag & ~I_SINGLE_CHAR))
     {
-      /*
-       * If we have args, we copy them, and adjust the stack automatically
-       * (elsewhere) to avoid double free_svalue()'s
-       */
-      if (num_arg)
-        {
-          i = num_arg * sizeof (svalue_t);
-          x = (svalue_t *)DXALLOC (i, TAG_INPUT_TO, "input_to: 1");
-          memcpy (x, args, i);
-        }
-      else
-        x = NULL;
-
-      command_giver->interactive->carryover = x;
-      command_giver->interactive->num_carry = num_arg;
-      if (fun->type == T_STRING)
-        {
-          s->function.s = make_shared_string (fun->u.string);
-          s->flags = 0;
-        }
-      else
-        {
-          s->function.f = fun->u.fp;
-          fun->u.fp->hdr.ref++;
-          s->flags = V_FUNCTION;
-        }
-      s->ob = current_object;
-      add_ref (current_object, "input_to");
-      return 1;
+      free_sentence (s);
+      return 0;
     }
 
-  free_sentence (s);
-  return 0;
+  /* Convert string to function pointer or use existing funptr */
+  if (fun->type == T_STRING)
+    {
+      /* Find function in current_object and create FP_LOCAL function pointer */
+      svalue_t dummy;
+      dummy.type = T_NUMBER;
+      dummy.u.number = 0;
+      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", fun->u.string, current_object->name);
+      callback_funp = make_lfun_funp_by_name (fun->u.string, &dummy);
+      if (!callback_funp)
+        {
+          error ("Function '%s' not found in input_to", fun->u.string);
+        }
+    }
+  else if (fun->type == T_FUNCTION)
+    {
+      callback_funp = fun->u.fp;
+      callback_funp->hdr.ref++;
+    }
+  else
+    {
+      free_sentence (s);
+      error ("input_to: fun must be string or function");
+    }
+
+  /* Store function pointer (always use V_FUNCTION now) */
+  s->function.f = callback_funp;
+  s->flags = V_FUNCTION;
+  s->ob = current_object;
+  add_ref (current_object, "input_to");
+
+  /* Store carryover args in SENTENCE (not interactive_t) */
+  if (num_arg > 0)
+    {
+      array_t *arg_array = allocate_empty_array (num_arg);
+      for (int i = 0; i < num_arg; i++)
+        assign_svalue_no_free (&arg_array->item[i], &args[i]);
+      s->args = arg_array; /* ref = 1 by allocate_empty_array */
+    }
+  else
+    {
+      s->args = NULL;
+    }
+
+  return 1;
 }
 
 
@@ -1464,47 +1479,63 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
  */
 int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   sentence_t *s;
-  svalue_t *x;
-  int i;
+  funptr_t *callback_funp;
 
   if (!command_giver || command_giver->flags & O_DESTRUCTED)
     return 0;
 
   s = alloc_sentence ();
-  if (set_call (command_giver, s, flag | I_SINGLE_CHAR))
+  if (!set_call (command_giver, s, flag | I_SINGLE_CHAR))
     {
-      /*
-       * If we have args, we copy them, and adjust the stack automatically
-       * (elsewhere) to avoid double free_svalue()'s
-       */
-      if (num_arg)
-        {
-          i = num_arg * sizeof (svalue_t);
-          x = (svalue_t *)DXALLOC (i, TAG_INPUT_TO, "input_to: 1");
-          memcpy (x, args, i);
-        }
-      else
-        x = NULL;
-
-      command_giver->interactive->carryover = x;
-      command_giver->interactive->num_carry = num_arg;
-      if (fun->type == T_STRING)
-        {
-          s->function.s = make_shared_string (fun->u.string);
-          s->flags = 0;
-        }
-      else
-        {
-          s->function.f = fun->u.fp;
-          fun->u.fp->hdr.ref++;
-          s->flags = V_FUNCTION;
-        }
-      s->ob = current_object;
-      add_ref (current_object, "get_char");
-      return 1;
+      free_sentence (s);
+      return 0;
     }
-  free_sentence (s);
-  return 0;
+
+  /* Convert string to function pointer or use existing funptr */
+  if (fun->type == T_STRING)
+    {
+      /* Find function in current_object and create FP_LOCAL function pointer */
+      svalue_t dummy;
+      dummy.type = T_NUMBER;
+      dummy.u.number = 0;
+      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", fun->u.string, current_object->name);
+      callback_funp = make_lfun_funp_by_name (fun->u.string, &dummy);
+      if (!callback_funp)
+        {
+          error ("Function '%s' not found in get_char", fun->u.string);
+        }
+    }
+  else if (fun->type == T_FUNCTION)
+    {
+      callback_funp = fun->u.fp;
+      callback_funp->hdr.ref++;
+    }
+  else
+    {
+      free_sentence (s);
+      error ("get_char: fun must be string or function");
+    }
+
+  /* Store function pointer (always use V_FUNCTION now) */
+  s->function.f = callback_funp;
+  s->flags = V_FUNCTION;
+  s->ob = current_object;
+  add_ref (current_object, "get_char");
+
+  /* Store carryover args in SENTENCE (not interactive_t) */
+  if (num_arg > 0)
+    {
+      array_t *arg_array = allocate_empty_array (num_arg);
+      for (int i = 0; i < num_arg; i++)
+        assign_svalue_no_free (&arg_array->item[i], &args[i]);
+      s->args = arg_array; /* ref = 1 by allocate_empty_array */
+    }
+  else
+    {
+      s->args = NULL;
+    }
+
+  return 1;
 }
 
 void print_svalue (svalue_t * arg) {
