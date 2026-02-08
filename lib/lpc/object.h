@@ -41,6 +41,7 @@ struct sentence_s {
     object_t *ob;
     string_or_func_t function;
     int flags;
+    array_t *args;  /* carryover arguments for input_to() and add_action() */
 };
 
 struct object_s {

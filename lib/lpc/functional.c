@@ -158,6 +158,52 @@ funptr_t* make_lfun_funp (int index, svalue_t * args) {
 }
 
 /**
+ * Create a local function pointer from a function name and optional arguments.
+ * Looks up the function by name in current_object's program and creates a function pointer.
+ * @param name the function name to look up in current_object
+ * @param args optional array of arguments to bind to the function pointer
+ * @return the created local function pointer, or NULL if function not found
+ */
+funptr_t* make_lfun_funp_by_name(const char *name, svalue_t *args) {
+  funptr_t *funptr;
+
+  if (!current_object || !current_object->prog || !name)
+    return NULL;
+
+  // Find the shared string (function must exist in string table to be in program)
+  const char *shared_name = findstring(name);
+  if (!shared_name)
+    return NULL;  // Function name not in string table = doesn't exist
+
+  // Look up the function in the program
+  int index, fio, vio;
+  program_t *found_prog = find_function(current_object->prog, shared_name, &index, &fio, &vio);
+  if (!found_prog)
+    return NULL;  // Function not found
+
+  // Create the funptr with runtime index (already includes inheritance offset)
+  funptr = (funptr_t *) DXALLOC (sizeof (funptr_hdr_t) + sizeof (local_ptr_t), TAG_FUNP, "make_lfun_funp_by_name");
+  funptr->hdr.owner = current_object;
+  add_ref (current_object, "make_lfun_funp_by_name");
+  funptr->hdr.type = FP_LOCAL | FP_NOT_BINDABLE;
+
+  // Use runtime index directly (index + fio) - no function_index_offset adjustment needed
+  // because we're looking up globally by name, not relative to a call context
+  funptr->f.local.index = (function_index_t)(index + fio);
+
+  if (args && args->type == T_ARRAY)
+    {
+      funptr->hdr.args = args->u.arr;
+      args->u.arr->ref++;
+    }
+  else
+    funptr->hdr.args = 0;
+
+  funptr->hdr.ref = 1;
+  return funptr;
+}
+
+/**
  * Create a simul efun function pointer from an index and optional arguments.
  * @param index the simul efun function index
  * @param args optional array of arguments to bind to the function pointer

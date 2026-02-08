@@ -1830,6 +1830,7 @@ sentence_t* alloc_sentence () {
   p->verb = 0;
   p->function.s = 0;
   p->next = 0;
+  p->args = NULL;  /* initialize carryover args */
   return p;
 }
 
@@ -1850,7 +1851,12 @@ void free_sentence (sentence_t * p) {
   if (p->verb)
     free_string (p->verb);
 
+  /* free carryover args if present */
+  if (p->args)
+    free_array (p->args);
+
   p->verb = 0;
+  p->args = NULL;
   p->next = sent_free;
   sent_free = p;
 }
