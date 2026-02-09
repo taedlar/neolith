@@ -1839,7 +1839,10 @@ sentence_t* alloc_sentence () {
 void free_sentence (sentence_t * p) {
   /* Free object reference first (object might be destructed but not yet freed) */
   if (p->ob)
-    free_object (p->ob, "free_sentence");
+    {
+      free_object (p->ob, "free_sentence");
+      p->ob = 0;
+    }
 
   if (p->flags & V_FUNCTION)
     {
@@ -1855,16 +1858,19 @@ void free_sentence (sentence_t * p) {
     }
 
   if (p->verb)
-    free_string (p->verb);
+    {
+      free_string (p->verb);
+      p->verb = 0;
+    }
 
   /* free carryover args if present */
   if (p->args)
-    free_array (p->args);
+    {
+      free_array (p->args);
+      p->args = NULL;
+    }
 
-  p->verb = 0;
-  p->ob = 0;
   p->flags = 0;
-  p->args = NULL;
   p->next = sent_free;
   sent_free = p;
 }
@@ -1917,7 +1923,7 @@ void dealloc_object (object_t * ob, const char *from) {
 #endif
   if (ob->name)
     {
-      opt_trace (TT_MEMORY, "freed object name \"/%s\"", ob->name);
+      opt_trace (TT_MEMORY|3, "freed object name \"/%s\"", ob->name);
       DEBUG_CHECK1 (lookup_object_hash (ob->name) == ob,
                     "Freeing object /%s but name still in name table",
                     ob->name);

@@ -523,7 +523,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
       return ob;
     }
 
-  opt_trace (TT_COMPILE|TT_MEMORY, "creating object: \"/%s\"", name);
+  opt_trace (TT_COMPILE|2, "creating object: \"/%s\"", name);
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
   ob->name = alloc_cstring (name, "load_object");
@@ -668,7 +668,7 @@ object_t *clone_object (const char *str1, int num_arg) {
     (void) set_heart_beat (ob, 0);
   new_ob = get_empty_object (ob->prog->num_variables_total);
   new_ob->name = make_new_name (ob->name);
-  opt_trace (TT_MEMORY, "clone object name: \"/%s\"", new_ob->name);
+  opt_trace (TT_MEMORY|3, "clone object name: \"/%s\"", new_ob->name);
   new_ob->flags |= (O_CLONE | (ob->flags & (O_WILL_CLEAN_UP | O_WILL_RESET)));
   new_ob->load_time = ob->load_time;
   new_ob->prog = ob->prog;
@@ -1248,6 +1248,12 @@ void destruct2 (object_t * ob) {
     }
   if (ob->ref > 1)
     opt_warn (1, "object /%s has ref count %d\n", ob->name, ob->ref);
+
+  /*
+   * This decrements the reference count of the object. If the object is referenced
+   * by other objects, it will not be freed until the last reference is gone. If the
+   * object is not referenced by any other objects, it will be freed immediately.
+   */
   free_object (ob, "destruct_object");
 }
 
@@ -1456,12 +1462,23 @@ void enable_commands (int num) {
 }
 
 /**
- *  Set up a function in this object to be called with the next user input string.
+ * Set up a function in this object to be called with the next input string of current
+ * command_giver.
+ * 
+ * @param fun The function to call, either as a string (function name) or a function pointer.
+ * @param flag If I_SINGLE_CHAR is set, the function will be called with the next single
+ *    character input instead of a whole line.
+ * @param num_arg The number of additional arguments to pass to the function when called.
+ * @param args The array of additional arguments to pass to the function.
+ * @return 1 if the input_to was successfully set up, 0 if it failed (e.g., if command_giver
+ *    is invalid or already has an input_to). If more than one input_to() is called before
+ *    the first one is triggered, only the first call will succeed, and subsequent calls will
+ *    return 0 but not raise an error.
  */
 int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
 
   sentence_t *s;
-  funptr_t *callback_funp;
+  funptr_t *callback_funp = 0;
 
   if (!command_giver || command_giver->flags & O_DESTRUCTED)
     return 0;
@@ -1469,6 +1486,10 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   s = alloc_sentence ();
   if (!set_call (command_giver, s, flag & ~I_SINGLE_CHAR))
     {
+      /* LPC spec. says if input_to() is called more than once, only the first call succeeds.
+       * No error is raised for subsequent calls, but the sentence created for the subsequent
+       * call should be freed to avoid memory leaks.
+       */
       free_sentence (s);
       return 0;
     }
@@ -1481,7 +1502,7 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
       dummy.type = T_NUMBER;
       dummy.u.number = 0;
       opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", fun->u.string, current_object->name);
-      callback_funp = make_lfun_funp_by_name (fun->u.string, &dummy);
+      callback_funp = make_lfun_funp_by_name (fun->u.string, &dummy); /* ref = 1, by sentence->function.f */
       if (!callback_funp)
         {
           error ("Function '%s' not found in input_to", fun->u.string);
@@ -1490,7 +1511,7 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   else if (fun->type == T_FUNCTION)
     {
       callback_funp = fun->u.fp;
-      callback_funp->hdr.ref++;
+      callback_funp->hdr.ref++; /* by sentence->function.f */
     }
   else
     {
@@ -1501,16 +1522,15 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   /* Store function pointer (always use V_FUNCTION now) */
   s->function.f = callback_funp;
   s->flags = V_FUNCTION;
-  s->ob = current_object;
-  add_ref (current_object, "input_to");
+  s->ob = 0; /* if callback is T_STRING, callback_funp already holds reference to the current_object */
 
   /* Store carryover args in SENTENCE (not interactive_t) */
   if (num_arg > 0)
     {
-      array_t *arg_array = allocate_empty_array (num_arg);
+      array_t *arg_array = allocate_empty_array (num_arg); /* ref = 1 by sentence->args */
       for (int i = 0; i < num_arg; i++)
         assign_svalue_no_free (&arg_array->item[i], &args[i]);
-      s->args = arg_array; /* ref = 1 by allocate_empty_array */
+      s->args = arg_array;
     }
   else
     {
@@ -1527,7 +1547,7 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
  */
 int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   sentence_t *s;
-  funptr_t *callback_funp;
+  funptr_t *callback_funp = 0;
 
   if (!command_giver || command_giver->flags & O_DESTRUCTED)
     return 0;
@@ -1535,6 +1555,10 @@ int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   s = alloc_sentence ();
   if (!set_call (command_giver, s, flag | I_SINGLE_CHAR))
     {
+      /* LPC spec. says if get_char() is called more than once, only the first call succeeds.
+       * No error is raised for subsequent calls, but the sentence created for the subsequent
+       * call should be freed to avoid memory leaks.
+       */
       free_sentence (s);
       return 0;
     }
@@ -1567,8 +1591,7 @@ int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   /* Store function pointer (always use V_FUNCTION now) */
   s->function.f = callback_funp;
   s->flags = V_FUNCTION;
-  s->ob = current_object;
-  add_ref (current_object, "get_char");
+  s->ob = 0; /* if callback is T_STRING, callback_funp already holds reference to the current_object */
 
   /* Store carryover args in SENTENCE (not interactive_t) */
   if (num_arg > 0)

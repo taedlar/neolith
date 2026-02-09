@@ -1563,7 +1563,7 @@ int process_user_command () {
         }
       else if (call_function_interactive (ip, user_command))
         {
-          /* do nothing */
+          /* input_to or get_char handled by call_function_interactive() */
         }
       else
         {
@@ -2271,10 +2271,12 @@ void remove_interactive (object_t * ob, int dested) {
 }				/* remove_interactive() */
 
 /**
- *  Call a function on an interactive object set up by input_to() if any.
- *  @param i The interactive structure for the user.
- *  @param str The input string to pass to the function.
- *  @return 1 if a function was called, otherwise returns 0.
+ * Call a function on an interactive object set up by input_to() efun or
+ * get_char() efun.
+ *
+ * @param i The interactive structure for the user.
+ * @param str The input string to pass to the function.
+ * @return 1 if a function was called, otherwise returns 0.
  */
 static int call_function_interactive (interactive_t * i, char *str) {
 
@@ -2283,34 +2285,30 @@ static int call_function_interactive (interactive_t * i, char *str) {
   sentence_t *sent;
   int num_arg;
 
-  i->iflags &= ~NOESC;
+  i->iflags &= ~NOESC; /* remove disable shell escape flag */
+
   if (!(sent = i->input_to))
     return 0; /* no input_to() was set up on this interactive */
 
-  /*
-   * Special feature: input_to() has been called to setup a call to a
-   * function.
+  /* [NEOLITH-EXTENSION] The sentence is always V_FUNCTION now. And carryover arguments
+   * are passed via sent->args array. This is more efficient and flexible than the old
+   * code that stores a carryover svalue_t array in the interactive_t struct.
    */
-  if (sent->ob->flags & O_DESTRUCTED)
-    {
-      /* The object has self-destructed earlier */
-      free_sentence (sent);
-      i->input_to = 0;
-      return (0);
-    }
-
-  /* Extract function pointer (always V_FUNCTION now after Phase 3 refactor) */
   DEBUG_CHECK (!(sent->flags & V_FUNCTION), "input_to must be function pointer");
   funp = sent->function.f;
-  funp->hdr.ref++; /* Hold reference during call */
+  funp->hdr.ref++; /* by local variable funp */
 
-  /* Extract args from SENTENCE, not interactive_t */
   args = sent->args;
   if (args)
-    args->ref++; /* Hold reference during call */
+    args->ref++; /* by local variable args */
   num_arg = args ? args->size : 0;
 
-  /* Free sentence (handles sent->ob, sent->function.f, sent->args) */
+  /* Free sentence before calling the function pointer.
+   * This is necessary since the input_to/get_char callback (LPC code) may call
+   * set_call() again to set up a new input_to before the current callback returns,
+   * and we need to free the old sentence or the set_call() will fail due to the
+   * existing sentence.
+   */
   free_sentence (sent);
   i->input_to = 0;
 
@@ -2321,25 +2319,36 @@ static int call_function_interactive (interactive_t * i, char *str) {
       set_telnet_single_char (i, 0);
     }
 
-  /* Push input FIRST (correct LPC order) */
+  /* Push input FIRST.
+   * The LPC efun input_to/get_char expect the input string to be the
+   * first argument, followed by any carryover args from the original call
+   * to input_to/get_char.
+   */
   copy_and_push_string (str);
 
-  /* Push carryover args AFTER input */
   if (args)
     {
+      /* Push carryover args AFTER input */
       for (int j = 0; j < args->size; j++)
         {
           push_svalue (&args->item[j]);
         }
-      free_array (args);
+      free_array (args); /* by local variable args */
+      args = 0; /* this is always the last reference to carryover args array */
     }
 
-  /* Call function (WITHOUT using funp->hdr.args - wrong order) */
+  /* Call function pointer.
+   * The function pointer can be a closure with arguments already bound.
+   * In the case, they will be combined via merge_arg_lists() to form the
+   * actual argument list. For example:
+   *     input_to(bind((: foo :), arg1, arg2), I_NOECHO, arg3, arg4);
+   * will result in a call to:
+   *     foo(arg1, arg2, str, arg3, arg4) where str is the user input.
+   */
   call_function_pointer (funp, num_arg + 1);
-
-  free_funp (funp);
-
-  return (1);
+  free_funp (funp); /* by local variable funp */
+  funp = 0;
+  return 1;
 }				/* call_function_interactive() */
 
 /**
@@ -2350,8 +2359,7 @@ static int call_function_interactive (interactive_t * i, char *str) {
  *  @return 1 on success, 0 on failure.
  */
 int set_call (object_t * ob, sentence_t * sent, int flags) {
-  if (ob == 0 || sent == 0 || ob->interactive == 0 ||
-      ob->interactive->input_to)
+  if (ob == 0 || sent == 0 || ob->interactive == 0 || ob->interactive->input_to)
     return 0;
 
   ob->interactive->input_to = sent;
@@ -2382,7 +2390,7 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
 
   if (flags & I_SINGLE_CHAR)
     set_telnet_single_char (ob->interactive, 1);
-  return (1);
+  return 1;
 }				/* set_call() */
 
 
