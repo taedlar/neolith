@@ -112,6 +112,7 @@ void set_prompt(char *);
 void notify_no_command(void);
 void set_notify_fail_message(char *);
 void set_notify_fail_function(funptr_t *);
+int call_function_interactive (interactive_t *, char *);
 void process_io(void);
 int process_user_command(void);
 int replace_interactive(object_t *, object_t *);

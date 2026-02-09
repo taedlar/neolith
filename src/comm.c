@@ -88,7 +88,6 @@ static char *get_user_command (void);
 static char *first_cmd_in_buf (interactive_t *);
 static int cmd_in_buf (interactive_t *);
 static void next_cmd_in_buf (interactive_t *);
-static int call_function_interactive (interactive_t *, char *);
 static void print_prompt (interactive_t *);
 static void telnet_neg (char *, char *);
 static void query_addr_name (object_t *);
@@ -2278,7 +2277,7 @@ void remove_interactive (object_t * ob, int dested) {
  * @param str The input string to pass to the function.
  * @return 1 if a function was called, otherwise returns 0.
  */
-static int call_function_interactive (interactive_t * i, char *str) {
+int call_function_interactive (interactive_t * i, char *str) {
 
   funptr_t *funp = NULL;
   array_t *args;

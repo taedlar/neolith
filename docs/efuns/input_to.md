@@ -22,6 +22,45 @@ If optional argument **flag** is non-zero, the line given by the player will not
 The function **fun** will be called with the user input as its first argument (a string).
 Any additional arguments supplied to `input_to` will be passed on to **fun** as arguments following the user input.
 
+## IMPLEMENTATION NOTES
+In Neolith, both string function names and function pointers are internally converted to local function pointers for efficient execution.
+Carryover arguments are stored directly in the callback structure, ensuring clean memory management and supporting nested `input_to` calls.
+
+## EXAMPLES
+~~~cxx
+// Basic usage
+void prompt_name() {
+    write("What is your name? ");
+    input_to("receive_name", 0);
+}
+
+void receive_name(string name) {
+    write("Hello, " + name + "!\n");
+}
+
+// With carryover arguments
+void prompt_password(object user, string context) {
+    write("Enter password: ");
+    input_to("check_password", I_NOECHO, user, context);
+}
+
+void check_password(string password, object user, string context) {
+    // password is first arg, user and context follow
+    if (verify_password(user, password)) {
+        write("Access granted for " + context + "\n");
+    }
+}
+
+// Using function pointers
+void setup_input() {
+    input_to((: handle_input :), 0, "extra_data");
+}
+
+void handle_input(string input, string extra) {
+    // Process input with extra context
+}
+~~~
+
 ## SEE ALSO
 [call_other()](call_other.md),
 [call_out()](call_out.md),
