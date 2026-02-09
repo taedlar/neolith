@@ -65,6 +65,7 @@ f_get_char (void)
   svalue_t *arg;
   int i, tmp;
   int flag;
+  int num_args = st_num_arg;  /* Save original count for cleanup */
 
   arg = sp - st_num_arg + 1;	/* Points arg at first argument. */
   if (st_num_arg == 1 || !(arg[1].type == T_NUMBER))
@@ -80,9 +81,8 @@ f_get_char (void)
     }
   st_num_arg--;
   i = get_char (arg, flag, st_num_arg, &arg[1 + tmp]);
-  free_svalue (arg, "f_get_char");
-  (sp = arg)->type = T_NUMBER;
-  sp->u.number = i;
+  pop_n_elems (num_args);
+  push_number (i);
 }
 #endif
 
@@ -94,6 +94,7 @@ f_input_to (void)
   svalue_t *arg;
   int i, tmp;
   int flag;
+  int num_args = st_num_arg;  /* Save original count for cleanup */
 
   arg = sp - st_num_arg + 1;	/* Points arg at first argument. */
   if ((st_num_arg == 1) || !(arg[1].type == T_NUMBER))
@@ -108,9 +109,8 @@ f_input_to (void)
     }
   st_num_arg--;			/* Don't count the name of the func either. */
   i = input_to (arg, flag, st_num_arg, &arg[1 + tmp]);
-  free_svalue (arg, "f_input_to");
-  (sp = arg)->type = T_NUMBER;
-  sp->u.number = i;
+  pop_n_elems (num_args);
+  push_number (i);
 }
 #endif
 

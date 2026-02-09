@@ -1148,8 +1148,8 @@ void destruct_object (object_t * ob) {
       removed = 1;
       break;
     }
-  DEBUG_CHECK (!removed, "Failed to delete object.\n");
-  opt_trace (TT_EVAL|1, "removed /%s from all objects list", ob->name);
+  if (!removed)
+    debug_error ("Failed to remove object %s from all objects list.", ob->name);
 
   if (ob->living_name)
     {
@@ -2924,6 +2924,9 @@ void tear_down_simulate() {
           remove_all_call_out (obj_list);
           destruct_object (obj_list);
         }
+      obj_list = master_ob;
+      if (obj_list && simul_efun_ob)
+        obj_list->next_all = simul_efun_ob;
     }
 
   if (master_ob) {
