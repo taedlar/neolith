@@ -397,9 +397,9 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     svalue_t args[2];
     args[0].type = T_STRING;
     args[0].subtype = STRING_SHARED;
-    args[0].u.string = make_shared_string("test_string");
+    args[0].u.string = make_shared_string("test_string"); // ref = 1
     args[1].type = T_ARRAY;
-    args[1].u.arr = allocate_empty_array(3);
+    args[1].u.arr = allocate_empty_array(3); // ref = 1
     
     int initial_arr_ref = args[1].u.arr->ref;
     
