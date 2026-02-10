@@ -350,33 +350,6 @@ f_get_config (void)
 #endif
 
 
-#ifdef F_IN_EDIT
-void
-f_in_edit (void)
-{
-  char *fn;
-  ed_buffer_t *eb = 0;
-
-#ifdef OLD_ED
-  if (sp->u.ob->interactive)
-    eb = sp->u.ob->interactive->ed_buffer;
-#else
-  if (sp->u.ob->flags & O_IN_EDIT)
-    eb = find_ed_buffer (sp->u.ob);
-#endif
-  if (eb && (fn = eb->fname))
-    {
-      free_object (sp->u.ob, "f_in_edit:1");
-      put_constant_string (fn);	/* is this safe?  - Beek */
-      return;
-    }
-  free_object (sp->u.ob, "f_in_edit:1");
-  *sp = const0;
-  return;
-}
-#endif
-
-
 #ifdef F_INHERITS
 static int inherits (program_t * prog, program_t * thep) {
   int j, k = prog->num_inherited;
