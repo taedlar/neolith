@@ -80,7 +80,7 @@ protected:
                     free_sentence(user_obj->interactive->input_to);
                     user_obj->interactive->input_to = nullptr;
                 }
-                FREE(user_obj->interactive);
+                free(user_obj->interactive);
                 user_obj->interactive = nullptr;
             }
             destruct_object(user_obj);
@@ -185,7 +185,8 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     args[0].type = T_NUMBER;
     args[0].u.number = 42;
     args[1].type = T_STRING;
-    args[1].u.string = const_cast<char*>("extra");
+    args[1].subtype = STRING_SHARED;
+    args[1].u.string = make_shared_string("extra");
     
     int result = input_to(&fun, 0, 2, args);
     EXPECT_EQ(result, 1) << "input_to with args should succeed";
@@ -234,15 +235,6 @@ TEST_F(InputToGetCharTest, InputToFunctionPointer) {
     free_funp(funp);
 }
 
-TEST_F(InputToGetCharTest, InputToFunctionPointerWithArgs) {
-    // NOTE: This is a complex corner case with both bound args in the funptr
-    // AND carryover args via input_to. The behavior with merge_arg_lists
-    // makes the argument order complex. In practice, users would use either
-    // bound args OR carryover args, not both. Skipping this test.
-    // Left here for documentation purposes.
-    GTEST_SKIP() << "Complex corner case - use either bound args OR carryover, not both";
-}
-
 TEST_F(InputToGetCharTest, GetCharSingleCharMode) {
     // Test: get_char("callback", 0)
     svalue_t fun;
@@ -263,7 +255,7 @@ TEST_F(InputToGetCharTest, GetCharSingleCharMode) {
     EXPECT_EQ(get_string_var("last_input"), "x");
 }
 
-TEST_F(InputToGetCharTest, DISABLED_GetCharWithArgs) {
+TEST_F(InputToGetCharTest, GetCharWithArgs) {
     // Test: get_char("callback_with_args", 0, 123, "context")
     svalue_t fun;
     fun.type = T_STRING;
@@ -273,7 +265,8 @@ TEST_F(InputToGetCharTest, DISABLED_GetCharWithArgs) {
     args[0].type = T_NUMBER;
     args[0].u.number = 123;
     args[1].type = T_STRING;
-    args[1].u.string = const_cast<char*>("context");
+    args[1].subtype = STRING_SHARED;
+    args[1].u.string = make_shared_string("context");
     
     int result = get_char(&fun, 0, 2, args);
     EXPECT_EQ(result, 1);
@@ -315,39 +308,6 @@ TEST_F(InputToGetCharTest, InputToDestructedObject) {
     
     // Restore flag for cleanup
     command_giver->flags &= ~O_DESTRUCTED;
-}
-
-TEST_F(InputToGetCharTest, DISABLED_InputToFunctionNotFound) {
-    // Test error case: non-existent function
-    svalue_t fun;
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("nonexistent_function");
-    
-    // Should throw error via error() function
-    // Note: In a real test environment, you'd use EXPECT_THROW or similar
-    // For now, we just verify it doesn't crash
-    try {
-        int result = input_to(&fun, 0, 0, nullptr);
-        (void)result; // Suppress warning
-        FAIL() << "Should have thrown error for non-existent function";
-    } catch (...) {
-        // Expected to throw
-    }
-}
-
-TEST_F(InputToGetCharTest, DISABLED_InputToInvalidType) {
-    // Test error case: invalid function type
-    svalue_t fun;
-    fun.type = T_NUMBER;
-    fun.u.number = 42;
-    
-    try {
-        int result = input_to(&fun, 0, 0, nullptr);
-        (void)result;
-        FAIL() << "Should have thrown error for invalid function type";
-    } catch (...) {
-        // Expected to throw
-    }
 }
 
 TEST_F(InputToGetCharTest, NestedInputTo) {
@@ -427,7 +387,7 @@ TEST_F(InputToGetCharTest, MultipleInputToCallsOnlyFirstSucceeds) {
     simulate_input("test");
 }
 
-TEST_F(InputToGetCharTest, DISABLED_ArgsMemoryCleanup) {
+TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     // Test that args array is properly freed
     svalue_t fun;
     fun.type = T_STRING;
@@ -436,6 +396,7 @@ TEST_F(InputToGetCharTest, DISABLED_ArgsMemoryCleanup) {
     // Create args with reference-counted types
     svalue_t args[2];
     args[0].type = T_STRING;
+    args[0].subtype = STRING_SHARED;
     args[0].u.string = make_shared_string("test_string");
     args[1].type = T_ARRAY;
     args[1].u.arr = allocate_empty_array(3);
@@ -466,7 +427,8 @@ TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     args[0].type = T_NUMBER;
     args[0].u.number = 111;
     args[1].type = T_STRING;
-    args[1].u.string = const_cast<char*>("arg2");
+    args[1].subtype = STRING_SHARED;
+    args[1].u.string = make_shared_string("arg2");
     
     input_to(&fun, 0, 2, args);
     simulate_input("user_input");

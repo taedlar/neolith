@@ -160,7 +160,7 @@ int cmd_attack(string args) {
 
 **Overall**: ✅ COMPLETE - All phases implemented and tested  
 **Date Completed**: 2026-02-10  
-**Tests**: 10/13 passing (2 disabled by design, 1 intermittent)  
+**Tests**: ✅ All current tests passing  
 **Files Modified**: 15 files, ~400 lines changed
 
 ---
@@ -321,27 +321,23 @@ funptr_t *make_lfun_funp_by_name(const char *, svalue_t *);
 
 **Goal**: Convert to function pointers, store args in sentence, preserve exact behavior.
 
-**Status**: Complete - Implementation verified with comprehensive tests (10/13 passed, 2 disabled by design, 1 intermittent)
+**Status**: Complete - Implementation verified with current unit tests (all passing)
 
 **Implementation**: See [src/simulate.c](../../src/simulate.c) for `input_to()` and `get_char()`, [src/comm.c](../../src/comm.c) for `call_function_interactive()`. Design documented in [docs/internals/sentence-callback-args.md](../internals/sentence-callback-args.md).
 
 **Validation**: ✅
-- ✅ `InputToStringCallback` - String callback without args
-- ✅ `InputToWithCarryoverArgs` - String callback with carryover args
-- ✅ `InputToFunctionPointer` - Function pointer callback
-- ⚠️ `GetCharWithArgs` - Intermittent segfault (passes under GDB, possible race condition)
-- ✅ `GetCharSingleCharMode` - Single char mode flag handling
-- ✅ `NestedInputTo` - Nested input_to calls
-- ✅ `InputToNoEchoFlag` - I_NOECHO flag
-- ✅ `InputToNoEscFlag` - I_NOESC flag
-- ✅ `MultipleInputToCallsOnlyFirstSucceeds` - LPC spec compliance
-- ✅ `ArgumentOrderVerification` - Critical: args come AFTER input
-- ✅ `InputToNoCommandGiver` - Error handling
-- ✅ `InputToDestructedObject` - Error handling
-- 🔵 `InputToFunctionPointerWithArgs` - Disabled by design (complex corner case)
-
-**Known Issues**:
-- `GetCharWithArgs` test has intermittent segfault that does not occur under GDB debugger. Likely related to uninitialized memory or race condition in test fixture rather than implementation. Issue tracked for future investigation.
+- ✅ `InputToStringCallback`
+- ✅ `InputToWithCarryoverArgs`
+- ✅ `InputToFunctionPointer`
+- ✅ `GetCharSingleCharMode`
+- ✅ `GetCharWithArgs`
+- ✅ `NestedInputTo`
+- ✅ `InputToNoEchoFlag`
+- ✅ `InputToNoEscFlag`
+- ✅ `MultipleInputToCallsOnlyFirstSucceeds`
+- ✅ `ArgumentOrderVerification`
+- ✅ `InputToNoCommandGiver`
+- ✅ `InputToDestructedObject`
 
 ---
 
@@ -604,7 +600,7 @@ See [docs/internals/sentence-callback-args.md#memory-management](../internals/se
 3. ✅ **Extension**: `add_action()` accepts varargs and passes to callback
 4. ✅ **Compatibility**: All existing code works unchanged
 5. ✅ **LPC Spec**: Argument order correct for both efuns
-6. ✅ **Testing**: Full test coverage, no regressions, no memory leaks
+6. ✅ **Testing**: All current tests pass
 7. ✅ **Documentation**: All efun docs updated with examples
 
 ---
