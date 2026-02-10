@@ -668,6 +668,7 @@ object_t *clone_object (const char *str1, int num_arg) {
     (void) set_heart_beat (ob, 0);
   new_ob = get_empty_object (ob->prog->num_variables_total);
   new_ob->name = make_new_name (ob->name);
+  opt_trace (TT_MEMORY|3, "clone object name: \"/%s\"", new_ob->name);
   new_ob->flags |= (O_CLONE | (ob->flags & (O_WILL_CLEAN_UP | O_WILL_RESET)));
   new_ob->load_time = ob->load_time;
   new_ob->prog = ob->prog;
@@ -998,7 +999,13 @@ void destruct_object (object_t * ob) {
       * An error here will not leave destruct() in an inconsistent
       * stage.
       */
-      if (!g_proceeding_shutdown) /* if we are shutting down, don't move objects */
+      if (g_proceeding_shutdown) /* if we are shutting down, don't move objects */
+        {
+          move_object (otmp, NULL);
+          destruct_object (otmp);
+          continue;
+        }
+      else
         {
           if (super && !(super->flags & O_DESTRUCTED))
             push_object (super);
@@ -1141,13 +1148,54 @@ void destruct_object (object_t * ob) {
       removed = 1;
       break;
     }
-  DEBUG_CHECK (!removed, "Failed to delete object.\n");
-  opt_trace (TT_EVAL|1, "removed /%s from all objects list", ob->name);
+  if (!removed)
+    debug_error ("Failed to remove object %s from all objects list.", ob->name);
 
   if (ob->living_name)
     {
       opt_trace (TT_EVAL|1, "removing /%s (%s) from living objects list", ob->name, ob->living_name);
       remove_living_name (ob);
+    }
+
+  /* Free all sentences defined by this object (actions it can respond to).
+   * This must be done before deallocation to properly release references
+   * to other objects. Without this, cross-referencing objects (e.g., NPCs
+   * that add_action to each other) will trigger ref count warnings. */
+  if (ob->sent)
+    {
+      sentence_t *s, *next;
+      opt_trace (TT_EVAL|1, "freeing sentences for /%s", ob->name);
+      for (s = ob->sent; s; s = next)
+        {
+          next = s->next;
+          free_sentence (s);
+        }
+      ob->sent = NULL;
+    }
+
+  /* Clean up any input_to references pointing to this object.
+   * Without this, destructed objects remain in memory if users with pending
+   * input_to prompts go AFK before typing anything. */
+  for (int i = 0; i < max_users; i++)
+    {
+      interactive_t *ip = all_users[i];
+      if (ip && ip->input_to && ip->input_to->ob == ob)
+        {
+          opt_trace (TT_EVAL|1, "clearing input_to for /%s from user /%s",
+                     ob->name, ip->ob->name);
+          free_sentence (ip->input_to);
+          ip->input_to = 0;
+          
+          /* Clear single-char mode if it was set for this input_to */
+          if (ip->iflags & SINGLE_CHAR)
+            {
+              ip->iflags &= ~SINGLE_CHAR;
+              /* Note: We don't call set_telnet_single_char() here because:
+               * 1. It's static in comm.c and would require API changes
+               * 2. The flag will be properly reset on next input_to/get_char call
+               * 3. User will revert to line mode on next input naturally */
+            }
+        }
     }
 
   ob->flags &= ~O_ENABLE_COMMANDS;
@@ -1200,6 +1248,12 @@ void destruct2 (object_t * ob) {
     }
   if (ob->ref > 1)
     opt_warn (1, "object /%s has ref count %d\n", ob->name, ob->ref);
+
+  /*
+   * This decrements the reference count of the object. If the object is referenced
+   * by other objects, it will not be freed until the last reference is gone. If the
+   * object is not referenced by any other objects, it will be freed immediately.
+   */
   free_object (ob, "destruct_object");
 }
 
@@ -1408,53 +1462,82 @@ void enable_commands (int num) {
 }
 
 /**
- *  Set up a function in this object to be called with the next user input string.
+ * Set up a function in this object to be called with the next input string of current
+ * command_giver.
+ * 
+ * @param fun The function to call, either as a string (function name) or a function pointer.
+ * @param flag If I_SINGLE_CHAR is set, the function will be called with the next single
+ *    character input instead of a whole line.
+ * @param num_arg The number of additional arguments to pass to the function when called.
+ * @param args The array of additional arguments to pass to the function.
+ * @return 1 if the input_to was successfully set up, 0 if it failed (e.g., if command_giver
+ *    is invalid or already has an input_to). If more than one input_to() is called before
+ *    the first one is triggered, only the first call will succeed, and subsequent calls will
+ *    return 0 but not raise an error.
  */
 int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
 
   sentence_t *s;
-  svalue_t *x;
-  int i;
+  funptr_t *callback_funp = 0;
 
   if (!command_giver || command_giver->flags & O_DESTRUCTED)
     return 0;
 
   s = alloc_sentence ();
-  if (set_call (command_giver, s, flag & ~I_SINGLE_CHAR))
+  if (!set_call (command_giver, s, flag & ~I_SINGLE_CHAR))
     {
-      /*
-       * If we have args, we copy them, and adjust the stack automatically
-       * (elsewhere) to avoid double free_svalue()'s
+      /* LPC spec. says if input_to() is called more than once, only the first call succeeds.
+       * No error is raised for subsequent calls, but the sentence created for the subsequent
+       * call should be freed to avoid memory leaks.
        */
-      if (num_arg)
-        {
-          i = num_arg * sizeof (svalue_t);
-          x = (svalue_t *)DXALLOC (i, TAG_INPUT_TO, "input_to: 1");
-          memcpy (x, args, i);
-        }
-      else
-        x = NULL;
-
-      command_giver->interactive->carryover = x;
-      command_giver->interactive->num_carry = num_arg;
-      if (fun->type == T_STRING)
-        {
-          s->function.s = make_shared_string (fun->u.string);
-          s->flags = 0;
-        }
-      else
-        {
-          s->function.f = fun->u.fp;
-          fun->u.fp->hdr.ref++;
-          s->flags = V_FUNCTION;
-        }
-      s->ob = current_object;
-      add_ref (current_object, "input_to");
-      return 1;
+      free_sentence (s);
+      return 0;
     }
 
-  free_sentence (s);
-  return 0;
+  /* Convert string to function pointer or use existing funptr */
+  if (fun->type == T_STRING)
+    {
+      /* Find function in current_object and create FP_LOCAL function pointer */
+      svalue_t dummy;
+      dummy.type = T_NUMBER;
+      dummy.u.number = 0;
+      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", fun->u.string, current_object->name);
+      callback_funp = make_lfun_funp_by_name (fun->u.string, &dummy); /* ref = 1, by sentence->function.f */
+      if (!callback_funp)
+        {
+          error ("Function '%s' not found in input_to", fun->u.string);
+        }
+    }
+  else if (fun->type == T_FUNCTION)
+    {
+      callback_funp = fun->u.fp;
+      callback_funp->hdr.ref++; /* by sentence->function.f */
+    }
+  else
+    {
+      free_sentence (s);
+      error ("input_to: fun must be string or function");
+    }
+
+  /* Store function pointer (always use V_FUNCTION now) */
+  s->function.f = callback_funp;
+  s->flags = V_FUNCTION;
+  s->ob = 0; /* if callback is T_STRING, callback_funp already holds reference to the current_object */
+
+  /* Store carryover args in SENTENCE (not interactive_t) */
+  if (num_arg > 0)
+    {
+      array_t *arg_array = allocate_empty_array (num_arg); /* ref = 1 by sentence->args */
+      for (int i = 0; i < num_arg; i++)
+        assign_svalue_no_free (&arg_array->item[i], &args[i]);
+      s->args = arg_array;
+    }
+  else
+    {
+      s->args = NULL;
+    }
+
+  return 1;
 }
 
 
@@ -1464,47 +1547,66 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
  */
 int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   sentence_t *s;
-  svalue_t *x;
-  int i;
+  funptr_t *callback_funp = 0;
 
   if (!command_giver || command_giver->flags & O_DESTRUCTED)
     return 0;
 
   s = alloc_sentence ();
-  if (set_call (command_giver, s, flag | I_SINGLE_CHAR))
+  if (!set_call (command_giver, s, flag | I_SINGLE_CHAR))
     {
-      /*
-       * If we have args, we copy them, and adjust the stack automatically
-       * (elsewhere) to avoid double free_svalue()'s
+      /* LPC spec. says if get_char() is called more than once, only the first call succeeds.
+       * No error is raised for subsequent calls, but the sentence created for the subsequent
+       * call should be freed to avoid memory leaks.
        */
-      if (num_arg)
-        {
-          i = num_arg * sizeof (svalue_t);
-          x = (svalue_t *)DXALLOC (i, TAG_INPUT_TO, "input_to: 1");
-          memcpy (x, args, i);
-        }
-      else
-        x = NULL;
-
-      command_giver->interactive->carryover = x;
-      command_giver->interactive->num_carry = num_arg;
-      if (fun->type == T_STRING)
-        {
-          s->function.s = make_shared_string (fun->u.string);
-          s->flags = 0;
-        }
-      else
-        {
-          s->function.f = fun->u.fp;
-          fun->u.fp->hdr.ref++;
-          s->flags = V_FUNCTION;
-        }
-      s->ob = current_object;
-      add_ref (current_object, "get_char");
-      return 1;
+      free_sentence (s);
+      return 0;
     }
-  free_sentence (s);
-  return 0;
+
+  /* Convert string to function pointer or use existing funptr */
+  if (fun->type == T_STRING)
+    {
+      /* Find function in current_object and create FP_LOCAL function pointer */
+      svalue_t dummy;
+      dummy.type = T_NUMBER;
+      dummy.u.number = 0;
+      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", fun->u.string, current_object->name);
+      callback_funp = make_lfun_funp_by_name (fun->u.string, &dummy);
+      if (!callback_funp)
+        {
+          error ("Function '%s' not found in get_char", fun->u.string);
+        }
+    }
+  else if (fun->type == T_FUNCTION)
+    {
+      callback_funp = fun->u.fp;
+      callback_funp->hdr.ref++;
+    }
+  else
+    {
+      free_sentence (s);
+      error ("get_char: fun must be string or function");
+    }
+
+  /* Store function pointer (always use V_FUNCTION now) */
+  s->function.f = callback_funp;
+  s->flags = V_FUNCTION;
+  s->ob = 0; /* if callback is T_STRING, callback_funp already holds reference to the current_object */
+
+  /* Store carryover args in SENTENCE (not interactive_t) */
+  if (num_arg > 0)
+    {
+      array_t *arg_array = allocate_empty_array (num_arg);
+      for (int i = 0; i < num_arg; i++)
+        assign_svalue_no_free (&arg_array->item[i], &args[i]);
+      s->args = arg_array; /* ref = 1 by allocate_empty_array */
+    }
+  else
+    {
+      s->args = NULL;
+    }
+
+  return 1;
 }
 
 void print_svalue (svalue_t * arg) {
@@ -1610,11 +1712,22 @@ object_t *find_object_by_name (const char *str) {
   return 0;
 }
 
-/*
+/**
  * Transfer an object.
  * The object has to be taken from one inventory list and added to another.
  * The main work is to update all command definitions, depending on what is
  * living or not. Note that all objects in the same inventory are affected.
+ *
+ * @param item The object to move.
+ * @param dest The destination object to move to. If NULL, the object will
+ *    be moved to the top level (no environment). This is a Neolith extension.
+ * @note Recursive moves (moving an object inside itself) are not allowed
+ *    and will raise an error. Moving to a destructed object is also not
+ *    allowed and will raise an error.
+ * @note The init() function of the destination object and all present objects
+ *    will be called after the move, which may cause further moves or even
+ *    destruction. The function will check for such changes and handle them
+ *    properly to avoid crashes or inconsistent states.
  */
 void move_object (object_t * item, object_t * dest) {
   object_t **pp, *ob;
@@ -1626,8 +1739,12 @@ void move_object (object_t * item, object_t * dest) {
     if (ob == item)
       error ("*Can't move object inside itself.");
 
+  if (dest && dest->flags & O_DESTRUCTED)
+    error ("*Can't move to a destructed object.");
+
 #ifdef LAZY_RESETS
-  try_reset (dest);
+  if (dest)
+    try_reset (dest);
 #endif
 
   if (item->super)
@@ -1656,9 +1773,17 @@ void move_object (object_t * item, object_t * dest) {
     }
 
   /* link object into target's inventory list */
-  item->next_inv = dest->contains;
-  dest->contains = item;
   item->super = dest;
+  if (dest)
+    {
+      item->next_inv = dest->contains;
+      dest->contains = item;
+    }
+  else
+    {
+      item->next_inv = 0;
+      return;
+    }
 
   /*
    * Setup the new commands. The order is very important, as commands in
@@ -1805,6 +1930,10 @@ int user_parser (char *buff) {
     {
       svalue_t *ret;
 
+      /* Skip sentences from destructed objects (ref counting keeps memory valid) */
+      if (s->ob->flags & O_DESTRUCTED)
+        continue;
+
       if (s->flags & (V_NOSPACE | V_SHORT))
         {
           if (strncmp (buff, s->verb, strlen (s->verb)) != 0)
@@ -1842,6 +1971,7 @@ int user_parser (char *buff) {
        */
       where = (current_object ? ORIGIN_EFUN : ORIGIN_DRIVER);
 
+      /* Push command args FIRST (correct LPC order) */
       if (s->flags & V_NOSPACE)
         copy_and_push_string (&buff[strlen (s->verb)]);
       else if (buff[length] == ' ')
@@ -1849,13 +1979,25 @@ int user_parser (char *buff) {
       else
         push_undefined ();
 
+      /* Push carryover args AFTER command args */
+      int num_args = 1;  /* Command args */
+      if (s->args)
+        {
+          for (int i = 0; i < s->args->size; i++)
+            {
+              push_svalue (&s->args->item[i]);
+            }
+          num_args += s->args->size;
+        }
+
+      /* Call function with all args */
       if (s->flags & V_FUNCTION)
-        ret = call_function_pointer (s->function.f, 1);
+        ret = call_function_pointer (s->function.f, num_args);
       else
         {
           if (s->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
             error ("*Illegal function name.");
-          ret = apply (s->function.s, s->ob, 1, where);
+          ret = apply (s->function.s, s->ob, num_args, where);
 //        ret = apply (s->function.s, s->ob, 1, ORIGIN_DRIVER);
         }
 
@@ -1914,13 +2056,16 @@ int user_parser (char *buff) {
  * The optinal third argument is a flag that will state that the verb should
  * only match against leading characters.
  *
+ * The optional varargs after the flag are carryover arguments that will be
+ * passed to the action function after the command argument.
+ *
  * The object must be near the command giver, so that we ensure that the
  * sentence is removed when the command giver leaves.
  *
  * If the call is from a shadow, make it look like it is really from
  * the shadowed object.
  */
-void add_action (svalue_t * str, char *cmd, int flag) {
+void add_action (svalue_t * str, char *cmd, int flag, int num_carry, svalue_t *carry_args) {
   sentence_t *p;
   object_t *ob;
 
@@ -1959,7 +2104,22 @@ void add_action (svalue_t * str, char *cmd, int flag) {
       p->flags = flag | V_FUNCTION;
     }
   p->ob = ob;
+  add_ref (ob, "add_action");
   p->verb = make_shared_string (cmd);
+
+  /* Store carryover args in sentence */
+  if (num_carry > 0)
+    {
+      array_t *arg_array = allocate_empty_array (num_carry);
+      for (int i = 0; i < num_carry; i++)
+        assign_svalue_no_free (&arg_array->item[i], &carry_args[i]);
+      p->args = arg_array;
+    }
+  else
+    {
+      p->args = NULL;
+    }
+
   /* This is ok; adding to the top of the list doesn't harm anything */
   p->next = command_giver->sent;
   command_giver->sent = p;
@@ -2764,6 +2924,9 @@ void tear_down_simulate() {
           remove_all_call_out (obj_list);
           destruct_object (obj_list);
         }
+      obj_list = master_ob;
+      if (obj_list && simul_efun_ob)
+        obj_list->next_all = simul_efun_ob;
     }
 
   if (master_ob) {

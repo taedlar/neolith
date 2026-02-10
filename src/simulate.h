@@ -28,7 +28,7 @@ void check_legal_string(const char *);
 int user_parser(char *);
 int64_t command_for_object(char *);
 void enable_commands(int);
-void add_action(svalue_t *, char *, int);
+void add_action(svalue_t *, char *, int, int, svalue_t *);
 int remove_action(char *, char *);
 int process_command(char *, object_t *);
 

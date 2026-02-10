@@ -3,18 +3,18 @@
 #include "logger/logger.h"
 
 /* generic loggers */
-#define debug_fatal(...)		debug_message_with_src("FATAL", __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define debug_error(...)		debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define debug_warn(...)			debug_message_with_src("WARN", __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define debug_info(...)			debug_message_with_src("INFO", __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define debug_trace(...)		debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, __VA_ARGS__)
+#define debug_fatal(fmt, ...)    debug_message_with_src("FATAL", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define debug_error(fmt, ...)    debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define debug_warn(fmt, ...)     debug_message_with_src("WARN", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define debug_info(fmt, ...)     debug_message_with_src("INFO", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define debug_trace(fmt, ...)	   debug_message_with_src("TRACE", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
-#define opt_error(level, ...)		do{if(MAIN_OPTION(debug_level)>=(level)) \
-                                        debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#define opt_warn(level, ...)		do{if(MAIN_OPTION(debug_level)>=(level)) \
-                                        debug_message_with_src("WARN", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
-#define opt_info(level, ...)		do{if(MAIN_OPTION(debug_level)>=(level)) \
-                                        debug_message_with_src("INFO", __func__, __FILE__, __LINE__, ## __VA_ARGS__);}while(0)
+#define opt_error(level, fmt, ...)  do{if(MAIN_OPTION(debug_level)>=(level)) \
+   debug_message_with_src("ERROR", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__);}while(0)
+#define opt_warn(level, fmt, ...)   do{if(MAIN_OPTION(debug_level)>=(level)) \
+   debug_message_with_src("WARN", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__);}while(0)
+#define opt_info(level, fmt, ...)   do{if(MAIN_OPTION(debug_level)>=(level)) \
+   debug_message_with_src("INFO", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__);}while(0)
 
 /*
  * Trace levels and tiers are represented as octal values (starting with '0').

@@ -188,35 +188,55 @@ f_find_living (void)
 void
 f_add_action (void)
 {
-  uint64_t flag;
+  uint64_t flag = 0;
+  int num_carry = 0;
+  svalue_t *carry_args = NULL;
 
-  if (st_num_arg == 3)
+  /* Extract flag and carryover args */
+  if (st_num_arg >= 3)
     {
-      flag = (sp--)->u.number;
+      /* Check if 3rd arg is number (flag) or first carryover arg */
+      if ((sp - (st_num_arg - 3))->type == T_NUMBER)
+        {
+          flag = (sp - (st_num_arg - 3))->u.number;
+          num_carry = st_num_arg - 3;
+          if (num_carry > 0)
+            carry_args = sp - num_carry + 1;
+        }
+      else
+        {
+          /* 3rd arg is first carryover, no flag */
+          flag = 0;
+          num_carry = st_num_arg - 2;
+          carry_args = sp - num_carry + 1;
+        }
     }
-  else
-    flag = 0;
 
-  if (sp->type == T_ARRAY)
+  /* Handle array of verbs or single verb */
+  if ((sp - (st_num_arg - 2))->type == T_ARRAY)
     {
-      int i, n = sp->u.arr->size;
-      svalue_t *sv = sp->u.arr->item;
+      int i, n = (sp - (st_num_arg - 2))->u.arr->size;
+      svalue_t *sv = (sp - (st_num_arg - 2))->u.arr->item;
 
       for (i = 0; i < n; i++)
         {
           if (sv[i].type == T_STRING)
             {
-              add_action (sp - 1, sv[i].u.string, flag & 3);
+              add_action (sp - (st_num_arg - 1), sv[i].u.string,
+                         flag & 3, num_carry, carry_args);
             }
         }
-      free_array ((sp--)->u.arr);
     }
   else
     {
-      add_action ((sp - 1), sp->u.string, flag & 3);
-      free_string_svalue (sp--);
+      /* Single verb */
+      add_action ((sp - (st_num_arg - 1)),
+                 (sp - (st_num_arg - 2))->u.string,
+                 flag & 3, num_carry, carry_args);
     }
-  pop_stack ();
+
+  /* Pop all args */
+  pop_n_elems (st_num_arg);
 }
 #endif
 

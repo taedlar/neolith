@@ -77,6 +77,8 @@ array_t* allocate_empty_array (size_t n) {
   p = ALLOC_ARRAY (n);
   p->ref = 1;
   p->size = (unsigned short)n;
+  while (n--)
+    p->item[n] = const0;
   return p;
 }
 

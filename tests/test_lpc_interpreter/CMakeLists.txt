@@ -4,6 +4,8 @@ add_executable(test_lpc_interpreter
     test_double_precision.cpp
     test_int64.cpp
     test_lpc_interpreter.cpp
+    test_sentence.cpp
+    test_input_to_get_char.cpp
 )
 
 target_link_libraries(test_lpc_interpreter PRIVATE stem GTest::gtest_main)
