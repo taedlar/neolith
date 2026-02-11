@@ -188,17 +188,6 @@ Using trace flags `-t` enables optional trace logging for debugging. See [docs/m
 
 ## Code Conventions & Patterns
 
-### Naming & Style
-- **C code**: `snake_case` for functions/variables. No abbreviations; choose unique global names.
-- **C++ code**: `CamelCase` for classes/methods. No underscores in test names (GoogleTest restriction).
-- **Indentation**: GNU style modified—opening brace on same line as function name for grep-ability.
-  ```c
-  int my_function(int arg) {  // NOT on new line
-      // spaces only, no tabs
-  }
-  ```
-- Return type and function name on same line for searchability.
-
 ### Integer Type Usage
 - **LPC runtime integers**: Always `int64_t` (svalue_u.number is int64_t)
 - **Format strings**: Use `PRId64` macro for printing int64_t values

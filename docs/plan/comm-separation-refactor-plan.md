@@ -15,6 +15,49 @@ This refactor depends on completing the sentence-args refactor because:
 2. Moves `input_to()`/`get_char()` logic to use `sentence_t->args` (cleaner code to move)
 3. Validates argument handling before architectural split (reduces risk)
 
+## Naming Conventions
+
+**CRITICAL**: All function naming must follow established patterns. See [.github/skills/function-naming-conventions/SKILL.md](../../.github/skills/function-naming-conventions/SKILL.md) for:
+- Quick reference table with 8 operation type patterns
+- Validation checklist for adding/refactoring functions
+- Common mistakes and how to avoid them
+- Complete examples from codebase
+
+**Key Requirements for This Refactor**:
+- ❌ NO module prefixes (`comm_`, `user_cmd_`, etc.)
+- ✅ Per-object operations take `object_t*` as first parameter
+- ✅ Use `query_*` for per-object queries, `set_*` for per-object setters
+- ✅ Use `find_*`/`lookup_*` for global lookups, `get_all_*` for collections, `next_*` for iterators
+- ✅ Setters changed from implicit (`command_giver` global) to explicit (`object_t*` parameter)
+
+**Function Examples from This Refactor**:
+
+Per-object operations:
+- `query_buffered_commands(object_t *)` - Check if object has pending commands
+- `get_pending_command(object_t *, char *)` - Extract command for specific object
+- `consume_command(object_t *)` - Mark command as processed for object
+- `set_prompt(object_t *, const char *)` - Set prompt for object (changed from implicit)
+
+Global operations:
+- `next_user_command(void)` - Iterator advancing round-robin position
+- `has_pending_commands(void)` - Check if any user has pending commands
+- `lookup_user_at(int)` - Access user by array index
+- `grant_all_turns(void)` - Grant command turn to all users
+
+**Recommended Renames for Existing Functions**:
+
+For consistency with established conventions (see [function naming skill](../../.github/skills/function-naming-conventions/SKILL.md#refactoring-guidance)), rename these existing functions:
+
+1. **backend.c**:
+   - `get_heart_beats()` → `get_all_heart_beats()` - clarifies it returns all heart beat objects
+   - Rationale: `get_all_*` pattern makes global collection nature explicit
+
+2. **comm.c** (internal):
+   - `get_user_command()` → `next_user_command()` - clarifies it's an iterator with state
+   - Rationale: `next_*` pattern indicates state mutation (advances static counter)
+
+These renames should be done as part of this refactoring work to establish consistent patterns.
+
 ## Architecture Overview
 
 ### Current State
@@ -132,47 +175,50 @@ if (!ret)
 **Required Accessors** (for user_command.c):
 ```c
 // Command state (for input_to/get_char moved to user_command.c)
-sentence_t* comm_get_input_to(object_t *ob);
-void comm_set_input_to(object_t *ob, sentence_t *sent);
-void comm_clear_input_to(object_t *ob);
+sentence_t* query_input_to(object_t *ob);
+void set_input_to(object_t *ob, sentence_t *sent);
+void clear_input_to(object_t *ob);
 // NOTE: No carryover accessors needed after sentence-args refactor completes
 
 // Prompt and notify_fail
-const char* comm_get_prompt(object_t *ob);
-void comm_set_prompt(object_t *ob, const char *prompt);
-string_or_func_t comm_get_notify_fail_value(object_t *ob);
-int comm_get_notify_fail_type(object_t *ob);  // 0=string, 1=function
-void comm_set_notify_fail_message(object_t *ob, const char *msg);
-void comm_set_notify_fail_function(object_t *ob, funptr_t *fp);
-void comm_clear_notify_fail(object_t *ob);
+const char* query_prompt(object_t *ob);
+void set_prompt(object_t *ob, const char *prompt);  // Changed from implicit to explicit
+string_or_func_t query_notify_fail_value(object_t *ob);
+int query_notify_fail_type(object_t *ob);  // 0=string, 1=function
+void set_notify_fail_message(object_t *ob, const char *msg);  // Changed from implicit to explicit
+void set_notify_fail_function(object_t *ob, funptr_t *fp);  // Changed from implicit to explicit
+void clear_notify_fail(object_t *ob);
 
-// Command flags
-int comm_has_process_input(object_t *ob);
-void comm_set_has_process_input(object_t *ob, int enable);
-int comm_has_write_prompt(object_t *ob);
-void comm_set_has_write_prompt(object_t *ob, int enable);
-int comm_get_noesc_flag(object_t *ob);
-void comm_set_noesc_flag(object_t *ob, int enable);
+// Command flags (apply caches - see docs/plan/object-apply-flags-analysis.md)
+// NOTE: These cache whether object has process_input()/write_prompt() applies.
+// Currently stored on interactive_t (technical debt) but semantically are object attributes.
+// Named to emphasize caching behavior rather than storage location for future-proofing.
+int has_process_input_apply(object_t *ob);
+void cache_process_input_apply(object_t *ob, int exists);
+int has_write_prompt_apply(object_t *ob);
+void cache_write_prompt_apply(object_t *ob, int exists);
+int query_noesc_flag(object_t *ob);
+void set_noesc_flag(object_t *ob, int enable);
 
 // Timing
-time_t comm_get_last_command_time(object_t *ob);
-void comm_update_last_command_time(object_t *ob);
+time_t query_last_command_time(object_t *ob);
+void update_last_command_time(object_t *ob);
 
 // Snoop
-object_t* comm_get_snoop_by(object_t *ob);
-object_t* comm_get_snoop_on(object_t *ob);
+object_t* query_snoop_by(object_t *ob);
+object_t* query_snoop_on(object_t *ob);
 
 // OLD_ED support (feature enabled in project)
 #ifdef OLD_ED
-struct ed_buffer_s* comm_get_ed_buffer(object_t *ob);
-void comm_set_ed_buffer(object_t *ob, struct ed_buffer_s *buf);
-int comm_is_net_dead(object_t *ob);
+struct ed_buffer_s* query_ed_buffer(object_t *ob);
+void set_ed_buffer(object_t *ob, struct ed_buffer_s *buf);
+int query_net_dead(object_t *ob);
 #endif
 
 // Efuns using interactive fields
-int comm_get_local_port(object_t *ob);         // F_QUERY_IP_PORT
-const char* comm_get_peer_ip(object_t *ob);    // For socket_status()
-int comm_get_peer_port(object_t *ob);          // For socket_status()
+int query_local_port(object_t *ob);         // F_QUERY_IP_PORT
+const char* query_peer_ip(object_t *ob);    // For socket_status()
+int query_peer_port(object_t *ob);          // For socket_status()
 ```
 
 ## Refactoring Phases
@@ -199,7 +245,7 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
    int process_user_command(void);
 
    // Command extraction and scheduling
-   static char* get_user_command(void);
+   static char* next_user_command(void);  // Iterator - advances internal cursor
    
    // input_to/get_char handling
    int input_to(svalue_t *fun, int flag, int num_arg, svalue_t *args);  // FROM simulate.c
@@ -325,7 +371,7 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
     * Should be called once per backend cycle before process_user_command().
     * @returns Number of users granted turns.
     */
-   int comm_grant_all_turns(void) {
+   int grant_all_turns(void) {
        int count = 0;
        for (int i = 0; i < max_users; i++) {
            if (all_users[i]) {
@@ -341,7 +387,7 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
     * Used to optimize backend polling timeout.
     * @returns 1 if commands pending, 0 otherwise.
     */
-   int comm_has_pending_commands(void) {
+   int has_pending_commands(void) {
        for (int i = 0; i < max_users; i++) {
            if (all_users[i] && (all_users[i]->iflags & CMD_IN_BUF))
                return 1;
@@ -363,8 +409,8 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
    // }
    
    // New:
-   connected_users = comm_grant_all_turns();
-   has_pending_commands = comm_has_pending_commands();
+   connected_users = grant_all_turns();
+   has_pending_commands = has_pending_commands();
    
    if (heart_beat_flag || has_pending_commands) {
        timeout.tv_sec = 0;
@@ -378,7 +424,8 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
 3. **Hide all_users exposure**:
    - Remove `extern interactive_t **all_users;` from comm.h
    - Make `all_users` static to comm.c
-   - Provide iterator if needed: `comm_foreach_user(callback_fn, context)`
+   - Provide lookup function: `object_t* lookup_user_at(int index)`
+   - Alternative: iterator pattern `foreach_user(callback_fn, context)` if needed
 
 **Validation**:
 - Backend still functions correctly
@@ -400,26 +447,26 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
     * @param[out] command_buf Buffer to receive command (MAX_TEXT size).
     * @returns 1 if command retrieved, 0 if no command pending or no turn.
     */
-   int comm_get_pending_command(object_t *ob, char *command_buf);
+   int get_pending_command(object_t *ob, char *command_buf);
    
    /**
     * @brief Mark that user's command has been consumed.
     * Advances buffer pointers and clears CMD_IN_BUF if no more commands.
     * @param ob Interactive object.
     */
-   void comm_consume_command(object_t *ob);
+   void consume_command(object_t *ob);
    
    /**
     * @brief Check if object has pending buffered commands.
     * @param ob Interactive object.
     * @returns 1 if commands available, 0 otherwise.
     */
-   int comm_has_buffered_commands(object_t *ob);
+   int query_buffered_commands(object_t *ob);
    ```
 
 2. **Implement in comm.c**:
    ```c
-   int comm_get_pending_command(object_t *ob, char *command_buf) {
+   int get_pending_command(object_t *ob, char *command_buf) {
        interactive_t *ip;
        char *cmd;
        
@@ -450,7 +497,7 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
        return 1;
    }
    
-   void comm_consume_command(object_t *ob) {
+   void consume_command(object_t *ob) {
        interactive_t *ip;
        
        if (!ob || !ob->interactive)
@@ -485,9 +532,9 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
    }
    ```
 
-3. **Refactor get_user_command()** (user_command.c):
+3. **Refactor next_user_command()** (user_command.c):
    ```c
-   static char* get_user_command(void) {
+   static char* next_user_command(void) {
        static int s_next_user = 0;
        static char buf[MAX_TEXT];
        interactive_t *ip = NULL;
@@ -496,15 +543,15 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
        
        // Round-robin search
        for (i = 0; i < max_users; i++) {
-           // Get next user via comm API (need iterator)
-           ob = comm_get_user_by_index(s_next_user);
+           // Lookup next user in global array
+           ob = lookup_user_at(s_next_user);
            
            if (ob) {
                // Flush output first
-               comm_flush_output(ob);
+               flush_output(ob);
                
                // Try to get command
-               if (comm_get_pending_command(ob, buf)) {
+               if (get_pending_command(ob, buf)) {
                    command_giver = ob;
                    if (s_next_user-- == 0)
                        s_next_user = max_users - 1;
@@ -535,10 +582,10 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
 1. **Define protocol mode API** (comm.h):
    ```c
    typedef enum {
-       COMM_ECHO_NORMAL = 0,      // Line mode with echo
-       COMM_ECHO_OFF = 1,         // Line mode without echo (passwords)
-       COMM_CHAR_MODE = 2         // Single character mode
-   } comm_input_mode_t;
+       INPUT_MODE_NORMAL = 0,      // Line mode with echo
+       INPUT_MODE_NOECHO = 1,      // Line mode without echo (passwords)
+       INPUT_MODE_CHAR = 2         // Single character mode
+   } input_mode_t;
    
    /**
     * @brief Set terminal input mode for interactive object.
@@ -546,19 +593,19 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
     * @param ob Interactive object.
     * @param mode Desired input mode.
     */
-   void comm_set_input_mode(object_t *ob, comm_input_mode_t mode);
+   void set_input_mode(object_t *ob, input_mode_t mode);
    
    /**
     * @brief Get current input mode.
     * @param ob Interactive object.
     * @returns Current mode, or -1 if not interactive.
     */
-   comm_input_mode_t comm_get_input_mode(object_t *ob);
+   input_mode_t query_input_mode(object_t *ob);
    ```
 
 2. **Implement in comm.c**:
    ```c
-   void comm_set_input_mode(object_t *ob, comm_input_mode_t mode) {
+   void set_input_mode(object_t *ob, input_mode_t mode) {
        interactive_t *ip;
        
        if (!ob || !ob->interactive)
@@ -567,7 +614,7 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
        ip = ob->interactive;
        
        switch (mode) {
-       case COMM_ECHO_OFF:
+       case INPUT_MODE_NOECHO:
            ip->iflags |= NOECHO;
            if (ip->fd == STDIN_FILENO) {
                #ifdef HAVE_TERMIOS_H
@@ -581,16 +628,16 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
            }
            break;
            
-       case COMM_CHAR_MODE:
+       case INPUT_MODE_CHAR:
            ip->iflags |= SINGLE_CHAR;
            set_telnet_single_char(ip, 1);
            break;
            
-       case COMM_ECHO_NORMAL:
+       case INPUT_MODE_NORMAL:
        default:
            ip->iflags &= ~(NOECHO | SINGLE_CHAR);
            set_telnet_single_char(ip, 0);
-           // Echo restoration handled in comm_consume_command()
+           // Echo restoration handled in consume_command()
            break;
        }
    }
@@ -600,28 +647,21 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
    ```c
    int set_call(object_t *ob, sentence_t *sent, int flags) {
        if (!ob || !sent || !ob->interactive || 
-           comm_get_input_to(ob))  // Already has input_to
+           query_input_to(ob))  // Already has input_to
            return 0;
        
        // Set callback state
-       comm_set_input_to(ob, sent, NULL, 0);
+       set_input_to(ob, sent);
        
-   cope Based on Decisions**:
-- ❌ Skip carryover args accessors (eliminated in sentence-args refactor prerequisite)
-- ✅ Include OLD_ED accessors (`ed_buffer`, net_dead check)
-- ✅ Include efun accessors (local_port, peer_ip, peer_port)
-- ❌ Skip F_TRACE accessors (feature disabled)
-
-**Steps**:
-
-1. **Implement all accessors** (full list in updated "Required Accessors" section above)
+       // Handle input mode flags
        if (flags & I_SINGLE_CHAR)
-           comm_set_input_mode(ob, COMM_CHAR_MODE);
+           set_input_mode(ob, INPUT_MODE_CHAR);
+       else if (flags & I_NOECHO)
+           set_input_mode(ob, INPUT_MODE_NOECHO);
        
        // Store NOESC flag (command layer concern)
        if (flags & I_NOESC) {
-           // Need accessor for this
-           comm_set_noesc_flag(ob, 1);
+           set_noesc_flag(ob, 1);
        }
        
        return 1;
@@ -649,16 +689,16 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
    if (ip->input_to) { ... }
    
    // New:
-   if (comm_get_input_to(ob)) { ... }
+   if (query_input_to(ob)) { ... }
    ```
 
 3. **Systematic conversion**:
    - Search user_command.c for `ip->` patterns
    - Replace with accessor calls
-   - Ensure all direct field accesses are via comm API
+   - Ensure all direct field accesses are via stream layer API
 
 **Validation**:
-- Grep `user_command.c` for `ip->` - should only see local caching
+- Grep `user_command.c` for `ip->` - should find none (all via accessors)
 - All functionality still works
 - No performance regression (accessors should inline well)
 
@@ -700,109 +740,39 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
 
 ### Unit Tests
 
-1. **test_comm_separatioGetCharSingleCharMode) {
+1. **test_stream_command_separation**:
+   ```cpp
+   TEST(StreamCommandSeparation, InputToNoEcho) {
+       // Verify input_to() with NOECHO flag works
+   }
+   
+   TEST(StreamCommandSeparation, GetCharSingleCharMode) {
        // Verify get_char() character mode works
    }
    
-   TEST(CommSeparation, InputToCarryoverArgs) {
-       // Verify extra args passed to input_to callback
-   }
-   `input_to()` and `get_char()` moved to user_command.c
-   - `test_simul_efuns/` - Verify no breakage from simulate.c change
-   TEST(CommSeparation, BufferAPIRoundRobin) {
+   TEST(StreamCommandSeparation, BufferAPIRoundRobin) {
        // Multiple users, verify round-robin
    }
    
    #ifdef OLD_ED
-   TEST(CommSeparation, EdBufferAccessors) {
+   TEST(StreamCommandSeparation, EdBufferAccessors) {
        // Verify ed_buffer get/set works
    }
-   #endifEST(CommSeparation, CommandTurnFairness) {
+   #endif
+   
+   TEST(StreamCommandSeparation, CommandTurnFairness) {
        // Grant turns, verify each user gets one
    }
    
-   TEST(CommSeparation, ProtocolCallbackSafetyDestruct) {
+   TEST(StreamCommandSeparation, ProtocolCallbackSafetyDestruct) {
        // Mudlib destructs during terminal_type callback
    }
-   get_char single character mode
-   send("get_char_test\\n")
-   expect("Press any key:")
-   send("x")  # Single character
-   expect("You pressed: x")
-   
-   # Test NOECHO mode (password input)
-   send("password_test\\n")
-   expect("Password:")
-   send("secret\\n")  # Should not echo
-   expect("Password accepted")
-   
-   # Test carryover args
-   send("input_to_args_test\\n")
-   
-   // /test/input_to_carryover.c
-   void create() {
-       enable_commands();
-   }
-   
-   void init() {
-       add_action("test_cmd", "test_input");
-   }
-   
-   void test_cmd(string arg) {
-       write("Enter name:\n");
-       input_to("handle_input", 0, 42);  // Pass 42 as carryover
-   }
-    - Implementation moved to user_command.c (transparent)
-- `get_char(function, flags, ...)` - Implementation moved to user_command.c (transparent)
-- `query_ip_name(object)`
-- `query_ip_portnput(string name, int num) {
-       write("Hello " + name + ", carryover was: " + num + "\n");
-   }
-   
-   // /test/get_char_test.c
-   void get_char_test() {
-       write("Press any key:\n");
-       get_char("handle_char", 0);
-   }
-   
-   void handle_char(string ch) {
-       write("You pressed: " + ch + "\n");
-   }
-   expect("Enter name:")
-   send("Alice\\n")
-   expect("Hello Alice, you are player 1")  # Carryover arg = 1
-   TEST(CommSeparation, BufferAPIRoundRobin) {
-       // Multiple users, verify round-robin
-   }
-- `src/simulate.c` - Removed `input_to()` and `get_char()` (moved to user_command.c)
-- `src/simulate.h` - Forward declarations updated
    ```
 
 2. **Update existing tests**:
    - `test_backend/` - Verify command processing loop
-   - `test_efuns/test_input_to/` - Verify input_to() and get_char() still work  
+   - `test_efuns/test_input_to/` - Verify `input_to()` and `get_char()` still work  
    - `test_simul_efuns/` - Verify no breakage from simulate.c changes
-
-3. **New test cases**:
-   ```cpp
-   TEST(CommSeparation, CommandTurnFairness) {
-       // Grant turns, verify each user gets exactly one command processed
-   }
-   
-   TEST(CommSeparation, ProtocolCallbackSafetyDestruct) {
-       // Mudlib destructs during terminal_type callback, verify graceful handling
-   }
-   
-   TEST(CommSeparation, BufferAPIRoundRobin) {
-       // Multiple users with commands, verify round-robin processing
-   }
-   
-   #ifdef OLD_ED
-   TEST(CommSeparation, EdBufferAccessors) {
-       // Verify ed_buffer get/set works correctly
-   }
-   #endif
-   ```
 
 **Note**: input_to() and get_char() test coverage already extensive from sentence-args refactor prerequisite
 
@@ -906,10 +876,13 @@ int comm_get_peer_port(object_t *ob);          // For socket_status()
 
 ### For Mudlib Developers
 
-**No changes required** - All efuns maintain same signatures:
-- `input_to(function, flags, ...)`
-- `query_ip_name(object)`
-- `set_snoop(snoopee, snooper)`
+**Breaking changes for efuns using implicit command_giver**:
+- `set_prompt(string)` → Driver now requires explicit object parameter internally
+- `set_notify_fail(mixed)` → Driver now requires explicit object parameter internally
+- **Efun signatures unchanged** - Wrapper functions use `command_giver` to call new API
+- `input_to(function, flags, ...)` - No change (already moved to user_command.c)
+- `query_ip_name(object)` - No change
+- `set_snoop(snoopee, snooper)` - No change
 
 **New apply safety**: Terminal callbacks now safer:
 ```lpc
@@ -931,9 +904,18 @@ void terminal_type(string type) {
 - `src/backend.c` - Uses new comm API functions
 
 **Removed Globals**:
-- `all_users[]` - Now private to comm.c (use accessors)
+- `all_users[]` - Now private to comm.c
+  - Use `lookup_user_at(int index)` for array access
+  - Use per-object functions for user operations
 
-**New API Functions**: See accessor list in Phase 6
+**New API Functions**: See accessor list in "Required Accessors" section
+
+**Changed API Signatures** (implicit → explicit):
+- `set_prompt(char *)` → `set_prompt(object_t *, const char *)`
+- `set_notify_fail_message(char *)` → `set_notify_fail_message(object_t *, const char *)`
+- `set_notify_fail_function(funptr_t *)` → `set_notify_fail_function(object_t *, funptr_t *)`
+
+**Note**: Efun implementations will adapt by passing `command_giver` to new signatures
 
 ## Risk Assessment
 
@@ -954,6 +936,29 @@ void terminal_type(string type) {
 ### Low Risk
 - **Behavioral changes** - Command processing semantics
   - Mitigation: Move code as-is, refactor later
+
+## Known Technical Debt
+
+### Apply Cache Flags on interactive_t
+
+**Issue**: `HAS_PROCESS_INPUT` and `HAS_WRITE_PROMPT` flags are stored on `interactive_t->iflags` but semantically describe object program attributes (whether the LPC code defines these applies).
+
+**Why It's Wrong**:
+1. Object attributes should be on `object_t->flags` (like `O_HEART_BEAT`, `O_WILL_CLEAN_UP`)
+2. Information is lost if object loses/regains interactive status
+3. Inconsistent with other capability flags
+
+**Why Not Fixed Now**:
+- This refactor already touches significant architecture
+- Fixing requires adding fields to `object_t` or implementing program-level caching
+- Needs program change invalidation logic (currently non-existent)
+
+**Mitigation**:
+- Accessor names emphasize caching behavior: `has_process_input_apply()`, `cache_process_input_apply()`
+- Names work regardless of future storage location
+- See [docs/plan/object-apply-flags-analysis.md](object-apply-flags-analysis.md) for full analysis
+
+**Future Work**: Move to `object_t->flags` with program change invalidation in a separate refactor.
 
 ## Success Criteria
 
