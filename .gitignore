@@ -8,3 +8,6 @@
 # cmake
 /out/
 /Testing/
+
+# venv
+/.venv/

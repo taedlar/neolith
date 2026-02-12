@@ -8,6 +8,7 @@ Neolith is a minimalist LPMud driver forked from MudOS v22pre5, modernizing deca
 The driver operates as a virtual machine for LPC scripts, organized into these major components:
 
 1. **Backend** ([src/backend.c](src/backend.c)): Main event loop handling I/O, timers, and object lifecycle
+   - Garbage collection of LPC objects and programs (reference counting)
    - Async event loop with `async_runtime_wait()` for non-blocking operations
    - Manages heartbeats, resets, and call_outs for LPC objects
    - Performance-critical path for command dispatch and heart_beat() calls
@@ -69,24 +70,31 @@ cmake --build --preset ci-linux
 ### Running
 
 ```bash
-neolith -f /path/to/neolith.conf
+/path/to/neolith -f /path/to/neolith.conf -p
 ```
-Config template: [src/neolith.conf](src/neolith.conf). Set `DebugLogFile` and `LogWithDate` for ISO-8601 timestamped logs.
+The `-f` option specifies the configuration file. Config template: [src/neolith.conf](src/neolith.conf). Set `DebugLogFile` and `LogWithDate` for ISO-8601 timestamped logs.
 
-Using console mode `-c` allows live interaction with the driver via standard input, useful for debugging and testing without a mudlib. See [docs/manual/console-mode.md](docs/manual/console-mode.md) for details. Example:
-```bash
-neolith -f /path/to/neolith.conf -c < /path/to/console_commands.txt > console_output.log
-```
-
-Using pedantic `-p` flag enables subsystems tear down for memory leak detection. See [docs/manual/dev.md](docs/manual/dev.md) for details.
+The `-p` flag enables pedantic mode for memory leak detection. See [docs/manual/dev.md](docs/manual/dev.md) for details.
 
 Using trace flags `-t` enables optional trace logging for debugging. See [docs/manual/trace.md](docs/manual/trace.md) for trace flag details.
 
+#### Console Mode
+Using console mode `-c` allows interaction with the driver via standard input and output, useful for debugging and testing without TELNET clients. This also provides a way to run scripted command sequences for testing.
+
+See [docs/manual/console-mode.md](docs/manual/console-mode.md) for details. Example:
+```bash
+/path/to/neolith -f /path/to/neolith.conf -c < /path/to/console_commands.txt > /path/to/console_output.log
+```
+
 ### Testing
 
-Uses GoogleTest framework. Test structure mirrors driver components:
+Unit-tests use GoogleTest framework. Tests are organized in [tests/](tests/) with subdirectories for each component. Test files should be named `test_*.cpp` and contain test cases using the `TEST()` or `TEST_F()` macro.
 ```bash
-ctest --preset ut-linux  # Run all tests
+# Run all tests (Linux/WSL)
+ctest --preset ut-linux
+
+# Run all tests (Windows Visual Studio 2019)
+ctest --preset ut-vs16-x64
 ```
 
 Test patterns:
@@ -96,7 +104,44 @@ Test patterns:
 - Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
 - CTest presets should be used from top-level directory
 
+#### Testing complex interactions with a MUD Bot
+Advanced usage of console mode includes creating MUD robots that interact with other users and objects in the virtual world, which can be useful for testing complex interactions and behaviors. See [examples/testbot.py](examples/testbot.py) for a simple Python-based MUD bot that connects to the driver and performs scripted actions.
+
+To run the test bot, first create a Python virtual environment in the top-level directory and install the required dependencies:
+```bash
+python -m venv .venv
+.venv\Scripts\activate.bat  # Windows
+source .venv/bin/activate  # Linux/WSL
+python -m pip install pexpect
+```
+
+Then, run the test bot script that start the driver in console mode and interact with it via piped input and output:
+```bash
+cd examples
+python testbot.py
+```
+
 ## Code Conventions & Patterns
+
+### Modular Architecture
+Legacy code had excessive global variables. Neolith refactors into:
+- Static libraries in [lib/](lib/): `port`, `logger`, `rc`, `misc`, `efuns`, `lpc`, `socket`, `async`
+- `stem` object library in [src/](src/): all driver code linked to tests and main executable
+- Cascaded `init_*()`/`deinit_*()` lifecycle, tracked via `get_machine_state()`
+
+### Header Includes
+- All .c files should include config.h first for feature detection macros.
+- All [src/](src/) files include [std.h](src/std.h) first (after config.h), which provides portable POSIX headers and driver-wide options from [efuns/options.h](lib/efuns/options.h).
+- All .h file should be compatible with C and C++ (extern "C" guards) and should not include other headers unless necessary for type definitions.
+
+### Indentation & Formatting
+- K&R style for C code and Stroustrup style for C++ code, with project-specific conventions:
+  - Use 2 spaces for indentation, no tabs.
+  - Opening braces `{` on same line for functions and control blocks. This improves greppability of function definitions and reduces vertical space.
+  - Do not use cuddled else/else if. Always put `else` on a new line to improve readability and reduce merge conflicts.
+- Use single space after keywords and before parentheses (`if (condition)`, not `if(condition)`) with the exception of empty parentheses such as in `void func()`.
+- Use single blank line to separate logical blocks.
+- Use two blank lines to separate function definitions.
 
 ### Integer Type Usage
 - **LPC runtime integers**: Always `int64_t` (svalue_u.number is int64_t)
@@ -104,15 +149,6 @@ Test patterns:
 - **Never use `long`**: Platform-specific size (32-bit on Windows x64, 64-bit on Linux)
 - **Small integers**: `int` is fine for loop counters, array indices, etc.
 - **push_number()**: Accepts `int64_t`, automatically handles conversion
-
-### Header Includes
-All [src/](src/) files include [std.h](src/std.h) first (after config.h), which provides portable POSIX headers and driver-wide options from [efuns/options.h](lib/efuns/options.h).
-
-### Modular Architecture
-Legacy code had excessive global variables. Neolith refactors into:
-- Static libraries in [lib/](lib/): `port`, `logger`, `rc`, `misc`, `efuns`, `lpc`, `socket`, `async`
-- `stem` object library in [src/](src/): all driver code linked to tests and main executable
-- Cascaded `init_*()`/`deinit_*()` lifecycle, tracked via `get_machine_state()`
 
 ### Async Library Architecture
 
