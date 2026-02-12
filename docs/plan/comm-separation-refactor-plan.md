@@ -14,7 +14,7 @@ This refactor depends on completing the sentence-args refactor because:
 
 ## Naming Conventions
 
-**CRITICAL**: All function naming must follow established patterns. See [.github/skills/function-naming-conventions/SKILL.md](../../.github/skills/function-naming-conventions/SKILL.md) for:
+**CRITICAL**: All function naming must follow established patterns. See [.github/skills/function-naming/SKILL.md](../../.github/skills/function-naming/SKILL.md) for:
 - Quick reference table with 8 operation type patterns
 - Validation checklist for adding/refactoring functions
 - Common mistakes and how to avoid them
@@ -43,7 +43,7 @@ Global operations:
 
 **Recommended Renames for Existing Functions**:
 
-For consistency with established conventions (see [function naming skill](../../.github/skills/function-naming-conventions/SKILL.md#refactoring-guidance)), rename these existing functions:
+For consistency with established conventions (see [function naming skill](../../.github/skills/function-naming/SKILL.md#refactoring-guidance)), rename these existing functions:
 
 1. **backend.c**:
    - `get_heart_beats()` → `get_all_heart_beats()` - clarifies it returns all heart beat objects

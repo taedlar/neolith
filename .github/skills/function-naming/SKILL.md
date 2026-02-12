@@ -1,8 +1,8 @@
 ---
-name: function-naming-conventions
+name: function-naming
 description: Validates function naming when adding new functions, refactoring existing functions, or reviewing function signatures.
 ---
-# Function Naming Conventions Skill
+# Function Naming Skill
 
 **When to apply**: When adding new functions, refactoring existing functions, or reviewing function signatures.
 
