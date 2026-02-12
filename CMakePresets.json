@@ -24,6 +24,11 @@
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
                   "hostOS": [ "Windows" ]
                 }
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
             }
         },
         {
@@ -58,7 +63,12 @@
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
                   "hostOS": [ "Linux" ]
                 }
-            }            
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
         },
         {
             "name": "linux",

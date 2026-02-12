@@ -180,7 +180,6 @@ Prerequisite for comm-separation refactor - eliminates need for `comm_get/set_ca
 
 ## References
 
-- **Implementation Plan**: [docs/plan/sentence-args-refactor-plan.md](../plan/sentence-args-refactor-plan.md)
 - **Tests**: [test_input_to_get_char.cpp](../../tests/test_lpc_interpreter/test_input_to_get_char.cpp)
 - **Key Files**: [lib/lpc/object.{h,c}](../../lib/lpc/object.h), [src/simulate.c](../../src/simulate.c), [src/comm.c](../../src/comm.c)
 

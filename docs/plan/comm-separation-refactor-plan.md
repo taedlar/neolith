@@ -2,13 +2,10 @@
 
 **Goal**: Separate comm.c into stream processing (comm.c) and command dispatch (user_command.c) using object-as-primary-interface design (Option 1), with `interactive_t` becoming opaque to the command layer.
 
-**Status**: Blocked on [sentence-args-refactor-plan.md](sentence-args-refactor-plan.md)  
 **Date**: 2026-02-08  
 **Update**: Merged input_to/add_action refactor into prerequisite plan
 
 ## Prerequisites
-
-**MUST COMPLETE FIRST**: [Sentence Arguments Refactoring](sentence-args-refactor-plan.md)
 
 This refactor depends on completing the sentence-args refactor because:
 1. Removes `carryover`/`num_carry` from `interactive_t` (no accessor functions needed)
@@ -853,8 +850,6 @@ int query_peer_port(object_t *ob);          // For socket_status()
 - **Phase 5**: 2-3 days (protocol mode API)
 - **Phase 6**: 3-4 days (accessors, no carryover accessors needed)
 - **Phase 7**: 1-2 days (opaque type)
-
-**Prerequisites**: ~9-11 days for sentence-args refactor (see [sentence-args-refactor-plan.md](sentence-args-refactor-plan.md))
 
 **This Refactor**: ~15-20 working days (~3-4 weeks)
 

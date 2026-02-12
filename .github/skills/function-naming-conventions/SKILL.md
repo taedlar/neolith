@@ -257,19 +257,8 @@ void f_set_prompt(void) {
 3. Check for module prefix violations
 4. Verify scope matches signature
 
-### Refactoring Projects
-See active refactoring plans:
-- [comm-separation-refactor-plan.md](../../docs/plan/comm-separation-refactor-plan.md)
-- [sentence-args-refactor-plan.md](../../docs/plan/sentence-args-refactor-plan.md)
-
 ### Testing
 When testing new functions:
 1. Verify behavior matches name (no surprises)
 2. Test both per-object and global behavior as appropriate
 3. Check iterator state management if using `next_*`
-
-## References
-
-- **Copilot Instructions**: [.github/copilot-instructions.md](../copilot-instructions.md) - "Code Conventions & Patterns" section
-- **Active Refactor**: [docs/plan/comm-separation-refactor-plan.md](../../docs/plan/comm-separation-refactor-plan.md) - "Naming Conventions" section
-- **Apply Cache Analysis**: [docs/plan/object-apply-flags-analysis.md](../../docs/plan/object-apply-flags-analysis.md)
