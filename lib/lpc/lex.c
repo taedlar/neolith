@@ -1526,7 +1526,7 @@ int yylex () {
                       {
                         if (c == '\n')
                           {
-                            if ((yyp == last_nl + 1))
+                            if (yyp == last_nl + 1)
                               {
                                 outptr = yyp;
                                 refill_buffer ();

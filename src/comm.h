@@ -69,7 +69,7 @@ typedef struct interactive_s {
     int out_of_band;            /* Send a telnet sync operation            */
     int state;                  /* Current telnet state.  Bingly wop       */
     int sb_pos;                 /* Telnet suboption negotiation stuff      */
-    char sb_buf[SB_SIZE];
+    BYTE sb_buf[SB_SIZE];
 } interactive_t;
 
 
@@ -102,6 +102,8 @@ void new_interactive(socket_fd_t socket_fd);
  * @returns Number of events occurred, or 0 on timeout, or -1 on error.
  */
 int do_comm_polling(struct timeval* timeout);
+
+int is_console_user (void *context);
 
 void add_vmessage(object_t *, char *, ...);
 void add_message(object_t *, char *);

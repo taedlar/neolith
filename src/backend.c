@@ -116,7 +116,7 @@ object_t* mudlib_connect(int port, const char* addr) {
   ob->interactive = master_ob->interactive;
   ob->interactive->ob = ob;
   ob->flags |= O_ONCE_INTERACTIVE;
-  if (ob->interactive->fd == STDIN_FILENO)
+  if (is_console_user(ob))
     ob->flags |= O_CONSOLE_USER; /* mark as console user */
   /*
    * assume the existance of write_prompt and process_input in user.c

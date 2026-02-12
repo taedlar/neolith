@@ -2709,9 +2709,9 @@ void do_shutdown () {
         (void) SOCKET_CLOSE (lpc_socks[i].fd);
     }
 
-  for (i = 0; i < max_users; i++)
+  for (i = 1; i < max_users; i++)
     {
-      if (!all_users[i] || all_users[i]->fd == STDIN_FILENO)
+      if (!all_users[i])
         continue;
       if (!(all_users[i]->iflags & CLOSING))
         {

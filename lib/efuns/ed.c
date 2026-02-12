@@ -1268,10 +1268,9 @@ set ()
   else
     inptr++;
 
-  if ((*inptr == NL))
+  if (*inptr == NL)
     {
-      ED_OUTPUTV (ED_DEST, "ed version %d.%d\n", version / 100,
-                  version % 100);
+      ED_OUTPUTV (ED_DEST, "ed version %d.%d\n", version / 100, version % 100);
       limit = tbl + (sizeof (tbl) / sizeof (struct tbl));
       for (t = tbl; t < limit; t += 2)
         {
