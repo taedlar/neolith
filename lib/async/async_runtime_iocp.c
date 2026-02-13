@@ -396,6 +396,7 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
                     events[event_count].event_type = EVENT_WRITE;
                 }
                 free_iocp_context(runtime, io_ctx);
+                event_count++;  /* CRITICAL: Increment event count after processing I/O completion */
             } else {
                 /* NULL overlapped - either worker completion, accepted connection, or wakeup */
                 
