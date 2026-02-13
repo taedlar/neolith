@@ -1072,8 +1072,7 @@ void process_io () {
                * the accepted socket FD. The FD is in evt->fd. */
               if (evt->fd != INVALID_SOCKET)
                 {
-                  opt_trace (TT_COMM|1, "Accept worker accepted connection on port %d (fd=%d)\n", 
-                            port->port, (int)evt->fd);
+                  opt_trace (TT_COMM|1, "incoming connection on port %d (accepted fd=%d)\n", port->port, (int)evt->fd);
                   
                   /* Get peer address for the already-accepted socket */
                   struct sockaddr_in addr;
@@ -1091,12 +1090,14 @@ void process_io () {
               else
                 {
                   /* Fallback: call accept() synchronously (shouldn't happen with accept worker) */
-                  opt_trace (TT_COMM|1, "Fallback: synchronous accept on port %d\n", port->port);
+                  opt_trace (TT_COMM|1, "incoming connection on port %d\n", port->port);
                   new_user_handler (port);
                 }
 #else
-              /* On POSIX, listening socket is ready - call accept() */
-              opt_trace (TT_COMM|1, "New connection on port %d\n", port->port);
+              /* On POSIX, listening socket is ready - call accept()
+               * TODO: do asynchronous accept() in worker thread to avoid blocking here?
+               */
+              opt_trace (TT_COMM|1, "incoming connection on port %d\n", port->port);
               new_user_handler (port);
 #endif
             }
@@ -1313,6 +1314,124 @@ void new_interactive (socket_fd_t socket_fd) {
 }
 
 /**
+ * @brief Create a minimal interactive structure for unit testing.
+ * 
+ * This function creates and initializes a standalone interactive structure attached to 
+ * the given object for testing purposes. Unlike new_interactive(), this function:
+ * - Does NOT call mudlib connect/logon functions
+ * - Does NOT configure terminal settings
+ * - Does NOT register with async runtime
+ * - Only allocates minimal all_users array if needed (for safety)
+ * 
+ * The created interactive is marked as a console user (fd = STDIN_FILENO) to avoid
+ * triggering network operations in code paths that check fd values.
+ * 
+ * @param ob The object to attach the interactive structure to.
+ * @return The created interactive structure, or NULL on failure.
+ */
+interactive_t* create_test_interactive (object_t *ob) {
+  interactive_t *ip;
+  
+  if (!ob) {
+    return NULL;
+  }
+  
+  /* Ensure minimal all_users array exists (for code that iterates over it) */
+  if (!all_users) {
+    all_users = CALLOCATE (1, interactive_t *, TAG_USERS, "create_test_interactive");
+    max_users = 1;
+  }
+  
+  /* Allocate interactive structure */
+  ip = (interactive_t *)DXALLOC (sizeof (interactive_t), TAG_INTERACTIVE, "create_test_interactive");
+  
+  /* Initialize all fields to safe defaults */
+  ip->ob = ob;
+  ip->input_to = NULL;
+  ip->fd = STDIN_FILENO; /* Mark as console-like to avoid network operations */
+  ip->iflags = 0;
+  ip->text_end = 0;
+  ip->text_start = 0;
+  ip->text[0] = '\0';
+  ip->prompt = NULL;
+  ip->snoop_on = NULL;
+  ip->snoop_by = NULL;
+  ip->last_time = current_time;
+  ip->default_err_message.s = NULL;
+  ip->message_producer = 0;
+  ip->message_consumer = 0;
+  ip->message_length = 0;
+  ip->state = TS_DATA;
+  ip->out_of_band = 0;
+  ip->sb_pos = 0;
+  ip->connection_type = 0;
+  memset(&ip->addr, 0, sizeof(ip->addr));
+#ifdef F_QUERY_IP_PORT
+  ip->local_port = 0;
+#endif
+  
+#ifdef OLD_ED
+  ip->ed_buffer = NULL;
+#endif
+#ifdef TRACE
+  ip->trace_level = 0;
+  ip->trace_prefix = NULL;
+#endif
+  
+  /* Attach to object */
+  ob->interactive = ip;
+  ob->flags |= O_ONCE_INTERACTIVE;
+  
+  /* Store in all_users[0] for console-like behavior  
+   * This makes code that checks all_users[] work without crashing */
+  all_users[0] = ip;
+  
+  /* Note: total_users is NOT incremented - this is a test-only interactive */
+  
+  return ip;
+}
+
+/**
+ * @brief Clean up a test interactive structure created by create_test_interactive.
+ * 
+ * This function removes and frees an interactive structure that was created for testing.
+ * It properly cleans up any pending input_to callbacks and removes from all_users[0].
+ * 
+ * @param ip The interactive structure to remove.
+ */
+void remove_test_interactive (interactive_t *ip) {
+  if (!ip) {
+    return;
+  }
+  
+  /* Clean up any pending input_to */
+  if (ip->input_to) {
+    free_sentence (ip->input_to);
+    ip->input_to = NULL;
+  }
+  
+  /* Clean up default error message if it's a malloc'd string */
+  if (ip->default_err_message.s) {
+    ip->default_err_message.s = NULL;
+  }
+  
+  /* Remove from object */
+  if (ip->ob) {
+    ip->ob->interactive = NULL;
+  }
+  
+  /* Remove from all_users if present */
+  if (all_users && all_users[0] == ip) {
+    all_users[0] = NULL;
+  }
+  
+  /* Free the structure */
+  FREE (ip);
+  
+  /* Note: total_users was not incremented, so don't decrement it */
+}
+
+/**
  *  @brief Setup a newly accepted connection.
  *  This helper function is called after accept() has been performed (either by new_user_handler
  *  on POSIX, or by the accept worker thread on Windows). It performs initial socket configuration
@@ -1326,8 +1445,6 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
   char addr_str[50];
 
   inet_ntop (AF_INET, &addr->sin_addr.s_addr, addr_str, sizeof(addr_str));
-  opt_trace (TT_COMM|1, "Connection from %s:%d on port %d (fd=%d)\n",
-            addr_str, ntohs (addr->sin_port), port->port, (int)new_socket_fd);
 
   /* Set non-blocking mode on accepted socket */
   if (set_socket_nonblocking (new_socket_fd, 1) == SOCKET_ERROR)

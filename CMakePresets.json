@@ -209,6 +209,13 @@
             "inherits": ["ut-windows-defaults"]
         },
         {
+            "name": "ut-clang-x64",
+            "displayName": "Unit Tests x64",
+            "description": "Run unit-tests for Windows 64-bits architecture",
+            "configurePreset": "clang-x64",
+            "inherits": ["ut-windows-defaults"]
+        },
+        {
             "name": "ut-linux-defaults",
             "hidden": true,
             "condition": {
