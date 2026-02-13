@@ -302,21 +302,10 @@ int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events,
                                           (ULONG_PTR)context, 0);
     if (!result) return -1;
     
-    /* Post initial async read if requested */
-    if (events & EVENT_READ) {
-        iocp_context_t* io_ctx = alloc_iocp_context(runtime, fd, NULL, OP_READ);
-        if (!io_ctx) return -1;
-        
-        DWORD flags = 0;
-        DWORD bytes_received;
-        int wsa_result = WSARecv(fd, &io_ctx->wsa_buf, 1, &bytes_received, &flags,
-                                 &io_ctx->overlapped, NULL);
-        
-        if (wsa_result == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING) {
-            free_iocp_context(runtime, io_ctx);
-            return -1;
-        }
-    }
+    /* Note: For connected sockets, initial async read is posted by caller after
+     * user object setup completes (see setup_accepted_connection in comm.c).
+     * This avoids race conditions where read completes before mudlib_connect()
+     * transfers the interactive pointer to the user object. */
     
     runtime->num_fds++;
     return 0;

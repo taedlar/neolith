@@ -90,19 +90,26 @@ See [docs/manual/console-mode.md](docs/manual/console-mode.md) for details. Exam
 
 Unit-tests use GoogleTest framework. Tests are organized in [tests/](tests/) with subdirectories for each component. Test files should be named `test_*.cpp` and contain test cases using the `TEST()` or `TEST_F()` macro.
 ```bash
+# Any `ctest` command speccifying a preset should be run from top-level directory where CMakePresets.json is located
+
 # Run all tests (Linux/WSL)
 ctest --preset ut-linux
 
 # Run all tests (Windows Visual Studio 2019)
 ctest --preset ut-vs16-x64
+
+# Run all tests (Windows ClangCL)
+ctest --preset ut-clang-x64
 ```
 
-Test patterns:
-- Generic library tests (e.g., [test_logger](tests/test_logger/)) link only needed dependencies
-- Driver component tests link the `stem` object library (all driver code except main.c)
-- Tests expect [examples/](examples/) directory copied to build directory (automated via CMake POST_BUILD)
-- Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
-- CTest presets should be used from top-level directory
+When testing specific components, configuration or platform that a `--test-dir` is being specified after any code changes, always add `--build-and-test` to ensure the latest code is being tested. For example:
+```bash
+# Run only async library tests with latest code changes
+ctest --test-dir out/build/clang-x64 -R RelWithDebInfo --build-and-test
+```
+Always verify the three essential testing target specifications before launching `ctest`:
+- `--test-dir` points to the correct build directory for the latest code changes, which implicitly specifies the correct **platform** and scope of **components**
+- `-R` specifies the correct **configuration** (e.g., `RelWithDebInfo`)
 
 #### Testing complex interactions with a MUD Bot
 Advanced usage of console mode includes creating MUD robots that interact with other users and objects in the virtual world, which can be useful for testing complex interactions and behaviors. See [examples/testbot.py](examples/testbot.py) for a simple Python-based MUD bot that connects to the driver and performs scripted actions.

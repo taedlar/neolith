@@ -265,7 +265,7 @@ static int cond_get_exp (int priority) {
           value = -value;
           break;
         case UPLUS:
-          value = value;
+          /* value = value; */
           break;
         default:
           yyerrorp ("illegal unary operator in %cif");

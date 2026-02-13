@@ -119,7 +119,7 @@ int max_users = 0;
 static io_event_t g_io_events[512];  /* Event buffer for async_runtime_wait() */
 static int g_num_io_events = 0;
 
-static int addr_server_fd = -1;
+static socket_fd_t addr_server_fd = INVALID_SOCKET_FD;
 
 /* implementations */
 
@@ -130,20 +130,19 @@ static inline int is_listening_port (void *context) {
 }
 
 static inline int is_interactive_user (void *context) {
-  if (!all_users || !context) return 0;
+  if (!all_users || !context)
+    return 0;
   
   /* Check if pointer is in all_users array range */
-  for (int i = 0; i < max_users; i++)
-    {
-      if (all_users[i] == context)
-        return 1;
-    }
+  for (int i = 0; i < max_users; i++) {
+    if (all_users[i] == context)
+      return 1;
+  }
   return 0;
 }
 
-static inline int is_console_user (void *context) {
-  return is_interactive_user(context) &&
-         ((interactive_t*)context)->fd == STDIN_FILENO;
+int is_console_user (void *context) {
+  return context && all_users && ((object_t*)context)->interactive == all_users[0];
 }
 
 #ifdef PACKAGE_SOCKETS
@@ -391,7 +390,7 @@ void add_message (object_t * who, char *data) {
 #ifdef FLUSH_OUTPUT_IMMEDIATELY
   flush_message (ip);
 #else
-  if (ip->fd == STDIN_FILENO)
+  if (ip == all_users[0]) /* console user */
     {
       flush_message (ip);
     }
@@ -525,9 +524,9 @@ int flush_message (interactive_t * ip) {
         }
       /* Need to use send to get Out-Of-Band data
        * num_bytes = write(ip->fd,ip->message_buf + ip->message_consumer,length);
-       * [NEOLITH-EXTENSION] if the fd is STDIN_FILENO, use write to STDOUT_FILENO
+       * [NEOLITH-EXTENSION] if ip is the console user, use write to STDOUT_FILENO
        */
-      num_bytes = (ip->fd == STDIN_FILENO) ?
+      num_bytes = (ip == all_users[0]) ?
         FILE_WRITE (STDOUT_FILENO, ip->message_buf + ip->message_consumer, length) :
         SOCKET_SEND (ip->fd, ip->message_buf + ip->message_consumer, length, ip->out_of_band);
       if (num_bytes == -1)
@@ -535,7 +534,7 @@ int flush_message (interactive_t * ip) {
           if (SOCKET_ERRNO == EWOULDBLOCK || SOCKET_ERRNO == EINTR)
             {
               /* Socket would block - request write notification from async runtime */
-              if (ip->fd != STDIN_FILENO)
+              if (ip != all_users[0])
                 {
                   async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE, ip);
                 }
@@ -555,7 +554,7 @@ int flush_message (interactive_t * ip) {
     }
   
   /* All data sent - remove write notification if it was set */
-  if (ip->fd != STDIN_FILENO)
+  if (ip != all_users[0])
     {
       async_runtime_modify (g_runtime, ip->fd, EVENT_READ, ip);
     }
@@ -666,7 +665,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
                   {
                     if (ip->sb_buf[1] != TELQUAL_IS)
                       break;
-                    copy_and_push_string (ip->sb_buf + 2);
+                    copy_and_push_string ((char*)ip->sb_buf + 2);
                     apply (APPLY_TERMINAL_TYPE, ip->ob, 1, ORIGIN_DRIVER);
                     break;
                   }
@@ -773,7 +772,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
                      * anything beyond '\0'. Maybe need change to buffer
                      * or something. --- Annihilator@ES2 [2002-05-07]
                      */
-                    copy_and_push_string (ip->sb_buf);
+                    copy_and_push_string ((char*)ip->sb_buf);
                     apply (APPLY_TELNET_SUBOPTION, ip->ob, 1, ORIGIN_DRIVER);
                     break;
                   }
@@ -947,7 +946,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
  */
 static void set_telnet_single_char (interactive_t * ip, int single)
 {
-  if (ip->fd == STDIN_FILENO)
+  if (ip == all_users[0]) /* console user */
     {
 #ifdef HAVE_TERMIOS_H
       /* console user, try termios */
@@ -1073,8 +1072,7 @@ void process_io () {
                * the accepted socket FD. The FD is in evt->fd. */
               if (evt->fd != INVALID_SOCKET)
                 {
-                  opt_trace (TT_COMM|1, "Accept worker accepted connection on port %d (fd=%d)\n", 
-                            port->port, (int)evt->fd);
+                  opt_trace (TT_COMM|1, "incoming connection on port %d (accepted fd=%d)\n", port->port, (int)evt->fd);
                   
                   /* Get peer address for the already-accepted socket */
                   struct sockaddr_in addr;
@@ -1092,12 +1090,14 @@ void process_io () {
               else
                 {
                   /* Fallback: call accept() synchronously (shouldn't happen with accept worker) */
-                  opt_trace (TT_COMM|1, "Fallback: synchronous accept on port %d\n", port->port);
+                  opt_trace (TT_COMM|1, "incoming connection on port %d\n", port->port);
                   new_user_handler (port);
                 }
 #else
-              /* On POSIX, listening socket is ready - call accept() */
-              opt_trace (TT_COMM|1, "New connection on port %d\n", port->port);
+              /* On POSIX, listening socket is ready - call accept()
+               * TODO: do asynchronous accept() in worker thread to avoid blocking here?
+               */
+              opt_trace (TT_COMM|1, "incoming connection on port %d\n", port->port);
               new_user_handler (port);
 #endif
             }
@@ -1114,32 +1114,14 @@ void process_io () {
            * Worker thread has already read the data; we just process it. */
           if (g_console_queue)
             {
-              /* Find console user once before draining queue */
-              interactive_t *console_ip = NULL;
-              for (int u = 0; u < max_users; u++)
-                {
-                  if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
-                    {
-                      console_ip = all_users[u];
-                      break;
-                    }
-                }
-              
+              /* all_users slot #0 is reserved for the console user */
+              interactive_t *console_ip = all_users[0];
               if (!console_ip)
                 {
                   /* Console user disconnected - reconnect first */
                   opt_trace(TT_COMM|1, "Console user re-connecting\n");
                   init_console_user(1);
-                  
-                  /* Find newly connected console user */
-                  for (int u = 0; u < max_users; u++)
-                    {
-                      if (all_users[u] && all_users[u]->fd == STDIN_FILENO)
-                        {
-                          console_ip = all_users[u];
-                          break;
-                        }
-                    }
+                  console_ip = all_users[0];
                 }
               
               /* Drain all pending lines from queue (always null-terminated) */
@@ -1222,14 +1204,13 @@ void process_io () {
     }
   
   /* Flush console user output if connected (console is always writable) */
-  for (i = 0; i < max_users; i++)
-    {
-      if (all_users[i] && all_users[i]->fd == STDIN_FILENO)
-        {
-          flush_message (all_users[i]);
-          break;
-        }
-    }
+  if (all_users[0])
+    flush_message (all_users[0]);
+  /*
+  for (i = 1; i < max_users; i++) {
+    if (all_users[i])
+      flush_message (all_users[i]);
+  }*/
 }
 
 /**
@@ -1241,32 +1222,44 @@ void process_io () {
 void new_interactive (socket_fd_t socket_fd) {
 
   int i;
-  for (i = 0; i < max_users; i++)
-    if (!all_users[i]) /* find a free slot in all_users */
-      break;
-
-  if (i == max_users)
-    {
-      if (all_users)
-        {
-          /* allocate 50 more user slots */
-          all_users = RESIZE (all_users, max_users + 50, interactive_t *, TAG_USERS, "new_user_handler");
-        }
-      else
-        {
-          /* first time allocation */
-          all_users = CALLOCATE (50, interactive_t *, TAG_USERS, "new_user_handler");
-        }
-      while (max_users < i + 50)
-        all_users[max_users++] = 0;
+  if (socket_fd == INVALID_SOCKET) {
+    debug_message ("Invalid socket file descriptor: %d\n", (int)socket_fd);
+    return;
+  }
+  if (socket_fd == (socket_fd_t)STDIN_FILENO) {
+    /* Console user is always at slot #0 in all_users */
+    if (all_users && all_users[0]) {
+      debug_message ("Console user already exists, cannot create another.\n");
+      return;
     }
+    i = 0; /* reserve slot #0 for console user */
+  }
+  else {
+    /* find a free slot in all_users (slot #0 reserved for console user) */
+    for (i = 1; i < max_users; i++)
+      if (!all_users[i])
+        break;
+  }
+
+  if (i >= max_users) {
+    if (all_users) {
+      /* allocate 50 more user slots */
+      all_users = RESIZE (all_users, max_users + 50, interactive_t *, TAG_USERS, "new_user_handler");
+    }
+    else {
+      /* first time allocation */
+      all_users = CALLOCATE (50, interactive_t *, TAG_USERS, "new_user_handler");
+    }
+    while (max_users < i + 50)
+      all_users[max_users++] = 0;
+  }
 
   command_giver = master_ob;
   master_ob->interactive = (interactive_t *)DXALLOC (sizeof (interactive_t), TAG_INTERACTIVE, "new_user_handler");
   total_users++;
   master_ob->interactive->default_err_message.s = 0;
   master_ob->flags |= O_ONCE_INTERACTIVE;
-  if (socket_fd == STDIN_FILENO)
+  if (i == 0) /* console user */
     master_ob->flags |= O_CONSOLE_USER;
   /*
    * initialize new user interactive data structure.
@@ -1297,9 +1290,14 @@ void new_interactive (socket_fd_t socket_fd) {
   set_prompt ("> ");
 
   /* Register interactive socket with async runtime.
-   * Console user is always registered for re-connect if console_mode is enabled.
+   * Console user (slot 0) is handled by console worker via completion posting,
+   * so stdin is NOT registered with async_runtime_add(). Only network users (slot > 0)
+   * need to be registered for I/O event notification.
+   * 
+   * Note: async_runtime_add() automatically posts initial async read on Windows IOCP
+   * when EVENT_READ is requested, so no explicit post_read() call is needed.
    */
-  if (socket_fd != STDIN_FILENO)
+  if (i > 0)
     {
       if (async_runtime_add (g_runtime, socket_fd, EVENT_READ, master_ob->interactive) != 0)
         {
@@ -1310,25 +1308,127 @@ void new_interactive (socket_fd_t socket_fd) {
           all_users[i] = 0;
           return;
         }
-
-#ifdef _WIN32
-      /* On Windows IOCP, post initial async read operation.
-       * On POSIX, this is a no-op - reads happen after EVENT_READ notification.
-       */
-      if (async_runtime_post_read (g_runtime, socket_fd, NULL, 0) != 0)
-        {
-          debug_message ("Failed to post initial read for user socket\n");
-          async_runtime_remove (g_runtime, socket_fd);
-          SOCKET_CLOSE (socket_fd);
-          FREE (master_ob->interactive);
-          master_ob->interactive = 0;
-          all_users[i] = 0;
-          return;
-        }
-#endif
     }
 
   num_user++;
+}
+
+/**
+ * @brief Create a minimal interactive structure for unit testing.
+ * 
+ * This function creates and initializes a standalone interactive structure attached to 
+ * the given object for testing purposes. Unlike new_interactive(), this function:
+ * - Does NOT call mudlib connect/logon functions
+ * - Does NOT configure terminal settings
+ * - Does NOT register with async runtime
+ * - Only allocates minimal all_users array if needed (for safety)
+ * 
+ * The created interactive is marked as a console user (fd = STDIN_FILENO) to avoid
+ * triggering network operations in code paths that check fd values.
+ * 
+ * @param ob The object to attach the interactive structure to.
+ * @return The created interactive structure, or NULL on failure.
+ */
+interactive_t* create_test_interactive (object_t *ob) {
+  interactive_t *ip;
+  
+  if (!ob) {
+    return NULL;
+  }
+  
+  /* Ensure minimal all_users array exists (for code that iterates over it) */
+  if (!all_users) {
+    all_users = CALLOCATE (1, interactive_t *, TAG_USERS, "create_test_interactive");
+    max_users = 1;
+  }
+  
+  /* Allocate interactive structure */
+  ip = (interactive_t *)DXALLOC (sizeof (interactive_t), TAG_INTERACTIVE, "create_test_interactive");
+  
+  /* Initialize all fields to safe defaults */
+  ip->ob = ob;
+  ip->input_to = NULL;
+  ip->fd = STDIN_FILENO; /* Mark as console-like to avoid network operations */
+  ip->iflags = 0;
+  ip->text_end = 0;
+  ip->text_start = 0;
+  ip->text[0] = '\0';
+  ip->prompt = NULL;
+  ip->snoop_on = NULL;
+  ip->snoop_by = NULL;
+  ip->last_time = current_time;
+  ip->default_err_message.s = NULL;
+  ip->message_producer = 0;
+  ip->message_consumer = 0;
+  ip->message_length = 0;
+  ip->state = TS_DATA;
+  ip->out_of_band = 0;
+  ip->sb_pos = 0;
+  ip->connection_type = 0;
+  memset(&ip->addr, 0, sizeof(ip->addr));
+#ifdef F_QUERY_IP_PORT
+  ip->local_port = 0;
+#endif
+  
+#ifdef OLD_ED
+  ip->ed_buffer = NULL;
+#endif
+#ifdef TRACE
+  ip->trace_level = 0;
+  ip->trace_prefix = NULL;
+#endif
+  
+  /* Attach to object */
+  ob->interactive = ip;
+  ob->flags |= O_ONCE_INTERACTIVE;
+  
+  /* Store in all_users[0] for console-like behavior  
+   * This makes code that checks all_users[] work without crashing */
+  all_users[0] = ip;
+  
+  /* Note: total_users is NOT incremented - this is a test-only interactive */
+  
+  return ip;
+}
+
+/**
+ * @brief Clean up a test interactive structure created by create_test_interactive.
+ * 
+ * This function removes and frees an interactive structure that was created for testing.
+ * It properly cleans up any pending input_to callbacks and removes from all_users[0].
+ * 
+ * @param ip The interactive structure to remove.
+ */
+void remove_test_interactive (interactive_t *ip) {
+  if (!ip) {
+    return;
+  }
+  
+  /* Clean up any pending input_to */
+  if (ip->input_to) {
+    free_sentence (ip->input_to);
+    ip->input_to = NULL;
+  }
+  
+  /* Clean up default error message if it's a malloc'd string */
+  if (ip->default_err_message.s) {
+    ip->default_err_message.s = NULL;
+  }
+  
+  /* Remove from object */
+  if (ip->ob) {
+    ip->ob->interactive = NULL;
+  }
+  
+  /* Remove from all_users if present */
+  if (all_users && all_users[0] == ip) {
+    all_users[0] = NULL;
+  }
+  
+  /* Free the structure */
+  FREE (ip);
+  
+  /* Note: total_users was not incremented, so don't decrement it */
 }
 
 /**
@@ -1345,8 +1445,6 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
   char addr_str[50];
 
   inet_ntop (AF_INET, &addr->sin_addr.s_addr, addr_str, sizeof(addr_str));
-  opt_trace (TT_COMM|1, "Connection from %s:%d on port %d (fd=%d)\n",
-            addr_str, ntohs (addr->sin_port), port->port, (int)new_socket_fd);
 
   /* Set non-blocking mode on accepted socket */
   if (set_socket_nonblocking (new_socket_fd, 1) == SOCKET_ERROR)
@@ -1394,11 +1492,24 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
       flush_message (user_ob->interactive);
     }
 
-  /* Call logon() apply */
-  mudlib_logon (user_ob);
-  
-  opt_trace (TT_COMM|1, "Connection established for %s (fd=%d, ob=%s)\n",
+  /* Call logon() apply to start the logon process on the user object. */
+  mudlib_logon (user_ob);  
+  if (user_ob->flags & O_DESTRUCTED)
+    return; /* logon() destructed the user object */
+
+  opt_info (1, "connection established for %s (fd=%d, ob=%s)\n",
             addr_str, (int)new_socket_fd, user_ob->name);
+
+#ifdef _WIN32
+  /* On Windows IOCP, the initial async read posted by async_runtime_add() may complete
+   * before mudlib_connect() transfers the interactive. Post the first read here instead
+   * after user object is fully set up. */
+  if (user_ob->interactive && async_runtime_post_read(g_runtime, user_ob->interactive->fd, NULL, 0) != 0)
+    {
+      debug_message("Failed to post initial read for user socket (fd=%d)\n", user_ob->interactive->fd);
+      remove_interactive(user_ob, 0);
+    }
+#endif
 }
 
 /**
@@ -2014,7 +2125,7 @@ static char* get_user_command () {
       /*
        * Must not enable echo before the user input is received.
        */
-      if (ip->fd == STDIN_FILENO)
+      if (ip->connection_type == PORT_TELNET)
         {
 #ifdef HAVE_TERMIOS_H
           struct termios tty;
@@ -2217,12 +2328,12 @@ void remove_interactive (object_t * ob, int dested) {
     }
 
   /* Unregister from async runtime (except console on POSIX) */
-  if (ip->fd != STDIN_FILENO)
+  if (ip != all_users[0])
     {
       async_runtime_remove (g_runtime, ip->fd);
     }
 
-  if (MAIN_OPTION(console_mode) && ip->fd == STDIN_FILENO)
+  if (MAIN_OPTION(console_mode) && ip == all_users[0])
     {
       console_type_t console_type = async_runtime_get_console_type(g_runtime);
       /* Check if stdin is a pipe/file - if so, exit instead of trying to reconnect */
@@ -2245,7 +2356,7 @@ void remove_interactive (object_t * ob, int dested) {
     }
   else
     {
-      if (SOCKET_CLOSE (ip->fd) == -1)
+      if (SOCKET_CLOSE (ip->fd) == SOCKET_ERROR)
         debug_perror ("remove_interactive: close", 0);
     }
   if (ob->flags & O_HIDDEN)
@@ -2364,7 +2475,7 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
   ob->interactive->input_to = sent;
   ob->interactive->iflags |= (flags & (I_NOECHO | I_NOESC | I_SINGLE_CHAR));
 
-  if (ob->interactive->fd == STDIN_FILENO && MAIN_OPTION (console_mode))
+  if (ob->interactive == all_users[0])
     {
       /* don't try to set telnet options on console */
 #ifdef HAVE_TERMIOS_H
@@ -2555,13 +2666,14 @@ telnet_neg (char *to, char *from)
     }
 }
 
-static void
-query_addr_name (object_t * ob)
-{
-  static char buf[100];
-  static char *dbuf = &buf[sizeof (int) + sizeof (int) + sizeof (int)];
+static void query_addr_name (object_t * ob) {
+  char buf[100];
+  char *dbuf = &buf[sizeof (int) + sizeof (int) + sizeof (int)];
   size_t msglen;
   int msgtype;
+
+  if (addr_server_fd == INVALID_SOCKET_FD)
+    return;
 
   sprintf (dbuf, "%s", query_ip_number (ob));
   msglen = sizeof (int) + strlen (dbuf) + 1;

@@ -15,13 +15,17 @@ Unit testing involves writing test cases for individual components of the codeba
 
 ### CMake settings for unit test programs
 - In `CMakeLists.txt`, link unit-test program to `GTest::gtest_main` and the specific libraries needed for the test (e.g., `async`, `socket`, `stem` for driver tests)
-- For tests that require mudlib access, add a custom command to copy the testing mudlib in [examples/](examples/) to the build directory. Pattern:
+Test patterns:
+  - Generic library tests (e.g., [test_logger](tests/test_logger/)) link only needed dependencies
+  - Driver component tests link the `stem` object library (all driver code except main.c)
+- For tests that require mudlib access, add a custom command to copy the testing mudlib in [examples/](examples/) to the build directory at POST_BUILD. Pattern:
   ```cmake
   add_custom_command(TARGET test_lpc_compiler POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/examples/m3_mudlib ${CMAKE_CURRENT_BINARY_DIR}/m3_mudlib
       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/examples/m3.conf ${CMAKE_CURRENT_BINARY_DIR}
   )
   ```
+- Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
 
 ### LPC Object Loading in Tests
 Make sure `init_master()` is called in the fixture setup before loading LPC objects, as the master object is responsible for approving `load_object()` calls. Set `current_object` to `master_ob` when loading objects in tests to ensure the master applies to approve the load.

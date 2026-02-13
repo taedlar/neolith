@@ -35,10 +35,28 @@
             }
         },
         {
+            "name": "msbuild-clang",
+            "hidden": true,
+            "toolset": {
+              "value": "ClangCL",
+              "strategy": "set"
+            }
+        },
+        {
             "name": "vs16-x64",
             "displayName": "x64 - VS2019",
             "description": "Uses Visual Studio 2019 generator, x64 architecture",
             "inherits": ["project-default", "windows-default"],
+            "architecture": {
+              "value": "x64",
+              "strategy": "set"
+            }
+        },
+        {
+            "name": "clang-x64",
+            "displayName": "x64 - ClangCL",
+            "description": "Uses ClangCL compiler, x64 architecture",
+            "inherits": ["project-default", "windows-default", "msbuild-clang"],
             "architecture": {
               "value": "x64",
               "strategy": "set"
@@ -99,6 +117,26 @@
             "name": "ci-vs16-x64",
             "description": "Continous Integration Build (rebuild all)",
             "inherits": ["pr-vs16-x64"],
+            "targets": ["ALL_BUILD"],
+            "cleanFirst": true
+        },
+        {
+            "name": "dev-clang-x64",
+            "description": "Debug Build (build modified files)",
+            "configurePreset": "clang-x64",
+            "configuration": "Debug",
+            "targets": ["ALL_BUILD"]
+        },
+        {
+            "name": "pr-clang-x64",
+            "description": "Pull-Request Validation Build (build modified files)",
+            "inherits": ["dev-clang-x64"],
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "ci-clang-x64",
+            "description": "Continous Integration Build (rebuild all)",
+            "inherits": ["pr-clang-x64"],
             "targets": ["ALL_BUILD"],
             "cleanFirst": true
         },
@@ -168,6 +206,13 @@
             "displayName": "Unit Tests x64",
             "description": "Run unit-tests for Windows 64-bits architecture",
             "configurePreset": "vs16-x64",
+            "inherits": ["ut-windows-defaults"]
+        },
+        {
+            "name": "ut-clang-x64",
+            "displayName": "Unit Tests x64",
+            "description": "Run unit-tests for Windows 64-bits architecture",
+            "configurePreset": "clang-x64",
             "inherits": ["ut-windows-defaults"]
         },
         {

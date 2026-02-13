@@ -5,10 +5,10 @@
 #include "fixtures.hpp"
 
 extern "C" {
-    #include "comm.h"
     #include "lpc/functional.h"
     #include "lpc/include/function.h"
     #include "efuns_prototype.h"
+    #include "error_context.h"
 }
 
 class InputToGetCharTest : public LPCInterpreterTest {
@@ -16,8 +16,22 @@ protected:
     object_t* user_obj = nullptr;
     interactive_t* mock_ip = nullptr;
     
+    // Save console worker state during tests to prevent interference
+    console_worker_context_t* saved_console_worker = nullptr;
+    async_queue_t* saved_console_queue = nullptr;
+    
     void SetUp() override {
         LPCInterpreterTest::SetUp();
+        
+        // IMPORTANT: Disable console worker during tests
+        // The test fixture creates a fake interactive at all_users[0] which 
+        // would conflict with real console events. Other driver code relies
+        // on all_users[0] being the console user, so we must prevent the
+        // console worker from attempting to access it or send events.
+        saved_console_worker = g_console_worker;
+        saved_console_queue = g_console_queue;
+        g_console_worker = nullptr;
+        g_console_queue = nullptr;
         
         // Create user object with test callbacks
         const char* code = 
@@ -49,23 +63,9 @@ protected:
         user_obj = load_object("test_user.c", code);
         ASSERT_NE(user_obj, nullptr) << "Failed to load test user object";
         
-        // Create mock interactive structure
-        mock_ip = (interactive_t*)DCALLOC(1, sizeof(interactive_t), TAG_INTERACTIVE, "test");
-        mock_ip->ob = user_obj;
-        mock_ip->fd = 999; // Fake FD for testing
-        mock_ip->input_to = nullptr;
-        mock_ip->iflags = 0;
-        mock_ip->text_end = 0;
-        mock_ip->text_start = 0;
-        mock_ip->prompt = nullptr;
-        mock_ip->snoop_on = nullptr;
-        mock_ip->snoop_by = nullptr;
-        mock_ip->message_producer = 0;
-        mock_ip->message_consumer = 0;
-        mock_ip->message_length = 0;
-        
-        // Attach to object
-        user_obj->interactive = mock_ip;
+        // Use public API to create test interactive structure
+        mock_ip = create_test_interactive(user_obj);
+        ASSERT_NE(mock_ip, nullptr) << "Failed to create test interactive";
         
         // Set as command_giver (required for input_to/get_char)
         command_giver = user_obj;
@@ -73,16 +73,18 @@ protected:
     }
     
     void TearDown() override {
-        // Cleanup
+        // Restore console worker state
+        g_console_worker = saved_console_worker;
+        g_console_queue = saved_console_queue;
+        
+        // Use public API to clean up test interactive
+        if (mock_ip) {
+            remove_test_interactive(mock_ip);
+            mock_ip = nullptr;
+        }
+        
+        // Clean up test object
         if (user_obj) {
-            if (user_obj->interactive) {
-                if (user_obj->interactive->input_to) {
-                    free_sentence(user_obj->interactive->input_to);
-                    user_obj->interactive->input_to = nullptr;
-                }
-                free(user_obj->interactive);
-                user_obj->interactive = nullptr;
-            }
             destruct_object(user_obj);
             user_obj = nullptr;
         }
@@ -152,7 +154,7 @@ protected:
 
 TEST_F(InputToGetCharTest, InputToStringCallback) {
     // Test: input_to("callback", 0)
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback");
     
@@ -177,11 +179,11 @@ TEST_F(InputToGetCharTest, InputToStringCallback) {
 
 TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     // Test: input_to("callback_with_args", 0, 42, "extra")
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback_with_args");
     
-    svalue_t args[2];
+    svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_NUMBER;
     args[0].u.number = 42;
     args[1].type = T_STRING;
@@ -214,14 +216,14 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
 
 TEST_F(InputToGetCharTest, InputToFunctionPointer) {
     // Create a function pointer for "callback"
-    svalue_t dummy;
+    svalue_t dummy = {};  // Zero-initialize
     dummy.type = T_NUMBER;
     dummy.u.number = 0;
     
     funptr_t* funp = make_lfun_funp_by_name("callback", &dummy);
     ASSERT_NE(funp, nullptr) << "Should create function pointer";
     
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_FUNCTION;
     fun.u.fp = funp;
     
@@ -237,7 +239,7 @@ TEST_F(InputToGetCharTest, InputToFunctionPointer) {
 
 TEST_F(InputToGetCharTest, GetCharSingleCharMode) {
     // Test: get_char("callback", 0)
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback");
     
@@ -257,11 +259,11 @@ TEST_F(InputToGetCharTest, GetCharSingleCharMode) {
 
 TEST_F(InputToGetCharTest, GetCharWithArgs) {
     // Test: get_char("callback_with_args", 0, 123, "context")
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback_with_args");
     
-    svalue_t args[2];
+    svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_NUMBER;
     args[0].u.number = 123;
     args[1].type = T_STRING;
@@ -286,7 +288,7 @@ TEST_F(InputToGetCharTest, InputToNoCommandGiver) {
     // Test error case: no command_giver
     command_giver = nullptr;
     
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback");
     
@@ -299,7 +301,7 @@ TEST_F(InputToGetCharTest, InputToDestructedObject) {
     // Mark object as destructed
     command_giver->flags |= O_DESTRUCTED;
     
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback");
     
@@ -312,7 +314,7 @@ TEST_F(InputToGetCharTest, InputToDestructedObject) {
 
 TEST_F(InputToGetCharTest, NestedInputTo) {
     // Test calling input_to from within a callback
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("nested_callback");
     
@@ -337,7 +339,7 @@ TEST_F(InputToGetCharTest, NestedInputTo) {
 
 TEST_F(InputToGetCharTest, InputToNoEchoFlag) {
     // Test I_NOECHO flag
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback");
     
@@ -353,7 +355,7 @@ TEST_F(InputToGetCharTest, InputToNoEchoFlag) {
 
 TEST_F(InputToGetCharTest, InputToNoEscFlag) {
     // Test I_NOESC flag
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback");
     
@@ -366,7 +368,7 @@ TEST_F(InputToGetCharTest, InputToNoEscFlag) {
 
 TEST_F(InputToGetCharTest, MultipleInputToCallsOnlyFirstSucceeds) {
     // LPC spec: if input_to() is called multiple times, only first succeeds
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback");
     
@@ -389,12 +391,12 @@ TEST_F(InputToGetCharTest, MultipleInputToCallsOnlyFirstSucceeds) {
 
 TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     // Test that args array is properly freed
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback_with_args");
     
     // Create args with reference-counted types
-    svalue_t args[2];
+    svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_STRING;
     args[0].subtype = STRING_SHARED;
     args[0].u.string = make_shared_string("test_string"); // ref = 1
@@ -419,11 +421,11 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
 
 TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     // Critical test: verify args come AFTER input, not before
-    svalue_t fun;
+    svalue_t fun = {};  // Zero-initialize
     fun.type = T_STRING;
     fun.u.string = const_cast<char*>("callback_with_args");
     
-    svalue_t args[2];
+    svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_NUMBER;
     args[0].u.number = 111;
     args[1].type = T_STRING;

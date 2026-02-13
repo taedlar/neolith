@@ -17,7 +17,7 @@ TEST_F(StackMachineTest, objectHash) {
     object_t test_ob; // object hash does not presume dynamic allocation of objects.
     memset(&test_ob, 0, sizeof(object_t));
     test_ob.ref = 1; // prevent accidental deallocation
-    test_ob.name = alloc_cstring("/test_object", UNIT_TEST);
+    test_ob.name = make_shared_string("/test_object"); // object name must be a shared string
 
     ASSERT_NO_THROW(enter_object_hash(&test_ob));
     EXPECT_EQ(lookup_object_hash("/test_object"), &test_ob);

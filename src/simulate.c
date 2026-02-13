@@ -1176,24 +1176,27 @@ void destruct_object (object_t * ob) {
   /* Clean up any input_to references pointing to this object.
    * Without this, destructed objects remain in memory if users with pending
    * input_to prompts go AFK before typing anything. */
-  for (int i = 0; i < max_users; i++)
+  if (all_users)
     {
-      interactive_t *ip = all_users[i];
-      if (ip && ip->input_to && ip->input_to->ob == ob)
+      for (int i = 0; i < max_users; i++)
         {
-          opt_trace (TT_EVAL|1, "clearing input_to for /%s from user /%s",
-                     ob->name, ip->ob->name);
-          free_sentence (ip->input_to);
-          ip->input_to = 0;
-          
-          /* Clear single-char mode if it was set for this input_to */
-          if (ip->iflags & SINGLE_CHAR)
+          interactive_t *ip = all_users[i];
+          if (ip && ip->input_to && ip->input_to->ob == ob)
             {
-              ip->iflags &= ~SINGLE_CHAR;
-              /* Note: We don't call set_telnet_single_char() here because:
-               * 1. It's static in comm.c and would require API changes
-               * 2. The flag will be properly reset on next input_to/get_char call
-               * 3. User will revert to line mode on next input naturally */
+              opt_trace (TT_EVAL|1, "clearing input_to for /%s from user /%s",
+                         ob->name, ip->ob->name);
+              free_sentence (ip->input_to);
+              ip->input_to = 0;
+
+              /* Clear single-char mode if it was set for this input_to */
+              if (ip->iflags & SINGLE_CHAR)
+                {
+                  ip->iflags &= ~SINGLE_CHAR;
+                  /* Note: We don't call set_telnet_single_char() here because:
+                   * 1. It's static in comm.c and would require API changes
+                   * 2. The flag will be properly reset on next input_to/get_char call
+                   * 3. User will revert to line mode on next input naturally */
+                }
             }
         }
     }
@@ -2709,9 +2712,9 @@ void do_shutdown () {
         (void) SOCKET_CLOSE (lpc_socks[i].fd);
     }
 
-  for (i = 0; i < max_users; i++)
+  for (i = 1; i < max_users; i++)
     {
-      if (!all_users[i] || all_users[i]->fd == STDIN_FILENO)
+      if (!all_users[i])
         continue;
       if (!(all_users[i]->iflags & CLOSING))
         {
