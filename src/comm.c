@@ -325,7 +325,8 @@ int do_comm_polling (struct timeval *timeout) {
                                         sizeof(g_io_events) / sizeof(g_io_events[0]),
                                         timeout);
   
-  opt_trace (TT_COMM|3, "finished waiting: got %d events", g_num_io_events);
+  if (g_num_io_events > 0)
+    opt_trace (TT_COMM|3, "async_runtime_wait returned %d events", g_num_io_events);
   
   return g_num_io_events;
 }
@@ -1054,10 +1055,15 @@ void process_io () {
 
   int i;
 
+  if (g_num_io_events > 0)
+    opt_trace (TT_COMM|3, "process_io: processing %d events", g_num_io_events);
+
   /* Dispatch all events returned by reactor */
   for (i = 0; i < g_num_io_events; i++)
     {
       io_event_t *evt = &g_io_events[i];
+      opt_trace (TT_COMM|3, "  event[%d]: context=%p, event_type=%d, fd=%d, completion_key=%lu",
+                 i, evt->context, evt->event_type, (int)evt->fd, (unsigned long)evt->completion_key);
       
       /* Identify event source by context pointer */
       if (is_listening_port (evt->context))
@@ -1141,7 +1147,7 @@ void process_io () {
         {
           /* Interactive user socket */
           interactive_t *ip = (interactive_t*)evt->context;
-          
+
           /* Validate interactive is still valid */
           if (!ip->ob || (ip->ob->flags & O_DESTRUCTED) ||
               ip->ob->interactive != ip)
@@ -1294,8 +1300,8 @@ void new_interactive (socket_fd_t socket_fd) {
    * so stdin is NOT registered with async_runtime_add(). Only network users (slot > 0)
    * need to be registered for I/O event notification.
    * 
-   * Note: async_runtime_add() automatically posts initial async read on Windows IOCP
-   * when EVENT_READ is requested, so no explicit post_read() call is needed.
+   * Note: On Windows IOCP, async_runtime_add() does NOT post an initial read for connected sockets.
+   * The initial read is posted later in setup_accepted_connection() after user object setup completes.
    */
   if (i > 0)
     {
@@ -1501,13 +1507,27 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
             addr_str, (int)new_socket_fd, user_ob->name);
 
 #ifdef _WIN32
-  /* On Windows IOCP, the initial async read posted by async_runtime_add() may complete
-   * before mudlib_connect() transfers the interactive. Post the first read here instead
-   * after user object is fully set up. */
-  if (user_ob->interactive && async_runtime_post_read(g_runtime, user_ob->interactive->fd, NULL, 0) != 0)
+  /* On Windows IOCP, async_runtime_add() does NOT post an initial read for connected sockets.
+   * We must post the first read here after mudlib_connect() transfers the interactive
+   * and user object setup completes. This avoids race conditions. */
+  if (user_ob->interactive)
     {
-      debug_message("Failed to post initial read for user socket (fd=%d)\n", user_ob->interactive->fd);
-      remove_interactive(user_ob, 0);
+      opt_trace (TT_COMM|3, "Posting initial async read for user socket (fd=%d, ob=%s)",
+                 user_ob->interactive->fd, user_ob->name);
+      if (async_runtime_post_read(g_runtime, user_ob->interactive->fd, NULL, 0) != 0)
+        {
+          debug_message("Failed to post initial read for user socket (fd=%d)\n", user_ob->interactive->fd);
+          remove_interactive(user_ob, 0);
+        }
+      else
+        {
+          opt_trace (TT_COMM|3, "Successfully posted initial async read for fd=%d", user_ob->interactive->fd);
+        }
+    }
+  else
+    {
+      debug_message("ERROR: user_ob->interactive is NULL after mudlib_connect() for fd=%d, ob=%s\n",
+                    (int)new_socket_fd, user_ob->name);
     }
 #endif
 }
@@ -2357,7 +2377,10 @@ void remove_interactive (object_t * ob, int dested) {
   else
     {
       if (SOCKET_CLOSE (ip->fd) == SOCKET_ERROR)
-        debug_perror ("remove_interactive: close", 0);
+        {
+          debug_message ("remove_interactive: close failed on fd %d\n", ip->fd);
+          debug_perror ("remove_interactive: close", 0);
+        }
     }
   if (ob->flags & O_HIDDEN)
     num_hidden--;

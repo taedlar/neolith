@@ -262,7 +262,7 @@ static void find_or_add_simul_efun (program_t* prog, function_number_t index, fu
   opt_trace (TT_SIMUL_EFUN|2, "added simul_efun #%d: %s", simuls_sorted[first].index, funp->name);
   /* update identifier hash, so LPC compiler don't have to call find_simul_efun() */
   ihe = find_or_add_perm_ident (funp->name, IHE_SIMUL);
-  DEBUG_CHECK1 (ihe != NULL,
+  DEBUG_CHECK1 (ihe == NULL,
                 "find_or_add_perm_ident() returned NULL for simul_efun '%s'\n",
                 funp->name);
   ihe->sem_value++;
