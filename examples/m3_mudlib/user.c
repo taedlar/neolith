@@ -1,28 +1,53 @@
-// vim: syntax=lpc
+// example user object for m3 mudlib
+
 #include "m3_config.h"
 
-inherit "char.c";
+inherit "base/char.c";
 
-private void logon()
-{
-  write("Welcome to the M3 Mud!\n");
-  write("Type 'help' for available commands.\n");
+static object my_env;
+
+void write_prompt();
+
+void create() {
+  seteuid (getuid()); // enable loading other objects
+}
+
+void logon() {
+  write("=========================================\n");
+  write("Welcome to M3: the Minimal-Makeshift-MUD!\n");
+  write("=========================================\n\n");
+
+  // Set up basic commands for the user
   enable_commands();
   add_action("cmd_quit", "quit");
   add_action("cmd_say", "say");
   add_action("cmd_help", "help");
   add_action("cmd_shutdown", "shutdown");
+
+  // Move the player to the starting room
+  move_object (find_object("room/start_room.c", 1));
+  command ("look"); // Look around on login
+  write_prompt();
 }
 
-private int cmd_quit (string arg)
-{
+void init() {
+  if (environment() != my_env) {
+    my_env = environment();
+    command ("look"); // Look around when entering a new environment
+  }
+}
+
+void write_prompt() {
+  write("> ");
+}
+
+int cmd_quit (string arg) {
   write("Bye!\n");
   destruct(this_object());
   return 1;
 }
 
-private int cmd_say (string arg)
-{
+int cmd_say (string arg) {
   if (!arg || arg == "")
   {
     write("Say what?\n");
@@ -32,8 +57,7 @@ private int cmd_say (string arg)
   return 1;
 }
 
-private int cmd_help (string arg)
-{
+int cmd_help (string arg) {
   write("Available commands:\n");
   write("  say <message>  - Say something\n");
   write("  help           - Show this help\n");
@@ -42,16 +66,14 @@ private int cmd_help (string arg)
   return 1;
 }
 
-private int cmd_shutdown (string arg)
-{
+int cmd_shutdown (string arg) {
   write("Shutting down...\n");
   shutdown();
   return 1;
 }
 
 // Catch-all for unknown commands
-int catch_tell(string msg)
-{
+int catch_tell(string msg) {
   // Ignore unknown command messages for cleaner output
   return 0;
 }
