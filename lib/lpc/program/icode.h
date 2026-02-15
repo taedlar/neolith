@@ -2,10 +2,6 @@
 
 #include "parse_trees.h"
 
-#ifndef _WIN32
-typedef unsigned char BYTE;
-#endif
-
 void i_generate___INIT(void);
 void i_generate_node(parse_node_t *);
 void i_generate_continue(void);

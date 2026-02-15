@@ -1228,7 +1228,7 @@ void process_io () {
 void new_interactive (socket_fd_t socket_fd) {
 
   int i;
-  if (socket_fd == INVALID_SOCKET) {
+  if (socket_fd == INVALID_SOCKET_FD) {
     debug_message ("Invalid socket file descriptor: %d\n", (int)socket_fd);
     return;
   }

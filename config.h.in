@@ -46,3 +46,7 @@
 #else
 #  define PLATFORM_UTF8_LOCALE "C.UTF-8"
 #endif
+
+#ifndef _WIN32
+typedef unsigned char BYTE;
+#endif
