@@ -35,5 +35,21 @@ Preset|Configuration|Targets|Description
 `ci-linux`|RelWithDebInfo|`all`<br/>Benchmarks|Performs `make clean` and then `make`.<br/>This is the **continous-integration** build that ensures clean re-build of all targets and dependencies.<br/>Usually used after a clean re-configuration to create so-called nightly build.
 
 ## Windows Platform
-Besides using WSL, it is desirable to support MSVC on Windows platform in the future.
-The original MudOS and LPMud source code needs quite some portability efforts to build with Visual C++.
+Original MudOS and LPMud source code "probably" can build with mingw or Cygwin.
+
+Neolith can be successfully build with **Visual Studio 2019** :tada: and **Clang/LLVM** :tada: :
+~~~sh
+# configure build with Visual Studio 2019 (vc++ 16)
+cmake --preset vs16-x64
+
+# configure build with Clang/LLVM, available with Visual Studio 2019 v16.2 and later
+cmake --preset clang-x64
+~~~
+
+The build presets follow the same naming as in Linux build:
+- `dev-` for development build
+- `pr-` for pull-request validation build
+- `ci-` for continous-integration (nightly build)
+
+> [!Note]
+> There are still some minor portability issues to be fix on MSVC and Clang.

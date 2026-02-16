@@ -82,40 +82,14 @@ cp m3.conf m3.local.conf
 
 ### Interactive Console Mode
 
-**Linux/WSL**:
 ```bash
-../out/build/linux/src/RelWithDebInfo/neolith -f m3.conf -c
-```
-
-**Windows**:
-```powershell
-..\out\build\vs16-x64\src\RelWithDebInfo\neolith.exe -f m3.conf -c
+/path/to/neolith -f m3.conf -c
 ```
 
 ### Piped Commands
 
-**Linux/WSL**:
 ```bash
-echo -e "say test\nhelp\nshutdown" | ../out/build/linux/src/RelWithDebInfo/neolith -f m3.conf -c
-```
-
-**Windows PowerShell**:
-```powershell
-"say test`nhelp`nshutdown" | ..\out\build\vs16-x64\src\RelWithDebInfo\neolith.exe -f m3.conf -c
-```
-
-### File Redirect
-
-**Linux/WSL**:
-```bash
-echo -e "say test\nhelp\nshutdown" > commands.txt
-../out/build/linux/src/RelWithDebInfo/neolith -f m3.conf -c < commands.txt
-```
-
-**Windows PowerShell**:
-```powershell
-"say test`nhelp`nshutdown" | Out-File commands.txt
-Get-Content commands.txt | ..\out\build\vs16-x64\src\RelWithDebInfo\neolith.exe -f m3.conf -c
+echo -e "say test\nhelp\nshutdown" | /path/to/neolith -f m3.conf -c
 ```
 
 ## Expected Behavior
@@ -156,5 +130,5 @@ If testbot.py times out, the driver might not be exiting cleanly. Check:
 ## Further Reading
 
 - [Console Mode Documentation](../docs/manual/console-mode.md)
-- [Console Testbot Support](../docs/manual/console-testbot-support.md)
+- [Console Testbot Support](../docs/manual/testbot.md)
 - [Developer Manual](../docs/manual/dev.md)

@@ -59,6 +59,8 @@ def test_console_mode():
     # Determine paths (relative to examples/ directory)
     if os.name == 'nt':  # Windows
         driver_path = Path("../out/build/vs16-x64/src/RelWithDebInfo/neolith.exe")
+        if not driver_path.exists():
+            driver_path = Path("../out/build/clang-x64/src/RelWithDebInfo/neolith.exe")
     else:  # Linux/WSL
         driver_path = Path("../out/build/linux/src/RelWithDebInfo/neolith")
     
@@ -67,7 +69,7 @@ def test_console_mode():
     # Verify files exist
     if not driver_path.exists():
         print(f"❌ Driver not found: {driver_path}")
-        print("   Build the driver first with: cmake --build --preset ci-linux")
+        print("   Build the driver first.")
         return 1
     
     if not config_path.exists():
@@ -108,9 +110,9 @@ def test_console_mode():
         print("Driver started. Sending commands and verifying output...")
         print("-" * 60)
         
-        # Wait for initial prompt
-        child.expect('Type .help. for available commands.', timeout=5)
-        print("✓ Initial prompt received")
+        # Wait for welcome message
+        child.expect('Welcome to M3', timeout=5)
+        print("✓ Welcome message received")
         
         # Test 1: Send "say" command and verify output
         print("\nTest 1: Sending 'say Hello from Python test!'")
