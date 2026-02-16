@@ -461,12 +461,13 @@ svalue_t *safe_apply (const char *fun, object_t * ob, int num_arg, int where)
   return ret;
 }
 
-/* If the master object can't be loaded, we return zero. (svalue_t *)-1
- * means that we haven't gotten to loading the master object yet in main.c.
- * In that case, the check should succeed.
+/**
+ * Call master object applies.
+ * If the master object can't be loaded, return `(svalue_t *)-1` to indicate such case.
+ * This means that we haven't gotten to loading the master object yet in main.c. In
+ * some cases, the check should succeed.
  */
-svalue_t *apply_master_ob (const char *fun, int num_arg)
-{
+svalue_t *apply_master_ob (const char *fun, int num_arg) {
   if (NULL == master_ob)
     {
       opt_trace (TT_EVAL, "no master object: \"%s\"", fun);

@@ -940,6 +940,8 @@ void destruct_object (object_t * ob) {
   object_t *super;
   object_t *save_restrict_destruct = restrict_destruct;
 
+  DEBUG_CHECK (!ob, "destruct_object() called with NULL pointer.\n");
+
   opt_trace (TT_EVAL|1, "start destructing: /%s", ob->name);
   if (restrict_destruct && restrict_destruct != ob)
     error ("*Only this_object() can be destructed from move_or_destruct.");

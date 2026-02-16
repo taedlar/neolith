@@ -754,7 +754,6 @@ void eval_instruction (const char *p) {
   pc = p; // current_prog->program
   while (1)
     {
-      opt_trace (TT_EVAL|3, "offset %+d", pc - current_prog->program);
       instruction = EXTRACT_UCHAR (pc++);
       if (!--eval_cost)
         {
@@ -1280,6 +1279,7 @@ void eval_instruction (const char *p) {
               if (sp->type == T_STRING)
                 {
                   SVALUE_STRING_JOIN (lval, sp, "f_add_eq: 1");
+                  opt_trace (TT_EVAL|3, "f_add_eq: \"%s\"", sp->u.string);
                 }
               else if (sp->type == T_NUMBER)
                 {
@@ -2411,6 +2411,7 @@ void eval_instruction (const char *p) {
                 DEBUG_CHECK (sp != fp, "Bad stack at F_RETURN\n");
                 *sp = sv;	/* This way, the same ref counts are maintained */
               }
+            opt_trace (TT_EVAL|2, "returning \"%s\"", sp->type == T_STRING ? sp->u.string : "(non-string)");
             pop_control_stack ();
             /* The control stack was popped just before */
             if (csp[1].framekind & FRAME_EXTERNAL)
@@ -2667,7 +2668,7 @@ void call_function (program_t *progp, int runtime_index, int num_args, svalue_t 
   previous_ob = current_object;
   if (current_heart_beat)
     current_object = current_heart_beat;
-  else
+  else if (!current_object)
     {
       /* Create a dummy object for the call (no global variables) */
       memset (&dummy_ob, 0, sizeof (dummy_ob));

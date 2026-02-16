@@ -686,6 +686,7 @@ void f_replace_string (void) {
        * shrink block or make a copy of exact size
        */
       push_malloced_string (extend_string (dst1, dst2 - dst1));
+      opt_trace (TT_EVAL|2, "returning \"%s\"", sp->type == T_STRING ? sp->u.string : "(non-string)");
     }
 }
 #endif

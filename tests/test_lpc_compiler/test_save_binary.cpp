@@ -21,9 +21,9 @@ TEST_F(LPCCompilerTest, saveBinary) {
         *  as the last step in compile_file(). A master apply "valid_save_binary"
         *  is called to confirm saving is allowed.
         */
-    int fd = FILE_OPEN("save_binary.c", O_RDONLY);
-    ASSERT_NE(fd, -1) << "Failed to open save_binary.c for reading.";
-    program_t* prog = compile_file(fd, "save_binary.c", nullptr); // save_binary pragma is enabled in this file
+    int fd = FILE_OPEN("api/unicode.c", O_RDONLY);
+    ASSERT_NE(fd, -1) << "Failed to open api/unicode.c for reading.";
+    program_t* prog = compile_file(fd, "api/unicode.c", nullptr); // save_binary pragma is enabled in this file
     EXPECT_TRUE(prog != nullptr) << "compile_file returned null program.";
     total_lines = 0;
     FILE_CLOSE(fd);
@@ -37,7 +37,7 @@ TEST_F(LPCCompilerTest, saveBinary) {
      * 2. The binary's driver_id and config_id must match the current ones
      * 3. The source file, included files and all inherited files must be older than the binary
      */
-    prog = load_binary("save_binary.c");
+    prog = load_binary("api/unicode.c");
     EXPECT_TRUE(prog != nullptr) << "load_binary failed to load saved binary.";
     free_prog(prog, 1);
 }
