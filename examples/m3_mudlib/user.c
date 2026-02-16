@@ -7,7 +7,7 @@ static object my_env;
 void write_prompt();
 
 void create() {
-  seteuid (getuid()); // enable loading other objects
+  seteuid (getuid()); // enable loading inventory objects
 }
 
 void logon() {
@@ -28,13 +28,6 @@ void logon() {
   write_prompt();
 }
 
-void init() {
-  if (environment() != my_env) {
-    my_env = environment();
-    command ("look"); // Look around when entering a new environment
-  }
-}
-
 void write_prompt() {
   write("> ");
 }
@@ -45,6 +38,7 @@ void move(object dest) {
     return;
   }
   move_object(dest);
+  command ("look");
 }
 
 int cmd_quit (string arg) {
