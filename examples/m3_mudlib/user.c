@@ -1,8 +1,6 @@
 // example user object for m3 mudlib
 
-#include "m3_config.h"
-
-inherit "base/char.c";
+#include "config.h"
 
 static object my_env;
 
@@ -39,6 +37,14 @@ void init() {
 
 void write_prompt() {
   write("> ");
+}
+
+void move(object dest) {
+  if (!objectp(dest)) {
+    error("Destination must be an object.\n");
+    return;
+  }
+  move_object(dest);
 }
 
 int cmd_quit (string arg) {

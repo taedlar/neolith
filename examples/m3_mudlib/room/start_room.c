@@ -3,7 +3,10 @@
 inherit "base/room.c";
 
 void create() {
-  set_short("Starting Room");
-  set_long("You are in the starting room. This room is very large but empty.");
-  set_exit("north", "room/observatory.c");
+  set_short ("Starting Room");
+  set_long (
+    "You are in the starting room.\nThis room is quite spacious but empty.\n"
+    "You can see a large telescope to the north.\n"
+  );
+  set_exit ("north", "room/observatory.c");
 }

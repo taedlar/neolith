@@ -44,8 +44,7 @@ TEST_F(LPCInterpreterTest, callFunction) {
     svalue_t ret;
     program_t* found_prog = find_function(prog, findstring("add"), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for add().";
-    //int runtime_index = found_prog->function_table[index].runtime_index;
-    int runtime_index = index + fio; // since we are calling directly without an object, the runtime index should be the same as the function table index
+    int runtime_index = found_prog->function_table[index].runtime_index + fio;
 
     push_number(1);
     push_number(2);
@@ -57,20 +56,35 @@ TEST_F(LPCInterpreterTest, callFunction) {
 }
 
 TEST_F(LPCInterpreterTest, callInheritedFunction) {
-    init_master("master.c");
-    object_t* obj = load_object("user.c", 0);
+    init_simul_efun("/simul_efun.c"); // need simul efuns to load the inherited object
+    ASSERT_NE(simul_efun_ob, nullptr) << "simul_efun_ob is null after init_simul_efun().";
+    init_master("/master.c");
+    ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
+
+    object_t* obj = load_object("room/start_room.c", 0); // start_room inherits from base/room.c which defines query_exit()
     ASSERT_NE(obj, nullptr) << "load_object returned null object.";
+
+    char* method = findstring("query_exit"); // function names are always stored as shared strings
+    ASSERT_NE(method, nullptr) << "findstring returned null for `query_exit`.";
 
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(obj->prog, findstring("is_char"), &index, &fio, &vio);
-    ASSERT_NE(found_prog, obj->prog) << "find_function did not return inherited program for is_char().";
-    int runtime_index = index + fio;
+    program_t* found_prog = find_function(obj->prog, method, &index, &fio, &vio);
+    ASSERT_NE(found_prog, obj->prog) << "find_function did not return inherited program for query_exit().";
+    int runtime_index = found_prog->function_table[index].runtime_index + fio;
 
-    call_function (obj->prog, runtime_index, 0, &ret);
+    current_object = obj;
+    variable_index_offset = vio;
+    push_constant_string("north");
+    call_function (obj->prog, runtime_index, 1, &ret);
 
-    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-    EXPECT_EQ(ret.u.number, 123) << "Expected return value of is_char() to be 123.";
+    EXPECT_EQ(ret.type, T_STRING) << "Expected return type to be T_STRING.";
+    EXPECT_STREQ(ret.u.string, "room/observatory.c") << "Expected return value of query_exit(\"north\") to be \"room/observatory.c\".";
+    free_string_svalue(&ret);
+    destruct_object(obj);
+
+    obj = find_object_by_name("/base/room");
+    EXPECT_NE(obj, nullptr);
     destruct_object(obj);
 }
 
