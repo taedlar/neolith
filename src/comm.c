@@ -570,6 +570,8 @@ int flush_message (interactive_t * ip) {
 #define TS_DONT         5
 #define TS_SB           6
 #define TS_SB_IAC       7
+#define TS_STATE_MASK   0x000f
+#define TS_CR_SEEN      0x0010
 
 static char telnet_break_response[] = { 28, INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
 static char telnet_interrupt_response[] = { 127, INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
@@ -612,31 +614,34 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
   /* a simple state-machine that processes TELNET commands */
   for (i = 0; i < count; i++)
     {
-      switch (ip->state)
+      switch (ip->state & TS_STATE_MASK)
         {
         case TS_DATA:		/* data transmission */
           switch (from[i])
             {
             case IAC:
-              ip->state = TS_IAC;
+              ip->state = TS_IAC; /* clear all other state bits */
               break;
-            case '\r':
+            case '\r': /* CR */
               if (ip->iflags & SINGLE_CHAR)
                 *to++ = from[i];
-              /* discards CR (telnet newline CR LF is recognized when we see LF) */
+              ip->state |= TS_CR_SEEN;
               break;
-            case '\n':
-              if (ip->iflags & SINGLE_CHAR)
-                *to++ = from[i];
-              else
+            default:
+              if (!(ip->state & TS_CR_SEEN) || ip->iflags & SINGLE_CHAR)
                 {
+                  *to++ = from[i];
+                }
+              else if (from[i] == '\n' || from[i] == '\0')
+                {
+                  /* CR LF or CR NUL sequence */
                   *to++ = ' ';
                   *to++ = '\b';
                   *to++ = '\0';
+                  opt_trace (TT_COMM|2, "TELNET new line sequence received.\n");
+                  add_message (ip->ob, "\r\n");
                 }
-              break;
-            default:
-              *to++ = from[i];
+              ip->state &= ~TS_CR_SEEN; /* lone CR is dropped */
               break;
             }
           break;
