@@ -11,7 +11,6 @@
 #include "simul_efun.h"
 #include "interpret.h"
 #include "socket/socket_efuns.h"
-#include "port/socket_comm.h"
 #include "efuns/ed.h"
 
 #include "lpc/include/origin.h"
@@ -406,11 +405,10 @@ void add_message (object_t * who, char *data) {
 }				/* add_message() */
 
 
-/* add_vmessage() is mainly used by the efun ed().
+/**
+ * add_vmessage() is mainly used by the efun ed().
  */
-void
-add_vmessage (object_t * who, char *format, ...)
-{
+void add_vmessage (object_t * who, char *format, ...) {
   int ret = -1;
   interactive_t *ip;
   char *cp, *str = NULL;
@@ -572,6 +570,8 @@ int flush_message (interactive_t * ip) {
 #define TS_DONT         5
 #define TS_SB           6
 #define TS_SB_IAC       7
+#define TS_STATE_MASK   0x000f
+#define TS_CR_SEEN      0x0010
 
 static char telnet_break_response[] = { 28, INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
 static char telnet_interrupt_response[] = { 127, INT_CHAR(IAC), INT_CHAR(WILL), TELOPT_TM, 0 };
@@ -614,30 +614,34 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
   /* a simple state-machine that processes TELNET commands */
   for (i = 0; i < count; i++)
     {
-      switch (ip->state)
+      switch (ip->state & TS_STATE_MASK)
         {
         case TS_DATA:		/* data transmission */
           switch (from[i])
             {
             case IAC:
-              ip->state = TS_IAC;
+              ip->state = TS_IAC; /* clear all other state bits */
               break;
-            case '\r':
+            case '\r': /* CR */
               if (ip->iflags & SINGLE_CHAR)
                 *to++ = from[i];
+              ip->state |= TS_CR_SEEN;
               break;
-            case '\n':
-              if (ip->iflags & SINGLE_CHAR)
-                *to++ = from[i];
-              else
+            default:
+              if (!(ip->state & TS_CR_SEEN) || ip->iflags & SINGLE_CHAR)
                 {
+                  *to++ = from[i];
+                }
+              else if (from[i] == '\n' || from[i] == '\0')
+                {
+                  /* CR LF or CR NUL sequence */
                   *to++ = ' ';
                   *to++ = '\b';
                   *to++ = '\0';
+                  opt_trace (TT_COMM|2, "TELNET new line sequence received.\n");
+                  add_message (ip->ob, "\r\n");
                 }
-              break;
-            default:
-              *to++ = from[i];
+              ip->state &= ~TS_CR_SEEN; /* lone CR is dropped */
               break;
             }
           break;
@@ -674,10 +678,8 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
                   {
                     int w, h;
 
-                    w =
-                      ((UCHAR) ip->sb_buf[1]) * 256 + ((UCHAR) ip->sb_buf[2]);
-                    h =
-                      ((UCHAR) ip->sb_buf[3]) * 256 + ((UCHAR) ip->sb_buf[4]);
+                    w = ((UCHAR) ip->sb_buf[1]) * 256 + ((UCHAR) ip->sb_buf[2]);
+                    h = ((UCHAR) ip->sb_buf[3]) * 256 + ((UCHAR) ip->sb_buf[4]);
                     push_number (w);
                     push_number (h);
                     apply (APPLY_WINDOW_SIZE, ip->ob, 2, ORIGIN_DRIVER);
@@ -936,7 +938,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
             ip->sb_buf[ip->sb_pos++] = from[i];
           break;
         }
-    }
+    } /* for */
 
   return (to - start);
 }
@@ -945,8 +947,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
 /**
  *  @brief set_telnet_single_char () - set single-char mode on/off
  */
-static void set_telnet_single_char (interactive_t * ip, int single)
-{
+static void set_telnet_single_char (interactive_t * ip, int single) {
   if (ip == all_users[0]) /* console user */
     {
 #ifdef HAVE_TERMIOS_H
@@ -1492,6 +1493,7 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
   if (port->kind == PORT_TELNET)
     {
       query_addr_name (user_ob);
+      add_message (user_ob, telnet_no_echo);
       add_message (user_ob, telnet_do_ttype);
       add_message (user_ob, telnet_do_naws);
       add_message (user_ob, telnet_do_linemode);
@@ -1748,7 +1750,7 @@ int process_user_command () {
 static void hname_handler () {
   static char hname_buf[HNAME_BUF_SIZE];
   int num_bytes;
-  int tmp;
+  socket_fd_t tmp;
   char *pp, *q;
 
   if (addr_server_fd < 0)
@@ -1768,7 +1770,7 @@ static void hname_handler () {
           debug_message ("hname_handler: read on fd %d\n", addr_server_fd);
           debug_perror ("hname_handler: read", 0);
           tmp = addr_server_fd;
-          addr_server_fd = -1;
+          addr_server_fd = INVALID_SOCKET_FD;
           SOCKET_CLOSE (tmp);
           return;
         }
@@ -1776,7 +1778,7 @@ static void hname_handler () {
     case 0:
       debug_message ("hname_handler: closing address server connection.\n");
       tmp = addr_server_fd;
-      addr_server_fd = -1;
+      addr_server_fd = INVALID_SOCKET_FD;
       SOCKET_CLOSE (tmp);
       return;
     default:
@@ -2145,7 +2147,7 @@ static char* get_user_command () {
       /*
        * Must not enable echo before the user input is received.
        */
-      if (ip->connection_type == PORT_TELNET)
+      if (ip->connection_type == CONSOLE_USER)
         {
 #ifdef HAVE_TERMIOS_H
           struct termios tty;
@@ -2155,8 +2157,10 @@ static char* get_user_command () {
           safe_tcsetattr (ip->fd, &tty); /* TTY: discard pending input, Pipe: preserve data */
 #endif
         }
-      else
-        add_message (command_giver, telnet_no_echo);
+      else if (ip->connection_type == PORT_TELNET)
+        {
+          add_message (command_giver, telnet_no_echo);
+        }
       ip->iflags &= ~NOECHO;
     }
 
@@ -2174,9 +2178,7 @@ static char* get_user_command () {
  * This should return true when in single char mode and there is
  * Anything at all in the buffer.
  */
-static char *
-first_cmd_in_buf (interactive_t * ip)
-{
+static char* first_cmd_in_buf (interactive_t * ip) {
   char *p, *q;
 
   p = ip->text + ip->text_start;
@@ -2273,9 +2275,7 @@ static int cmd_in_buf (interactive_t * ip) {
 /*
  * move pointers to next cmd, or clear buf.
  */
-static void
-next_cmd_in_buf (interactive_t * ip)
-{
+static void next_cmd_in_buf (interactive_t * ip) {
   char *p = ip->text + ip->text_start;
 
   while (*p && p < ip->text + ip->text_end)
@@ -2488,7 +2488,7 @@ int call_function_interactive (interactive_t * i, char *str) {
  *  @brief Set up an input_to call for an interactive object.
  *  @param ob The interactive object.
  *  @param sent The sentence (function and object) to call.
- *  @param flags Flags for the input_to call (I_NOECHO, I_NOESC, I_SINGLE_CHAR).
+ *  @param flags Flags for the input_to call (I_NOECHO = 1, I_NOESC = 2, I_SINGLE_CHAR = 4).
  *  @return 1 on success, 0 on failure.
  */
 int set_call (object_t * ob, sentence_t * sent, int flags) {
@@ -2527,9 +2527,7 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
 }				/* set_call() */
 
 
-void
-set_prompt (char *str)
-{
+void set_prompt (char *str) {
   if (command_giver && command_giver->interactive)
     command_giver->interactive->prompt = str;
 }
@@ -2538,9 +2536,7 @@ set_prompt (char *str)
 /*
  * Print the prompt, but only if input_to not is disabled.
  */
-static void
-print_prompt (interactive_t * ip)
-{
+static void print_prompt (interactive_t * ip) {
   object_t *ob = ip->ob;
 
   if (ip->input_to == 0)
@@ -2590,9 +2586,7 @@ print_prompt (interactive_t * ip)
  * not. The old routine let everyone snoop anyone. This routine also returns
  * 0 or 1 depending on success.
  */
-int
-new_set_snoop (object_t * me, object_t * you)
-{
+int new_set_snoop (object_t * me, object_t * you) {
   interactive_t *on, *by, *tmp;
 
   /*
@@ -2662,9 +2656,7 @@ new_set_snoop (object_t * me, object_t * you)
  * name.  This will handle backspace resolution amongst other things,
  * (Pinkfish change)
  */
-static void
-telnet_neg (char *to, char *from)
-{
+static void telnet_neg (char *to, char *from) {
   int ch;
   char *first;
 
@@ -2714,7 +2706,7 @@ static void query_addr_name (object_t * ob) {
         {
         case EBADF:
           debug_message ("Address server has closed connection.\n");
-          addr_server_fd = -1;
+          addr_server_fd = INVALID_SOCKET_FD;
           break;
         default:
           debug_error ("send() failed: %d", SOCKET_ERRNO);
@@ -2724,21 +2716,17 @@ static void query_addr_name (object_t * ob) {
 }				/* query_addr_name() */
 
 #define IPSIZE 200
-typedef struct
-{
+typedef struct {
   char *name, *call_back;
   object_t *ob_to_call;
-}
-ipnumberentry_t;
+} ipnumberentry_t;
 
 static ipnumberentry_t ipnumbertable[IPSIZE];
 
-/*
+/**
  * Does a call back on the current_object with the function call_back.
  */
-int
-query_addr_number (char *name, char *call_back)
-{
+int query_addr_number (char *name, char *call_back) {
   static char buf[100];
   static char *dbuf = &buf[sizeof (int) + sizeof (int) + sizeof (int)];
   size_t msglen;
@@ -2767,7 +2755,7 @@ query_addr_number (char *name, char *call_back)
         {
         case EBADF:
           debug_message ("Address server has closed connection.\n");
-          addr_server_fd = -1;
+          addr_server_fd = INVALID_SOCKET_FD;
           break;
         default:
           debug_error ("send() failed: %d", SOCKET_ERRNO);
@@ -2803,9 +2791,7 @@ query_addr_number (char *name, char *call_back)
     }
 }				/* query_addr_number() */
 
-static void
-got_addr_number (char *number, char *name)
-{
+static void got_addr_number (char *number, char *name) {
   int i;
   char *theName, *theNumber;
 
@@ -2955,9 +2941,7 @@ object_t *query_snooping (object_t * ob) {
   return (ob->interactive->snoop_on->ob);
 }				/* query_snooping() */
 
-time_t
-query_idle (object_t * ob)
-{
+time_t query_idle (object_t * ob) {
   if (!ob->interactive)
     error ("query_idle() of non-interactive object.\n");
   return (current_time - ob->interactive->last_time);
@@ -3004,9 +2988,7 @@ void notify_no_command () {
     }
 }				/* notify_no_command() */
 
-static void
-clear_notify (interactive_t * ip)
-{
+static void clear_notify (interactive_t * ip) {
   string_or_func_t dem;
 
   dem = ip->default_err_message;
@@ -3020,30 +3002,23 @@ clear_notify (interactive_t * ip)
   ip->default_err_message.s = 0;
 }				/* clear_notify() */
 
-void
-set_notify_fail_message (char *str)
-{
+void set_notify_fail_message (char *str) {
   if (!command_giver || !command_giver->interactive)
     return;
   clear_notify (command_giver->interactive);
-  command_giver->interactive->default_err_message.s =
-    make_shared_string (str);
+  command_giver->interactive->default_err_message.s = make_shared_string (str);
 }				/* set_notify_fail_message() */
 
-void
-set_notify_fail_function (funptr_t * funp)
-{
+void set_notify_fail_function (funptr_t * funp) {
   if (!command_giver || !command_giver->interactive)
     return;
   clear_notify (command_giver->interactive);
   command_giver->interactive->iflags |= NOTIFY_FAIL_FUNC;
   command_giver->interactive->default_err_message.f = funp;
   funp->hdr.ref++;
-}				/* set_notify_fail_message() */
+}				/* set_notify_fail_function() */
 
-int
-replace_interactive (object_t * ob, object_t * obfrom)
-{
+int replace_interactive (object_t * ob, object_t * obfrom) {
   if (ob->interactive)
     {
       error ("Bad argument 1 to exec()\n");
@@ -3082,11 +3057,10 @@ replace_interactive (object_t * ob, object_t * obfrom)
   return (1);
 }				/* replace_interactive() */
 
-/*
+/**
  * Return the async runtime instance for integration with other subsystems
  * (e.g., timer callback wake-up on Windows).
  */
-async_runtime_t *
-get_async_runtime(void) {
-    return g_runtime;
+async_runtime_t* get_async_runtime(void) {
+  return g_runtime;
 }
