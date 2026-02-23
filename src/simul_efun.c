@@ -11,6 +11,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
+#include "frame.h"
 #include "simul_efun.h"
 #include "interpret.h"
 #include "lpc/object.h"

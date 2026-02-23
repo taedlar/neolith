@@ -5,6 +5,7 @@
 #include "std.h"
 #include "rc.h"
 #include "apply.h"
+#include "frame.h"
 #include "lpc/object.h"
 #include "lpc/program.h"
 #include "lpc/include/origin.h"

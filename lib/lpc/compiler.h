@@ -4,6 +4,13 @@
 #include "lpc/program.h"
 #include "lpc/program/parse_trees.h"
 
+/*
+ * 'inherit_file' is used as a flag. If it is set to a string
+ * after yyparse(), this string should be loaded as an object,
+ * and the original object must be loaded again.
+ */
+extern char *inherit_file;
+
 #define YYMAXDEPTH    600
 
 /*

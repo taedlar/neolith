@@ -12,6 +12,8 @@
 #include "lpc/include/runtime_config.h"
 #include "efuns/file_utils.h"
 
+char *inherit_file;
+
 extern int yyparse (void); /* generated from grammar.y */
 
 static void clean_parser (void);

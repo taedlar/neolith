@@ -7,6 +7,7 @@
 #include "comm.h"
 #include "qsort.h"
 #include "apply.h"
+#include "frame.h"
 #include "interpret.h"
 #include "simul_efun.h"
 #include "lpc/object.h"
@@ -54,10 +55,6 @@ const char *pc;         /* Program pointer. */
 
 int function_index_offset;	/* Needed for inheritance */
 int variable_index_offset;	/* Needed for inheritance */
-
-/* -1 indicates that we have never had a master object.  This is so the
- * simul_efun object can load before the master. */
-object_t *master_ob = 0;
 
 /*
  * Information about assignments of values:

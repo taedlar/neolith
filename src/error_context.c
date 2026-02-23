@@ -5,6 +5,7 @@
 #include "std.h"
 #include "rc.h"
 #include "error_context.h"
+#include "frame.h"
 #include "lpc/lex.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"

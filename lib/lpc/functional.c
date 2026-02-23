@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
+#include "src/frame.h"
 #include "src/interpret.h"
 #include "src/simul_efun.h"
 #include "array.h"

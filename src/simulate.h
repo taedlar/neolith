@@ -16,7 +16,6 @@ extern object_t *current_object;
 extern object_t *previous_ob;
 extern object_t *command_giver;
 extern object_t *current_interactive;
-extern char *inherit_file;
 extern char *last_verb;
 extern int tot_alloc_sentence;
 
@@ -62,11 +61,6 @@ void shout_string(char *);
 #ifdef LAZY_RESETS
 void try_reset(object_t *);
 #endif
-
-char* get_line_number (const char *p, const program_t * progp);
-void get_line_number_info (char **ret_file, int *ret_line);
-char *dump_trace (int);
-array_t *get_svalue_trace (int);
 
 void init_master(const char *);
 void setup_simulate(void);
