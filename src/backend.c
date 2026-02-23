@@ -14,7 +14,7 @@
 #include "rc.h"
 #include "interpret.h"
 #include "backend.h"
-#include "comm.h"
+#include "command.h"
 #include "simul_efun.h"
 #include "efuns/call_out.h"
 #include "port/timer.h"

@@ -12,6 +12,7 @@ set(stem_SOURCES
     apply.c
     backend.c
     comm.c
+    command.c
     error_context.c
     frame.c
     interpret.c

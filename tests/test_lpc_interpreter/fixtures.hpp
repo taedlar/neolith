@@ -6,7 +6,7 @@
 extern "C" {
     #include "std.h"
     #include "rc.h"
-    #include "comm.h"
+    #include "command.h"
     #include "simul_efun.h"
     #include "uids.h"
     #include "lpc/types.h"

@@ -1,12 +1,5 @@
 #pragma once
 
-#ifdef	HAVE_ARPA_TELNET_H
-#include <arpa/telnet.h>
-#else
-/* Minimal telnet definitions for systems that lack <arpa/telnet.h> */
-#include "port/telnet.h"
-#endif	/* HAVE_ARPA_TELNET_H */
-
 #include "port/socket_comm.h"
 #include "lpc/functional.h"
 
@@ -41,7 +34,9 @@ enum msgtypes {
 #define	USING_LINEMODE      0x0800
 #define HAS_CMD_TURN        0x1000	/* user has command processing turn this cycle */
 
-typedef struct interactive_s {
+typedef struct interactive_s interactive_t;
+
+struct interactive_s {
     object_t *ob;               /* points to the associated object         */
     sentence_t *input_to;       /* to be called with next input line       */
     int connection_type;        /* the type of connection this is          */
@@ -52,10 +47,10 @@ typedef struct interactive_s {
 #endif
     char *prompt;               /* prompt string for interactive object    */
     char text[MAX_TEXT];        /* input buffer for interactive object     */
-    ptrdiff_t text_end;               /* first free char in buffer               */
-    ptrdiff_t text_start;             /* where we are up to in user command buffer */
-    struct interactive_s *snoop_on;
-    struct interactive_s *snoop_by;
+    ptrdiff_t text_end;         /* first free char in buffer               */
+    ptrdiff_t text_start;       /* where we are up to in user command buffer */
+    interactive_t *snoop_on;
+    interactive_t *snoop_by;
     time_t last_time;           /* time of last command executed           */
     string_or_func_t default_err_message;
 #ifdef OLD_ED
@@ -70,7 +65,7 @@ typedef struct interactive_s {
     int state;                  /* Current telnet state.  Bingly wop       */
     int sb_pos;                 /* Telnet suboption negotiation stuff      */
     BYTE sb_buf[SB_SIZE];
-} interactive_t;
+};
 
 
 /*
@@ -86,7 +81,7 @@ extern int add_message_calls;
 extern interactive_t **all_users;
 extern int max_users;
 
-void new_interactive(socket_fd_t socket_fd);
+void new_interactive (socket_fd_t socket_fd);
 
 /**
  * Poll for events from asynchronous events at runtime.
@@ -101,39 +96,36 @@ void new_interactive(socket_fd_t socket_fd);
  * @param timeout Timeout value for polling.
  * @returns Number of events occurred, or 0 on timeout, or -1 on error.
  */
-int do_comm_polling(struct timeval* timeout);
+int do_comm_polling (struct timeval* timeout);
 
 int is_console_user (void *context);
 
-void add_vmessage(object_t *, char *, ...);
-void add_message(object_t *, char *);
+void add_vmessage (object_t *, char *, ...);
+void add_message (object_t *, char *);
 
-void init_user_conn(void);
-void ipc_remove(void);
-void set_prompt(char *);
-void notify_no_command(void);
-void set_notify_fail_message(char *);
-void set_notify_fail_function(funptr_t *);
-int call_function_interactive (interactive_t *, char *);
-void process_io(void);
-int process_user_command(void);
-int replace_interactive(object_t *, object_t *);
-int set_call(object_t *, sentence_t *, int);
-void remove_interactive(object_t *, int);
-int flush_message(interactive_t *);
-int query_addr_number(char *, char *);
-char *query_ip_name(object_t *);
-char *query_ip_number(object_t *);
-char *query_host_name(void);
+void init_user_conn (void);
+void ipc_remove (void);
+void process_io (void);
+
+void set_console_echo (int echo);
+
+void telnet_neg (char *, char *);
+void set_telnet_echo (object_t*, int echo);
+void set_telnet_single_char (interactive_t *, int);
+
+int replace_interactive (object_t *, object_t *);
+void remove_interactive (object_t *, int);
+int flush_message (interactive_t *);
+int query_addr_number (char *, char *);
+char *query_ip_name (object_t *);
+char *query_ip_number (object_t *);
+char *query_host_name (void);
 int query_ip_port (object_t *);
-time_t query_idle(object_t *);
-int new_set_snoop(object_t *, object_t *);
-object_t *query_snoop(object_t *);
-object_t *query_snooping(object_t *);
+time_t query_idle (object_t *);
 
 /* Async runtime access (for timer callback integration) */
-struct async_runtime_s *get_async_runtime(void);
+struct async_runtime_s *get_async_runtime (void);
 
 /* Test helper functions for creating mock interactive structures */
-interactive_t* create_test_interactive(object_t *);
-void remove_test_interactive(interactive_t *);
+interactive_t* create_test_interactive (object_t *);
+void remove_test_interactive (interactive_t *);

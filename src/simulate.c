@@ -5,7 +5,7 @@
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
 #include "rc.h"
-#include "comm.h"
+#include "command.h"
 #include "interpret.h"
 #include "simulate.h"
 #include "simul_efun.h"
