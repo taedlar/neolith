@@ -25,7 +25,7 @@
 #include "efuns/file_utils.h"
 
 #include "preprocess.h"
-#include "grammar.h"
+#include "lib/lpc/grammar.h"
 
 #define SKIPWHITE while (isspace(*p) && (*p != '\n')) p++
 

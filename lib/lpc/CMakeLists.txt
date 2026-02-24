@@ -32,7 +32,7 @@ target_sources(lpc INTERFACE
 )
 target_include_directories(lpc PUBLIC
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
+    ${PROJECT_BINARY_DIR}
 )
 target_link_libraries(lpc PUBLIC
     logger
