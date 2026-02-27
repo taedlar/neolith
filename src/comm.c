@@ -1212,7 +1212,7 @@ void process_io () {
     }
   
   /* Flush console user output if connected (console is always writable) */
-  if (all_users[0])
+  if (all_users && all_users[0])
     flush_message (all_users[0]);
   /*
   for (i = 1; i < max_users; i++) {
