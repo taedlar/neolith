@@ -66,6 +66,18 @@ endif()
 
 # check dependencies
 find_package(BISON REQUIRED)
+find_package(Boost)
+if(Boost_FOUND)
+	set(HAVE_BOOST 1)
+endif()
+find_package(OpenSSL)
+if(OPENSSL_FOUND)
+	set(HAVE_OPENSSL 1)
+endif()
+find_package(CURL)
+if(CURL_FOUND)
+	set(HAVE_CURL 1)
+endif()
 
 # generate global header "config.h" for build configurations
 configure_file(config.h.in config.h @ONLY)
