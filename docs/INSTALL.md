@@ -70,3 +70,12 @@ CURL also requires OpenSSL to deal with HTTPS stuff and protect the data transmi
 ~~~bash
 sudo apt-get install curl libcurl4-openssl-dev
 ~~~
+
+### `boost`
+Boost is a powerful **C++** library that provides open source, peer-reviewed, and portable code tend to be de facto C++ standards.
+While LPMud was first developed with C language, migrating to portable C++ gradually align with our goal to modernize the codebase in minimalist way.
+
+To keep a small footprint, we'll start from the core Boost libraries (avoid rarely used Boost libraries in `libboost-all-dev`):
+~~~bash
+sudo apt-get install libboost-dev
+~~~
