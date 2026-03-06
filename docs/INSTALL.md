@@ -3,17 +3,18 @@ INSTALL
 
 ## Setting Up Build Environment
 
-The recommended development environment is Ubuntu 20.04 LTS or later.
-
-> [!TIP]
-> For Windows users, the build is also tested with WSL (Windows Subsystem for Linux) on Windows 10.  
-> See [Install Linux on Windows with WSL](https://learn.microsoft.com/en-us/windows/wsl/install) for instructions to install Ubuntu on Windows.
+The recommended development environment is Ubuntu 20.04 LTS (including [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)).
 
 You also need the following packages:
 ~~~sh
 sudo apt install build-essential
 sudo apt install ninja-build
 sudo apt install bison
+~~~
+
+For Microsoft Visual Studio, the BISON tool can be installed via `winget`:
+~~~cmd
+winget install gnuwin32.bison
 ~~~
 
 ## Building with CMake
@@ -64,6 +65,8 @@ You'll need both `openssl` and `libssl-dev` to enable those features requires Op
 sudo apt-get install openssl libssl-dev
 ~~~
 
+For Windows, you need to specify the `OPENSSL_ROOT_DIR` in the `cacheVariables` of `windows-default` preset.
+
 ### `curl`
 CURL is the most popular tool and library to connect an application and various **cloud** infrastructure with REST APIs.
 CURL also requires OpenSSL to deal with HTTPS stuff and protect the data transmitted:
@@ -79,3 +82,5 @@ To keep a small footprint, we'll start from the core Boost libraries (avoid rare
 ~~~bash
 sudo apt-get install libboost-dev
 ~~~
+
+For Windows, you need to specify the `BOOST_ROOT` in the `cacheVariables` of `windows-default` preset.

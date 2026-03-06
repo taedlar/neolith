@@ -58,25 +58,33 @@ check_symbol_exists(stpcpy string.h HAVE_STPCPY)
 check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
 check_symbol_exists(strtod stdlib.h HAVE_STRTOD)
 
-# check for libraries
-include(CheckLibraryExists)
-if(UNIX)
-    # check_library_exists(rt clock_gettime "" HAVE_LIBRT)
-endif()
-
 # check dependencies
+
+# Bison is required for building the LPC compiler, which is a core component of the MUD server.
 find_package(BISON REQUIRED)
-find_package(Boost)
-if(Boost_FOUND)
-	set(HAVE_BOOST 1)
+
+# OpenSSL for cryptographic functions and secure network communication.
+if (MSVC)
+	set(OPENSSL_MSVC_STATIC_RT ${USE_STATIC_MSVC_RUNTIME})
 endif()
 find_package(OpenSSL)
 if(OPENSSL_FOUND)
 	set(HAVE_OPENSSL 1)
 endif()
+
+# cURL for HTTP requests and access to cloud services.
 find_package(CURL)
 if(CURL_FOUND)
 	set(HAVE_CURL 1)
+endif()
+
+# FindBoost module is removed since CMake 3.30, replaced by upstream BoostConfig.cmake after Boost 1.70.
+# We should use find_package(Boost CONFIG) instead.
+# See https://cmake.org/cmake/help/latest/policy/CMP0167.html#policy:CMP0167
+find_package(Boost 1.70 CONFIG)
+if(Boost_FOUND)
+	set(HAVE_BOOST 1)
+	message(STATUS "Found Boost: ${Boost_VERSION} at ${Boost_INCLUDE_DIRS}")
 endif()
 
 # generate global header "config.h" for build configurations
@@ -99,7 +107,7 @@ add_subdirectory(src)
 include(CTest)
 if(BUILD_TESTING)
 	enable_testing()
-	find_package(GTest)
+	find_package(GTest) # using FindGTest.cmake from CMake Modules
 	if (GTest_FOUND)
 		include(GoogleTest)
 		message(STATUS "Found GoogleTest")
