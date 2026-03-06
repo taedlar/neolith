@@ -27,7 +27,7 @@ set(stem_SOURCES
 add_library(stem OBJECT ${stem_SOURCES})
 target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket async)
 if(NOT WIN32)
-    target_link_libraries(stem PUBLIC -lm -lcrypt)
+    target_link_libraries(stem PUBLIC -lm)
 endif()
 target_include_directories(stem PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
