@@ -215,13 +215,12 @@ TEST_F(CryptTest, MD5OldPasswordCompatibility) {
 }
 
 TEST_F(CryptTest, DefaultToSHA256) {
-    // Test that plain text salt or NULL defaults to SHA256
+    // Test that plain text salt defaults to SHA256 format
     char* result1 = crypt("password", "ab");
     ASSERT_NE(result1, nullptr);
     
-    // Should be SHA256 (or fallback $0) format
-    EXPECT_TRUE(strstr(result1, "$0$") != nullptr || 
-                strstr(result1, "$5$") != nullptr);
+    // Should be SHA256 format with $5$ prefix
+    EXPECT_TRUE(strstr(result1, "$5$") != nullptr);
 }
 
 TEST_F(CryptTest, MD5VsSHA256Different) {

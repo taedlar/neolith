@@ -121,7 +121,6 @@ static void crypt_md5_encode(const unsigned char *input, char *output) {
  */
 char* crypt(const char *key, const char *salt) {
   char final_salt[32];
-  char encoded_hash[256];
   size_t key_len, salt_len;
   int ret;
   int use_md5 = 0;  /* Default to SHA256, detect MD5 from salt */
@@ -193,6 +192,7 @@ char* crypt(const char *key, const char *salt) {
   unsigned int digest_len;
   EVP_MD_CTX *mdctx;
   const EVP_MD *md;
+  char encoded_hash[256];
 
   mdctx = EVP_MD_CTX_new();
   if (mdctx == NULL) {
@@ -270,7 +270,7 @@ fallback:
                      "$1$%s$%08lx", final_salt, hash);
     } else {
       ret = snprintf(crypt_buffer, sizeof(crypt_buffer),
-                     "$0$%s$%016lx", final_salt, hash);
+                     "$5$%s$%016lx", final_salt, hash);
     }
 
     if (ret >= 0 && (size_t)ret < sizeof(crypt_buffer)) {
