@@ -2,6 +2,36 @@
 
 ## neolith-1.0.0-alpha (unreleased)
 
+### 1.0.0-alpha.7 — 2026-03-09
+
+#### Changes since 1.0.0-alpha.6
+- cd6ac70 feat: add portable crypt based on openssl (#286)
+- 169ca2c doc: guideline about optional packages (#285)
+- fd51ecc chore: detect optional dependencies (#284)
+- 13c88f7 fix: null guard all_users in process_io to prevent segfault in network mode (#283)
+- 4cfce93 chore: fix include setting of grammar.h (#282)
+- 8a88199 clean: control stack handling (#281)
+- e436bc9 clean: separate command handling from comm.c (#280)
+- efa71a8 fix: telnet echo handling (#279)
+- 901a745 doc: update build info (#278)
+- e9b97e3 fix: call_function to access current_object variables (#277)
+- 4ae5a70 doc: update m3_mudlib (#276)
+- fc66990 chore: linux-build error (#275)
+- 756ce6f fix: socket async read event (#274)
+- c7760f4 feat: add clang-cl build (#273)
+- 470ed2d doc: update comm refactor plan (#272)
+- b2f9675 chore: move in_edit() efun to ed.c (#271)
+- c95bb57 feat: unify input_to, get_char and add_action efun carryover arguments (#270)
+- d017f46 doc: add sentence enhance plan (#269)
+- 5dbda1f doc: comm refactor plan (#268)
+- 6e479fc clean: split outbuf.c from comm.c (#267)
+- 3bb12f3 clean: lpc interpreter source code (#266)
+- 3f54f16 fix: refactor sync with c++ primitives (#265)
+- 04c74c9 chore: remove librt timer (#264)
+- bd2f28a fix: refactor timer with c++11 primitives (#263)
+- c388ce8 clean: f_localtime (#262)
+- 9c81bcf feat: foreach extracts unicode chars in strings (#261)
+
 ### 1.0.0-alpha.6 — 2026-02-03
 
 #### Changes since 1.0.0-alpha.5
