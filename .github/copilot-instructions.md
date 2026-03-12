@@ -378,10 +378,11 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
   ```
 - Efun docs: [docs/efuns/](docs/efuns/) in Markdown
 - Apply docs: [docs/applies/](docs/applies/) in Markdown
-- **Agent-generated analysis and implementation reports**: Save to [docs/history/agent-reports/](docs/history/agent-reports/)
-  - Name pattern: `feature-name-phaseN.md` or `feature-name-YYYY-MM-DD.md`
-  - Include: summary, components delivered, test results, next steps, files modified
-  - Following the same style as implementation details in [docs/internals/](docs/internals/) but don't link to source files directly since they may be outdated
+- **Agent-generated analysis and implementation reports**: Archive reports as binary zip files under [docs/history/](docs/history/) instead of leaving them as markdown files in the workspace.
+   - Use neutral archive names with sequence numbers (for example: `h1.zip`, `h2.zip`, `h3.zip`).
+   - Add new reports to the latest archive until it exceeds 1 MB; once it exceeds 1 MB, create a new archive and continue there.
+   - Keep archived report content equivalent to prior report expectations: summary, components delivered, test results, next steps, and files modified.
+   - Keep report style aligned with implementation details in [docs/internals/](docs/internals/), and avoid direct source links that may become outdated.
 
 ### Documentation Best Practices
 1. **Don't duplicate implemented code in documentation**
