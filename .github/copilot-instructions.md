@@ -1,120 +1,121 @@
-# Neolith LPMud Driver AI Development Guide
+# Agent Development Guide
 
 ## Project Overview
 Neolith is a minimalist LPMud driver forked from MudOS v22pre5, modernizing decades-old C/C++ code while maintaining compatibility with the LPC (Lars Pensjö C) scripting language used by MUD builders.
 
-## Architecture: The Big Picture
+**Development Priorities**: Stability, LPC compatibility, documentation, and incremental modernization (Boost, OpenSSL, CURL). See [docs/plan/](docs/plan/) for active feature plans.
 
-The driver operates as a virtual machine for LPC scripts, organized into these major components:
+**When adding features or refactoring**: Prioritize decisions that preserve LPC behavior and performance, favor portable C++ (Linux + Windows/MSVC/Clang), and maintain the single-threaded backend design.
 
-1. **Backend** ([src/backend.c](src/backend.c)): Main event loop handling I/O, timers, and object lifecycle
-   - Garbage collection of LPC objects and programs (reference counting)
-   - Async event loop with `async_runtime_wait()` for non-blocking operations
-   - Manages heartbeats, resets, and call_outs for LPC objects
-   - Performance-critical path for command dispatch and heart_beat() calls
-   
-2. **Interpreter** ([src/interpret.c](src/interpret.c)): Stack machine executing compiled LPC opcodes
-   - Implements the performance-critical path for LPC opcode execution in `eval_instruction()`
-   - Operates on `svalue_t` stack for function arguments and return values and `control_stack_t` for function call frames
-   - Handles LPC function calls, variable access, control flow, and efun/ simul_efun dispatch
+## Key File Locations
 
-3. **Simulate** ([src/simulate.c](src/simulate.c)): Virtual world object management
-   - Manages LPC object loading, cloning, movement, and destruction
-   - Objects can be moved to create spatial hierarchies
-   - Objects can send messages to each other via `tell_room()`, `tell_object()`, `say()`, etc.
+**Build & Runtime**
+- [config.h.in](config.h.in) — compile-time feature flags
+- [src/neolith.conf](src/neolith.conf) — runtime configuration template
+- [examples/m3_mudlib/](examples/m3_mudlib/) — test mudlib
 
-4. **Comm** ([src/comm.c](src/comm.c)): Non-blocking network I/O
-   - Implements socket communication using the async library
-   - Handles protocol level functions: telnet negotiation, input buffering, output flushing
-   - Handles command-turns for user input processing
+**Core Source** (frequently modified)
+- [src/backend.c](src/backend.c) — main event loop; [src/interpret.c](src/interpret.c) — LPC VM; [src/simulate.c](src/simulate.c) — object management
+- [src/comm.c](src/comm.c) — network I/O; [src/apply.c](src/apply.c) — LPC apply dispatch
+- [lib/efuns/func_spec.c](lib/efuns/func_spec.c) — efun definitions (code-generated, do not edit generated output)
+- [lib/lpc/grammar.y](lib/lpc/grammar.y) — LPC parser grammar
 
-5. **LPC Compiler** ([lib/lpc/](lib/lpc/)): On-demand compilation via Bison grammar
-   - Compiles LPC source to opcodes when objects are loaded
-   - Multiple program versions can coexist (key to online editing workflow)
+**Reference Docs** (ground truth for LPC behavior)
+- [docs/efuns/](docs/efuns/) — efun signatures and behavior
+- [docs/applies/](docs/applies/) — driver-to-LPC apply callback reference
 
-6. **Efuns** ([lib/efuns/](lib/efuns/)): Built-in functions callable from LPC
-   - Generated from [func_spec.c](lib/efuns/func_spec.c) via custom preprocessor tool [edit_source](lib/efuns/edit_source.c)
+**Architecture Docs** (read before touching a subsystem)
+- [docs/internals/lpc-types.md](docs/internals/lpc-types.md) — compile-time vs runtime type systems
+- [docs/internals/lpc-program.md](docs/internals/lpc-program.md) — compiler memory layout and lifecycle
+- [docs/internals/async-library.md](docs/internals/async-library.md) — async worker/queue/runtime design
+- [docs/manual/dev.md](docs/manual/dev.md) — developer setup, build, and run guide
+
+**Planning & History** (active work context)
+- [docs/plan/](docs/plan/) — feature design plans with staged implementation status
+- [docs/history/](docs/history/) — active implementation reports (recent changes, may cause regressions)
+- [docs/ChangeLog.md](docs/ChangeLog.md) — release-level change summaries
+
+## Architecture
+
+Neolith is an LPC VM driver with these core parts:
+
+1. **Backend** ([src/backend.c](src/backend.c)) — main loop, timers, lifecycle orchestration.
+2. **Interpreter** ([src/interpret.c](src/interpret.c)) — opcode execution and call-stack runtime.
+3. **Simulate** ([src/simulate.c](src/simulate.c)) — object loading, cloning, movement, destruction.
+4. **Comm** ([src/comm.c](src/comm.c)) — non-blocking network I/O and input/output buffering.
+5. **LPC Compiler** ([lib/lpc/](lib/lpc/)) — on-demand LPC compile pipeline.
+6. **Efuns** ([lib/efuns/](lib/efuns/)) — generated built-in LPC functions.
+
+Keep this section as a map only. Put subsystem behavior and invariants in dedicated docs for retrieval:
+- [docs/internals/async-library.md](docs/internals/async-library.md)
+- [docs/internals/lpc-types.md](docs/internals/lpc-types.md)
+- [docs/internals/lpc-program.md](docs/internals/lpc-program.md)
+- [docs/applies/](docs/applies/)
 
 ## Critical Developer Workflows
 
 ### Building
-- CMake-based build system with presets for different platforms and configurations
-- CMake presets should be used from top-level directory where `CMakePresets.json` is located
-- Quick clean rebuild commands:
-  - Linux/WSL:
-    ```bash
-    cmake --build --preset ci-linux
-    ```
-  - Windows Visual Studio 2019:
-    ```bash
-    cmake --build --preset ci-vs16-x64
-    ```
-- Use `cmake --list-presets` to see available configure presets, which automatically detect host platform. `linux` preset uses GCC, `vs16-x64` and `vs16-win32` use Visual Studio 2019.
-- Use `cmake --preset <configure-preset>` to configure, then `cmake --build --preset <build-preset>` to build. Build presets are named with a prefix followed by the configure preset (host platform):
-  - `dev-` prefix: incremental builds for development (Debug configuration)
-  - `pr-` prefix: incremental builds for testing (RelWithDebInfo configuration)
-  - `ci-` prefix: clean rebuilds (RelWithDebInfo configuration)
-
-Example:
-```bash
-# Identify available presets (detects host platform and generators)
-cmake --list-presets
-
-# Configure (Linux with Ninja Multi-Config)
-cmake --preset linux
-
-# Build (outputs to out/build/linux/src/RelWithDebInfo/neolith)
-cmake --build --preset ci-linux
-```
+- Run from repository root (where `CMakePresets.json` lives).
+- List presets:
+  ```bash
+  cmake --list-presets
+  ```
+- Configure + build pattern:
+  ```bash
+  cmake --preset <configure-preset>
+  cmake --build --preset <build-preset>
+  ```
+- Preset prefixes:
+  - `dev-`: incremental Debug builds
+  - `pr-`: incremental RelWithDebInfo builds
+  - `ci-`: clean RelWithDebInfo rebuilds
+- Common clean build commands:
+  ```bash
+  cmake --build --preset ci-linux
+  cmake --build --preset ci-vs16-x64
+  cmake --build --preset ci-clang-x64
+  ```
 
 ### Running
+- Basic run:
+  ```bash
+  /path/to/neolith -f /path/to/neolith.conf -p
+  ```
+- Use [src/neolith.conf](src/neolith.conf) as the config template.
+- `-p` enables pedantic mode (memory leak checks); see [docs/manual/dev.md](docs/manual/dev.md).
+- `-t` enables trace logging; see [docs/manual/trace.md](docs/manual/trace.md).
 
-```bash
-/path/to/neolith -f /path/to/neolith.conf -p
-```
-The `-f` option specifies the configuration file. Config template: [src/neolith.conf](src/neolith.conf). Set `DebugLogFile` and `LogWithDate` for ISO-8601 timestamped logs.
-
-The `-p` flag enables pedantic mode for memory leak detection. See [docs/manual/dev.md](docs/manual/dev.md) for details.
-
-Using trace flags `-t` enables optional trace logging for debugging. See [docs/manual/trace.md](docs/manual/trace.md) for trace flag details.
-
-#### Console Mode
-Using console mode `-c` allows interaction with the driver via standard input and output, useful for debugging and testing without TELNET clients. This also provides a way to run scripted command sequences for testing.
-
-See [docs/manual/console-mode.md](docs/manual/console-mode.md) for details. Example:
+#### Running in Console Mode
+- Use `-c` for stdin/stdout-driven testing (no telnet client required).
+- Reference: [docs/manual/console-mode.md](docs/manual/console-mode.md).
+- Example:
 ```bash
 /path/to/neolith -f /path/to/neolith.conf -c < /path/to/console_commands.txt > /path/to/console_output.log
 ```
 
 ### Testing
+- Unit tests use GoogleTest in [tests/](tests/); test files follow `test_*.cpp` and use `TEST()` / `TEST_F()`.
+- Run `ctest` from repository root.
 
-Unit-tests use GoogleTest framework. Tests are organized in [tests/](tests/) with subdirectories for each component. Test files should be named `test_*.cpp` and contain test cases using the `TEST()` or `TEST_F()` macro.
 ```bash
-# Any `ctest` command speccifying a preset should be run from top-level directory where CMakePresets.json is located
-
-# Run all tests (Linux/WSL)
 ctest --preset ut-linux
-
-# Run all tests (Windows Visual Studio 2019)
 ctest --preset ut-vs16-x64
-
-# Run all tests (Windows ClangCL)
 ctest --preset ut-clang-x64
 ```
 
-When testing specific components, configuration or platform that a `--test-dir` is being specified after any code changes, always add `--build-and-test` to ensure the latest code is being tested. For example:
+- For targeted runs using `--test-dir`, include `--build-and-test` after code changes.
+- Verify before running:
+  - `--test-dir` matches the intended build output/platform
+  - `-R` matches the intended configuration (for example, `RelWithDebInfo`)
+
+Example:
 ```bash
-# Run only async library tests with latest code changes
 ctest --test-dir out/build/clang-x64 -R RelWithDebInfo --build-and-test
 ```
-Always verify the three essential testing target specifications before launching `ctest`:
-- `--test-dir` points to the correct build directory for the latest code changes, which implicitly specifies the correct **platform** and scope of **components**
-- `-R` specifies the correct **configuration** (e.g., `RelWithDebInfo`)
 
-#### Testing complex interactions with a MUD Bot
-Advanced usage of console mode includes creating MUD robots that interact with other users and objects in the virtual world, which can be useful for testing complex interactions and behaviors. See [examples/testbot.py](examples/testbot.py) for a simple Python-based MUD bot that connects to the driver and performs scripted actions.
-
-To run the test bot, first create a Python virtual environment in the top-level directory and install the required dependencies:
+#### Testing complex interactions with a testing robot
+- Use [examples/testbot.py](examples/testbot.py) to script multi-user interaction tests.
+- Setup:
 ```bash
 python -m venv .venv
 .venv\Scripts\activate.bat  # Windows
@@ -122,7 +123,7 @@ source .venv/bin/activate  # Linux/WSL
 python -m pip install pexpect
 ```
 
-Then, run the test bot script that start the driver in console mode and interact with it via piped input and output:
+- Run:
 ```bash
 cd examples
 python testbot.py
@@ -130,245 +131,68 @@ python testbot.py
 
 ## Code Conventions & Patterns
 
-### Modular Architecture
-Legacy code had excessive global variables. Neolith refactors into:
-- Static libraries in [lib/](lib/): `port`, `logger`, `rc`, `misc`, `efuns`, `lpc`, `socket`, `async`
-- `stem` object library in [src/](src/): all driver code linked to tests and main executable
-- Cascaded `init_*()`/`deinit_*()` lifecycle, tracked via `get_machine_state()`
+### Architecture and Modularity
+- Keep subsystems in their libraries under [lib/](lib/) (`async`, `lpc`, `efuns`, etc.); driver glue lives in [src/](src/) and links through `stem`.
+- Prefer `static` file-local state over new globals.
+- Preserve init/deinit symmetry (`init_*()` with matching `deinit_*()`), coordinated by `get_machine_state()`.
 
-### Header Includes
-- All .c files should include config.h first for feature detection macros.
-- All [src/](src/) files include [std.h](src/std.h) first (after config.h), which provides portable POSIX headers and driver-wide options from [efuns/options.h](lib/efuns/options.h).
-- All .h file should be compatible with C and C++ (extern "C" guards) and should not include other headers unless necessary for type definitions.
+### Includes and Headers
+- In `.c` files, include `config.h` first.
+- In [src/](src/) `.c` files, include `std.h` immediately after `config.h`.
+- Keep headers C/C++ compatible (`extern "C"` guards) and avoid unnecessary includes.
 
-### Indentation & Formatting
-- K&R style for C code and Stroustrup style for C++ code, with project-specific conventions:
-  - Use 2 spaces for indentation, no tabs.
-  - Opening braces `{` on same line for functions and control blocks. This improves greppability of function definitions and reduces vertical space.
-  - Do not use cuddled else/else if. Always put `else` on a new line to improve readability and reduce merge conflicts.
-- Use single space after keywords and before parentheses (`if (condition)`, not `if(condition)`) with the exception of empty parentheses such as in `void func()`.
-- Use single blank line to separate logical blocks.
-- Use two blank lines to separate function definitions.
+### Formatting
+- C uses K&R style; C++ uses Stroustrup style.
+- Use 2 spaces, no tabs.
+- Keep opening braces on the same line.
+- Do not cuddle `else` / `else if`; put `else` on a new line.
+- Use spaces in control expressions (`if (x)`), one blank line between logical blocks, and two between functions.
 
-### Integer Type Usage
-- **LPC runtime integers**: Always `int64_t` (svalue_u.number is int64_t)
-- **Format strings**: Use `PRId64` macro for printing int64_t values
-- **Never use `long`**: Platform-specific size (32-bit on Windows x64, 64-bit on Linux)
-- **Small integers**: `int` is fine for loop counters, array indices, etc.
-- **push_number()**: Accepts `int64_t`, automatically handles conversion
+### Integer Rules
+- LPC runtime numeric values are `int64_t`.
+- Print runtime integers with `PRId64`.
+- Do not use `long` for LPC/runtime-sized values.
+- Use `int` for small counters/indices when size is clearly bounded.
 
-### Async Library Architecture
+### Async Runtime (Critical)
+- `async_runtime_wait()` must have exactly one caller thread: the backend/main thread.
+- Never call `async_runtime_wait()` from workers or concurrently.
+- Current single call site is `do_comm_polling()` in [src/comm.c](src/comm.c); keep it that way.
+- Workers should notify via `async_runtime_post_completion()`.
+- Reference: [docs/internals/async-library.md](docs/internals/async-library.md).
 
-The async library ([lib/async/](lib/async/)) provides platform-agnostic infrastructure for non-blocking operations via worker threads:
+### Applies and Object Lifecycle
+- Driver-to-LPC applies (`heart_beat()`, `reset()`, `init()`, etc.) dispatch through `apply_low()` in [src/apply.c](src/apply.c); see [docs/applies/](docs/applies/).
+- Object lifecycle invariants:
+  - load compiles a base object (no `#` suffix)
+  - clone adds `#N` and shares program
+  - recompiles can coexist with older programs
+  - destruction frees programs only when refcount reaches zero
 
-**Components**:
-1. **async_queue** - Thread-safe FIFO message queue (worker → main thread communication)
-2. **async_worker** - Managed worker threads with graceful shutdown via `port_event_t`
-3. **async_runtime** - Unified event loop for I/O events and worker completions
+### Build and Efun Integration
+- Respect library dependency flow in [src/CMakeLists.txt](src/CMakeLists.txt):
+  - `stem -> efuns, lpc, rc, socket, misc, logger, port`
+  - `lpc -> logger, efuns, rc`
+  - `efuns -> port, misc`
+- Efuns are generated, not manually registered:
+  1. Update [lib/efuns/func_spec.c](lib/efuns/func_spec.c)
+  2. Build to produce `func_spec.i`
+  3. Let `edit_source` regenerate dispatch tables
+  4. Implement guarded C code in [lib/efuns/](lib/efuns/)
 
-**Critical Constraint: NO DOUBLE POLLING**
-
-`async_runtime_wait()` **MUST** be called from a single thread only (the main/backend thread). This is a fundamental requirement:
-
-**✅ CORRECT**:
-- Backend calls `async_runtime_wait()` once per iteration in main event loop
-- Workers call `async_runtime_post_completion()` to notify main thread
-- Main thread processes all returned events before calling `async_runtime_wait()` again
-
-**❌ FORBIDDEN**:
-- Calling `async_runtime_wait()` from multiple threads simultaneously
-- Calling `async_runtime_wait()` again while previous call is still blocked
-- Calling `async_runtime_wait()` from worker threads
-
-**Why This Matters**:
-- Event correlation breaks (completion keys/contexts assume single consumer)
-- Platform APIs not thread-safe for concurrent polling (Windows IOCP, Linux epoll)
-- Driver architecture is single-threaded by design (all LPC execution on main thread)
-
-**Current Implementation**: `do_comm_polling()` in [src/comm.c](src/comm.c) calls `async_runtime_wait()` exclusively from the backend main loop. Never add additional call sites.
-
-**Design Reference**: [docs/internals/async-library.md](docs/internals/async-library.md)
-
-### Apply Functions Pattern
-"Applies" are LPC functions called by the driver (inverse of efuns). Key examples:
-- `heart_beat()`: called every HEARTBEAT_INTERVAL (default 2s) if object calls `set_heart_beat(1)`
-- `reset()`: lazy initialization when object accessed after timeout
-- `init()`: called when objects move in inventory hierarchy
-- `receive_message()`: delivers messages from `tell_object()`, `say()`, etc.
-
-Applies are called via [apply_low()](src/apply.c) with caching for performance. See [docs/applies/](docs/applies/).
-
-### Object Lifecycle
-- **Loading**: Compile LPC source → creates initial object named without `#`
-- **Cloning**: `clone_object()` creates instance with `#N` suffix, shares program
-- **Versioning**: Multiple programs can coexist; cloned objects keep their program even after source recompile
-- **Destruction**: `destruct()` decrements program refcount; program freed when count hits zero
-
-### CMake Library Dependencies
-```
-stem (driver) → efuns, lpc, rc, socket, misc, logger, port
-    lpc → logger, efuns, rc
-    efuns → port, misc
-```
-When adding features, link appropriate libraries. Check [src/CMakeLists.txt](src/CMakeLists.txt) for the dependency chain.
-
-### Efuns Code Generation
-Efuns are **not** manually registered. Instead:
-1. Define function spec in [func_spec.c](lib/efuns/func_spec.c)
-2. Build system runs C preprocessor → `func_spec.i`
-3. Custom tool `edit_source` generates tables consumed by compiler
-4. Add C implementation in [lib/efuns/](lib/efuns/) with `#ifdef F_FUNCTION_NAME` guards
-
-## LPC Type Systems
-
-Neolith uses **three distinct type systems** that must never be mixed:
-
-1. **Compile-time types** (`lpc_type_t`): TYPE_* constants (0-10) for static type checking
-2. **Runtime types** (`svalue_type_t`): T_* bit flags for runtime value dispatch
-3. **Parse tree types** (`lpc_type_t`): TYPE_* annotations in AST nodes
-
-**Critical Rules**:
-- `lpc_type_t` uses hybrid encoding: sequential base (0-10) + bit flag modifiers (TYPE_MOD_ARRAY=0x0020, TYPE_MOD_CLASS=0x0040, NAME_TYPE_MOD=0x7F00)
-- `svalue_type_t` uses pure bit flags: T_NUMBER=0x2, T_STRING=0x4, T_ARRAY=0x8, etc.
-- **Never use TYPE_* with svalue_t or T_* with lpc_type_t**—they are incompatible domains
-- Always mask NAME_TYPE_MOD (0x7F00) when checking base types: `type & ~NAME_TYPE_MOD`
-- Check arrays with: `if (type & TYPE_MOD_ARRAY)`
-- Check classes with: `IS_CLASS(type)` macro
-
-**Structures using `lpc_type_t`**: compiler_function_t.type, variable_t.type, class_member_entry_t.type, parse_node_t.type
-
-See [docs/internals/lpc-types.md](docs/internals/lpc-types.md) for complete type system reference.
-
-## LPC Compiler Architecture
-
-The LPC compiler uses a multi-pass architecture with 24 memory blocks (`mem_block[]`) for incremental program construction. See [docs/internals/lpc-program.md](docs/internals/lpc-program.md) for complete details.
-
-### Memory Block System
-
-**15 Permanent Areas** (saved in final `program_t`):
-- **A_PROGRAM** (0): Bytecode instructions (max 64KB)
-- **A_RUNTIME_FUNCTIONS** (1): Function dispatch table (`runtime_function_u[]`)
-- **A_COMPILER_FUNCTIONS** (2): Function definitions defined at this level (`compiler_function_t[]`)
-- **A_RUNTIME_COMPRESSED** (3): Compressed function table for deep inheritance
-- **A_FUNCTION_FLAGS** (4): Function modifiers (static, private, inherited, etc.)
-- **A_STRINGS** (5): String literal table (shared strings)
-- **A_VAR_NAME/TYPE** (6-7): Variable names and types
-- **A_LINENUMBERS** (8): Debug info mapping bytecode→source lines
-- **A_FILE_INFO** (9): Include file boundaries
-- **A_INHERITS** (10): Inherited program references
-- **A_CLASS_DEF/MEMBER** (11-12): LPC class definitions
-- **A_ARGUMENT_TYPES/INDEX** (13-14): Function argument types (if `#pragma save_types`)
-
-**9 Temporary Areas** (compilation only):
-- **A_CASES** (15): Switch case tracking
-- **A_STRING_NEXT/REFS** (16-17): String hash table bookkeeping
-- **A_INCLUDES** (18): Include file list for binary validation
-- **A_PATCH** (19): String switch bytecode offsets for patching
-- **A_INITIALIZER** (20): Global variable initialization code (becomes `__INIT()`)
-- **A_FUNCTIONALS** (21): Unused/vestigial
-- **A_FUNCTION_DEFS** (22): Function inheritance/alias tracking (`compiler_temp_t[]`)
-- **A_VAR_TEMP** (23): All variables including inherited
-
-**Key Macros** (defined in [lib/lpc/compiler.h](lib/lpc/compiler.h)):
-```c
-COMPILER_FUNC(n)    // Get compiler_function_t from A_COMPILER_FUNCTIONS
-FUNCTION_RENTRY(n)  // Get runtime_function_u from A_RUNTIME_FUNCTIONS
-FUNCTION_FLAGS(n)   // Get flags from A_FUNCTION_FLAGS
-FUNCTION_TEMP(n)    // Get compiler_temp_t from A_FUNCTION_DEFS
-INHERIT(n)          // Get inherit_t from A_INHERITS
-VAR_TEMP(n)         // Get variable_t from A_VAR_TEMP
-PROG_STRING(n)      // Get string from A_STRINGS
-CLASS(n)            // Get class_def_t from A_CLASS_DEF
-```
-
-### Compilation Lifecycle
-
-1. **prolog()**: Allocate 24 blocks at 4KB each (grows via doubling)
-2. **Parsing**: Bison grammar in [lib/lpc/grammar.y](lib/lpc/grammar.y) builds parse trees
-3. **Code Generation**: [lib/lpc/program/icode.c](lib/lpc/program/icode.c) walks trees, emits bytecode
-4. **epilog()**: 
-   - Resolve undefined/inherited functions
-   - Sort function table alphabetically
-   - Copy 15 permanent areas into single contiguous `program_t`
-   - Free temporary blocks
-5. **clean_parser()**: On errors, free all blocks and shared strings
-
-**Block Switching**: Compiler switches between `A_PROGRAM` (main code) and `A_INITIALIZER` (variable init) via `switch_to_block()`. The `__INIT()` function is appended at end of compilation if A_INITIALIZER is non-empty.
-
-### Binary Serialization
-
-Neolith can save compiled programs to `.b` files (enabled via `#pragma save_binary` and `__SAVE_BINARIES_DIR__` config). This avoids re-parsing on subsequent driver starts. See [docs/internals/lpc-program.md#binary-serialization](docs/internals/lpc-program.md#binary-serialization).
-
-**Binary Format**:
-```
-[Magic:"NEOL"][Driver ID][Config ID (simul_efun mtime)]
-[Include list][Program name][program_t with relative pointers]
-[Inherited names][String table][Variable names][Function names]
-[Line numbers][Patches for string switches]
-```
-
-**Pointer Conversion**:
-- **Save** ([locate_out()](lib/lpc/program/binaries.c)): Convert absolute pointers → offsets from `program_t` base
-- **Load** ([locate_in()](lib/lpc/program/binaries.c)): Convert offsets → absolute pointers
-- **String Switches** ([patch_out/in()](lib/lpc/program/binaries.c)): Convert embedded string pointers ↔ table indices, then re-sort
-
-**Validation**: Binary rejected if source/includes newer, driver changed, or simul_efun changed. Falls back to full compilation.
-
-**Critical for Binary Save/Load**:
-- All shared strings must be recreated via `make_shared_string()`
-- Function table must be re-sorted (pointer addresses change between runs)
-- Inherited programs must be loaded first (triggers recursive loads)
-- Switch tables need special patching (tracked in `A_PATCH` during compilation)
-
-### Function Dispatch
-
-**Three Index Types**:
-- `function_number_t`: Index into `A_COMPILER_FUNCTIONS` (only defined functions)
-- `function_index_t`: Index into `A_RUNTIME_FUNCTIONS` (all functions including inherited)
-- `function_address_t`: Bytecode offset in `A_PROGRAM`
-- When passing index types to functions, use `int` for compatibility. When returning, use specific typedefs. When storing in structs, use specific typedefs for clarity.
-
-**Inheritance Resolution**:
-- Local functions: `runtime_function_u.def` has `{num_arg, num_local, f_index}`
-- Inherited: `runtime_function_u.inh` has `{inherit_offset, parent_function_index}`
-- Flag `NAME_INHERITED` in `A_FUNCTION_FLAGS` distinguishes them
-- Offsets in `inherit_t` translate parent indices to child namespace
-
-**Function Lookup**: Binary search on sorted `function_table` by name pointer address (not strcmp). Functions starting with `#` always last.
-
-### Common Compiler Tasks
-
-**Adding New Bytecode Instruction**:
-1. Define opcode in [lib/efuns/include/function.h](lib/efuns/include/function.h)
-2. Add code generation in [lib/lpc/program/icode.c](lib/lpc/program/icode.c)
-3. Add execution in [src/interpret.c](src/interpret.c)
-4. Update disassembler in [lib/lpc/program/disassemble.c](lib/lpc/program/disassemble.c)
-
-**Adding Grammar Production**:
-1. Update [lib/lpc/grammar.y](lib/lpc/grammar.y)
-2. Build parse tree node in [lib/lpc/program/parse_trees.c](lib/lpc/program/parse_trees.c)
-3. Add code generation case in [lib/lpc/program/icode.c](lib/lpc/program/icode.c)
-
-**Debugging Compilation**:
-- Set `TT_COMPILE` trace flags in config for verbose logging
-- Use `opt_trace(TT_COMPILE|level, ...)` throughout compiler
-- Check `num_parse_error` counter
-- Inspect `mem_block[].current_size` to see area growth
-
-## Platform-Specific Patterns
-
-### Portability Layer ([lib/port/](lib/port/))
-- Windows requires custom implementations: `crypt()`, `getopt()`, `gettimeofday()`, `realpath()`, `symlink()`
-- Timer backends selected at configure time: Win32 timer / POSIX `timer_create()` / fallback `pthread` timer
-- CMake generator expressions handle platform differences (see [lib/port/CMakeLists.txt](lib/port/CMakeLists.txt))
-
-### Compiler Differences
-- MSVC: `/W4 /wd4706 /permissive- /Zc:__cplusplus /utf-8`, defines `_CRT_SECURE_NO_WARNINGS`
-- GCC/Clang: `-Wall -Wextra -Wpedantic`, defines `_GNU_SOURCE`
+### LPC Types and Compiler Touchpoints
+- Keep compile-time `TYPE_*` (`lpc_type_t`) separate from runtime `T_*` (`svalue_type_t`). Never mix domains.
+- When checking compile-time base type, mask modifiers: `type & ~NAME_TYPE_MOD`.
+- Arrays/classes use modifier checks (`TYPE_MOD_ARRAY`, `IS_CLASS(type)`).
+- Type-system reference: [docs/internals/lpc-types.md](docs/internals/lpc-types.md).
+- Compiler work reference: [docs/internals/lpc-program.md](docs/internals/lpc-program.md).
+- Common edits:
+  - opcode: `function.h` -> `icode.c` -> [src/interpret.c](src/interpret.c) -> `disassemble.c`
+  - grammar: [lib/lpc/grammar.y](lib/lpc/grammar.y) -> `parse_trees.c` -> `icode.c`
+  - compile debug: `TT_COMPILE`, `opt_trace(...)`, `num_parse_error`, `mem_block[].current_size`
 
 ## Documentation Conventions
-- Markdown in [docs/](docs/) using GitHub Flavored Markdown
-- Inline doxygen comments for functions:
+- Use inline Doxygen function comments:
   ```c
   /**
    * @brief Brief description.
@@ -376,81 +200,28 @@ Neolith can save compiled programs to `.b` files (enabled via `#pragma save_bina
    * @returns What the function returns.
    */
   ```
-- Efun docs: [docs/efuns/](docs/efuns/) in Markdown
-- Apply docs: [docs/applies/](docs/applies/) in Markdown
-- **Agent-generated analysis and implementation reports**: Archive reports as binary zip files under [docs/history/](docs/history/) instead of leaving them as markdown files in the workspace.
-   - Use neutral archive names with sequence numbers (for example: `h1.zip`, `h2.zip`, `h3.zip`).
-   - Add new reports to the latest archive until it exceeds 1 MB; once it exceeds 1 MB, create a new archive and continue there.
-   - Keep archived report content equivalent to prior report expectations: summary, components delivered, test results, next steps, and files modified.
-   - Keep report style aligned with implementation details in [docs/internals/](docs/internals/), and avoid direct source links that may become outdated.
+- Write docs in Markdown under [docs/](docs/) (GitHub Flavored Markdown).
+- Keep **current-state docs** in [docs/manual/](docs/manual/) and [docs/internals/](docs/internals/) accurate as code evolves.
+  - Emphasize design rationale (why), architecture, and integration patterns; avoid duplicating implementation details.
+  - Link to source instead of copying code.
+- Start feature work with a design plan in [docs/plan/](docs/plan/).
+  - Use staged status (`not started`, `in progress`, `complete`) when work spans multiple phases.
+- Keep active implementation reports in [docs/history/](docs/history/) as concise Markdown summaries.
+  - Report what changed and current status; avoid code dumps, test logs, and step-by-step tutorials.
+- Promote stable results to [docs/manual/](docs/manual/) or [docs/internals/](docs/internals/), then close and archive plan/report artifacts.
+  - Archive reports as `hN.zip` in [docs/history/](docs/history/) and roll over to a new archive when the current one exceeds 1 MB.
+  - Add a one-line archive summary in [docs/ChangeLog.md](docs/ChangeLog.md).
+- For releases, update [docs/ChangeLog.md](docs/ChangeLog.md) with concise summaries linked to plans, internals, and archives.
 
 ### Documentation Best Practices
-1. **Don't duplicate implemented code in documentation**
-   - Once code is committed and tested, reference it with links instead of copying it
-   - Example: "See [async_runtime.h](lib/async/async_runtime.h)" not full API declarations
-2. **Explain committed code concisely**
-   - Document WHY decisions were made, not HOW the code works (code shows that)
-   - Focus on design rationale, platform differences, integration patterns
-   - Keep implementation reports focused on what changed and why it matters
-3. **Remove redundant content**
-   - Delete verbose examples when linking to actual source is sufficient
-   - Avoid repeating test output verbatim—summarize pass/fail status instead
-   - Don't show complete function implementations that are already in source files
-4. **Keep design documents concise**
-   - Main design docs should be reference guides, not implementation tutorials
-   - Move detailed examples to phase-specific reports or source code comments
-   - Use tables and bullet points over lengthy prose
-
-## Key File Locations
-- **Build config**: [config.h.in](config.h.in) → `out/build/*/config.h` (feature detection results)
-- **Runtime config template**: [src/neolith.conf](src/neolith.conf)
-- **Test mudlib**: [examples/m3_mudlib/](examples/m3_mudlib/)
-- **Developer reference**: [docs/manual/dev.md](docs/manual/dev.md)
-- **Internals guide**: [docs/manual/internals.md](docs/manual/internals.md)
-- **LPC type systems**: [docs/internals/lpc-types.md](docs/internals/lpc-types.md) - compile-time vs runtime types, encoding schemes
-- **LPC compiler internals**: [docs/internals/lpc-program.md](docs/internals/lpc-program.md) - mem_block system and binary serialization
-- **Design ideas, draft and plans**: [docs/plan/](docs/plan/) - any design docs, proposals, feature plans before implementation
+1. Keep docs concise and structured for retrieval (clear headings, tables, and short bullet lists).
+2. Document decisions and interfaces, not full implementations; link to source for details.
+3. Keep implementation reports focused on deltas and status.
+4. Before PRs, remove outdated or redundant text and ensure plan/current-state docs are aligned.
 
 ## Reference Documentation
 
-Documentation files should be named using lowercase letters and dashes (`-`) as word separators. Avoid underscores and camelCase.
-Prefix the filenames with the library name, feature or subsystem name for easy identification (e.g., `async-dns-integration.md`).
-
-**Design & Planning** ([docs/plan/](docs/plan/)):
-- Create design docs here before implementation starts. Move to manual/internals when implementation begins.
-- When extending an existing feature, update the original design doc instead of creating a new one.
-- Don't duplicate implementation details here; focus on high-level design, rationale, alternatives considered, and final decisions.
-
-**High-level Design Documentation** ([docs/manual/](docs/manual/)):
-- [admin.md](docs/manual/admin.md): Admin guide for server operators - configuration options, logging, performance tuning.
-- [lpc.md](docs/manual/lpc.md): LPC language reference - syntax, semantics, standard libraries.
-- [efuns.md](docs/manual/efuns.md): Comprehensive efun reference manual, categorized by functionality.
-- [dev.md](docs/manual/dev.md): Developer workflow and build system, testing patterns and git workflow.
-- [unit-tests.md](docs/manual/unit-tests.md): Guidelines for writing and organizing unit tests using GoogleTest.
-- [console-mode.md](docs/manual/console-mode.md): Using the interactive console mode for debugging and live interaction.
-- [internals.md](docs/manual/internals.md): Driver architecture overview. Links to [docs/internals/](docs/internals/) for deep dives into specific subsystems.
-- [trace.md](docs/manual/trace.md): Debugging and tracing guide - how to enable and interpret trace logs.
-- When extending an existing feature, update the original design doc instead of creating a new one.
-- Keep these documents updated as the codebase evolves. Focus on high-level architecture and terminology for current code.
-- High-level concepts includes features that are visible to mudlib developers (efuns, applies, object model, compiler behavior).
-- When starting new features, create design docs in [docs/plan/](docs/plan/) first, then move to manual when implementation starts. Keep implementation status updated. Link implementation details back to design docs.
-
-**Implementation Details** ([docs/internals/](docs/internals/)):
-- Keep these documents focused on design decisions, technical specifications and internal architecture such as C APIs and data structures.
-- Update as implementation details change. Link back to high-level design docs in [docs/manual/internals.md](docs/manual/internals.md).
-- [lpc-types.md](docs/internals/lpc-types.md): Complete LPC type system reference - lpc_type_t vs svalue_type_t, encoding schemes, compatibility checking, common pitfalls
-- [lpc-program.md](docs/internals/lpc-program.md): Complete LPC compiler memory block system, binary save/load format, pointer serialization, inheritance resolution
-- [int64-design.md](docs/internals/int64-design.md): Platform-agnostic 64-bit integer implementation - runtime types, bytecode encoding, binary compatibility
-- [async-library.md](docs/internals/async-library.md): Async library design - queues, workers, runtime integration
-
-When working on compiler features, consult these documents for:
-- **Type system rules**: lpc_type_t vs svalue_type_t domains, masking NAME_TYPE_MOD, array/class detection
-- **Integer handling**: svalue_u.number is int64_t, use PRId64 for formatting, F_LONG opcode for large literals
-- Memory block allocations and their data types
-- Binary file format and version validation
-- Function/variable/class indexing schemes
-- Pointer conversion during serialization
-- Switch table patching mechanics
+Documentation files use lowercase names with dash (`-`) separators, prefixed with the library/feature name. See [docs/file-organization.md](docs/file-organization.md) for the complete guide to doc placement and conventions.
 
 ## Common Pitfalls
 1. **Don't modify generated files** like `grammar.c`/`grammar.h` (from Bison) or efun tables (from edit_source)
@@ -461,8 +232,12 @@ When working on compiler features, consult these documents for:
 6. **Type system mixing**: Never mix compile-time TYPE_* with runtime T_* values—see [lpc-types.md](docs/internals/lpc-types.md)
 7. **Binary compatibility**: Always bump driver_id in [binaries.c](lib/lpc/program/binaries.c) when adding/removing/reordering opcodes or changing runtime struct sizes
 
-## When Contributing
-- Add unit tests in [tests/](tests/) subdirectories following GoogleTest patterns
-- Document new efuns in [docs/efuns/](docs/efuns/)
-- Update [docs/ChangeLog.md](docs/ChangeLog.md)
-- See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for full guidelines
+## Agent Execution Priorities
+- Prioritize impact-first changes: fix code and tests first, then update only docs directly affected by the change.
+- Run the smallest relevant test scope for touched behavior (targeted test files first; expand scope only when risk is broader).
+- Apply doc updates conditionally:
+  - Update [docs/efuns/](docs/efuns/) only when efun behavior/signature is added or changed.
+  - Update [docs/manual/](docs/manual/) or [docs/internals/](docs/internals/) only when architecture, contracts, or operational behavior changes.
+  - Update [docs/ChangeLog.md](docs/ChangeLog.md) for release-relevant user-visible or developer-facing changes.
+- Keep doc edits concise and source-linked; avoid restating implementation that is already clear in code.
+- Use [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) as the policy source of truth when guidance conflicts.
