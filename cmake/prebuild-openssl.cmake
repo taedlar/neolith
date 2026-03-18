@@ -26,16 +26,11 @@
 
 cmake_minimum_required(VERSION 3.28)
 
-message(CHECK_START "Checking OPENSSL_ROOT_DIR")
 if (EXISTS ${OPENSSL_ROOT_DIR})
     # OPENSSL_ROOT_DIR already exists, assume OpenSSL is already built and installed
 	# Proceed to import the pre-built OpenSSL library in the main CMakeLists.txt
 	# via find_package(OpenSSL)
-    message(CHECK_PASS "${OPENSSL_ROOT_DIR} exists - skipping prebuild.")
     return()
-else()
-    # OPENSSL_ROOT_DIR does not exist, attempt to pre-build OpenSSL
-    message(CHECK_FAIL "not found: attempting to pre-build OpenSSL")
 endif()
 
 # check build prerequisites
@@ -134,10 +129,10 @@ endif()
 
 if (openssl_need_configure)
 	if (MSVC)
-		message(STATUS "Building OpenSSL for platform ${platform}")
+		message(STATUS "Configuring OpenSSL for platform ${platform}")
 		execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
 			${PERL_EXECUTABLE} ${openssl_SOURCE_DIR}/Configure ${platform}
-			--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-docs no-deprecated no-shared
+			--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-deprecated no-shared
 			no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
 			-D"_WIN32_WINNT=0x0601"
 			RESULT_VARIABLE config_result
@@ -145,7 +140,7 @@ if (openssl_need_configure)
 	elseif(UNIX)
 		execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
 			${openssl_SOURCE_DIR}/config
-			--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-docs no-deprecated no-shared
+			--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-deprecated no-shared
 			no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
 			-fPIC -fvisibility=hidden
 			RESULT_VARIABLE config_result

@@ -78,9 +78,12 @@ macro(setup_provide_dependency method package)
                 # invoke FindOpenSSL to import well-known OpenSSL variables and targets
                 # keep provider-internal probe quiet; caller find_package() reports final status
                 find_package(OpenSSL MODULE BYPASS_PROVIDER QUIET ${ARGN})
+                if (TARGET OpenSSL::SSL AND TARGET OpenSSL::Crypto)
+                    message(STATUS "Found OpenSSL: ${OPENSSL_ROOT_DIR} (found version ${OPENSSL_VERSION})")
+                endif()
             endif()
+            set(${package}_FOUND ${OPENSSL_FOUND})
         endif()
-        set(${package}_FOUND ${OPENSSL_FOUND})
     endif()
 
 endmacro()
