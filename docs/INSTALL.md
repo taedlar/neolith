@@ -65,7 +65,7 @@ You'll need both `openssl` and `libssl-dev` to enable those features requires Op
 sudo apt-get install openssl libssl-dev
 ~~~
 
-For Windows, see [FETCH_OPENSSL_FROM_SOURCE](#fetch_openssl_from_source) section below.
+For using local built OpenSSL binaries of specific version, see [FETCH_OPENSSL_FROM_SOURCE](#fetch_openssl_from_source) section below.
 
 ### `cURL`
 CURL is the most popular tool and library to connect an application and various cloud infrastructure with **REST APIs**.
@@ -92,7 +92,13 @@ CMake offers **dependency provider** since v3.24 to allow the `find_package()` r
 If the following CMake variables are defined, they enable the configure step to attempt fetching source code and build the dependencies locally:
 
 ### `FETCH_OPENSSL_FROM_SOURCE`
-When `FETCH_OPENSSL_FROM_SOURCE` is defined, it is used as a git tag to fetch OpenSSL source code from the official repository (see [prebuild-openssl.cmake](../cmake/prebuild-openssl.cmake)) for satisfying the `OpenSSL`.
+When `FETCH_OPENSSL_FROM_SOURCE` is defined, it is used as a git tag to fetch OpenSSL source code from the official repository (see [prebuild-openssl.cmake](../cmake/prebuild-openssl.cmake)) for satisfying the `OpenSSL`. Example:
+~~~bash
+# Configure and prebuild OpenSSL from source code using MSVC
+cmake --preset vs16-x64 -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1
+# Configure and prebuild OpenSSL from source code on Linux
+cmake --preset linux -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1
+~~~
 
 > [!IMPORTANT]
 > **Agent Instructions — OpenSSL Prebuild**
@@ -116,7 +122,7 @@ When `FETCH_OPENSSL_FROM_SOURCE` is defined, it is used as a git tag to fetch Op
 >    OpenSSL prebuild. Describe which step will run (configure, compile, or install) and warn
 >    that it will take significant time.
 >
-> 4. **x64 build environment**: OpenSSL contains assembly code that requires x64 MSVC toolchains
+> 4. **MSVC x64 build environment**: On Windows, OpenSSL contains assembly code that requires x64 MSVC toolchains
 >    to produce correct object files for linking. If link error occurs, it is possible
 >    the x64 build environment is not setup correctly.
 >    Try starting a new shell and run `"%vcinstalldir%\auxiliary\build\vcvars64.bat"`
