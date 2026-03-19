@@ -15,48 +15,18 @@ sudo apt install bison
 For Windows platform:
 - **Option 1**: Native Win32 (x64) build using Microsoft Visual Studio 2019:
   - Install [Bison for Windows](https://gnuwin32.sourceforge.net/packages/bison.htm) and provide the install location via `BISON_ROOT` variable in `CMakePresets.json`.
-  - (Optional) Fetch **GoogleTest** using [FETCH_GOOGLETEST_FROM_SOURCE](#fetch_googletest_from_source) when configure the build.
+  - (Optional) Fetch **GoogleTest** using [FETCH_GOOGLETEST_FROM_SOURCE](#fetch_googletest_from_source) when configuring the build.
   - (Optional) If **OpenSSL** and related features are desired, install [Strawberry Perl](https://strawberryperl.com/) for required toolchains to build OpenSSL on Windows.
 - **Option 2**: Using WSL:
 See [Install Linux on Windows with WSL](https://learn.microsoft.com/en-us/windows/wsl/install) for instructions to install Ubuntu on Windows.
 
-## Building with CMake
-
-Building Neolith with CMake is made simple via presets:
-~~~sh
-cmake --preset linux
-cmake --build --preset ci-linux
-~~~
-The `neolith` executable can be found in `out/build/linux/src/RelWithDebInfo/`.
-
-### Build Presets
-The following build presets are defined for regular development tasks:
-
-Preset|Configuration|Targets|Description
----|---|---|---
-`dev-linux`|Debug|`all`|Performs typical `make`.<br/>Used for feature **development** and troubleshooting.
-`pr-linux`|RelWithDebInfo|`all`|Performs typical `make`.<br/>Used for unit-testing on **pull-requests** before merge into the main trunk.
-`ci-linux`|RelWithDebInfo|`all`<br/>Benchmarks|Performs `make clean` and then `make`.<br/>This is the **continous-integration** build that ensures clean re-build of all targets and dependencies.<br/>Usually used after a clean re-configuration to create so-called nightly build.
-
-### Windows Platform
-Original MudOS and LPMud source code "probably" can build with mingw or Cygwin.
-
-Neolith can be successfully build with **Visual Studio 2019** :tada: and **Clang/LLVM** :tada: :
-~~~sh
-# configure build with Visual Studio 2019 (version 16.x)
-cmake --preset vs16-x64
-
-# configure build with Clang/LLVM, available with Visual Studio 2019 v16.2 and later
-cmake --preset clang-x64
+### CMake
+Neolith uses **CMake** to organize the build and manage dependencies. You need cmake **v3.28** or later to build the project:
+~~~bash
+sudo apt install cmake
 ~~~
 
-The build presets follow the same naming as in Linux build:
-- `dev-` for development build
-- `pr-` for pull-request validation build
-- `ci-` for continous-integration (nightly build)
-
-> [!Note]
-> There are still some minor portability issues to be fix on MSVC and Clang.
+If your Linux distribution's cmake version is too old, visit [Download CMake](https://cmake.org/download/) to download a newer version.
 
 ## Dependencies for Optional Features
 The CMake build scripts detects availability of packages and enable optional features:
@@ -101,11 +71,13 @@ To keep a small footprint, we'll start from the core Boost libraries (avoid rare
 sudo apt-get install libboost-dev
 ~~~
 
-## Using CMake dependency provider to satisfy requirements for optional features
-On Windows, there is no standard package manager to install dependency libraries in conventional locations such as `/usr/lib` as on Linux.
+For Windows, Boost is available for download as [source code](https://sourceforge.net/projects/boost/) or [binaries](https://sourceforge.net/projects/boost/files/boost-binaries/). Supply the install location (e.g. `D:\boost_1_90_0`)with `BOOST_ROOT` variable in `CMakePresets.json` and allow the configure step to import Boost headers and binaries.
+
+## Using Dependency Provider
 CMake offers **dependency provider** since v3.24 to allow the `find_package()` requests to be intercepted and handled to satisfy dependencies before returning "not found".
 
-If the following CMake variables are defined, they enable the configure step to attempt fetching source code and build the dependencies locally:
+If the following CMake variables are defined, they enable the configure step to attempt fetching source code and build the dependencies locally.
+(The order of finding system library and using fetched source code is determined by the setting of [`FETCHCONTENT_TRY_FIND_PACKAGE_MODE`](https://cmake.org/cmake/help/v3.29/module/FetchContent.html#variable:FETCHCONTENT_TRY_FIND_PACKAGE_MODE) variable)
 
 ### `FETCH_GOOGLETEST_FROM_SOURCE`
 If `FETCH_GOOGLE_TEST_FROM_SOURCE` is defined, it is used as a git tag to fetch GoogleTest source code from the official repository.
@@ -177,3 +149,46 @@ cmake --preset linux -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
 > 2. **Use normal project build flow**: Configure and build using project presets/targets. Do not add custom standalone cURL build commands unless explicitly requested.
 >
 > 3. **Avoid DLL side effects on tests**: `BUILD_SHARED_LIBS` is a global cache variable shared across dependencies. Keep it explicitly controlled to avoid unintentionally switching GoogleTest to DLL builds (`gtest.dll` / `gtest_main.dll`).
+
+## Building with CMake
+
+Building Neolith with CMake is made simple via presets:
+~~~sh
+cmake --preset linux
+cmake --build --preset ci-linux
+~~~
+The `neolith` executable can be found in `out/build/linux/src/RelWithDebInfo/`.
+
+### Build Presets
+The following build presets are defined for regular development tasks:
+
+Preset|Configuration|Targets|Description
+---|---|---|---
+`dev-linux`|Debug|`all`|Performs typical `make`.<br/>Used for feature **development** and troubleshooting.
+`pr-linux`|RelWithDebInfo|`all`|Performs typical `make`.<br/>Used for unit-testing on **pull-requests** before merge into the main trunk.
+`ci-linux`|RelWithDebInfo|`all`<br/>Benchmarks|Performs `make clean` and then `make`.<br/>This is the **continous-integration** build that ensures clean re-build of all targets and dependencies.<br/>Usually used after a clean re-configuration to create so-called nightly build.
+
+### Windows Platform
+Original MudOS and LPMud source code "probably" can build with mingw or Cygwin.
+
+Neolith can build with **Visual Studio 2019** or **ClangCL/LLVM**:
+~~~powershell
+# configure build with Visual Studio 2019 (version 16.x)
+cmake --preset vs16-x64
+# configure build with Clang/LLVM, available with Visual Studio 2019 (version 16.2 and later)
+cmake --preset clang-x64
+~~~
+
+On Windows, there is no standard package manager to install dependency libraries in conventional locations such as `/usr/lib` on Linux.
+You may neeed to add appropriate `FETCH_*_FROM_SOURCE` settings to download and build dependencies.
+
+### Reference Configuration
+For Linux:
+~~~powershell
+cmake "-DFETCH_GOOGLE_FROM_SOURCE=v1.17.0" "-DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1" "-DFETCH_CURL_FROM_SOURCE=curl-8_19_0" --preset linux
+~~~
+
+For Windows:
+~~~powershell
+cmake "-DFETCH_GOOGLE_FROM_SOURCE=v1.17.0" "-DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1" "-DFETCH_CURL_FROM_SOURCE=curl-8_19_0" --preset vs16-x64
+~~~
