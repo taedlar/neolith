@@ -70,6 +70,7 @@ find_package(Boost)
 if(Boost_FOUND)
 	set(HAVE_BOOST 1)
 endif()
+
 find_package(OpenSSL)
 if(OPENSSL_FOUND)
 	set(HAVE_OPENSSL 1)
