@@ -75,6 +75,8 @@ CURL also requires OpenSSL to deal with HTTPS protocol and protect the data tran
 sudo apt-get install curl libcurl4-openssl-dev
 ~~~
 
+For using local built CURL binaries of specific version, see [FETCH_CURL_FROM_SOURCE](#fetch_curl_from_source) section below.
+
 ### `Boost`
 Boost is a powerful **C++** library that provides open source, peer-reviewed, and portable code tend to be de facto C++ standards.
 While LPMud was first developed with C language, migrating to portable C++ gradually align with our goal to modernize the codebase in minimalist way.
@@ -127,3 +129,27 @@ cmake --preset linux -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1
 >    the x64 build environment is not setup correctly.
 >    Try starting a new shell and run `"%vcinstalldir%\auxiliary\build\vcvars64.bat"`
 >    before doing a clean re-build. 
+
+### `FETCH_CURL_FROM_SOURCE`
+When `FETCH_CURL_FROM_SOURCE` is defined, it is used as a git tag to fetch cURL source code from the official repository and build it as part of the main CMake build.
+
+In this project, fetched cURL is integrated into the normal configure/build flow (via dependency provider + `FetchContent`). There is no separate manual prebuild step.
+
+Example:
+~~~bash
+# Configure with fetched cURL source code using MSVC
+cmake --preset vs16-x64 -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
+# Configure with fetched cURL source code on Linux
+cmake --preset linux -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
+~~~
+
+> [!IMPORTANT]
+> **Agent Instructions — cURL Fetch/Build**
+>
+> When assisting with a build that uses `FETCH_CURL_FROM_SOURCE`, follow these guidelines:
+>
+> 1. **No prebuild consent gate needed**: Unlike OpenSSL prebuild, fetched cURL is built in-tree with the main project and does not require a separate long-running prebuild confirmation step.
+>
+> 2. **Use normal project build flow**: Configure and build using project presets/targets. Do not add custom standalone cURL build commands unless explicitly requested.
+>
+> 3. **Avoid DLL side effects on tests**: `BUILD_SHARED_LIBS` is a global cache variable shared across dependencies. Keep it explicitly controlled to avoid unintentionally switching GoogleTest to DLL builds (`gtest.dll` / `gtest_main.dll`).
