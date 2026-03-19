@@ -212,4 +212,7 @@ static int uid_free (void *p) {
  */
 void deinit_uids(void) {
   tree_mung(&uids, uid_free);
+  uids = NULL;
+  backbone_uid = NULL;
+  root_uid = NULL;
 }

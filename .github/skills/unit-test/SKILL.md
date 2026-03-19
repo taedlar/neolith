@@ -82,9 +82,11 @@ extern "C" {
 ```
 
 **Windows Socket Initialization**:
-- Make sure the fixture calls `WSAStartup()`/`WSACleanup()` if `WINSOCK` is defined. This can be done via a global test environment in GoogleTest. Pattern:
+- Include the `port/socket_comm.h` for configured socket header inclusion and utility functions.
+- Make sure a static instance of `testing::Environment` that calls `WSAStartup()`/`WSACleanup()` is created when `WINSOCK` is defined. Pattern:
 ```cpp
 #ifdef WINSOCK
+// In the test implementation file, define a testing environment to perform process-wide WINSOCK initialization and cleanup for all socket tests.
 class WinsockEnvironment : public ::testing::Environment {
     // SetUp() calls WSAStartup(), TearDown() calls WSACleanup()
 };
