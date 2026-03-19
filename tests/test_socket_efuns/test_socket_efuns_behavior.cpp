@@ -4,6 +4,11 @@
 
 #include "fixtures.hpp"
 
+#ifdef WINSOCK
+static ::testing::Environment* const winsock_env =
+  ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
+#endif
+
 // Behavior compatibility tests matching plan matrix IDs.
 // Each test verifies socket efun behavior against the baseline matrix defined in
 // docs/plan/socket-operation-engine.md Stage 1 checklist.
@@ -37,6 +42,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_001_CreateStream_Success) {
   
   // Verify no callbacks fired immediately
   ExpectNoCallbacks();
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   // Cleanup
   free_string(read_cb.u.string);
@@ -68,6 +75,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_002_CreateDatagram_CloseCallbackIgnored
   
   EXPECT_GE(fd, 0) << "socket_create(DATAGRAM, ...) returned negative fd: " << fd;
   ExpectNoCallbacks();
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(read_cb.u.string);
   free_string(close_cb.u.string);
@@ -125,6 +134,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_004_BindUnbound_Success) {
   EXPECT_EQ(result, EESUCCESS) 
     << "socket_bind(unbound_fd, 0) should succeed, got: " << result;
   ExpectNoCallbacks();
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(read_cb.u.string);
 }
@@ -157,6 +168,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_005_BindAlreadyBound_Rejected) {
   EXPECT_EQ(result2, EEISBOUND) 
     << "socket_bind on already-bound socket should return EEISBOUND, got: " << result2;
   ExpectNoCallbacks();
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(read_cb.u.string);
 }
@@ -193,6 +206,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_006_ListenBoundStream_Success) {
   EXPECT_EQ(result, EESUCCESS) 
     << "socket_listen on bound stream should succeed, got: " << result;
   ExpectNoCallbacks();
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(read_cb.u.string);
   free_string(listen_cb.u.string);
@@ -230,6 +245,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_007_ListenDatagram_Rejected) {
   EXPECT_EQ(result, EEMODENOTSUPP) 
     << "socket_listen on datagram should fail with EEMODENOTSUPP, got: " << result;
   ExpectNoCallbacks();
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(read_cb.u.string);
   free_string(listen_cb.u.string);
@@ -277,6 +294,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_009_AcceptNotListening_Rejected) {
   EXPECT_EQ(result, EENOTLISTN) 
     << "socket_accept on non-listening socket should return EENOTLISTN, got: " << result;
   ExpectNoCallbacks();
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
@@ -325,6 +344,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_011_ConnectMalformedAddress_Rejected) {
   EXPECT_EQ(result, EEBADADDR) 
     << "socket_connect with malformed address should return EEBADADDR, got: " << result;
   ExpectNoCallbacks();
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(bad_addr);
   free_string(read_cb.u.string);

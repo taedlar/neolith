@@ -6,16 +6,35 @@
 #include <memory>
 
 extern "C" {
-#include "std.h"
-#include "rc.h"
-#include "lpc/compiler.h"
-#include "lpc/types.h"
-#include "lpc/object.h"
-#include "lpc/functional.h"
-#include "socket/socket_efuns.h"
-#include "lpc/include/socket_err.h"
-#include "port/socket_comm.h"
+  #include "std.h"
+  #include "rc.h"
+  #include "lpc/compiler.h"
+  #include "lpc/types.h"
+  #include "lpc/object.h"
+  #include "lpc/functional.h"
+  #include "socket/socket_efuns.h"
+  #include "lpc/include/socket_err.h"
+  #include "port/socket_comm.h"
 }
+
+using namespace testing;
+
+#ifdef WINSOCK
+class WinsockEnvironment : public Environment {
+public:
+  void SetUp() override {
+    WSADATA wsa_data;
+    int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+    if (result != 0) {
+      throw std::runtime_error("WSAStartup failed");
+    }
+  }
+
+  void TearDown() override {
+    WSACleanup();
+  }
+};
+#endif
 
 /**
  * @brief Tracks callback invocations for behavioral verification.
@@ -39,25 +58,25 @@ struct CallbackRecord {
  * Provides full LPC runtime initialization, socket helper methods, and
  * callback tracking infrastructure. Each test maps directly to SOCK_BHV_XXX
  * IDs in docs/plan/socket-operation-engine.md.
+ *
+ * The LPC runtime (strings, compiler, simulate, master) is initialized once
+ * per test suite via SetUpTestSuite/TearDownTestSuite to avoid heap corruption
+ * from repeated init/deinit cycles on Windows. Per-test SetUp only resets the
+ * lightweight callback queue.
  */
-class SocketEfunsBehaviorTest : public ::testing::Test {
+class SocketEfunsBehaviorTest : public Test {
 protected:
-  std::filesystem::path previous_cwd;
+  // Initialized once per suite; persists across all tests.
+  inline static std::filesystem::path s_previous_cwd;
+
   std::queue<CallbackRecord> callback_records; // ordered callback history
 
-  void SetUp() override {
-    // Initialize Winsock on Windows before anything else
-#ifdef _WIN32
-    WSADATA wsaData;
-    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    ASSERT_EQ(iResult, 0) << "WSAStartup failed with error: " << iResult;
-#endif
-
+  static void SetUpTestSuite() {
     // Initialize logging and locale
     debug_set_log_with_date(0);
     setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
-    
-    // Initialize core driver with high debug level
+
+    // Initialize core driver
     init_stem(3, (unsigned long)-1, "m3.conf");
     init_config(MAIN_OPTION(config_file));
     debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
@@ -69,14 +88,14 @@ protected:
     if (mudlib_path.is_relative()) {
       mudlib_path = fs::current_path() / mudlib_path;
     }
-    ASSERT_TRUE(fs::exists(mudlib_path)) 
+    ASSERT_TRUE(fs::exists(mudlib_path))
       << "Mudlib directory does not exist: " << mudlib_path;
-    previous_cwd = fs::current_path();
+    s_previous_cwd = fs::current_path();
     fs::current_path(mudlib_path);
 
     // Initialize LPC string and compiler subsystems
     init_strings(8192, 1000000);
-    init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__), 
+    init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__),
                       CONFIG_STR(__INCLUDE_DIRS__));
 
     // Initialize simulate and eval cost
@@ -87,10 +106,10 @@ protected:
     init_master("/master.c");
   }
 
-  void TearDown() override {
-    // Destroy master object and clean up runtime
+  static void TearDownTestSuite() {
+    // Clean up runtime in reverse setup order.
     if (master_ob) {
-      destruct_object(master_ob);
+      close_referencing_sockets(master_ob);
     }
     tear_down_simulate();
     deinit_lpc_compiler();
@@ -99,12 +118,12 @@ protected:
 
     // Restore working directory
     namespace fs = std::filesystem;
-    fs::current_path(previous_cwd);
+    fs::current_path(s_previous_cwd);
+  }
 
-    // Cleanup Winsock on Windows
-#ifdef _WIN32
-    WSACleanup();
-#endif
+  void SetUp() override {
+    // Clear callback queue before each test.
+    ClearCallbacks();
   }
 
   /**
@@ -168,4 +187,4 @@ protected:
       current_object = saved_ob;
     }
   };
-};
+}; // SocketEfunsBehaviorTest
