@@ -8,21 +8,23 @@ set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL TRUE)
 include(FetchContent)
 
 # [ GoogleTest ]
-# set(gtest_force_shared_crt ON CACHE INTERNAL "Override Googletest options.")
-# Pitfall: BUILD_SHARED_LIBS is a global cache variable shared by all subprojects.
-# If a dependency flips it ON before GoogleTest is configured, tests may link to
-# gtest.dll/gtest_main.dll and fail to start when those DLLs are unavailable.
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Global shared/static default for dependencies" FORCE)
-set(gtest_build_tests OFF CACHE INTERNAL "Override Googletest options.")
-set(gtest_build_samples OFF CACHE INTERNAL "Override Googletest options.")
-set(INSTALL_GTEST OFF)
-set(BUILD_GMOCK OFF)
-FetchContent_Declare(
-    GoogleTest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG "v1.17.0"
-    EXCLUDE_FROM_ALL
-)
+if (FETCH_GOOGLETEST_FROM_SOURCE)
+    # set(gtest_force_shared_crt ON CACHE INTERNAL "Override Googletest options.")
+    # Pitfall: BUILD_SHARED_LIBS is a global cache variable shared by all subprojects.
+    # If a dependency flips it ON before GoogleTest is configured, tests may link to
+    # gtest.dll/gtest_main.dll and fail to start when those DLLs are unavailable.
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Global shared/static default for dependencies" FORCE)
+    set(gtest_build_tests OFF CACHE INTERNAL "Override Googletest options.")
+    set(gtest_build_samples OFF CACHE INTERNAL "Override Googletest options.")
+    set(INSTALL_GTEST OFF)
+    set(BUILD_GMOCK OFF)
+    FetchContent_Declare(
+        GoogleTest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG ${FETCH_GOOGLETEST_FROM_SOURCE}
+        EXCLUDE_FROM_ALL
+    )
+endif()
 
 # [ OpenSSL ]
 if (FETCH_OPENSSL_FROM_SOURCE)
@@ -67,26 +69,29 @@ endif()
 macro(setup_provide_dependency method package)
     message(DEBUG "Providing dependency: ${package} via method: ${method}")
 
-    # GoogleTest
-    if ("${package}" MATCHES "^(GTest|GoogleTest)$")
-        # use fetched GoogleTest
-        list(APPEND my_provider_args ${method} ${package}) # save arguments for macro reentrant
-        FetchContent_MakeAvailable(GoogleTest)
-        list(POP_BACK my_provider_args package method) # restore arguments
-        if ("${method}" STREQUAL "FIND_PACKAGE")
-            # import fetched package as like in module mode (FindGTest.cmake)
-            set(${package}_FOUND TRUE)
-            set(${package}_INCLUDE_DIRS "${googletest_SOURCE_DIR}/googletest/include")
-        elseif(NOT "${package}" STREQUAL "GoogleTest")
-            # adds GTest::gtest and GTest::gtest_main targets
-            FetchContent_SetPopulated(${package}
-                SOURCE_DIR "${googletest_SOURCE_DIR}"
-                BINARY_DIR "${googletest_BINARY_DIR}"
-            )
+    # GoogleTest (compatible with FindGTest.cmake)
+    if ("${package}" MATCHES "^(GTest|gtest|GoogleTest|googletest)$")
+        if (TARGET GTest::gtest AND TARGET GTest::gtest_main)
+            # GoogleTest targets are already available for build with CMake. We can use them directly.
+            set(GTest_FOUND TRUE)
+            set(${package}_FOUND ${GTest_FOUND})
+        else()
+            if (FETCH_GOOGLETEST_FROM_SOURCE)
+                # use fetched GoogleTest
+                list(APPEND my_provider_args ${method} ${package}) # save arguments for macro reentrant
+                FetchContent_MakeAvailable(GoogleTest)
+                list(POP_BACK my_provider_args package method) # restore arguments
+                if (TARGET GTest::gtest AND TARGET GTest::gtest_main)
+                    # GoogleTest targets are available for build with CMake. We can use them directly.
+                    set(GTest_FOUND TRUE)
+                    set(GTEST_ROOT "${googletest_SOURCE_DIR}")
+                endif()
+            endif()
+            set(${package}_FOUND ${GTest_FOUND})
         endif()
     endif()
 
-    # OpenSSL
+    # OpenSSL (compatible with FindOpenSSL.cmake)
     if ("${package}" MATCHES "^(OpenSSL|openssl|OPENSSL)$")
         # OpenSSL may be requested more than once (directly and transitively).
         # Skip repeated resolution after canonical imported targets exist.
@@ -98,7 +103,7 @@ macro(setup_provide_dependency method package)
                 list(APPEND my_provider_args ${method} ${package}) # save arguments for macro reentrant
                 FetchContent_MakeAvailable(OpenSSL)
                 list(POP_BACK my_provider_args package method) # restore arguments
-                include(prebuild-openssl)
+                include(prebuild-openssl) # prebuild and install to OPENSSL_ROOT_DIR for FindOpenSSL to find
             endif()
             set(OPENSSL_USE_STATIC_LIBS ON)
             if (MSVC)
@@ -108,15 +113,13 @@ macro(setup_provide_dependency method package)
                 # invoke FindOpenSSL to import well-known OpenSSL variables and targets
                 # keep provider-internal probe quiet; caller find_package() reports final status
                 find_package(OpenSSL MODULE BYPASS_PROVIDER QUIET ${ARGN})
-                if (TARGET OpenSSL::SSL AND TARGET OpenSSL::Crypto)
-                    message(STATUS "Found OpenSSL: ${OPENSSL_ROOT_DIR} (found version ${OPENSSL_VERSION})")
-                endif()
             endif()
             set(${package}_FOUND ${OPENSSL_FOUND})
         endif()
     endif()
 
-    if ("${package}" MATCHES "^(CURL|curl|Curl)$")
+    # cURL (compatible with FindCURL.cmake)
+    if ("${package}" MATCHES "^(CURL|curl|cURL|Curl)$")
         # CURL may be requested more than once (directly and transitively).
         # Skip repeated resolution after canonical imported target exists.
         if (TARGET CURL::libcurl)
@@ -131,9 +134,6 @@ macro(setup_provide_dependency method package)
                     # CURL targets are available for build with CMake. We can use them directly.
                     set(CURL_FOUND TRUE)
                     set(CURL_VERSION_STRING ${FETCH_CURL_FROM_SOURCE})
-                    if ("${method}" STREQUAL "FIND_PACKAGE")
-                        message(STATUS "Found CURL: ${curl_SOURCE_DIR} (found version ${CURL_VERSION_STRING})")
-                    endif()
                 endif()
             endif()
             set(${package}_FOUND ${CURL_FOUND})

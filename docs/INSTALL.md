@@ -3,18 +3,22 @@ INSTALL
 
 ## Setting Up Build Environment
 
-The recommended development environment is Ubuntu 20.04 LTS or later.
-
-> [!TIP]
-> For Windows users, the build is also tested with WSL (Windows Subsystem for Linux) on Windows 10.  
-> See [Install Linux on Windows with WSL](https://learn.microsoft.com/en-us/windows/wsl/install) for instructions to install Ubuntu on Windows.
-
-You also need the following packages:
+### Prerequisites
+For UNIX-like OS, you need the following packages 
 ~~~sh
+# Using Ubuntu for example:
 sudo apt install build-essential
 sudo apt install ninja-build
 sudo apt install bison
 ~~~
+
+For Windows platform:
+- **Option 1**: Native Win32 (x64) build using Microsoft Visual Studio 2019:
+  - Install [Bison for Windows](https://gnuwin32.sourceforge.net/packages/bison.htm) and provide the install location via `BISON_ROOT` variable in `CMakePresets.json`.
+  - (Optional) Fetch **GoogleTest** using [FETCH_GOOGLETEST_FROM_SOURCE](#fetch_googletest_from_source) when configure the build.
+  - (Optional) If **OpenSSL** and related features are desired, install [Strawberry Perl](https://strawberryperl.com/) for required toolchains to build OpenSSL on Windows.
+- **Option 2**: Using WSL:
+See [Install Linux on Windows with WSL](https://learn.microsoft.com/en-us/windows/wsl/install) for instructions to install Ubuntu on Windows.
 
 ## Building with CMake
 
@@ -39,7 +43,7 @@ Original MudOS and LPMud source code "probably" can build with mingw or Cygwin.
 
 Neolith can be successfully build with **Visual Studio 2019** :tada: and **Clang/LLVM** :tada: :
 ~~~sh
-# configure build with Visual Studio 2019 (vc++ 16)
+# configure build with Visual Studio 2019 (version 16.x)
 cmake --preset vs16-x64
 
 # configure build with Clang/LLVM, available with Visual Studio 2019 v16.2 and later
@@ -56,6 +60,16 @@ The build presets follow the same naming as in Linux build:
 
 ## Dependencies for Optional Features
 The CMake build scripts detects availability of packages and enable optional features:
+
+### `GoogleTest`
+Neolith uses GoogleTest for unit-testing.
+If you don't plan to modify the source code, this is optional.
+~~~bash
+# For Linux
+sudo apt install libgtest-dev
+~~~
+
+For using fetched GoogleTest source code of specific version, see [FETCH_GOOGLETEST_FROM_SOURCE]()
 
 ### `OpenSSL`
 The popular OpenSSL library provides modern cryptography for network communications as well as HTTPS.
@@ -92,6 +106,16 @@ On Windows, there is no standard package manager to install dependency libraries
 CMake offers **dependency provider** since v3.24 to allow the `find_package()` requests to be intercepted and handled to satisfy dependencies before returning "not found".
 
 If the following CMake variables are defined, they enable the configure step to attempt fetching source code and build the dependencies locally:
+
+### `FETCH_GOOGLETEST_FROM_SOURCE`
+If `FETCH_GOOGLE_TEST_FROM_SOURCE` is defined, it is used as a git tag to fetch GoogleTest source code from the official repository.
+Example:
+~~~bash
+# Configure with fetched GoogleTest on Windows
+cmake --preset vs16-x64 -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+# Configure with fetched GoogleTest on Linux
+cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+~~~
 
 ### `FETCH_OPENSSL_FROM_SOURCE`
 When `FETCH_OPENSSL_FROM_SOURCE` is defined, it is used as a git tag to fetch OpenSSL source code from the official repository (see [prebuild-openssl.cmake](../cmake/prebuild-openssl.cmake)) for satisfying the `OpenSSL`. Example:
