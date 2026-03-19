@@ -1,194 +1,200 @@
 INSTALL
 =======
 
-## Setting Up Build Environment
+## Setting Up the Build Environment
 
 ### Prerequisites
-For UNIX-like OS, you need the following packages 
+
+For Linux (Ubuntu example):
+
 ~~~sh
-# Using Ubuntu for example:
-sudo apt install build-essential
-sudo apt install ninja-build
-sudo apt install bison
+sudo apt install build-essential ninja-build bison cmake
 ~~~
 
-For Windows platform:
-- **Option 1**: Native Win32 (x64) build using Microsoft Visual Studio 2019:
-  - Install [Bison for Windows](https://gnuwin32.sourceforge.net/packages/bison.htm) and provide the install location via `BISON_ROOT` variable in `CMakePresets.json`.
-  - (Optional) Fetch **GoogleTest** using [FETCH_GOOGLETEST_FROM_SOURCE](#fetch_googletest_from_source) when configuring the build.
-  - (Optional) If **OpenSSL** and related features are desired, install [Strawberry Perl](https://strawberryperl.com/) for required toolchains to build OpenSSL on Windows.
-- **Option 2**: Using WSL:
-See [Install Linux on Windows with WSL](https://learn.microsoft.com/en-us/windows/wsl/install) for instructions to install Ubuntu on Windows.
+Neolith requires CMake 3.28 or later.
+If your distribution provides an older version, install a newer one from [cmake.org](https://cmake.org/download/).
 
-### CMake
-Neolith uses **CMake** to organize the build and manage dependencies. You need cmake **v3.28** or later to build the project:
-~~~bash
-sudo apt install cmake
+For Windows:
+
+- Option 1: Native build with Visual Studio 2019 (recommended)
+  - Install [Bison for Windows](https://gnuwin32.sourceforge.net/packages/bison.htm).
+  - Ensure `BISON_ROOT` points to the Bison install root (for example `C:/GnuWin32`). The default in [CMakePresets.json](../CMakePresets.json) already uses this path.
+  - Optional: install [Strawberry Perl](https://strawberryperl.com/) if you plan to use `FETCH_OPENSSL_FROM_SOURCE`.
+- Option 2: WSL
+  - Follow [Install Linux on Windows with WSL](https://learn.microsoft.com/en-us/windows/wsl/install), then use the Linux instructions.
+
+## Optional Dependencies
+
+The build system enables optional features when dependencies are found.
+
+### GoogleTest
+
+GoogleTest is only required for unit tests. To skip test targets entirely, configure with:
+
+~~~sh
+cmake --preset <configure-preset> -DBUILD_TESTING=OFF
 ~~~
 
-If your Linux distribution's cmake version is too old, visit [Download CMake](https://cmake.org/download/) to download a newer version.
+Linux package:
 
-## Dependencies for Optional Features
-The CMake build scripts detects availability of packages and enable optional features:
-
-### `GoogleTest`
-Neolith uses GoogleTest for unit-testing.
-If you don't plan to modify the source code, this is optional.
-~~~bash
-# For Linux
+~~~sh
 sudo apt install libgtest-dev
 ~~~
 
-For using fetched GoogleTest source code of specific version, see [FETCH_GOOGLETEST_FROM_SOURCE]()
+You can also fetch GoogleTest from source with [FETCH_GOOGLETEST_FROM_SOURCE](#fetch_googletest_from_source).
 
-### `OpenSSL`
-The popular OpenSSL library provides modern cryptography for network communications as well as HTTPS.
-You'll need both `openssl` and `libssl-dev` to enable those features requires OpenSSL:
-~~~bash
-# For Linux
-sudo apt-get install openssl libssl-dev
+### OpenSSL
+
+OpenSSL enables modern cryptography and HTTPS support.
+
+Linux packages:
+
+~~~sh
+sudo apt install openssl libssl-dev
 ~~~
 
-For using local built OpenSSL binaries of specific version, see [FETCH_OPENSSL_FROM_SOURCE](#fetch_openssl_from_source) section below.
+You can also fetch OpenSSL from source with [FETCH_OPENSSL_FROM_SOURCE](#fetch_openssl_from_source).
 
-### `cURL`
-CURL is the most popular tool and library to connect an application and various cloud infrastructure with **REST APIs**.
-CURL also requires OpenSSL to deal with HTTPS protocol and protect the data transmitted:
-~~~bash
-# For Linux
-sudo apt-get install curl libcurl4-openssl-dev
+### cURL
+
+cURL enables outbound HTTP(S) and REST API integration.
+
+Linux packages:
+
+~~~sh
+sudo apt install curl libcurl4-openssl-dev
 ~~~
 
-For using local built CURL binaries of specific version, see [FETCH_CURL_FROM_SOURCE](#fetch_curl_from_source) section below.
+You can also fetch cURL from source with [FETCH_CURL_FROM_SOURCE](#fetch_curl_from_source).
 
-### `Boost`
-Boost is a powerful **C++** library that provides open source, peer-reviewed, and portable code tend to be de facto C++ standards.
-While LPMud was first developed with C language, migrating to portable C++ gradually align with our goal to modernize the codebase in minimalist way.
+### Boost
 
-To keep a small footprint, we'll start from the core Boost libraries (avoid rarely used Boost libraries in `libboost-all-dev`):
-~~~bash
-# For Linux
-sudo apt-get install libboost-dev
+Boost is optional and used when available.
+
+Linux package:
+
+~~~sh
+sudo apt install libboost-dev
 ~~~
 
-For Windows, Boost is available for download as [source code](https://sourceforge.net/projects/boost/) or [binaries](https://sourceforge.net/projects/boost/files/boost-binaries/). Supply the install location (e.g. `D:\boost_1_90_0`)with `BOOST_ROOT` variable in `CMakePresets.json` and allow the configure step to import Boost headers and binaries.
+On Windows, install Boost manually and set `BOOST_ROOT` (for example `D:\boost_1_90_0`) in your preset or configure command.
 
-## Using Dependency Provider
-CMake offers **dependency provider** since v3.24 to allow the `find_package()` requests to be intercepted and handled to satisfy dependencies before returning "not found".
+## Dependency Provider Settings
 
-If the following CMake variables are defined, they enable the configure step to attempt fetching source code and build the dependencies locally.
-(The order of finding system library and using fetched source code is determined by the setting of [`FETCHCONTENT_TRY_FIND_PACKAGE_MODE`](https://cmake.org/cmake/help/v3.29/module/FetchContent.html#variable:FETCHCONTENT_TRY_FIND_PACKAGE_MODE) variable)
+This project uses CMake dependency provider hooks (via `cmake/setup.cmake`) so `find_package()` can be satisfied by FetchContent-based sources when requested.
+
+If any of the following cache variables are set, configure will fetch that dependency source at the specified tag and make it available to the build.
+Resolution order still depends on `FETCHCONTENT_TRY_FIND_PACKAGE_MODE`.
 
 ### `FETCH_GOOGLETEST_FROM_SOURCE`
-If `FETCH_GOOGLE_TEST_FROM_SOURCE` is defined, it is used as a git tag to fetch GoogleTest source code from the official repository.
-Example:
-~~~bash
-# Configure with fetched GoogleTest on Windows
+
+If defined, this value is used as the Git tag for GoogleTest.
+
+~~~sh
+# Windows
 cmake --preset vs16-x64 -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
-# Configure with fetched GoogleTest on Linux
+
+# Linux
 cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
 ~~~
 
 ### `FETCH_OPENSSL_FROM_SOURCE`
-When `FETCH_OPENSSL_FROM_SOURCE` is defined, it is used as a git tag to fetch OpenSSL source code from the official repository (see [prebuild-openssl.cmake](../cmake/prebuild-openssl.cmake)) for satisfying the `OpenSSL`. Example:
-~~~bash
-# Configure and prebuild OpenSSL from source code using MSVC
+
+If defined, this value is used as the Git tag for OpenSSL. OpenSSL is prebuilt and installed under `${CMAKE_BINARY_DIR}/openssl` by [prebuild-openssl.cmake](../cmake/prebuild-openssl.cmake), then resolved by `find_package(OpenSSL)`.
+
+~~~sh
+# Windows
 cmake --preset vs16-x64 -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1
-# Configure and prebuild OpenSSL from source code on Linux
+
+# Linux
 cmake --preset linux -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1
 ~~~
 
 > [!IMPORTANT]
-> **Agent Instructions — OpenSSL Prebuild**
+> **Operational Notes for `FETCH_OPENSSL_FROM_SOURCE`**
 >
-> When assisting with a build that uses `FETCH_OPENSSL_FROM_SOURCE`, follow these steps before taking any action that would trigger the OpenSSL prebuild:
->
-> 1. **Check `OPENSSL_ROOT_DIR`**: `prebuild-openssl.cmake` sets `OPENSSL_ROOT_DIR` to
->    `${CMAKE_BINARY_DIR}/openssl` (e.g. `out/build/<preset>/openssl`).
->    If that directory already exists, OpenSSL is fully prebuilt and installed — no build action
->    is needed. Skip to using `find_package(OpenSSL)` directly.
->
-> 2. **Check `configdata.pm`**: If `OPENSSL_ROOT_DIR` does not exist, check whether
->    `${CMAKE_BINARY_DIR}/_deps/openssl-build/configdata.pm` exists.
->    - If present, OpenSSL has already been configured (but not installed). The build can
->      resume from the compile step without re-running the `Configure` script.
->    - If absent, a full configure + compile + install will be required.
->
-> 3. **Ask for user consent before building**: Compiling OpenSSL from source is a long-running
->    operation (potentially 10–30 minutes depending on the host). **Always ask the user for explicit
->    confirmation** before running any CMake configure or build command that would trigger the
->    OpenSSL prebuild. Describe which step will run (configure, compile, or install) and warn
->    that it will take significant time.
->
-> 4. **MSVC x64 build environment**: On Windows, OpenSSL contains assembly code that requires x64 MSVC toolchains
->    to produce correct object files for linking. If link error occurs, it is possible
->    the x64 build environment is not setup correctly.
->    Try starting a new shell and run `"%vcinstalldir%\auxiliary\build\vcvars64.bat"`
->    before doing a clean re-build. 
+> 1. If `${CMAKE_BINARY_DIR}/openssl` already exists, OpenSSL is already prebuilt and installed for that build tree.
+> 2. If `${CMAKE_BINARY_DIR}/_deps/openssl-build/configdata.pm` exists, OpenSSL is already configured and can resume from compile/install.
+> 3. OpenSSL source builds can take 10-30 minutes depending on host performance.
+> 4. On Windows, ensure an x64 MSVC build environment when building x64 targets (for example via `vcvars64.bat`) to avoid architecture/link mismatches.
 
 ### `FETCH_CURL_FROM_SOURCE`
-When `FETCH_CURL_FROM_SOURCE` is defined, it is used as a git tag to fetch cURL source code from the official repository and build it as part of the main CMake build.
 
-In this project, fetched cURL is integrated into the normal configure/build flow (via dependency provider + `FetchContent`). There is no separate manual prebuild step.
+If defined, this value is used as the Git tag for cURL. In this project, cURL is fetched and built in-tree as part of the normal configure/build flow.
 
-Example:
-~~~bash
-# Configure with fetched cURL source code using MSVC
+~~~sh
+# Windows
 cmake --preset vs16-x64 -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
-# Configure with fetched cURL source code on Linux
+
+# Linux
 cmake --preset linux -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
 ~~~
 
 > [!IMPORTANT]
-> **Agent Instructions — cURL Fetch/Build**
+> **Operational Notes for `FETCH_CURL_FROM_SOURCE`**
 >
-> When assisting with a build that uses `FETCH_CURL_FROM_SOURCE`, follow these guidelines:
->
-> 1. **No prebuild consent gate needed**: Unlike OpenSSL prebuild, fetched cURL is built in-tree with the main project and does not require a separate long-running prebuild confirmation step.
->
-> 2. **Use normal project build flow**: Configure and build using project presets/targets. Do not add custom standalone cURL build commands unless explicitly requested.
->
-> 3. **Avoid DLL side effects on tests**: `BUILD_SHARED_LIBS` is a global cache variable shared across dependencies. Keep it explicitly controlled to avoid unintentionally switching GoogleTest to DLL builds (`gtest.dll` / `gtest_main.dll`).
+> 1. There is no separate manual prebuild phase for cURL.
+> 2. Use normal Neolith presets and targets.
+> 3. Keep `BUILD_SHARED_LIBS` controlled; it is global and can affect downstream dependencies such as GoogleTest.
 
-## Building with CMake
+## Building with CMake Presets
 
-Building Neolith with CMake is made simple via presets:
+From repository root:
+
+~~~sh
+cmake --preset <configure-preset>
+cmake --build --preset <build-preset>
+~~~
+
+Example (Linux CI-style clean rebuild):
+
 ~~~sh
 cmake --preset linux
 cmake --build --preset ci-linux
 ~~~
-The `neolith` executable can be found in `out/build/linux/src/RelWithDebInfo/`.
 
-### Build Presets
-The following build presets are defined for regular development tasks:
+For Linux `RelWithDebInfo`, the executable is typically at `out/build/linux/src/RelWithDebInfo/neolith`.
+
+### Build Presets Overview
 
 Preset|Configuration|Targets|Description
 ---|---|---|---
-`dev-linux`|Debug|`all`|Performs typical `make`.<br/>Used for feature **development** and troubleshooting.
-`pr-linux`|RelWithDebInfo|`all`|Performs typical `make`.<br/>Used for unit-testing on **pull-requests** before merge into the main trunk.
-`ci-linux`|RelWithDebInfo|`all`<br/>Benchmarks|Performs `make clean` and then `make`.<br/>This is the **continous-integration** build that ensures clean re-build of all targets and dependencies.<br/>Usually used after a clean re-configuration to create so-called nightly build.
+`dev-linux`|Debug|`all`|Incremental development build.
+`pr-linux`|RelWithDebInfo|`all`|Incremental validation build.
+`ci-linux`|RelWithDebInfo|`all`|Clean rebuild (`cleanFirst=true`) for CI-style checks.
 
-### Windows Platform
-Original MudOS and LPMud source code "probably" can build with mingw or Cygwin.
+Windows and ClangCL equivalents:
 
-Neolith can build with **Visual Studio 2019** or **ClangCL/LLVM**:
-~~~powershell
-# configure build with Visual Studio 2019 (version 16.x)
-cmake --preset vs16-x64
-# configure build with Clang/LLVM, available with Visual Studio 2019 (version 16.2 and later)
-cmake --preset clang-x64
+- `dev-vs16-x64`, `pr-vs16-x64`, `ci-vs16-x64`
+- `dev-clang-x64`, `pr-clang-x64`, `ci-clang-x64`
+- `dev-vs16-win32`, `pr-vs16-win32`, `ci-vs16-win32`
+
+### Running Unit Tests
+
+Use CTest presets after building:
+
+~~~sh
+ctest --preset ut-linux
+ctest --preset ut-vs16-x64
+ctest --preset ut-clang-x64
 ~~~
 
-On Windows, there is no standard package manager to install dependency libraries in conventional locations such as `/usr/lib` on Linux.
-You may neeed to add appropriate `FETCH_*_FROM_SOURCE` settings to download and build dependencies.
+## Reference Configure Commands
 
-### Reference Configuration
-For Linux:
-~~~powershell
-cmake "-DFETCH_GOOGLE_FROM_SOURCE=v1.17.0" "-DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1" "-DFETCH_CURL_FROM_SOURCE=curl-8_19_0" --preset linux
+Linux:
+
+~~~sh
+cmake --preset linux \
+  -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 \
+  -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 \
+  -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
 ~~~
 
-For Windows:
+Windows (PowerShell):
+
 ~~~powershell
-cmake "-DFETCH_GOOGLE_FROM_SOURCE=v1.17.0" "-DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1" "-DFETCH_CURL_FROM_SOURCE=curl-8_19_0" --preset vs16-x64
+cmake --preset vs16-x64 `
+  -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 `
+  -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 `
+  -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
 ~~~
