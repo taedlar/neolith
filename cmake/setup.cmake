@@ -133,6 +133,7 @@ macro(setup_provide_dependency method package)
                 if (TARGET CURL::libcurl)
                     # CURL targets are available for build with CMake. We can use them directly.
                     set(CURL_FOUND TRUE)
+                    set(CURL_INCLUDE_DIRS "${curl_SOURCE_DIR}/include")
                     set(CURL_VERSION_STRING ${FETCH_CURL_FROM_SOURCE})
                 endif()
             endif()
