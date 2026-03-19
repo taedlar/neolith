@@ -2589,9 +2589,8 @@ void init_lpc_compiler(size_t max_locals, const char* include_dirs) {
 }
 
 void deinit_lpc_compiler() {
-  free_defines(1);    // free all defines including predefines
   reset_inc_list();   // free include path list
-
+  free_defines(1);    // free all defines including predefines
   deinit_locals();
   deinit_identifiers();
   deinit_instrs();

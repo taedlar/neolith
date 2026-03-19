@@ -59,10 +59,9 @@ struct CallbackRecord {
  * callback tracking infrastructure. Each test maps directly to SOCK_BHV_XXX
  * IDs in docs/plan/socket-operation-engine.md.
  *
- * The LPC runtime (strings, compiler, simulate, master) is initialized once
- * per test suite via SetUpTestSuite/TearDownTestSuite to avoid heap corruption
- * from repeated init/deinit cycles on Windows. Per-test SetUp only resets the
- * lightweight callback queue.
+ * Initializes and deinitializes the LPC runtime per test in SetUp/TearDown.
+ * Repeated cycles work correctly in pedantic mode. Per-test setup resets
+ * the callback queue and reinitializes the LPC subsystems.
  */
 class SocketEfunsBehaviorTest : public Test {
 protected:
@@ -71,22 +70,25 @@ protected:
 
   std::queue<CallbackRecord> callback_records; // ordered callback history
 
-  static void SetUpTestSuite() {
+  void SetUp() override {
+    namespace fs = std::filesystem;
     // Initialize logging and locale
     debug_set_log_with_date(0);
     setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
 
     // Initialize core driver
-    init_stem(3, (unsigned long)-1, "m3.conf");
+    fs::path config_dir = fs::current_path();
+    if (!fs::exists(config_dir / "m3.conf"))
+      config_dir = fs::current_path().parent_path();
+    init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
     init_config(MAIN_OPTION(config_file));
     debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
 
     // Verify mudlib path and change to it
     ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__)) << "Mudlib directory not configured";
-    namespace fs = std::filesystem;
     auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
     if (mudlib_path.is_relative()) {
-      mudlib_path = fs::current_path() / mudlib_path;
+      mudlib_path = config_dir / mudlib_path;
     }
     ASSERT_TRUE(fs::exists(mudlib_path))
       << "Mudlib directory does not exist: " << mudlib_path;
@@ -104,9 +106,12 @@ protected:
 
     // Initialize master object for apply dispatch
     init_master("/master.c");
+
+    // Clear callback queue before each test.
+    ClearCallbacks();
   }
 
-  static void TearDownTestSuite() {
+  void TearDown() override {
     // Clean up runtime in reverse setup order.
     if (master_ob) {
       close_referencing_sockets(master_ob);
@@ -118,12 +123,8 @@ protected:
 
     // Restore working directory
     namespace fs = std::filesystem;
-    fs::current_path(s_previous_cwd);
-  }
-
-  void SetUp() override {
-    // Clear callback queue before each test.
-    ClearCallbacks();
+    if (!s_previous_cwd.empty())
+      fs::current_path(s_previous_cwd);
   }
 
   /**

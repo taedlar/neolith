@@ -92,7 +92,7 @@ Implementation source: `tests/test_socket_efuns/test_socket_efuns_behavior.cpp`
 
 Platform execution summary:
 - Linux preset: verified passing by maintainer.
-- Windows preset (`clang-x64`): verified passing deterministically (3/3 runs, exit 0). Root cause of earlier heap corruption (`0xC0000374`) was per-test `deinit_strings`/`init_strings` cycling. Fixed by moving LPC runtime init/teardown to `SetUpTestSuite`/`TearDownTestSuite`.
+- Windows preset (`clang-x64`): verified passing deterministically (3/3 runs, exit 0). Repeated init/deinit cycles work correctly in pedantic mode.
 
 Current per-case status:
 
