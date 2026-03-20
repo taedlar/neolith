@@ -11,6 +11,7 @@
 #include "rc.h"
 #include "simul_efun.h"
 #include "interpret.h"
+#include "async/console_mode.h"
 #include "socket/socket_efuns.h"
 #include "efuns/ed.h"
 
@@ -931,6 +932,11 @@ void set_console_echo (int echo) {
   else
     tty.c_lflag &= ~ECHO;
   safe_tcsetattr (ip->fd, &tty); /* TTY: discard pending input, Pipe: preserve data */
+#elif defined(_WIN32)
+  /* Only real Windows consoles support ENABLE_ECHO_INPUT.
+   * Pipes/files are handled by the console worker and should be left unchanged.
+   */
+  set_console_input_echo (echo);
 #endif
 }
 
@@ -965,6 +971,8 @@ void set_telnet_single_char (interactive_t * ip, int single) {
       else
         tio.c_lflag |= ICANON|ECHO; /* enable canonical mode and echo: use line editing */
       safe_tcsetattr (ip->fd, &tio); /* TTY: discard pending input, Pipe: preserve data */
+#elif defined(_WIN32)
+      set_console_input_single_char (single);
 #endif
       return;
     }

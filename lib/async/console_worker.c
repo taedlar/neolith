@@ -6,6 +6,7 @@
  */
 
 #include "console_worker.h"
+#include "console_mode.h"
 #include "port/debug.h"
 
 #include <stdlib.h>
@@ -103,19 +104,8 @@ static void* console_worker_proc_win32(void* ctx) {
     /* Set UTF-8 code page */
     SetConsoleCP(CP_UTF8);
 
-    /* If standard input is a console, enable line input and processed input modes */
-    DWORD mode;
-    if (GetConsoleMode(hStdin, &mode)) {
-        DWORD new_mode = ENABLE_EXTENDED_FLAGS
-            | ENABLE_QUICK_EDIT_MODE    /* allows mouse select and edit of console input */
-            | ENABLE_PROCESSED_INPUT    /* Ctrl-C handling, plus other control keys */
-            | ENABLE_LINE_INPUT         /* ReadConsoleA() returns only when ENTER is pressed */
-            | ENABLE_ECHO_INPUT         /* echo input characters */
-            ;
-        if (!SetConsoleMode(hStdin, new_mode)) {
-            debug_warn ("SetConsoleMode failed to enable line input: %lu\n", GetLastError());
-        }
-    }
+    /* If standard input is a console, enable cooked line input with echo. */
+    set_console_input_line_mode(1);
 
     char line_buffer[CONSOLE_MAX_LINE];
     DWORD chars_read = 0;

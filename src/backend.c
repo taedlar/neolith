@@ -19,6 +19,7 @@
 #include "efuns/call_out.h"
 #include "port/timer.h"
 #include "async/async_runtime.h"
+#include "async/console_mode.h"
 
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
@@ -178,19 +179,8 @@ void init_console_user(int reconnect) {
   }
 #elif defined(WINSOCK)
   {
-    /* Enable Windows's vt100 simulation for outputs.
-     * This allows ANSI escape sequences for text color and cursor movement to work on stdout.
-     * Reference: https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
-     */
-    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD mode = 0;
-    if (GetConsoleMode(hStdout, &mode))
-      {
-        SetConsoleOutputCP (CP_UTF8);
-        if (!SetConsoleMode(hStdout, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT))
-          debug_message("Failed to set ENABLE_VIRTUAL_TERMINAL_PROCESSING mode for console stdout.\n");
-      }
-    /* NOTE: If stdout are piped, the GetConsoleMode() will fail and leave the console mode unchanged */
+    set_console_input_line_mode(1);
+    enable_console_output_ansi();
   }
 #endif
   if (reconnect)
