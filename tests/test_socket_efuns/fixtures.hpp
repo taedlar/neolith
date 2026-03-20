@@ -9,12 +9,16 @@ extern "C" {
   #include "std.h"
   #include "rc.h"
   #include "lpc/compiler.h"
+  #include "lpc/array.h"
+  #include "lpc/program.h"
+  #include "lpc/svalue.h"
   #include "lpc/types.h"
   #include "lpc/object.h"
   #include "lpc/functional.h"
   #include "socket/socket_efuns.h"
   #include "lpc/include/socket_err.h"
   #include "port/socket_comm.h"
+  #include "interpret.h"
 }
 
 using namespace testing;
@@ -163,6 +167,112 @@ protected:
   void ExpectNoCallbacks() {
     EXPECT_TRUE(callback_records.empty()) 
       << "Expected no callbacks but found " << callback_records.size() << " pending";
+  }
+
+  object_t* LoadCallbackOwner(const char* object_name = "test_socket_callback_owner.c") {
+    static const char callback_owner_code[] =
+      "mixed *events = ({});\n"
+      "void create() { events = ({}); }\n"
+      "void clear_events() { events = ({}); }\n"
+      "varargs void read_callback(int fd, mixed payload, mixed extra) { events += ({ ({ \"read\", fd, payload, extra }) }); }\n"
+      "varargs void write_callback(int fd, mixed payload, mixed extra) { events += ({ ({ \"write\", fd, payload, extra }) }); }\n"
+      "varargs void close_callback(int fd, mixed payload, mixed extra) { events += ({ ({ \"close\", fd, payload, extra }) }); }\n"
+      "mixed *query_events() { return events; }\n";
+
+    ScopedObjectContext ctx(this, master_ob);
+    object_t* owner = load_object(object_name, callback_owner_code);
+    EXPECT_NE(owner, nullptr) << "Failed to load LPC callback owner object";
+    return owner;
+  }
+
+  void CaptureCallbacksFromOwner(object_t* owner) {
+    int index;
+    int fio;
+    int vio;
+    int event_index;
+    int runtime_index;
+    int saved_vio;
+    object_t* saved_current_object;
+    program_t* found_prog;
+    svalue_t ret;
+
+    ASSERT_NE(owner, nullptr) << "Callback owner object is null";
+
+    ClearCallbacks();
+
+    found_prog = find_function(owner->prog, findstring("query_events"), &index, &fio, &vio);
+    ASSERT_NE(found_prog, nullptr) << "query_events() not found on callback owner object";
+
+    runtime_index = found_prog->function_table[index].runtime_index + fio;
+    saved_current_object = current_object;
+    saved_vio = variable_index_offset;
+    current_object = owner;
+    variable_index_offset = vio;
+    call_function(owner->prog, runtime_index, 0, &ret);
+    current_object = saved_current_object;
+    variable_index_offset = saved_vio;
+
+    ASSERT_EQ(ret.type, T_ARRAY) << "query_events() should return an array";
+    ASSERT_NE(ret.u.arr, nullptr) << "query_events() returned a null array";
+
+    for (event_index = 0; event_index < ret.u.arr->size; event_index++) {
+      svalue_t* event = &ret.u.arr->item[event_index];
+      ASSERT_EQ(event->type, T_ARRAY) << "Each callback record should be an array";
+      ASSERT_NE(event->u.arr, nullptr) << "Callback record array is null";
+      ASSERT_GE(event->u.arr->size, 2) << "Callback record should have at least type and fd";
+
+      svalue_t* event_type = &event->u.arr->item[0];
+      svalue_t* event_fd = &event->u.arr->item[1];
+      svalue_t* event_payload = event->u.arr->size > 2 ? &event->u.arr->item[2] : nullptr;
+
+      ASSERT_EQ(event_type->type, T_STRING) << "Callback record type should be a string";
+      ASSERT_EQ(event_fd->type, T_NUMBER) << "Callback record fd should be a number";
+
+      CallbackRecord::CallbackType type = CallbackRecord::CB_READ;
+      if (strcmp(event_type->u.string, "write") == 0) {
+        type = CallbackRecord::CB_WRITE;
+      } else if (strcmp(event_type->u.string, "close") == 0) {
+        type = CallbackRecord::CB_CLOSE;
+      }
+
+      std::string payload;
+      if (event_payload != nullptr) {
+        if (event_payload->type == T_STRING) {
+          payload = event_payload->u.string;
+        } else if (event_payload->type == T_NUMBER) {
+          payload = std::to_string(event_payload->u.number);
+        }
+      }
+
+      callback_records.emplace(type, static_cast<int>(event_fd->u.number), 0, payload);
+    }
+
+    free_svalue(&ret, "CaptureCallbacksFromOwner");
+  }
+
+  void ClearCallbackOwnerEvents(object_t* owner) {
+    int index;
+    int fio;
+    int vio;
+    int runtime_index;
+    int saved_vio;
+    object_t* saved_current_object;
+    program_t* found_prog;
+
+    ASSERT_NE(owner, nullptr) << "Callback owner object is null";
+
+    found_prog = find_function(owner->prog, findstring("clear_events"), &index, &fio, &vio);
+    ASSERT_NE(found_prog, nullptr) << "clear_events() not found on callback owner object";
+
+    runtime_index = found_prog->function_table[index].runtime_index + fio;
+    saved_current_object = current_object;
+    saved_vio = variable_index_offset;
+    current_object = owner;
+    variable_index_offset = vio;
+    call_function(owner->prog, runtime_index, 0, nullptr);
+    current_object = saved_current_object;
+    variable_index_offset = saved_vio;
+    ClearCallbacks();
   }
 
   /**

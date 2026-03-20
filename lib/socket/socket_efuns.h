@@ -19,6 +19,17 @@ enum socket_state {
     CLOSED, FLUSHING, UNBOUND, BOUND, LISTEN, DATA_XFER
 };
 
+enum socket_operation_phase {
+    OP_INIT,
+    OP_DNS_RESOLVING,
+    OP_CONNECTING,
+    OP_TRANSFERRING,
+    OP_COMPLETED,
+    OP_FAILED,
+    OP_TIMED_OUT,
+    OP_CANCELED
+};
+
 #define	BUF_SIZE	2048	/* max reliable packet size	   */
 #define ADDR_BUF_SIZE	64	/* max length of address string    */
 
@@ -45,6 +56,8 @@ typedef struct {
     int w_off;
     int w_len;
 } lpc_socket_t;
+
+typedef void (*socket_release_test_hook_t)(int, object_t *);
 
 extern lpc_socket_t *lpc_socks;
 extern int max_lpc_socks;
@@ -76,4 +89,6 @@ int socket_write(int, svalue_t *, char *);
 int socket_close(int, int);
 int socket_release(int, object_t *, svalue_t *);
 int socket_acquire(int, svalue_t *, svalue_t *, svalue_t *);
+void set_socket_release_test_hook(socket_release_test_hook_t);
 char *socket_error(int);
+int get_socket_operation_info(int, int *, int *, int *, int *);

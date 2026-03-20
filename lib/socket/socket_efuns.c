@@ -11,6 +11,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <assert.h>
+#include <time.h>
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -43,8 +44,211 @@
 lpc_socket_t *lpc_socks = 0;
 int max_lpc_socks = 0;
 
+typedef struct {
+  int active;
+  int terminal;
+  int op_id;
+  int socket_id;
+  object_t *owner_ob;
+  enum socket_operation_phase phase;
+  time_t deadline;
+} socket_operation_t;
+
+static socket_operation_t *socket_ops = NULL;
+static int next_socket_op_id = 1;
+static socket_release_test_hook_t socket_release_test_hook = NULL;
+
 static int socket_name_to_sin (char *, struct sockaddr_in *);
 static char *inet_address (struct sockaddr_in *);
+static const char *lookup_socket_operation_phase_name (enum socket_operation_phase phase);
+static int is_socket_operation_terminal_phase (enum socket_operation_phase phase);
+static int can_transition_socket_operation_phase (enum socket_operation_phase from, enum socket_operation_phase to);
+static void clear_socket_operation (int socket_id);
+static int start_socket_operation (int socket_id, object_t *owner_ob, time_t deadline);
+static int set_socket_operation_phase (int socket_id, enum socket_operation_phase next_phase);
+static int complete_socket_operation (int socket_id, enum socket_operation_phase terminal_phase);
+
+void
+set_socket_release_test_hook (socket_release_test_hook_t hook)
+{
+  socket_release_test_hook = hook;
+}
+
+static const char *
+lookup_socket_operation_phase_name (enum socket_operation_phase phase)
+{
+  switch (phase)
+    {
+    case OP_INIT:
+      return "INIT";
+    case OP_DNS_RESOLVING:
+      return "DNS_RESOLVING";
+    case OP_CONNECTING:
+      return "CONNECTING";
+    case OP_TRANSFERRING:
+      return "TRANSFERRING";
+    case OP_COMPLETED:
+      return "COMPLETED";
+    case OP_FAILED:
+      return "FAILED";
+    case OP_TIMED_OUT:
+      return "TIMED_OUT";
+    case OP_CANCELED:
+      return "CANCELED";
+    default:
+      return "UNKNOWN";
+    }
+}
+
+static int
+is_socket_operation_terminal_phase (enum socket_operation_phase phase)
+{
+  return phase == OP_COMPLETED || phase == OP_FAILED || phase == OP_TIMED_OUT || phase == OP_CANCELED;
+}
+
+static int
+can_transition_socket_operation_phase (enum socket_operation_phase from, enum socket_operation_phase to)
+{
+  if (from == to)
+    return 1;
+
+  switch (from)
+    {
+    case OP_INIT:
+      return to == OP_DNS_RESOLVING || to == OP_CONNECTING || is_socket_operation_terminal_phase (to);
+    case OP_DNS_RESOLVING:
+      return to == OP_CONNECTING || is_socket_operation_terminal_phase (to);
+    case OP_CONNECTING:
+      return to == OP_TRANSFERRING || is_socket_operation_terminal_phase (to);
+    case OP_TRANSFERRING:
+      return is_socket_operation_terminal_phase (to);
+    case OP_COMPLETED:
+    case OP_FAILED:
+    case OP_TIMED_OUT:
+    case OP_CANCELED:
+      return 0;
+    default:
+      return 0;
+    }
+}
+
+static void
+clear_socket_operation (int socket_id)
+{
+  if (socket_ops == NULL || socket_id < 0 || socket_id >= max_lpc_socks)
+    return;
+
+  socket_ops[socket_id].active = 0;
+  socket_ops[socket_id].terminal = 0;
+  socket_ops[socket_id].op_id = 0;
+  socket_ops[socket_id].socket_id = socket_id;
+  socket_ops[socket_id].owner_ob = NULL;
+  socket_ops[socket_id].phase = OP_INIT;
+  socket_ops[socket_id].deadline = 0;
+}
+
+static int
+start_socket_operation (int socket_id, object_t *owner_ob, time_t deadline)
+{
+  socket_operation_t *op;
+
+  if (socket_ops == NULL || socket_id < 0 || socket_id >= max_lpc_socks)
+    return 0;
+
+  clear_socket_operation (socket_id);
+  op = &socket_ops[socket_id];
+  op->active = 1;
+  op->terminal = 0;
+  op->op_id = next_socket_op_id++;
+  op->socket_id = socket_id;
+  op->owner_ob = owner_ob;
+  op->phase = OP_INIT;
+  op->deadline = deadline;
+
+  opt_trace (TT_COMM|2, "socket-op[%d] start: fd=%d socket=%d phase=%s deadline=%ld",
+             op->op_id,
+             (int) lpc_socks[socket_id].fd,
+             socket_id,
+             lookup_socket_operation_phase_name (op->phase),
+             (long) op->deadline);
+
+  return 1;
+}
+
+static int
+set_socket_operation_phase (int socket_id, enum socket_operation_phase next_phase)
+{
+  socket_operation_t *op;
+  enum socket_operation_phase prev_phase;
+
+  if (socket_ops == NULL || socket_id < 0 || socket_id >= max_lpc_socks)
+    return 0;
+
+  op = &socket_ops[socket_id];
+  if (!op->active)
+    return 0;
+
+  prev_phase = op->phase;
+  if (!can_transition_socket_operation_phase (prev_phase, next_phase))
+    {
+      debug_error ("socket-op[%d] invalid transition: fd=%d socket=%d %s -> %s",
+                   op->op_id,
+                   (int) lpc_socks[socket_id].fd,
+                   socket_id,
+                   lookup_socket_operation_phase_name (prev_phase),
+                   lookup_socket_operation_phase_name (next_phase));
+      return 0;
+    }
+
+  op->phase = next_phase;
+  opt_trace (TT_COMM|2, "socket-op[%d] phase: fd=%d socket=%d %s -> %s",
+             op->op_id,
+             (int) lpc_socks[socket_id].fd,
+             socket_id,
+             lookup_socket_operation_phase_name (prev_phase),
+             lookup_socket_operation_phase_name (next_phase));
+
+  return 1;
+}
+
+static int
+complete_socket_operation (int socket_id, enum socket_operation_phase terminal_phase)
+{
+  socket_operation_t *op;
+
+  if (!is_socket_operation_terminal_phase (terminal_phase))
+    return 0;
+  if (socket_ops == NULL || socket_id < 0 || socket_id >= max_lpc_socks)
+    return 0;
+
+  op = &socket_ops[socket_id];
+  if (!op->active)
+    return 0;
+
+  if (op->terminal)
+    {
+      opt_trace (TT_COMM|1, "socket-op[%d] duplicate terminal completion ignored: fd=%d socket=%d current=%s requested=%s",
+                 op->op_id,
+                 (int) lpc_socks[socket_id].fd,
+                 socket_id,
+                 lookup_socket_operation_phase_name (op->phase),
+                 lookup_socket_operation_phase_name (terminal_phase));
+      return 0;
+    }
+
+  if (!set_socket_operation_phase (socket_id, terminal_phase))
+    return 0;
+
+  op->terminal = 1;
+  opt_trace (TT_COMM|1, "socket-op[%d] terminal: fd=%d socket=%d phase=%s",
+             op->op_id,
+             (int) lpc_socks[socket_id].fd,
+             socket_id,
+             lookup_socket_operation_phase_name (op->phase));
+
+  clear_socket_operation (socket_id);
+  return 1;
+}
 
 /*
  * check permission
@@ -86,6 +290,11 @@ int more_lpc_sockets () {
   else
     lpc_socks = RESIZE (lpc_socks, max_lpc_socks, lpc_socket_t, TAG_SOCKETS, "more_lpc_sockets");
 
+  if (!socket_ops)
+    socket_ops = CALLOCATE (10, socket_operation_t, TAG_SOCKETS, "more_lpc_sockets:socket_ops");
+  else
+    socket_ops = RESIZE (socket_ops, max_lpc_socks, socket_operation_t, TAG_SOCKETS, "more_lpc_sockets:socket_ops");
+
   i = max_lpc_socks;
   while (--i >= max_lpc_socks - 10)
     {
@@ -107,6 +316,14 @@ int more_lpc_sockets () {
       lpc_socks[i].w_buf = NULL;
       lpc_socks[i].w_off = 0;
       lpc_socks[i].w_len = 0;
+
+      socket_ops[i].active = 0;
+      socket_ops[i].terminal = 0;
+      socket_ops[i].op_id = 0;
+      socket_ops[i].socket_id = i;
+      socket_ops[i].owner_ob = NULL;
+      socket_ops[i].phase = OP_INIT;
+      socket_ops[i].deadline = 0;
     }
   return max_lpc_socks - 10;
 }
@@ -241,6 +458,7 @@ int find_new_socket (void) {
       set_read_callback (i, 0);
       set_write_callback (i, 0);
       set_close_callback (i, 0);
+      clear_socket_operation (i);
       return i;
     }
   return more_lpc_sockets ();
@@ -541,6 +759,14 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
   set_read_callback (i, read_callback);
   set_write_callback (i, write_callback);
 
+  if (!start_socket_operation (i, current_object, 0))
+    return EESOCKET;
+  if (!set_socket_operation_phase (i, OP_CONNECTING))
+    {
+      complete_socket_operation (i, OP_FAILED);
+      return EESOCKET;
+    }
+
   current_object->flags |= O_EFUN_SOCKET;
 
   if (connect (lpc_socks[i].fd, (struct sockaddr *) &lpc_socks[i].r_addr, sizeof (struct sockaddr_in)) == SOCKET_ERROR)
@@ -548,13 +774,17 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
       switch (SOCKET_ERRNO)
         {
         case EINTR:
+          complete_socket_operation (i, OP_FAILED);
           return EEINTR;
 #ifdef WINSOCK
         case WSAEADDRINUSE:
+          complete_socket_operation (i, OP_FAILED);
           return EEADDRINUSE;
         case WSAEALREADY:
+          complete_socket_operation (i, OP_FAILED);
           return EEALREADY;
         case WSAECONNREFUSED:
+          complete_socket_operation (i, OP_FAILED);
           return EECONNREFUSED;
         case WSAEINPROGRESS:
           break;
@@ -562,21 +792,26 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
           break;
 #else
         case EADDRINUSE:
+          complete_socket_operation (i, OP_FAILED);
           return EEADDRINUSE;
         case EALREADY:
+          complete_socket_operation (i, OP_FAILED);
           return EEALREADY;
         case ECONNREFUSED:
+          complete_socket_operation (i, OP_FAILED);
           return EECONNREFUSED;
         case EINPROGRESS:
           break;
 #endif
         default:
           debug_error ("connect() failed: %d", SOCKET_ERRNO);
+          complete_socket_operation (i, OP_FAILED);
           return EECONNECT;
         }
     }
   lpc_socks[i].state = DATA_XFER;
   lpc_socks[i].flags |= S_BLOCKED;
+  set_socket_operation_phase (i, OP_TRANSFERRING);
 
   return EESUCCESS;
 }
@@ -1017,6 +1252,9 @@ void socket_write_select_handler (int i) {
       return;
     }
 
+  if (lpc_socks[i].w_buf == NULL)
+    complete_socket_operation (i, OP_COMPLETED);
+
   push_number (i);
   call_callback (i, S_WRITE_FP, 1);
 }
@@ -1033,6 +1271,9 @@ int socket_close (int i, int flags) {
     return EEBADF;
   if (!(flags & SC_FORCE) && lpc_socks[i].owner_ob != current_object)
     return EESECURITY;
+
+  if (lpc_socks[i].state != CLOSED)
+    complete_socket_operation (i, OP_CANCELED);
 
   if (flags & SC_DO_CALLBACK)
     {
@@ -1088,6 +1329,9 @@ int socket_release (int i, object_t * ob, svalue_t * callback) {
   else
     safe_apply (callback->u.string, ob, 2, ORIGIN_DRIVER);
 
+  if (socket_release_test_hook && (lpc_socks[i].flags & S_RELEASE))
+    socket_release_test_hook (i, ob);
+
   if ((lpc_socks[i].flags & S_RELEASE) == 0)
     return EESUCCESS;
 
@@ -1131,6 +1375,36 @@ char *socket_error (int error) {
   if (error < 0 || error >= ERROR_STRINGS)
     return "socket_error: invalid error number";
   return error_strings[error];
+}
+
+int
+get_socket_operation_info (int socket_id, int *active, int *terminal, int *op_id, int *phase)
+{
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return EEFDRANGE;
+
+  if (active)
+    *active = 0;
+  if (terminal)
+    *terminal = 0;
+  if (op_id)
+    *op_id = 0;
+  if (phase)
+    *phase = OP_INIT;
+
+  if (socket_ops == NULL)
+    return EESUCCESS;
+
+  if (active)
+    *active = socket_ops[socket_id].active;
+  if (terminal)
+    *terminal = socket_ops[socket_id].terminal;
+  if (op_id)
+    *op_id = socket_ops[socket_id].op_id;
+  if (phase)
+    *phase = socket_ops[socket_id].phase;
+
+  return EESUCCESS;
 }
 
 /*

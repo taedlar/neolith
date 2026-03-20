@@ -1,6 +1,6 @@
 # Socket Operation Engine Plan
 
-**Status**: Planned  
+**Status**: In progress  
 **Priority**: High  
 **Dependencies**: Async runtime (`lib/async`), socket efun compatibility (`lib/socket`, `lib/efuns/sockets.c`)
 
@@ -91,7 +91,7 @@ Platform notes for expected outcomes:
 Implementation source: `tests/test_socket_efuns/test_socket_efuns_behavior.cpp`
 
 Platform execution summary:
-- Linux preset: verified passing by maintainer.
+- Linux preset (`clang-x64`): verified passing deterministically (exit 0).
 - Windows preset (`clang-x64`): verified passing deterministically (3/3 runs, exit 0). Repeated init/deinit cycles work correctly in pedantic mode.
 
 Current per-case status:
@@ -105,31 +105,63 @@ Current per-case status:
 | SOCK_BHV_005 | Implemented (assertions) | Pass | Pass |
 | SOCK_BHV_006 | Implemented (assertions) | Pass | Pass |
 | SOCK_BHV_007 | Implemented (assertions) | Pass | Pass |
-| SOCK_BHV_008 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
+| SOCK_BHV_008 | Implemented (assertions) | Pass | Pass |
 | SOCK_BHV_009 | Implemented (assertions) | Pass | Pass |
-| SOCK_BHV_010 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
+| SOCK_BHV_010 | Implemented (assertions) | Pass | Pass |
 | SOCK_BHV_011 | Implemented (assertions) | Pass | Pass |
-| SOCK_BHV_012 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
-| SOCK_BHV_013 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
-| SOCK_BHV_014 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
-| SOCK_BHV_015 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
-| SOCK_BHV_016 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
-| SOCK_BHV_017 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
-| SOCK_BHV_018 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
-| SOCK_BHV_019 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
-| SOCK_BHV_020 | Skeleton (`GTEST_SKIP`) | N/A | N/A |
+| SOCK_BHV_012 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_013 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_014 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_015 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_016 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_017 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_018 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_019 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_020 | Implemented (assertions) | Pass | Pass |
 
 ### Stage 2 Checklist: Core Operation Engine Skeleton
 
-- [ ] Introduce internal operation table with `op_id`, `socket_id`, owner, phase, deadline.
-- [ ] Add operation phases and transition validation.
-- [ ] Add single terminal-state guard (exactly one terminal completion).
-- [ ] Route outbound connect workflow through operation tracking path.
-- [ ] Add trace diagnostics for operation lifecycle transitions.
-- [ ] Confirm zero regressions against Stage 1 baseline suite.
+- [x] Introduce internal operation table with `op_id`, `socket_id`, owner, phase, deadline.
+- [x] Add operation phases and transition validation.
+- [x] Add single terminal-state guard (exactly one terminal completion).
+- [x] Route outbound connect workflow through operation tracking path.
+- [x] Add trace diagnostics for operation lifecycle transitions.
+- [x] Confirm zero regressions against implemented Stage 1 baseline tests (`SOCK_BHV_001`-`SOCK_BHV_020`).
+- [x] Add focused Stage 2 lifecycle tests for operation start/phase/terminal clearing (`SOCK_OP_001`-`SOCK_OP_003`).
+
+### Stage 2 Verification Status (2026-03-21)
+
+Implementation source:
+- `lib/socket/socket_efuns.c`
+- `lib/socket/socket_efuns.h`
+- `tests/test_socket_efuns/fixtures.hpp`
+- `tests/test_socket_efuns/test_socket_efuns_behavior.cpp`
+
+Current Stage 2 targeted test status:
+
+| Test ID | Scenario | Linux run | Windows run |
+|---|---|---|---|
+| SOCK_OP_001 | Connect creates tracked operation in `OP_TRANSFERRING` | Pass | Pass |
+| SOCK_OP_002 | Malformed address does not create operation record | Pass | Pass |
+| SOCK_OP_003 | Close clears operation and duplicate terminal path is inert | Pass | Pass |
+
+### Full Socket Test Target Snapshot (2026-03-21, Linux and Windows `clang-x64`)
+
+Execution scope:
+- Full `tests/test_socket_efuns` target subset: `SocketEfunsBehaviorTest.SOCK_BHV_001` through `SocketEfunsBehaviorTest.SOCK_BHV_020`, plus `SocketEfunsBehaviorTest.SOCK_OP_001` through `SocketEfunsBehaviorTest.SOCK_OP_003`.
+
+Result summary:
+- Linux: 23 executed, 23 passed, 0 skipped, 0 failed
+- Windows: 23 executed, 23 passed, 0 skipped, 0 failed
+
+Stage 1 (`SOCK_BHV_*`) snapshot:
+- Passed: `SOCK_BHV_001`, `SOCK_BHV_002`, `SOCK_BHV_003`, `SOCK_BHV_004`, `SOCK_BHV_005`, `SOCK_BHV_006`, `SOCK_BHV_007`, `SOCK_BHV_008`, `SOCK_BHV_009`, `SOCK_BHV_010`, `SOCK_BHV_011`, `SOCK_BHV_012`, `SOCK_BHV_013`, `SOCK_BHV_014`, `SOCK_BHV_015`, `SOCK_BHV_016`, `SOCK_BHV_017`, `SOCK_BHV_018`, `SOCK_BHV_019`, `SOCK_BHV_020`
+
+Stage 2 (`SOCK_OP_*`) snapshot:
+- Passed: `SOCK_OP_001`, `SOCK_OP_002`, `SOCK_OP_003`
 
 Stage 2 gate:
-- [ ] Stage complete when operation tracking is live and Stage 1 suite remains green.
+- [x] Stage complete when operation tracking is live and Stage 1 suite remains green.
 
 ### Stage 3 Checklist: Async Runtime Alignment
 
