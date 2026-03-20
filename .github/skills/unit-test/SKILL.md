@@ -68,6 +68,31 @@ svalue_t ret;
 call_function (prog, runtime_index, num_args, &ret);
 ```
 
+### LPC Callback Testing Lessons (from socket behavior tests)
+
+- Prefer callback-owner LPC objects loaded from inline `pre_text` source instead of C-only mocks when asserting callback ordering/content. This exercises real apply dispatch and ownership checks.
+- Record callback events in the LPC object (for example, append `{name, fd, payload}` tuples) and expose query/clear helpers so tests can assert exact sequences across multiple phases.
+- For flows that cross security boundaries (for example, release/acquire handoff), add narrow internal test seams at the C layer instead of relaxing production security policy. Keep seams opt-in and test-only.
+- Drive readiness-dependent callbacks deterministically by using loopback sockets plus explicit poll/flush steps in fixtures. Avoid timing-based sleeps whenever possible.
+- Keep return-code assertions platform-aware for nonblocking operations. Where behavior is intentionally dual-path (`EESUCCESS` vs callback completion), assert allowed set membership and then assert callback side effects.
+- Clear callback event buffers between action phases (connect, write, close, release) so each assertion targets one transition and failures are easier to localize.
+- In callback-path tests, always verify terminal invariants: no duplicate terminal callback, no callback after close, and cleanup still succeeds if objects self-destruct during applies.
+
+### Reusable Checklist: LPC Callback Tests (Pre-Merge)
+
+Use this checklist before merging callback-path tests:
+
+- [ ] Callback owner is a real LPC object loaded via `pre_text` (not only C-side mocks).
+- [ ] Test records callback events in LPC and exposes query/clear helpers.
+- [ ] Event buffers are cleared between phases so each assertion covers one transition.
+- [ ] Nonblocking return-code assertions allow valid platform-dependent outcomes where required.
+- [ ] Callback order is asserted explicitly for the scenario under test.
+- [ ] Terminal invariants are asserted: no duplicate terminal callback, no callbacks after close.
+- [ ] Security-boundary behavior is tested without weakening production policy.
+- [ ] Any seam used is narrow, opt-in, and test-only.
+- [ ] Test avoids sleep-based timing; readiness/progress is driven deterministically.
+- [ ] Test teardown verifies cleanup succeeds even after callback execution paths.
+
 ### Socket Testing Patterns
 
 Tests using network sockets require special initialization handling:

@@ -91,7 +91,7 @@ Platform notes for expected outcomes:
 Implementation source: `tests/test_socket_efuns/test_socket_efuns_behavior.cpp`
 
 Platform execution summary:
-- Linux preset: verified passing by maintainer.
+- Linux preset (`clang-x64`): verified passing deterministically (exit 0).
 - Windows preset (`clang-x64`): verified passing deterministically (3/3 runs, exit 0). Repeated init/deinit cycles work correctly in pedantic mode.
 
 Current per-case status:
@@ -105,19 +105,19 @@ Current per-case status:
 | SOCK_BHV_005 | Implemented (assertions) | Pass | Pass |
 | SOCK_BHV_006 | Implemented (assertions) | Pass | Pass |
 | SOCK_BHV_007 | Implemented (assertions) | Pass | Pass |
-| SOCK_BHV_008 | Implemented (assertions) | N/A | Pass |
+| SOCK_BHV_008 | Implemented (assertions) | Pass | Pass |
 | SOCK_BHV_009 | Implemented (assertions) | Pass | Pass |
-| SOCK_BHV_010 | Implemented (assertions) | N/A | Pass |
+| SOCK_BHV_010 | Implemented (assertions) | Pass | Pass |
 | SOCK_BHV_011 | Implemented (assertions) | Pass | Pass |
-| SOCK_BHV_012 | Implemented (assertions) | N/A | Pass |
-| SOCK_BHV_013 | Implemented (assertions) | N/A | Pass |
-| SOCK_BHV_014 | Implemented (assertions) | N/A | Pass |
-| SOCK_BHV_015 | Implemented (assertions) | N/A | Pass |
-| SOCK_BHV_016 | Implemented (assertions) | N/A | Pass |
-| SOCK_BHV_017 | Implemented (assertions) | N/A | Pass |
-| SOCK_BHV_018 | Implemented (assertions) | N/A | Pass |
-| SOCK_BHV_019 | Implemented (assertions) | N/A | Pass |
-| SOCK_BHV_020 | Implemented (assertions) | N/A | Pass |
+| SOCK_BHV_012 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_013 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_014 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_015 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_016 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_017 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_018 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_019 | Implemented (assertions) | Pass | Pass |
+| SOCK_BHV_020 | Implemented (assertions) | Pass | Pass |
 
 ### Stage 2 Checklist: Core Operation Engine Skeleton
 
@@ -139,22 +139,20 @@ Implementation source:
 
 Current Stage 2 targeted test status:
 
-| Test ID | Scenario | Windows run |
-|---|---|---|
-| SOCK_OP_001 | Connect creates tracked operation in `OP_TRANSFERRING` | Pass |
-| SOCK_OP_002 | Malformed address does not create operation record | Pass |
-| SOCK_OP_003 | Close clears operation and duplicate terminal path is inert | Pass |
+| Test ID | Scenario | Linux run | Windows run |
+|---|---|---|---|
+| SOCK_OP_001 | Connect creates tracked operation in `OP_TRANSFERRING` | Pass | Pass |
+| SOCK_OP_002 | Malformed address does not create operation record | Pass | Pass |
+| SOCK_OP_003 | Close clears operation and duplicate terminal path is inert | Pass | Pass |
 
-### Full Socket Test Target Snapshot (2026-03-21, Windows `clang-x64`)
+### Full Socket Test Target Snapshot (2026-03-21, Linux and Windows `clang-x64`)
 
 Execution scope:
 - Full `tests/test_socket_efuns` target subset: `SocketEfunsBehaviorTest.SOCK_BHV_001` through `SocketEfunsBehaviorTest.SOCK_BHV_020`, plus `SocketEfunsBehaviorTest.SOCK_OP_001` through `SocketEfunsBehaviorTest.SOCK_OP_003`.
 
 Result summary:
-- Total executed: 23 tests
-- Passed: 23
-- Skipped: 0
-- Failed: 0
+- Linux: 23 executed, 23 passed, 0 skipped, 0 failed
+- Windows: 23 executed, 23 passed, 0 skipped, 0 failed
 
 Stage 1 (`SOCK_BHV_*`) snapshot:
 - Passed: `SOCK_BHV_001`, `SOCK_BHV_002`, `SOCK_BHV_003`, `SOCK_BHV_004`, `SOCK_BHV_005`, `SOCK_BHV_006`, `SOCK_BHV_007`, `SOCK_BHV_008`, `SOCK_BHV_009`, `SOCK_BHV_010`, `SOCK_BHV_011`, `SOCK_BHV_012`, `SOCK_BHV_013`, `SOCK_BHV_014`, `SOCK_BHV_015`, `SOCK_BHV_016`, `SOCK_BHV_017`, `SOCK_BHV_018`, `SOCK_BHV_019`, `SOCK_BHV_020`
