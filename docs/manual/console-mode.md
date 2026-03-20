@@ -1,105 +1,126 @@
 # Console Mode
 
-This is a Neolith extension that treats standard input/output as a connecting user.
-It allows using the Neolith LPMud Driver **as a shell** that runs code written in LPC.
+Console mode is a Neolith extension that treats standard input and output as a connected interactive user.
+It is mainly used for local development, debugging, and scripted testing.
 
 ## Enabling Console Mode
 
-Console mode is enabled via the `-c` or `--console-mode` command line option:
+Use `-c` (or `--console-mode`) when starting the driver:
 
 ~~~sh
 neolith -f neolith.conf -c
 ~~~
 
-## How Console Mode Works
+## Connection Lifecycle
 
-The console mode modifies the normal startup sequence:
+When console mode is enabled:
 
-1. Simul efun object and master object are loaded as in ordinary LPMud.
-2. Epilog and preload master applies work the same.
-3. Creation of the listen port(s) for incoming connections.
-4. **If console mode is enabled**, the driver calls master object's `connect()` apply with port number = 0 to connect the console user.
-5. Run the backend loop to do I/O multiplexing and command processing.
+1. The normal startup path runs (master load, epilog, preload).
+2. The backend initializes runtime I/O.
+3. The driver creates a console interactive and calls master `connect(0)`.
+4. If accepted by mudlib `connect()`, normal `logon()` flow continues.
 
-## Console Connection Behavior
+Console user behavior:
 
-The console connection is treated as an interactive user with special properties:
+- Console connection is interactive but does not use TELNET protocol.
+- `input_to()` and `get_char()` are supported.
+- If the console user disconnects in a real terminal session, stdin stays open and ENTER can reconnect.
+- Ctrl-C handling follows normal terminal behavior.
 
-- After the master object finishes preloading, it receives a `connect()` apply with port number = 0
-- The master object can then navigate the connection through regular [logon](../applies/interactive/logon.md) process of player object
-- Despite not using TELNET protocol, the `input_to()` and `get_char()` efuns are supported for console connection
-- When the console connection is closed (e.g., typing "quit" or forced by another wizard), the standard input is **NOT** closed and allows **reconnecting** to the MUD in console mode by pressing ENTER
-- You can use Ctrl-C to **break** the LPMud driver process as with other processes reading data from standard input
+## Current Design
 
-## Use Cases
+Console mode uses async runtime plus a dedicated console worker.
 
-Console mode is particularly useful for:
+### Runtime Architecture
 
-1. **Testing and Development**: Quickly test LPC code without setting up network connections
-2. **Debugging**: Run the driver under a debugger (like `gdb`) while interacting with it
-3. **Automated Testing**: Run scripted tests by piping commands to the driver
-4. **Server Management**: Perform administrative tasks without network access
+- Backend creates `async_runtime_t`.
+- Network descriptors are registered with async runtime.
+- Console input is handled by `console_worker` (worker thread).
+- Worker pushes completed lines to `async_queue_t`.
+- Worker posts completions (`CONSOLE_COMPLETION_KEY`) to wake backend.
+- Backend drains queued lines into the console interactive command buffer.
+
+This keeps command processing unified while avoiding platform-specific stdin blocking in the backend thread.
+
+### Console Type Detection
+
+Console worker detects stdin type at startup:
+
+- `CONSOLE_TYPE_REAL`: interactive terminal or console.
+- `CONSOLE_TYPE_PIPE`: piped stdin.
+- `CONSOLE_TYPE_FILE`: redirected file stdin.
+- `CONSOLE_TYPE_NONE`: no usable stdin.
+
+Detection uses:
+
+- Windows: `GetConsoleMode()` and `GetFileType()`.
+- POSIX: `isatty()` and `fstat()`.
+
+### Echo and Single-Character Mode
+
+POSIX builds with termios use termios for echo and single-char mode.
+
+Windows builds use shared helpers in [lib/async/console_mode.h](../../lib/async/console_mode.h):
+
+- `set_console_input_line_mode(echo)`
+- `set_console_input_echo(echo)`
+- `set_console_input_single_char(single)`
+- `enable_console_output_ansi()`
+
+These helpers are used by:
+
+- Console worker startup.
+- Console reconnect path in backend.
+- `set_console_echo()`.
+- Console branch of `set_telnet_single_char()`.
+
+For pipe and file stdin, helper calls are no-op by design, preserving scripted input behavior.
+
+### EOF and Reconnection
+
+- Real console disconnect: reconnect prompt path remains available.
+- Pipe or file EOF: driver proceeds to shutdown.
+
+This split supports both interactive use and deterministic automation.
 
 ## Testing Console Mode
 
-See [Developer Manual](dev.md) for build and configuration setup.
+See [docs/manual/dev.md](dev.md) for build and configuration setup.
 
-### Interactive Testing
+### Interactive Smoke Test
 
-**1. Start driver in console mode:**
 ~~~sh
-# Linux/WSL
+# Linux or WSL
 neolith -f neolith.conf -c
 
 # Windows
 neolith.exe -f neolith.conf -c
 ~~~
 
-**2. Verify console connection:**
-- Driver startup completes normally
-- Console receives `connect()` apply with port number = 0
-- Logon prompts appear (username/password)
+Quick checks:
 
-**3. Test features:**
-- Execute MUD commands
-- Verify `input_to()` works for password prompts
-- Test `get_char()` for single-character input (if mudlib uses it)
-- Test Unicode input (e.g., "café", "日本語")
+1. Startup reaches logon prompt via `connect(0)`.
+2. Normal commands execute.
+3. `input_to()` no-echo prompts work.
+4. `get_char()` paths work (if mudlib uses them).
+5. Disconnect and press ENTER to verify reconnect (real terminal only).
 
-**4. Test reconnection:**
-- Type "quit" or disconnect
-- Press ENTER to reconnect without restarting driver
-- Verify Ctrl+C interrupts the driver
+### Scripted Input Tests
 
-**Example session:**
+Piped input:
+
 ~~~sh
-$ neolith -f neolith.conf -c
-===== neolith version 1.0.0 starting up =====
-...
-Welcome to the MUD!
-What is your name? admin
-Password:
-> say Hello from console!
-You say: Hello from console!
-> quit
-Goodbye!
-[Press ENTER to reconnect]
-~~~
-
-### Manual Command Line Testing
-
-**Piped commands (cross-platform):**
-~~~sh
-# Linux/WSL
+# Linux or WSL
 echo -e "admin\npassword\nsay test\nshutdown" | neolith -f neolith.conf -c
 
 # Windows PowerShell
 "admin`npassword`nsay test`nshutdown" | .\neolith.exe -f neolith.conf -c
 ~~~
 
-**Redirected file input (cross-platform):**
+Redirected input:
+
 ~~~sh
-# Linux/WSL
+# Linux or WSL
 echo -e "admin\npassword\nsay test\nshutdown" > commands.txt
 neolith -f neolith.conf -c < commands.txt
 
@@ -108,121 +129,63 @@ neolith -f neolith.conf -c < commands.txt
 Get-Content commands.txt | .\neolith.exe -f neolith.conf -c
 ~~~
 
-**Note**: When using piped or redirected input, the driver will process commands until the pipe closes (EOF), then automatically shutdown. This is different from interactive console mode where the driver waits for reconnection after user disconnects.
+The driver processes commands until EOF and then shuts down for pipe or file modes.
 
-### Python Test Automation
+### Python Automation
 
-The repository includes [testbot.py](../../examples/testbot.py) as a template for automated console mode testing on both platforms:
+Use [examples/testbot.py](../../examples/testbot.py):
 
 ~~~sh
 cd examples
 python testbot.py
 ~~~
 
-This testing robot demonstrates how to pipe test commands to the driver and validate output. It serves as a starting point for building more advanced test automation:
-- Testing specific LPC functionality
-- Regression testing after code changes
-- Performance benchmarking
-- Stress testing with concurrent operations
+Also see [docs/manual/testbot.md](testbot.md) for broader automation guidance.
 
-**Platform support:**
-- ✅ **Linux/WSL**: Fully functional (pipes work with poll())
-- ✅ **Windows**: Fully functional (synchronous ReadFile() for pipes)
+## Unit Tests
 
-**How it works:**
-1. Sends commands via `subprocess.Popen` with piped stdin
-2. Driver detects pipe (not real console) and preserves all input data
-3. Commands are processed line-by-line until EOF
-4. Driver automatically shuts down on pipe closure
-5. Test validates exit code and output
+Current console-mode coverage is in [tests/test_console_worker](../../tests/test_console_worker):
 
-See [Console Testbot Support](console-testbot-support.md) for design details.
+- [tests/test_console_worker/test_console_worker_detection.cpp](../../tests/test_console_worker/test_console_worker_detection.cpp)
+- [tests/test_console_worker/test_console_worker_lifecycle.cpp](../../tests/test_console_worker/test_console_worker_lifecycle.cpp)
+- [tests/test_console_worker/test_async_runtime_console.cpp](../../tests/test_console_worker/test_async_runtime_console.cpp)
 
-### Unit Tests
+Related interactive behavior coverage (input flags and single-char flow):
 
-The I/O reactor includes comprehensive console mode tests at the C++ level:
+- [tests/test_lpc_interpreter/test_input_to_get_char.cpp](../../tests/test_lpc_interpreter/test_input_to_get_char.cpp)
 
-**POSIX** ([test_io_reactor_console.cpp](../../tests/test_io_reactor/test_io_reactor_console.cpp)):
-- 7 test cases using pipes to simulate stdin
-- Covers: basic input, network coexistence, EOF handling, large input
+Run focused tests:
 
-**Windows** ([test_io_reactor_console.cpp](../../tests/test_io_reactor/test_io_reactor_console.cpp)):
-- 5 test cases for Windows console handling
-- Covers: console registration, coexistence with sockets, non-blocking behavior
-
-**Run tests:**
 ~~~sh
 # Linux
-ctest --preset ut-linux --tests-regex Console --output-on-failure
+ctest --preset ut-linux -R "ConsoleWorker|AsyncRuntimeConsole|InputToGetChar"
 
 # Windows
-ctest --preset ut-vs16-x64 --tests-regex Console --output-on-failure
+ctest --preset ut-vs16-x64 -R "ConsoleWorker|AsyncRuntimeConsole|InputToGetChar"
 ~~~
 
-See [Async Library Design](../internals/async-library.md) and [Console Worker Tests](../../tests/test_console_worker/) for complete test documentation.
+## Troubleshooting
 
-### Troubleshooting
+Driver exits immediately:
 
-**Driver exits immediately:**
-- Check `MudlibDir` path in config (must be absolute or relative to current directory)
-- Verify `master.c` exists and compiles
-- Check debug log for errors
+- Verify mudlib path and config values.
+- Verify master object compiles.
+- Check startup logs.
 
-**No input accepted:**
-- Windows: Verify stdin is a real console (not piped/redirected)
-- Check for "Failed to register console input" messages
-- Look for `GetStdHandle(STD_INPUT_HANDLE)` errors
+No input accepted:
 
-**Unicode issues:**
-- Windows: Console should auto-configure for UTF-8
-- Linux: Verify locale supports UTF-8 (`echo $LANG`)
+- Confirm stdin mode (real console vs pipe/file).
+- Check console worker initialization logs.
+- On Windows, check console handle availability from `GetStdHandle(STD_INPUT_HANDLE)`.
 
-**Expected warnings (normal):**
-- "Console input does not support virtual terminal sequences" - informational only
-- "no simul_efun file" - mudlib configuration, not a driver error
+Unicode issues:
 
-## Platform Implementation
+- Windows console path configures UTF-8 output mode for real consoles.
+- On POSIX, verify locale settings.
 
-Console mode is fully supported on both Linux and Windows through the I/O reactor abstraction layer.
+## References
 
-### POSIX (Linux/WSL)
-
-On POSIX systems, `STDIN_FILENO` (file descriptor 0) is registered directly with the reactor using `io_reactor_add()`. The reactor uses standard `poll()` to multiplex console input alongside network sockets.
-
-### Windows Implementation
-
-Windows console handles cannot be used with Winsock `select()` or I/O Completion Ports (IOCP). The reactor employs a platform-specific solution that supports both real consoles and piped stdin:
-
-**Handle Type Detection**:
-- Uses `GetFileType()` to distinguish console vs pipe vs file
-- Real console (`FILE_TYPE_CHAR` + `GetConsoleMode()` succeeds): Uses `ReadConsoleInputW()`
-- Pipe (`FILE_TYPE_PIPE`): Uses synchronous `ReadFile()`
-- File (`FILE_TYPE_DISK`): Uses synchronous `ReadFile()`
-
-**Real Console Mode**:
-- `ReadConsoleInputW()` reads raw `INPUT_RECORD` structures (keyboard events)
-- Extracts Unicode characters from `KEY_EVENT` records
-- Converts UTF-16 to UTF-8 via `WideCharToMultiByte(CP_UTF8)`
-- Non-blocking operation via `GetNumberOfConsoleInputEvents()` check
-- Supports reconnection (stdin remains open after disconnect)
-
-**Pipe/File Mode** (for automated testing):
-- Synchronous `ReadFile()` on stdin handle
-- Processes input line-by-line until EOF
-- EOF triggers clean shutdown instead of reconnection
-- Enables `testbot.py` and piped command automation
-
-**Event Loop Integration**:
-- `io_reactor_wait()` checks console availability before blocking on IOCP
-- Real console: Polled via `GetNumberOfConsoleInputEvents()`
-- Pipe/file: Always considered ready (synchronous read handles blocking)
-- Returns `EVENT_READ` when console input available
-
-**Design Benefits**:
-- ✅ Full Unicode support (UTF-16 → UTF-8 conversion for real console)
-- ✅ Cross-platform testbot.py support
-- ✅ Non-blocking operation - no thread overhead
-- ✅ Console and network I/O handled in unified event loop
-- ✅ Automatic EOF handling (pipes exit cleanly, consoles reconnect)
-
-See [Console Worker Implementation](../../lib/async/console_worker.c) for complete technical details and [Console Testbot Support](console-testbot-support.md) for design overview.
+- [docs/internals/async-library.md](../internals/async-library.md)
+- [lib/async/console_worker.c](../../lib/async/console_worker.c)
+- [lib/async/console_mode.c](../../lib/async/console_mode.c)
+- [docs/manual/testbot.md](testbot.md)
