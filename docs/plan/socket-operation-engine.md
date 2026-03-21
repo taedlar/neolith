@@ -202,6 +202,14 @@ Stage 3 gate:
 
 ### Stage 4 Checklist: Async DNS with Capacity Lockdown
 
+Stage 4 is split into two delivery tracks:
+- Driver DNS track (optional at build time): hostname support in socket connect path via async worker resolution.
+- Mudlib DNS track (always viable): DNS queries implemented in mudlib using socket efuns and numeric address connect.
+
+#### Stage 4A Checklist: Driver DNS Track (optional build feature)
+
+- [ ] Harden socket address parsing first: reject malformed non-numeric host tokens unless DNS track is enabled.
+- [ ] Add build-time feature option in `options.h` to enable/disable built-in socket-connect DNS resolution.
 - [ ] Add DNS worker pool and completion posting via `async_runtime_post_completion()`.
 - [ ] Add global in-flight DNS cap.
 - [ ] Add bounded pending DNS queue.
@@ -213,8 +221,37 @@ Stage 3 gate:
 - [ ] Add flood tests for global/per-owner limits.
 - [ ] Confirm backend loop remains responsive under DNS timeout and flood scenarios.
 
+#### Stage 4B Checklist: Mudlib DNS Track (always available)
+
+- [ ] Document mudlib resolver flow using DATAGRAM socket efuns (query, parse, callback, timeout).
+- [ ] Add mudlib-side timeout/retry guidance and deterministic failure mapping guidance.
+- [ ] Add interop guidance for using numeric address + port with `socket_connect` after mudlib resolution.
+- [ ] Add compatibility note for deployments with built-in DNS disabled.
+
+Stage 4 DNS-disabled build acceptance criteria:
+- [ ] Numeric address connect behavior remains unchanged (`socket_connect` with dotted IPv4 + port).
+- [ ] Hostname connect attempts fail fast and deterministically with `EEBADADDR` when built-in DNS is disabled.
+- [ ] Stage 1-3 suites remain green with DNS disabled.
+
+### Stage 4 Verification Matrix (Stage 4A/4B)
+
+Use these IDs directly in test names once implementation begins.
+
+| Test ID | Track | Scenario | Expected result |
+|---|---|---|---|
+| SOCK_DNS_001 | 4A | DNS build feature disabled; `socket_connect` with dotted IPv4 + port | `EESUCCESS`/existing success path semantics unchanged |
+| SOCK_DNS_002 | 4A | DNS build feature disabled; `socket_connect` with hostname + port | deterministic `EEBADADDR`; no operation table leak |
+| SOCK_DNS_003 | 4A | DNS build feature enabled; hostname resolution success | connect transitions through DNS phase and reaches transfer/success path |
+| SOCK_DNS_004 | 4A | Flood hostname connects beyond global DNS cap | deterministic overload mapping; backend loop remains responsive |
+| SOCK_DNS_005 | 4A | Per-owner DNS cap exceeded | deterministic owner-cap rejection mapping |
+| SOCK_DNS_006 | 4A | DNS timeout before total operation deadline | deterministic timeout mapping; exactly one terminal completion |
+| SOCK_DNS_007 | 4A | Duplicate hostname lookups with coalescing enabled | dedup-hit telemetry increments; all waiters complete deterministically |
+| SOCK_DNS_008 | 4B | Mudlib UDP resolver query + response parse | callback receives resolved numeric address |
+| SOCK_DNS_009 | 4B | Mudlib resolver timeout/retry exhaustion | deterministic mudlib failure callback; no backend stall |
+| SOCK_DNS_010 | 4B | Mudlib resolver output used for numeric `socket_connect` | connect behavior matches numeric baseline |
+
 Stage 4 gate:
-- [ ] Stage complete when DNS is non-blocking, bounded, and stable under adversarial load.
+- [ ] Stage complete when selected DNS track(s) are non-blocking, bounded, and stable under adversarial load, with explicit DNS-disabled build behavior verified.
 
 ### Stage 5 Checklist: Hardening and Documentation
 
@@ -289,26 +326,41 @@ Exit criteria:
 
 ### Milestone 4: Async DNS with Capacity Lockdown
 
-**Goal**: integrate non-blocking DNS with anti-flood protections.
+**Goal**: provide non-blocking DNS under bounded resource controls with explicit support for DNS-disabled builds.
+
+Delivery tracks:
+- Track A (driver DNS, optional build feature): hostname resolution in socket connect path.
+- Track B (mudlib DNS): resolver implemented at mudlib layer using socket efuns.
 
 Tasks:
-- Implement DNS worker pool and completion posting to `async_runtime`.
-- Add admission-control policy:
-  - global in-flight cap
-  - bounded pending queue
-  - per-owner cap
-  - optional duplicate lookup coalescing
-- Add timeout handling for DNS phase and total operation deadline.
-- Map overload and timeout to deterministic socket errors.
+- Track A:
+  - Add parser hardening for malformed/non-numeric host tokens.
+  - Add build-time switch for built-in DNS support in socket connect path.
+  - Implement DNS worker pool and completion posting to `async_runtime`.
+  - Add admission-control policy:
+    - global in-flight cap
+    - bounded pending queue
+    - per-owner cap
+    - optional duplicate lookup coalescing
+  - Add timeout handling for DNS phase and total operation deadline.
+  - Map overload and timeout to deterministic socket errors.
+- Track B:
+  - Define mudlib resolver contract (query, callback, timeout, retry).
+  - Validate numeric connect interop after mudlib resolution.
 
 Required protections:
-- Reject over-capacity requests immediately.
-- Never allow unbounded queue growth.
-- Collect counters: admitted, rejected-global, rejected-owner, timed-out, dedup-hit.
+- Track A:
+  - Reject over-capacity requests immediately.
+  - Never allow unbounded queue growth.
+  - Collect counters: admitted, rejected-global, rejected-owner, timed-out, dedup-hit.
+- DNS-disabled builds:
+  - Numeric connect remains baseline-compatible.
+  - Hostname connect fails deterministically with `EEBADADDR`.
 
 Exit criteria:
 - DNS timeout scenarios do not stall backend loop.
 - Flooding attempts remain within configured limits.
+- DNS-disabled build behavior is validated.
 - Milestone 1 compatibility tests remain green where behavior is unchanged.
 
 ### Milestone 5: Hardening and Documentation
