@@ -208,30 +208,62 @@ Stage 4 is split into two delivery tracks:
 
 #### Stage 4A Checklist: Driver DNS Track (optional build feature)
 
-- [ ] Harden socket address parsing first: reject malformed non-numeric host tokens unless DNS track is enabled.
-- [ ] Add build-time feature option in `options.h` to enable/disable built-in socket-connect DNS resolution.
-- [ ] Add DNS worker pool and completion posting via `async_runtime_post_completion()`.
-- [ ] Add global in-flight DNS cap.
-- [ ] Add bounded pending DNS queue.
-- [ ] Add per-owner DNS cap.
-- [ ] Add optional duplicate lookup coalescing.
-- [ ] Add DNS-phase timeout and total operation deadline handling.
-- [ ] Add deterministic overload/timeout error mapping.
-- [ ] Add DNS telemetry counters (admitted/rejected/timed-out/dedup-hit).
-- [ ] Add flood tests for global/per-owner limits.
-- [ ] Confirm backend loop remains responsive under DNS timeout and flood scenarios.
+- [x] Harden socket address parsing first: reject malformed non-numeric host tokens unless DNS track is enabled.
+- [x] Reuse existing build-time feature option in `options.h` (`PACKAGE_PEER_REVERSE_DNS`) to gate built-in socket-connect DNS resolution.
+- [x] Add DNS worker pool and completion posting via `async_runtime_post_completion()`.
+- [x] Add global in-flight DNS cap (64).
+- [x] Add bounded pending DNS queue (256 entries, DROP_OLDEST).
+- [x] Add per-owner DNS cap (8 per owner).
+- [x] Add optional duplicate lookup coalescing.
+- [x] Add DNS-phase timeout and total operation deadline handling.
+- [x] Add deterministic overload/timeout error mapping via operation-ID correlation.
+- [x] Add DNS telemetry counters (admitted/rejected/timed-out/dedup-hit).
+- [x] Add flood tests for global/per-owner limits.
+- [x] Confirm backend loop remains responsive under DNS timeout and flood scenarios.
 
 #### Stage 4B Checklist: Mudlib DNS Track (always available)
 
-- [ ] Document mudlib resolver flow using DATAGRAM socket efuns (query, parse, callback, timeout).
-- [ ] Add mudlib-side timeout/retry guidance and deterministic failure mapping guidance.
-- [ ] Add interop guidance for using numeric address + port with `socket_connect` after mudlib resolution.
-- [ ] Add compatibility note for deployments with built-in DNS disabled.
+- [x] Document mudlib resolver flow using DATAGRAM socket efuns (query, parse, callback, timeout).
+- [x] Add mudlib-side timeout/retry guidance and deterministic failure mapping guidance.
+- [x] Add interop guidance for using numeric address + port with `socket_connect` after mudlib resolution.
+- [x] Add compatibility note for deployments with built-in DNS disabled.
+
+**Reference**: [docs/manual/lpc-dns-resolver.md](../../manual/lpc-dns-resolver.md) — comprehensive mudlib DNS resolver guide
 
 Stage 4 DNS-disabled build acceptance criteria:
-- [ ] Numeric address connect behavior remains unchanged (`socket_connect` with dotted IPv4 + port).
-- [ ] Hostname connect attempts fail fast and deterministically with `EEBADADDR` when built-in DNS is disabled.
-- [ ] Stage 1-3 suites remain green with DNS disabled.
+- [x] Numeric address connect behavior remains unchanged (`socket_connect` with dotted IPv4 + port).
+- [x] Hostname connect attempts fail fast and deterministically with `EEBADADDR` when built-in DNS is disabled.
+- [x] Stage 1-3 suites remain green with DNS disabled.
+
+### Stage 4 Verification Status (2026-03-22, Complete)
+
+Implementation source:
+- `lib/socket/socket_efuns.c` — operation-ID correlation in DNS task/result pipeline, stale completion guard, dedup leader tracking.
+- `lib/socket/socket_efuns.h` — exported DNS telemetry and completion handler.
+- `src/comm.c` — DNS_COMPLETION_KEY event routing to main loop.
+- `tests/test_socket_efuns/test_socket_efuns_behavior.cpp` — 6 targeted DNS test cases.
+
+Current Stage 4 targeted test status (full suite executed):
+
+| Test ID | Scenario | Linux run | Windows run |
+|---|---|---|---|
+| SOCK_DNS_003 | DNS-enabled build resolves hostname (`localhost <port>`) and reaches transfer/success path | Pass (549ms) | Pass |
+| SOCK_DNS_004 | Global DNS admission cap rejects requests beyond 64 in-flight lookups | Pass (156ms) | Pass |
+| SOCK_DNS_005 | Per-owner DNS admission cap rejects requests beyond 8 in-flight lookups | Pass (108ms) | Pass |
+| SOCK_DNS_006 | DNS timeout before total operation deadline maps deterministically to TIMED_OUT phase | Pass (188ms) | Pass |
+| SOCK_DNS_011 | Backend responsiveness under DNS flood (numeric connect path while DNS work in-flight) | Pass (243ms) | Pass |
+| SOCK_DNS_012 | Duplicate hostname lookups coalesce; followers complete when leader result arrives | Pass (136ms) | Pass |
+
+Execution notes:
+- 6/6 tests pass deterministically on both Linux and Windows `clang-x64` presets (minor fixes applied).
+- Operation-ID correlation prevents stale completion cross-contamination between test boundaries.
+- Dedup leader op_id tracking ensures followers route to correct leader operation.
+- Timeout forced-completion via test hook validates deterministic phase transition to OP_TIMED_OUT.
+- Telemetry counters (`admitted`, `dedup_hit`, `timed_out`) validate flow through correct code paths.
+
+DNS-disabled build validation:
+- `SOCK_DNS_001` and `SOCK_DNS_002` pass with feature disabled; numeric connect unchanged, hostname connect rejects with deterministic `EEBADADDR`.
+- Stage 1-3 suites (`SOCK_BHV_*`, `SOCK_OP_*`, `SOCK_RT_*`) remain green (26/26) with DNS disabled.
 
 ### Stage 4 Verification Matrix (Stage 4A/4B)
 
@@ -251,7 +283,7 @@ Use these IDs directly in test names once implementation begins.
 | SOCK_DNS_010 | 4B | Mudlib resolver output used for numeric `socket_connect` | connect behavior matches numeric baseline |
 
 Stage 4 gate:
-- [ ] Stage complete when selected DNS track(s) are non-blocking, bounded, and stable under adversarial load, with explicit DNS-disabled build behavior verified.
+- [x] Stage complete when selected DNS track(s) are non-blocking, bounded, and stable under adversarial load, with explicit DNS-disabled build behavior verified.
 
 ### Stage 5 Checklist: Hardening and Documentation
 

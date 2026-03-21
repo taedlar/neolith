@@ -17,6 +17,11 @@ connected and the address is not specified. If the socket is
 of type DATAGRAM, the address must be specified.  The
 address is of the form: "127.0.0.1 23".
 
+Address-format notes:
+- DATAGRAM addresses are currently numeric IPv4 endpoints.
+- Unlike `socket_connect()`, `socket_write()` does not perform built-in hostname resolution.
+- If mudlib code needs to send to a hostname, resolve the hostname in LPC first and then call `socket_write()` with the numeric IPv4 endpoint. See [lpc-dns-resolver](../manual/lpc-dns-resolver.md).
+
 ## RETURN VALUE
 socket_write() returns:
 
@@ -54,4 +59,4 @@ EESEND         Problem with send.
 EECALLBACK     Wait for callback.
 
 ## SEE ALSO
-[socket_connect()](socket_connect.md), [socket_create()](socket_create.md)
+[socket_connect()](socket_connect.md), [socket_create()](socket_create.md), [lpc-dns-resolver](../manual/lpc-dns-resolver.md)

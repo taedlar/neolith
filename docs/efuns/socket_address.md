@@ -16,6 +16,8 @@ socket s.  The returned address is of the form:
 
 "127.0.0.1 23".
 
+The returned value is a numeric IPv4 endpoint string. If a connection was initiated with a hostname through `socket_connect()` on a DNS-enabled build, `socket_address()` reports the resolved numeric peer address, not the original hostname.
+
 ## RETURN VALUE
 socket_address() returns:
 

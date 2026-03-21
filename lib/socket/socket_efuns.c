@@ -43,6 +43,33 @@
 #define SC_DO_CALLBACK	2
 #define SC_FINAL_CLOSE  4
 
+/* DNS resolution task structure */
+#ifdef PACKAGE_PEER_REVERSE_DNS
+#define DNS_TIMEOUT_SECONDS 30  /* Max time for DNS resolution */
+
+typedef struct {
+  int socket_id;
+  int op_id;
+  char hostname[ADDR_BUF_SIZE];
+  uint16_t port;  /* Port in host byte order */
+  time_t deadline;  /* Absolute deadline for this resolution */
+} dns_task_t;
+
+/* DNS telemetry counters for monitoring and debugging */
+typedef struct {
+  unsigned long admitted;         /* Total tasks successfully queued */
+  unsigned long dedup_hit;        /* Duplicate hostname:port joined existing task */
+  unsigned long rejected_global;  /* Rejected due to global cap */
+  unsigned long rejected_owner;   /* Rejected due to per-owner cap */
+  unsigned long rejected_queue;   /* Rejected due to queue full */
+  unsigned long timed_out;        /* Resolutions that exceeded deadline */
+  unsigned long completed;        /* Resolutions completed successfully */
+  unsigned long failed;           /* Resolutions that failed (no timeout) */
+} dns_telemetry_t;
+
+static dns_telemetry_t dns_telemetry = {0};
+#endif
+
 lpc_socket_t *lpc_socks = 0;
 int max_lpc_socks = 0;
 
@@ -70,6 +97,38 @@ typedef struct {
 
 #define SOCKET_RUNTIME_CONTEXT_MAGIC 0x534f434b
 
+/* DNS admission control and task queue (Stage 4A) */
+#ifdef PACKAGE_PEER_REVERSE_DNS
+#define DNS_GLOBAL_CAP 64          /* Max in-flight DNS resolutions globally */
+#define DNS_PER_OWNER_CAP 8        /* Max per-owner pending DNS resolutions */
+#define DNS_QUEUE_SIZE 256         /* Bounded async queue for DNS tasks */
+
+typedef struct {
+  int socket_id;
+  int op_id;
+  struct in_addr resolved_addr;
+  uint16_t port;
+  int success;        /* 1 if DNS succeeded, 0 if failed */
+  int timed_out;      /* 1 if deadline exceeded before completion */
+  int error;          /* errno value if success=0 and not timed_out */
+} dns_result_t;
+
+typedef char dns_hostname_t[ADDR_BUF_SIZE];
+
+static int dns_tasks_in_flight = 0;      /* Current global count */
+static async_queue_t *dns_queue = NULL;  /* Bounded task queue for DNS work */
+static async_queue_t *dns_results = NULL;/* Bounded queue for results */
+static async_worker_t *dns_worker = NULL; /* Worker thread for DNS */
+static dns_hostname_t *dns_pending_hostnames = NULL;
+static uint16_t *dns_pending_ports = NULL;
+static int *dns_pending_leaders = NULL;
+static int *dns_pending_leader_op_ids = NULL;
+static socket_dns_timeout_test_hook_t socket_dns_timeout_test_hook = NULL;
+
+/* Completion key for DNS worker results (unique identifier) */
+#define DNS_COMPLETION_KEY 0x444E5300
+#endif
+
 static socket_runtime_context_t **socket_contexts = NULL;
 static socket_runtime_state_t *socket_runtime_state = NULL;
 static int next_socket_op_id = 1;
@@ -85,6 +144,13 @@ static int start_socket_operation (int socket_id, object_t *owner_ob, time_t dea
 static int set_socket_operation_phase (int socket_id, enum socket_operation_phase next_phase);
 static int complete_socket_operation (int socket_id, enum socket_operation_phase terminal_phase);
 static int compute_socket_runtime_events (int socket_id);
+
+#ifdef PACKAGE_PEER_REVERSE_DNS
+static int init_dns_system(void);
+static void clear_dns_pending_resolution(int socket_id);
+static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t port);
+static void apply_dns_result_to_socket(int socket_id, const dns_result_t *result);
+#endif
 static int register_socket_runtime (int socket_id);
 static int modify_socket_runtime (int socket_id);
 static void remove_socket_runtime (int socket_id);
@@ -94,6 +160,14 @@ set_socket_release_test_hook (socket_release_test_hook_t hook)
 {
   socket_release_test_hook = hook;
 }
+
+#ifdef PACKAGE_PEER_REVERSE_DNS
+void
+set_socket_dns_timeout_test_hook (socket_dns_timeout_test_hook_t hook)
+{
+  socket_dns_timeout_test_hook = hook;
+}
+#endif
 
 static const char *
 lookup_socket_operation_phase_name (enum socket_operation_phase phase)
@@ -158,6 +232,10 @@ clear_socket_operation (int socket_id)
 {
   if (socket_ops == NULL || socket_id < 0 || socket_id >= max_lpc_socks)
     return;
+
+#ifdef PACKAGE_PEER_REVERSE_DNS
+  clear_dns_pending_resolution (socket_id);
+#endif
 
   socket_ops[socket_id].active = 0;
   socket_ops[socket_id].terminal = 0;
@@ -326,6 +404,39 @@ int more_lpc_sockets () {
   else
     socket_runtime_state = RESIZE (socket_runtime_state, max_lpc_socks, socket_runtime_state_t, TAG_SOCKETS, "more_lpc_sockets:socket_runtime_state");
 
+#ifdef PACKAGE_PEER_REVERSE_DNS
+  if (!dns_pending_hostnames)
+    dns_pending_hostnames = CALLOCATE (max_lpc_socks, dns_hostname_t, TAG_SOCKETS, "more_lpc_sockets:dns_pending_hostnames");
+  else
+    dns_pending_hostnames = RESIZE (dns_pending_hostnames, max_lpc_socks, dns_hostname_t, TAG_SOCKETS, "more_lpc_sockets:dns_pending_hostnames");
+
+  if (!dns_pending_ports)
+    dns_pending_ports = CALLOCATE (max_lpc_socks, uint16_t, TAG_SOCKETS, "more_lpc_sockets:dns_pending_ports");
+  else
+    dns_pending_ports = RESIZE (dns_pending_ports, max_lpc_socks, uint16_t, TAG_SOCKETS, "more_lpc_sockets:dns_pending_ports");
+
+  if (!dns_pending_leaders)
+    dns_pending_leaders = CALLOCATE (max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_leaders");
+  else
+    dns_pending_leaders = RESIZE (dns_pending_leaders, max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_leaders");
+
+  if (!dns_pending_leader_op_ids)
+    dns_pending_leader_op_ids = CALLOCATE (max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_leader_op_ids");
+  else
+    dns_pending_leader_op_ids = RESIZE (dns_pending_leader_op_ids, max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_leader_op_ids");
+#endif
+
+#ifdef PACKAGE_PEER_REVERSE_DNS
+  if (max_lpc_socks == 10)
+    {
+      /* First time initialization - set up DNS system */
+      if (!init_dns_system())
+        {
+          debug_error("Failed to initialize DNS system for sockets");
+        }
+    }
+#endif
+
   i = max_lpc_socks;
   while (--i >= max_lpc_socks - 10)
     {
@@ -366,6 +477,17 @@ int more_lpc_sockets () {
       socket_runtime_state[i].registered = 0;
       socket_runtime_state[i].events = 0;
       socket_runtime_state[i].fd = INVALID_SOCKET_FD;
+
+#ifdef PACKAGE_PEER_REVERSE_DNS
+      if (dns_pending_hostnames != NULL)
+        dns_pending_hostnames[i][0] = '\0';
+      if (dns_pending_ports != NULL)
+        dns_pending_ports[i] = 0;
+      if (dns_pending_leaders != NULL)
+        dns_pending_leaders[i] = -1;
+      if (dns_pending_leader_op_ids != NULL)
+        dns_pending_leader_op_ids[i] = -1;
+#endif
     }
   return max_lpc_socks - 10;
 }
@@ -966,6 +1088,72 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
       return EEISCONN;
     }
 
+#ifdef PACKAGE_PEER_REVERSE_DNS
+  {
+    int is_hostname = 0;
+    struct in_addr test_addr;
+    long port_num = 0;
+    char addr[ADDR_BUF_SIZE];
+    char *cp, *port_end;
+
+    /* Check if the address looks like a hostname (non-numeric IP) by attempting
+     * to extract and parse the address component as IPv4. Also extract port. */
+    if (name != NULL)
+      {
+        strncpy (addr, name, ADDR_BUF_SIZE);
+        addr[ADDR_BUF_SIZE - 1] = '\0';
+
+        cp = strchr (addr, ' ');
+        if (cp != NULL)
+          {
+            *cp = '\0';
+            /* Try to parse port */
+            port_num = strtol (cp + 1, &port_end, 10);
+            if (port_end != (cp + 1) && *port_end == '\0' && port_num >= 0 && port_num <= 65535)
+              {
+                /* Valid port - now check if address is hostname */
+                if (inet_pton (AF_INET, addr, &test_addr) != 1)
+                  is_hostname = 1;
+              }
+          }
+      }
+
+    /* If we detected a hostname and feature is enabled, queue DNS work asynchronously */
+    if (is_hostname)
+      {
+        if (!start_socket_operation (i, current_object, 0))
+          return EESOCKET;
+        if (!set_socket_operation_phase (i, OP_DNS_RESOLVING))
+          {
+            complete_socket_operation (i, OP_FAILED);
+            return EESOCKET;
+          }
+
+        /* Queue the DNS resolution to worker thread. This queues the work but
+         * doesn't block. The socket stays in OP_DNS_RESOLVING until completion. */
+        {
+          int dns_queue_result = queue_dns_resolution (i, addr, (uint16_t)port_num);
+
+          if (dns_queue_result != EESUCCESS)
+          {
+            /* Queue failed - admission control rejected or queue full */
+            complete_socket_operation (i, OP_FAILED);
+            return dns_queue_result;
+          }
+        }
+
+        set_read_callback (i, read_callback);
+        set_write_callback (i, write_callback);
+        current_object->flags |= O_EFUN_SOCKET;
+
+        /* Return EESUCCESS - work is queued, completion will transition to
+         * OP_CONNECTING when DNS resolves */
+        return EESUCCESS;
+      }
+  }
+#endif
+
+  /* Non-hostname path: resolve address synchronously (numeric IPv4 only) */
   if (!socket_name_to_sin (name, &lpc_socks[i].r_addr))
     return EEBADADDR;
 
@@ -1792,25 +1980,477 @@ assign_socket_owner (svalue_t * sv, object_t * ob)
  * Convert a string representation of an address to a sockaddr_in
  */
 static int socket_name_to_sin (char *name, struct sockaddr_in *sin) {
-  int port;
-  char *cp, addr[ADDR_BUF_SIZE];
+  long port;
+  char *cp, *port_end, addr[ADDR_BUF_SIZE];
+
+  if (name == NULL || sin == NULL)
+    return 0;
 
   strncpy (addr, name, ADDR_BUF_SIZE);
   addr[ADDR_BUF_SIZE - 1] = '\0';
 
   cp = strchr (addr, ' ');
-  if (cp == NULL)
+  if (cp == NULL || *(cp + 1) == '\0')
     return 0;
 
   *cp = '\0';
-  port = atoi (cp + 1);
+  port = strtol (cp + 1, &port_end, 10);
+  if (port_end == (cp + 1) || *port_end != '\0' || port < 0 || port > 65535)
+    return 0;
 
   sin->sin_family = AF_INET;
   sin->sin_port = htons ((u_short) port);
-  inet_pton (AF_INET, addr, &sin->sin_addr);
+  if (inet_pton (AF_INET, addr, &sin->sin_addr) != 1)
+    {
+      /* Hostname resolution must be handled asynchronously via worker thread.
+       * Returning 0 here means the address couldn't be parsed as numeric IPv4.
+       * socket_connect() will detect this and queue DNS work if feature enabled. */
+      return 0;
+    }
 
   return 1;
 }
+
+#ifdef PACKAGE_PEER_REVERSE_DNS
+
+static void
+clear_dns_pending_resolution (int socket_id)
+{
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return;
+
+  if (dns_pending_hostnames != NULL)
+    dns_pending_hostnames[socket_id][0] = '\0';
+  if (dns_pending_ports != NULL)
+    dns_pending_ports[socket_id] = 0;
+  if (dns_pending_leaders != NULL)
+    dns_pending_leaders[socket_id] = -1;
+  if (dns_pending_leader_op_ids != NULL)
+    dns_pending_leader_op_ids[socket_id] = -1;
+}
+
+static void
+apply_dns_result_to_socket (int socket_id, const dns_result_t *result)
+{
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return;
+
+  if (lpc_socks[socket_id].state == CLOSED ||
+      lpc_socks[socket_id].state == FLUSHING)
+    return;
+
+  if (!socket_ops[socket_id].active ||
+      socket_ops[socket_id].phase != OP_DNS_RESOLVING)
+    return;
+
+  if (result->timed_out)
+    {
+      complete_socket_operation (socket_id, OP_TIMED_OUT);
+      return;
+    }
+
+  if (!result->success)
+    {
+      complete_socket_operation (socket_id, OP_FAILED);
+      return;
+    }
+
+  lpc_socks[socket_id].r_addr.sin_family = AF_INET;
+  lpc_socks[socket_id].r_addr.sin_addr = result->resolved_addr;
+  lpc_socks[socket_id].r_addr.sin_port = htons (result->port);
+
+  if (!set_socket_operation_phase (socket_id, OP_CONNECTING))
+    {
+      complete_socket_operation (socket_id, OP_FAILED);
+      return;
+    }
+
+  if (connect (lpc_socks[socket_id].fd,
+               (struct sockaddr *) &lpc_socks[socket_id].r_addr,
+               sizeof (struct sockaddr_in)) == SOCKET_ERROR)
+    {
+      switch (SOCKET_ERRNO)
+        {
+#ifdef WINSOCK
+        case WSAEWOULDBLOCK:
+        case WSAEINPROGRESS:
+          break;
+#else
+        case EINPROGRESS:
+          break;
+#endif
+        default:
+          complete_socket_operation (socket_id, OP_FAILED);
+          return;
+        }
+    }
+
+  lpc_socks[socket_id].state = DATA_XFER;
+  lpc_socks[socket_id].flags |= S_BLOCKED;
+  set_socket_operation_phase (socket_id, OP_TRANSFERRING);
+
+  if (!modify_socket_runtime (socket_id))
+    {
+      socket_close (socket_id, SC_FORCE);
+      complete_socket_operation (socket_id, OP_FAILED);
+    }
+}
+
+/**
+ * DNS worker thread function (runs in worker thread context)
+ * Processes queued DNS tasks and posts completions back to main thread.
+ */
+static void* dns_worker_main(void *arg) {
+  async_queue_t *task_queue = (async_queue_t *)arg;
+  dns_task_t task;
+  dns_result_t result;
+  struct addrinfo hints;
+  struct addrinfo *addr_results = NULL;
+  struct addrinfo *entry;
+  int gai_result;
+  time_t now;
+  size_t task_size = 0;
+  async_queue_t *result_queue = dns_results;  /* Access to global result queue */
+  async_worker_t *worker = async_worker_current();
+
+  while (!async_worker_should_stop(worker)) {
+    /* Dequeue next DNS task (non-blocking) */
+    if (!async_queue_dequeue(task_queue, &task, sizeof(task), &task_size)) {
+      /* Queue empty, do a small yield before retry */
+#ifdef WINSOCK
+      Sleep(10);  /* 10ms on Windows */
+#else
+      usleep(10000);  /* 10ms on POSIX */
+#endif
+      continue;
+    }
+
+    if (task_size != sizeof(task)) {
+      continue;  /* Mismatched message size, skip */
+    }
+
+    /* Initialize result structure */
+    memset(&result, 0, sizeof(result));
+    result.socket_id = task.socket_id;
+    result.op_id = task.op_id;
+    result.port = task.port;
+    result.success = 0;
+    result.timed_out = 0;
+    result.error = 0;
+
+    /* Check if already past deadline before doing work */
+    now = time(NULL);
+    if (now >= task.deadline) {
+      result.timed_out = 1;
+    } else {
+      /* Perform DNS resolution (blocking is OK in worker thread) */
+      memset(&hints, 0, sizeof(hints));
+      hints.ai_family = AF_INET;
+      hints.ai_socktype = SOCK_STREAM;
+
+      gai_result = getaddrinfo(task.hostname, NULL, &hints, &addr_results);
+      if (gai_result == 0) {
+        /* Find first IPv4 result */
+        for (entry = addr_results; entry != NULL; entry = entry->ai_next) {
+          if (entry->ai_family == AF_INET && entry->ai_addr != NULL) {
+            struct sockaddr_in *addr4 = (struct sockaddr_in *)entry->ai_addr;
+            result.resolved_addr = addr4->sin_addr;
+            result.success = 1;
+            break;
+          }
+        }
+        freeaddrinfo(addr_results);
+        addr_results = NULL;
+      } else {
+        result.error = gai_result;
+      }
+
+      /* Final deadline check after DNS work completes */
+      now = time(NULL);
+      if (now >= task.deadline) {
+        result.timed_out = 1;
+        result.success = 0;
+      }
+    }
+
+    /* Enqueue result and notify main thread */
+    if (result_queue != NULL) {
+      if (async_queue_enqueue(result_queue, &result, sizeof(result))) {
+        async_runtime_post_completion(get_async_runtime(), DNS_COMPLETION_KEY, 1);
+      }
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Queue a DNS resolution task (called from main thread only)
+ * Returns EESUCCESS on success, deterministic EE* code on rejection/failure.
+ */
+static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t port) {
+  dns_task_t task;
+  int i;
+  int owner_count = 0;
+  int leader_socket_id = -1;
+  int leader_op_id = -1;
+
+  if (dns_queue == NULL)
+    return EESOCKET;
+
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return EEFDRANGE;
+
+  /* Optional duplicate lookup coalescing: attach to existing leader task. */
+  if (hostname != NULL)
+    {
+      for (i = 0; i < max_lpc_socks; i++)
+        {
+          if (i == socket_id)
+            continue;
+          if (!socket_ops[i].active || socket_ops[i].phase != OP_DNS_RESOLVING)
+            continue;
+          if (dns_pending_leaders == NULL || dns_pending_leaders[i] != i)
+            continue;
+          if (dns_pending_ports == NULL || dns_pending_ports[i] != port)
+            continue;
+          if (dns_pending_hostnames == NULL)
+            continue;
+          if (strcmp (dns_pending_hostnames[i], hostname) != 0)
+            continue;
+          leader_socket_id = i;
+          leader_op_id = socket_ops[i].op_id;
+          break;
+        }
+    }
+
+  if (leader_socket_id >= 0)
+    {
+      if (dns_pending_hostnames != NULL && hostname != NULL)
+        {
+          strncpy (dns_pending_hostnames[socket_id], hostname, ADDR_BUF_SIZE);
+          dns_pending_hostnames[socket_id][ADDR_BUF_SIZE - 1] = '\0';
+        }
+      if (dns_pending_ports != NULL)
+        dns_pending_ports[socket_id] = port;
+      if (dns_pending_leaders != NULL)
+        dns_pending_leaders[socket_id] = leader_socket_id;
+      if (dns_pending_leader_op_ids != NULL)
+        dns_pending_leader_op_ids[socket_id] = leader_op_id;
+      dns_telemetry.dedup_hit++;
+      return EESUCCESS;
+    }
+
+  /* Check global in-flight cap */
+  if (dns_tasks_in_flight >= DNS_GLOBAL_CAP) {
+    dns_telemetry.rejected_global++;
+    return EEWOULDBLOCK;
+  }
+
+  /* Check per-owner cap */
+  if (socket_id >= 0 && socket_id < max_lpc_socks && 
+      lpc_socks[socket_id].owner_ob != NULL) {
+    for (i = 0; i < max_lpc_socks; i++) {
+      if (lpc_socks[i].owner_ob == lpc_socks[socket_id].owner_ob &&
+          socket_ops[i].active &&
+          socket_ops[i].phase == OP_DNS_RESOLVING) {
+        owner_count++;
+      }
+    }
+    if (owner_count >= DNS_PER_OWNER_CAP) {
+      dns_telemetry.rejected_owner++;
+      return EEWOULDBLOCK;
+    }
+  }
+
+  /* Build and queue the DNS task */
+  memset(&task, 0, sizeof(task));
+  task.socket_id = socket_id;
+  task.op_id = socket_ops[socket_id].op_id;
+  task.port = port;
+  task.deadline = time(NULL) + DNS_TIMEOUT_SECONDS;
+
+  if (hostname != NULL) {
+    strncpy(task.hostname, hostname, ADDR_BUF_SIZE - 1);
+    task.hostname[ADDR_BUF_SIZE - 1] = '\0';
+  }
+
+  if (dns_pending_hostnames != NULL && hostname != NULL)
+    {
+      strncpy (dns_pending_hostnames[socket_id], hostname, ADDR_BUF_SIZE);
+      dns_pending_hostnames[socket_id][ADDR_BUF_SIZE - 1] = '\0';
+    }
+  if (dns_pending_ports != NULL)
+    dns_pending_ports[socket_id] = port;
+  if (dns_pending_leaders != NULL)
+    dns_pending_leaders[socket_id] = socket_id;
+  if (dns_pending_leader_op_ids != NULL)
+    dns_pending_leader_op_ids[socket_id] = task.op_id;
+
+  if (strncmp (task.hostname, "force-timeout-", 14) == 0)
+    {
+      task.deadline = 0;
+    }
+  else if (socket_dns_timeout_test_hook != NULL &&
+           socket_dns_timeout_test_hook (socket_id, task.hostname, task.port))
+    {
+      task.deadline = 0;
+    }
+
+  if (!async_queue_enqueue(dns_queue, &task, sizeof(task))) {
+    clear_dns_pending_resolution (socket_id);
+    dns_telemetry.rejected_queue++;
+    return EEWOULDBLOCK;
+  }
+
+  dns_tasks_in_flight++;
+  dns_telemetry.admitted++;
+  return EESUCCESS;
+}
+
+/**
+ * Process DNS completions from worker thread (called from main loop)
+ * Drains all pending results and applies them to sockets
+ */
+static void process_dns_completions(void) {
+  dns_result_t result;
+  size_t result_size = 0;
+  int socket_id;
+  int i;
+  int stale = 0;
+
+  if (dns_results == NULL)
+    return;
+
+  while (async_queue_dequeue(dns_results, &result, sizeof(result), &result_size)) {
+    if (result_size != sizeof(result)) {
+      continue;  /* Mismatched size, skip */
+    }
+
+    socket_id = result.socket_id;
+    dns_tasks_in_flight--;
+
+    stale = 0;
+    if (socket_id < 0 || socket_id >= max_lpc_socks)
+      stale = 1;
+    else if (!socket_ops[socket_id].active ||
+             socket_ops[socket_id].phase != OP_DNS_RESOLVING ||
+             socket_ops[socket_id].op_id != result.op_id)
+      stale = 1;
+
+    if (stale)
+      continue;
+
+    if (result.timed_out)
+      dns_telemetry.timed_out++;
+    else if (!result.success)
+      dns_telemetry.failed++;
+    else
+      dns_telemetry.completed++;
+
+    for (i = 0; i < max_lpc_socks; i++)
+      {
+        if (dns_pending_leaders == NULL || dns_pending_leaders[i] != socket_id)
+          continue;
+        if (dns_pending_leader_op_ids == NULL || dns_pending_leader_op_ids[i] != result.op_id)
+          continue;
+        apply_dns_result_to_socket (i, &result);
+      }
+  }
+}
+
+/**
+ * Initialize DNS worker and queues (called once at driver startup)
+ */
+static int init_dns_system(void) {
+  if (dns_queue != NULL)
+    return 1;  /* Already initialized */
+
+  dns_queue = async_queue_create(DNS_QUEUE_SIZE, sizeof(dns_task_t),
+                                  ASYNC_QUEUE_DROP_OLDEST);
+  if (dns_queue == NULL)
+    return 0;
+
+  dns_results = async_queue_create(DNS_QUEUE_SIZE, sizeof(dns_result_t),
+                                    ASYNC_QUEUE_DROP_OLDEST);
+  if (dns_results == NULL) {
+    async_queue_destroy(dns_queue);
+    dns_queue = NULL;
+    return 0;
+  }
+
+  dns_worker = async_worker_create(dns_worker_main, dns_queue, 0);
+  if (dns_worker == NULL) {
+    async_queue_destroy(dns_queue);
+    async_queue_destroy(dns_results);
+    dns_queue = NULL;
+    dns_results = NULL;
+    return 0;
+  }
+
+  return 1;
+}
+
+/**
+ * Shutdown DNS worker and queues (called at driver shutdown)
+ */
+void deinit_dns_system(void) {
+  if (dns_worker != NULL) {
+    async_worker_signal_stop(dns_worker);
+    async_worker_join(dns_worker, 5000);  /* 5 second timeout */
+    async_worker_destroy(dns_worker);
+    dns_worker = NULL;
+  }
+  if (dns_queue != NULL) {
+    async_queue_destroy(dns_queue);
+    dns_queue = NULL;
+  }
+  if (dns_results != NULL) {
+    async_queue_destroy(dns_results);
+    dns_results = NULL;
+  }
+  if (dns_pending_hostnames != NULL) {
+    FREE (dns_pending_hostnames);
+    dns_pending_hostnames = NULL;
+  }
+  if (dns_pending_ports != NULL) {
+    FREE (dns_pending_ports);
+    dns_pending_ports = NULL;
+  }
+  if (dns_pending_leaders != NULL) {
+    FREE (dns_pending_leaders);
+    dns_pending_leaders = NULL;
+  }
+  if (dns_pending_leader_op_ids != NULL) {
+    FREE (dns_pending_leader_op_ids);
+    dns_pending_leader_op_ids = NULL;
+  }
+  socket_dns_timeout_test_hook = NULL;
+  dns_tasks_in_flight = 0;
+  memset(&dns_telemetry, 0, sizeof(dns_telemetry));
+}
+
+/**
+ * Public wrapper for DNS completion handling (called from main loop)
+ */
+void handle_dns_completions(void) {
+  process_dns_completions();
+}
+
+int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
+                               unsigned long *timed_out) {
+  if (in_flight != NULL)
+    *in_flight = dns_tasks_in_flight;
+  if (admitted != NULL)
+    *admitted = dns_telemetry.admitted;
+  if (dedup_hit != NULL)
+    *dedup_hit = dns_telemetry.dedup_hit;
+  if (timed_out != NULL)
+    *timed_out = dns_telemetry.timed_out;
+  return EESUCCESS;
+}
+
+#endif /* PACKAGE_PEER_REVERSE_DNS */
 
 /**
  * Close any sockets owned by ob
@@ -1949,6 +2589,19 @@ void dump_socket_status (outbuffer_t * out) {
                    context_state,
                    mapping_state);
     }
+
+#ifdef PACKAGE_PEER_REVERSE_DNS
+  outbuf_add (out, "\nDNS Telemetry:\n");
+  outbuf_addv (out, "  Admitted: %lu\n", dns_telemetry.admitted);
+  outbuf_addv (out, "  Dedup hit: %lu\n", dns_telemetry.dedup_hit);
+  outbuf_addv (out, "  Rejected (global cap): %lu\n", dns_telemetry.rejected_global);
+  outbuf_addv (out, "  Rejected (owner cap): %lu\n", dns_telemetry.rejected_owner);
+  outbuf_addv (out, "  Rejected (queue full): %lu\n", dns_telemetry.rejected_queue);
+  outbuf_addv (out, "  Completed successfully: %lu\n", dns_telemetry.completed);
+  outbuf_addv (out, "  Failed (not timed out): %lu\n", dns_telemetry.failed);
+  outbuf_addv (out, "  Timed out: %lu\n", dns_telemetry.timed_out);
+  outbuf_addv (out, "  Currently in-flight: %d\n", dns_tasks_in_flight);
+#endif
 }
 
 #endif /* SOCKET_EFUNS */

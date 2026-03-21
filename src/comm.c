@@ -1149,6 +1149,14 @@ void process_io () {
                 }
             }
         }
+#ifdef PACKAGE_PEER_REVERSE_DNS
+      else if (evt->completion_key == 0x444E5300)  /* DNS_COMPLETION_KEY */
+        {
+          /* DNS resolution completion - worker posted results.
+           * Handle DNS completions and transition sockets to CONNECTING. */
+          handle_dns_completions();
+        }
+#endif
       else if (is_interactive_user (evt->context))
         {
           /* Interactive user socket */
