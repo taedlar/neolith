@@ -285,7 +285,64 @@ Use these IDs directly in test names once implementation begins.
 Stage 4 gate:
 - [x] Stage complete when selected DNS track(s) are non-blocking, bounded, and stable under adversarial load, with explicit DNS-disabled build behavior verified.
 
-### Stage 5 Checklist: Hardening and Documentation
+### Stage 5 Checklist: Shared Resolver Worker (c-ares)
+
+Goal: replace blocking `getaddrinfo()` worker resolution and legacy `addr_server_fd`/`resolve()` plumbing with one shared async resolver backend based on c-ares.
+
+Execution order and dependencies:
+1. Foundation and build integration (must complete first)
+  - [ ] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
+  - [ ] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
+2. Shared resolver core (depends on step 1)
+  - [ ] Introduce resolver request classes in a shared resolver module:
+    - [ ] forward lookup (hostname -> IPv4/IPv6)
+    - [ ] reverse lookup (IP -> hostname)
+    - [ ] peer-name refresh path (`query_ip_name` cache updates)
+    - [ ] socket-connect lookup path (current Stage 4A behavior)
+  - [ ] Use request-id correlation for all completion fan-out (no name-only matching).
+  - [ ] Preserve per-request timeout semantics at resolver layer and map deterministic failures to caller-specific contracts.
+  - [ ] Preserve socket op-id correlation in socket path to prevent stale completion routing.
+  - [ ] Add class-aware admission control to avoid starvation:
+    - [ ] global cap
+    - [ ] per-class caps
+    - [ ] per-owner caps for socket-originated requests
+  - [ ] Add optional dedup/coalescing policy by class (at minimum for socket-connect forward lookups).
+3. Feature migration onto shared resolver (depends on step 2)
+  - [ ] Route `resolve()` efun through shared resolver while preserving callback signature and key semantics.
+  - [ ] Migrate `query_ip_name()` reverse-lookup cache population to shared resolver completions.
+4. Observability and rollout safety (starts in step 2, must be complete before step 5)
+  - [ ] Extend telemetry for mixed workload observability:
+    - [ ] queued/admitted/rejected by class
+    - [ ] timeout/failure/completed by class
+    - [ ] dedup-hit and stale-drop counters by class
+  - [ ] Add trace points around request lifecycle (`queued -> worker -> completion -> callback`).
+5. Legacy-path removal (depends on successful matrix parity)
+  - [ ] Remove legacy address server path after parity is verified:
+    - [ ] remove `addr_server_fd` event handling
+    - [ ] remove `query_addr_number()` request table path
+    - [ ] remove legacy hname parser and callback bridge
+
+#### Stage 5 Verification Matrix (Shared Resolver)
+
+| Test ID | Scenario | Expected result |
+|---|---|---|
+| RESOLVER_001 | Mixed forward + reverse flood under load | Backend remains responsive; bounded queue behavior enforced |
+| RESOLVER_002 | `socket_connect` flood + `resolve()` flood concurrently | No cross-class starvation beyond configured caps; deterministic rejection mapping |
+| RESOLVER_003 | Duplicate hostname requests across sockets | Coalescing works; all waiters complete once; no stale completion fan-out |
+| RESOLVER_004 | Reverse lookups for `query_ip_name()` during socket traffic | Cache updates remain deterministic; no event-loop stalls |
+| RESOLVER_005 | Timeout/cancel races across request classes | Exactly one terminal completion per request |
+| RESOLVER_006 | Owner/object destruction during pending resolver requests | Safe cleanup; no use-after-free; no callback to destructed object |
+| RESOLVER_007 | DNS-disabled build without c-ares | Build remains functional; existing DNS-disabled semantics preserved |
+| RESOLVER_008 | c-ares-enabled build parity with Stage 4A DNS tests | Existing `SOCK_DNS_*` behavior remains green |
+
+Stage 5 gate:
+- [ ] Stage complete when shared resolver parity is verified across mixed workloads and legacy address-server paths are removed.
+
+### Stage 6 Checklist: Hardening and Documentation
+
+Dependencies:
+- Stage 6 begins only after Stage 5 gate is complete.
+- Hardening tests must run against the shared resolver path (legacy path removed).
 
 - [ ] Add race tests for close-during-DNS.
 - [ ] Add lifecycle tests for owner destruction during pending operation.
@@ -296,7 +353,7 @@ Stage 4 gate:
 - [ ] Add migration notes for future high-level API work.
 - [ ] Verify CI stability across target presets.
 
-Stage 5 gate:
+Stage 6 gate:
 - [ ] Stage complete when hardening tests are stable and docs reflect implementation reality.
 
 ## Milestones
@@ -395,9 +452,29 @@ Exit criteria:
 - DNS-disabled build behavior is validated.
 - Milestone 1 compatibility tests remain green where behavior is unchanged.
 
-### Milestone 5: Hardening and Documentation
+### Milestone 5: Shared Resolver Migration (c-ares)
+
+**Goal**: unify mixed DNS workloads behind one async resolver backend and retire legacy address-server plumbing.
+
+Tasks:
+1. Add c-ares dependency provider integration (optional fetch from source).
+2. Add shared resolver request classes (forward, reverse, peer cache refresh, socket connect).
+3. Preserve request correlation, timeout mapping, and socket op-id safety.
+4. Migrate `resolve()` and `query_ip_name()` paths to shared resolver completion flow.
+5. Add mixed-workload telemetry/trace validation hooks.
+6. Remove `addr_server_fd` and legacy lookup callback bridge after parity verification.
+
+Exit criteria:
+- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) is green.
+- Stage 4 DNS behavior remains stable with c-ares-enabled builds.
+
+### Milestone 6: Hardening and Documentation
 
 **Goal**: stabilize and document contracts after implementation.
+
+Dependencies:
+- Milestone 5 exit criteria complete.
+- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) remains green while running hardening scenarios.
 
 Tasks:
 - Add targeted race and lifecycle tests:
@@ -444,9 +521,10 @@ Exit criteria:
 - Milestone 2: 1 week
 - Milestone 3: 1 week
 - Milestone 4: 1-2 weeks
-- Milestone 5: 1 week
+- Milestone 5: 1-2 weeks
+- Milestone 6: 1 week
 
-Total: 5-7 weeks (incremental delivery, test-gated)
+Total: 6-8 weeks (incremental delivery, test-gated)
 
 ## Related Documents
 
