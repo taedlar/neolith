@@ -472,6 +472,16 @@
  */
 #define PACKAGE_SOCKETS
 
+/* PACKAGE_PEER_REVERSE_DNS: define this to enable built-in reverse DNS
+ *   lookup for connected peer addresses.
+ *   This also affects the query_ip_name() efun, which can return cached
+ *   peer host names when reverse lookup is available.
+ *
+ *   When enabled, LPC code can detect availability via the predefined
+ *   macro __PACKAGE_PEER_REVERSE_DNS__.
+ */
+#undef PACKAGE_PEER_REVERSE_DNS
+
 /* PACKAGE_PARSER: Natural language parsing efuns for interactive fiction
  *   type applications
  */
