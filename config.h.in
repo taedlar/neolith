@@ -30,6 +30,9 @@
 #cmakedefine HAVE_OPENSSL
 #cmakedefine HAVE_CURL
 
+/* Package options (configurable at CMake time) */
+#cmakedefine PACKAGE_PEER_REVERSE_DNS
+
 #define PACKAGE "@CMAKE_PROJECT_NAME@"
 #define VERSION "@CMAKE_PROJECT_VERSION@"
 

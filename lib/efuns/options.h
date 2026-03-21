@@ -479,8 +479,10 @@
  *
  *   When enabled, LPC code can detect availability via the predefined
  *   macro __PACKAGE_PEER_REVERSE_DNS__.
+ *
+ *   Configuration: Set via CMake option ENABLE_PEER_REVERSE_DNS
  */
-#undef PACKAGE_PEER_REVERSE_DNS
+/* #undef PACKAGE_PEER_REVERSE_DNS */
 
 /* PACKAGE_PARSER: Natural language parsing efuns for interactive fiction
  *   type applications

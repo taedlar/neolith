@@ -83,6 +83,13 @@ if(CURL_FOUND)
 	message(STATUS "Found cURL: ${CURL_INCLUDE_DIRS} (found version ${CURL_VERSION_STRING})")
 endif()
 
+# package options (configurable at CMake time)
+option(ENABLE_PEER_REVERSE_DNS "Enable built-in DNS reverse lookup for socket peer addresses" OFF)
+if(ENABLE_PEER_REVERSE_DNS)
+	set(PACKAGE_PEER_REVERSE_DNS 1)
+	message(STATUS "Built-in peer reverse DNS enabled")
+endif()
+
 # generate global header "config.h" for build configurations
 configure_file(config.h.in config.h @ONLY)
 include_directories("${CMAKE_BINARY_DIR}")
