@@ -16,9 +16,11 @@ extern "C" {
   #include "lpc/object.h"
   #include "lpc/functional.h"
   #include "socket/socket_efuns.h"
+  #include "async/async_runtime.h"
   #include "lpc/include/socket_err.h"
   #include "port/socket_comm.h"
   #include "interpret.h"
+  #include "backend.h"
 }
 
 using namespace testing;

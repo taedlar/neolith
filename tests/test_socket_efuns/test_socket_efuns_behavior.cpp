@@ -84,6 +84,30 @@ bool AcceptPendingConnection(socket_fd_t listener_fd, socket_fd_t *accepted_fd) 
   return *accepted_fd != INVALID_SOCKET_FD;
 }
 
+class ScopedAsyncRuntime {
+public:
+  ScopedAsyncRuntime() : owns_runtime_(false) {
+    if (g_runtime == nullptr) {
+      g_runtime = async_runtime_init();
+      owns_runtime_ = (g_runtime != nullptr);
+    }
+  }
+
+  ~ScopedAsyncRuntime() {
+    if (owns_runtime_ && g_runtime != nullptr) {
+      async_runtime_deinit(g_runtime);
+      g_runtime = nullptr;
+    }
+  }
+
+  bool IsReady() const {
+    return g_runtime != nullptr;
+  }
+
+private:
+  bool owns_runtime_;
+};
+
 object_t *LoadInlineObject(const char *name, const char *code) {
   object_t *saved_current;
   object_t *obj;
@@ -1204,5 +1228,139 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_003_CloseClearsOperationAndDuplicateTerm
   }
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
+}
+
+TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntimeEntry) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for Stage 3 runtime tests";
+  ScopedObjectContext ctx(this, master_ob);
+
+  svalue_t read_cb;
+  int fd;
+  int registered = 0;
+  int events = 0;
+  int tracked_fd = (int)INVALID_SOCKET_FD;
+  int resolved_socket = -1;
+  socket_fd_t native_fd = INVALID_SOCKET_FD;
+  void* runtime_context;
+
+  read_cb.type = T_STRING;
+  read_cb.subtype = STRING_SHARED;
+  read_cb.u.string = make_shared_string("read_callback");
+
+  fd = socket_create(STREAM, &read_cb, NULL);
+  ASSERT_GE(fd, 0) << "Failed to create stream socket";
+
+  ASSERT_EQ(get_socket_runtime_info(fd, &registered, &events, &tracked_fd), EESUCCESS);
+  EXPECT_EQ(registered, 1);
+  EXPECT_EQ(events, EVENT_READ);
+  EXPECT_EQ(tracked_fd, (int)lpc_socks[fd].fd);
+
+  runtime_context = get_socket_runtime_context(fd);
+  native_fd = lpc_socks[fd].fd;
+  ASSERT_NE(runtime_context, nullptr);
+  EXPECT_EQ(resolve_lpc_socket_context(runtime_context, native_fd, &resolved_socket), 1);
+  EXPECT_EQ(resolved_socket, fd);
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
+
+  ASSERT_EQ(get_socket_runtime_info(fd, &registered, &events, &tracked_fd), EESUCCESS);
+  EXPECT_EQ(registered, 0);
+  EXPECT_EQ(events, 0);
+  EXPECT_EQ(tracked_fd, (int)INVALID_SOCKET_FD);
+  EXPECT_EQ(resolve_lpc_socket_context(runtime_context, native_fd, &resolved_socket), 0);
+
+  free_string(read_cb.u.string);
+}
+
+TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for Stage 3 runtime tests";
+  ScopedObjectContext ctx(this, master_ob);
+
+  svalue_t read_cb;
+  svalue_t write_cb;
+  socket_fd_t listener_fd = INVALID_SOCKET_FD;
+  socket_fd_t accepted_fd = INVALID_SOCKET_FD;
+  int listener_port = 0;
+  int fd;
+  int registered = 0;
+  int events = 0;
+  int tracked_fd = (int)INVALID_SOCKET_FD;
+  int attempts;
+
+  read_cb.type = T_STRING;
+  read_cb.subtype = STRING_SHARED;
+  read_cb.u.string = make_shared_string("read_callback");
+  write_cb.type = T_STRING;
+  write_cb.subtype = STRING_SHARED;
+  write_cb.u.string = make_shared_string("write_callback");
+
+  fd = socket_create(STREAM, &read_cb, NULL);
+  ASSERT_GE(fd, 0) << "Failed to create stream socket";
+  ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
+    << "Failed to create loopback listener";
+
+  std::string endpoint = "127.0.0.1 " + std::to_string(listener_port);
+  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb), EESUCCESS);
+
+  ASSERT_EQ(get_socket_runtime_info(fd, &registered, &events, &tracked_fd), EESUCCESS);
+  EXPECT_EQ(registered, 1);
+  EXPECT_NE((events & EVENT_WRITE), 0) << "Blocked connect path should watch write events";
+
+  ASSERT_TRUE(AcceptPendingConnection(listener_fd, &accepted_fd));
+
+  for (attempts = 0; attempts < 32 && (lpc_socks[fd].flags & S_BLOCKED); attempts++) {
+    socket_write_select_handler(fd);
+  }
+
+  EXPECT_EQ((lpc_socks[fd].flags & S_BLOCKED), 0) << "Socket should clear blocked state after write-ready handling";
+
+  ASSERT_EQ(get_socket_runtime_info(fd, &registered, &events, &tracked_fd), EESUCCESS);
+  EXPECT_EQ(registered, 1);
+  EXPECT_EQ((events & EVENT_WRITE), 0) << "Unblocked socket should only watch read events";
+
+  EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
+  if (accepted_fd != INVALID_SOCKET_FD) {
+    SOCKET_CLOSE(accepted_fd);
+  }
+  if (listener_fd != INVALID_SOCKET_FD) {
+    SOCKET_CLOSE(listener_fd);
+  }
+  free_string(read_cb.u.string);
+  free_string(write_cb.u.string);
+}
+
+TEST_F(SocketEfunsBehaviorTest, SOCK_RT_003_RuntimeRegistrationStress_NoLeaks) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for Stage 3 runtime tests";
+  ScopedObjectContext ctx(this, master_ob);
+
+  svalue_t read_cb;
+  int baseline_registrations;
+  int iteration;
+
+  read_cb.type = T_STRING;
+  read_cb.subtype = STRING_SHARED;
+  read_cb.u.string = make_shared_string("read_callback");
+
+  baseline_registrations = get_socket_runtime_registration_count();
+  ASSERT_GE(baseline_registrations, 0);
+
+  for (iteration = 0; iteration < 100; iteration++) {
+    int fd = socket_create(STREAM, &read_cb, NULL);
+    ASSERT_GE(fd, 0) << "socket_create failed on iteration " << iteration;
+    EXPECT_EQ(get_socket_runtime_registration_count(), baseline_registrations + 1)
+      << "Registration count should increase by one for an open socket";
+    EXPECT_EQ(socket_close(fd, 1), EESUCCESS)
+      << "socket_close failed on iteration " << iteration;
+    EXPECT_EQ(get_socket_runtime_registration_count(), baseline_registrations)
+      << "Registration count should return to baseline after close";
+  }
+
+  free_string(read_cb.u.string);
 }
 
