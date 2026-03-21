@@ -92,3 +92,7 @@ int socket_acquire(int, svalue_t *, svalue_t *, svalue_t *);
 void set_socket_release_test_hook(socket_release_test_hook_t);
 char *socket_error(int);
 int get_socket_operation_info(int, int *, int *, int *, int *);
+int get_socket_runtime_info(int, int *, int *, int *);
+int get_socket_runtime_registration_count(void);
+void *get_socket_runtime_context(int);
+int resolve_lpc_socket_context(void *, socket_fd_t, int *);

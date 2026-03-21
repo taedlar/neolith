@@ -19,6 +19,8 @@
 #include "port/socket_comm.h"
 
 #include "src/std.h"
+#include "src/comm.h"
+#include "async/async_runtime.h"
 #include "lpc/array.h"
 #include "lpc/functional.h"
 #include "lpc/buffer.h"
@@ -55,6 +57,21 @@ typedef struct {
 } socket_operation_t;
 
 static socket_operation_t *socket_ops = NULL;
+typedef struct {
+  int socket_id;
+  int magic;
+} socket_runtime_context_t;
+
+typedef struct {
+  int registered;
+  int events;
+  socket_fd_t fd;
+} socket_runtime_state_t;
+
+#define SOCKET_RUNTIME_CONTEXT_MAGIC 0x534f434b
+
+static socket_runtime_context_t **socket_contexts = NULL;
+static socket_runtime_state_t *socket_runtime_state = NULL;
 static int next_socket_op_id = 1;
 static socket_release_test_hook_t socket_release_test_hook = NULL;
 
@@ -67,6 +84,10 @@ static void clear_socket_operation (int socket_id);
 static int start_socket_operation (int socket_id, object_t *owner_ob, time_t deadline);
 static int set_socket_operation_phase (int socket_id, enum socket_operation_phase next_phase);
 static int complete_socket_operation (int socket_id, enum socket_operation_phase terminal_phase);
+static int compute_socket_runtime_events (int socket_id);
+static int register_socket_runtime (int socket_id);
+static int modify_socket_runtime (int socket_id);
+static void remove_socket_runtime (int socket_id);
 
 void
 set_socket_release_test_hook (socket_release_test_hook_t hook)
@@ -295,6 +316,16 @@ int more_lpc_sockets () {
   else
     socket_ops = RESIZE (socket_ops, max_lpc_socks, socket_operation_t, TAG_SOCKETS, "more_lpc_sockets:socket_ops");
 
+  if (!socket_contexts)
+    socket_contexts = CALLOCATE (max_lpc_socks, socket_runtime_context_t *, TAG_SOCKETS, "more_lpc_sockets:socket_contexts");
+  else
+    socket_contexts = RESIZE (socket_contexts, max_lpc_socks, socket_runtime_context_t *, TAG_SOCKETS, "more_lpc_sockets:socket_contexts");
+
+  if (!socket_runtime_state)
+    socket_runtime_state = CALLOCATE (max_lpc_socks, socket_runtime_state_t, TAG_SOCKETS, "more_lpc_sockets:socket_runtime_state");
+  else
+    socket_runtime_state = RESIZE (socket_runtime_state, max_lpc_socks, socket_runtime_state_t, TAG_SOCKETS, "more_lpc_sockets:socket_runtime_state");
+
   i = max_lpc_socks;
   while (--i >= max_lpc_socks - 10)
     {
@@ -324,8 +355,163 @@ int more_lpc_sockets () {
       socket_ops[i].owner_ob = NULL;
       socket_ops[i].phase = OP_INIT;
       socket_ops[i].deadline = 0;
+
+      if (socket_contexts[i] == NULL)
+        {
+          socket_contexts[i] = CALLOCATE (1, socket_runtime_context_t, TAG_SOCKETS, "more_lpc_sockets:socket_context");
+          socket_contexts[i]->socket_id = i;
+          socket_contexts[i]->magic = SOCKET_RUNTIME_CONTEXT_MAGIC;
+        }
+
+      socket_runtime_state[i].registered = 0;
+      socket_runtime_state[i].events = 0;
+      socket_runtime_state[i].fd = INVALID_SOCKET_FD;
     }
   return max_lpc_socks - 10;
+}
+
+static int
+compute_socket_runtime_events (int socket_id)
+{
+  int events = EVENT_READ;
+
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return 0;
+
+  if (lpc_socks[socket_id].state == CLOSED)
+    return 0;
+
+  if (lpc_socks[socket_id].flags & S_BLOCKED)
+    events |= EVENT_WRITE;
+
+  return events;
+}
+
+static int
+register_socket_runtime (int socket_id)
+{
+  async_runtime_t *runtime;
+  int events;
+
+  if (socket_runtime_state == NULL || socket_contexts == NULL)
+    return 0;
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return 0;
+
+  runtime = get_async_runtime ();
+  if (!runtime)
+    return 1;
+
+  events = compute_socket_runtime_events (socket_id);
+  if (events == 0)
+    return 0;
+
+  if (socket_runtime_state[socket_id].registered)
+    {
+      if (socket_runtime_state[socket_id].fd != lpc_socks[socket_id].fd)
+        {
+          opt_trace (TT_COMM|1, "socket-runtime stale registration replaced: socket=%d old_fd=%d new_fd=%d",
+                     socket_id,
+                     (int) socket_runtime_state[socket_id].fd,
+                     (int) lpc_socks[socket_id].fd);
+          async_runtime_remove (runtime, socket_runtime_state[socket_id].fd);
+          socket_runtime_state[socket_id].registered = 0;
+          socket_runtime_state[socket_id].events = 0;
+          socket_runtime_state[socket_id].fd = INVALID_SOCKET_FD;
+        }
+      else
+        {
+          return modify_socket_runtime (socket_id);
+        }
+    }
+
+  if (async_runtime_add (runtime, lpc_socks[socket_id].fd, events, socket_contexts[socket_id]) != 0)
+    {
+      debug_error ("socket-runtime add failed: socket=%d fd=%d", socket_id, (int) lpc_socks[socket_id].fd);
+      return 0;
+    }
+
+  socket_runtime_state[socket_id].registered = 1;
+  socket_runtime_state[socket_id].events = events;
+  socket_runtime_state[socket_id].fd = lpc_socks[socket_id].fd;
+  opt_trace (TT_COMM|2, "socket-runtime add: socket=%d fd=%d events=%d", socket_id,
+             (int) socket_runtime_state[socket_id].fd, socket_runtime_state[socket_id].events);
+
+  return 1;
+}
+
+static int
+modify_socket_runtime (int socket_id)
+{
+  async_runtime_t *runtime;
+  int events;
+
+  if (socket_runtime_state == NULL || socket_contexts == NULL)
+    return 0;
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return 0;
+
+  runtime = get_async_runtime ();
+  if (!runtime)
+    return 1;
+
+  if (!socket_runtime_state[socket_id].registered)
+    return register_socket_runtime (socket_id);
+
+  if (socket_runtime_state[socket_id].fd != lpc_socks[socket_id].fd)
+    return register_socket_runtime (socket_id);
+
+  events = compute_socket_runtime_events (socket_id);
+  if (events == 0)
+    {
+      remove_socket_runtime (socket_id);
+      return 1;
+    }
+
+  if (events == socket_runtime_state[socket_id].events)
+    return 1;
+
+  if (async_runtime_modify (runtime, lpc_socks[socket_id].fd, events, socket_contexts[socket_id]) != 0)
+    {
+      debug_error ("socket-runtime modify failed: socket=%d fd=%d events=%d",
+                   socket_id, (int) lpc_socks[socket_id].fd, events);
+      return 0;
+    }
+
+  socket_runtime_state[socket_id].events = events;
+  opt_trace (TT_COMM|2, "socket-runtime modify: socket=%d fd=%d events=%d", socket_id,
+             (int) socket_runtime_state[socket_id].fd, socket_runtime_state[socket_id].events);
+  return 1;
+}
+
+static void
+remove_socket_runtime (int socket_id)
+{
+  async_runtime_t *runtime;
+
+  if (socket_runtime_state == NULL)
+    return;
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return;
+
+  runtime = get_async_runtime ();
+  if (runtime && socket_runtime_state[socket_id].registered && socket_runtime_state[socket_id].fd != INVALID_SOCKET_FD)
+    {
+      if (async_runtime_remove (runtime, socket_runtime_state[socket_id].fd) != 0)
+        {
+          opt_trace (TT_COMM|1, "socket-runtime remove failed: socket=%d fd=%d",
+                     socket_id, (int) socket_runtime_state[socket_id].fd);
+        }
+      else
+        {
+          opt_trace (TT_COMM|2, "socket-runtime remove: socket=%d fd=%d",
+                     socket_id, (int) socket_runtime_state[socket_id].fd);
+        }
+    }
+
+  socket_runtime_state[socket_id].registered = 0;
+  socket_runtime_state[socket_id].events = 0;
+  socket_runtime_state[socket_id].fd = INVALID_SOCKET_FD;
 }
 
 /*
@@ -455,6 +641,7 @@ int find_new_socket (void) {
     {
       if (lpc_socks[i].state != CLOSED)
         continue;
+      remove_socket_runtime (i);
       set_read_callback (i, 0);
       set_write_callback (i, 0);
       set_close_callback (i, 0);
@@ -544,6 +731,19 @@ int socket_create (enum socket_mode mode, svalue_t * read_callback, svalue_t * c
       lpc_socks[i].w_buf = NULL;
       lpc_socks[i].w_off = 0;
       lpc_socks[i].w_len = 0;
+
+      if (!register_socket_runtime (i))
+        {
+          set_read_callback (i, 0);
+          set_write_callback (i, 0);
+          set_close_callback (i, 0);
+          SOCKET_CLOSE (fd);
+          lpc_socks[i].fd = INVALID_SOCKET_FD;
+          lpc_socks[i].state = CLOSED;
+          lpc_socks[i].owner_ob = NULL;
+          lpc_socks[i].release_ob = NULL;
+          return EESOCKET;
+        }
 
       current_object->flags |= O_EFUN_SOCKET;
     }
@@ -719,6 +919,19 @@ int socket_accept (int s, svalue_t * read_callback, svalue_t * write_callback) {
       set_write_callback (i, write_callback);
       copy_close_callback (i, s);
 
+      if (!register_socket_runtime (i))
+        {
+          set_read_callback (i, 0);
+          set_write_callback (i, 0);
+          set_close_callback (i, 0);
+          SOCKET_CLOSE (accept_fd);
+          lpc_socks[i].fd = INVALID_SOCKET_FD;
+          lpc_socks[i].state = CLOSED;
+          lpc_socks[i].owner_ob = NULL;
+          lpc_socks[i].release_ob = NULL;
+          return EESOCKET;
+        }
+
       current_object->flags |= O_EFUN_SOCKET;
     }
   else
@@ -812,6 +1025,13 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
   lpc_socks[i].state = DATA_XFER;
   lpc_socks[i].flags |= S_BLOCKED;
   set_socket_operation_phase (i, OP_TRANSFERRING);
+
+  if (!modify_socket_runtime (i))
+    {
+      socket_close (i, SC_FORCE);
+      complete_socket_operation (i, OP_FAILED);
+      return EESOCKET;
+    }
 
   return EESUCCESS;
 }
@@ -988,6 +1208,13 @@ int socket_write (int i, svalue_t * message, char *name) {
       lpc_socks[i].w_buf = buf;
       lpc_socks[i].w_off = off;
       lpc_socks[i].w_len = (int)(len - off);
+
+      if (!modify_socket_runtime (i))
+        {
+          socket_close (i, SC_FORCE | SC_DO_CALLBACK);
+          return EESOCKET;
+        }
+
       return EECALLBACK;
     }
   FREE (buf);
@@ -1246,6 +1473,13 @@ void socket_write_select_handler (int i) {
       lpc_socks[i].w_off = 0;
     }
   lpc_socks[i].flags &= ~S_BLOCKED;
+
+  if (!modify_socket_runtime (i))
+    {
+      socket_close (i, SC_FORCE | SC_FINAL_CLOSE);
+      return;
+    }
+
   if (lpc_socks[i].state == FLUSHING)
     {
       socket_close (i, SC_FORCE | SC_FINAL_CLOSE);
@@ -1291,11 +1525,18 @@ int socket_close (int i, int flags) {
        * it is closed, but we really finish up later.
        */
       lpc_socks[i].state = FLUSHING;
+      if (!modify_socket_runtime (i))
+        {
+          lpc_socks[i].flags &= ~S_BLOCKED;
+        }
       return EESUCCESS;
     }
 
+  remove_socket_runtime (i);
+
   while (SOCKET_CLOSE (lpc_socks[i].fd) == -1 && SOCKET_ERRNO == EINTR)
     ;				/* empty while */
+  lpc_socks[i].fd = INVALID_SOCKET_FD;
   lpc_socks[i].state = CLOSED;
   if (lpc_socks[i].r_buf != NULL)
     FREE (lpc_socks[i].r_buf);
@@ -1405,6 +1646,102 @@ get_socket_operation_info (int socket_id, int *active, int *terminal, int *op_id
     *phase = socket_ops[socket_id].phase;
 
   return EESUCCESS;
+}
+
+int
+get_socket_runtime_info (int socket_id, int *registered, int *events, int *tracked_fd)
+{
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return EEFDRANGE;
+
+  if (registered)
+    *registered = 0;
+  if (events)
+    *events = 0;
+  if (tracked_fd)
+    *tracked_fd = (int) INVALID_SOCKET_FD;
+
+  if (socket_runtime_state == NULL)
+    return EESUCCESS;
+
+  if (registered)
+    *registered = socket_runtime_state[socket_id].registered;
+  if (events)
+    *events = socket_runtime_state[socket_id].events;
+  if (tracked_fd)
+    *tracked_fd = (int) socket_runtime_state[socket_id].fd;
+
+  return EESUCCESS;
+}
+
+int
+get_socket_runtime_registration_count (void)
+{
+  int i;
+  int count = 0;
+
+  if (socket_runtime_state == NULL)
+    return 0;
+
+  for (i = 0; i < max_lpc_socks; i++)
+    if (socket_runtime_state[i].registered)
+      count++;
+
+  return count;
+}
+
+void *
+get_socket_runtime_context (int socket_id)
+{
+  if (socket_id < 0 || socket_id >= max_lpc_socks)
+    return NULL;
+  if (socket_contexts == NULL)
+    return NULL;
+  return socket_contexts[socket_id];
+}
+
+int
+resolve_lpc_socket_context (void *context, socket_fd_t event_fd, int *socket_index)
+{
+  int socket_id;
+  int i;
+  int found = 0;
+
+  if (!context)
+    return 0;
+  if (socket_contexts == NULL || socket_runtime_state == NULL)
+    return 0;
+
+  socket_id = -1;
+  for (i = 0; i < max_lpc_socks; i++)
+    if (socket_contexts[i] == context)
+      {
+        socket_id = i;
+        found = 1;
+        break;
+      }
+
+  if (!found)
+    return 0;
+  if (!socket_runtime_state[socket_id].registered)
+    return 0;
+  if (socket_runtime_state[socket_id].fd != event_fd)
+    {
+      opt_trace (TT_COMM|2, "socket-runtime stale dispatch ignored: socket=%d event_fd=%d tracked_fd=%d",
+                 socket_id,
+                 (int) event_fd,
+                 (int) socket_runtime_state[socket_id].fd);
+      return 0;
+    }
+  if (lpc_socks[socket_id].fd != event_fd)
+    return 0;
+  if (lpc_socks[socket_id].state == CLOSED || lpc_socks[socket_id].state == FLUSHING)
+    return 0;
+
+  if (socket_index)
+    *socket_index = socket_id;
+
+  return 1;
 }
 
 /*
@@ -1566,6 +1903,51 @@ void dump_socket_status (outbuffer_t * out) {
 
       outbuf_addv (out, "%-21s  ", inet_address (&lpc_socks[i].l_addr));
       outbuf_addv (out, "%-21s\n", inet_address (&lpc_socks[i].r_addr));
+    }
+
+  outbuf_add (out, "\nSocket Runtime Diagnostics\n");
+  outbuf_add (out, "Idx  FD   TrackedFD  Reg  Events  Context   Mapping\n");
+  outbuf_add (out, "---  ---  ---------  ---  ------  --------  -------\n");
+
+  for (i = 0; i < max_lpc_socks; i++)
+    {
+      char event_mask[3];
+      const char *context_state;
+      const char *mapping_state;
+      intptr_t tracked_fd_value;
+      int tracked_fd_display;
+      int events;
+      int registered;
+
+      tracked_fd_value = (intptr_t) INVALID_SOCKET_FD;
+      events = 0;
+      registered = 0;
+      if (socket_runtime_state != NULL)
+        {
+          tracked_fd_value = (intptr_t) socket_runtime_state[i].fd;
+          events = socket_runtime_state[i].events;
+          registered = socket_runtime_state[i].registered;
+        }
+
+      tracked_fd_display = (tracked_fd_value == (intptr_t) INVALID_SOCKET_FD) ? -1 : (int) tracked_fd_value;
+      event_mask[0] = (events & EVENT_READ) ? 'R' : '-';
+      event_mask[1] = (events & EVENT_WRITE) ? 'W' : '-';
+      event_mask[2] = '\0';
+
+      context_state = (socket_contexts && socket_contexts[i]) ? "set" : "null";
+      mapping_state = (registered && tracked_fd_value != (intptr_t) INVALID_SOCKET_FD &&
+                       tracked_fd_value != (intptr_t) lpc_socks[i].fd)
+        ? "stale"
+        : "ok";
+
+      outbuf_addv (out, "%3d  %3d  %9d  %3d  %-6s  %-8s  %s\n",
+                   i,
+                   (int) lpc_socks[i].fd,
+                   tracked_fd_display,
+                   registered,
+                   event_mask,
+                   context_state,
+                   mapping_state);
     }
 }
 

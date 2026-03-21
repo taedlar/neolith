@@ -165,16 +165,40 @@ Stage 2 gate:
 
 ### Stage 3 Checklist: Async Runtime Alignment
 
-- [ ] Register LPC sockets consistently with `async_runtime`.
-- [ ] Modify runtime interests consistently during blocked/unblocked write transitions.
-- [ ] Remove LPC sockets cleanly from `async_runtime` during close/final-close.
-- [ ] Normalize context-to-socket mapping for event dispatch.
-- [ ] Add invariants for duplicate registration and stale dispatch prevention.
-- [ ] Run stress test for registration leak detection.
-- [ ] Re-run Stage 1 suite to confirm compatibility.
+- [x] Register LPC sockets consistently with `async_runtime`.
+- [x] Modify runtime interests consistently during blocked/unblocked write transitions.
+- [x] Remove LPC sockets cleanly from `async_runtime` during close/final-close.
+- [x] Normalize context-to-socket mapping for event dispatch.
+- [x] Add invariants for duplicate registration and stale dispatch prevention.
+- [x] Run stress test for registration leak detection.
+- [x] Re-run Stage 1 suite to confirm compatibility.
+
+### Stage 3 Verification Status (2026-03-21)
+
+Implementation source:
+- `lib/socket/socket_efuns.c`
+- `lib/socket/socket_efuns.h`
+- `src/comm.c`
+- `tests/test_socket_efuns/fixtures.hpp`
+- `tests/test_socket_efuns/test_socket_efuns_behavior.cpp`
+
+Current Stage 3 targeted test status:
+
+| Test ID | Scenario | Linux run | Windows run |
+|---|---|---|---|
+| SOCK_RT_001 | Create registers runtime entry; close removes it | Pass | Pass |
+| SOCK_RT_002 | Blocked/unblocked transitions update write interest | Pass | Pass |
+| SOCK_RT_003 | Repeated create/close leaves no registration leaks | Pass | Pass |
+
+Compatibility rerun snapshot (`clang-x64`):
+- Linux: Stage 1 (`SOCK_BHV_001`-`SOCK_BHV_020`) 20/20 pass; Stage 2 (`SOCK_OP_001`-`SOCK_OP_003`) 3/3 pass; Stage 3 (`SOCK_RT_001`-`SOCK_RT_003`) 3/3 pass.
+- Windows: Stage 1 (`SOCK_BHV_001`-`SOCK_BHV_020`) 20/20 pass; Stage 2 (`SOCK_OP_001`-`SOCK_OP_003`) 3/3 pass; Stage 3 (`SOCK_RT_001`-`SOCK_RT_003`) 3/3 pass.
+
+Runtime diagnostics update:
+- `dump_socket_status()` now includes a Socket Runtime Diagnostics section (registration state, tracked fd, event mask, context presence, stale mapping hint) to support Stage 3/4 operational debugging.
 
 Stage 3 gate:
-- [ ] Stage complete when runtime lifecycle is leak-free and baseline semantics are preserved.
+- [x] Stage complete when runtime lifecycle is leak-free and baseline semantics are preserved.
 
 ### Stage 4 Checklist: Async DNS with Capacity Lockdown
 

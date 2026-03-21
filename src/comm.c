@@ -117,13 +117,6 @@ int is_console_user (void *context) {
   return context && all_users && ((object_t*)context)->interactive == all_users[0];
 }
 
-#ifdef PACKAGE_SOCKETS
-static inline int is_lpc_socket (void *context) {
-  return (context >= (void*)&lpc_socks[0] &&
-          context <  (void*)&lpc_socks[max_lpc_socks]);
-}
-#endif
-
 static void receive_snoop (char *buf, object_t * snooper) {
 
   /* command giver no longer set to snooper */
@@ -1072,6 +1065,9 @@ void process_io () {
   for (i = 0; i < g_num_io_events; i++)
     {
       io_event_t *evt = &g_io_events[i];
+#ifdef PACKAGE_SOCKETS
+      int sock_index = -1;
+#endif
       opt_trace (TT_COMM|3, "  event[%d]: context=%p, event_type=%d, fd=%d, completion_key=%lu",
                  i, evt->context, evt->event_type, (int)evt->fd, (unsigned long)evt->completion_key);
       
@@ -1189,23 +1185,16 @@ void process_io () {
             }
         }
 #ifdef PACKAGE_SOCKETS
-      else if (is_lpc_socket (evt->context))
+      else if (resolve_lpc_socket_context (evt->context, evt->fd, &sock_index))
         {
-          /* LPC socket efun */
-          lpc_socket_t *sock = (lpc_socket_t*)evt->context;
-          ptrdiff_t sock_index = sock - lpc_socks;
-          
-          if (sock->state == CLOSED)
-            continue;
-          
           if (evt->event_type & EVENT_READ)
             {
-              socket_read_select_handler ((int)sock_index);
+              socket_read_select_handler (sock_index);
             }
-          
-          if (sock->state != CLOSED && (evt->event_type & EVENT_WRITE))
+
+          if (lpc_socks[sock_index].state != CLOSED && (evt->event_type & EVENT_WRITE))
             {
-              socket_write_select_handler ((int)sock_index);
+              socket_write_select_handler (sock_index);
             }
         }
 #endif
