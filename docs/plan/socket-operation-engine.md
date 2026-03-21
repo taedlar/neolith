@@ -223,10 +223,12 @@ Stage 4 is split into two delivery tracks:
 
 #### Stage 4B Checklist: Mudlib DNS Track (always available)
 
-- [ ] Document mudlib resolver flow using DATAGRAM socket efuns (query, parse, callback, timeout).
-- [ ] Add mudlib-side timeout/retry guidance and deterministic failure mapping guidance.
-- [ ] Add interop guidance for using numeric address + port with `socket_connect` after mudlib resolution.
-- [ ] Add compatibility note for deployments with built-in DNS disabled.
+- [x] Document mudlib resolver flow using DATAGRAM socket efuns (query, parse, callback, timeout).
+- [x] Add mudlib-side timeout/retry guidance and deterministic failure mapping guidance.
+- [x] Add interop guidance for using numeric address + port with `socket_connect` after mudlib resolution.
+- [x] Add compatibility note for deployments with built-in DNS disabled.
+
+**Reference**: [docs/manual/lpc-dns-resolver.md](../../manual/lpc-dns-resolver.md) — comprehensive mudlib DNS resolver guide
 
 Stage 4 DNS-disabled build acceptance criteria:
 - [x] Numeric address connect behavior remains unchanged (`socket_connect` with dotted IPv4 + port).
