@@ -184,19 +184,21 @@ Implementation source:
 
 Current Stage 3 targeted test status:
 
-| Test ID | Scenario | Windows run |
-|---|---|---|
-| SOCK_RT_001 | Create registers runtime entry; close removes it | Pass |
-| SOCK_RT_002 | Blocked/unblocked transitions update write interest | Pass |
-| SOCK_RT_003 | Repeated create/close leaves no registration leaks | Pass |
+| Test ID | Scenario | Linux run | Windows run |
+|---|---|---|---|
+| SOCK_RT_001 | Create registers runtime entry; close removes it | Pass | Pass |
+| SOCK_RT_002 | Blocked/unblocked transitions update write interest | Pass | Pass |
+| SOCK_RT_003 | Repeated create/close leaves no registration leaks | Pass | Pass |
 
-Compatibility rerun snapshot (Windows `clang-x64`):
-- Stage 1 (`SOCK_BHV_001`-`SOCK_BHV_020`): 20/20 pass
-- Stage 2 (`SOCK_OP_001`-`SOCK_OP_003`): 3/3 pass
-- Stage 3 (`SOCK_RT_001`-`SOCK_RT_003`): 3/3 pass
+Compatibility rerun snapshot (`clang-x64`):
+- Linux: Stage 1 (`SOCK_BHV_001`-`SOCK_BHV_020`) 20/20 pass; Stage 2 (`SOCK_OP_001`-`SOCK_OP_003`) 3/3 pass; Stage 3 (`SOCK_RT_001`-`SOCK_RT_003`) 3/3 pass.
+- Windows: Stage 1 (`SOCK_BHV_001`-`SOCK_BHV_020`) 20/20 pass; Stage 2 (`SOCK_OP_001`-`SOCK_OP_003`) 3/3 pass; Stage 3 (`SOCK_RT_001`-`SOCK_RT_003`) 3/3 pass.
+
+Runtime diagnostics update:
+- `dump_socket_status()` now includes a Socket Runtime Diagnostics section (registration state, tracked fd, event mask, context presence, stale mapping hint) to support Stage 3/4 operational debugging.
 
 Stage 3 gate:
-- [ ] Stage complete when runtime lifecycle is leak-free and baseline semantics are preserved.
+- [x] Stage complete when runtime lifecycle is leak-free and baseline semantics are preserved.
 
 ### Stage 4 Checklist: Async DNS with Capacity Lockdown
 
