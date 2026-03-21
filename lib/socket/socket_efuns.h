@@ -101,9 +101,11 @@ int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned
 char *socket_error(int);
 #ifdef PACKAGE_PEER_REVERSE_DNS
 void handle_dns_completions(void);
+void deinit_dns_system(void);
 #endif
 int get_socket_operation_info(int, int *, int *, int *, int *);
 int get_socket_runtime_info(int, int *, int *, int *);
 int get_socket_runtime_registration_count(void);
 void *get_socket_runtime_context(int);
 int resolve_lpc_socket_context(void *, socket_fd_t, int *);
+

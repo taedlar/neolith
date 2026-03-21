@@ -147,8 +147,6 @@ static int compute_socket_runtime_events (int socket_id);
 
 #ifdef PACKAGE_PEER_REVERSE_DNS
 static int init_dns_system(void);
-static void deinit_dns_system(void);
-static void handle_dns_completions(void);
 static void clear_dns_pending_resolution(int socket_id);
 static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t port);
 static void apply_dns_result_to_socket(int socket_id, const dns_result_t *result);
@@ -2230,7 +2228,7 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
     {
       if (dns_pending_hostnames != NULL && hostname != NULL)
         {
-          strncpy (dns_pending_hostnames[socket_id], hostname, ADDR_BUF_SIZE - 1);
+          strncpy (dns_pending_hostnames[socket_id], hostname, ADDR_BUF_SIZE);
           dns_pending_hostnames[socket_id][ADDR_BUF_SIZE - 1] = '\0';
         }
       if (dns_pending_ports != NULL)
@@ -2279,7 +2277,7 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
 
   if (dns_pending_hostnames != NULL && hostname != NULL)
     {
-      strncpy (dns_pending_hostnames[socket_id], hostname, ADDR_BUF_SIZE - 1);
+      strncpy (dns_pending_hostnames[socket_id], hostname, ADDR_BUF_SIZE);
       dns_pending_hostnames[socket_id][ADDR_BUF_SIZE - 1] = '\0';
     }
   if (dns_pending_ports != NULL)
@@ -2396,7 +2394,7 @@ static int init_dns_system(void) {
 /**
  * Shutdown DNS worker and queues (called at driver shutdown)
  */
-static void deinit_dns_system(void) {
+void deinit_dns_system(void) {
   if (dns_worker != NULL) {
     async_worker_signal_stop(dns_worker);
     async_worker_join(dns_worker, 5000);  /* 5 second timeout */

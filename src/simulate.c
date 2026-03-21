@@ -2500,6 +2500,10 @@ void setup_simulate() {
 
 void tear_down_simulate() {
 
+#ifdef PACKAGE_PEER_REVERSE_DNS
+  deinit_dns_system();
+#endif
+
   if (MAIN_OPTION(pedantic))
     {
       opt_trace (TT_MEMORY|2, "destructing all objects");

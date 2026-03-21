@@ -1375,10 +1375,12 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_HostnameRejectedWhenSocketConnectDn
   svalue_t write_cb;
   int fd;
   int connect_result;
+#ifndef PACKAGE_PEER_REVERSE_DNS
   int op_active = 0;
   int op_terminal = 0;
   int op_id = 0;
   int op_phase = OP_CONNECTING;
+#endif
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
@@ -1392,6 +1394,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_HostnameRejectedWhenSocketConnectDn
 
   connect_result = socket_connect(fd, (char *)"localhost 4000", &read_cb, &write_cb);
 #ifdef PACKAGE_PEER_REVERSE_DNS
+  (void)connect_result;  // Avoid unused variable warning when feature enabled
   GTEST_SKIP() << "PACKAGE_PEER_REVERSE_DNS enabled: hostname rejection assertion does not apply";
 #else
   EXPECT_EQ(connect_result, EEBADADDR)
