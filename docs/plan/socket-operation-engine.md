@@ -253,7 +253,7 @@ Current Stage 4 targeted test status (full suite executed):
 | SOCK_DNS_012 | Duplicate hostname lookups coalesce; followers complete when leader result arrives | Pass (136ms) | Pass |
 
 Execution notes:
-- 6/6 tests pass deterministically in sequence on Windows `clang-x64` preset.
+- 6/6 tests pass deterministically on both Linux and Windows `clang-x64` presets (minor fixes applied).
 - Operation-ID correlation prevents stale completion cross-contamination between test boundaries.
 - Dedup leader op_id tracking ensures followers route to correct leader operation.
 - Timeout forced-completion via test hook validates deterministic phase transition to OP_TIMED_OUT.
