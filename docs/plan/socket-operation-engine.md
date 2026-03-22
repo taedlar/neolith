@@ -203,13 +203,13 @@ Stage 3 gate:
 ### Stage 4 Checklist: Async DNS with Capacity Lockdown
 
 Stage 4 is split into two delivery tracks:
-- Driver DNS track (optional at build time): hostname support in socket connect path via async worker resolution.
+- Driver DNS track (mandatory): hostname support in socket connect path via async worker resolution.
 - Mudlib DNS track (always viable): DNS queries implemented in mudlib using socket efuns and numeric address connect.
 
-#### Stage 4A Checklist: Driver DNS Track (optional build feature)
+#### Stage 4A Checklist: Driver DNS Track (mandatory socket_connect feature)
 
 - [x] Harden socket address parsing first: reject malformed non-numeric host tokens unless DNS track is enabled.
-- [x] Reuse existing build-time feature option in `options.h` (`PACKAGE_SOCKET_CONNECT_DNS`) to gate built-in socket-connect DNS resolution.
+- [x] Implement hostname support in socket_connect() as a mandatory feature (all builds); resolver backend selection (c-ares vs fallback) is the build-time decision in Stage 5, not hostname parsing itself.
 - [x] Add DNS worker pool and completion posting via `async_runtime_post_completion()`.
 - [x] Add global in-flight DNS cap (64).
 - [x] Add bounded pending DNS queue (256 entries, DROP_OLDEST).
@@ -226,14 +226,14 @@ Stage 4 is split into two delivery tracks:
 - [x] Document mudlib resolver flow using DATAGRAM socket efuns (query, parse, callback, timeout).
 - [x] Add mudlib-side timeout/retry guidance and deterministic failure mapping guidance.
 - [x] Add interop guidance for using numeric address + port with `socket_connect` after mudlib resolution.
-- [x] Add compatibility note for deployments with built-in DNS disabled.
+- [x] Add compatibility note covering mandatory hostname support and mudlib-resolver interop.
 
 **Reference**: [docs/manual/lpc-dns-resolver.md](../../manual/lpc-dns-resolver.md) — comprehensive mudlib DNS resolver guide
 
-Stage 4 DNS-disabled build acceptance criteria:
+Stage 4 mandatory-hostname acceptance criteria:
 - [x] Numeric address connect behavior remains unchanged (`socket_connect` with dotted IPv4 + port).
-- [x] Hostname connect attempts fail fast and deterministically with `EEBADADDR` when built-in DNS is disabled.
-- [x] Stage 1-3 suites remain green with DNS disabled.
+- [x] Hostname connect attempts are admitted to async DNS flow and complete deterministically.
+- [x] Stage 1-3 suites remain green with hostname support always enabled.
 
 ### Stage 4 Verification Status (2026-03-22, Complete)
 
@@ -261,9 +261,9 @@ Execution notes:
 - Timeout forced-completion via test hook validates deterministic phase transition to OP_TIMED_OUT.
 - Telemetry counters (`admitted`, `dedup_hit`, `timed_out`) validate flow through correct code paths.
 
-DNS-disabled build validation:
-- `SOCK_DNS_001` and `SOCK_DNS_002` pass with feature disabled; numeric connect unchanged, hostname connect rejects with deterministic `EEBADADDR`.
-- Stage 1-3 suites (`SOCK_BHV_*`, `SOCK_OP_*`, `SOCK_RT_*`) remain green (26/26) with DNS disabled.
+Mandatory-hostname validation:
+- `SOCK_DNS_001` and `SOCK_DNS_003` pass for numeric and hostname connect baselines.
+- Stage 1-3 suites (`SOCK_BHV_*`, `SOCK_OP_*`, `SOCK_RT_*`) remain green (26/26) with hostname support always enabled.
 
 ### Stage 4 Verification Matrix (Stage 4A/4B)
 
@@ -271,9 +271,9 @@ Use these IDs directly in test names once implementation begins.
 
 | Test ID | Track | Scenario | Expected result |
 |---|---|---|---|
-| SOCK_DNS_001 | 4A | DNS build feature disabled; `socket_connect` with dotted IPv4 + port | `EESUCCESS`/existing success path semantics unchanged |
-| SOCK_DNS_002 | 4A | DNS build feature disabled; `socket_connect` with hostname + port | deterministic `EEBADADDR`; no operation table leak |
-| SOCK_DNS_003 | 4A | DNS build feature enabled; hostname resolution success | connect transitions through DNS phase and reaches transfer/success path |
+| SOCK_DNS_001 | 4A | `socket_connect` with dotted IPv4 + port | `EESUCCESS`/existing success path semantics unchanged |
+| SOCK_DNS_002 | 4A | malformed hostname endpoint (missing port delimiter) | deterministic `EEBADADDR`; no operation table leak |
+| SOCK_DNS_003 | 4A | hostname resolution success | connect transitions through DNS phase and reaches transfer/success path |
 | SOCK_DNS_004 | 4A | Flood hostname connects beyond global DNS cap | deterministic overload mapping; backend loop remains responsive |
 | SOCK_DNS_005 | 4A | Per-owner DNS cap exceeded | deterministic owner-cap rejection mapping |
 | SOCK_DNS_006 | 4A | DNS timeout before total operation deadline | deterministic timeout mapping; exactly one terminal completion |
@@ -283,7 +283,7 @@ Use these IDs directly in test names once implementation begins.
 | SOCK_DNS_010 | 4B | Mudlib resolver output used for numeric `socket_connect` | connect behavior matches numeric baseline |
 
 Stage 4 gate:
-- [x] Stage complete when selected DNS track(s) are non-blocking, bounded, and stable under adversarial load, with explicit DNS-disabled build behavior verified.
+- [x] Stage complete when selected DNS track(s) are non-blocking, bounded, and stable under adversarial load, with mandatory hostname behavior verified.
 
 ### Stage 5 Checklist: Shared Resolver Worker (c-ares)
 
@@ -292,15 +292,24 @@ Goal: retire blocking `getaddrinfo()` usage and legacy `addr_server_fd`/`resolve
 Stage 5 policy override (priority-first):
 - First priority is eliminating non-async resolver paths from runtime execution (`getaddrinfo()` direct worker path and `addr_server_fd` path).
 - Legacy LPC resolver-efun compatibility may change in Stage 5.
-- Compatibility behavior must be selected at compile time and documented for operators/mudlib authors.
+- Forward lookup for `socket_connect()` is mandatory and already locked from Stage 4; Stage 5 must preserve this as a stable baseline.
+- Build-time resolver backend decision is based on c-ares availability (`HAVE_CARES`) only.
 - No Stage 5 task may reintroduce blocking DNS calls on the backend thread.
+
+Stage 5 build-time backend selection (authoritative):
+- With c-ares (`HAVE_CARES=1`): shared resolver runs on c-ares backend.
+- Without c-ares (`HAVE_CARES` undefined): shared resolver path must not use blocking `getaddrinfo()` or legacy `addr_server_fd`; behavior follows the documented no-c-ares shared-resolver contract while preserving mandatory `socket_connect()` hostname support.
+
+Option semantics:
+- `HAVE_CARES=1` enables c-ares-backed async resolver execution for shared resolver request classes.
+- `HAVE_CARES` undefined keeps builds functional without c-ares while preserving non-blocking guarantees.
+- Neither build mode may re-enable `addr_server_fd` or any backend-thread blocking DNS path.
 
 Execution order and dependencies:
 1. Foundation and build integration (must complete first)
   - [x] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
   - [x] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
-  - [ ] Add explicit compile-time resolver policy switch for legacy LPC resolver efun compatibility (strict-compat vs Stage-5-native contract).
-  - [ ] Document build-time policy matrix (with/without c-ares, compat mode on/off) and operator-facing behavior deltas.
+  - [ ] Document build-time behavior matrix for with-c-ares vs without-c-ares builds and operator-facing behavior deltas.
 2. Shared resolver core (depends on step 1)
   - [ ] Cut over runtime resolver entrypoints to shared async resolver flow before further feature migration; legacy path execution must be disabled once cutover lands.
   - [ ] Introduce resolver request classes in a shared resolver module:
@@ -318,10 +327,10 @@ Execution order and dependencies:
     - [ ] per-owner caps for socket-originated requests
   - [ ] Add optional dedup/coalescing policy by class (at minimum for socket-connect forward lookups).
 3. Feature migration onto shared resolver (depends on step 2)
-  - [ ] Route `resolve()` efun through shared resolver with behavior controlled by compile-time policy (strict-compat or Stage-5-native).
-  - [ ] Publish explicit compatibility-break documentation for `resolve()` when strict-compat is disabled.
+  - [ ] Route `resolve()` efun through shared resolver under a single Stage 5 contract.
+  - [ ] Publish explicit compatibility-change documentation for `resolve()` if behavior differs from legacy.
   - [ ] Migrate `query_ip_name()` reverse-lookup cache population to shared resolver completions.
-  - [ ] Publish explicit compatibility-break documentation for `query_ip_name()` when strict-compat is disabled.
+  - [ ] Publish explicit compatibility-change documentation for `query_ip_name()` if behavior differs from legacy.
 4. Observability and rollout safety (starts in step 2, must be complete before step 5)
   - [ ] Extend telemetry for mixed workload observability:
     - [ ] queued/admitted/rejected by class
@@ -344,13 +353,11 @@ Execution order and dependencies:
 | RESOLVER_004 | Reverse lookups for `query_ip_name()` during socket traffic | Cache updates remain deterministic; no event-loop stalls |
 | RESOLVER_005 | Timeout/cancel races across request classes | Exactly one terminal completion per request |
 | RESOLVER_006 | Owner/object destruction during pending resolver requests | Safe cleanup; no use-after-free; no callback to destructed object |
-| RESOLVER_007 | DNS-disabled build without c-ares | Build remains functional; selected compile-time resolver policy is honored and documented |
+| RESOLVER_007 | Build without c-ares | Build remains functional; documented no-c-ares contract is applied; no blocking fallback or legacy address-server path is reintroduced |
 | RESOLVER_008 | c-ares-enabled build parity with Stage 4A DNS tests | Existing `SOCK_DNS_*` behavior remains green |
-| RESOLVER_009 | Legacy efun strict-compat mode enabled | `resolve()`/`query_ip_name()` preserve documented compatibility contract |
-| RESOLVER_010 | Legacy efun strict-compat mode disabled | Stage-5-native contract is applied deterministically and documented |
 
 Stage 5 gate:
-- [ ] Stage complete when shared resolver parity is verified across mixed workloads, legacy address-server paths are removed, blocking `getaddrinfo()` resolver path is retired, and compile-time compatibility policy is validated/documented.
+- [ ] Stage complete when shared resolver parity is verified across mixed workloads, legacy address-server paths are removed, blocking `getaddrinfo()` resolver path is retired, and with/without-c-ares behavior is validated/documented.
 
 ### Stage 6 Checklist: Hardening and Documentation
 
@@ -429,16 +436,16 @@ Exit criteria:
 
 ### Milestone 4: Async DNS with Capacity Lockdown
 
-**Goal**: provide non-blocking DNS under bounded resource controls with explicit support for DNS-disabled builds.
+**Goal**: provide non-blocking DNS under bounded resource controls with mandatory hostname support.
 
 Delivery tracks:
-- Track A (driver DNS, optional build feature): hostname resolution in socket connect path.
+- Track A (driver DNS, mandatory feature): hostname resolution in socket connect path.
 - Track B (mudlib DNS): resolver implemented at mudlib layer using socket efuns.
 
 Tasks:
 - Track A:
   - Add parser hardening for malformed/non-numeric host tokens.
-  - Add build-time switch for built-in DNS support in socket connect path.
+  - Keep hostname parsing support mandatory in socket connect path.
   - Implement DNS worker pool and completion posting to `async_runtime`.
   - Add admission-control policy:
     - global in-flight cap
@@ -456,33 +463,33 @@ Required protections:
   - Reject over-capacity requests immediately.
   - Never allow unbounded queue growth.
   - Collect counters: admitted, rejected-global, rejected-owner, timed-out, dedup-hit.
-- DNS-disabled builds:
+- Both resolver backends:
   - Numeric connect remains baseline-compatible.
-  - Hostname connect fails deterministically with `EEBADADDR`.
+  - Hostname connect remains available and non-blocking.
 
 Exit criteria:
 - DNS timeout scenarios do not stall backend loop.
 - Flooding attempts remain within configured limits.
-- DNS-disabled build behavior is validated.
+- With/without-c-ares backend behavior is validated.
 - Milestone 1 compatibility tests remain green where behavior is unchanged.
 
 ### Milestone 5: Shared Resolver Migration (c-ares)
 
-**Goal**: unify mixed DNS workloads behind the async socket operation engine, retire blocking/legacy resolver paths first, and allow compile-time selection of legacy efun compatibility policy.
+**Goal**: unify mixed DNS workloads behind the async socket operation engine, retire blocking/legacy resolver paths first, and keep build-time backend selection strictly with c-ares or without c-ares.
 
 Tasks:
 1. Add c-ares dependency provider integration (optional fetch from source).
-2. Add compile-time resolver policy switch for legacy LPC resolver efun compatibility and document behavior matrix.
+2. Document with-c-ares vs without-c-ares behavior matrix for resolver-backed paths.
 3. Add shared resolver request classes (forward, reverse, peer cache refresh, socket connect).
 4. Preserve request correlation, timeout mapping, and socket op-id safety.
-5. Migrate `resolve()` and `query_ip_name()` paths to shared resolver completion flow under selected policy.
+5. Migrate `resolve()` and `query_ip_name()` paths to shared resolver completion flow under a single Stage 5 contract.
 6. Add mixed-workload telemetry/trace validation hooks.
 7. Remove `addr_server_fd`, legacy lookup callback bridge, and blocking `getaddrinfo()` runtime path after parity verification.
 
 Exit criteria:
-- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_010`) is green.
+- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) is green.
 - Stage 4 DNS behavior remains stable with c-ares-enabled builds.
-- Legacy-compatibility policy choice is explicit at compile time and fully documented.
+- With-c-ares and without-c-ares behavior is explicit, validated, and fully documented.
 
 ### Milestone 6: Hardening and Documentation
 
@@ -490,7 +497,7 @@ Exit criteria:
 
 Dependencies:
 - Milestone 5 exit criteria complete.
-- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_010`) remains green while running hardening scenarios.
+- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) remains green while running hardening scenarios.
 
 Tasks:
 - Add targeted race and lifecycle tests:
@@ -527,7 +534,7 @@ Exit criteria:
 
 ## Mitigations
 
-1. Gate legacy resolver-efun compatibility behind an explicit compile-time switch and document deltas when disabled.
+1. Keep a single Stage 5 resolver contract for efun behavior and document compatibility deltas explicitly.
 2. Land refactors behind milestone test gates.
 3. Introduce one semantic change class per milestone.
 

@@ -17,13 +17,12 @@ This guide describes implementing DNS hostname resolution at the mudlib layer us
 
 Use mudlib-side DNS resolution when:
 
-1. **DNS feature disabled**: The driver was built without `PACKAGE_SOCKET_CONNECT_DNS`, so `socket_connect(fd, hostname:port, ...)` fails with `EEBADADDR`.
-2. **Custom caching**: You need to cache resolved addresses across connections or implement negative caching.
-3. **Retry policies**: You want fine-grained control over retry logic, backoff, or fallback strategies.
-4. **Monitoring/logging**: You need to log or monitor all DNS queries for operational visibility.
-5. **Rate limiting**: You want to apply custom rate limits or priority handling for DNS requests.
+1. **Custom caching**: You need to cache resolved addresses across connections or implement negative caching.
+2. **Retry policies**: You want fine-grained control over retry logic, backoff, or fallback strategies.
+3. **Monitoring/logging**: You need to log or monitor all DNS queries for operational visibility.
+4. **Rate limiting**: You want to apply custom rate limits or priority handling for DNS requests.
 
-When the driver's built-in DNS feature **is** enabled, direct `socket_connect(fd, hostname:port, ...)` calls are simpler and preferred over this approach.
+Direct `socket_connect(fd, hostname:port, ...)` calls are supported by the driver and are simpler for most cases; use mudlib-side resolution when you need policy-level control.
 
 ## Architecture: UDP-Based DNS Resolution
 
@@ -553,15 +552,15 @@ void on_dns_result(string address, int error) {
 }
 ```
 
-## Compatibility: DNS-Disabled Deployments
+## Compatibility: Driver-Managed and Mudlib-Managed DNS
 
-When the driver is built without `PACKAGE_SOCKET_CONNECT_DNS`, direct `socket_connect(fd, hostname:port, ...)` calls fail with `EEBADADDR`. This guide's mudlib resolver approach works unchanged:
+`socket_connect(fd, hostname:port, ...)` is always supported by the driver. This guide's mudlib resolver approach remains useful when you need custom policy:
 
-1. **Mudlib resolver always available**: No build-time dependency.
-2. **Numeric connect still works**: `socket_connect(fd, "192.0.2.1 80", ...)` succeeds (this guide's output).
-3. **Explicit resolution contract**: Mudlib code is responsible for DNS flow and timeout.
+1. **Mudlib resolver always available**: No extra driver feature gate is required.
+2. **Numeric connect interop still works**: `socket_connect(fd, "192.0.2.1 80", ...)` succeeds (this guide's output).
+3. **Explicit resolution contract**: Mudlib code controls DNS flow and timeout policy.
 
-For deployments with DNS enabled, mudlib can optionally skip this resolver and use direct `socket_connect(fd, hostname:port, ...)` calls, which delegate DNS to the driver.
+For standard deployments, direct `socket_connect(fd, hostname:port, ...)` is usually preferred.
 
 ## Operational Considerations
 

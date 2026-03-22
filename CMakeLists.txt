@@ -92,13 +92,6 @@ if(TARGET c-ares::cares)
 	endif()
 endif()
 
-# package options (configurable at CMake time)
-option(ENABLE_SOCKET_CONNECT_DNS "Enable built-in async DNS hostname resolution for socket_connect()" OFF)
-if(ENABLE_SOCKET_CONNECT_DNS)
-	set(PACKAGE_SOCKET_CONNECT_DNS 1)
-	message(STATUS "Built-in socket_connect() hostname DNS enabled")
-endif()
-
 # generate global header "config.h" for build configurations
 configure_file(config.h.in config.h @ONLY)
 include_directories("${CMAKE_BINARY_DIR}")

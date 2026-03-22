@@ -472,19 +472,10 @@
  */
 #define PACKAGE_SOCKETS
 
-/* PACKAGE_SOCKET_CONNECT_DNS: define this to enable built-in async hostname
- *   DNS resolution for socket_connect() endpoints of the form "<host> <port>".
- *
- *   This flag controls the socket efun connect path only. It does not control
- *   the legacy addr_server_fd reverse-lookup path used by query_ip_name()/
- *   resolve() in src/comm.c.
- *
- *   When enabled, LPC code can detect availability via the predefined
- *   macro __PACKAGE_SOCKET_CONNECT_DNS__.
- *
- *   Configuration: Set via CMake option ENABLE_SOCKET_CONNECT_DNS
+/* socket_connect() hostname support is built-in and always available.
+ * Resolver backend selection is controlled by HAVE_CARES (c-ares available)
+ * versus the async worker fallback backend.
  */
-/* #undef PACKAGE_SOCKET_CONNECT_DNS */
 
 /* PACKAGE_PARSER: Natural language parsing efuns for interactive fiction
  *   type applications

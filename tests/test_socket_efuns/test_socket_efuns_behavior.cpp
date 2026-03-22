@@ -9,12 +9,10 @@ static ::testing::Environment* const winsock_env =
   ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
 #endif
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
 extern "C" void handle_dns_completions(void);
 extern "C" void set_socket_dns_timeout_test_hook(int (*hook)(int, const char *, uint16_t));
 extern "C" int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
                                            unsigned long *timed_out);
-#endif
 
 namespace {
 
@@ -91,7 +89,6 @@ bool AcceptPendingConnection(socket_fd_t listener_fd, socket_fd_t *accepted_fd) 
   return *accepted_fd != INVALID_SOCKET_FD;
 }
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
 extern "C" int get_socket_operation_info(int socket_id, 
                                          int* op_active, int* op_terminal,
                                          int* op_id, int* op_phase);
@@ -148,7 +145,6 @@ public:
     set_socket_dns_timeout_test_hook(nullptr);
   }
 };
-#endif
 
 /* OP_PHASES definitions needed by tests */
 #define OP_INIT 0
@@ -1362,12 +1358,12 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_001_NumericConnectBaselineUnchanged) {
 }
 
 /**
- * SOCK_DNS_002: DNS-disabled build rejects hostname endpoint deterministically.
+ * SOCK_DNS_002: malformed hostname endpoint is rejected deterministically.
  * Setup: stream socket
- * Action: socket_connect(fd, "localhost <port>", ...)
+ * Action: socket_connect(fd, "localhost", ...)
  * Expected: EEBADADDR and no operation record leak.
  */
-TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_HostnameRejectedWhenSocketConnectDnsDisabled) {
+TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_MalformedHostnameEndpointRejected) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
@@ -1375,12 +1371,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_HostnameRejectedWhenSocketConnectDn
   svalue_t write_cb;
   int fd;
   int connect_result;
-#ifndef PACKAGE_SOCKET_CONNECT_DNS
   int op_active = 0;
   int op_terminal = 0;
   int op_id = 0;
   int op_phase = OP_CONNECTING;
-#endif
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
@@ -1392,20 +1386,15 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_HostnameRejectedWhenSocketConnectDn
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
-  connect_result = socket_connect(fd, (char *)"localhost 4000", &read_cb, &write_cb);
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
-  (void)connect_result;  // Avoid unused variable warning when feature enabled
-  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS enabled: hostname rejection assertion does not apply";
-#else
+  connect_result = socket_connect(fd, (char *)"localhost", &read_cb, &write_cb);
   EXPECT_EQ(connect_result, EEBADADDR)
-    << "Hostname connect must fail fast with EEBADADDR when DNS is disabled";
+    << "Malformed hostname endpoint without port must fail fast with EEBADADDR";
 
   EXPECT_EQ(get_socket_operation_info(fd, &op_active, &op_terminal, &op_id, &op_phase), EESUCCESS);
   EXPECT_EQ(op_active, 0);
   EXPECT_EQ(op_terminal, 0);
   EXPECT_EQ(op_id, 0);
   EXPECT_EQ(op_phase, OP_INIT);
-#endif
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   free_string(read_cb.u.string);
@@ -1413,12 +1402,12 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_HostnameRejectedWhenSocketConnectDn
 }
 
 /**
- * SOCK_DNS_003: DNS-enabled build resolves hostname and connects successfully.
+ * SOCK_DNS_003: hostname resolves and connects successfully.
  * Setup: stream socket + loopback listener
  * Action: socket_connect(fd, "localhost <port>", ...)
  * Expected: success path and active operation in OP_TRANSFERRING.
  */
-TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceedsWhenFeatureEnabled) {
+TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
@@ -1429,12 +1418,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceedsWhenFeatureE
   int listener_port = 0;
   int fd;
   int connect_result;
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   int op_active = 0;
   int op_terminal = 0;
   int op_id = 0;
   int op_phase = OP_INIT;
-#endif
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
@@ -1451,22 +1438,18 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceedsWhenFeatureE
   std::string endpoint = "localhost " + std::to_string(listener_port);
   connect_result = socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   // Wait for DNS resolution to complete (non-blocking DNS operation)
   ASSERT_TRUE(WaitForDNSCompletion(fd, 5000))
     << "DNS resolution did not complete within timeout";
   
   EXPECT_EQ(connect_result, EESUCCESS)
-    << "Hostname connect should succeed when PACKAGE_SOCKET_CONNECT_DNS is enabled";
+    << "Hostname connect should succeed";
 
   EXPECT_EQ(get_socket_operation_info(fd, &op_active, &op_terminal, &op_id, &op_phase), EESUCCESS);
   EXPECT_EQ(op_active, 1);
   EXPECT_EQ(op_terminal, 0);
   EXPECT_GT(op_id, 0);
   EXPECT_EQ(op_phase, OP_TRANSFERRING);
-#else
-  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_003 requires feature-enabled build";
-#endif
 
   if (AcceptPendingConnection(listener_fd, &accepted_fd)) {
     SOCKET_CLOSE(accepted_fd);
@@ -1485,7 +1468,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceedsWhenFeatureE
  * Expected: 1-64th succeed (enter OP_DNS_RESOLVING), 65th+ fail with deterministic overload mapping.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolutions) {
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS admission tests";
@@ -1495,8 +1477,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
   std::vector<object_t *> owners;
   int connect_result;
   int success_count = 0;
-  int would_block_count = 0;
-  int first_would_block_at = -1;
+  int resolver_busy_count = 0;
+  int first_resolver_busy_at = -1;
   const int TEST_LIMIT = 70;  /* Exceed cap of 64 */
   const int OWNER_COUNT = 8;
 
@@ -1533,10 +1515,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
 
     if (connect_result == EESUCCESS) {
       success_count++;
-    } else if (connect_result == EEWOULDBLOCK) {
-      would_block_count++;
-      if (first_would_block_at < 0) {
-        first_would_block_at = i;
+    } else if (connect_result == EERESOLVERBUSY) {
+      resolver_busy_count++;
+      if (first_resolver_busy_at < 0) {
+        first_resolver_busy_at = i;
       }
     } else {
       ADD_FAILURE() << "Unexpected DNS connect result " << connect_result
@@ -1545,8 +1527,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
   }
 
   EXPECT_GT(success_count, 0) << "Expected at least one DNS request admitted";
-  EXPECT_GT(would_block_count, 0) << "Expected overload rejections beyond global cap";
-  EXPECT_LE(first_would_block_at, 64)
+  EXPECT_GT(resolver_busy_count, 0) << "Expected overload rejections beyond global cap";
+  EXPECT_LE(first_resolver_busy_at, 64)
     << "Global cap rejection should begin no later than request index 64";
 
   /* Cleanup */
@@ -1556,9 +1538,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
 
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
-#else
-  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_004 requires feature-enabled build";
-#endif
 }
 
 /**
@@ -1568,7 +1547,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
  * Expected: 1-8th succeed (enter OP_DNS_RESOLVING), 9th+ fail with deterministic overload mapping.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns) {
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS admission tests";
@@ -1578,8 +1556,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
   std::vector<int> fd_list;
   int connect_result;
   int success_count = 0;
-  int would_block_count = 0;
-  int first_would_block_at = -1;
+  int resolver_busy_count = 0;
+  int first_resolver_busy_at = -1;
   const int TEST_LIMIT = 12;  /* Exceed per-owner cap of 8 */
 
   read_cb.type = T_STRING;
@@ -1602,10 +1580,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
 
     if (connect_result == EESUCCESS) {
       success_count++;
-    } else if (connect_result == EEWOULDBLOCK) {
-      would_block_count++;
-      if (first_would_block_at < 0) {
-        first_would_block_at = i;
+    } else if (connect_result == EERESOLVERBUSY) {
+      resolver_busy_count++;
+      if (first_resolver_busy_at < 0) {
+        first_resolver_busy_at = i;
       }
     } else {
       ADD_FAILURE() << "Unexpected DNS connect result " << connect_result
@@ -1614,8 +1592,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
   }
 
   EXPECT_GT(success_count, 0) << "Expected at least one DNS request admitted";
-  EXPECT_GT(would_block_count, 0) << "Expected overload rejections beyond owner cap";
-  EXPECT_LE(first_would_block_at, 8)
+  EXPECT_GT(resolver_busy_count, 0) << "Expected overload rejections beyond owner cap";
+  EXPECT_LE(first_resolver_busy_at, 8)
     << "Per-owner cap rejection should begin no later than request index 8";
 
   /* Cleanup */
@@ -1625,9 +1603,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
 
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
-#else
-  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_005 requires feature-enabled build";
-#endif
 }
 
 /**
@@ -1637,7 +1612,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
  * Expected: operation reaches terminal OP_TIMED_OUT phase.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS timeout tests";
@@ -1690,9 +1664,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
-#else
-  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_006 requires feature-enabled build";
-#endif
 }
 
 /**
@@ -1702,7 +1673,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
  * Expected: admitted counter increases once; dedup counter increases at least once.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWork) {
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS coalescing tests";
@@ -1750,9 +1720,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
   EXPECT_EQ(socket_close(fd_b, 1), EESUCCESS);
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
-#else
-  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_012 requires feature-enabled build";
-#endif
 }
 
 /**
@@ -1762,7 +1729,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
  * Expected: Numeric connect path succeeds without being blocked by DNS worker activity.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlood) {
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS responsiveness tests";
@@ -1820,9 +1786,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
 
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
-#else
-  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_011 requires feature-enabled build";
-#endif
 }
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntimeEntry) {
