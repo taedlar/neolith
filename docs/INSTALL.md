@@ -81,7 +81,7 @@ On Windows, install Boost manually and set `BOOST_ROOT` (for example `D:\boost_1
 
 ### c-ares
 
-c-ares enables async DNS resolution for built-in socket-connect hostname support. When enabled via `PACKAGE_SOCKET_CONNECT_DNS`, c-ares provides a bounded DNS worker pool with admission control and flood protection.
+c-ares enables async DNS resolution for built-in socket-connect hostname support. Hostname support is mandatory in `socket_connect()`; c-ares selects the preferred resolver backend when available and the driver uses the async worker fallback backend when c-ares is unavailable.
 
 Linux package:
 
@@ -166,8 +166,8 @@ cmake --preset linux -DFETCH_CARES_FROM_SOURCE=v1.34.6
 >
 > 1. There is no separate manual prebuild phase for c-ares.
 > 2. Use normal Neolith presets and targets.
-> 3. c-ares is only used when `PACKAGE_SOCKET_CONNECT_DNS` is enabled at build time (see [config.h.in](../config.h.in)).
-> 4. When c-ares is available, async DNS resolution in `socket_connect()` is automatically enabled for hostname support.
+> 3. `socket_connect()` hostname support is always enabled; c-ares controls resolver backend choice, not feature availability.
+> 4. When c-ares is available, it is used as the preferred async DNS backend for `socket_connect()` hostname resolution.
 
 ## Building with CMake Presets
 

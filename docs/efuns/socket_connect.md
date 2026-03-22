@@ -20,10 +20,9 @@ Original MudOS behavior accepted only numeric IPv4 endpoints. The baseline compa
 
 Current Neolith behavior:
 - Numeric IPv4 endpoints remain supported and unchanged.
-- Hostname endpoints such as `"localhost 23"` are also accepted when the driver is built with `PACKAGE_SOCKET_CONNECT_DNS` enabled.
-- When built-in DNS support is disabled, hostname endpoints fail fast with `EEBADADDR`.
+- Hostname endpoints such as `"localhost 23"` are accepted in all builds.
 
-When hostname support is enabled, `socket_connect()` queues DNS resolution asynchronously and returns without blocking the backend loop. After resolution, the socket continues through the normal non-blocking connect path.
+`socket_connect()` queues DNS resolution asynchronously and returns without blocking the backend loop. After resolution, the socket continues through the normal non-blocking connect path.
 
 The argument **read_callback** is the name of a function for the driver to call when the socket gets data from its peer.
 The read callback should follow this format:
@@ -39,7 +38,7 @@ void write_callback(int fd)
 ~~~
 Where **fd** is the socket which is ready to be written to.
 
-For portable mudlib code that must work on both DNS-enabled and DNS-disabled builds, resolve hostnames in LPC first and then call `socket_connect()` with a numeric IPv4 endpoint. See [lpc-dns-resolver](../manual/lpc-dns-resolver.md).
+For portable mudlib code, you can pass either hostname or numeric IPv4 endpoint directly to `socket_connect()`.
 
 ## RETURN VALUE
 socket_connect() returns:
@@ -50,8 +49,8 @@ A negative value indicated below on error.
 
 Notes:
 - For numeric IPv4 endpoints, `EESUCCESS` means the connect path was accepted successfully.
-- For hostname endpoints with built-in DNS enabled, `EESUCCESS` means DNS work was admitted successfully; final connection success or failure is completed asynchronously.
-- Under built-in DNS admission-control pressure, hostname connects may return `EEWOULDBLOCK`.
+- For hostname endpoints, `EESUCCESS` means DNS work was admitted successfully; final connection success or failure is completed asynchronously.
+- Under resolver admission-control pressure, hostname connects may return `EERESOLVERBUSY`.
 
 ## ERRORS
 Error Code|Description
@@ -68,7 +67,7 @@ Error Code|Description
 `EEALREADY`|Operation already in progress.
 `EECONNREFUSED`|Connection refused.
 `EECONNECT`|Problem with connect.
-`EEWOULDBLOCK`|Built-in DNS admission control rejected the hostname lookup because the DNS system is at capacity.
+`EERESOLVERBUSY`|Built-in DNS admission control rejected the hostname lookup because the DNS system is at capacity.
 
 ## SEE ALSO
 [socket_accept()](socket_accept.md),

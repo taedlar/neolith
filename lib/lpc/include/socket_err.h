@@ -40,7 +40,8 @@
 #define EESOCKRLSD	-30	/* Socket already released */
 #define EESOCKNOTRLSD   -31	/* Socket not released */
 #define EEBADDATA       -32	/* sending data with too many nested levels */
+#define EERESOLVERBUSY  -33	/* Name resolver admission control at capacity */
 
-#define	ERROR_STRINGS	 33	/* sizeof (error_strings) */
+#define	ERROR_STRINGS	 34	/* sizeof (error_strings) */
 
 #endif	/* ! LPC_SOCKET_ERRORS_H */

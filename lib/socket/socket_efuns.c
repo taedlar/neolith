@@ -44,7 +44,6 @@
 #define SC_FINAL_CLOSE  4
 
 /* DNS resolution task structure */
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
 #define DNS_TIMEOUT_SECONDS 30  /* Max time for DNS resolution */
 
 typedef struct {
@@ -68,7 +67,6 @@ typedef struct {
 } dns_telemetry_t;
 
 static dns_telemetry_t dns_telemetry = {0};
-#endif
 
 lpc_socket_t *lpc_socks = 0;
 int max_lpc_socks = 0;
@@ -98,7 +96,6 @@ typedef struct {
 #define SOCKET_RUNTIME_CONTEXT_MAGIC 0x534f434b
 
 /* DNS admission control and task queue (Stage 4A) */
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
 #define DNS_GLOBAL_CAP 64          /* Max in-flight DNS resolutions globally */
 #define DNS_PER_OWNER_CAP 8        /* Max per-owner pending DNS resolutions */
 #define DNS_QUEUE_SIZE 256         /* Bounded async queue for DNS tasks */
@@ -127,7 +124,6 @@ static socket_dns_timeout_test_hook_t socket_dns_timeout_test_hook = NULL;
 
 /* Completion key for DNS worker results (unique identifier) */
 #define DNS_COMPLETION_KEY 0x444E5300
-#endif
 
 static socket_runtime_context_t **socket_contexts = NULL;
 static socket_runtime_state_t *socket_runtime_state = NULL;
@@ -145,12 +141,10 @@ static int set_socket_operation_phase (int socket_id, enum socket_operation_phas
 static int complete_socket_operation (int socket_id, enum socket_operation_phase terminal_phase);
 static int compute_socket_runtime_events (int socket_id);
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
 static int init_dns_system(void);
 static void clear_dns_pending_resolution(int socket_id);
 static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t port);
 static void apply_dns_result_to_socket(int socket_id, const dns_result_t *result);
-#endif
 static int register_socket_runtime (int socket_id);
 static int modify_socket_runtime (int socket_id);
 static void remove_socket_runtime (int socket_id);
@@ -161,13 +155,11 @@ set_socket_release_test_hook (socket_release_test_hook_t hook)
   socket_release_test_hook = hook;
 }
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
 void
 set_socket_dns_timeout_test_hook (socket_dns_timeout_test_hook_t hook)
 {
   socket_dns_timeout_test_hook = hook;
 }
-#endif
 
 static const char *
 lookup_socket_operation_phase_name (enum socket_operation_phase phase)
@@ -233,9 +225,7 @@ clear_socket_operation (int socket_id)
   if (socket_ops == NULL || socket_id < 0 || socket_id >= max_lpc_socks)
     return;
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   clear_dns_pending_resolution (socket_id);
-#endif
 
   socket_ops[socket_id].active = 0;
   socket_ops[socket_id].terminal = 0;
@@ -404,7 +394,6 @@ int more_lpc_sockets () {
   else
     socket_runtime_state = RESIZE (socket_runtime_state, max_lpc_socks, socket_runtime_state_t, TAG_SOCKETS, "more_lpc_sockets:socket_runtime_state");
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   if (!dns_pending_hostnames)
     dns_pending_hostnames = CALLOCATE (max_lpc_socks, dns_hostname_t, TAG_SOCKETS, "more_lpc_sockets:dns_pending_hostnames");
   else
@@ -424,9 +413,7 @@ int more_lpc_sockets () {
     dns_pending_leader_op_ids = CALLOCATE (max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_leader_op_ids");
   else
     dns_pending_leader_op_ids = RESIZE (dns_pending_leader_op_ids, max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_leader_op_ids");
-#endif
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   if (max_lpc_socks == 10)
     {
       /* First time initialization - set up DNS system */
@@ -435,7 +422,6 @@ int more_lpc_sockets () {
           debug_error("Failed to initialize DNS system for sockets");
         }
     }
-#endif
 
   i = max_lpc_socks;
   while (--i >= max_lpc_socks - 10)
@@ -478,7 +464,6 @@ int more_lpc_sockets () {
       socket_runtime_state[i].events = 0;
       socket_runtime_state[i].fd = INVALID_SOCKET_FD;
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
       if (dns_pending_hostnames != NULL)
         dns_pending_hostnames[i][0] = '\0';
       if (dns_pending_ports != NULL)
@@ -487,7 +472,6 @@ int more_lpc_sockets () {
         dns_pending_leaders[i] = -1;
       if (dns_pending_leader_op_ids != NULL)
         dns_pending_leader_op_ids[i] = -1;
-#endif
     }
   return max_lpc_socks - 10;
 }
@@ -1088,7 +1072,6 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
       return EEISCONN;
     }
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   {
     int is_hostname = 0;
     struct in_addr test_addr;
@@ -1151,7 +1134,6 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
         return EESUCCESS;
       }
   }
-#endif
 
   /* Non-hostname path: resolve address synchronously (numeric IPv4 only) */
   if (!socket_name_to_sin (name, &lpc_socks[i].r_addr))
@@ -2004,14 +1986,12 @@ static int socket_name_to_sin (char *name, struct sockaddr_in *sin) {
     {
       /* Hostname resolution must be handled asynchronously via worker thread.
        * Returning 0 here means the address couldn't be parsed as numeric IPv4.
-       * socket_connect() will detect this and queue DNS work if feature enabled. */
+       * socket_connect() will detect this and queue DNS work. */
       return 0;
     }
 
   return 1;
 }
-
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
 
 static void
 clear_dns_pending_resolution (int socket_id)
@@ -2244,7 +2224,7 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
   /* Check global in-flight cap */
   if (dns_tasks_in_flight >= DNS_GLOBAL_CAP) {
     dns_telemetry.rejected_global++;
-    return EEWOULDBLOCK;
+    return EERESOLVERBUSY;
   }
 
   /* Check per-owner cap */
@@ -2259,7 +2239,7 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
     }
     if (owner_count >= DNS_PER_OWNER_CAP) {
       dns_telemetry.rejected_owner++;
-      return EEWOULDBLOCK;
+      return EERESOLVERBUSY;
     }
   }
 
@@ -2300,7 +2280,7 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
   if (!async_queue_enqueue(dns_queue, &task, sizeof(task))) {
     clear_dns_pending_resolution (socket_id);
     dns_telemetry.rejected_queue++;
-    return EEWOULDBLOCK;
+    return EERESOLVERBUSY;
   }
 
   dns_tasks_in_flight++;
@@ -2450,8 +2430,6 @@ int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned
   return EESUCCESS;
 }
 
-#endif /* PACKAGE_SOCKET_CONNECT_DNS */
-
 /**
  * Close any sockets owned by ob
  */
@@ -2590,7 +2568,6 @@ void dump_socket_status (outbuffer_t * out) {
                    mapping_state);
     }
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   outbuf_add (out, "\nDNS Telemetry:\n");
   outbuf_addv (out, "  Admitted: %lu\n", dns_telemetry.admitted);
   outbuf_addv (out, "  Dedup hit: %lu\n", dns_telemetry.dedup_hit);
@@ -2601,7 +2578,6 @@ void dump_socket_status (outbuffer_t * out) {
   outbuf_addv (out, "  Failed (not timed out): %lu\n", dns_telemetry.failed);
   outbuf_addv (out, "  Timed out: %lu\n", dns_telemetry.timed_out);
   outbuf_addv (out, "  Currently in-flight: %d\n", dns_tasks_in_flight);
-#endif
 }
 
 #endif /* SOCKET_EFUNS */

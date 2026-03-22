@@ -2500,9 +2500,7 @@ void setup_simulate() {
 
 void tear_down_simulate() {
 
-#ifdef PACKAGE_SOCKET_CONNECT_DNS
   deinit_dns_system();
-#endif
 
   if (MAIN_OPTION(pedantic))
     {

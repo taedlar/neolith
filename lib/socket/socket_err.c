@@ -42,5 +42,6 @@ char *error_strings[ERROR_STRINGS] = {
   "Wait for callback",
   "Socket already released",
   "Socket not released",
-  "Data nested too deeply"
+  "Data nested too deeply",
+  "Name resolver busy (admission control at capacity)"
 };
