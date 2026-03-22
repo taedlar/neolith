@@ -58,7 +58,7 @@ typedef struct {
 } lpc_socket_t;
 
 typedef void (*socket_release_test_hook_t)(int, object_t *);
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 typedef int (*socket_dns_timeout_test_hook_t)(int, const char *, uint16_t);
 #endif
 
@@ -93,13 +93,13 @@ int socket_close(int, int);
 int socket_release(int, object_t *, svalue_t *);
 int socket_acquire(int, svalue_t *, svalue_t *, svalue_t *);
 void set_socket_release_test_hook(socket_release_test_hook_t);
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 void set_socket_dns_timeout_test_hook(socket_dns_timeout_test_hook_t);
 int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
                                unsigned long *timed_out);
 #endif
 char *socket_error(int);
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 void handle_dns_completions(void);
 void deinit_dns_system(void);
 #endif

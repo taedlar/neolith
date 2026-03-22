@@ -44,7 +44,7 @@
 #define SC_FINAL_CLOSE  4
 
 /* DNS resolution task structure */
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 #define DNS_TIMEOUT_SECONDS 30  /* Max time for DNS resolution */
 
 typedef struct {
@@ -98,7 +98,7 @@ typedef struct {
 #define SOCKET_RUNTIME_CONTEXT_MAGIC 0x534f434b
 
 /* DNS admission control and task queue (Stage 4A) */
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 #define DNS_GLOBAL_CAP 64          /* Max in-flight DNS resolutions globally */
 #define DNS_PER_OWNER_CAP 8        /* Max per-owner pending DNS resolutions */
 #define DNS_QUEUE_SIZE 256         /* Bounded async queue for DNS tasks */
@@ -145,7 +145,7 @@ static int set_socket_operation_phase (int socket_id, enum socket_operation_phas
 static int complete_socket_operation (int socket_id, enum socket_operation_phase terminal_phase);
 static int compute_socket_runtime_events (int socket_id);
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 static int init_dns_system(void);
 static void clear_dns_pending_resolution(int socket_id);
 static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t port);
@@ -161,7 +161,7 @@ set_socket_release_test_hook (socket_release_test_hook_t hook)
   socket_release_test_hook = hook;
 }
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 void
 set_socket_dns_timeout_test_hook (socket_dns_timeout_test_hook_t hook)
 {
@@ -233,7 +233,7 @@ clear_socket_operation (int socket_id)
   if (socket_ops == NULL || socket_id < 0 || socket_id >= max_lpc_socks)
     return;
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   clear_dns_pending_resolution (socket_id);
 #endif
 
@@ -404,7 +404,7 @@ int more_lpc_sockets () {
   else
     socket_runtime_state = RESIZE (socket_runtime_state, max_lpc_socks, socket_runtime_state_t, TAG_SOCKETS, "more_lpc_sockets:socket_runtime_state");
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   if (!dns_pending_hostnames)
     dns_pending_hostnames = CALLOCATE (max_lpc_socks, dns_hostname_t, TAG_SOCKETS, "more_lpc_sockets:dns_pending_hostnames");
   else
@@ -426,7 +426,7 @@ int more_lpc_sockets () {
     dns_pending_leader_op_ids = RESIZE (dns_pending_leader_op_ids, max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_leader_op_ids");
 #endif
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   if (max_lpc_socks == 10)
     {
       /* First time initialization - set up DNS system */
@@ -478,7 +478,7 @@ int more_lpc_sockets () {
       socket_runtime_state[i].events = 0;
       socket_runtime_state[i].fd = INVALID_SOCKET_FD;
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
       if (dns_pending_hostnames != NULL)
         dns_pending_hostnames[i][0] = '\0';
       if (dns_pending_ports != NULL)
@@ -1088,7 +1088,7 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
       return EEISCONN;
     }
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   {
     int is_hostname = 0;
     struct in_addr test_addr;
@@ -2011,7 +2011,7 @@ static int socket_name_to_sin (char *name, struct sockaddr_in *sin) {
   return 1;
 }
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 
 static void
 clear_dns_pending_resolution (int socket_id)
@@ -2450,7 +2450,7 @@ int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned
   return EESUCCESS;
 }
 
-#endif /* PACKAGE_PEER_REVERSE_DNS */
+#endif /* PACKAGE_SOCKET_CONNECT_DNS */
 
 /**
  * Close any sockets owned by ob
@@ -2590,7 +2590,7 @@ void dump_socket_status (outbuffer_t * out) {
                    mapping_state);
     }
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   outbuf_add (out, "\nDNS Telemetry:\n");
   outbuf_addv (out, "  Admitted: %lu\n", dns_telemetry.admitted);
   outbuf_addv (out, "  Dedup hit: %lu\n", dns_telemetry.dedup_hit);

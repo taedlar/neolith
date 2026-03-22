@@ -209,7 +209,7 @@ Stage 4 is split into two delivery tracks:
 #### Stage 4A Checklist: Driver DNS Track (optional build feature)
 
 - [x] Harden socket address parsing first: reject malformed non-numeric host tokens unless DNS track is enabled.
-- [x] Reuse existing build-time feature option in `options.h` (`PACKAGE_PEER_REVERSE_DNS`) to gate built-in socket-connect DNS resolution.
+- [x] Reuse existing build-time feature option in `options.h` (`PACKAGE_SOCKET_CONNECT_DNS`) to gate built-in socket-connect DNS resolution.
 - [x] Add DNS worker pool and completion posting via `async_runtime_post_completion()`.
 - [x] Add global in-flight DNS cap (64).
 - [x] Add bounded pending DNS queue (256 entries, DROP_OLDEST).
@@ -287,18 +287,28 @@ Stage 4 gate:
 
 ### Stage 5 Checklist: Shared Resolver Worker (c-ares)
 
-Goal: replace blocking `getaddrinfo()` worker resolution and legacy `addr_server_fd`/`resolve()` plumbing with one shared async resolver backend based on c-ares.
+Goal: retire blocking `getaddrinfo()` usage and legacy `addr_server_fd`/`resolve()` plumbing first, and route all resolver workflows through the async socket operation engine with a shared resolver backend.
+
+Stage 5 policy override (priority-first):
+- First priority is eliminating non-async resolver paths from runtime execution (`getaddrinfo()` direct worker path and `addr_server_fd` path).
+- Legacy LPC resolver-efun compatibility may change in Stage 5.
+- Compatibility behavior must be selected at compile time and documented for operators/mudlib authors.
+- No Stage 5 task may reintroduce blocking DNS calls on the backend thread.
 
 Execution order and dependencies:
 1. Foundation and build integration (must complete first)
   - [x] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
   - [x] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
+  - [ ] Add explicit compile-time resolver policy switch for legacy LPC resolver efun compatibility (strict-compat vs Stage-5-native contract).
+  - [ ] Document build-time policy matrix (with/without c-ares, compat mode on/off) and operator-facing behavior deltas.
 2. Shared resolver core (depends on step 1)
+  - [ ] Cut over runtime resolver entrypoints to shared async resolver flow before further feature migration; legacy path execution must be disabled once cutover lands.
   - [ ] Introduce resolver request classes in a shared resolver module:
     - [ ] forward lookup (hostname -> IPv4/IPv6)
     - [ ] reverse lookup (IP -> hostname)
     - [ ] peer-name refresh path (`query_ip_name` cache updates)
     - [ ] socket-connect lookup path (current Stage 4A behavior)
+  - [ ] Ensure non-c-ares builds use an async-runtime-aligned fallback backend (no backend-thread blocking call path).
   - [ ] Use request-id correlation for all completion fan-out (no name-only matching).
   - [ ] Preserve per-request timeout semantics at resolver layer and map deterministic failures to caller-specific contracts.
   - [ ] Preserve socket op-id correlation in socket path to prevent stale completion routing.
@@ -308,8 +318,10 @@ Execution order and dependencies:
     - [ ] per-owner caps for socket-originated requests
   - [ ] Add optional dedup/coalescing policy by class (at minimum for socket-connect forward lookups).
 3. Feature migration onto shared resolver (depends on step 2)
-  - [ ] Route `resolve()` efun through shared resolver while preserving callback signature and key semantics.
+  - [ ] Route `resolve()` efun through shared resolver with behavior controlled by compile-time policy (strict-compat or Stage-5-native).
+  - [ ] Publish explicit compatibility-break documentation for `resolve()` when strict-compat is disabled.
   - [ ] Migrate `query_ip_name()` reverse-lookup cache population to shared resolver completions.
+  - [ ] Publish explicit compatibility-break documentation for `query_ip_name()` when strict-compat is disabled.
 4. Observability and rollout safety (starts in step 2, must be complete before step 5)
   - [ ] Extend telemetry for mixed workload observability:
     - [ ] queued/admitted/rejected by class
@@ -332,11 +344,13 @@ Execution order and dependencies:
 | RESOLVER_004 | Reverse lookups for `query_ip_name()` during socket traffic | Cache updates remain deterministic; no event-loop stalls |
 | RESOLVER_005 | Timeout/cancel races across request classes | Exactly one terminal completion per request |
 | RESOLVER_006 | Owner/object destruction during pending resolver requests | Safe cleanup; no use-after-free; no callback to destructed object |
-| RESOLVER_007 | DNS-disabled build without c-ares | Build remains functional; existing DNS-disabled semantics preserved |
+| RESOLVER_007 | DNS-disabled build without c-ares | Build remains functional; selected compile-time resolver policy is honored and documented |
 | RESOLVER_008 | c-ares-enabled build parity with Stage 4A DNS tests | Existing `SOCK_DNS_*` behavior remains green |
+| RESOLVER_009 | Legacy efun strict-compat mode enabled | `resolve()`/`query_ip_name()` preserve documented compatibility contract |
+| RESOLVER_010 | Legacy efun strict-compat mode disabled | Stage-5-native contract is applied deterministically and documented |
 
 Stage 5 gate:
-- [ ] Stage complete when shared resolver parity is verified across mixed workloads and legacy address-server paths are removed.
+- [ ] Stage complete when shared resolver parity is verified across mixed workloads, legacy address-server paths are removed, blocking `getaddrinfo()` resolver path is retired, and compile-time compatibility policy is validated/documented.
 
 ### Stage 6 Checklist: Hardening and Documentation
 
@@ -454,19 +468,21 @@ Exit criteria:
 
 ### Milestone 5: Shared Resolver Migration (c-ares)
 
-**Goal**: unify mixed DNS workloads behind one async resolver backend and retire legacy address-server plumbing.
+**Goal**: unify mixed DNS workloads behind the async socket operation engine, retire blocking/legacy resolver paths first, and allow compile-time selection of legacy efun compatibility policy.
 
 Tasks:
 1. Add c-ares dependency provider integration (optional fetch from source).
-2. Add shared resolver request classes (forward, reverse, peer cache refresh, socket connect).
-3. Preserve request correlation, timeout mapping, and socket op-id safety.
-4. Migrate `resolve()` and `query_ip_name()` paths to shared resolver completion flow.
-5. Add mixed-workload telemetry/trace validation hooks.
-6. Remove `addr_server_fd` and legacy lookup callback bridge after parity verification.
+2. Add compile-time resolver policy switch for legacy LPC resolver efun compatibility and document behavior matrix.
+3. Add shared resolver request classes (forward, reverse, peer cache refresh, socket connect).
+4. Preserve request correlation, timeout mapping, and socket op-id safety.
+5. Migrate `resolve()` and `query_ip_name()` paths to shared resolver completion flow under selected policy.
+6. Add mixed-workload telemetry/trace validation hooks.
+7. Remove `addr_server_fd`, legacy lookup callback bridge, and blocking `getaddrinfo()` runtime path after parity verification.
 
 Exit criteria:
-- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) is green.
+- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_010`) is green.
 - Stage 4 DNS behavior remains stable with c-ares-enabled builds.
+- Legacy-compatibility policy choice is explicit at compile time and fully documented.
 
 ### Milestone 6: Hardening and Documentation
 
@@ -474,7 +490,7 @@ Exit criteria:
 
 Dependencies:
 - Milestone 5 exit criteria complete.
-- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) remains green while running hardening scenarios.
+- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_010`) remains green while running hardening scenarios.
 
 Tasks:
 - Add targeted race and lifecycle tests:
@@ -511,7 +527,7 @@ Exit criteria:
 
 ## Mitigations
 
-1. Keep descriptor-based compatibility layer intact during early milestones.
+1. Gate legacy resolver-efun compatibility behind an explicit compile-time switch and document deltas when disabled.
 2. Land refactors behind milestone test gates.
 3. Introduce one semantic change class per milestone.
 

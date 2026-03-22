@@ -93,10 +93,10 @@ if(TARGET c-ares::cares)
 endif()
 
 # package options (configurable at CMake time)
-option(ENABLE_PEER_REVERSE_DNS "Enable built-in DNS reverse lookup for socket peer addresses" OFF)
-if(ENABLE_PEER_REVERSE_DNS)
-	set(PACKAGE_PEER_REVERSE_DNS 1)
-	message(STATUS "Built-in peer reverse DNS enabled")
+option(ENABLE_SOCKET_CONNECT_DNS "Enable built-in async DNS hostname resolution for socket_connect()" OFF)
+if(ENABLE_SOCKET_CONNECT_DNS)
+	set(PACKAGE_SOCKET_CONNECT_DNS 1)
+	message(STATUS "Built-in socket_connect() hostname DNS enabled")
 endif()
 
 # generate global header "config.h" for build configurations
