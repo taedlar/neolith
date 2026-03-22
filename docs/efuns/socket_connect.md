@@ -20,7 +20,7 @@ Original MudOS behavior accepted only numeric IPv4 endpoints. The baseline compa
 
 Current Neolith behavior:
 - Numeric IPv4 endpoints remain supported and unchanged.
-- Hostname endpoints such as `"localhost 23"` are also accepted when the driver is built with `PACKAGE_PEER_REVERSE_DNS` enabled.
+- Hostname endpoints such as `"localhost 23"` are also accepted when the driver is built with `PACKAGE_SOCKET_CONNECT_DNS` enabled.
 - When built-in DNS support is disabled, hostname endpoints fail fast with `EEBADADDR`.
 
 When hostname support is enabled, `socket_connect()` queues DNS resolution asynchronously and returns without blocking the backend loop. After resolution, the socket continues through the normal non-blocking connect path.

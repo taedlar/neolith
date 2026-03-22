@@ -1149,7 +1149,7 @@ void process_io () {
                 }
             }
         }
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
       else if (evt->completion_key == 0x444E5300)  /* DNS_COMPLETION_KEY */
         {
           /* DNS resolution completion - worker posted results.

@@ -9,7 +9,7 @@ static ::testing::Environment* const winsock_env =
   ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
 #endif
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 extern "C" void handle_dns_completions(void);
 extern "C" void set_socket_dns_timeout_test_hook(int (*hook)(int, const char *, uint16_t));
 extern "C" int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
@@ -91,7 +91,7 @@ bool AcceptPendingConnection(socket_fd_t listener_fd, socket_fd_t *accepted_fd) 
   return *accepted_fd != INVALID_SOCKET_FD;
 }
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
 extern "C" int get_socket_operation_info(int socket_id, 
                                          int* op_active, int* op_terminal,
                                          int* op_id, int* op_phase);
@@ -1375,7 +1375,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_HostnameRejectedWhenSocketConnectDn
   svalue_t write_cb;
   int fd;
   int connect_result;
-#ifndef PACKAGE_PEER_REVERSE_DNS
+#ifndef PACKAGE_SOCKET_CONNECT_DNS
   int op_active = 0;
   int op_terminal = 0;
   int op_id = 0;
@@ -1393,9 +1393,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_HostnameRejectedWhenSocketConnectDn
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
   connect_result = socket_connect(fd, (char *)"localhost 4000", &read_cb, &write_cb);
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   (void)connect_result;  // Avoid unused variable warning when feature enabled
-  GTEST_SKIP() << "PACKAGE_PEER_REVERSE_DNS enabled: hostname rejection assertion does not apply";
+  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS enabled: hostname rejection assertion does not apply";
 #else
   EXPECT_EQ(connect_result, EEBADADDR)
     << "Hostname connect must fail fast with EEBADADDR when DNS is disabled";
@@ -1429,7 +1429,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceedsWhenFeatureE
   int listener_port = 0;
   int fd;
   int connect_result;
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   int op_active = 0;
   int op_terminal = 0;
   int op_id = 0;
@@ -1451,13 +1451,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceedsWhenFeatureE
   std::string endpoint = "localhost " + std::to_string(listener_port);
   connect_result = socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
 
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   // Wait for DNS resolution to complete (non-blocking DNS operation)
   ASSERT_TRUE(WaitForDNSCompletion(fd, 5000))
     << "DNS resolution did not complete within timeout";
   
   EXPECT_EQ(connect_result, EESUCCESS)
-    << "Hostname connect should succeed when PACKAGE_PEER_REVERSE_DNS is enabled";
+    << "Hostname connect should succeed when PACKAGE_SOCKET_CONNECT_DNS is enabled";
 
   EXPECT_EQ(get_socket_operation_info(fd, &op_active, &op_terminal, &op_id, &op_phase), EESUCCESS);
   EXPECT_EQ(op_active, 1);
@@ -1465,7 +1465,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceedsWhenFeatureE
   EXPECT_GT(op_id, 0);
   EXPECT_EQ(op_phase, OP_TRANSFERRING);
 #else
-  GTEST_SKIP() << "PACKAGE_PEER_REVERSE_DNS disabled: SOCK_DNS_003 requires feature-enabled build";
+  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_003 requires feature-enabled build";
 #endif
 
   if (AcceptPendingConnection(listener_fd, &accepted_fd)) {
@@ -1485,7 +1485,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceedsWhenFeatureE
  * Expected: 1-64th succeed (enter OP_DNS_RESOLVING), 65th+ fail with deterministic overload mapping.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolutions) {
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS admission tests";
@@ -1557,7 +1557,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
 #else
-  GTEST_SKIP() << "PACKAGE_PEER_REVERSE_DNS disabled: SOCK_DNS_004 requires feature-enabled build";
+  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_004 requires feature-enabled build";
 #endif
 }
 
@@ -1568,7 +1568,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
  * Expected: 1-8th succeed (enter OP_DNS_RESOLVING), 9th+ fail with deterministic overload mapping.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns) {
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS admission tests";
@@ -1626,7 +1626,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
 #else
-  GTEST_SKIP() << "PACKAGE_PEER_REVERSE_DNS disabled: SOCK_DNS_005 requires feature-enabled build";
+  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_005 requires feature-enabled build";
 #endif
 }
 
@@ -1637,7 +1637,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
  * Expected: operation reaches terminal OP_TIMED_OUT phase.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS timeout tests";
@@ -1691,7 +1691,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
 #else
-  GTEST_SKIP() << "PACKAGE_PEER_REVERSE_DNS disabled: SOCK_DNS_006 requires feature-enabled build";
+  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_006 requires feature-enabled build";
 #endif
 }
 
@@ -1702,7 +1702,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
  * Expected: admitted counter increases once; dedup counter increases at least once.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWork) {
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS coalescing tests";
@@ -1751,7 +1751,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
 #else
-  GTEST_SKIP() << "PACKAGE_PEER_REVERSE_DNS disabled: SOCK_DNS_012 requires feature-enabled build";
+  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_012 requires feature-enabled build";
 #endif
 }
 
@@ -1762,7 +1762,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
  * Expected: Numeric connect path succeeds without being blocked by DNS worker activity.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlood) {
-#ifdef PACKAGE_PEER_REVERSE_DNS
+#ifdef PACKAGE_SOCKET_CONNECT_DNS
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedAsyncRuntime runtime_guard;
   ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS responsiveness tests";
@@ -1821,7 +1821,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
   free_string(read_cb.u.string);
   free_string(write_cb.u.string);
 #else
-  GTEST_SKIP() << "PACKAGE_PEER_REVERSE_DNS disabled: SOCK_DNS_011 requires feature-enabled build";
+  GTEST_SKIP() << "PACKAGE_SOCKET_CONNECT_DNS disabled: SOCK_DNS_011 requires feature-enabled build";
 #endif
 }
 

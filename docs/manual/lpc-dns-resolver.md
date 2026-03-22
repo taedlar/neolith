@@ -17,7 +17,7 @@ This guide describes implementing DNS hostname resolution at the mudlib layer us
 
 Use mudlib-side DNS resolution when:
 
-1. **DNS feature disabled**: The driver was built without `PACKAGE_PEER_REVERSE_DNS`, so `socket_connect(fd, hostname:port, ...)` fails with `EEBADADDR`.
+1. **DNS feature disabled**: The driver was built without `PACKAGE_SOCKET_CONNECT_DNS`, so `socket_connect(fd, hostname:port, ...)` fails with `EEBADADDR`.
 2. **Custom caching**: You need to cache resolved addresses across connections or implement negative caching.
 3. **Retry policies**: You want fine-grained control over retry logic, backoff, or fallback strategies.
 4. **Monitoring/logging**: You need to log or monitor all DNS queries for operational visibility.
@@ -555,7 +555,7 @@ void on_dns_result(string address, int error) {
 
 ## Compatibility: DNS-Disabled Deployments
 
-When the driver is built without `PACKAGE_PEER_REVERSE_DNS`, direct `socket_connect(fd, hostname:port, ...)` calls fail with `EEBADADDR`. This guide's mudlib resolver approach works unchanged:
+When the driver is built without `PACKAGE_SOCKET_CONNECT_DNS`, direct `socket_connect(fd, hostname:port, ...)` calls fail with `EEBADADDR`. This guide's mudlib resolver approach works unchanged:
 
 1. **Mudlib resolver always available**: No build-time dependency.
 2. **Numeric connect still works**: `socket_connect(fd, "192.0.2.1 80", ...)` succeeds (this guide's output).

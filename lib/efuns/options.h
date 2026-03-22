@@ -472,17 +472,19 @@
  */
 #define PACKAGE_SOCKETS
 
-/* PACKAGE_PEER_REVERSE_DNS: define this to enable built-in reverse DNS
- *   lookup for connected peer addresses.
- *   This also affects the query_ip_name() efun, which can return cached
- *   peer host names when reverse lookup is available.
+/* PACKAGE_SOCKET_CONNECT_DNS: define this to enable built-in async hostname
+ *   DNS resolution for socket_connect() endpoints of the form "<host> <port>".
+ *
+ *   This flag controls the socket efun connect path only. It does not control
+ *   the legacy addr_server_fd reverse-lookup path used by query_ip_name()/
+ *   resolve() in src/comm.c.
  *
  *   When enabled, LPC code can detect availability via the predefined
- *   macro __PACKAGE_PEER_REVERSE_DNS__.
+ *   macro __PACKAGE_SOCKET_CONNECT_DNS__.
  *
- *   Configuration: Set via CMake option ENABLE_PEER_REVERSE_DNS
+ *   Configuration: Set via CMake option ENABLE_SOCKET_CONNECT_DNS
  */
-/* #undef PACKAGE_PEER_REVERSE_DNS */
+/* #undef PACKAGE_SOCKET_CONNECT_DNS */
 
 /* PACKAGE_PARSER: Natural language parsing efuns for interactive fiction
  *   type applications
