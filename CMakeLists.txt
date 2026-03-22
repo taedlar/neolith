@@ -86,9 +86,9 @@ find_package(CARES QUIET) # FindCARES.cmake, c-ares config, pkg-config, or libra
 if(TARGET c-ares::cares)
 	set(HAVE_CARES 1)
 	if(DEFINED CARES_VERSION)
-		message(STATUS "Found c-ares: ${CARES_INCLUDE_DIR}/ares.h (found version: ${CARES_VERSION})")
+		message(STATUS "Found c-ares: ${CARES_VERSION}")
 	else()
-		message(STATUS "Found c-ares: ${CARES_INCLUDE_DIR}/ares.h")
+		message(STATUS "Found c-ares: ${CARES_LIBRARY}")
 	endif()
 endif()
 
