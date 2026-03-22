@@ -291,8 +291,8 @@ Goal: replace blocking `getaddrinfo()` worker resolution and legacy `addr_server
 
 Execution order and dependencies:
 1. Foundation and build integration (must complete first)
-  - [ ] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
-  - [ ] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
+  - [x] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
+  - [x] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
 2. Shared resolver core (depends on step 1)
   - [ ] Introduce resolver request classes in a shared resolver module:
     - [ ] forward lookup (hostname -> IPv4/IPv6)

@@ -65,6 +65,22 @@ if (FETCH_CURL_FROM_SOURCE)
     )
 endif()
 
+# [ c-ares ]
+if (FETCH_CARES_FROM_SOURCE)
+    # Keep fetched c-ares static in this workspace unless explicitly overridden.
+    set(CARES_STATIC ON CACHE INTERNAL "c-ares option: build static library")
+    set(CARES_SHARED OFF CACHE INTERNAL "c-ares option: disable shared library")
+    set(CARES_BUILD_TESTS OFF CACHE INTERNAL "c-ares option: disable tests")
+    set(CARES_BUILD_TOOLS OFF CACHE INTERNAL "c-ares option: disable tools")
+    set(CARES_INSTALL OFF CACHE INTERNAL "c-ares option: disable install targets")
+    FetchContent_Declare(
+        c_ares
+        GIT_REPOSITORY https://github.com/c-ares/c-ares.git
+        GIT_TAG ${FETCH_CARES_FROM_SOURCE}
+        EXCLUDE_FROM_ALL
+    )
+endif()
+
 # =========================
 # CMake Dependency Provider
 # =========================
@@ -142,6 +158,27 @@ macro(setup_provide_dependency method package)
                 endif()
             endif()
             set(${package}_FOUND ${CURL_FOUND})
+        endif()
+    endif()
+
+    # c-ares (compatible with find_package(c-ares CONFIG))
+    if ("${package}" MATCHES "^(c-ares|CARES|cares)$")
+        # c-ares may be requested more than once (directly and transitively).
+        # Skip repeated resolution after canonical imported target exists.
+        if (TARGET c-ares::cares)
+            set(CARES_FOUND TRUE)
+            set(${package}_FOUND TRUE)
+        else()
+            if (FETCH_CARES_FROM_SOURCE)
+                list(APPEND my_provider_args ${method} ${package}) # save arguments for macro reentrant
+                FetchContent_MakeAvailable(c_ares)
+                list(POP_BACK my_provider_args package method) # restore arguments
+                if (TARGET c-ares::cares)
+                    set(CARES_FOUND TRUE)
+                    set(CARES_VERSION ${FETCH_CARES_FROM_SOURCE})
+                endif()
+            endif()
+            set(${package}_FOUND ${CARES_FOUND})
         endif()
     endif()
 endmacro()

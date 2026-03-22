@@ -79,6 +79,18 @@ sudo apt install libboost-dev
 
 On Windows, install Boost manually and set `BOOST_ROOT` (for example `D:\boost_1_90_0`) in your preset or configure command.
 
+### c-ares
+
+c-ares enables async DNS resolution for built-in socket-connect hostname support. When enabled via `PACKAGE_PEER_REVERSE_DNS`, c-ares provides a bounded DNS worker pool with admission control and flood protection.
+
+Linux package:
+
+~~~sh
+sudo apt install libc-ares-dev
+~~~
+
+You can also fetch c-ares from source with [FETCH_CARES_FROM_SOURCE](#fetch_cares_from_source).
+
 ## Dependency Provider Settings
 
 This project uses CMake dependency provider hooks (via `cmake/setup.cmake`) so `find_package()` can be satisfied by FetchContent-based sources when requested.
@@ -137,6 +149,26 @@ cmake --preset linux -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
 > 2. Use normal Neolith presets and targets.
 > 3. Keep `BUILD_SHARED_LIBS` controlled; it is global and can affect downstream dependencies such as GoogleTest.
 
+### `FETCH_CARES_FROM_SOURCE`
+
+If defined, this value is used as the Git tag for c-ares. c-ares is fetched and built in-tree as part of the normal configure/build flow.
+
+~~~sh
+# Windows
+cmake --preset vs16-x64 -DFETCH_CARES_FROM_SOURCE=v1.34.6
+
+# Linux
+cmake --preset linux -DFETCH_CARES_FROM_SOURCE=v1.34.6
+~~~
+
+> [!IMPORTANT]
+> **Operational Notes for `FETCH_CARES_FROM_SOURCE`**
+>
+> 1. There is no separate manual prebuild phase for c-ares.
+> 2. Use normal Neolith presets and targets.
+> 3. c-ares is only used when `PACKAGE_PEER_REVERSE_DNS` is enabled at build time (see [config.h.in](../config.h.in)).
+> 4. When c-ares is available, async DNS resolution in `socket_connect()` is automatically enabled for hostname support.
+
 ## Building with CMake Presets
 
 From repository root:
@@ -187,7 +219,8 @@ Linux:
 cmake --preset linux \
   -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 \
   -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 \
-  -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
+  -DFETCH_CURL_FROM_SOURCE=curl-8_19_0 \
+  -DFETCH_CARES_FROM_SOURCE=v1.34.6
 ~~~
 
 Windows (PowerShell):
@@ -196,5 +229,6 @@ Windows (PowerShell):
 cmake --preset vs16-x64 `
   -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 `
   -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 `
-  -DFETCH_CURL_FROM_SOURCE=curl-8_19_0
+  -DFETCH_CURL_FROM_SOURCE=curl-8_19_0 `
+  -DFETCH_CARES_FROM_SOURCE=v1.34.6
 ~~~
