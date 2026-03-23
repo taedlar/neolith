@@ -11,6 +11,7 @@
 #include "lpc/types.h"
 #include "lpc/functional.h"
 #include "port/socket_comm.h"
+#include "src/addr_resolver.h"
 
 enum socket_mode {
     MUD, STREAM, DATAGRAM, STREAM_BINARY, DATAGRAM_BINARY
@@ -96,9 +97,10 @@ int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned
                                unsigned long *timed_out);
 char *socket_error(int);
 void handle_dns_completions(void);
+int handle_socket_dns_resolver_result(const resolver_result_t *result);
 void deinit_dns_system(void);
 int get_socket_operation_info(int, int *, int *, int *, int *);
-int get_socket_runtime_info(int, int *, int *, int *);
+int get_socket_runtime_info(int, int *, int *, socket_fd_t *);
 int get_socket_runtime_registration_count(void);
 void *get_socket_runtime_context(int);
 int resolve_lpc_socket_context(void *, socket_fd_t, int *);

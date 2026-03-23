@@ -20,6 +20,7 @@
 
 #include "src/std.h"
 #include "src/comm.h"
+#include "src/addr_resolver.h"
 #include "async/async_runtime.h"
 #include "lpc/array.h"
 #include "lpc/functional.h"
@@ -43,16 +44,7 @@
 #define SC_DO_CALLBACK	2
 #define SC_FINAL_CLOSE  4
 
-/* DNS resolution task structure */
 #define DNS_TIMEOUT_SECONDS 30  /* Max time for DNS resolution */
-
-typedef struct {
-  int socket_id;
-  int op_id;
-  char hostname[ADDR_BUF_SIZE];
-  uint16_t port;  /* Port in host byte order */
-  time_t deadline;  /* Absolute deadline for this resolution */
-} dns_task_t;
 
 /* DNS telemetry counters for monitoring and debugging */
 typedef struct {
@@ -98,32 +90,25 @@ typedef struct {
 /* DNS admission control and task queue (Stage 4A) */
 #define DNS_GLOBAL_CAP 64          /* Max in-flight DNS resolutions globally */
 #define DNS_PER_OWNER_CAP 8        /* Max per-owner pending DNS resolutions */
-#define DNS_QUEUE_SIZE 256         /* Bounded async queue for DNS tasks */
+#define SOCKET_DNS_REQUEST_ID_BASE (RESOLVER_LOOKUP_REQUEST_CAPACITY + 1)
 
 typedef struct {
-  int socket_id;
-  int op_id;
   struct in_addr resolved_addr;
   uint16_t port;
-  int success;        /* 1 if DNS succeeded, 0 if failed */
-  int timed_out;      /* 1 if deadline exceeded before completion */
-  int error;          /* errno value if success=0 and not timed_out */
-} dns_result_t;
+  int success;
+  int timed_out;
+} socket_dns_apply_result_t;
 
 typedef char dns_hostname_t[ADDR_BUF_SIZE];
 
 static int dns_tasks_in_flight = 0;      /* Current global count */
-static async_queue_t *dns_queue = NULL;  /* Bounded task queue for DNS work */
-static async_queue_t *dns_results = NULL;/* Bounded queue for results */
-static async_worker_t *dns_worker = NULL; /* Worker thread for DNS */
 static dns_hostname_t *dns_pending_hostnames = NULL;
 static uint16_t *dns_pending_ports = NULL;
 static int *dns_pending_leaders = NULL;
 static int *dns_pending_leader_op_ids = NULL;
+static int *dns_pending_request_ids = NULL;
+static int next_socket_dns_request_id = SOCKET_DNS_REQUEST_ID_BASE;
 static socket_dns_timeout_test_hook_t socket_dns_timeout_test_hook = NULL;
-
-/* Completion key for DNS worker results (unique identifier) */
-#define DNS_COMPLETION_KEY 0x444E5300
 
 static socket_runtime_context_t **socket_contexts = NULL;
 static socket_runtime_state_t *socket_runtime_state = NULL;
@@ -144,7 +129,7 @@ static int compute_socket_runtime_events (int socket_id);
 static int init_dns_system(void);
 static void clear_dns_pending_resolution(int socket_id);
 static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t port);
-static void apply_dns_result_to_socket(int socket_id, const dns_result_t *result);
+static void apply_dns_result_to_socket(int socket_id, const socket_dns_apply_result_t *result);
 static int register_socket_runtime (int socket_id);
 static int modify_socket_runtime (int socket_id);
 static void remove_socket_runtime (int socket_id);
@@ -414,6 +399,11 @@ int more_lpc_sockets () {
   else
     dns_pending_leader_op_ids = RESIZE (dns_pending_leader_op_ids, max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_leader_op_ids");
 
+  if (!dns_pending_request_ids)
+    dns_pending_request_ids = CALLOCATE (max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_request_ids");
+  else
+    dns_pending_request_ids = RESIZE (dns_pending_request_ids, max_lpc_socks, int, TAG_SOCKETS, "more_lpc_sockets:dns_pending_request_ids");
+
   if (max_lpc_socks == 10)
     {
       /* First time initialization - set up DNS system */
@@ -472,6 +462,8 @@ int more_lpc_sockets () {
         dns_pending_leaders[i] = -1;
       if (dns_pending_leader_op_ids != NULL)
         dns_pending_leader_op_ids[i] = -1;
+      if (dns_pending_request_ids != NULL)
+        dns_pending_request_ids[i] = 0;
     }
   return max_lpc_socks - 10;
 }
@@ -1819,7 +1811,7 @@ get_socket_operation_info (int socket_id, int *active, int *terminal, int *op_id
 }
 
 int
-get_socket_runtime_info (int socket_id, int *registered, int *events, int *tracked_fd)
+get_socket_runtime_info (int socket_id, int *registered, int *events, socket_fd_t *tracked_fd)
 {
   if (socket_id < 0 || socket_id >= max_lpc_socks)
     return EEFDRANGE;
@@ -1829,7 +1821,7 @@ get_socket_runtime_info (int socket_id, int *registered, int *events, int *track
   if (events)
     *events = 0;
   if (tracked_fd)
-    *tracked_fd = (int) INVALID_SOCKET_FD;
+    *tracked_fd = INVALID_SOCKET_FD;
 
   if (socket_runtime_state == NULL)
     return EESUCCESS;
@@ -2007,10 +1999,12 @@ clear_dns_pending_resolution (int socket_id)
     dns_pending_leaders[socket_id] = -1;
   if (dns_pending_leader_op_ids != NULL)
     dns_pending_leader_op_ids[socket_id] = -1;
+  if (dns_pending_request_ids != NULL)
+    dns_pending_request_ids[socket_id] = 0;
 }
 
 static void
-apply_dns_result_to_socket (int socket_id, const dns_result_t *result)
+apply_dns_result_to_socket (int socket_id, const socket_dns_apply_result_t *result)
 {
   if (socket_id < 0 || socket_id >= max_lpc_socks)
     return;
@@ -2076,92 +2070,10 @@ apply_dns_result_to_socket (int socket_id, const dns_result_t *result)
     }
 }
 
-/**
- * DNS worker thread function (runs in worker thread context)
- * Processes queued DNS tasks and posts completions back to main thread.
- */
-static void* dns_worker_main(void *arg) {
-  async_queue_t *task_queue = (async_queue_t *)arg;
-  dns_task_t task;
-  dns_result_t result;
-  struct addrinfo hints;
-  struct addrinfo *addr_results = NULL;
-  struct addrinfo *entry;
-  int gai_result;
-  time_t now;
-  size_t task_size = 0;
-  async_queue_t *result_queue = dns_results;  /* Access to global result queue */
-  async_worker_t *worker = async_worker_current();
-
-  while (!async_worker_should_stop(worker)) {
-    /* Dequeue next DNS task (non-blocking) */
-    if (!async_queue_dequeue(task_queue, &task, sizeof(task), &task_size)) {
-      /* Queue empty, do a small yield before retry */
-#ifdef WINSOCK
-      Sleep(10);  /* 10ms on Windows */
-#else
-      usleep(10000);  /* 10ms on POSIX */
-#endif
-      continue;
-    }
-
-    if (task_size != sizeof(task)) {
-      continue;  /* Mismatched message size, skip */
-    }
-
-    /* Initialize result structure */
-    memset(&result, 0, sizeof(result));
-    result.socket_id = task.socket_id;
-    result.op_id = task.op_id;
-    result.port = task.port;
-    result.success = 0;
-    result.timed_out = 0;
-    result.error = 0;
-
-    /* Check if already past deadline before doing work */
-    now = time(NULL);
-    if (now >= task.deadline) {
-      result.timed_out = 1;
-    } else {
-      /* Perform DNS resolution (blocking is OK in worker thread) */
-      memset(&hints, 0, sizeof(hints));
-      hints.ai_family = AF_INET;
-      hints.ai_socktype = SOCK_STREAM;
-
-      gai_result = getaddrinfo(task.hostname, NULL, &hints, &addr_results);
-      if (gai_result == 0) {
-        /* Find first IPv4 result */
-        for (entry = addr_results; entry != NULL; entry = entry->ai_next) {
-          if (entry->ai_family == AF_INET && entry->ai_addr != NULL) {
-            struct sockaddr_in *addr4 = (struct sockaddr_in *)entry->ai_addr;
-            result.resolved_addr = addr4->sin_addr;
-            result.success = 1;
-            break;
-          }
-        }
-        freeaddrinfo(addr_results);
-        addr_results = NULL;
-      } else {
-        result.error = gai_result;
-      }
-
-      /* Final deadline check after DNS work completes */
-      now = time(NULL);
-      if (now >= task.deadline) {
-        result.timed_out = 1;
-        result.success = 0;
-      }
-    }
-
-    /* Enqueue result and notify main thread */
-    if (result_queue != NULL) {
-      if (async_queue_enqueue(result_queue, &result, sizeof(result))) {
-        async_runtime_post_completion(get_async_runtime(), DNS_COMPLETION_KEY, 1);
-      }
-    }
-  }
-
-  return NULL;
+static int
+is_socket_dns_request_id (int request_id)
+{
+  return request_id >= SOCKET_DNS_REQUEST_ID_BASE;
 }
 
 /**
@@ -2169,17 +2081,18 @@ static void* dns_worker_main(void *arg) {
  * Returns EESUCCESS on success, deterministic EE* code on rejection/failure.
  */
 static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t port) {
-  dns_task_t task;
   int i;
   int owner_count = 0;
   int leader_socket_id = -1;
   int leader_op_id = -1;
-
-  if (dns_queue == NULL)
-    return EESOCKET;
+  int request_id = 0;
+  time_t deadline;
 
   if (socket_id < 0 || socket_id >= max_lpc_socks)
     return EEFDRANGE;
+
+  if (hostname == NULL || hostname[0] == '\0')
+    return EEBADADDR;
 
   /* Optional duplicate lookup coalescing: attach to existing leader task. */
   if (hostname != NULL)
@@ -2198,8 +2111,11 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
             continue;
           if (strcmp (dns_pending_hostnames[i], hostname) != 0)
             continue;
+          if (dns_pending_request_ids == NULL || dns_pending_request_ids[i] <= 0)
+            continue;
           leader_socket_id = i;
           leader_op_id = socket_ops[i].op_id;
+          request_id = dns_pending_request_ids[i];
           break;
         }
     }
@@ -2217,6 +2133,8 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
         dns_pending_leaders[socket_id] = leader_socket_id;
       if (dns_pending_leader_op_ids != NULL)
         dns_pending_leader_op_ids[socket_id] = leader_op_id;
+      if (dns_pending_request_ids != NULL)
+        dns_pending_request_ids[socket_id] = request_id;
       dns_telemetry.dedup_hit++;
       return EESUCCESS;
     }
@@ -2243,17 +2161,20 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
     }
   }
 
-  /* Build and queue the DNS task */
-  memset(&task, 0, sizeof(task));
-  task.socket_id = socket_id;
-  task.op_id = socket_ops[socket_id].op_id;
-  task.port = port;
-  task.deadline = time(NULL) + DNS_TIMEOUT_SECONDS;
+  if (next_socket_dns_request_id <= SOCKET_DNS_REQUEST_ID_BASE)
+    next_socket_dns_request_id = SOCKET_DNS_REQUEST_ID_BASE;
+  request_id = next_socket_dns_request_id++;
 
-  if (hostname != NULL) {
-    strncpy(task.hostname, hostname, ADDR_BUF_SIZE - 1);
-    task.hostname[ADDR_BUF_SIZE - 1] = '\0';
-  }
+  deadline = time(NULL) + DNS_TIMEOUT_SECONDS;
+  if (strncmp (hostname, "force-timeout-", 14) == 0)
+    {
+      deadline = 0;
+    }
+  else if (socket_dns_timeout_test_hook != NULL &&
+           socket_dns_timeout_test_hook (socket_id, hostname, port))
+    {
+      deadline = 0;
+    }
 
   if (dns_pending_hostnames != NULL && hostname != NULL)
     {
@@ -2265,19 +2186,11 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
   if (dns_pending_leaders != NULL)
     dns_pending_leaders[socket_id] = socket_id;
   if (dns_pending_leader_op_ids != NULL)
-    dns_pending_leader_op_ids[socket_id] = task.op_id;
+    dns_pending_leader_op_ids[socket_id] = socket_ops[socket_id].op_id;
+  if (dns_pending_request_ids != NULL)
+    dns_pending_request_ids[socket_id] = request_id;
 
-  if (strncmp (task.hostname, "force-timeout-", 14) == 0)
-    {
-      task.deadline = 0;
-    }
-  else if (socket_dns_timeout_test_hook != NULL &&
-           socket_dns_timeout_test_hook (socket_id, task.hostname, task.port))
-    {
-      task.deadline = 0;
-    }
-
-  if (!async_queue_enqueue(dns_queue, &task, sizeof(task))) {
+  if (!addr_resolver_enqueue_lookup (request_id, hostname, deadline)) {
     clear_dns_pending_resolution (socket_id);
     dns_telemetry.rejected_queue++;
     return EERESOLVERBUSY;
@@ -2288,107 +2201,82 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
   return EESUCCESS;
 }
 
-/**
- * Process DNS completions from worker thread (called from main loop)
- * Drains all pending results and applies them to sockets
- */
-static void process_dns_completions(void) {
-  dns_result_t result;
-  size_t result_size = 0;
-  int socket_id;
+int
+handle_socket_dns_resolver_result (const resolver_result_t *result)
+{
   int i;
-  int stale = 0;
+  int leader_socket = -1;
+  int leader_op_id = -1;
+  socket_dns_apply_result_t socket_result;
 
-  if (dns_results == NULL)
-    return;
+  if (result == NULL || result->type != RESOLVER_REQ_LOOKUP)
+    return 0;
+  if (!is_socket_dns_request_id (result->request_id))
+    return 0;
 
-  while (async_queue_dequeue(dns_results, &result, sizeof(result), &result_size)) {
-    if (result_size != sizeof(result)) {
-      continue;  /* Mismatched size, skip */
-    }
-
-    socket_id = result.socket_id;
+  if (dns_tasks_in_flight > 0)
     dns_tasks_in_flight--;
 
-    stale = 0;
-    if (socket_id < 0 || socket_id >= max_lpc_socks)
-      stale = 1;
-    else if (!socket_ops[socket_id].active ||
-             socket_ops[socket_id].phase != OP_DNS_RESOLVING ||
-             socket_ops[socket_id].op_id != result.op_id)
-      stale = 1;
+  for (i = 0; i < max_lpc_socks; i++)
+    {
+      if (dns_pending_leaders == NULL || dns_pending_leaders[i] != i)
+        continue;
+      if (dns_pending_request_ids == NULL || dns_pending_request_ids[i] != result->request_id)
+        continue;
+      if (!socket_ops[i].active || socket_ops[i].phase != OP_DNS_RESOLVING)
+        continue;
+      if (socket_ops[i].op_id != dns_pending_leader_op_ids[i])
+        continue;
+      leader_socket = i;
+      leader_op_id = socket_ops[i].op_id;
+      break;
+    }
 
-    if (stale)
-      continue;
+  if (leader_socket < 0)
+    return 1;
 
-    if (result.timed_out)
-      dns_telemetry.timed_out++;
-    else if (!result.success)
-      dns_telemetry.failed++;
-    else
-      dns_telemetry.completed++;
+  memset (&socket_result, 0, sizeof (socket_result));
+  socket_result.timed_out = result->timed_out;
+  socket_result.success = result->success;
 
-    for (i = 0; i < max_lpc_socks; i++)
-      {
-        if (dns_pending_leaders == NULL || dns_pending_leaders[i] != socket_id)
-          continue;
-        if (dns_pending_leader_op_ids == NULL || dns_pending_leader_op_ids[i] != result.op_id)
-          continue;
-        apply_dns_result_to_socket (i, &result);
-      }
-  }
+  if (socket_result.success && !socket_result.timed_out)
+    {
+      if (inet_pton (AF_INET, result->result, &socket_result.resolved_addr) != 1)
+        socket_result.success = 0;
+    }
+
+  if (socket_result.timed_out)
+    dns_telemetry.timed_out++;
+  else if (!socket_result.success)
+    dns_telemetry.failed++;
+  else
+    dns_telemetry.completed++;
+
+  for (i = 0; i < max_lpc_socks; i++)
+    {
+      if (dns_pending_request_ids == NULL || dns_pending_request_ids[i] != result->request_id)
+        continue;
+      if (dns_pending_leader_op_ids == NULL || dns_pending_leader_op_ids[i] != leader_op_id)
+        continue;
+      if (dns_pending_ports != NULL)
+        socket_result.port = dns_pending_ports[i];
+      apply_dns_result_to_socket (i, &socket_result);
+    }
+
+  return 1;
 }
 
 /**
  * Initialize DNS worker and queues (called once at driver startup)
  */
 static int init_dns_system(void) {
-  if (dns_queue != NULL)
-    return 1;  /* Already initialized */
-
-  dns_queue = async_queue_create(DNS_QUEUE_SIZE, sizeof(dns_task_t),
-                                  ASYNC_QUEUE_DROP_OLDEST);
-  if (dns_queue == NULL)
-    return 0;
-
-  dns_results = async_queue_create(DNS_QUEUE_SIZE, sizeof(dns_result_t),
-                                    ASYNC_QUEUE_DROP_OLDEST);
-  if (dns_results == NULL) {
-    async_queue_destroy(dns_queue);
-    dns_queue = NULL;
-    return 0;
-  }
-
-  dns_worker = async_worker_create(dns_worker_main, dns_queue, 0);
-  if (dns_worker == NULL) {
-    async_queue_destroy(dns_queue);
-    async_queue_destroy(dns_results);
-    dns_queue = NULL;
-    dns_results = NULL;
-    return 0;
-  }
-
-  return 1;
+  return addr_resolver_init (get_async_runtime ());
 }
 
 /**
  * Shutdown DNS worker and queues (called at driver shutdown)
  */
 void deinit_dns_system(void) {
-  if (dns_worker != NULL) {
-    async_worker_signal_stop(dns_worker);
-    async_worker_join(dns_worker, 5000);  /* 5 second timeout */
-    async_worker_destroy(dns_worker);
-    dns_worker = NULL;
-  }
-  if (dns_queue != NULL) {
-    async_queue_destroy(dns_queue);
-    dns_queue = NULL;
-  }
-  if (dns_results != NULL) {
-    async_queue_destroy(dns_results);
-    dns_results = NULL;
-  }
   if (dns_pending_hostnames != NULL) {
     FREE (dns_pending_hostnames);
     dns_pending_hostnames = NULL;
@@ -2405,8 +2293,13 @@ void deinit_dns_system(void) {
     FREE (dns_pending_leader_op_ids);
     dns_pending_leader_op_ids = NULL;
   }
+  if (dns_pending_request_ids != NULL) {
+    FREE (dns_pending_request_ids);
+    dns_pending_request_ids = NULL;
+  }
   socket_dns_timeout_test_hook = NULL;
   dns_tasks_in_flight = 0;
+  next_socket_dns_request_id = SOCKET_DNS_REQUEST_ID_BASE;
   memset(&dns_telemetry, 0, sizeof(dns_telemetry));
 }
 
@@ -2414,7 +2307,12 @@ void deinit_dns_system(void) {
  * Public wrapper for DNS completion handling (called from main loop)
  */
 void handle_dns_completions(void) {
-  process_dns_completions();
+  resolver_result_t result;
+
+  while (addr_resolver_dequeue_result (&result))
+    {
+      (void) handle_socket_dns_resolver_result (&result);
+    }
 }
 
 int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,

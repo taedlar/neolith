@@ -2,9 +2,9 @@
  * @file addr_resolver.h
  * @brief Async hostname resolver worker — public C API
  *
- * Owns a dedicated background worker thread that calls getaddrinfo() /
+ * Owns a small background worker pool that calls getaddrinfo() /
  * getnameinfo() for forward and reverse DNS lookups without blocking the
- * main LPC event loop.  When results are ready the worker posts a
+ * main LPC event loop.  When results are ready a worker posts a
  * completion notification via the async runtime; the main thread then
  * calls addr_resolver_dequeue_result() inside its event dispatcher.
  *
@@ -34,6 +34,11 @@ typedef struct object_s object_t;
 /** Maximum number of outstanding resolve() callbacks awaiting completion. */
 #define RESOLVER_LOOKUP_REQUEST_CAPACITY 200
 
+/**
+ * @brief Fixed fallback worker-pool size used when c-ares is unavailable.
+ */
+#define RESOLVER_FALLBACK_WORKER_COUNT 2
+
 typedef enum {
   RESOLVER_REQ_LOOKUP        = 1, /**< Forward/reverse lookup for resolve() efun */
   RESOLVER_REQ_REVERSE_CACHE = 2  /**< Reverse lookup for query_ip_name() cache refresh */
@@ -56,6 +61,13 @@ typedef struct {
   char     *call_back;
   object_t *ob_to_call;
 } resolver_lookup_request_t;
+
+/**
+ * @brief Test-only hook to inject delay or query rewriting in resolver workers.
+ */
+typedef void (*resolver_lookup_test_hook_t)(const char *original_query,
+                                            unsigned int *delay_ms_out,
+                                            const char **effective_query_out);
 
 /**
  * @brief Initialize the resolver worker.
@@ -117,6 +129,9 @@ int addr_resolver_enqueue_reverse (unsigned long cache_addr, const char *ip,
  * @returns 1 if a result was dequeued, 0 if the queue is empty.
  */
 int addr_resolver_dequeue_result  (resolver_result_t *out);
+
+/** @brief Install or clear the resolver worker test hook. */
+void addr_resolver_set_lookup_test_hook (resolver_lookup_test_hook_t hook);
 
 #ifdef __cplusplus
 }

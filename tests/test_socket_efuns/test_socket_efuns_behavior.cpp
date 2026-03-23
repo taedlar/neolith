@@ -13,6 +13,7 @@ extern "C" void handle_dns_completions(void);
 extern "C" void set_socket_dns_timeout_test_hook(int (*hook)(int, const char *, uint16_t));
 extern "C" int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
                                            unsigned long *timed_out);
+extern "C" void addr_resolver_set_lookup_test_hook(void (*hook)(const char *, unsigned int *, const char **));
 
 namespace {
 
@@ -145,6 +146,70 @@ public:
     set_socket_dns_timeout_test_hook(nullptr);
   }
 };
+
+extern "C" void DelayLocalhostResolverHook(const char *query,
+                                             unsigned int *delay_ms_out,
+                                             const char **effective_query_out) {
+  if (delay_ms_out != nullptr) {
+    *delay_ms_out = 0;
+  }
+  if (effective_query_out != nullptr) {
+    *effective_query_out = nullptr;
+  }
+
+  if (query == nullptr) {
+    return;
+  }
+
+  if (strcmp(query, "delay-localhost") == 0) {
+    if (delay_ms_out != nullptr) {
+      *delay_ms_out = 1200;
+    }
+    if (effective_query_out != nullptr) {
+      *effective_query_out = "localhost";
+    }
+  }
+}
+
+class ScopedResolverLookupHook {
+public:
+  explicit ScopedResolverLookupHook(void (*hook)(const char *, unsigned int *, const char **)) {
+    addr_resolver_set_lookup_test_hook(hook);
+  }
+
+  ~ScopedResolverLookupHook() {
+    addr_resolver_set_lookup_test_hook(nullptr);
+  }
+};
+
+bool WaitForSocketPhase(int socket_fd, int expected_phase, int timeout_ms) {
+  int elapsed = 0;
+  const int sleep_step = 10;
+
+  while (elapsed < timeout_ms) {
+    int op_active = 0;
+    int op_terminal = 0;
+    int op_id = 0;
+    int op_phase = OP_INIT;
+
+    handle_dns_completions();
+
+    if (get_socket_operation_info(socket_fd, &op_active, &op_terminal,
+                                  &op_id, &op_phase) == EESUCCESS &&
+        op_phase == expected_phase) {
+      return true;
+    }
+
+#ifdef WINSOCK
+    Sleep(sleep_step);
+#else
+    usleep(sleep_step * 1000);
+#endif
+    elapsed += sleep_step;
+  }
+
+  return false;
+}
 
 /* OP_PHASES definitions needed by tests */
 #define OP_INIT 0
@@ -1723,6 +1788,93 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
 }
 
 /**
+ * SOCK_DNS_013: no-cares fallback pool allows independent progress while one lookup is delayed.
+ * Setup: one delayed hostname query and one normal hostname query to loopback listeners.
+ * Action: queue delayed connect first, then normal connect immediately after.
+ * Expected: normal connect reaches OP_TRANSFERRING while delayed lookup is still in OP_DNS_RESOLVING.
+ */
+TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlocking) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS concurrency tests";
+  ScopedObjectContext ctx(this, master_ob);
+  ScopedResolverLookupHook resolver_hook(DelayLocalhostResolverHook);
+
+  svalue_t read_cb;
+  svalue_t write_cb;
+  socket_fd_t slow_listener_fd = INVALID_SOCKET_FD;
+  socket_fd_t fast_listener_fd = INVALID_SOCKET_FD;
+  socket_fd_t accepted_fd = INVALID_SOCKET_FD;
+  int slow_listener_port = 0;
+  int fast_listener_port = 0;
+  int slow_fd;
+  int fast_fd;
+  int slow_result;
+  int fast_result;
+  int slow_active = 0;
+  int slow_terminal = 0;
+  int slow_op_id = 0;
+  int slow_phase = OP_INIT;
+
+  read_cb.type = T_STRING;
+  read_cb.subtype = STRING_SHARED;
+  read_cb.u.string = make_shared_string("read_callback");
+  write_cb.type = T_STRING;
+  write_cb.subtype = STRING_SHARED;
+  write_cb.u.string = make_shared_string("write_callback");
+
+  slow_fd = socket_create(STREAM, &read_cb, NULL);
+  fast_fd = socket_create(STREAM, &read_cb, NULL);
+  ASSERT_GE(slow_fd, 0) << "Failed to create slow stream socket";
+  ASSERT_GE(fast_fd, 0) << "Failed to create fast stream socket";
+  ASSERT_TRUE(CreateLoopbackListener(&slow_listener_fd, &slow_listener_port))
+    << "Failed to create delayed loopback listener";
+  ASSERT_TRUE(CreateLoopbackListener(&fast_listener_fd, &fast_listener_port))
+    << "Failed to create fast loopback listener";
+
+  {
+    std::string slow_endpoint = "delay-localhost " + std::to_string(slow_listener_port);
+    std::string fast_endpoint = "localhost " + std::to_string(fast_listener_port);
+
+    slow_result = socket_connect(slow_fd, (char *)slow_endpoint.c_str(), &read_cb, &write_cb);
+    fast_result = socket_connect(fast_fd, (char *)fast_endpoint.c_str(), &read_cb, &write_cb);
+  }
+
+  ASSERT_EQ(slow_result, EESUCCESS);
+  ASSERT_EQ(fast_result, EESUCCESS);
+  ASSERT_TRUE(WaitForSocketPhase(fast_fd, OP_TRANSFERRING, 600))
+    << "Fast hostname lookup should complete while delayed lookup is still pending";
+
+  ASSERT_EQ(get_socket_operation_info(slow_fd, &slow_active, &slow_terminal, &slow_op_id, &slow_phase), EESUCCESS);
+  EXPECT_EQ(slow_active, 1);
+  EXPECT_EQ(slow_terminal, 0);
+  EXPECT_GT(slow_op_id, 0);
+  EXPECT_EQ(slow_phase, OP_DNS_RESOLVING)
+    << "Delayed lookup should still be resolving when independent fast lookup completes";
+
+  EXPECT_TRUE(AcceptPendingConnection(fast_listener_fd, &accepted_fd))
+    << "Fast listener should accept connection before delayed lookup completes";
+  if (accepted_fd != INVALID_SOCKET_FD) {
+    SOCKET_CLOSE(accepted_fd);
+    accepted_fd = INVALID_SOCKET_FD;
+  }
+
+  ASSERT_TRUE(WaitForDNSCompletion(slow_fd, 3000))
+    << "Delayed lookup should eventually complete";
+
+  if (AcceptPendingConnection(slow_listener_fd, &accepted_fd)) {
+    SOCKET_CLOSE(accepted_fd);
+  }
+
+  EXPECT_EQ(socket_close(slow_fd, 1), EESUCCESS);
+  EXPECT_EQ(socket_close(fast_fd, 1), EESUCCESS);
+  SOCKET_CLOSE(slow_listener_fd);
+  SOCKET_CLOSE(fast_listener_fd);
+  free_string(read_cb.u.string);
+  free_string(write_cb.u.string);
+}
+
+/**
  * SOCK_DNS_011: Backend loop remains responsive while DNS flood is in progress.
  * Setup: Queue multiple hostname DNS operations to exercise worker/admission path.
  * Action: Perform independent numeric connect while DNS operations remain in flight.
@@ -1798,7 +1950,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
   int fd;
   int registered = 0;
   int events = 0;
-  int tracked_fd = (int)INVALID_SOCKET_FD;
+  socket_fd_t tracked_fd = INVALID_SOCKET_FD;
   int resolved_socket = -1;
   socket_fd_t native_fd = INVALID_SOCKET_FD;
   void* runtime_context;
@@ -1813,7 +1965,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
   ASSERT_EQ(get_socket_runtime_info(fd, &registered, &events, &tracked_fd), EESUCCESS);
   EXPECT_EQ(registered, 1);
   EXPECT_EQ(events, EVENT_READ);
-  EXPECT_EQ(tracked_fd, (int)lpc_socks[fd].fd);
+  EXPECT_EQ(tracked_fd, lpc_socks[fd].fd);
 
   runtime_context = get_socket_runtime_context(fd);
   native_fd = lpc_socks[fd].fd;
@@ -1826,7 +1978,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
   ASSERT_EQ(get_socket_runtime_info(fd, &registered, &events, &tracked_fd), EESUCCESS);
   EXPECT_EQ(registered, 0);
   EXPECT_EQ(events, 0);
-  EXPECT_EQ(tracked_fd, (int)INVALID_SOCKET_FD);
+  EXPECT_EQ(tracked_fd, INVALID_SOCKET_FD);
   EXPECT_EQ(resolve_lpc_socket_context(runtime_context, native_fd, &resolved_socket), 0);
 
   free_string(read_cb.u.string);
@@ -1846,7 +1998,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
   int fd;
   int registered = 0;
   int events = 0;
-  int tracked_fd = (int)INVALID_SOCKET_FD;
+  socket_fd_t tracked_fd = INVALID_SOCKET_FD;
   int attempts;
 
   read_cb.type = T_STRING;
