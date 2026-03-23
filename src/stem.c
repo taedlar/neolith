@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
+#include "rc.h"
 
 main_options_t* g_main_options = NULL;
 
@@ -38,4 +39,21 @@ int init_stem (int debug_level, unsigned long trace_flags, const char* config_fi
 
     g_main_options = &stem_opts; /* this is required throughout the code*/
     return 0;
+}
+
+static int normalize_runtime_setting(int value)
+{
+    return value >= 0 ? value : 0;
+}
+
+void stem_get_addr_resolver_config(addr_resolver_config_t *config)
+{
+    if (!config)
+        return;
+
+    addr_resolver_config_init_defaults(config);
+    config->forward_cache_ttl = normalize_runtime_setting(CONFIG_INT(__RESOLVER_FORWARD_CACHE_TTL__));
+    config->reverse_cache_ttl = normalize_runtime_setting(CONFIG_INT(__RESOLVER_REVERSE_CACHE_TTL__));
+    config->negative_cache_ttl = normalize_runtime_setting(CONFIG_INT(__RESOLVER_NEGATIVE_CACHE_TTL__));
+    config->stale_refresh_window = normalize_runtime_setting(CONFIG_INT(__RESOLVER_STALE_REFRESH_WINDOW__));
 }

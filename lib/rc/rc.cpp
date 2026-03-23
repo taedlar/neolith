@@ -287,6 +287,10 @@ extern "C" void init_config (const char *config_file)
   CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__) = scan_config_i (config, "SharedStringHashSize", 0, 20011);
   CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__) = scan_config_i (config, "ObjectHashSize", 0, 10007);
   CONFIG_INT (__ENABLE_CRASH_DROP_CORE__) = scan_config_b (config, "CrashDropCore", 0, 1);
+  CONFIG_INT (__RESOLVER_FORWARD_CACHE_TTL__) = scan_config_i (config, "ResolverForwardCacheTtl", 0, 300);
+  CONFIG_INT (__RESOLVER_REVERSE_CACHE_TTL__) = scan_config_i (config, "ResolverReverseCacheTtl", 0, 900);
+  CONFIG_INT (__RESOLVER_NEGATIVE_CACHE_TTL__) = scan_config_i (config, "ResolverNegativeCacheTtl", 0, 30);
+  CONFIG_INT (__RESOLVER_STALE_REFRESH_WINDOW__) = scan_config_i (config, "ResolverStaleRefreshWindow", 0, 30);
   CONFIG_INT (__EVALUATOR_STACK_SIZE__) = scan_config_i (config, "StackSize", 0, 1000);
   CONFIG_INT (__MAX_LOCAL_VARIABLES__) = scan_config_i (config, "MaxLocalVariables", 0, 25);
   CONFIG_INT (__MAX_CALL_DEPTH__) = scan_config_i (config, "MaxCallDepth", 0, 50);

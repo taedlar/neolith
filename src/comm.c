@@ -250,10 +250,15 @@ void init_user_conn () {
         }
     }
 
-  if (!addr_resolver_init (g_runtime))
-    {
-      debug_message ("Warning: resolver worker disabled; resolve/query_ip_name async refresh unavailable.\n");
-    }
+  {
+    addr_resolver_config_t resolver_config;
+
+    stem_get_addr_resolver_config (&resolver_config);
+    if (!addr_resolver_init (g_runtime, &resolver_config))
+      {
+        debug_message ("Warning: resolver worker disabled; resolve/query_ip_name async refresh unavailable.\n");
+      }
+  }
 
 #ifndef _WIN32
   /* register signal handler for SIGPIPE. */

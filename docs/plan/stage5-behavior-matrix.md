@@ -215,24 +215,27 @@ The following MUST NOT occur in Stage 5:
 
 - [ ] Verify c-ares is discoverable and linked.
 - [ ] Add c-ares DNS task queue and worker pool.
-- [ ] Implement shared forward-lookup request class (hostname -> IP).
-- [ ] Implement shared reverse-lookup request class (IP -> hostname).
+- [x] Implement shared forward-lookup and reverse-lookup request classes.
 - [x] Implement fallback resolver worker using standard getaddrinfo.
 - [x] Route fallback resolver through the same async worker pool pattern as c-ares.
 - [x] Verify getaddrinfo calls only in worker threads (not main).
+- [ ] Complete shared resolver cache migration: add driver-owned forward/reverse TTL cache and keep `query_ip_name()` stable while cache ownership moves out of `src/comm.c`.
+- [x] Define runtime-configurable resolver policy settings, pass them through `addr_resolver_init()` via a resolver settings struct, and source them from stem/runtime startup.
 - [ ] Run all five operation classes through fallback backend.
 - [ ] Verify non-blocking invariant holds (no stalls in main loop trace).
 - [ ] Document latency trade-off (higher without c-ares, but still responsive).
 - [x] Build and test without c-ares variant.
 - [ ] Add admission control gates (global + per-class caps).
 - [ ] Add admission control rejection mapping to caller-visible errors.
-- [ ] Add dedup/coalescing for socket connect forward lookups (primary volume case).
+- [x] Add dedup/coalescing for socket connect forward lookups (primary volume case).
 - [ ] Verify deterministic timeout and cancellation semantics across all classes.
+- [ ] Add resolver telemetry and verification for per-class lifecycle counters plus forward/reverse cache hit, miss, stale-hit, and negative-hit behavior.
 - [x] Verify no stale completion fan-out (request-id correlation).
 - [x] Disable legacy `addr_server_fd` runtime path and legacy hname bridge.
 - [ ] Test all five operation classes under c-ares backend.
 - [ ] Verify no main-thread blocking in trace output for c-ares backend.
-- [ ] Route socket-connect DNS path through the same shared resolver request classes used by `resolve()` and reverse-refresh.
+- [x] Route socket-connect DNS path through the same shared resolver request classes used by `resolve()` and reverse-refresh.
+- [ ] Document c-ares cache usage and OS resolver cache assumptions relative to shared resolver TTL policy.
 - [ ] Publish operator-facing behavior deltas for `resolve()` and `query_ip_name()` under Stage 5 async contract.
 
 ## Stage 5 Unified Verification Status (2026-03-23, no-c-ares)
@@ -241,11 +244,23 @@ The following MUST NOT occur in Stage 5:
 - [x] `query_ip_name()` cache misses enqueue reverse-lookup refresh and still return numeric IP immediately.
 - [x] Legacy `addr_server_fd` event branch and hname parser bridge removed from runtime dispatch.
 - [x] Legacy resolve() request bookkeeping removed from `src/comm.c`; resolver bookkeeping now owned by shared resolver module.
+- [x] Resolver runtime policy settings now come from runtime config and are passed through stem into all shared resolver init paths via `addr_resolver_init()` config struct.
 - [x] Reverse-name efun cache remains intentionally in `src/comm.c` (`ip_name_cache`) pending OS-cache policy decisions.
 - [x] No-c-ares build verified and tests executed without observed resolver regression failures in captured run output.
+- [x] `socket_connect()` hostname DNS path now runs through shared resolver request-id completions instead of a socket-local DNS worker path.
+- [x] Focused no-c-ares fallback concurrency coverage confirms independent progress when one blocking lookup is delayed.
 - [ ] Full no-c-ares matrix coverage for all five operation classes not yet recorded as complete.
 - [ ] Class-aware admission controls and dedup/coalescing parity not yet recorded as complete.
+- [ ] Shared forward/reverse TTL cache and shared cache telemetry are not yet implemented.
 - [ ] c-ares backend parity verification not yet recorded as complete.
+
+## Stage 5 Next-Session Handoff
+
+- Begin c-ares backend work behind the existing shared resolver API and completion model; do not fork behavior by caller path.
+- Keep request-id correlation, socket op-id safety, and main-thread callback fan-out unchanged while swapping the backend implementation under `src/addr_resolver.cpp`.
+- Runtime-configured resolver policy plumbing is already in place via `addr_resolver_init(..., config)`; reuse it unchanged for the c-ares path.
+- Shared TTL cache and `query_ip_name()` cache ownership migration are still pending and should remain backend-agnostic.
+- First parity objective for the next session: preserve current `socket_connect()` hostname semantics plus existing shared-resolver behavior for `resolve()` and reverse-refresh flows.
 
 ---
 

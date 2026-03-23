@@ -39,6 +39,13 @@ typedef struct object_s object_t;
  */
 #define RESOLVER_FALLBACK_WORKER_COUNT 2
 
+typedef struct {
+  int forward_cache_ttl;
+  int reverse_cache_ttl;
+  int negative_cache_ttl;
+  int stale_refresh_window;
+} addr_resolver_config_t;
+
 typedef enum {
   RESOLVER_REQ_LOOKUP        = 1, /**< Forward/reverse lookup for resolve() efun */
   RESOLVER_REQ_REVERSE_CACHE = 2  /**< Reverse lookup for query_ip_name() cache refresh */
@@ -70,11 +77,19 @@ typedef void (*resolver_lookup_test_hook_t)(const char *original_query,
                                             const char **effective_query_out);
 
 /**
+ * @brief Populate a resolver config struct with built-in defaults.
+ * @param config  Destination config struct.
+ */
+void addr_resolver_config_init_defaults (addr_resolver_config_t *config);
+
+/**
  * @brief Initialize the resolver worker.
  * @param runtime  Async runtime used to post completion notifications.
+ * @param config   Resolver cache/config policy supplied by stem/runtime config.
  * @returns 1 on success, 0 on failure.
  */
-int  addr_resolver_init   (struct async_runtime_s *runtime);
+int  addr_resolver_init   (struct async_runtime_s *runtime,
+                           const addr_resolver_config_t *config);
 
 /** @brief Stop the resolver worker and free all resources. */
 void addr_resolver_deinit (void);
@@ -132,6 +147,9 @@ int addr_resolver_dequeue_result  (resolver_result_t *out);
 
 /** @brief Install or clear the resolver worker test hook. */
 void addr_resolver_set_lookup_test_hook (resolver_lookup_test_hook_t hook);
+
+/** @brief Return the currently active resolver configuration. */
+void addr_resolver_get_config (addr_resolver_config_t *out);
 
 #ifdef __cplusplus
 }

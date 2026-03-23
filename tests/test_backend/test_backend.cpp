@@ -76,3 +76,19 @@ TEST_F(BackendTest, setHeartBeat) {
     EXPECT_EQ(set_heart_beat(ob, 0), 1);
     EXPECT_EQ(query_heart_beat(ob), 0);
 }
+
+TEST_F(BackendTest, resolverRuntimeConfigDefaults) {
+    addr_resolver_config_t resolver_config;
+
+    EXPECT_EQ(CONFIG_INT(__RESOLVER_FORWARD_CACHE_TTL__), 300);
+    EXPECT_EQ(CONFIG_INT(__RESOLVER_REVERSE_CACHE_TTL__), 900);
+    EXPECT_EQ(CONFIG_INT(__RESOLVER_NEGATIVE_CACHE_TTL__), 30);
+    EXPECT_EQ(CONFIG_INT(__RESOLVER_STALE_REFRESH_WINDOW__), 30);
+
+    stem_get_addr_resolver_config(&resolver_config);
+
+    EXPECT_EQ(resolver_config.forward_cache_ttl, 300);
+    EXPECT_EQ(resolver_config.reverse_cache_ttl, 900);
+    EXPECT_EQ(resolver_config.negative_cache_ttl, 30);
+    EXPECT_EQ(resolver_config.stale_refresh_window, 30);
+}

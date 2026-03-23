@@ -68,7 +68,13 @@ static async_queue_t   *s_result_queue = nullptr;
 static async_worker_t  *s_workers[RESOLVER_FALLBACK_WORKER_COUNT] = {};
 static async_runtime_t *s_runtime      = nullptr;
 static resolver_lookup_test_hook_t s_lookup_test_hook = nullptr;
+static addr_resolver_config_t s_config = {};
 static resolver_lookup_request_t lookup_request_table[RESOLVER_LOOKUP_REQUEST_CAPACITY];
+
+static int normalize_cache_ttl(int ttl)
+{
+  return ttl >= 0 ? ttl : 0;
+}
 
 static void sleep_for_ms(unsigned int delay_ms)
 {
@@ -244,16 +250,42 @@ static void *resolver_worker_main(void *arg)
 
 extern "C" {
 
-int
-addr_resolver_init(struct async_runtime_s *runtime)
+void
+addr_resolver_config_init_defaults(addr_resolver_config_t *config)
 {
+  if (config == nullptr)
+    return;
+
+  config->forward_cache_ttl = 300;
+  config->reverse_cache_ttl = 900;
+  config->negative_cache_ttl = 30;
+  config->stale_refresh_window = 30;
+}
+
+int
+addr_resolver_init(struct async_runtime_s *runtime,
+                   const addr_resolver_config_t *config)
+{
+  addr_resolver_config_t effective_config;
+
+  addr_resolver_config_init_defaults(&effective_config);
+  if (config != nullptr)
+    effective_config = *config;
+
+  effective_config.forward_cache_ttl = normalize_cache_ttl(effective_config.forward_cache_ttl);
+  effective_config.reverse_cache_ttl = normalize_cache_ttl(effective_config.reverse_cache_ttl);
+  effective_config.negative_cache_ttl = normalize_cache_ttl(effective_config.negative_cache_ttl);
+  effective_config.stale_refresh_window = normalize_cache_ttl(effective_config.stale_refresh_window);
+
   if (s_task_queue != nullptr)
     {
+      s_config = effective_config;
       if (s_runtime == nullptr && runtime != nullptr)
         s_runtime = runtime;
       return 1; /* already initialized */
     }
 
+  s_config = effective_config;
   s_runtime = runtime;
 
   s_task_queue = async_queue_create(AR_QUEUE_SIZE, sizeof(resolver_task_t),
@@ -325,6 +357,7 @@ addr_resolver_deinit(void)
 
   s_runtime = nullptr;
   s_lookup_test_hook = nullptr;
+  addr_resolver_config_init_defaults(&s_config);
 }
 
 int
@@ -418,6 +451,15 @@ void
 addr_resolver_set_lookup_test_hook(resolver_lookup_test_hook_t hook)
 {
   s_lookup_test_hook = hook;
+}
+
+void
+addr_resolver_get_config(addr_resolver_config_t *out)
+{
+  if (out == nullptr)
+    return;
+
+  *out = s_config;
 }
 
 } /* extern "C" */

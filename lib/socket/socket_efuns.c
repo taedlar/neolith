@@ -2270,7 +2270,10 @@ handle_socket_dns_resolver_result (const resolver_result_t *result)
  * Initialize DNS worker and queues (called once at driver startup)
  */
 static int init_dns_system(void) {
-  return addr_resolver_init (get_async_runtime ());
+  addr_resolver_config_t resolver_config;
+
+  stem_get_addr_resolver_config (&resolver_config);
+  return addr_resolver_init (get_async_runtime (), &resolver_config);
 }
 
 /**

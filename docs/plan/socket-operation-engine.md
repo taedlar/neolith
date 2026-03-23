@@ -309,16 +309,13 @@ Option semantics:
 
 - [x] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
 - [x] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
-- [ ] Document build-time behavior matrix for with-c-ares vs without-c-ares builds and operator-facing behavior deltas.
+- [x] Document build-time behavior matrix for with-c-ares vs without-c-ares builds and operator-facing behavior deltas.
 - [x] Cut over runtime resolver entrypoints to shared async resolver flow before further feature migration; legacy path execution is disabled.
-- [x] Introduce shared resolver forward lookup request class (hostname -> IPv4/IPv6).
-- [x] Introduce shared resolver reverse lookup request class (IP -> hostname).
-- [x] Introduce shared resolver peer-name refresh request class (`query_ip_name` cache updates).
-- [ ] Introduce shared resolver socket-connect lookup request class (current Stage 4A behavior).
+- [x] Introduce shared resolver request classes for forward lookup, reverse lookup, peer refresh, and socket-connect hostname resolution.
 - [x] Ensure non-c-ares builds use an async-runtime-aligned fallback backend (no backend-thread blocking call path).
-- [x] Use request-id correlation for all completion fan-out (no name-only matching).
-- [x] Preserve per-request timeout semantics at resolver layer and map deterministic failures to caller-specific contracts.
-- [ ] Preserve socket op-id correlation in socket path to prevent stale completion routing.
+- [x] Use request-id correlation, timeout mapping, and socket op-id correlation so completions route deterministically and stale results are ignored.
+- [ ] Complete shared resolver cache migration: add shared forward/reverse TTL cache, preserve `query_ip_name()` compatibility during ownership migration, and document cache interaction with c-ares and OS resolver layers.
+- [x] Define runtime-configurable resolver policy settings, pass them via an `addr_resolver_init()` config struct, and supply the same settings object from stem to all resolver init paths.
 - [ ] Add class-aware admission control global cap.
 - [ ] Add class-aware admission control per-class caps.
 - [ ] Add class-aware admission control per-owner caps for socket-originated requests.
@@ -327,9 +324,7 @@ Option semantics:
 - [ ] Publish explicit compatibility-change documentation for `resolve()` if behavior differs from legacy.
 - [x] Migrate `query_ip_name()` reverse-lookup cache population to shared resolver completions.
 - [ ] Publish explicit compatibility-change documentation for `query_ip_name()` if behavior differs from legacy.
-- [ ] Extend telemetry with queued/admitted/rejected by class.
-- [ ] Extend telemetry with timeout/failure/completed by class.
-- [ ] Extend telemetry with dedup-hit and stale-drop counters by class.
+- [ ] Extend resolver telemetry with per-class lifecycle counters plus forward/reverse cache hit, miss, stale-hit, and negative-hit visibility.
 - [ ] Add trace points around request lifecycle (`queued -> worker -> completion -> callback`).
 - [x] Remove legacy `addr_server_fd` event handling.
 - [x] Remove legacy `query_addr_number()` request table path from `src/comm.c` (request bookkeeping moved into shared resolver module).
@@ -343,11 +338,22 @@ Option semantics:
 - [x] No-c-ares fallback worker-pool sizing is now named explicitly via `RESOLVER_FALLBACK_WORKER_COUNT` to keep the concurrency contract visible in code and docs.
 - [x] `resolve()` path now uses request-id-correlated async completions (no address-server socket path).
 - [x] `query_ip_name()` cache miss behavior verified: immediate numeric return plus async reverse-refresh scheduling.
+- [x] Resolver runtime policy settings are now parsed from runtime config and passed through stem into every shared resolver init path via `addr_resolver_init()` config struct.
 - [x] Legacy reverse-name cache remains intentionally efun-local in `src/comm.c` (`ip_name_cache`) pending OS-cache policy decisions.
 - [x] Focused fallback-pool regression coverage now exercises head-of-line blocking avoidance in no-c-ares builds.
 - [ ] Shared resolver parity tests for no-c-ares matrix scenarios `RESOLVER_001`-`RESOLVER_007` not yet recorded as complete.
-- [ ] Socket-path unification and class-aware admission controls are not yet complete for no-c-ares.
+- [ ] Class-aware admission controls are not yet complete for no-c-ares.
+- [ ] Shared forward/reverse TTL cache and shared cache telemetry are not yet implemented.
 - [ ] Behavior-delta documentation for `resolve()` and `query_ip_name()` remains pending.
+
+### Stage 5 Next-Session Handoff
+
+- Start the c-ares work from the existing shared resolver API in `src/addr_resolver.h` / `src/addr_resolver.cpp`; keep `addr_resolver_init(runtime, config)` stable.
+- Preserve the existing no-c-ares fallback worker-pool path and its request-id/result-queue/completion model; c-ares should plug into the same completion contract rather than create a second resolver API.
+- Resolver runtime policy settings are already wired from runtime config through stem into every resolver init path; reuse that path rather than adding c-ares-specific config plumbing.
+- Shared forward/reverse TTL cache is still not implemented; keep cache ownership and TTL policy above the backend so c-ares and fallback share the same driver-level semantics.
+- `query_ip_name()` still depends on `src/comm.c` `ip_name_cache`; migration of that cache into shared resolver ownership remains a follow-up after backend parity is established.
+- First c-ares parity target: preserve current Stage 4A/5 behavior for `socket_connect()`, `resolve()`, and reverse-refresh flows, then rerun the focused `SOCK_DNS_*` regression slice.
 
 #### Stage 5 Verification Matrix (Shared Resolver)
 
