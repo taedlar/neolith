@@ -44,8 +44,14 @@ extern char *xalloc(size_t);
 #include "error_context.h"
 
 /* stem initialization */
+#include "addr_resolver.h"
+
 extern int init_stem(
     int debug_level,
     unsigned long trace_flags,
     const char* config_file
+);
+
+extern void stem_get_addr_resolver_config(
+    addr_resolver_config_t *config
 );
