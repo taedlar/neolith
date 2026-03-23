@@ -9,6 +9,7 @@
 # as a LPC opcode compiler or other tools.
 
 set(stem_SOURCES
+    addr_resolver.cpp
     apply.c
     backend.c
     comm.c

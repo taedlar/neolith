@@ -8,6 +8,7 @@
 #include "command.h"
 #include "frame.h"
 #include "interpret.h"
+#include "addr_resolver.h"
 #include "simulate.h"
 #include "simul_efun.h"
 #include "uids.h"
@@ -2501,6 +2502,7 @@ void setup_simulate() {
 void tear_down_simulate() {
 
   deinit_dns_system();
+  addr_resolver_deinit();
 
   if (MAIN_OPTION(pedantic))
     {
