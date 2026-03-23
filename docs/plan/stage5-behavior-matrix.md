@@ -211,33 +211,41 @@ The following MUST NOT occur in Stage 5:
 
 ---
 
-## Implementation Checklist (By Build Variant)
+## Stage 5 Unified Checklist
 
-### WITH c-ares (HAVE_CARES defined)
 - [ ] Verify c-ares is discoverable and linked.
 - [ ] Add c-ares DNS task queue and worker pool.
-- [ ] Implement forward-lookup request class (hostname → IP).
-- [ ] Implement reverse-lookup request class (IP → hostname).
-- [ ] Add admission control gates (global 64, per-class caps).
-- [ ] Add coalescing by hostname (socket connect optimization).
-- [ ] Test all five operation classes under c-ares backend.
-- [ ] Verify no main-thread blocking in trace output.
-
-### WITHOUT c-ares (HAVE_CARES undefined)
-- [ ] Implement fallback resolver worker using standard getaddrinfo.
-- [ ] Route fallback resolver through SAME async worker pool pattern as c-ares.
-- [ ] Verify getaddrinfo calls only in worker threads (not main).
+- [ ] Implement shared forward-lookup request class (hostname -> IP).
+- [ ] Implement shared reverse-lookup request class (IP -> hostname).
+- [x] Implement fallback resolver worker using standard getaddrinfo.
+- [x] Route fallback resolver through the same async worker pool pattern as c-ares.
+- [x] Verify getaddrinfo calls only in worker threads (not main).
 - [ ] Run all five operation classes through fallback backend.
 - [ ] Verify non-blocking invariant holds (no stalls in main loop trace).
 - [ ] Document latency trade-off (higher without c-ares, but still responsive).
-- [ ] Build and test without c-ares variant; ensure all tests pass.
+- [x] Build and test without c-ares variant.
+- [ ] Add admission control gates (global + per-class caps).
+- [ ] Add admission control rejection mapping to caller-visible errors.
+- [ ] Add dedup/coalescing for socket connect forward lookups (primary volume case).
+- [ ] Verify deterministic timeout and cancellation semantics across all classes.
+- [x] Verify no stale completion fan-out (request-id correlation).
+- [x] Disable legacy `addr_server_fd` runtime path and legacy hname bridge.
+- [ ] Test all five operation classes under c-ares backend.
+- [ ] Verify no main-thread blocking in trace output for c-ares backend.
+- [ ] Route socket-connect DNS path through the same shared resolver request classes used by `resolve()` and reverse-refresh.
+- [ ] Publish operator-facing behavior deltas for `resolve()` and `query_ip_name()` under Stage 5 async contract.
 
-### Both Builds
-- [ ] Dedup coalescing for socket connect forward lookups (primary volume case).
-- [ ] Deterministic timeout and cancellation semantics.
-- [ ] No stale completion fan-out (request-id correlation verified).
-- [ ] Admission control rejection mapping to caller errors.
-- [ ] Legacy `addr_server_fd` path disabled (no fallback to blocking behavior).
+## Stage 5 Unified Verification Status (2026-03-23, no-c-ares)
+
+- [x] `resolve()` requests run through shared resolver queue/results flow in `src/addr_resolver.cpp` with request-id correlation and safe pending-request release.
+- [x] `query_ip_name()` cache misses enqueue reverse-lookup refresh and still return numeric IP immediately.
+- [x] Legacy `addr_server_fd` event branch and hname parser bridge removed from runtime dispatch.
+- [x] Legacy resolve() request bookkeeping removed from `src/comm.c`; resolver bookkeeping now owned by shared resolver module.
+- [x] Reverse-name efun cache remains intentionally in `src/comm.c` (`ip_name_cache`) pending OS-cache policy decisions.
+- [x] No-c-ares build verified and tests executed without observed resolver regression failures in captured run output.
+- [ ] Full no-c-ares matrix coverage for all five operation classes not yet recorded as complete.
+- [ ] Class-aware admission controls and dedup/coalescing parity not yet recorded as complete.
+- [ ] c-ares backend parity verification not yet recorded as complete.
 
 ---
 

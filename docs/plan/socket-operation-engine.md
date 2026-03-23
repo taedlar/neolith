@@ -305,43 +305,47 @@ Option semantics:
 - `HAVE_CARES` undefined keeps builds functional without c-ares while preserving non-blocking guarantees.
 - Neither build mode may re-enable `addr_server_fd` or any backend-thread blocking DNS path.
 
-Execution order and dependencies:
-1. Foundation and build integration (must complete first)
-  - [x] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
-  - [x] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
-  - [ ] Document build-time behavior matrix for with-c-ares vs without-c-ares builds and operator-facing behavior deltas.
-2. Shared resolver core (depends on step 1)
-  - [ ] Cut over runtime resolver entrypoints to shared async resolver flow before further feature migration; legacy path execution must be disabled once cutover lands.
-  - [ ] Introduce resolver request classes in a shared resolver module:
-    - [ ] forward lookup (hostname -> IPv4/IPv6)
-    - [ ] reverse lookup (IP -> hostname)
-    - [ ] peer-name refresh path (`query_ip_name` cache updates)
-    - [ ] socket-connect lookup path (current Stage 4A behavior)
-  - [ ] Ensure non-c-ares builds use an async-runtime-aligned fallback backend (no backend-thread blocking call path).
-  - [ ] Use request-id correlation for all completion fan-out (no name-only matching).
-  - [ ] Preserve per-request timeout semantics at resolver layer and map deterministic failures to caller-specific contracts.
-  - [ ] Preserve socket op-id correlation in socket path to prevent stale completion routing.
-  - [ ] Add class-aware admission control to avoid starvation:
-    - [ ] global cap
-    - [ ] per-class caps
-    - [ ] per-owner caps for socket-originated requests
-  - [ ] Add optional dedup/coalescing policy by class (at minimum for socket-connect forward lookups).
-3. Feature migration onto shared resolver (depends on step 2)
-  - [ ] Route `resolve()` efun through shared resolver under a single Stage 5 contract.
-  - [ ] Publish explicit compatibility-change documentation for `resolve()` if behavior differs from legacy.
-  - [ ] Migrate `query_ip_name()` reverse-lookup cache population to shared resolver completions.
-  - [ ] Publish explicit compatibility-change documentation for `query_ip_name()` if behavior differs from legacy.
-4. Observability and rollout safety (starts in step 2, must be complete before step 5)
-  - [ ] Extend telemetry for mixed workload observability:
-    - [ ] queued/admitted/rejected by class
-    - [ ] timeout/failure/completed by class
-    - [ ] dedup-hit and stale-drop counters by class
-  - [ ] Add trace points around request lifecycle (`queued -> worker -> completion -> callback`).
-5. Legacy-path removal (depends on successful matrix parity)
-  - [ ] Remove legacy address server path after parity is verified:
-    - [ ] remove `addr_server_fd` event handling
-    - [ ] remove `query_addr_number()` request table path
-    - [ ] remove legacy hname parser and callback bridge
+### Stage 5 Unified Checklist
+
+- [x] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
+- [x] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
+- [ ] Document build-time behavior matrix for with-c-ares vs without-c-ares builds and operator-facing behavior deltas.
+- [x] Cut over runtime resolver entrypoints to shared async resolver flow before further feature migration; legacy path execution is disabled.
+- [x] Introduce shared resolver forward lookup request class (hostname -> IPv4/IPv6).
+- [x] Introduce shared resolver reverse lookup request class (IP -> hostname).
+- [x] Introduce shared resolver peer-name refresh request class (`query_ip_name` cache updates).
+- [ ] Introduce shared resolver socket-connect lookup request class (current Stage 4A behavior).
+- [x] Ensure non-c-ares builds use an async-runtime-aligned fallback backend (no backend-thread blocking call path).
+- [x] Use request-id correlation for all completion fan-out (no name-only matching).
+- [x] Preserve per-request timeout semantics at resolver layer and map deterministic failures to caller-specific contracts.
+- [ ] Preserve socket op-id correlation in socket path to prevent stale completion routing.
+- [ ] Add class-aware admission control global cap.
+- [ ] Add class-aware admission control per-class caps.
+- [ ] Add class-aware admission control per-owner caps for socket-originated requests.
+- [ ] Add optional dedup/coalescing policy by class (at minimum for socket-connect forward lookups).
+- [x] Route `resolve()` efun through shared resolver under a single Stage 5 contract.
+- [ ] Publish explicit compatibility-change documentation for `resolve()` if behavior differs from legacy.
+- [x] Migrate `query_ip_name()` reverse-lookup cache population to shared resolver completions.
+- [ ] Publish explicit compatibility-change documentation for `query_ip_name()` if behavior differs from legacy.
+- [ ] Extend telemetry with queued/admitted/rejected by class.
+- [ ] Extend telemetry with timeout/failure/completed by class.
+- [ ] Extend telemetry with dedup-hit and stale-drop counters by class.
+- [ ] Add trace points around request lifecycle (`queued -> worker -> completion -> callback`).
+- [x] Remove legacy `addr_server_fd` event handling.
+- [x] Remove legacy `query_addr_number()` request table path from `src/comm.c` (request bookkeeping moved into shared resolver module).
+- [x] Remove legacy hname parser and callback bridge.
+
+### Stage 5 Unified Verification Status (2026-03-23, no-c-ares)
+
+- [x] Implementation split verified: `src/addr_resolver.cpp` + `src/addr_resolver.h` own resolver worker/request queues; `src/comm.c` owns LPC callback fan-out; `src/simulate.c` performs resolver teardown.
+- [x] Build verified on Windows `vs16-x64` without c-ares (`Build_CMakeTools` result code 0).
+- [x] Resolver-adjacent test execution shows no regression failures in captured output (`RunCtest_CMakeTools`).
+- [x] `resolve()` path now uses request-id-correlated async completions (no address-server socket path).
+- [x] `query_ip_name()` cache miss behavior verified: immediate numeric return plus async reverse-refresh scheduling.
+- [x] Legacy reverse-name cache remains intentionally efun-local in `src/comm.c` (`ip_name_cache`) pending OS-cache policy decisions.
+- [ ] Shared resolver parity tests for no-c-ares matrix scenarios `RESOLVER_001`-`RESOLVER_007` not yet recorded as complete.
+- [ ] Socket-path unification and class-aware admission controls are not yet complete for no-c-ares.
+- [ ] Behavior-delta documentation for `resolve()` and `query_ip_name()` remains pending.
 
 #### Stage 5 Verification Matrix (Shared Resolver)
 

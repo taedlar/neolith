@@ -11,6 +11,8 @@
 #include "rc.h"
 #include "simul_efun.h"
 #include "interpret.h"
+#include "addr_resolver.h"
+#include "async/async_queue.h"
 #include "async/console_mode.h"
 #include "socket/socket_efuns.h"
 #include "efuns/ed.h"
@@ -26,6 +28,10 @@
 
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
+#endif
+
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
 #endif
 
 #ifdef WINSOCK
@@ -62,10 +68,9 @@ int total_users = 0;
 #ifndef WINSOCK
 static void sigpipe_handler (int);
 #endif
-static void hname_handler (void);
 static void get_user_data (interactive_t *, io_event_t *);
 static void query_addr_name (object_t *);
-static void got_addr_number (char *, char *);
+static void process_addr_resolver_completions (void);
 static void add_ip_entry (unsigned long, const char *);
 static void reset_ip_names (void);
 static void setup_accepted_connection (port_def_t *, socket_fd_t, struct sockaddr_in *);
@@ -90,8 +95,6 @@ int max_users = 0;
 
 static io_event_t g_io_events[512];  /* Event buffer for async_runtime_wait() */
 static int g_num_io_events = 0;
-
-static socket_fd_t addr_server_fd = INVALID_SOCKET_FD;
 
 /* implementations */
 
@@ -247,6 +250,11 @@ void init_user_conn () {
         }
     }
 
+  if (!addr_resolver_init (g_runtime))
+    {
+      debug_message ("Warning: resolver worker disabled; resolve/query_ip_name async refresh unavailable.\n");
+    }
+
 #ifndef _WIN32
   /* register signal handler for SIGPIPE. */
   if (signal (SIGPIPE, sigpipe_handler) == SIG_ERR)
@@ -279,6 +287,7 @@ void ipc_remove () {
     }
 
   reset_ip_names ();
+  addr_resolver_deinit ();
 }
 
 int do_comm_polling (struct timeval *timeout) {
@@ -1155,6 +1164,10 @@ void process_io () {
            * Handle DNS completions and transition sockets to CONNECTING. */
           handle_dns_completions();
         }
+      else if (evt->completion_key == RESOLVER_COMPLETION_KEY)
+        {
+          process_addr_resolver_completions ();
+        }
       else if (is_interactive_user (evt->context))
         {
           /* Interactive user socket */
@@ -1204,14 +1217,6 @@ void process_io () {
             }
         }
 #endif
-      else if (evt->context == &addr_server_fd)
-        {
-          /* Address server pipe */
-          if (evt->event_type & EVENT_READ)
-            {
-              hname_handler ();
-            }
-        }
     }
   
   /* Flush console user output if connected (console is always writable) */
@@ -1578,89 +1583,6 @@ static void new_user_handler (port_def_t *port) {
   setup_accepted_connection(port, new_socket_fd, &addr);
 }
 
-#define HNAME_BUF_SIZE 200
-/**
- * This is the hname input data handler. This function is called by the
- * master handler when data is pending on the hname socket (addr_server_fd).
- */
-static void hname_handler () {
-  static char hname_buf[HNAME_BUF_SIZE];
-  int num_bytes;
-  socket_fd_t tmp;
-  char *pp, *q;
-
-  if (addr_server_fd < 0)
-    return;
-
-  num_bytes = SOCKET_RECV (addr_server_fd, hname_buf, HNAME_BUF_SIZE, 0);
-  switch (num_bytes)
-    {
-    case -1:
-      switch (errno)
-        {
-#ifdef EWOULDBLOCK
-        case EWOULDBLOCK:
-          break;
-#endif
-        default:
-          debug_message ("hname_handler: read on fd %d\n", addr_server_fd);
-          debug_perror ("hname_handler: read", 0);
-          tmp = addr_server_fd;
-          addr_server_fd = INVALID_SOCKET_FD;
-          SOCKET_CLOSE (tmp);
-          return;
-        }
-      break;
-    case 0:
-      debug_message ("hname_handler: closing address server connection.\n");
-      tmp = addr_server_fd;
-      addr_server_fd = INVALID_SOCKET_FD;
-      SOCKET_CLOSE (tmp);
-      return;
-    default:
-      hname_buf[num_bytes] = '\0';
-      if (hname_buf[0] >= '0' && hname_buf[0] <= '9')
-        {
-          struct in_addr addr;
-          if (inet_pton (AF_INET, hname_buf, &addr))
-            {
-              pp = strchr (hname_buf, ' ');
-              if (pp)
-                {
-                  *pp++ = 0;
-                  q = strchr (pp, '\n');
-                  if (q)
-                    {
-                      *q = 0;
-                      if (strcmp (pp, "0"))
-                        add_ip_entry (addr.s_addr, pp);
-                      got_addr_number (pp, hname_buf);	/* Recognises this as failure. */
-                    }
-                }
-            }
-        }
-      else
-        {
-          char *r;
-
-          /* This means it was a name lookup... */
-          pp = strchr (hname_buf, ' ');
-          if (pp)
-            {
-              *pp = 0;
-              pp++;
-              r = strchr (pp, '\n');
-              if (r)
-                *r = 0;
-              got_addr_number (pp, hname_buf);
-            }
-        }
-      break;
-    }
-}				/* hname_handler() */
-
-
-
 /**
  * @brief This is the user data handler. This function is called from
  * the backend when a user has transmitted data to us.
@@ -2023,144 +1945,107 @@ void telnet_neg (char *to, char *from) {
 }
 
 static void query_addr_name (object_t * ob) {
-  char buf[100];
-  char *dbuf = &buf[sizeof (int) + sizeof (int) + sizeof (int)];
-  size_t msglen;
-  int msgtype;
+  const char *ip;
 
-  if (addr_server_fd == INVALID_SOCKET_FD)
+  if (ob == NULL || ob->interactive == NULL)
     return;
 
-  sprintf (dbuf, "%s", query_ip_number (ob));
-  msglen = sizeof (int) + strlen (dbuf) + 1;
+  ip = query_ip_number (ob);
+  if (ip == NULL || strcmp (ip, "N/A") == 0)
+    return;
 
-  msgtype = DATALEN;
-  memcpy (buf, (char *) &msgtype, sizeof (msgtype));
-  memcpy (&buf[sizeof (int)], (char *) &msglen, sizeof (msglen));
-
-  msgtype = NAMEBYIP;
-  memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype, sizeof (msgtype));
-
-  if (SOCKET_SEND (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int), 0) == SOCKET_ERROR)
-    {
-      switch (SOCKET_ERRNO)
-        {
-        case EBADF:
-          debug_message ("Address server has closed connection.\n");
-          addr_server_fd = INVALID_SOCKET_FD;
-          break;
-        default:
-          debug_error ("send() failed: %d", SOCKET_ERRNO);
-          break;
-        }
-    }
+  (void) addr_resolver_enqueue_reverse (ob->interactive->addr.sin_addr.s_addr, ip,
+                                        time (NULL) + RESOLVER_TIMEOUT_SECONDS);
 }				/* query_addr_name() */
-
-#define IPSIZE 200
-typedef struct {
-  char *name, *call_back;
-  object_t *ob_to_call;
-} ipnumberentry_t;
-
-static ipnumberentry_t ipnumbertable[IPSIZE];
 
 /**
  * Does a call back on the current_object with the function call_back.
  */
 int query_addr_number (char *name, char *call_back) {
-  static char buf[100];
-  static char *dbuf = &buf[sizeof (int) + sizeof (int) + sizeof (int)];
-  size_t msglen;
-  int msgtype;
+  int request_id;
 
-  if ((addr_server_fd < 0) || (strlen (name) >= 100 - (sizeof (msgtype) + sizeof (msglen) + sizeof (int))))
+  if (name == NULL || call_back == NULL || strlen (name) >= RESOLVER_STR_MAX)
     {
       share_and_push_string (name);
       push_undefined ();
       apply (call_back, current_object, 2, ORIGIN_DRIVER);
       return 0;
     }
-  strcpy (dbuf, name);
-  msglen = sizeof (int) + strlen (name) + 1;
 
-  msgtype = DATALEN;
-  memcpy (buf, (char *) &msgtype, sizeof (msgtype));
-  memcpy (&buf[sizeof (int)], (char *) &msglen, sizeof (msglen));
-
-  msgtype = (name[0] >= '0' && name[0] <= '9') ? NAMEBYIP : IPBYNAME;
-  memcpy (&buf[sizeof (int) + sizeof (int)], (char *) &msgtype, sizeof (msgtype));
-
-  if (SOCKET_SEND (addr_server_fd, buf, msglen + sizeof (int) + sizeof (int), 0) == SOCKET_ERROR)
+  request_id = addr_resolver_reserve_lookup_request (name, call_back, current_object);
+  if (request_id == 0)
     {
-      switch (SOCKET_ERRNO)
-        {
-        case EBADF:
-          debug_message ("Address server has closed connection.\n");
-          addr_server_fd = INVALID_SOCKET_FD;
-          break;
-        default:
-          debug_error ("send() failed: %d", SOCKET_ERRNO);
-          break;
-        }
       share_and_push_string (name);
       push_undefined ();
       apply (call_back, current_object, 2, ORIGIN_DRIVER);
       return 0;
     }
-  else
-    {
-      int i;
 
-/* We put ourselves into the pending name lookup entry table */
-/* Find the first free entry */
-      for (i = 0; i < IPSIZE && ipnumbertable[i].name; i++)
-        ;
-      if (i == IPSIZE)
-        {
-/* We need to error...  */
-          share_and_push_string (name);
-          push_undefined ();
-          apply (call_back, current_object, 2, ORIGIN_DRIVER);
-          return 0;
-        }
-/* Create our entry... */
-      ipnumbertable[i].name = make_shared_string (name);
-      ipnumbertable[i].call_back = make_shared_string (call_back);
-      ipnumbertable[i].ob_to_call = current_object;
-      add_ref (current_object, "query_addr_number: ");
-      return i + 1;
+  if (!addr_resolver_enqueue_lookup (request_id, name, time (NULL) + RESOLVER_TIMEOUT_SECONDS))
+    {
+      addr_resolver_release_lookup_request (request_id);
+      share_and_push_string (name);
+      push_undefined ();
+      apply (call_back, current_object, 2, ORIGIN_DRIVER);
+      return 0;
     }
+
+  return request_id;
 }				/* query_addr_number() */
 
-static void got_addr_number (char *number, char *name) {
-  int i;
-  char *theName, *theNumber;
+static void
+process_addr_resolver_completions (void)
+{
+  resolver_result_t result;
 
-  /* First remove all the dested ones... */
-  for (i = 0; i < IPSIZE; i++)
-    if (ipnumbertable[i].name && ipnumbertable[i].ob_to_call->flags & O_DESTRUCTED)
-      {
-        free_string (ipnumbertable[i].call_back);
-        free_string (ipnumbertable[i].name);
-        free_object (ipnumbertable[i].ob_to_call, "got_addr_number: ");
-        ipnumbertable[i].name = NULL;
-      }
-  for (i = 0; i < IPSIZE; i++)
+  while (addr_resolver_dequeue_result (&result))
     {
-      if (ipnumbertable[i].name && strcmp (name, ipnumbertable[i].name) == 0)
+      if (result.type == RESOLVER_REQ_REVERSE_CACHE)
         {
-          /* Found one, do the call back... */
-          theName = ipnumbertable[i].name;
+          if (result.success && !result.timed_out && strcmp (result.result, "0") != 0)
+            add_ip_entry (result.cache_addr, result.result);
+          continue;
+        }
+
+      if (result.type == RESOLVER_REQ_LOOKUP &&
+          result.request_id > 0 &&
+          result.request_id <= RESOLVER_LOOKUP_REQUEST_CAPACITY)
+        {
+          const resolver_lookup_request_t *request;
+          char *theName;
+          char *theNumber;
+          char number[RESOLVER_STR_MAX];
+
+          request = addr_resolver_get_lookup_request (result.request_id);
+          if (request == NULL)
+            continue;
+
+          if (request->ob_to_call->flags & O_DESTRUCTED)
+            {
+              addr_resolver_release_lookup_request (result.request_id);
+              continue;
+            }
+
+          if (result.success && !result.timed_out)
+            {
+              strncpy (number, result.result, sizeof (number) - 1);
+              number[sizeof (number) - 1] = '\0';
+            }
+          else
+            {
+              strcpy (number, "0");
+            }
+
+          theName = request->name;
           theNumber = number;
 
-          if (isdigit (theName[0]))
+          if (isdigit ((unsigned char) theName[0]))
             {
-              char *tmp;
-
-              tmp = theName;
+              char *tmp = theName;
               theName = theNumber;
               theNumber = tmp;
             }
+
           if (strcmp (theName, "0"))
             {
               share_and_push_string (theName);
@@ -2169,6 +2054,7 @@ static void got_addr_number (char *number, char *name) {
             {
               push_undefined ();
             }
+
           if (strcmp (number, "0"))
             {
               share_and_push_string (theNumber);
@@ -2177,25 +2063,25 @@ static void got_addr_number (char *number, char *name) {
             {
               push_undefined ();
             }
-          push_number (i + 1);
-          safe_apply (ipnumbertable[i].call_back, ipnumbertable[i].ob_to_call, 3, ORIGIN_DRIVER);
-          free_string (ipnumbertable[i].call_back);
-          free_string (ipnumbertable[i].name);
-          free_object (ipnumbertable[i].ob_to_call, "got_addr_number: ");
-          ipnumbertable[i].name = NULL;
+
+          push_number (result.request_id);
+          safe_apply (request->call_back,
+                      request->ob_to_call,
+                      3,
+                      ORIGIN_DRIVER);
+          addr_resolver_release_lookup_request (result.request_id);
         }
     }
-}				/* got_addr_number() */
+}
 
-#undef IPSIZE
 #define IPSIZE 200
-typedef struct ipentry_s {
+typedef struct ip_name_cache_entry_s {
   unsigned long addr;
   char *name;
-} ipentry_t;
+} ip_name_cache_entry_t;
 
-static ipentry_t iptable[IPSIZE];
-static int ipcur;
+static ip_name_cache_entry_t ip_name_cache[IPSIZE];
+static int ip_name_cache_cursor;
 
 /**
  * @brief Return the cached name for the IP address of an interactive object.
@@ -2212,9 +2098,10 @@ char *query_ip_name (object_t * ob) {
     return NULL;
   for (i = 0; i < IPSIZE; i++)
     {
-      if (iptable[i].addr == ob->interactive->addr.sin_addr.s_addr && iptable[i].name)
-        return (iptable[i].name);
+      if (ip_name_cache[i].addr == ob->interactive->addr.sin_addr.s_addr && ip_name_cache[i].name)
+        return (ip_name_cache[i].name);
     }
+  query_addr_name (ob);
   return query_ip_number (ob); /* fallback to return IP address as string */
 }
 
@@ -2223,26 +2110,26 @@ static void add_ip_entry (unsigned long addr, const char *name) {
 
   for (i = 0; i < IPSIZE; i++)
     {
-      if (iptable[i].addr == addr)
+      if (ip_name_cache[i].addr == addr)
         return;
     }
-  iptable[ipcur].addr = addr;
-  if (iptable[ipcur].name)
-    free_string (iptable[ipcur].name);
-  iptable[ipcur].name = make_shared_string (name);
-  ipcur = (ipcur + 1) % IPSIZE;
+  ip_name_cache[ip_name_cache_cursor].addr = addr;
+  if (ip_name_cache[ip_name_cache_cursor].name)
+    free_string (ip_name_cache[ip_name_cache_cursor].name);
+  ip_name_cache[ip_name_cache_cursor].name = make_shared_string (name);
+  ip_name_cache_cursor = (ip_name_cache_cursor + 1) % IPSIZE;
 }
 
 static void reset_ip_names (void) {
   int i;
   for (i = 0; i < IPSIZE; i++)
     {
-      if (iptable[i].name)
+      if (ip_name_cache[i].name)
         {
-          free_string (iptable[i].name);
-          iptable[i].name = NULL;
+          free_string (ip_name_cache[i].name);
+          ip_name_cache[i].name = NULL;
         }
-      iptable[i].addr = 0;
+      ip_name_cache[i].addr = 0;
     }
 }
 
