@@ -41,6 +41,10 @@ extern "C" {
 
 #include "addr_resolver.h"
 
+#ifdef HAVE_CARES
+#  include <ares.h>
+#endif
+
 /* =========================================================================
  * Internal types
  * ========================================================================= */
@@ -242,6 +246,247 @@ static void *resolver_worker_main(void *arg)
   return nullptr;
 }
 
+#ifdef HAVE_CARES
+
+/* =========================================================================
+ * c-ares backend — used when HAVE_CARES is defined
+ * ========================================================================= */
+
+struct CaresPending {
+  int  done;
+  int  success;
+  char result[RESOLVER_STR_MAX];
+};
+
+static void
+cares_gethostbyname_callback(void *arg, int status, int timeouts,
+                             struct hostent *hostent)
+{
+  (void)timeouts;
+  auto *pending = static_cast<CaresPending *>(arg);
+  if (status == ARES_SUCCESS && hostent != nullptr &&
+      hostent->h_addrtype == AF_INET && hostent->h_addr_list[0] != nullptr)
+    {
+      char buf[INET_ADDRSTRLEN];
+      if (inet_ntop(AF_INET, hostent->h_addr_list[0],
+                    buf, sizeof(buf)) != nullptr)
+        {
+          std::strncpy(pending->result, buf, sizeof(pending->result) - 1);
+          pending->result[sizeof(pending->result) - 1] = '\0';
+          pending->success = 1;
+        }
+    }
+  pending->done = 1;
+}
+
+static void
+cares_getnameinfo_callback(void *arg, int status, int timeouts,
+                           char *node, char *service)
+{
+  (void)timeouts;
+  (void)service;
+  auto *pending = static_cast<CaresPending *>(arg);
+  if (status == ARES_SUCCESS && node != nullptr)
+    {
+      std::strncpy(pending->result, node, sizeof(pending->result) - 1);
+      pending->result[sizeof(pending->result) - 1] = '\0';
+      pending->success = 1;
+    }
+  pending->done = 1;
+}
+
+/**
+ * @brief Drive the c-ares channel event loop until the query completes
+ * or the deadline is reached.
+ * One task per channel (channel-per-task pattern); each worker creates
+ * a fresh channel, runs the query, then destroys it.
+ */
+static void
+run_cares_until_done(ares_channel channel, CaresPending *pending, time_t deadline)
+{
+  while (!pending->done)
+    {
+      fd_set readers, writers;
+      FD_ZERO(&readers);
+      FD_ZERO(&writers);
+      int nfds = ares_fds(channel, &readers, &writers);
+      if (nfds == 0)
+        break; /* no more pending queries */
+
+      time_t now = std::time(nullptr);
+      if (now >= deadline)
+        break;
+
+      /* Clamp to 5 s slices so the deadline check fires even if ares_timeout
+       * returns a longer interval. */
+      long secs_left = static_cast<long>(deadline - now);
+      struct timeval tv;
+      tv.tv_sec  = secs_left > 5 ? 5 : secs_left;
+      tv.tv_usec = 0;
+
+      struct timeval cares_tv;
+      struct timeval *tvp = ares_timeout(channel, &tv, &cares_tv);
+
+      int ret = select(nfds, &readers, &writers, nullptr, tvp);
+      (void)ret;
+      ares_process(channel, &readers, &writers);
+    }
+}
+
+static void *
+cares_worker_main(void *arg)
+{
+  async_queue_t  *task_queue = static_cast<async_queue_t *>(arg);
+  async_worker_t *worker     = async_worker_current();
+  resolver_task_t   task;
+  resolver_result_t result;
+  size_t task_size = 0;
+
+  while (!async_worker_should_stop(worker))
+    {
+      unsigned int delay_ms = 0;
+      const char *effective_query = nullptr;
+
+      if (!async_queue_dequeue(task_queue, &task, sizeof(task), &task_size))
+        {
+#ifdef WINSOCK
+          Sleep(10);
+#else
+          usleep(10000);
+#endif
+          continue;
+        }
+
+      if (task_size != sizeof(task))
+        continue;
+
+      std::memset(&result, 0, sizeof(result));
+      result.type       = task.type;
+      result.request_id = task.request_id;
+      result.cache_addr = task.cache_addr;
+      std::strncpy(result.query, task.query, sizeof(result.query) - 1);
+      result.query[sizeof(result.query) - 1] = '\0';
+
+      if (s_lookup_test_hook != nullptr)
+        s_lookup_test_hook(task.query, &delay_ms, &effective_query);
+
+      if (effective_query == nullptr)
+        effective_query = task.query;
+
+      sleep_for_ms(delay_ms);
+
+      if (std::time(nullptr) >= task.deadline)
+        {
+          result.timed_out = 1;
+        }
+      else
+        {
+          ares_channel channel = nullptr;
+          if (ares_init(&channel) != ARES_SUCCESS)
+            {
+              /* Treat channel init failure as a transient timeout. */
+              result.timed_out = 1;
+            }
+          else
+            {
+              CaresPending pending = {};
+
+              if (task.type == RESOLVER_REQ_LOOKUP)
+                {
+                  if (std::isdigit(
+                        static_cast<unsigned char>(task.query[0])))
+                    {
+                      /* IP → hostname (reverse lookup for resolve() efun) */
+                      struct sockaddr_in sa;
+                      std::memset(&sa, 0, sizeof(sa));
+                      sa.sin_family = AF_INET;
+                      if (inet_pton(AF_INET, effective_query,
+                                    &sa.sin_addr) == 1)
+                        {
+                          ares_getnameinfo(
+                            channel,
+                            reinterpret_cast<struct sockaddr *>(&sa),
+                            static_cast<ares_socklen_t>(sizeof(sa)),
+                            ARES_NI_LOOKUPHOST,
+                            cares_getnameinfo_callback, &pending);
+                          run_cares_until_done(channel, &pending,
+                                               task.deadline);
+                        }
+                      else
+                        {
+                          pending.done = 1; /* malformed IP — log as failure */
+                        }
+                    }
+                  else
+                    {
+                      /* hostname → IP (forward lookup for resolve() efun) */
+                      ares_gethostbyname(channel, effective_query, AF_INET,
+                                         cares_gethostbyname_callback,
+                                         &pending);
+                      run_cares_until_done(channel, &pending,
+                                           task.deadline);
+                    }
+                }
+              else if (task.type == RESOLVER_REQ_REVERSE_CACHE)
+                {
+                  /* IP → hostname (query_ip_name() cache refresh) */
+                  struct sockaddr_in sa;
+                  std::memset(&sa, 0, sizeof(sa));
+                  sa.sin_family = AF_INET;
+                  if (inet_pton(AF_INET, effective_query, &sa.sin_addr) == 1)
+                    {
+                      ares_getnameinfo(
+                        channel,
+                        reinterpret_cast<struct sockaddr *>(&sa),
+                        static_cast<ares_socklen_t>(sizeof(sa)),
+                        ARES_NI_LOOKUPHOST,
+                        cares_getnameinfo_callback, &pending);
+                      run_cares_until_done(channel, &pending,
+                                           task.deadline);
+                    }
+                  else
+                    {
+                      pending.done = 1; /* malformed IP */
+                    }
+                }
+              else
+                {
+                  pending.done = 1; /* unknown request type */
+                }
+
+              result.timed_out = !pending.done;
+              result.success   = pending.success;
+              if (pending.success)
+                {
+                  std::strncpy(result.result, pending.result,
+                               sizeof(result.result) - 1);
+                  result.result[sizeof(result.result) - 1] = '\0';
+                }
+
+              ares_destroy(channel);
+            }
+        }
+
+      /* Post-deadline guard: the DNS call itself may have exceeded time. */
+      if (!result.timed_out && std::time(nullptr) >= task.deadline)
+        {
+          result.timed_out = 1;
+          result.success   = 0;
+        }
+
+      if (s_result_queue != nullptr &&
+          async_queue_enqueue(s_result_queue, &result, sizeof(result)))
+        {
+          if (s_runtime != nullptr)
+            async_runtime_post_completion(s_runtime, RESOLVER_COMPLETION_KEY, 1);
+        }
+    }
+
+  return nullptr;
+}
+
+#endif /* HAVE_CARES */
+
 } /* anonymous namespace */
 
 /* =========================================================================
@@ -302,9 +547,19 @@ addr_resolver_init(struct async_runtime_s *runtime,
       return 0;
     }
 
+#ifdef HAVE_CARES
+  ares_library_init(ARES_LIB_INIT_ALL);
+#endif
+
+#ifdef HAVE_CARES
+  auto *worker_fn = cares_worker_main;
+#else
+  auto *worker_fn = resolver_worker_main;
+#endif
+
   for (int i = 0; i < RESOLVER_FALLBACK_WORKER_COUNT; i++)
     {
-      s_workers[i] = async_worker_create(resolver_worker_main, s_task_queue, 0);
+      s_workers[i] = async_worker_create(worker_fn, s_task_queue, 0);
       if (s_workers[i] == nullptr)
         {
           for (int j = 0; j < i; j++)
@@ -358,6 +613,10 @@ addr_resolver_deinit(void)
   s_runtime = nullptr;
   s_lookup_test_hook = nullptr;
   addr_resolver_config_init_defaults(&s_config);
+
+#ifdef HAVE_CARES
+  ares_library_cleanup();
+#endif
 }
 
 int

@@ -2,6 +2,7 @@
 
 add_executable(test_socket_efuns
     test_socket_efuns_behavior.cpp
+    test_socket_efuns_resolver.cpp
     fixtures.hpp
 )
 
