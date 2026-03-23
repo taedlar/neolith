@@ -2,11 +2,11 @@
  * @file addr_resolver.cpp
  * @brief Async hostname resolver — C++ worker implementation
  *
- * Owns the resolver worker thread, task queue, and result queue.
+ * Owns the resolver fallback worker pool, task queue, and result queue.
  * Exposes a thin C API declared in addr_resolver.h.
  *
- * The worker thread calls getaddrinfo() / getnameinfo() without blocking
- * the main LPC event loop.  When results are ready it posts a completion
+ * The worker pool calls getaddrinfo() / getnameinfo() without blocking the
+ * main LPC event loop.  When results are ready workers post a completion
  * notification on the async runtime so the main thread can drain them.
  */
 
@@ -65,9 +65,22 @@ typedef struct {
  */
 static async_queue_t   *s_task_queue   = nullptr;
 static async_queue_t   *s_result_queue = nullptr;
-static async_worker_t  *s_worker       = nullptr;
+static async_worker_t  *s_workers[RESOLVER_FALLBACK_WORKER_COUNT] = {};
 static async_runtime_t *s_runtime      = nullptr;
+static resolver_lookup_test_hook_t s_lookup_test_hook = nullptr;
 static resolver_lookup_request_t lookup_request_table[RESOLVER_LOOKUP_REQUEST_CAPACITY];
+
+static void sleep_for_ms(unsigned int delay_ms)
+{
+  if (delay_ms == 0)
+    return;
+
+#ifdef WINSOCK
+  Sleep(delay_ms);
+#else
+  usleep(delay_ms * 1000);
+#endif
+}
 
 static void clear_lookup_request_entry(int index)
 {
@@ -103,6 +116,9 @@ static void *resolver_worker_main(void *arg)
 
   while (!async_worker_should_stop(worker))
     {
+      unsigned int delay_ms = 0;
+      const char *effective_query = nullptr;
+
       if (!async_queue_dequeue(task_queue, &task, sizeof(task), &task_size))
         {
 #ifdef WINSOCK
@@ -123,6 +139,14 @@ static void *resolver_worker_main(void *arg)
       std::strncpy(result.query, task.query, sizeof(result.query) - 1);
       result.query[sizeof(result.query) - 1] = '\0';
 
+      if (s_lookup_test_hook != nullptr)
+        s_lookup_test_hook(task.query, &delay_ms, &effective_query);
+
+      if (effective_query == nullptr)
+        effective_query = task.query;
+
+      sleep_for_ms(delay_ms);
+
       if (std::time(nullptr) >= task.deadline)
         {
           result.timed_out = 1;
@@ -137,7 +161,7 @@ static void *resolver_worker_main(void *arg)
 
               std::memset(&addr, 0, sizeof(addr));
               addr.sin_family = AF_INET;
-              if (inet_pton(AF_INET, task.query, &addr.sin_addr) == 1 &&
+                if (inet_pton(AF_INET, effective_query, &addr.sin_addr) == 1 &&
                   getnameinfo(reinterpret_cast<struct sockaddr *>(&addr),
                               sizeof(addr), host, sizeof(host),
                               nullptr, 0, NI_NAMEREQD) == 0)
@@ -157,7 +181,7 @@ static void *resolver_worker_main(void *arg)
               hints.ai_family   = AF_INET;
               hints.ai_socktype = SOCK_STREAM;
 
-              if (getaddrinfo(task.query, nullptr, &hints, &peers) == 0)
+              if (getaddrinfo(effective_query, nullptr, &hints, &peers) == 0)
                 {
                   for (struct addrinfo *e = peers; e != nullptr; e = e->ai_next)
                     {
@@ -183,7 +207,7 @@ static void *resolver_worker_main(void *arg)
 
           std::memset(&addr, 0, sizeof(addr));
           addr.sin_family = AF_INET;
-          if (inet_pton(AF_INET, task.query, &addr.sin_addr) == 1 &&
+            if (inet_pton(AF_INET, effective_query, &addr.sin_addr) == 1 &&
               getnameinfo(reinterpret_cast<struct sockaddr *>(&addr),
                           sizeof(addr), host, sizeof(host),
                           nullptr, 0, NI_NAMEREQD) == 0)
@@ -204,7 +228,8 @@ static void *resolver_worker_main(void *arg)
       if (s_result_queue != nullptr &&
           async_queue_enqueue(s_result_queue, &result, sizeof(result)))
         {
-          async_runtime_post_completion(s_runtime, RESOLVER_COMPLETION_KEY, 1);
+          if (s_runtime != nullptr)
+            async_runtime_post_completion(s_runtime, RESOLVER_COMPLETION_KEY, 1);
         }
     }
 
@@ -223,7 +248,11 @@ int
 addr_resolver_init(struct async_runtime_s *runtime)
 {
   if (s_task_queue != nullptr)
-    return 1; /* already initialized */
+    {
+      if (s_runtime == nullptr && runtime != nullptr)
+        s_runtime = runtime;
+      return 1; /* already initialized */
+    }
 
   s_runtime = runtime;
 
@@ -241,14 +270,25 @@ addr_resolver_init(struct async_runtime_s *runtime)
       return 0;
     }
 
-  s_worker = async_worker_create(resolver_worker_main, s_task_queue, 0);
-  if (s_worker == nullptr)
+  for (int i = 0; i < RESOLVER_FALLBACK_WORKER_COUNT; i++)
     {
-      async_queue_destroy(s_result_queue);
-      async_queue_destroy(s_task_queue);
-      s_result_queue = nullptr;
-      s_task_queue   = nullptr;
-      return 0;
+      s_workers[i] = async_worker_create(resolver_worker_main, s_task_queue, 0);
+      if (s_workers[i] == nullptr)
+        {
+          for (int j = 0; j < i; j++)
+            {
+              async_worker_signal_stop(s_workers[j]);
+              async_worker_join(s_workers[j], 2000);
+              async_worker_destroy(s_workers[j]);
+              s_workers[j] = nullptr;
+            }
+
+          async_queue_destroy(s_result_queue);
+          async_queue_destroy(s_task_queue);
+          s_result_queue = nullptr;
+          s_task_queue   = nullptr;
+          return 0;
+        }
     }
 
   return 1;
@@ -260,12 +300,15 @@ addr_resolver_deinit(void)
   for (int i = 0; i < RESOLVER_LOOKUP_REQUEST_CAPACITY; i++)
     clear_lookup_request_entry(i);
 
-  if (s_worker != nullptr)
+  for (int i = 0; i < RESOLVER_FALLBACK_WORKER_COUNT; i++)
     {
-      async_worker_signal_stop(s_worker);
-      async_worker_join(s_worker, 2000);
-      async_worker_destroy(s_worker);
-      s_worker = nullptr;
+      if (s_workers[i] == nullptr)
+        continue;
+
+      async_worker_signal_stop(s_workers[i]);
+      async_worker_join(s_workers[i], 2000);
+      async_worker_destroy(s_workers[i]);
+      s_workers[i] = nullptr;
     }
 
   if (s_result_queue != nullptr)
@@ -281,6 +324,7 @@ addr_resolver_deinit(void)
     }
 
   s_runtime = nullptr;
+  s_lookup_test_hook = nullptr;
 }
 
 int
@@ -368,6 +412,12 @@ addr_resolver_dequeue_result(resolver_result_t *out)
   size_t result_size = 0;
   return (async_queue_dequeue(s_result_queue, out, sizeof(*out), &result_size) &&
           result_size == sizeof(*out)) ? 1 : 0;
+}
+
+void
+addr_resolver_set_lookup_test_hook(resolver_lookup_test_hook_t hook)
+{
+  s_lookup_test_hook = hook;
 }
 
 } /* extern "C" */

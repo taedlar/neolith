@@ -1158,12 +1158,6 @@ void process_io () {
                 }
             }
         }
-      else if (evt->completion_key == 0x444E5300)  /* DNS_COMPLETION_KEY */
-        {
-          /* DNS resolution completion - worker posted results.
-           * Handle DNS completions and transition sockets to CONNECTING. */
-          handle_dns_completions();
-        }
       else if (evt->completion_key == RESOLVER_COMPLETION_KEY)
         {
           process_addr_resolver_completions ();
@@ -2000,6 +1994,13 @@ process_addr_resolver_completions (void)
 
   while (addr_resolver_dequeue_result (&result))
     {
+#ifdef PACKAGE_SOCKETS
+      if (handle_socket_dns_resolver_result (&result))
+        {
+          continue;
+        }
+#endif
+
       if (result.type == RESOLVER_REQ_REVERSE_CACHE)
         {
           if (result.success && !result.timed_out && strcmp (result.result, "0") != 0)

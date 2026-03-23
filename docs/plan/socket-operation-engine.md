@@ -298,7 +298,7 @@ Stage 5 policy override (priority-first):
 
 Stage 5 build-time backend selection (authoritative):
 - With c-ares (`HAVE_CARES=1`): shared resolver runs on c-ares backend.
-- Without c-ares (`HAVE_CARES` undefined): shared resolver path must not use blocking `getaddrinfo()` or legacy `addr_server_fd`; behavior follows the documented no-c-ares shared-resolver contract while preserving mandatory `socket_connect()` hostname support.
+- Without c-ares (`HAVE_CARES` undefined): shared resolver path uses a small fixed worker pool around blocking libc resolver calls, sized by `RESOLVER_FALLBACK_WORKER_COUNT`; it must not use backend-thread blocking `getaddrinfo()` or legacy `addr_server_fd`, and must preserve mandatory `socket_connect()` hostname support.
 
 Option semantics:
 - `HAVE_CARES=1` enables c-ares-backed async resolver execution for shared resolver request classes.
@@ -337,12 +337,14 @@ Option semantics:
 
 ### Stage 5 Unified Verification Status (2026-03-23, no-c-ares)
 
-- [x] Implementation split verified: `src/addr_resolver.cpp` + `src/addr_resolver.h` own resolver worker/request queues; `src/comm.c` owns LPC callback fan-out; `src/simulate.c` performs resolver teardown.
+- [x] Implementation split verified: `src/addr_resolver.cpp` + `src/addr_resolver.h` own resolver worker-pool/request queues; `src/comm.c` owns LPC callback fan-out; `src/simulate.c` performs resolver teardown.
 - [x] Build verified on Windows `vs16-x64` without c-ares (`Build_CMakeTools` result code 0).
 - [x] Resolver-adjacent test execution shows no regression failures in captured output (`RunCtest_CMakeTools`).
+- [x] No-c-ares fallback worker-pool sizing is now named explicitly via `RESOLVER_FALLBACK_WORKER_COUNT` to keep the concurrency contract visible in code and docs.
 - [x] `resolve()` path now uses request-id-correlated async completions (no address-server socket path).
 - [x] `query_ip_name()` cache miss behavior verified: immediate numeric return plus async reverse-refresh scheduling.
 - [x] Legacy reverse-name cache remains intentionally efun-local in `src/comm.c` (`ip_name_cache`) pending OS-cache policy decisions.
+- [x] Focused fallback-pool regression coverage now exercises head-of-line blocking avoidance in no-c-ares builds.
 - [ ] Shared resolver parity tests for no-c-ares matrix scenarios `RESOLVER_001`-`RESOLVER_007` not yet recorded as complete.
 - [ ] Socket-path unification and class-aware admission controls are not yet complete for no-c-ares.
 - [ ] Behavior-delta documentation for `resolve()` and `query_ip_name()` remains pending.
