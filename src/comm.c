@@ -2112,7 +2112,6 @@ process_addr_resolver_completions (void)
 }
 
 char *query_ip_name (object_t * ob) {
-  time_t now;
   addr_resolver_config_t resolver_config;
   const char *cached_name;
 
@@ -2121,7 +2120,6 @@ char *query_ip_name (object_t * ob) {
   if (!ob || ob->interactive == 0)
     return NULL;
 
-  now = time (NULL);
   addr_resolver_get_config (&resolver_config);
 
   /* Check reverse cache for IP address */
@@ -2143,10 +2141,6 @@ char *query_ip_name (object_t * ob) {
 static void add_ip_entry (unsigned long addr, const char *name) {
   /* Cache is now managed by addr_resolver; this function delegates */
   addr_resolver_reverse_cache_add(addr, name);
-}
-
-static void reset_ip_names (void) {
-  /* Cache reset is now handled by addr_resolver_cache_reset() during shutdown */
 }
 
 /**

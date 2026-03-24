@@ -74,6 +74,10 @@ extern int max_lpc_socks;
 #define S_CLOSE_FP      0x80
 #define S_EXTERNAL	0x100
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int check_valid_socket(char *, socket_fd_t, object_t *, char *, int);
 void socket_read_select_handler(int);
 void socket_write_select_handler(int);
@@ -105,3 +109,6 @@ int get_socket_runtime_registration_count(void);
 void *get_socket_runtime_context(int);
 int resolve_lpc_socket_context(void *, socket_fd_t, int *);
 
+#ifdef __cplusplus
+}
+#endif

@@ -11,70 +11,7 @@ extern "C" {
 #include "stem.h"
 }
 
-extern "C" void handle_dns_completions(void);
-extern "C" void set_socket_dns_timeout_test_hook(int (*hook)(int, const char *, uint16_t));
-extern "C" int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
-                                           unsigned long *timed_out);
-extern "C" void addr_resolver_set_lookup_test_hook(void (*hook)(const char *, unsigned int *, const char **));
-extern "C" char *query_ip_name(object_t *ob);
-
-extern "C" int get_socket_operation_info(int socket_id,
-                                         int* op_active, int* op_terminal,
-                                         int* op_id, int* op_phase);
-
 namespace {
-
-bool WaitForDNSCompletion(int socket_fd, int timeout_ms = 5000) {
-  int elapsed = 0;
-  const int sleep_step = 10;
-
-  while (elapsed < timeout_ms) {
-    handle_dns_completions();
-
-    int op_active = 0;
-    int op_terminal = 0;
-    int op_id = 0;
-    int op_phase = 0;
-    if (get_socket_operation_info(socket_fd, &op_active, &op_terminal,
-                                  &op_id, &op_phase) == EESUCCESS) {
-      if (op_terminal || op_phase != OP_DNS_RESOLVING) {
-        return true;
-      }
-    }
-
-#ifdef WINSOCK
-    Sleep(sleep_step);
-#else
-    usleep(sleep_step * 1000);
-#endif
-    elapsed += sleep_step;
-  }
-
-  return false;
-}
-
-bool WaitForQueryIpNameChange(object_t *obj, const char *original_value, int timeout_ms = 5000) {
-  int elapsed = 0;
-  const int sleep_step = 10;
-
-  while (elapsed < timeout_ms) {
-    handle_dns_completions();
-
-    char *current = query_ip_name(obj);
-    if (current != nullptr && strcmp(current, original_value) != 0) {
-      return true;
-    }
-
-#ifdef WINSOCK
-    Sleep(sleep_step);
-#else
-    usleep(sleep_step * 1000);
-#endif
-    elapsed += sleep_step;
-  }
-
-  return false;
-}
 
 bool WaitForResolverResult(resolver_result_t *out, int timeout_ms = 5000) {
   int elapsed = 0;

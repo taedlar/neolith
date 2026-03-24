@@ -23,6 +23,45 @@ extern "C" {
   #include "backend.h"
 }
 
+/**
+ * @brief Poll DNS completion state for a socket operation.
+ *
+ * Repeatedly drains resolver completions and checks operation phase until
+ * the socket transitions out of DNS resolving or timeout is reached.
+ *
+ * @param socket_fd Socket descriptor tracked by socket operation state.
+ * @param timeout_ms Maximum time to wait in milliseconds.
+ * @returns true when DNS work completes, false on timeout.
+ */
+static inline bool WaitForDNSCompletion(int socket_fd, int timeout_ms = 5000) {
+  int elapsed = 0;
+  const int sleep_step = 10;
+
+  while (elapsed < timeout_ms) {
+    handle_dns_completions();
+
+    int op_active = 0;
+    int op_terminal = 0;
+    int op_id = 0;
+    int op_phase = 0;
+    if (get_socket_operation_info(socket_fd, &op_active, &op_terminal,
+                                  &op_id, &op_phase) == EESUCCESS) {
+      if (op_terminal || op_phase != OP_DNS_RESOLVING) {
+        return true;
+      }
+    }
+
+#ifdef WINSOCK
+    Sleep(sleep_step);
+#else
+    usleep(sleep_step * 1000);
+#endif
+    elapsed += sleep_step;
+  }
+
+  return false;
+}
+
 using namespace testing;
 
 #ifdef WINSOCK

@@ -9,12 +9,6 @@ static ::testing::Environment* const winsock_env =
   ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
 #endif
 
-extern "C" void handle_dns_completions(void);
-extern "C" void set_socket_dns_timeout_test_hook(int (*hook)(int, const char *, uint16_t));
-extern "C" int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
-                                           unsigned long *timed_out);
-extern "C" void addr_resolver_set_lookup_test_hook(void (*hook)(const char *, unsigned int *, const char **));
-
 namespace {
 
 bool CreateLoopbackListener(socket_fd_t *listener_fd, int *port) {
@@ -90,48 +84,6 @@ bool AcceptPendingConnection(socket_fd_t listener_fd, socket_fd_t *accepted_fd) 
   return *accepted_fd != INVALID_SOCKET_FD;
 }
 
-extern "C" int get_socket_operation_info(int socket_id, 
-                                         int* op_active, int* op_terminal,
-                                         int* op_id, int* op_phase);
-
-/**
- * Wait for pending DNS completions to be processed.
- * Polls handle_dns_completions() repeatedly with small sleeps to allow
- * DNS worker thread to resolve names and post completions back.
- * 
- * @param socket_fd Socket file descriptor to check
- * @param timeout_ms Maximum time to wait in milliseconds
- * @returns true if socket operation completes, false on timeout
- */
-bool WaitForDNSCompletion(int socket_fd, int timeout_ms = 5000) {
-  int elapsed = 0;
-  const int sleep_step = 10;  // 10ms polling interval
-  
-  while (elapsed < timeout_ms) {
-    // Poll for DNS completions
-    handle_dns_completions();
-    
-    // Check current socket operation state
-    int op_active = 0, op_terminal = 0, op_id = 0, op_phase = 0;
-    if (get_socket_operation_info(socket_fd, &op_active, &op_terminal,
-                                   &op_id, &op_phase) == EESUCCESS) {
-      // If operation is terminal or transitioned out of DNS_RESOLVING, we're done
-      if (op_terminal || op_phase != OP_DNS_RESOLVING) {
-        return true;
-      }
-    }
-    
-#ifdef WINSOCK
-    Sleep(sleep_step);
-#else
-    usleep(sleep_step * 1000);  // Convert to microseconds
-#endif
-    elapsed += sleep_step;
-  }
-  
-  return false;  // Timeout waiting for DNS completion
-}
-
 extern "C" int ForceDnsTimeoutHook(int, const char *, uint16_t) {
   return 1;
 }
@@ -181,35 +133,6 @@ public:
     addr_resolver_set_lookup_test_hook(nullptr);
   }
 };
-
-bool WaitForSocketPhase(int socket_fd, int expected_phase, int timeout_ms) {
-  int elapsed = 0;
-  const int sleep_step = 10;
-
-  while (elapsed < timeout_ms) {
-    int op_active = 0;
-    int op_terminal = 0;
-    int op_id = 0;
-    int op_phase = OP_INIT;
-
-    handle_dns_completions();
-
-    if (get_socket_operation_info(socket_fd, &op_active, &op_terminal,
-                                  &op_id, &op_phase) == EESUCCESS &&
-        op_phase == expected_phase) {
-      return true;
-    }
-
-#ifdef WINSOCK
-    Sleep(sleep_step);
-#else
-    usleep(sleep_step * 1000);
-#endif
-    elapsed += sleep_step;
-  }
-
-  return false;
-}
 
 /* OP_PHASES definitions needed by tests */
 #define OP_INIT 0

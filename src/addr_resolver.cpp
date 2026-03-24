@@ -300,6 +300,7 @@ static void clear_lookup_request_entry(int index)
  * Worker thread
  * ========================================================================= */
 
+#ifndef HAVE_CARES
 static void *resolver_worker_main(void *arg)
 {
   async_queue_t  *task_queue = static_cast<async_queue_t *>(arg);
@@ -432,6 +433,7 @@ static void *resolver_worker_main(void *arg)
 
   return nullptr;
 }
+#endif /* !HAVE_CARES */
 
 #ifdef HAVE_CARES
 

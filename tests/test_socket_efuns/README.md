@@ -212,11 +212,7 @@ EXPECT_TRUE(result.success || result.timed_out);
 
 **`WaitForDNSCompletion(int socket_fd, int timeout_ms = 5000)`**
 
-Polls DNS operation state on a socket until completion or timeout (for socket-layer DNS tests).
-
-**`WaitForQueryIpNameChange(object_t *obj, const char *original, int timeout_ms = 5000)`**
-
-Polls `query_ip_name(obj)` until it changes from the original value (for reverse-cache refresh visibility checking).
+Shared helper in `fixtures.hpp` that polls DNS operation state on a socket until completion or timeout (used by socket-layer DNS tests in both extensions and resolver suites).
 
 ---
 
