@@ -51,15 +51,15 @@
 
 | Class | Operation | Backend | Blocking | Completion | Admission | Error Handling | Notes |
 |-------|-----------|---------|----------|-----------|-----------|----------------|-------|
-| **1** | Forward Lookup | c-ares worker queue | non-blocking | socket write-select or resolver callback | global 64, queue 256, caller caps | malformed input, admission reject, timeout, canceled map deterministically | unifies `socket_connect` hostname flow and `resolve()` lookup path |
-| **2** | Reverse Lookup | c-ares worker queue | non-blocking | cache entry update; immediate return for `query_ip_name()` | global 64, queue 256, caller caps | timeout leaves numeric fallback/cache unchanged | unifies auto reverse refresh and manual reverse refresh on cache miss |
-| **3** | Peer Refresh | c-ares worker queue | non-blocking | background cache refresh | global 64, queue 256, per-session cap | timeout keeps prior value | coalesces with Class 2 when same IP is already in flight |
+| **1** | Forward Lookup | c-ares worker queue | non-blocking | socket write-select or resolver callback | central shared-resolver admission: global 64 + per-class quotas (runtime-configurable defaults: FWD 10, REV 4, REFRESH 2) | malformed input, admission reject, timeout, canceled map deterministically | driver-initiated forward requests may evict oldest queued task when saturated |
+| **2** | Reverse Lookup | c-ares worker queue | non-blocking | cache entry update; immediate return for `query_ip_name()` | central shared-resolver admission (same policy as Class 1) | timeout leaves numeric fallback/cache unchanged | unifies auto reverse refresh and manual reverse refresh on cache miss |
+| **3** | Peer Refresh | c-ares worker queue | non-blocking | background cache refresh | central shared-resolver admission (same policy as Class 1) | timeout keeps prior value | triggered on TTL-expired cache hits and coalesces with Class 2 when same IP is in-flight |
 
 **Performance Profile (WITH c-ares)**:
 - Typical latency: 10–100 ms per resolve (network + c-ares worker latency).
 - Zero main-thread blocking; all latency absorbed by worker pool.
 - Coalescing: multiple requests for same hostname wait on single worker result.
-- Worst case (queue full): new requests are explicitly rejected with `EERESOLVERBUSY`.
+- Worst case (queue full): mudlib-initiated requests are rejected with `EERESOLVERBUSY`; driver-initiated forward requests can drop the oldest queued task.
 
 ---
 
@@ -67,15 +67,15 @@
 
 | Class | Operation | Backend | Blocking | Completion | Admission | Error Handling | Notes |
 |-------|-----------|---------|----------|-----------|-----------|----------------|-------|
-| **1** | Forward Lookup | worker pool around libc resolver | non-blocking (worker-mediated) | socket write-select or resolver callback | global 64, queue 256, caller caps | same deterministic mapping as with c-ares | implementation differs, API contract stays identical |
-| **2** | Reverse Lookup | worker pool around libc resolver | non-blocking (worker-mediated) | cache entry update; immediate return for `query_ip_name()` | global 64, queue 256, caller caps | same timeout/cancel/admission semantics | higher latency only affects refresh timing |
-| **3** | Peer Refresh | worker pool around libc resolver | non-blocking (worker-mediated) | background cache refresh | global 64, queue 256, per-session cap | timeout keeps prior value | same semantics as with c-ares |
+| **1** | Forward Lookup | worker pool around libc resolver | non-blocking (worker-mediated) | socket write-select or resolver callback | central shared-resolver admission: global 64 + per-class quotas (runtime-configurable defaults: FWD 10, REV 4, REFRESH 2) | same deterministic mapping as with c-ares | driver-initiated forward requests may evict oldest queued task when saturated |
+| **2** | Reverse Lookup | worker pool around libc resolver | non-blocking (worker-mediated) | cache entry update; immediate return for `query_ip_name()` | central shared-resolver admission (same policy as Class 1) | same timeout/cancel/admission semantics | higher latency only affects refresh timing |
+| **3** | Peer Refresh | worker pool around libc resolver | non-blocking (worker-mediated) | background cache refresh | central shared-resolver admission (same policy as Class 1) | timeout keeps prior value | same semantics as with c-ares |
 
 **Performance Profile (WITHOUT c-ares)**:
 - Typical latency: 50–500 ms per resolve (getaddrinfo in worker + queue latency).
 - Zero main-thread blocking; fallback uses worker-pool pattern identical to c-ares flow.
 - Coalescing: identical to c-ares case (multiple requests coalesce on single worker result).
-- Worst case (queue full): new requests are explicitly rejected with `EERESOLVERBUSY` (same as c-ares).
+- Worst case (queue full): mudlib-initiated requests are explicitly rejected with `EERESOLVERBUSY`; driver-initiated forward requests can evict oldest queued task.
 
 ---
 
@@ -92,10 +92,10 @@
 - Request-id correlation prevents stale results from reaching wrong owner/socket.
 
 ### Admission Control
-- Global cap (64 in-flight) prevents unbounded queue growth.
-- Per-class caps (per-owner 8 for socket, per-session 2 for background, etc.) prevent starvation.
-- Queue size limit (256) with DROP_OLDEST eviction on overflow.
-- Explicit rejection (`EERESOLVERBUSY`, `EECANCELED`, `EETIMEOUT`) instead of silent drop.
+- Centralized in shared resolver enqueue path (not socket-layer wrappers).
+- Runtime-configurable per-class quotas with defaults: Forward 10, Reverse 4, Refresh 2; global in-flight cap remains 64.
+- Queue size limit remains 256; mudlib-initiated requests reject on saturation, while driver-initiated forward lookups can evict oldest queued task.
+- `query_ip_name()` remains fire-and-forget: miss/expiry scheduling failures stay silent and return-path remains immediate.
 
 ### Dedup/Coalescing
 - Multiple requests for same hostname route to single worker future.
@@ -162,7 +162,7 @@ string query_ip_name(string ip) {
 When queue is full or global cap exceeded:
 - **Socket connect**: return `EERESOLVERBUSY`.
 - **resolve()**: surface explicit resolver admission failure `EERESOLVERBUSY` via resolver completion/error contract.
-- **query_ip_name()**: surface explicit resolver admission failure `EERESOLVERBUSY` via resolver completion/error contract.
+- **query_ip_name()**: fire-and-forget scheduling remains silent on rejection/failure; immediate return contract stays unchanged.
 
 ### Timeout
 - **Socket connect**: `EETIMEOUT` (to caller's `write_cb` or operation completion).
@@ -202,11 +202,10 @@ The following MUST NOT occur in Stage 5:
 - [ ] Verify non-blocking invariant holds (no stalls in main loop trace).
 - [ ] Document latency trade-off (higher without c-ares, but still responsive).
 - [x] Build and test without c-ares variant.
-- [ ] Add admission control gates (global + per-class caps).
-- [ ] Add admission control rejection mapping to caller-visible errors.
+- [x] Implement centralized shared-resolver admission control policy (global + per-class quotas, driver-priority drop behavior, and caller mapping).
 - [x] Add dedup/coalescing for socket connect forward lookups (primary volume case).
 - [ ] Verify deterministic timeout and cancellation semantics across all classes.
-- [ ] Add resolver telemetry and verification for per-class lifecycle counters plus forward/reverse cache hit, miss, stale-hit, and negative-hit behavior.
+- [ ] Complete resolver telemetry verification for forward/reverse cache hit, miss, stale-hit, and negative-hit behavior.
 - [x] Verify no stale completion fan-out (request-id correlation).
 - [x] Disable legacy `addr_server_fd` runtime path and legacy hname bridge.
 - [x] Test all three operation classes under c-ares backend.
@@ -223,7 +222,11 @@ The following MUST NOT occur in Stage 5:
 - [x] Legacy `addr_server_fd` event branch and hname parser bridge removed from runtime dispatch.
 - [x] Legacy resolve() request bookkeeping removed from `src/comm.c`; resolver bookkeeping now owned by shared resolver module.
 - [x] Resolver runtime policy settings now come from runtime config and are passed through stem into all shared resolver init paths via `addr_resolver_init()` config struct.
+- [x] Shared resolver admission control is centralized in resolver enqueue paths; socket-layer global/per-owner DNS caps removed.
+- [x] Runtime-configurable resolver quotas are wired through config/stem/init (defaults: Forward 10, Reverse 4, Refresh 2).
+- [x] Resolver telemetry ownership moved to shared resolver core, including class-level reject and dropped counters.
 - [x] Reverse-name efun cache remains intentionally in `src/comm.c` (`ip_name_cache`) pending OS-cache policy decisions.
+- [x] `query_ip_name()` now uses peer refresh on TTL-expired cached entries while preserving immediate return semantics.
 - [x] No-c-ares build verified with the full shared-resolver matrix green in the current build.
 - [x] `socket_connect()` hostname DNS path now runs through shared resolver request-id completions instead of a socket-local DNS worker path.
 - [x] Focused no-c-ares fallback concurrency coverage confirms independent progress when one blocking lookup is delayed.
@@ -238,6 +241,8 @@ The following MUST NOT occur in Stage 5:
 **What's Complete:**
 - [x] c-ares backend is live under `HAVE_CARES`; fallback (getaddrinfo-in-worker) still active without c-ares.
 - [x] Both paths use the same task/result queues, completion key, and public API.
+- [x] Admission control and telemetry are now centralized in shared resolver core; socket-layer duplicate admission gates removed.
+- [x] Per-class quotas are runtime configurable (`ResolverForwardQuota`, `ResolverReverseQuota`, `ResolverRefreshQuota`) with defaults 10/4/2.
 - [x] **Forward Lookup coverage (10/10 passing)**: `socket_connect` hostname path and `resolve()` API coverage are passing.
 - [x] **Reverse Lookup coverage (8/8 passing)**: auto reverse-refresh and manual `query_ip_name()` coverage are passing in both the current no-c-ares build and the Windows fetched-c-ares build.
 - [x] **Refresh coverage (3/3 passing)**: backend-agnostic peer refresh coverage is passing in both the current no-c-ares build and the Windows fetched-c-ares build.
@@ -247,7 +252,6 @@ The following MUST NOT occur in Stage 5:
 - [x] **Full Windows c-ares resolver matrix is green (21/21)** on `vs16-x64` with fetched c-ares.
 
 **What's Pending:**
-- [ ] Class-aware admission controls and per-class telemetry counters (currently only global + socket-owner caps from Stage 4).
 - [ ] Shared forward/reverse TTL cache and `query_ip_name()` cache ownership migration; current 64-entry round-robin cache stays in `src/comm.c` for now.
 - [ ] Assertion strengthening for resolve()/reverse tests (replace scaffolds/telemetry checks with final async contract assertions once callback semantics finalize).
 - [ ] Verify no-main-thread-blocking evidence in trace output for the c-ares backend and document the result.
@@ -273,8 +277,9 @@ Peer refresh tests are implemented and passing in both the current no-c-ares bui
    - `ScopedTestInteractiveAddr`: RAII wrapper to safely manage multiple test interactive descriptors.
    - Enables simulation of multiple concurrent peers with distinct IPs.
 
-2. **Reverse-Cache Refresh Enqueue** (backend-neutral):
-   - `addr_resolver_enqueue_reverse(cache_addr, ip_string, deadline)`: Directly enqueue a reverse-cache refresh task.
+2. **Reverse/Refresh Enqueue APIs** (backend-neutral):
+   - `addr_resolver_enqueue_reverse(cache_addr, ip_string, deadline)`: Directly enqueue reverse-cache refresh.
+   - `addr_resolver_enqueue_refresh(cache_addr, ip_string, deadline)`: Directly enqueue peer refresh.
    - Works identically on both c-ares and fallback backends.
    - No heartbeat simulation needed—tests can directly enqueue refresh requests.
 

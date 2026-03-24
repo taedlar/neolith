@@ -1191,10 +1191,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_001_BasicRefresh_EnqueueProcess
   unsigned long cache_addr = htonl((127 << 24) | (0 << 16) | (0 << 8) | 2);
   time_t deadline = time(nullptr) + 30;
 
-  ASSERT_EQ(addr_resolver_enqueue_reverse(cache_addr, "127.0.0.2", deadline), 1)
+  ASSERT_EQ(addr_resolver_enqueue_refresh(cache_addr, "127.0.0.2", deadline), 1)
     << "Enqueue should succeed";
   ASSERT_TRUE(WaitForResolverResult(&result)) << "Reverse-cache completion should be dequeued";
-  EXPECT_EQ(result.type, RESOLVER_REQ_REVERSE_CACHE);
+  EXPECT_EQ(result.type, RESOLVER_REQ_PEER_REFRESH);
   EXPECT_FALSE(result.timed_out);
   EXPECT_TRUE(result.success);
 
@@ -1225,16 +1225,16 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_002_Coalescing_MultipleIPsCoale
   unsigned long cache_addr = htonl((127 << 24) | (0 << 16) | (0 << 8) | 3);
   time_t deadline = time(nullptr) + 30;
 
-  ASSERT_EQ(addr_resolver_enqueue_reverse(cache_addr, "127.0.0.3", deadline), 1)
+  ASSERT_EQ(addr_resolver_enqueue_refresh(cache_addr, "127.0.0.3", deadline), 1)
     << "First enqueue should succeed";
-  ASSERT_EQ(addr_resolver_enqueue_reverse(cache_addr, "127.0.0.3", deadline), 1)
+  ASSERT_EQ(addr_resolver_enqueue_refresh(cache_addr, "127.0.0.3", deadline), 1)
     << "Second enqueue should succeed";
 
   int completion_count = 0;
   resolver_result_t result = {};
   for (int i = 0; i < 2; i++) {
     if (WaitForResolverResult(&result)) {
-      EXPECT_EQ(result.type, RESOLVER_REQ_REVERSE_CACHE);
+      EXPECT_EQ(result.type, RESOLVER_REQ_PEER_REFRESH);
       completion_count++;
     }
   }
@@ -1270,10 +1270,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_003_TimeoutAndCleanup_SafeState
   unsigned long cache_addr = htonl((127 << 24) | (0 << 16) | (0 << 8) | 4);
   time_t deadline = time(nullptr) + 1;
 
-  ASSERT_EQ(addr_resolver_enqueue_reverse(cache_addr, "127.0.0.4", deadline), 1)
+  ASSERT_EQ(addr_resolver_enqueue_refresh(cache_addr, "127.0.0.4", deadline), 1)
     << "Enqueue should succeed";
   ASSERT_TRUE(WaitForResolverResult(&result, 6000)) << "Reverse-cache completion should arrive";
-  EXPECT_EQ(result.type, RESOLVER_REQ_REVERSE_CACHE);
+  EXPECT_EQ(result.type, RESOLVER_REQ_PEER_REFRESH);
   EXPECT_TRUE(result.timed_out)
     << "Resolver-side delay should force the refresh deadline to expire";
   EXPECT_FALSE(result.success)
