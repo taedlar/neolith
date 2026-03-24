@@ -72,7 +72,7 @@ Non-nil return value replaces the tool result before injecting into context. All
 
 | File | Role |
 |---|---|
-| `docs/plan/agent-harness.md` | This plan |
+| `agent-harness.md` | This plan |
 | `lib/efuns/func_spec.c` | Add 6 new efun declarations |
 | `lib/efuns/agent.c` (new) | Loop, tool dispatch, async integration |
 | `lib/efuns/agent.h` (new) | Agent state struct, role/error constants |

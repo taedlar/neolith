@@ -161,7 +161,7 @@ Semantic correctness: Runtime manages async operations (lib/async), not platform
 **Solution**: Worker pool handles DNS queries, posts results to main thread
 
 **Status**: Design complete, ready for implementation (Phase 3)  
-**Design**: [async-dns-integration.md](../plan/async-dns-integration.md)
+**Design**: [async-library.md](../internals/async-library.md)
 
 **Key insight**: Multiple concurrent DNS lookups without blocking main loop.
 
@@ -273,7 +273,7 @@ Use `async_queue_get_stats()` to monitor queue health. Check for dropped message
 ## See Also
 
 ### Documentation
-- **Plans and Use Cases**: [async-support.md](../plan/async-support.md) - Design roadmap and planned use cases
+- **Architecture and Use Cases**: [async-library.md](../internals/async-library.md) - Runtime architecture and validated async patterns
 - **Design**: [async-library.md](../internals/async-library.md) - Architecture and platform implementations
 - **Integration**: [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md) - Console worker implementation
 

@@ -298,8 +298,8 @@ ctest --preset ut-linux -R "SocketEfuns"
 
 ## References
 
-- [Stage 5 Behavior Matrix](../../docs/plan/stage5-behavior-matrix.md) — Authoritative specification for shared resolver behavior with and without c-ares.
-- [Socket Operation Engine Roadmap](../../docs/plan/socket-operation-engine.md) — High-level roadmap and exit criteria.
+- [Shared Resolver Module Internals](../../docs/internals/addr-resolver.md) — Authoritative implementation and behavior reference for resolver architecture.
+- [Async Library Internals](../../docs/internals/async-library.md) — Async runtime and worker integration architecture.
 - [src/addr_resolver.cpp](../../src/addr_resolver.cpp) — Shared resolver implementation (c-ares and fallback backends).
 - [src/addr_resolver.h](../../src/addr_resolver.h) — Shared resolver public API and test hook declarations.
 - [src/comm.c](../../src/comm.c) — Socket layer and resolver integration (query_ip_name, query_addr_name).

@@ -72,7 +72,6 @@ static void get_user_data (interactive_t *, io_event_t *);
 static void query_addr_name (object_t *);
 static void process_addr_resolver_completions (void);
 static void add_ip_entry (unsigned long, const char *);
-static void reset_ip_names (void);
 static void setup_accepted_connection (port_def_t *, socket_fd_t, struct sockaddr_in *);
 static void new_user_handler (port_def_t *);
 static void receive_snoop (char *, object_t * ob);
@@ -291,7 +290,7 @@ void ipc_remove () {
         debug_error ("SOCKET_CLOSE() failed: %d", SOCKET_ERRNO);
     }
 
-  reset_ip_names ();
+  addr_resolver_cache_reset ();
   addr_resolver_deinit ();
 }
 
@@ -1971,6 +1970,25 @@ int query_addr_number (char *name, char *call_back) {
       return 0;
     }
 
+  /* Check forward DNS cache for hostname lookups (name doesn't start with digit) */
+  if (!isdigit ((unsigned char) name[0]))
+    {
+      uint32_t cached_ip = 0;
+      if (addr_resolver_forward_cache_get (name, &cached_ip))
+        {
+          char ip_str[INET_ADDRSTRLEN];
+          struct in_addr addr_tmp;
+          addr_tmp.s_addr = cached_ip;
+          inet_ntop (AF_INET, &addr_tmp, ip_str, sizeof (ip_str));
+          opt_trace (TT_COMM|3, "query_addr_number: fwd cache hit hostname=%s ip=%s", name, ip_str);
+          share_and_push_string (name);
+          share_and_push_string (ip_str);
+          apply (call_back, current_object, 2, ORIGIN_DRIVER);
+          return 0;
+        }
+      opt_trace (TT_COMM|3, "query_addr_number: fwd cache miss hostname=%s, enqueue lookup", name);
+    }
+
   request_id = addr_resolver_reserve_lookup_request (name, call_back, current_object);
   if (request_id == 0)
     {
@@ -2010,7 +2028,7 @@ process_addr_resolver_completions (void)
           result.type == RESOLVER_REQ_PEER_REFRESH)
         {
           if (result.success && !result.timed_out && strcmp (result.result, "0") != 0)
-            add_ip_entry (result.cache_addr, result.result);
+            addr_resolver_reverse_cache_add (result.cache_addr, result.result);
           continue;
         }
 
@@ -2022,6 +2040,8 @@ process_addr_resolver_completions (void)
           char *theName;
           char *theNumber;
           char number[RESOLVER_STR_MAX];
+          uint32_t resolved_ip = 0;
+          int lookup_success = 0;
 
           request = addr_resolver_get_lookup_request (result.request_id);
           if (request == NULL)
@@ -2037,11 +2057,21 @@ process_addr_resolver_completions (void)
             {
               strncpy (number, result.result, sizeof (number) - 1);
               number[sizeof (number) - 1] = '\0';
+              lookup_success = 1;
+              
+              /* Convert IP string to uint32_t for forward cache */
+              struct in_addr addr;
+              if (inet_pton(AF_INET, number, &addr) == 1)
+                resolved_ip = addr.s_addr;
             }
           else
             {
               strcpy (number, "0");
+              lookup_success = 0;
             }
+
+          /* Populate forward lookup cache via resolver API */
+          addr_resolver_forward_cache_add(request->name, resolved_ip, lookup_success);
 
           theName = request->name;
           theNumber = number;
@@ -2081,26 +2111,10 @@ process_addr_resolver_completions (void)
     }
 }
 
-#define IPSIZE 200
-typedef struct ip_name_cache_entry_s {
-  unsigned long addr;
-  char *name;
-  time_t updated_at;
-} ip_name_cache_entry_t;
-
-static ip_name_cache_entry_t ip_name_cache[IPSIZE];
-static int ip_name_cache_cursor;
-
-/**
- * @brief Return the cached name for the IP address of an interactive object.
- * If no name is cached, return the IP address as a string.
- * @param ob The interactive object. If NULL, use command_giver.
- * @return The cached name or the IP address as a string.
- */
 char *query_ip_name (object_t * ob) {
-  int i;
   time_t now;
   addr_resolver_config_t resolver_config;
+  const char *cached_name;
 
   if (ob == 0)
     ob = command_giver;
@@ -2110,64 +2124,29 @@ char *query_ip_name (object_t * ob) {
   now = time (NULL);
   addr_resolver_get_config (&resolver_config);
 
-  for (i = 0; i < IPSIZE; i++)
+  /* Check reverse cache for IP address */
+  cached_name = addr_resolver_reverse_cache_get(ob->interactive->addr.sin_addr.s_addr);
+  if (cached_name)
     {
-      if (ip_name_cache[i].addr == ob->interactive->addr.sin_addr.s_addr && ip_name_cache[i].name)
-        {
-          if (resolver_config.reverse_cache_ttl > 0 &&
-              ip_name_cache[i].updated_at > 0 &&
-              now >= ip_name_cache[i].updated_at + resolver_config.reverse_cache_ttl)
-            {
-              const char *ip;
-              ip = query_ip_number (ob);
-              if (ip != NULL && strcmp (ip, "N/A") != 0)
-                {
-                  (void) addr_resolver_enqueue_refresh (ob->interactive->addr.sin_addr.s_addr,
-                                                        ip,
-                                                        now + RESOLVER_TIMEOUT_SECONDS);
-                }
-            }
-          return (ip_name_cache[i].name);
-        }
+      opt_trace (TT_COMM|3, "query_ip_name: rev cache hit addr=%s name=%s",
+                 query_ip_number (ob), cached_name);
+      return (char *)cached_name;
     }
+
+  /* Cache miss - enqueue reverse lookup */
+  opt_trace (TT_COMM|3, "query_ip_name: rev cache miss addr=%s, enqueue reverse lookup",
+             query_ip_number (ob));
   query_addr_name (ob);
   return query_ip_number (ob); /* fallback to return IP address as string */
 }
 
 static void add_ip_entry (unsigned long addr, const char *name) {
-  int i;
-
-  for (i = 0; i < IPSIZE; i++)
-    {
-      if (ip_name_cache[i].addr == addr)
-        {
-          if (ip_name_cache[i].name)
-            free_string (ip_name_cache[i].name);
-          ip_name_cache[i].name = make_shared_string (name);
-          ip_name_cache[i].updated_at = time (NULL);
-          return;
-        }
-    }
-  ip_name_cache[ip_name_cache_cursor].addr = addr;
-  if (ip_name_cache[ip_name_cache_cursor].name)
-    free_string (ip_name_cache[ip_name_cache_cursor].name);
-  ip_name_cache[ip_name_cache_cursor].name = make_shared_string (name);
-  ip_name_cache[ip_name_cache_cursor].updated_at = time (NULL);
-  ip_name_cache_cursor = (ip_name_cache_cursor + 1) % IPSIZE;
+  /* Cache is now managed by addr_resolver; this function delegates */
+  addr_resolver_reverse_cache_add(addr, name);
 }
 
 static void reset_ip_names (void) {
-  int i;
-  for (i = 0; i < IPSIZE; i++)
-    {
-      if (ip_name_cache[i].name)
-        {
-          free_string (ip_name_cache[i].name);
-          ip_name_cache[i].name = NULL;
-        }
-      ip_name_cache[i].addr = 0;
-      ip_name_cache[i].updated_at = 0;
-    }
+  /* Cache reset is now handled by addr_resolver_cache_reset() during shutdown */
 }
 
 /**

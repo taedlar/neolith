@@ -4,6 +4,8 @@
 **Audience**: Mudlib developers implementing custom DNS resolution  
 **Availability**: Always available (no build-time feature flag required)
 
+For Stage 5 driver-managed resolver behavior (`socket_connect` hostname path, `resolve()`, `query_ip_name()`, admission policy, tracing, and telemetry), see [resolver-async-contract.md](resolver-async-contract.md).
+
 ## Overview
 
 This guide describes implementing DNS hostname resolution at the mudlib layer using LPC socket efuns (DATAGRAM mode). This approach is:
@@ -632,6 +634,6 @@ int dns_query(string hostname, ...) {
 
 ## See Also
 
-- [Socket Operation Engine Plan](../plan/socket-operation-engine.md) — Stage 4B (Mudlib DNS Track)
+- [Shared Resolver Module Internals](../internals/addr-resolver.md) — Driver-side resolver architecture and runtime behavior
 - [Async Library User Guide](./async.md) — overview of async I/O patterns
 - [Socket Efuns](../efuns/socket_create.md) — comprehensive socket efun reference

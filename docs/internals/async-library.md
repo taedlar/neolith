@@ -4,7 +4,7 @@
 **Created**: 2026-01-19  
 **Platform Support**: Windows, Linux, macOS  
 **Location**: `lib/async/`  
-**Related**: [async-use-cases.md](../plan/async-use-cases.md)
+**Related**: [addr-resolver.md](addr-resolver.md)
 
 ---
 
@@ -423,7 +423,7 @@ The async library originally planned a separate `async_notifier` component for w
 
 ### Validated Use Cases
 
-All use cases analyzed in [async-use-cases.md](../plan/async-use-cases.md) and [async-dns-integration.md](../plan/async-dns-integration.md) confirmed compatible with async_runtime architecture:
+All use cases analyzed in this document and the shared resolver internals in [addr-resolver.md](addr-resolver.md) confirmed compatible with async_runtime architecture:
 
 1. **Console Input** (HIGH PRIORITY) - Windows console with native line editing + testbot stdin
 2. **DNS Resolution** (PERFORMANCE CRITICAL) - Non-blocking `getaddrinfo()` for socket efuns
@@ -446,7 +446,7 @@ These patterns work with current API but could be packaged as convenience librar
 2. **async_channel.h** - Bidirectional communication wrapper (paired queues + workers)
 3. **async_task.h** - Cancelable tasks with standardized progress reporting
 
-See [async-use-cases.md](../plan/async-use-cases.md) for detailed evaluation. Current consensus: document patterns in user guide, implement helpers only if demand emerges.
+See this document's use-case and future-enhancement sections for detailed evaluation. Current consensus: document patterns in user guide, implement helpers only if demand emerges.
 
 ### External Application Libraries
 
@@ -471,8 +471,7 @@ Implementation deferred pending Phase 1-3 completion and mudlib developer feedba
 ## References
 
 ### Design Documents
-- [async-dns-integration.md](../plan/async-dns-integration.md) - Async DNS implementation plan
-- [async-use-cases.md](../plan/async-use-cases.md) - Extended use case validation
+- [addr-resolver.md](addr-resolver.md) - Shared resolver module internals and DNS integration behavior
 - [async-reactor-api-unification-analysis.md](async-reactor-api-unification-analysis.md) - Architectural rationale for async_runtime
 - [async-phase2-console-worker-2026-01-20.md](../history/agent-reports/async-phase2-console-worker-2026-01-20.md) - Console worker implementation (Phase 2 complete)
 
