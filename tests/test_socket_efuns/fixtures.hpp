@@ -33,7 +33,7 @@ extern "C" {
  * @param timeout_ms Maximum time to wait in milliseconds.
  * @returns true when DNS work completes, false on timeout.
  */
-static inline bool WaitForDNSCompletion(int socket_fd, int timeout_ms = 5000) {
+static inline bool WaitForDNSCompletion(int socket_id, int timeout_ms = 5000) {
   int elapsed = 0;
   const int sleep_step = 10;
 
@@ -44,7 +44,7 @@ static inline bool WaitForDNSCompletion(int socket_fd, int timeout_ms = 5000) {
     int op_terminal = 0;
     int op_id = 0;
     int op_phase = 0;
-    if (get_socket_operation_info(socket_fd, &op_active, &op_terminal,
+    if (get_socket_operation_info(socket_id, &op_active, &op_terminal,
                                   &op_id, &op_phase) == EESUCCESS) {
       if (op_terminal || op_phase != OP_DNS_RESOLVING) {
         return true;

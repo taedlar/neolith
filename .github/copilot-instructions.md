@@ -154,6 +154,16 @@ python testbot.py
 - Do not use `long` for LPC/runtime-sized values.
 - Use `int` for small counters/indices when size is clearly bounded.
 
+### Socket Descriptor Rules (Winsock Compatibility)
+- Distinguish LPC socket IDs from native OS socket descriptors:
+  - LPC socket IDs (driver-level values returned by `socket_create()` and consumed by `socket_connect()` / `socket_close()` / `get_socket_operation_info()`) use `int`.
+  - Native OS socket descriptors (values used with `socket()`, `accept()`, `select()`, `SOCKET_CLOSE`, `INVALID_SOCKET_FD`) use `socket_fd_t`.
+- Preserve API contract types: do not change LPC socket-ID function signatures from `int` to `socket_fd_t`.
+- Use naming that encodes the distinction:
+  - LPC socket ID variables/parameters: `socket_id`, `fd` (when clearly driver-level), `lpc_socket_id`.
+  - Native descriptor variables/parameters: `listener_fd`, `accepted_fd`, `native_fd`, `tracked_fd`.
+- In mixed-scope code (especially tests), avoid reusing one variable for both domains; keep one `int` LPC ID and one `socket_fd_t` native descriptor with distinct names.
+
 ### Async Runtime (Critical)
 - `async_runtime_wait()` must have exactly one caller thread: the backend/main thread.
 - Never call `async_runtime_wait()` from workers or concurrently.

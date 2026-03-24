@@ -210,7 +210,7 @@ EXPECT_EQ(result.type, RESOLVER_REQ_REVERSE_CACHE);
 EXPECT_TRUE(result.success || result.timed_out);
 ```
 
-**`WaitForDNSCompletion(int socket_fd, int timeout_ms = 5000)`**
+**`WaitForDNSCompletion(int socket_id, int timeout_ms = 5000)`**
 
 Shared helper in `fixtures.hpp` that polls DNS operation state on a socket until completion or timeout (used by socket-layer DNS tests in both extensions and resolver suites).
 

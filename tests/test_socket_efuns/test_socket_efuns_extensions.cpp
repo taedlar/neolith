@@ -134,7 +134,7 @@ public:
   }
 };
 
-bool WaitForSocketPhase(int socket_fd, int expected_phase, int timeout_ms) {
+bool WaitForSocketPhase(int socket_id, int expected_phase, int timeout_ms) {
   int elapsed = 0;
   const int sleep_step = 10;
 
@@ -146,7 +146,7 @@ bool WaitForSocketPhase(int socket_fd, int expected_phase, int timeout_ms) {
 
     handle_dns_completions();
 
-    if (get_socket_operation_info(socket_fd, &op_active, &op_terminal,
+    if (get_socket_operation_info(socket_id, &op_active, &op_terminal,
                                   &op_id, &op_phase) == EESUCCESS &&
         op_phase == expected_phase) {
       return true;
