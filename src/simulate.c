@@ -966,13 +966,6 @@ void destruct_object (object_t * ob) {
     {
       close_referencing_sockets (ob);
     }
-#ifdef PACKAGE_PARSER
-  if (ob->pinfo)
-    {
-      parse_free (ob->pinfo);
-      ob->pinfo = 0;
-    }
-#endif
 
   if (ob->flags & O_DESTRUCTED)
     {

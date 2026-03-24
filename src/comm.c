@@ -1287,10 +1287,6 @@ void new_interactive (socket_fd_t socket_fd) {
   master_ob->interactive->snoop_on = 0;
   master_ob->interactive->snoop_by = 0;
   master_ob->interactive->last_time = current_time;
-#ifdef TRACE
-  master_ob->interactive->trace_level = 0;
-  master_ob->interactive->trace_prefix = 0;
-#endif
 #ifdef OLD_ED
   master_ob->interactive->ed_buffer = 0;
 #endif
@@ -1386,10 +1382,6 @@ interactive_t* create_test_interactive (object_t *ob) {
   
 #ifdef OLD_ED
   ip->ed_buffer = NULL;
-#endif
-#ifdef TRACE
-  ip->trace_level = 0;
-  ip->trace_prefix = NULL;
 #endif
   
   /* Attach to object */

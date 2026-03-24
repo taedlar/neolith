@@ -74,9 +74,6 @@ typedef struct {
     short Default;
     short ret_type;
     char *name;
-#ifdef LPC_TO_C
-    char *routine;
-#endif
     int arg_index;
 } instr_t;
 
