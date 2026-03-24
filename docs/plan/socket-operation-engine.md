@@ -313,19 +313,19 @@ This includes:
 - **Behavior Specification**: WITH and WITHOUT c-ares operation matrices for three classes: Forward Lookup, Reverse Lookup, and Peer Refresh.
 - **Test Status** (as of 2026-03-24):
   - ✅ Forward Lookup API coverage: 10/10 tests passing (socket_connect + resolve() path)
-  - 🟡 Reverse Lookup coverage: 3/13 tests passing (auto-reverse complete, query_ip_name manual cases pending)
-  - ⏳ Peer Refresh coverage: 0/3 tests pending (requires background heartbeat simulation)
+  - ✅ Reverse Lookup coverage: 8/8 tests passing in the current no-c-ares build (auto + manual `query_ip_name()` coverage)
+  - ✅ Peer Refresh coverage: 3/3 tests passing in the current no-c-ares build
 - **Next Priorities** (SESSION-GATED):
-  1. Complete Reverse Lookup manual `query_ip_name()` tests
-  2. Implement Peer Refresh tests with coalescing
-  3. Strengthen resolve()/reverse assertions (replace scaffolds with final async contract once semantics finalize)
+  1. Run the full 21-test resolver matrix under c-ares builds
+  2. Strengthen resolve()/reverse/refresh assertions (replace scaffolds with final async contract once semantics finalize)
+  3. Finish Stage 5 telemetry, TTL-cache, and operator-documentation follow-through
 
 **Within this roadmap**, Stage 5:
 - Unifies mixed DNS workloads (socket connect, resolve(), reverse-refresh, query_ip_name) behind the async socket operation engine.
 - Retires blocking/legacy resolver paths once parity is verified.
 - Keeps build-time backend selection strictly with c-ares or without c-ares (no hybrid modes).
 
-Exit criteria (**deferred once Reverse Lookup manual + Peer Refresh parity is locked**):
+Exit criteria (**deferred once c-ares parity and remaining Stage 5 follow-through are locked**):
 - Shared resolver parity is verified across Forward Lookup, Reverse Lookup, and Peer Refresh classes.
 - Legacy address-server paths are removed.
 - Blocking `getaddrinfo()` runtime path is retired.
@@ -459,7 +459,7 @@ Tasks:
 7. Remove `addr_server_fd`, legacy lookup callback bridge, and blocking `getaddrinfo()` runtime path after parity verification.
 
 Exit criteria:
-- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) is green.
+- Shared resolver matrix (`RESOLVER_FWD_001`-`RESOLVER_FWD_010`, `RESOLVER_REV_001`-`RESOLVER_REV_008`, `RESOLVER_REFRESH_001`-`RESOLVER_REFRESH_003`) is green.
 - Stage 4 DNS behavior remains stable with c-ares-enabled builds.
 - With-c-ares and without-c-ares behavior is explicit, validated, and fully documented.
 
@@ -469,7 +469,7 @@ Exit criteria:
 
 Dependencies:
 - Milestone 5 exit criteria complete.
-- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) remains green while running hardening scenarios.
+- Shared resolver matrix (`RESOLVER_FWD_001`-`RESOLVER_FWD_010`, `RESOLVER_REV_001`-`RESOLVER_REV_008`, `RESOLVER_REFRESH_001`-`RESOLVER_REFRESH_003`) remains green while running hardening scenarios.
 
 Tasks:
 - Add targeted race and lifecycle tests:

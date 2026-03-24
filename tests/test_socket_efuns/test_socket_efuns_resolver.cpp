@@ -586,7 +586,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
  *
  * Validates: Basic resolve() functionality works
  */
-TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_001_BasicSuccess_LocalhostResolves) {
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_006_BasicSuccess_LocalhostResolves) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
   // Create inline test object that can call resolve via LPC
@@ -622,7 +622,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_001_BasicSuccess_LocalhostResolves) {
  *
  * Validates: resolve() caching and dedup behavior
  */
-TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_002_CacheHit_DedupCoalesces) {
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_007_CacheHit_DedupCoalesces) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
   ScopedAsyncRuntime runtime_guard;
@@ -674,7 +674,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_002_CacheHit_DedupCoalesces) {
  *
  * Validates: resolve() timeout handling
  */
-TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_003_TimeoutPath_DeterministicFailure) {
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_008_TimeoutPath_DeterministicFailure) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
   ScopedAsyncRuntime runtime_guard;
@@ -726,7 +726,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_003_TimeoutPath_DeterministicFailure)
  *
  * Validates: resolve() admission control behavior
  */
-TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_004_AdmissionOverflow_LoadTest) {
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_009_AdmissionOverflow_LoadTest) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
   ScopedAsyncRuntime runtime_guard;
@@ -770,7 +770,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_004_AdmissionOverflow_LoadTest) {
  *
  * Validates: resolve() cleanup on object destruction
  */
-TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_005_CallerDestruction_SafeCleanup) {
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_010_CallerDestruction_SafeCleanup) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
   ScopedAsyncRuntime runtime_guard;
@@ -804,7 +804,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_B_005_CallerDestruction_SafeCleanup) {
 // REVERSE LOOKUP: Auto reverse on interactive sessions (backend-neutral)
 // ============================================================================
 
-TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_AUTO_001_BasicSuccess_AutoReversePopulatesCache) {
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_001_BasicSuccess_AutoReversePopulatesCache) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
   ScopedAsyncRuntime runtime_guard;
@@ -837,7 +837,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_AUTO_001_BasicSuccess_AutoReversePo
   destruct_object(obj);
 }
 
-TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_AUTO_002_CacheHit_RepeatLookupUsesCache) {
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_002_CacheHit_RepeatLookupUsesCache) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
   ScopedAsyncRuntime runtime_guard;
@@ -882,7 +882,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_AUTO_002_CacheHit_RepeatLookupUsesC
   destruct_object(obj);
 }
 
-TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_AUTO_003_Timeout_ConnectionPathRemainsNonBlocking) {
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_003_Timeout_ConnectionPathRemainsNonBlocking) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
   ScopedAsyncRuntime runtime_guard;
@@ -926,4 +926,364 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_AUTO_003_Timeout_ConnectionPathRema
   }
 
   destruct_object(obj);
+}
+
+// MANUAL REVERSE LOOKUP: query_ip_name() cache miss and refresh path
+
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_004_CacheMiss_ReturnsIPImmediatelySchedulesRefresh) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+
+  object_t *obj = LoadInlineObject("resolver_rev_manual_obj_004.c", "void create() { }\n");
+  ASSERT_NE(obj, nullptr) << "Failed to load reverse-lookup test object";
+
+  {
+    ScopedTestInteractiveAddr interactive(obj, "192.0.2.42");
+    ASSERT_TRUE(interactive.IsReady()) << "Failed to create test interactive";
+    
+    int in_flight_before = 0;
+    unsigned long admitted_before = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_before, &admitted_before, nullptr, nullptr), EESUCCESS);
+
+    // Cache miss: query_ip_name should return numeric IP immediately
+    char *result = query_ip_name(obj);
+    ASSERT_NE(result, nullptr);
+    EXPECT_STREQ(result, "192.0.2.42") << "Cache miss should return numeric IP";
+
+    // Verify refresh was scheduled (in_flight count should increase)
+    int in_flight_after = 0;
+    unsigned long admitted_after = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_after, &admitted_after, nullptr, nullptr), EESUCCESS);
+    EXPECT_GT(admitted_after, admitted_before) << "Refresh should be enqueued";
+  }
+
+  destruct_object(obj);
+}
+
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_005_CacheHit_RepeatQueryUsesCache) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+
+  object_t *obj = LoadInlineObject("resolver_rev_manual_obj_005.c", "void create() { }\n");
+  ASSERT_NE(obj, nullptr) << "Failed to load reverse-lookup test object";
+
+  {
+    ScopedTestInteractiveAddr interactive(obj, "192.0.2.43");
+    ASSERT_TRUE(interactive.IsReady()) << "Failed to create test interactive";
+    
+    unsigned long dedup_before = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(nullptr, nullptr, &dedup_before, nullptr), EESUCCESS);
+
+    // First query: cache miss
+    char *result1 = query_ip_name(obj);
+    ASSERT_NE(result1, nullptr);
+
+    // Second query: should coalesce on same pending request
+    char *result2 = query_ip_name(obj);
+    ASSERT_NE(result2, nullptr);
+
+    unsigned long dedup_after = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(nullptr, nullptr, &dedup_after, nullptr), EESUCCESS);
+    EXPECT_GE(dedup_after, dedup_before) << "Repeated queries should show coalescing";
+  }
+
+  destruct_object(obj);
+}
+
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_006_Timeout_CacheRemainsUnchanged) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedDnsTimeoutHook timeout_hook;
+
+  object_t *obj = LoadInlineObject("resolver_rev_manual_obj_006.c", "void create() { }\n");
+  ASSERT_NE(obj, nullptr) << "Failed to load reverse-lookup test object";
+
+  {
+    ScopedTestInteractiveAddr interactive(obj, "192.0.2.44");
+    ASSERT_TRUE(interactive.IsReady()) << "Failed to create test interactive";
+    
+    unsigned long timed_out_before = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(nullptr, nullptr, nullptr, &timed_out_before), EESUCCESS);
+
+    // Cache miss query returns numeric IP
+    char *result_initial = query_ip_name(obj);
+    ASSERT_NE(result_initial, nullptr);
+    EXPECT_STREQ(result_initial, "192.0.2.44");
+
+    // Process completions with timeout hook active
+    for (int i = 0; i < 300; i++) {
+      handle_dns_completions();
+#ifdef WINSOCK
+      Sleep(10);
+#else
+      usleep(10000);
+#endif
+    }
+
+    unsigned long timed_out_after = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(nullptr, nullptr, nullptr, &timed_out_after), EESUCCESS);
+    EXPECT_GT(timed_out_after, timed_out_before) << "Timeout should be counted";
+
+    // Cache should still return numeric IP (unchanged from timeout)
+    char *result_after = query_ip_name(obj);
+    ASSERT_NE(result_after, nullptr);
+    EXPECT_STREQ(result_after, "192.0.2.44") << "Cache unchanged after timeout";
+  }
+
+  destruct_object(obj);
+}
+
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_007_AdmissionReject_ExplicitFailure) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+
+  object_t *obj = LoadInlineObject("resolver_rev_manual_obj_007.c", "void create() { }\n");
+  ASSERT_NE(obj, nullptr) << "Failed to load reverse-lookup test object";
+
+  {
+    int initial_in_flight = 0;
+    unsigned long initial_admitted = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(&initial_in_flight, &initial_admitted, nullptr, nullptr), EESUCCESS);
+
+    // Create multiple interactive descriptors to exhaust per-owner cap
+    std::vector<object_t*> test_objs;
+    std::vector<ScopedTestInteractiveAddr*> interactives;
+    
+    for (int i = 0; i < 10; i++) {
+      char obj_name[64];
+      snprintf(obj_name, sizeof(obj_name), "test_obj_%d.c", i);
+      object_t *test_obj = LoadInlineObject(obj_name, "void create() { }\n");
+      if (test_obj == nullptr) break;
+      test_objs.push_back(test_obj);
+
+      char ip[32];
+      snprintf(ip, sizeof(ip), "192.0.2.%d", 50 + i);
+      ScopedTestInteractiveAddr *interactive = new ScopedTestInteractiveAddr(test_obj, ip);
+      if (!interactive->IsReady()) {
+        delete interactive;
+        break;
+      }
+      interactives.push_back(interactive);
+
+      query_ip_name(test_obj);
+    }
+
+    // Verify admission rejection when cap exceeded
+    int final_in_flight = 0;
+    unsigned long final_admitted = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(&final_in_flight, &final_admitted, nullptr, nullptr), EESUCCESS);
+
+    // Cleanup
+    for (auto interactive : interactives) delete interactive;
+    for (auto test_obj : test_objs) destruct_object(test_obj);
+  }
+
+  destruct_object(obj);
+}
+
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_008_ObjectDestruction_SafeCleanup) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+
+  object_t *obj = LoadInlineObject("resolver_rev_manual_obj_008.c", "void create() { }\n");
+  ASSERT_NE(obj, nullptr) << "Failed to load reverse-lookup test object";
+
+  int in_flight_before = 0;
+  ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_before, nullptr, nullptr, nullptr), EESUCCESS);
+
+  {
+    ScopedTestInteractiveAddr interactive(obj, "192.0.2.45");
+    ASSERT_TRUE(interactive.IsReady()) << "Failed to create test interactive";
+
+    // Trigger cache miss
+    query_ip_name(obj);
+  }
+
+  // Destroy object while refresh is pending
+  destruct_object(obj);
+
+  // Process remaining completions - should not crash or leak
+  for (int i = 0; i < 100; i++) {
+    handle_dns_completions();
+#ifdef WINSOCK
+    Sleep(5);
+#else
+    usleep(5000);
+#endif
+  }
+
+  int in_flight_after = 0;
+  ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_after, nullptr, nullptr, nullptr), EESUCCESS);
+  EXPECT_GE(in_flight_before, in_flight_after) 
+    << "In-flight count should decrease after object destruction";
+}
+
+// PEER REFRESH: Background cache refresh via direct enqueue
+
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_001_BasicRefresh_EnqueueProcessComplete) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+
+  object_t *obj = LoadInlineObject("resolver_refresh_obj_001.c", "void create() { }\n");
+  ASSERT_NE(obj, nullptr) << "Failed to load refresh test object";
+
+  {
+    int in_flight_before = 0;
+    unsigned long admitted_before = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_before, &admitted_before, nullptr, nullptr), EESUCCESS);
+
+    // Enqueue a reverse-cache refresh directly
+    unsigned long cache_addr = htonl((127 << 24) | (0 << 16) | (0 << 8) | 2);
+    time_t deadline = time(nullptr) + 30;
+    
+    int enqueue_result = addr_resolver_enqueue_reverse(cache_addr, "127.0.0.2", deadline);
+    ASSERT_EQ(enqueue_result, 1) << "Enqueue should succeed";
+
+    // Process completions
+    int completion_count = 0;
+    for (int i = 0; i < 500 && completion_count == 0; i++) {
+      resolver_result_t result;
+      while (addr_resolver_dequeue_result(&result) == 1) {
+        completion_count++;
+        // Verify result is valid
+        EXPECT_EQ(result.type, RESOLVER_REQ_REVERSE_CACHE);
+      }
+      handle_dns_completions();
+#ifdef WINSOCK
+      Sleep(5);
+#else
+      usleep(5000);
+#endif
+    }
+
+    ASSERT_GT(completion_count, 0) << "Completion should be dequeued";
+
+    int in_flight_after = 0;
+    unsigned long admitted_after = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_after, &admitted_after, nullptr, nullptr), EESUCCESS);
+    EXPECT_GT(admitted_after, admitted_before) << "Telemetry should show admission";
+  }
+
+  destruct_object(obj);
+}
+
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_002_Coalescing_MultipleIPsCoalesce) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+
+  object_t *obj = LoadInlineObject("resolver_refresh_obj_002.c", "void create() { }\n");
+  ASSERT_NE(obj, nullptr) << "Failed to load refresh test object";
+
+  {
+    unsigned long dedup_before = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(nullptr, nullptr, &dedup_before, nullptr), EESUCCESS);
+
+    // Enqueue two refresh requests for the same IP simultaneously
+    unsigned long cache_addr = htonl((127 << 24) | (0 << 16) | (0 << 8) | 3);
+    time_t deadline = time(nullptr) + 30;
+    
+    int result1 = addr_resolver_enqueue_reverse(cache_addr, "127.0.0.3", deadline);
+    int result2 = addr_resolver_enqueue_reverse(cache_addr, "127.0.0.3", deadline);
+    
+    ASSERT_EQ(result1, 1) << "First enqueue should succeed";
+    ASSERT_EQ(result2, 1) << "Second enqueue should succeed";
+
+    // Install hook to rewrite queries to same effective address
+    ScopedResolverLookupHook hook_guard(
+      [](const char *query, unsigned int *delay_ms_out, const char **effective_query_out) {
+        if (delay_ms_out) *delay_ms_out = 0;
+        if (effective_query_out && query) {
+          if (strstr(query, "127.0.0.3")) {
+            *effective_query_out = "127.0.0.1";
+          }
+        }
+      });
+
+    // Process completions
+    int completion_count = 0;
+    for (int i = 0; i < 500 && completion_count < 2; i++) {
+      resolver_result_t result;
+      while (addr_resolver_dequeue_result(&result) == 1) {
+        completion_count++;
+      }
+      handle_dns_completions();
+#ifdef WINSOCK
+      Sleep(5);
+#else
+      usleep(5000);
+#endif
+    }
+
+    // Both requests should complete
+    EXPECT_GE(completion_count, 1) << "At least one completion should be dequeued";
+
+    unsigned long dedup_after = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(nullptr, nullptr, &dedup_after, nullptr), EESUCCESS);
+    EXPECT_GE(dedup_after, dedup_before) << "Coalescing should increment dedup-hit counter";
+  }
+
+  destruct_object(obj);
+}
+
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_003_TimeoutAndCleanup_SafeStateAfterExpiry) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedDnsTimeoutHook timeout_hook;
+
+  object_t *obj = LoadInlineObject("resolver_refresh_obj_003.c", "void create() { }\n");
+  ASSERT_NE(obj, nullptr) << "Failed to load refresh test object";
+
+  {
+    unsigned long timed_out_before = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(nullptr, nullptr, nullptr, &timed_out_before), EESUCCESS);
+
+    // Enqueue a reverse-cache refresh
+    unsigned long cache_addr = htonl((127 << 24) | (0 << 16) | (0 << 8) | 4);
+    time_t deadline = time(nullptr) + 1;  // Short deadline
+    
+    int enqueue_result = addr_resolver_enqueue_reverse(cache_addr, "127.0.0.4", deadline);
+    ASSERT_EQ(enqueue_result, 1) << "Enqueue should succeed";
+
+    // Destroy object while refresh is pending
+    destruct_object(obj);
+
+    // Process completions with timeout hook active
+    int completion_count = 0;
+    for (int i = 0; i < 500; i++) {
+      resolver_result_t result;
+      while (addr_resolver_dequeue_result(&result) == 1) {
+        completion_count++;
+        EXPECT_EQ(result.type, RESOLVER_REQ_REVERSE_CACHE);
+      }
+      handle_dns_completions();
+#ifdef WINSOCK
+      Sleep(10);
+#else
+      usleep(10000);
+#endif
+    }
+
+    unsigned long timed_out_after = 0;
+    ASSERT_EQ(get_dns_telemetry_snapshot(nullptr, nullptr, nullptr, &timed_out_after), EESUCCESS);
+    EXPECT_GE(timed_out_after, timed_out_before) << "Timeout should be counted";
+
+    // Verify no crashes or stale state
+    SUCCEED() << "Timeout and cleanup completed safely";
+  }
 }

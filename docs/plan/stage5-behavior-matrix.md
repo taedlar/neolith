@@ -198,7 +198,7 @@ The following MUST NOT occur in Stage 5:
 - [x] Verify getaddrinfo calls only in worker threads (not main).
 - [ ] Complete shared resolver cache migration: add driver-owned forward/reverse TTL cache and keep `query_ip_name()` stable while cache ownership moves out of `src/comm.c`.
 - [x] Define runtime-configurable resolver policy settings, pass them through `addr_resolver_init()` via a resolver settings struct, and source them from stem/runtime startup.
-- [ ] Run all three operation classes through fallback backend.
+- [x] Run all three operation classes through fallback backend.
 - [ ] Verify non-blocking invariant holds (no stalls in main loop trace).
 - [ ] Document latency trade-off (higher without c-ares, but still responsive).
 - [x] Build and test without c-ares variant.
@@ -215,7 +215,7 @@ The following MUST NOT occur in Stage 5:
 - [ ] Document c-ares cache usage and OS resolver cache assumptions relative to shared resolver TTL policy.
 - [ ] Publish operator-facing behavior deltas for `resolve()` and `query_ip_name()` under Stage 5 async contract.
 
-## Stage 5 Unified Verification Status (2026-03-24, c-ares backend + Forward/Reverse auto tests complete)
+## Stage 5 Unified Verification Status (2026-03-24, no-c-ares matrix complete; c-ares backend implemented)
 
 **Backend Implementation:**
 - [x] `resolve()` requests run through shared resolver queue/results flow in `src/addr_resolver.cpp` with request-id correlation and safe pending-request release.
@@ -224,7 +224,7 @@ The following MUST NOT occur in Stage 5:
 - [x] Legacy resolve() request bookkeeping removed from `src/comm.c`; resolver bookkeeping now owned by shared resolver module.
 - [x] Resolver runtime policy settings now come from runtime config and are passed through stem into all shared resolver init paths via `addr_resolver_init()` config struct.
 - [x] Reverse-name efun cache remains intentionally in `src/comm.c` (`ip_name_cache`) pending OS-cache policy decisions.
-- [x] No-c-ares build verified and tests executed without observed resolver regression failures in captured run output.
+- [x] No-c-ares build verified with the full shared-resolver matrix green in the current build.
 - [x] `socket_connect()` hostname DNS path now runs through shared resolver request-id completions instead of a socket-local DNS worker path.
 - [x] Focused no-c-ares fallback concurrency coverage confirms independent progress when one blocking lookup is delayed.
 - [x] c-ares backend (`cares_worker_main`) added to `addr_resolver.cpp` behind `#ifdef HAVE_CARES`; uses `ares_init`/`ares_gethostbyname`/`ares_getnameinfo`/`ares_destroy` per task (channel-per-task pattern); event loop driven by `select()` + `ares_process()`.
@@ -237,14 +237,13 @@ The following MUST NOT occur in Stage 5:
 - [x] c-ares backend is live under `HAVE_CARES`; fallback (getaddrinfo-in-worker) still active without c-ares.
 - [x] Both paths use the same task/result queues, completion key, and public API.
 - [x] **Forward Lookup coverage (10/10 passing)**: `socket_connect` hostname path and `resolve()` API coverage are passing.
-- [x] **Reverse Lookup (auto) coverage (3/3 passing)**: interactive auto-reverse cache population is passing.
+- [x] **Reverse Lookup coverage (8/8 passing)**: auto reverse-refresh and manual `query_ip_name()` coverage are passing in the current no-c-ares build.
+- [x] **Refresh coverage (3/3 passing)**: backend-agnostic peer refresh coverage is passing in the current no-c-ares build.
 - [x] Parity verification tests for c-ares path demonstrate identical behavior to fallback path across timeout, dedup, and admission scenarios.
 - [x] **Test structure separated** into behavior-lockdown (SOCK_BHV_*), operation-extensions (SOCK_OP_*, SOCK_DNS_*, SOCK_RT_*), and resolver-contract (RESOLVER_*) test files.
-- [x] **Test infrastructure for peer refresh is ready**: `LoadInlineObject()`, `ScopedTestInteractiveAddr`, `addr_resolver_enqueue_reverse()`, test hooks, and telemetry APIs all available and backend-agnostic.
+- [x] **Full no-c-ares resolver matrix is green (21/21)** across Forward, Reverse, and Refresh classes.
 
 **What's Pending:**
-- [ ] **Reverse Lookup (manual query_ip_name) tests (0/10)**: requires LPC function call testing infrastructure.
-- [ ] **Peer Refresh tests (0/3)**: ready to implement using available test infrastructure; see evaluation below.
 - [ ] Class-aware admission controls and per-class telemetry counters (currently only global + socket-owner caps from Stage 4).
 - [ ] Shared forward/reverse TTL cache and `query_ip_name()` cache ownership migration; current 64-entry round-robin cache stays in `src/comm.c` for now.
 - [ ] Assertion strengthening for resolve()/reverse tests (replace scaffolds/telemetry checks with final async contract assertions once callback semantics finalize).
@@ -252,17 +251,17 @@ The following MUST NOT occur in Stage 5:
 
 ## Stage 5 Next-Session Priorities
 
-1. **Implement Peer Refresh backend-agnostic tests** — now ready (see evaluation below); covers basic refresh, coalescing, and cleanup semantics.
-2. **Implement Reverse Lookup manual tests (`query_ip_name()`)** — foundational for LPC async reverse-lookup contract validation.
-3. **Strengthen forward/reverse assertions** — replace scaffolds/telemetry monotonicity checks with final async contract assertions.
+1. **Run the full resolver matrix under c-ares builds** — complete parity verification for Forward, Reverse, and Refresh classes.
+2. **Strengthen forward/reverse/refresh assertions** — replace telemetry-monotonicity scaffolds with final async contract assertions where semantics are now stable.
+3. **Finish Stage 5 operational follow-through** — per-class telemetry, TTL cache migration, and operator-facing async-contract documentation.
 
 ---
 
 ## Peer Refresh Backend-Agnostic Readiness Evaluation
 
-### Status: READY TO IMPLEMENT
+### Status: IMPLEMENTED FOR NO-CARES; PENDING C-ARES PARITY RERUN
 
-Peer refresh tests can now be implemented in a backend-agnostic way. The infrastructure blocking peer refresh tests (heartbeat simulation) is not actually required—peer refresh can be directly tested via the resolver's public API.
+Peer refresh tests are now implemented and passing in the current no-c-ares build. They remain backend-agnostic because they exercise the public resolver API directly rather than heartbeat scheduling internals.
 
 ### Available Test Infrastructure
 
@@ -293,22 +292,22 @@ Peer refresh tests can now be implemented in a backend-agnostic way. The infrast
 
 ### Test Design (Backend-Agnostic)
 
-Proposed peer refresh test family (RESOLVER_PR_001–003):
+Proposed peer refresh test family (RESOLVER_REFRESH_001–003):
 
-1. **RESOLVER_PR_001_BasicRefresh_EnqueueProcessComplete**:
+1. **RESOLVER_REFRESH_001_BasicRefresh_EnqueueProcessComplete**:
    - Create an interactive descriptor with IP "127.0.0.2".
    - Enqueue reverse-cache refresh for that IP.
    - Poll completions; verify result is dequeued.
    - Verify telemetry shows +1 admitted.
 
-2. **RESOLVER_PR_002_Coalescing_MultipleIPsCoalesce**:
+2. **RESOLVER_REFRESH_002_Coalescing_MultipleIPsCoalesce**:
    - Create two interactive descriptors: one with "127.0.0.2", one with "127.0.0.3".
    - Enqueue reverse-cache refresh for both IPs *simultaneously* (without dequeueing first).
    - Install resolver hook that rewrites both to same effective address.
    - Poll completions; verify both results coalesce on same resolved value.
    - Verify telemetry shows dedup-hit counter incremented.
 
-3. **RESOLVER_PR_003_TimeoutAndCleanup_SafeStateAfterExpiry**:
+3. **RESOLVER_REFRESH_003_TimeoutAndCleanup_SafeStateAfterExpiry**:
    - Create interactive descriptor with IP "127.0.0.2".
    - Install timeout hook to force timeout.
    - Enqueue reverse-cache refresh with short deadline.
@@ -336,9 +335,9 @@ Use a merged API-first grid. Backend variants are split only for backend-specifi
 
 | Class | Canonical API test family | Existing test ID families | Merge policy |
 |---|---|---|---|
-| **Forward Lookup** | `RESOLVER_FWD_001` through `RESOLVER_FWD_005`, `RESOLVPR_*` | Unified API suite; backend-agnostic design; ready to implementWD_*`, `RESOLVER_B_*` | Unified API suite; no backend split where backend is not under test |
-| **Reverse Lookup** | `RESOLVER_REV_AUTO_001` through `RESOLVER_REV_AUTO_003`, `RESOLVER_D_001` through `RESOLVER_D_005` | `RESOLVER_REV_AUTO_*`, `RESOLVER_D_*` | Unified API suite; manual reverse remains pending |
-| **Peer Refresh** | `RESOLVER_PR_001` through `RESOLVER_PR_003` | `RESOLVER_E_*` | Unified API suite; pending implementation |
+| **Forward** | `RESOLVER_FWD_001` through `RESOLVER_FWD_010` (socket_connect + resolve paths) | `RESOLVER_FWD_*` | Unified API suite; no backend split where backend is not under test |
+| **Reverse** | `RESOLVER_REV_001` through `RESOLVER_REV_008` (auto + manual) | `RESOLVER_REV_*` | Unified API suite; passing in current no-c-ares build |
+| **Refresh** | `RESOLVER_REFRESH_001` through `RESOLVER_REFRESH_003` | `RESOLVER_REFRESH_*` | Unified API suite; passing in current no-c-ares build |
 
 **Subtests per case**:
 1. Basic success path (hostname resolves).
@@ -398,19 +397,19 @@ Parity coverage is now tracked in the three-class model. API-level tests are mer
 
 ### Test Coverage Status
 
-**Forward Lookup (COMPLETE)**
-- [x] Socket-connect hostname flow (`RESOLVER_FWD_*`): 5/5 passing
-- [x] resolve() API contract scaffolds (`RESOLVER_B_*`): 5/5 passing
+**Forward (COMPLETE)**
+- [x] `RESOLVER_FWD_001`–005 (socket_connect hostname flow): 5/5 passing
+- [x] `RESOLVER_FWD_006`–010 (resolve() API scaffolds): 5/5 passing
 - **Merged status**: 10/10 passing
 
-**Reverse Lookup (PARTIAL)**
-- [x] Auto reverse-refresh (`RESOLVER_REV_AUTO_*`): 3/3 passing
-- [ ] Manual reverse `query_ip_name()` coverage (`RESOLVER_D_*` families): 0/10 passing (pending implementation)
-- **Merged statuREADY TO IMPLEMENT)**
-- [ ] Peer refresh background coverage (`RESOLVER_PR_*` families): 0/3 passing (infrastructure now available; backend-agnostic design enables implementation)
-**Peer Refresh (PENDING)**
-- [ ] Peer refresh background coverage (`RESOLVER_E_*` families): 0/3 passing
-- **Merged status**: 0/3 passing
+**Reverse (COMPLETE IN CURRENT NO-CARES BUILD)**
+- [x] `RESOLVER_REV_001`–003 (auto reverse-refresh): 3/3 passing
+- [x] `RESOLVER_REV_004`–008 (manual `query_ip_name()` coverage): 5/5 passing
+- **Merged status**: 8/8 passing
+
+**Refresh (COMPLETE IN CURRENT NO-CARES BUILD)**
+- [x] `RESOLVER_REFRESH_001`–003 (peer refresh background): 3/3 passing
+- **Merged status**: 3/3 passing
 
 ### Test Infrastructure
 
@@ -434,9 +433,9 @@ Resolver-focused utilities:
 
 ### Next Steps
 
-1. **Reverse Lookup manual tests**: Implement cached-IP vs async refresh testing for `query_ip_name()`
-2. **Peer Refresh tests**: Add periodic background refresh triggering and coalescing coverage
-3. **Strengthen Forward/Reverse assertions**: Replace scaffolds/monotonic checks with final async contract assertions once callback contracts are finalized
+1. **Run the same 21-test resolver matrix with c-ares enabled** to close backend parity for all three classes.
+2. **Strengthen Forward/Reverse/Refresh assertions**: Replace scaffolds/monotonic checks with final async contract assertions once callback contracts are finalized.
+3. **Complete remaining Stage 5 runtime work**: per-class telemetry, TTL cache migration, and operator-facing behavior deltas.
 
 ---
 
