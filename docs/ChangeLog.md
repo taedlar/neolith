@@ -2,6 +2,38 @@
 
 ## neolith-1.0.0-alpha (unreleased)
 
+### 1.0.0-alpha.8 — 2026-03-25
+
+#### Changes since 1.0.0-alpha.7
+
+##### Features
+- f6be500 feat: add PACKAGE_SOCKETS cmake option (#309)
+- dcdd4ce feat: shared resolver admission control (#307)
+- b8ea5fc feat: implement c-ares backed shared resolver with tests (#306)
+- 2951ac1 feat: add dns lookup cache for shared resolver (#305)
+- cf69a0f feat: add resolver worker pool to prevent head-of-line (#304)
+- 77d1999 feat: implement shared resolver for no c-ares case (#303)
+- 6b1f998 feat: import or fetch c-ares (#300)
+- eefcfc3 feat: async reverse dns resolver (#298)
+- 53bf590 feat: align socket efuns with lib/async (#296)
+- 67a018a feat: more socket efun behavior tests (#295)
+- 9313e38 feat: echo/single-char handling on windows console mode (#294)
+- 2bf4ea6 feat: add socket efun unit-tests (#293)
+- 5e20cf5 feat: add cmake variable FETCH_CURL_FROM_SOURCE (#291)
+- 85659df feat: add cmake variable FETCH_OPENSSL_FROM_SOURCE (#290)
+- bbb9ac2 feat: archive agent reports to avoid RAG noise (#287)
+
+##### Bug Fixes
+- 2faae00 fix: resolved design decisions of shared resolver (#302)
+- 60c457a fix: socket_connect() DNS option (#301)
+
+##### Documentation
+- b518e94 doc: shared resolver and socket efuns (#308)
+
+##### Other
+- 307e9c0 ai: add prompt for release (#310)
+- a4f9cca agent: condense instructions (#288)
+
 ### 1.0.0-alpha.7 — 2026-03-09
 
 #### Changes since 1.0.0-alpha.6
