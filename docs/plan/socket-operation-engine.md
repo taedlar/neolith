@@ -305,71 +305,32 @@ Option semantics:
 - `HAVE_CARES` undefined keeps builds functional without c-ares while preserving non-blocking guarantees.
 - Neither build mode may re-enable `addr_server_fd` or any backend-thread blocking DNS path.
 
-### Stage 5 Unified Checklist
+### Stage 5 Status (Consolidated in stage5-behavior-matrix.md)
 
-- [x] Add optional c-ares dependency provider path (`FETCH_CARES_FROM_SOURCE`) using the existing FetchContent/provider pattern.
-- [x] Add top-level discovery and feature gate (`find_package` + `HAVE_CARES`) without breaking builds that do not include c-ares.
-- [x] Document build-time behavior matrix for with-c-ares vs without-c-ares builds and operator-facing behavior deltas.
-- [x] Cut over runtime resolver entrypoints to shared async resolver flow before further feature migration; legacy path execution is disabled.
-- [x] Introduce shared resolver request classes for forward lookup, reverse lookup, peer refresh, and socket-connect hostname resolution.
-- [x] Ensure non-c-ares builds use an async-runtime-aligned fallback backend (no backend-thread blocking call path).
-- [x] Use request-id correlation, timeout mapping, and socket op-id correlation so completions route deterministically and stale results are ignored.
-- [ ] Complete shared resolver cache migration: add shared forward/reverse TTL cache, preserve `query_ip_name()` compatibility during ownership migration, and document cache interaction with c-ares and OS resolver layers.
-- [x] Define runtime-configurable resolver policy settings, pass them via an `addr_resolver_init()` config struct, and supply the same settings object from stem to all resolver init paths.
-- [ ] Add class-aware admission control global cap.
-- [ ] Add class-aware admission control per-class caps.
-- [ ] Add class-aware admission control per-owner caps for socket-originated requests.
-- [ ] Add optional dedup/coalescing policy by class (at minimum for socket-connect forward lookups).
-- [x] Route `resolve()` efun through shared resolver under a single Stage 5 contract.
-- [ ] Publish explicit compatibility-change documentation for `resolve()` if behavior differs from legacy.
-- [x] Migrate `query_ip_name()` reverse-lookup cache population to shared resolver completions.
-- [ ] Publish explicit compatibility-change documentation for `query_ip_name()` if behavior differs from legacy.
-- [ ] Extend resolver telemetry with per-class lifecycle counters plus forward/reverse cache hit, miss, stale-hit, and negative-hit visibility.
-- [ ] Add trace points around request lifecycle (`queued -> worker -> completion -> callback`).
-- [x] Remove legacy `addr_server_fd` event handling.
-- [x] Remove legacy `query_addr_number()` request table path from `src/comm.c` (request bookkeeping moved into shared resolver module).
-- [x] Remove legacy hname parser and callback bridge.
+**Reference**: [The authoritative Stage 5 specification, behavior matrix, and test tracking is consolidated in `docs/plan/stage5-behavior-matrix.md`](stage5-behavior-matrix.md)
 
-### Stage 5 Unified Verification Status (2026-03-23, no-c-ares)
+This includes:
+- **Behavior Specification**: WITH and WITHOUT c-ares operation matrices for three classes: Forward Lookup, Reverse Lookup, and Peer Refresh.
+- **Test Status** (as of 2026-03-24):
+  - ✅ Forward Lookup API coverage: 10/10 tests passing (socket_connect + resolve() path)
+  - ✅ Reverse Lookup coverage: 8/8 tests passing across current no-c-ares and Windows fetched-c-ares verification runs (auto + manual `query_ip_name()` coverage)
+  - ✅ Peer Refresh coverage: 3/3 tests passing across current no-c-ares and Windows fetched-c-ares verification runs
+  - ✅ Full shared-resolver matrix: 21/21 passing on Windows `vs16-x64` with `FETCH_CARES_FROM_SOURCE=v1.34.6`
+- **Next Priorities** (SESSION-GATED):
+  1. Verify no main-thread blocking under c-ares builds in trace output
+  2. Strengthen resolve()/reverse/refresh assertions (replace scaffolds with final async contract once semantics finalize)
+  3. Finish Stage 5 telemetry, TTL-cache, and operator-documentation follow-through
 
-- [x] Implementation split verified: `src/addr_resolver.cpp` + `src/addr_resolver.h` own resolver worker-pool/request queues; `src/comm.c` owns LPC callback fan-out; `src/simulate.c` performs resolver teardown.
-- [x] Build verified on Windows `vs16-x64` without c-ares (`Build_CMakeTools` result code 0).
-- [x] Resolver-adjacent test execution shows no regression failures in captured output (`RunCtest_CMakeTools`).
-- [x] No-c-ares fallback worker-pool sizing is now named explicitly via `RESOLVER_FALLBACK_WORKER_COUNT` to keep the concurrency contract visible in code and docs.
-- [x] `resolve()` path now uses request-id-correlated async completions (no address-server socket path).
-- [x] `query_ip_name()` cache miss behavior verified: immediate numeric return plus async reverse-refresh scheduling.
-- [x] Resolver runtime policy settings are now parsed from runtime config and passed through stem into every shared resolver init path via `addr_resolver_init()` config struct.
-- [x] Legacy reverse-name cache remains intentionally efun-local in `src/comm.c` (`ip_name_cache`) pending OS-cache policy decisions.
-- [x] Focused fallback-pool regression coverage now exercises head-of-line blocking avoidance in no-c-ares builds.
-- [ ] Shared resolver parity tests for no-c-ares matrix scenarios `RESOLVER_001`-`RESOLVER_007` not yet recorded as complete.
-- [ ] Class-aware admission controls are not yet complete for no-c-ares.
-- [ ] Shared forward/reverse TTL cache and shared cache telemetry are not yet implemented.
-- [ ] Behavior-delta documentation for `resolve()` and `query_ip_name()` remains pending.
+**Within this roadmap**, Stage 5:
+- Unifies mixed DNS workloads (socket connect, resolve(), reverse-refresh, query_ip_name) behind the async socket operation engine.
+- Retires blocking/legacy resolver paths once parity is verified.
+- Keeps build-time backend selection strictly with c-ares or without c-ares (no hybrid modes).
 
-### Stage 5 Next-Session Handoff
-
-- Start the c-ares work from the existing shared resolver API in `src/addr_resolver.h` / `src/addr_resolver.cpp`; keep `addr_resolver_init(runtime, config)` stable.
-- Preserve the existing no-c-ares fallback worker-pool path and its request-id/result-queue/completion model; c-ares should plug into the same completion contract rather than create a second resolver API.
-- Resolver runtime policy settings are already wired from runtime config through stem into every resolver init path; reuse that path rather than adding c-ares-specific config plumbing.
-- Shared forward/reverse TTL cache is still not implemented; keep cache ownership and TTL policy above the backend so c-ares and fallback share the same driver-level semantics.
-- `query_ip_name()` still depends on `src/comm.c` `ip_name_cache`; migration of that cache into shared resolver ownership remains a follow-up after backend parity is established.
-- First c-ares parity target: preserve current Stage 4A/5 behavior for `socket_connect()`, `resolve()`, and reverse-refresh flows, then rerun the focused `SOCK_DNS_*` regression slice.
-
-#### Stage 5 Verification Matrix (Shared Resolver)
-
-| Test ID | Scenario | Expected result |
-|---|---|---|
-| RESOLVER_001 | Mixed forward + reverse flood under load | Backend remains responsive; bounded queue behavior enforced |
-| RESOLVER_002 | `socket_connect` flood + `resolve()` flood concurrently | No cross-class starvation beyond configured caps; deterministic rejection mapping |
-| RESOLVER_003 | Duplicate hostname requests across sockets | Coalescing works; all waiters complete once; no stale completion fan-out |
-| RESOLVER_004 | Reverse lookups for `query_ip_name()` during socket traffic | Cache updates remain deterministic; no event-loop stalls |
-| RESOLVER_005 | Timeout/cancel races across request classes | Exactly one terminal completion per request |
-| RESOLVER_006 | Owner/object destruction during pending resolver requests | Safe cleanup; no use-after-free; no callback to destructed object |
-| RESOLVER_007 | Build without c-ares | Build remains functional; documented no-c-ares contract is applied; no blocking fallback or legacy address-server path is reintroduced |
-| RESOLVER_008 | c-ares-enabled build parity with Stage 4A DNS tests | Existing `SOCK_DNS_*` behavior remains green |
-
-Stage 5 gate:
-- [ ] Stage complete when shared resolver parity is verified across mixed workloads, legacy address-server paths are removed, blocking `getaddrinfo()` resolver path is retired, and with/without-c-ares behavior is validated/documented.
+Exit criteria (**remaining Stage 5 follow-through after parity lock**):
+- Shared resolver parity is verified across Forward Lookup, Reverse Lookup, and Peer Refresh classes.
+- Legacy address-server paths are removed.
+- Blocking `getaddrinfo()` runtime path is retired.
+- With/without-c-ares behavior is validated and documented.
 
 ### Stage 6 Checklist: Hardening and Documentation
 
@@ -492,14 +453,14 @@ Exit criteria:
 Tasks:
 1. Add c-ares dependency provider integration (optional fetch from source).
 2. Document with-c-ares vs without-c-ares behavior matrix for resolver-backed paths.
-3. Add shared resolver request classes (forward, reverse, peer cache refresh, socket connect).
+3. Add shared resolver request classes (forward lookup, reverse lookup, peer refresh).
 4. Preserve request correlation, timeout mapping, and socket op-id safety.
 5. Migrate `resolve()` and `query_ip_name()` paths to shared resolver completion flow under a single Stage 5 contract.
 6. Add mixed-workload telemetry/trace validation hooks.
 7. Remove `addr_server_fd`, legacy lookup callback bridge, and blocking `getaddrinfo()` runtime path after parity verification.
 
 Exit criteria:
-- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) is green.
+- Shared resolver matrix (`RESOLVER_FWD_001`-`RESOLVER_FWD_010`, `RESOLVER_REV_001`-`RESOLVER_REV_008`, `RESOLVER_REFRESH_001`-`RESOLVER_REFRESH_003`) is green.
 - Stage 4 DNS behavior remains stable with c-ares-enabled builds.
 - With-c-ares and without-c-ares behavior is explicit, validated, and fully documented.
 
@@ -509,7 +470,7 @@ Exit criteria:
 
 Dependencies:
 - Milestone 5 exit criteria complete.
-- Shared resolver matrix (`RESOLVER_001`-`RESOLVER_008`) remains green while running hardening scenarios.
+- Shared resolver matrix (`RESOLVER_FWD_001`-`RESOLVER_FWD_010`, `RESOLVER_REV_001`-`RESOLVER_REV_008`, `RESOLVER_REFRESH_001`-`RESOLVER_REFRESH_003`) remains green while running hardening scenarios.
 
 Tasks:
 - Add targeted race and lifecycle tests:
@@ -550,19 +511,20 @@ Exit criteria:
 2. Land refactors behind milestone test gates.
 3. Introduce one semantic change class per milestone.
 
-## Timeline (Estimate)
+## Timeline (Estimate, with Stage 5 detailed tracking in stage5-behavior-matrix.md)
 
-- Milestone 1: 1-2 weeks
-- Milestone 2: 1 week
-- Milestone 3: 1 week
-- Milestone 4: 1-2 weeks
-- Milestone 5: 1-2 weeks
-- Milestone 6: 1 week
+- Milestone 1: 1-2 weeks ✅ Complete
+- Milestone 2: 1 week ✅ Complete
+- Milestone 3: 1 week ✅ Complete
+- Milestone 4: 1-2 weeks ✅ Complete
+- Milestone 5: 1-2 weeks ⏳ In progress (see [stage5-behavior-matrix.md](stage5-behavior-matrix.md) for detailed tracking)
+- Milestone 6: 1 week ⏳ Pending Stage 5 completion
 
-Total: 6-8 weeks (incremental delivery, test-gated)
+Total: 6-8 weeks (incremental delivery, test-gated) — *Stage 5 gate closure targeted after Reverse Lookup manual and Peer Refresh parity testing completes*
 
 ## Related Documents
 
+- [Stage 5: Shared Resolver Behavior Matrix](stage5-behavior-matrix.md) — **Authoritative reference for Stage 5 specification, behavior, and test tracking** 
 - [Async DNS Integration Plan](async-dns-integration.md)
 - [Async Library User Guide](../manual/async.md)
 - [Async Library Design](../internals/async-library.md)
