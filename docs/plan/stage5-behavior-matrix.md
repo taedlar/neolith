@@ -209,13 +209,13 @@ The following MUST NOT occur in Stage 5:
 - [ ] Add resolver telemetry and verification for per-class lifecycle counters plus forward/reverse cache hit, miss, stale-hit, and negative-hit behavior.
 - [x] Verify no stale completion fan-out (request-id correlation).
 - [x] Disable legacy `addr_server_fd` runtime path and legacy hname bridge.
-- [ ] Test all three operation classes under c-ares backend.
+- [x] Test all three operation classes under c-ares backend.
 - [ ] Verify no main-thread blocking in trace output for c-ares backend.
 - [x] Route socket-connect DNS path through the same shared resolver request classes used by `resolve()` and reverse-refresh.
 - [ ] Document c-ares cache usage and OS resolver cache assumptions relative to shared resolver TTL policy.
 - [ ] Publish operator-facing behavior deltas for `resolve()` and `query_ip_name()` under Stage 5 async contract.
 
-## Stage 5 Unified Verification Status (2026-03-24, no-c-ares matrix complete; c-ares backend implemented)
+## Stage 5 Unified Verification Status (2026-03-24, no-c-ares and Windows c-ares matrices complete)
 
 **Backend Implementation:**
 - [x] `resolve()` requests run through shared resolver queue/results flow in `src/addr_resolver.cpp` with request-id correlation and safe pending-request release.
@@ -230,6 +230,8 @@ The following MUST NOT occur in Stage 5:
 - [x] c-ares backend (`cares_worker_main`) added to `addr_resolver.cpp` behind `#ifdef HAVE_CARES`; uses `ares_init`/`ares_gethostbyname`/`ares_getnameinfo`/`ares_destroy` per task (channel-per-task pattern); event loop driven by `select()` + `ares_process()`.
 - [x] `ares_library_init`/`ares_library_cleanup` called at `addr_resolver_init`/`addr_resolver_deinit` from main thread.
 - [x] Build with `HAVE_CARES` (Ubuntu `libc-ares-dev`) succeeds; 174/174 tests pass on Linux Debug config.
+- [x] Windows `vs16-x64` build with `FETCH_CARES_FROM_SOURCE=v1.34.6` succeeds; full shared-resolver matrix passes 21/21 under fetched c-ares.
+- [x] Resolver-contract harness now initializes the shared resolver explicitly in isolated tests, making backend parity runs deterministic across direct reverse/refresh API coverage.
 
 ## Stage 5 Completion Summary (2026-03-24 updated)
 
@@ -237,21 +239,22 @@ The following MUST NOT occur in Stage 5:
 - [x] c-ares backend is live under `HAVE_CARES`; fallback (getaddrinfo-in-worker) still active without c-ares.
 - [x] Both paths use the same task/result queues, completion key, and public API.
 - [x] **Forward Lookup coverage (10/10 passing)**: `socket_connect` hostname path and `resolve()` API coverage are passing.
-- [x] **Reverse Lookup coverage (8/8 passing)**: auto reverse-refresh and manual `query_ip_name()` coverage are passing in the current no-c-ares build.
-- [x] **Refresh coverage (3/3 passing)**: backend-agnostic peer refresh coverage is passing in the current no-c-ares build.
-- [x] Parity verification tests for c-ares path demonstrate identical behavior to fallback path across timeout, dedup, and admission scenarios.
+- [x] **Reverse Lookup coverage (8/8 passing)**: auto reverse-refresh and manual `query_ip_name()` coverage are passing in both the current no-c-ares build and the Windows fetched-c-ares build.
+- [x] **Refresh coverage (3/3 passing)**: backend-agnostic peer refresh coverage is passing in both the current no-c-ares build and the Windows fetched-c-ares build.
+- [x] Parity verification tests for c-ares path demonstrate identical behavior to fallback path across timeout, dedup, admission, reverse-cache, and refresh scenarios.
 - [x] **Test structure separated** into behavior-lockdown (SOCK_BHV_*), operation-extensions (SOCK_OP_*, SOCK_DNS_*, SOCK_RT_*), and resolver-contract (RESOLVER_*) test files.
 - [x] **Full no-c-ares resolver matrix is green (21/21)** across Forward, Reverse, and Refresh classes.
+- [x] **Full Windows c-ares resolver matrix is green (21/21)** on `vs16-x64` with fetched c-ares.
 
 **What's Pending:**
 - [ ] Class-aware admission controls and per-class telemetry counters (currently only global + socket-owner caps from Stage 4).
 - [ ] Shared forward/reverse TTL cache and `query_ip_name()` cache ownership migration; current 64-entry round-robin cache stays in `src/comm.c` for now.
 - [ ] Assertion strengthening for resolve()/reverse tests (replace scaffolds/telemetry checks with final async contract assertions once callback semantics finalize).
-- [ ] Windows c-ares support validation: may require `ares_getsock()` instead of `ares_fds()` + `select()` if default channel mode doesn't use file descriptors.
+- [ ] Verify no-main-thread-blocking evidence in trace output for the c-ares backend and document the result.
 
 ## Stage 5 Next-Session Priorities
 
-1. **Run the full resolver matrix under c-ares builds** — complete parity verification for Forward, Reverse, and Refresh classes.
+1. **Verify no main-thread blocking under c-ares in trace output** — close the remaining backend-runtime evidence gap now that parity is green.
 2. **Strengthen forward/reverse/refresh assertions** — replace telemetry-monotonicity scaffolds with final async contract assertions where semantics are now stable.
 3. **Finish Stage 5 operational follow-through** — per-class telemetry, TTL cache migration, and operator-facing async-contract documentation.
 
@@ -259,9 +262,9 @@ The following MUST NOT occur in Stage 5:
 
 ## Peer Refresh Backend-Agnostic Readiness Evaluation
 
-### Status: IMPLEMENTED FOR NO-CARES; PENDING C-ARES PARITY RERUN
+### Status: IMPLEMENTED AND PARITY-VERIFIED
 
-Peer refresh tests are now implemented and passing in the current no-c-ares build. They remain backend-agnostic because they exercise the public resolver API directly rather than heartbeat scheduling internals.
+Peer refresh tests are implemented and passing in both the current no-c-ares build and the Windows fetched-c-ares build. They remain backend-agnostic because they exercise the public resolver API directly rather than heartbeat scheduling internals.
 
 ### Available Test Infrastructure
 

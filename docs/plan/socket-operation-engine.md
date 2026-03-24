@@ -313,10 +313,11 @@ This includes:
 - **Behavior Specification**: WITH and WITHOUT c-ares operation matrices for three classes: Forward Lookup, Reverse Lookup, and Peer Refresh.
 - **Test Status** (as of 2026-03-24):
   - ✅ Forward Lookup API coverage: 10/10 tests passing (socket_connect + resolve() path)
-  - ✅ Reverse Lookup coverage: 8/8 tests passing in the current no-c-ares build (auto + manual `query_ip_name()` coverage)
-  - ✅ Peer Refresh coverage: 3/3 tests passing in the current no-c-ares build
+  - ✅ Reverse Lookup coverage: 8/8 tests passing across current no-c-ares and Windows fetched-c-ares verification runs (auto + manual `query_ip_name()` coverage)
+  - ✅ Peer Refresh coverage: 3/3 tests passing across current no-c-ares and Windows fetched-c-ares verification runs
+  - ✅ Full shared-resolver matrix: 21/21 passing on Windows `vs16-x64` with `FETCH_CARES_FROM_SOURCE=v1.34.6`
 - **Next Priorities** (SESSION-GATED):
-  1. Run the full 21-test resolver matrix under c-ares builds
+  1. Verify no main-thread blocking under c-ares builds in trace output
   2. Strengthen resolve()/reverse/refresh assertions (replace scaffolds with final async contract once semantics finalize)
   3. Finish Stage 5 telemetry, TTL-cache, and operator-documentation follow-through
 
@@ -325,7 +326,7 @@ This includes:
 - Retires blocking/legacy resolver paths once parity is verified.
 - Keeps build-time backend selection strictly with c-ares or without c-ares (no hybrid modes).
 
-Exit criteria (**deferred once c-ares parity and remaining Stage 5 follow-through are locked**):
+Exit criteria (**remaining Stage 5 follow-through after parity lock**):
 - Shared resolver parity is verified across Forward Lookup, Reverse Lookup, and Peer Refresh classes.
 - Legacy address-server paths are removed.
 - Blocking `getaddrinfo()` runtime path is retired.
