@@ -310,25 +310,23 @@ Option semantics:
 **Reference**: [The authoritative Stage 5 specification, behavior matrix, and test tracking is consolidated in `docs/plan/stage5-behavior-matrix.md`](stage5-behavior-matrix.md)
 
 This includes:
-- **Behavior Specification**: WITH and WITHOUT c-ares operation matrices for Classes A-E (forward lookup, resolve(), reverse cache population, query_ip_name, peer refresh).
+- **Behavior Specification**: WITH and WITHOUT c-ares operation matrices for three classes: Forward Lookup, Reverse Lookup, and Peer Refresh.
 - **Test Status** (as of 2026-03-24):
-  - ✅ CLASS A: 10/10 tests passing (5 c-ares + 5 fallback parity)
-  - ✅ CLASS B: 5/5 tests passing (async callback scaffolds)
-  - ✅ CLASS C: 6/6 tests passing (auto-reverse on connect, 3 c-ares + 3 fallback)
-  - ⏳ CLASS D: 0/10 tests pending (query_ip_name manual, requires LPC function infrastructure)
-  - ⏳ CLASS E: 0/3 tests pending (peer refresh, requires background heartbeat simulation)
+  - ✅ Forward Lookup API coverage: 10/10 tests passing (socket_connect + resolve() path)
+  - 🟡 Reverse Lookup coverage: 3/13 tests passing (auto-reverse complete, query_ip_name manual cases pending)
+  - ⏳ Peer Refresh coverage: 0/3 tests pending (requires background heartbeat simulation)
 - **Next Priorities** (SESSION-GATED):
-  1. Implement CLASS D tests (query_ip_name manual reverse lookup)
-  2. Implement CLASS E tests (peer refresh with coalescing)
-  3. Strengthen B/C assertions (replace scaffolds with final async contract once semantics finalize)
+  1. Complete Reverse Lookup manual `query_ip_name()` tests
+  2. Implement Peer Refresh tests with coalescing
+  3. Strengthen resolve()/reverse assertions (replace scaffolds with final async contract once semantics finalize)
 
 **Within this roadmap**, Stage 5:
 - Unifies mixed DNS workloads (socket connect, resolve(), reverse-refresh, query_ip_name) behind the async socket operation engine.
 - Retires blocking/legacy resolver paths once parity is verified.
 - Keeps build-time backend selection strictly with c-ares or without c-ares (no hybrid modes).
 
-Exit criteria (**deferred once CLASS D/E parity is locked**):
-- Shared resolver parity is verified across all five operation classes.
+Exit criteria (**deferred once Reverse Lookup manual + Peer Refresh parity is locked**):
+- Shared resolver parity is verified across Forward Lookup, Reverse Lookup, and Peer Refresh classes.
 - Legacy address-server paths are removed.
 - Blocking `getaddrinfo()` runtime path is retired.
 - With/without-c-ares behavior is validated and documented.
@@ -454,7 +452,7 @@ Exit criteria:
 Tasks:
 1. Add c-ares dependency provider integration (optional fetch from source).
 2. Document with-c-ares vs without-c-ares behavior matrix for resolver-backed paths.
-3. Add shared resolver request classes (forward, reverse, peer cache refresh, socket connect).
+3. Add shared resolver request classes (forward lookup, reverse lookup, peer refresh).
 4. Preserve request correlation, timeout mapping, and socket op-id safety.
 5. Migrate `resolve()` and `query_ip_name()` paths to shared resolver completion flow under a single Stage 5 contract.
 6. Add mixed-workload telemetry/trace validation hooks.
@@ -521,7 +519,7 @@ Exit criteria:
 - Milestone 5: 1-2 weeks ⏳ In progress (see [stage5-behavior-matrix.md](stage5-behavior-matrix.md) for detailed tracking)
 - Milestone 6: 1 week ⏳ Pending Stage 5 completion
 
-Total: 6-8 weeks (incremental delivery, test-gated) — *Stage 5 gate closure targeted after CLASS D/E parity testing completes*
+Total: 6-8 weeks (incremental delivery, test-gated) — *Stage 5 gate closure targeted after Reverse Lookup manual and Peer Refresh parity testing completes*
 
 ## Related Documents
 
