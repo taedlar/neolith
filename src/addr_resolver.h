@@ -83,6 +83,12 @@ typedef struct {
   unsigned long timed_out;
   unsigned long completed;
   unsigned long failed;
+
+  unsigned long fwd_cache_hit;          /**< Forward cache hits (fresh, success) */
+  unsigned long fwd_cache_miss;         /**< Forward cache misses (not found or TTL expired) */
+  unsigned long fwd_cache_negative_hit; /**< Negative forward cache hits (failed lookup still fresh) */
+  unsigned long rev_cache_hit;          /**< Reverse cache hits (fresh) */
+  unsigned long rev_cache_miss;         /**< Reverse cache misses (not found or TTL expired) */
 } resolver_telemetry_t;
 
 /** Result produced by the resolver worker for one task. */
@@ -206,6 +212,42 @@ int addr_resolver_get_dns_telemetry_snapshot (int *in_flight,
 
 /** @brief Fetch full resolver telemetry counters. */
 void addr_resolver_get_telemetry (resolver_telemetry_t *out);
+
+/**
+ * @brief Lookup a hostname in the forward DNS cache.
+ * @param hostname     The hostname string to lookup.
+ * @param ip_out       Pointer to receive resolved IPv4 address (host byte order) on cache hit.
+ * @returns 1 if found and not expired, 0 otherwise (cache miss or expired).
+ */
+int addr_resolver_forward_cache_get (const char *hostname, uint32_t *ip_out);
+
+/**
+ * @brief Add or update a hostname entry in the forward DNS cache.
+ * @param hostname     The hostname key.
+ * @param ip_address   The resolved IPv4 address (0 for failed/negative caching).
+ * @param success      1 for successful lookup, 0 for failed lookup (negative cache).
+ */
+void addr_resolver_forward_cache_add (const char *hostname, uint32_t ip_address, int success);
+
+/**
+ * @brief Lookup an IP address in the reverse DNS cache.
+ * @param addr_in_network_order  IPv4 address in network byte order.
+ * @returns Pointer to cached hostname string, or NULL if not cached/expired.
+ */
+const char *addr_resolver_reverse_cache_get (unsigned long addr_in_network_order);
+
+/**
+ * @brief Add or update an IP entry in the reverse DNS cache.
+ * @param addr_in_network_order  IPv4 address in network byte order.
+ * @param hostname               The hostname to cache.
+ */
+void addr_resolver_reverse_cache_add (unsigned long addr_in_network_order, const char *hostname);
+
+/**
+ * @brief Clear both forward and reverse DNS caches.
+ * Called during shutdown/cleanup.
+ */
+void addr_resolver_cache_reset (void);
 
 #ifdef __cplusplus
 }

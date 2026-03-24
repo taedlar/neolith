@@ -411,6 +411,6 @@ Test validation: All 26 socket tests pass; SOCK_DNS_001/002 enabled, SOCK_DNS_00
 ## References
 
 - [async_runtime library design](../../../docs/internals/async-library.md)
-- [Socket operation engine Stage 4A plan](../../../docs/plan/socket-operation-engine.md#stage-4a-hostname-resolution)
+- [Shared resolver module internals](../../../docs/internals/addr-resolver.md)
 - Queue and worker API: [lib/async/async_runtime.h](../../../lib/async/async_runtime.h)
 

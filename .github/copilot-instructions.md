@@ -3,7 +3,7 @@
 ## Project Overview
 Neolith is a minimalist LPMud driver forked from MudOS v22pre5, modernizing decades-old C/C++ code while maintaining compatibility with the LPC (Lars Pensjö C) scripting language used by MUD builders.
 
-**Development Priorities**: Stability, LPC compatibility, documentation, and incremental modernization (Boost, OpenSSL, CURL). See [docs/plan/](docs/plan/) for active feature plans.
+**Development Priorities**: Stability, LPC compatibility, documentation, and incremental modernization (Boost, OpenSSL, CURL). See [docs/internals/](docs/internals/) for persistent architecture and design references.
 
 **When adding features or refactoring**: Prioritize decisions that preserve LPC behavior and performance, favor portable C++ (Linux + Windows/MSVC/Clang), and maintain the single-threaded backend design.
 
@@ -31,7 +31,7 @@ Neolith is a minimalist LPMud driver forked from MudOS v22pre5, modernizing deca
 - [docs/manual/dev.md](docs/manual/dev.md) — developer setup, build, and run guide
 
 **Planning & History** (active work context)
-- [docs/plan/](docs/plan/) — feature design plans with staged implementation status
+- [docs/internals/](docs/internals/) — persistent feature architecture and subsystem design references
 - [docs/history/](docs/history/) — active implementation reports (recent changes, may cause regressions)
 - [docs/ChangeLog.md](docs/ChangeLog.md) — release-level change summaries
 
@@ -154,6 +154,16 @@ python testbot.py
 - Do not use `long` for LPC/runtime-sized values.
 - Use `int` for small counters/indices when size is clearly bounded.
 
+### Socket Descriptor Rules (Winsock Compatibility)
+- Distinguish LPC socket IDs from native OS socket descriptors:
+  - LPC socket IDs (driver-level values returned by `socket_create()` and consumed by `socket_connect()` / `socket_close()` / `get_socket_operation_info()`) use `int`.
+  - Native OS socket descriptors (values used with `socket()`, `accept()`, `select()`, `SOCKET_CLOSE`, `INVALID_SOCKET_FD`) use `socket_fd_t`.
+- Preserve API contract types: do not change LPC socket-ID function signatures from `int` to `socket_fd_t`.
+- Use naming that encodes the distinction:
+  - LPC socket ID variables/parameters: `socket_id`, `fd` (when clearly driver-level), `lpc_socket_id`.
+  - Native descriptor variables/parameters: `listener_fd`, `accepted_fd`, `native_fd`, `tracked_fd`.
+- In mixed-scope code (especially tests), avoid reusing one variable for both domains; keep one `int` LPC ID and one `socket_fd_t` native descriptor with distinct names.
+
 ### Async Runtime (Critical)
 - `async_runtime_wait()` must have exactly one caller thread: the backend/main thread.
 - Never call `async_runtime_wait()` from workers or concurrently.
@@ -201,17 +211,22 @@ python testbot.py
    */
   ```
 - Write docs in Markdown under [docs/](docs/) (GitHub Flavored Markdown).
-- Keep **current-state docs** in [docs/manual/](docs/manual/) and [docs/internals/](docs/internals/) accurate as code evolves.
-  - Emphasize design rationale (why), architecture, and integration patterns; avoid duplicating implementation details.
-  - Link to source instead of copying code.
-- Start feature work with a design plan in [docs/plan/](docs/plan/).
-  - Use staged status (`not started`, `in progress`, `complete`) when work spans multiple phases.
-- Keep active implementation reports in [docs/history/](docs/history/) as concise Markdown summaries.
-  - Report what changed and current status; avoid code dumps, test logs, and step-by-step tutorials.
-- Promote stable results to [docs/manual/](docs/manual/) or [docs/internals/](docs/internals/), then close and archive plan/report artifacts.
-  - Archive reports as `hN.zip` in [docs/history/](docs/history/) and roll over to a new archive when the current one exceeds 1 MB.
-  - Add a one-line archive summary in [docs/ChangeLog.md](docs/ChangeLog.md).
-- For releases, update [docs/ChangeLog.md](docs/ChangeLog.md) with concise summaries linked to plans, internals, and archives.
+- Keep **permanent-state docs** in [docs/manual/](docs/manual/) and [docs/internals/](docs/internals/) accurate as code evolves.
+  - Manuals are for operators and mudlib developers (coding in LPC); internals are for driver developers (coding in C/C++).
+  - **docs/manual style**: Avoid explaining driver implementations in C/C++ terms; focus on behavior, contracts, and examples in LPC terms.
+  - **docs/manual style**: Use code snippets to illustrate behavior, not to document implementation.
+  - **docs/internals style**: Emphasize design rationale (why), architecture, and integration patterns; avoid duplicating implementation details.
+  - **docs/internals style**: Link to source instead of copying code.
+- **IMPORTANT**: Start feature work with a plan document in [docs/plan/](docs/plan/) to track design decisions, implementation status, and handoff instructions. Update the plan as work progresses and archive when complete.
+  - Use staged status (`not started`, `in progress`, `complete`) when work spans multiple stages. Keep the status updated and visible at the top of the document.
+  - If the a stage contains a long checklist, ask for user confirmation before breaking it down into sub-stages with their own status tracking.
+  - **NO PERMANENT CROSS REFERENCES**: plan documents must be treated as temporary that will be archived or deleted in a future commit. Do not link to them from permanent docs or source code.
+  - Permanent-state docs can be created during implementation only after user confirmation, and must be kept concise and focused on behavior and contracts, not implementation details. Permanent docs should not link to plan documents.
+  - **HANDOFFS** after implementation starts, plan documents should include clear handoff instructions in a top-level heading "Current State Handoff" near top of the document. Keep handoffs up-to-date whenever implementation status changes.
+  - **LESSONS LEARNED**: add a "Lessons Learned" section to the plan document when implementation is completed with insights that may be useful for this plan. Place this section after handoffs and read it before implementing things.
+- When you are required to archive a plan:
+  - Ask for user confirmation before archiving any plan document. Show descriptive information, not the archiving action.
+  - To archive a plan, add the plan doc to `hN.zip` in [docs/history/](docs/history/) and roll over to a new archive when the current one exceeds 1 MB. Delete the original plan doc after archiving.
 
 ### Documentation Best Practices
 1. Keep docs concise and structured for retrieval (clear headings, tables, and short bullet lists).

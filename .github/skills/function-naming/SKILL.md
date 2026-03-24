@@ -211,7 +211,7 @@ int has_write_prompt_apply(object_t *ob);
 void cache_write_prompt_apply(object_t *ob, int exists);
 ```
 
-**Rationale**: These describe object program attributes but are currently stored on `interactive_t` (technical debt). Names emphasize caching behavior so they work regardless of future storage location. See [docs/plan/object-apply-flags-analysis.md](../../docs/plan/object-apply-flags-analysis.md).
+**Rationale**: These describe object program attributes but are currently stored on `interactive_t` (technical debt). Names emphasize caching behavior so they work regardless of future storage location. See [docs/internals/lpc-program.md](../../docs/internals/lpc-program.md).
 
 ## Refactoring Guidance
 

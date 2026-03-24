@@ -1075,7 +1075,23 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
           }
       }
 
-    /* If we detected a hostname and feature is enabled, queue DNS work asynchronously */
+    /* Check forward DNS cache before queueing resolver work */
+    if (is_hostname)
+      {
+        uint32_t cached_ip = 0;
+        if (addr_resolver_forward_cache_get (addr, &cached_ip))
+          {
+            opt_trace (TT_COMM|3, "socket_connect: fwd cache hit hostname=%s port=%ld", addr, port_num);
+            lpc_socks[i].r_addr.sin_family = AF_INET;
+            lpc_socks[i].r_addr.sin_addr.s_addr = cached_ip;
+            lpc_socks[i].r_addr.sin_port = htons ((uint16_t)port_num);
+            is_hostname = 0; /* resolved from cache; fall through to numeric connect */
+          }
+        else
+          opt_trace (TT_COMM|3, "socket_connect: fwd cache miss hostname=%s port=%ld", addr, port_num);
+      }
+
+    /* If still a hostname (cache miss), queue DNS work asynchronously */
     if (is_hostname)
       {
         if (!start_socket_operation (i, current_object, 0))
@@ -1109,8 +1125,10 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
       }
   }
 
-  /* Non-hostname path: resolve address synchronously (numeric IPv4 only) */
-  if (!socket_name_to_sin (name, &lpc_socks[i].r_addr))
+  /* Non-hostname path: resolve address synchronously (numeric IPv4 only).
+   * Skip if r_addr was already populated from the forward DNS cache. */
+  if (lpc_socks[i].r_addr.sin_family == 0 &&
+      !socket_name_to_sin (name, &lpc_socks[i].r_addr))
     return EEBADADDR;
 
   set_read_callback (i, read_callback);
@@ -2440,6 +2458,13 @@ void dump_socket_status (outbuffer_t * out) {
     outbuf_addv (out, "  Completed successfully: %lu\n", telemetry.completed);
     outbuf_addv (out, "  Failed (not timed out): %lu\n", telemetry.failed);
     outbuf_addv (out, "  Timed out: %lu\n", telemetry.timed_out);
+
+    outbuf_add (out, "\nDNS Cache Statistics:\n");
+    outbuf_addv (out, "  Forward cache hits: %lu\n", telemetry.fwd_cache_hit);
+    outbuf_addv (out, "  Forward cache misses: %lu\n", telemetry.fwd_cache_miss);
+    outbuf_addv (out, "  Forward cache negative hits: %lu\n", telemetry.fwd_cache_negative_hit);
+    outbuf_addv (out, "  Reverse cache hits: %lu\n", telemetry.rev_cache_hit);
+    outbuf_addv (out, "  Reverse cache misses: %lu\n", telemetry.rev_cache_miss);
   }
 }
 

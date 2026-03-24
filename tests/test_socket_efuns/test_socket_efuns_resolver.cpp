@@ -2,6 +2,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <chrono>
+
 #include "fixtures.hpp"
 
 extern "C" {
@@ -9,70 +11,7 @@ extern "C" {
 #include "stem.h"
 }
 
-extern "C" void handle_dns_completions(void);
-extern "C" void set_socket_dns_timeout_test_hook(int (*hook)(int, const char *, uint16_t));
-extern "C" int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
-                                           unsigned long *timed_out);
-extern "C" void addr_resolver_set_lookup_test_hook(void (*hook)(const char *, unsigned int *, const char **));
-extern "C" char *query_ip_name(object_t *ob);
-
-extern "C" int get_socket_operation_info(int socket_id,
-                                         int* op_active, int* op_terminal,
-                                         int* op_id, int* op_phase);
-
 namespace {
-
-bool WaitForDNSCompletion(int socket_fd, int timeout_ms = 5000) {
-  int elapsed = 0;
-  const int sleep_step = 10;
-
-  while (elapsed < timeout_ms) {
-    handle_dns_completions();
-
-    int op_active = 0;
-    int op_terminal = 0;
-    int op_id = 0;
-    int op_phase = 0;
-    if (get_socket_operation_info(socket_fd, &op_active, &op_terminal,
-                                  &op_id, &op_phase) == EESUCCESS) {
-      if (op_terminal || op_phase != OP_DNS_RESOLVING) {
-        return true;
-      }
-    }
-
-#ifdef WINSOCK
-    Sleep(sleep_step);
-#else
-    usleep(sleep_step * 1000);
-#endif
-    elapsed += sleep_step;
-  }
-
-  return false;
-}
-
-bool WaitForQueryIpNameChange(object_t *obj, const char *original_value, int timeout_ms = 5000) {
-  int elapsed = 0;
-  const int sleep_step = 10;
-
-  while (elapsed < timeout_ms) {
-    handle_dns_completions();
-
-    char *current = query_ip_name(obj);
-    if (current != nullptr && strcmp(current, original_value) != 0) {
-      return true;
-    }
-
-#ifdef WINSOCK
-    Sleep(sleep_step);
-#else
-    usleep(sleep_step * 1000);
-#endif
-    elapsed += sleep_step;
-  }
-
-  return false;
-}
 
 bool WaitForResolverResult(resolver_result_t *out, int timeout_ms = 5000) {
   int elapsed = 0;
@@ -1280,4 +1219,132 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_003_TimeoutAndCleanup_SafeState
     << "Timed-out refresh should not report a successful hostname refresh";
 
   destruct_object(obj);
+}
+
+// ============================================================================
+// NON-BLOCKING INVARIANT: Main-thread blocking verification
+// ============================================================================
+
+/**
+ * RESOLVER_NOBLOCK_001: Enqueue is non-blocking — returns before worker resolves
+ *
+ * Setup: Delay hook set to 500 ms for the test hostname
+ * Action: Enqueue a forward lookup and measure time of enqueue call
+ * Expected:
+ *   - Enqueue returns in < 50 ms (proving main thread was not blocked)
+ *   - Result eventually arrives after the delay (proving worker did the work)
+ *
+ * Validates: Non-blocking invariant holds regardless of resolver backend
+ */
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_NOBLOCK_001_EnqueueIsNonBlocking) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for this test";
+
+  /* Install a 500 ms delay hook so the worker takes measurable time */
+  ScopedResolverLookupHook hook_guard(
+    [](const char *query, unsigned int *delay_ms_out, const char **effective_query_out) {
+      if (delay_ms_out != nullptr && query != nullptr &&
+          strcmp(query, "resolver-noblock-test.local") == 0)
+        *delay_ms_out = 500;
+      if (effective_query_out != nullptr && query != nullptr &&
+          strcmp(query, "resolver-noblock-test.local") == 0)
+        *effective_query_out = "127.0.0.1";
+    });
+
+  int request_id = addr_resolver_reserve_lookup_request(
+    "resolver-noblock-test.local", "noblock_callback", master_ob);
+  ASSERT_NE(request_id, 0) << "Failed to reserve lookup request slot";
+
+  auto t0 = std::chrono::steady_clock::now();
+  int enqueued = addr_resolver_enqueue_lookup(
+    request_id, "resolver-noblock-test.local", time(nullptr) + RESOLVER_TIMEOUT_SECONDS);
+  auto t1 = std::chrono::steady_clock::now();
+  double elapsed_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+
+  ASSERT_NE(enqueued, 0)
+    << "Enqueue should succeed (resolver not saturated)";
+
+  /* Main-thread non-blocking invariant: enqueue must return well before worker delay */
+  EXPECT_LT(elapsed_ms, 50.0)
+    << "addr_resolver_enqueue_lookup must return quickly (<50 ms); "
+       "actual=" << elapsed_ms << " ms — main thread may be blocking";
+
+  /* Worker must eventually deliver the result (delayed by hook) */
+  resolver_result_t result = {};
+  ASSERT_TRUE(WaitForResolverResult(&result, 3000))
+    << "Delayed lookup result should arrive within 3 s";
+
+  EXPECT_EQ(result.request_id, request_id)
+    << "Result request_id must match the enqueued request";
+
+  /* Release any un-collected request slot */
+  addr_resolver_release_lookup_request(request_id);
+}
+
+/**
+ * RESOLVER_CACHE_001: Forward cache hit bypasses DNS worker in socket_connect
+ *
+ * Setup: Pre-populate forward cache with "testcache.local" -> 127.0.0.1
+ * Action: socket_connect with that hostname; verify no DNS enqueue occurs
+ * Expected:
+ *   - Connect immediately proceeds to numeric-connect path (no OP_DNS_RESOLVING phase)
+ *   - admitted counter does NOT increase (no worker task queued)
+ *   - Forward cache hit counter increases
+ */
+TEST_F(SocketEfunsBehaviorTest, RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWorker) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+
+  ScopedAsyncRuntime runtime_guard;
+  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for this test";
+  ScopedObjectContext ctx(this, master_ob);
+
+  /* Pre-populate forward cache: testcache.local -> 127.0.0.1 */
+  struct in_addr cached_addr;
+  inet_pton(AF_INET, "127.0.0.1", &cached_addr);
+  addr_resolver_forward_cache_add("testcache.local", cached_addr.s_addr, 1);
+
+  svalue_t read_cb;
+  svalue_t write_cb;
+  read_cb.type = T_STRING;
+  read_cb.subtype = STRING_SHARED;
+  read_cb.u.string = make_shared_string("read_callback");
+  write_cb.type = T_STRING;
+  write_cb.subtype = STRING_SHARED;
+  write_cb.u.string = make_shared_string("write_callback");
+
+  int in_flight = 0;
+  unsigned long admitted_before = 0;
+  unsigned long dedup = 0;
+  unsigned long timed_out = 0;
+  ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted_before, &dedup, &timed_out), EESUCCESS);
+
+  resolver_telemetry_t tel_before = {};
+  addr_resolver_get_telemetry(&tel_before);
+
+  int fd = socket_create(STREAM, &read_cb, nullptr);
+  ASSERT_GE(fd, 0) << "Failed to create stream socket";
+
+  /* Connect with a hostname that is in the forward cache */
+  int result = socket_connect(fd, (char *)"testcache.local 8899", &read_cb, &write_cb);
+  /* Should not be in DNS_RESOLVING phase — cache hit goes straight to connect */
+  EXPECT_NE(result, EERESOLVERBUSY)
+    << "Cache hit path should not report resolver busy";
+
+  /* Verify admitted count did NOT increase — no DNS worker was enqueued */
+  unsigned long admitted_after = 0;
+  ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted_after, &dedup, &timed_out), EESUCCESS);
+  EXPECT_EQ(admitted_after, admitted_before)
+    << "Forward cache hit must not enqueue a DNS worker task";
+
+  /* Verify forward cache hit counter increased */
+  resolver_telemetry_t tel_after = {};
+  addr_resolver_get_telemetry(&tel_after);
+  EXPECT_GT(tel_after.fwd_cache_hit, tel_before.fwd_cache_hit)
+    << "fwd_cache_hit counter must increment on forward cache hit";
+
+  socket_close(fd, 1);
+  free_string(read_cb.u.string);
+  free_string(write_cb.u.string);
 }

@@ -300,6 +300,7 @@ static void clear_lookup_request_entry(int index)
  * Worker thread
  * ========================================================================= */
 
+#ifndef HAVE_CARES
 static void *resolver_worker_main(void *arg)
 {
   async_queue_t  *task_queue = static_cast<async_queue_t *>(arg);
@@ -432,6 +433,7 @@ static void *resolver_worker_main(void *arg)
 
   return nullptr;
 }
+#endif /* !HAVE_CARES */
 
 #ifdef HAVE_CARES
 
@@ -975,6 +977,207 @@ addr_resolver_get_telemetry(resolver_telemetry_t *out)
 
   std::lock_guard<std::mutex> guard(s_stats_mutex);
   *out = s_telemetry;
+}
+
+/**
+ * @brief Reverse lookup cache: IP address -> hostname with TTL support.
+ * Used by query_ip_name() to cache reverse DNS lookups.
+ */
+#define REVERSE_CACHE_SIZE 200
+typedef struct reverse_cache_entry_s {
+  unsigned long addr;
+  char *name;
+  time_t updated_at;
+} reverse_cache_entry_t;
+
+static reverse_cache_entry_t s_reverse_cache[REVERSE_CACHE_SIZE];
+static int s_reverse_cache_cursor = 0;
+
+/**
+ * @brief Forward lookup cache: hostname -> IP address with TTL support.
+ * Caches both successful and failed lookups (for negative caching).
+ */
+#define FORWARD_CACHE_SIZE 200
+typedef struct forward_cache_entry_s {
+  char *hostname;
+  uint32_t ip_address;
+  time_t updated_at;
+  int success;
+} forward_cache_entry_t;
+
+static forward_cache_entry_t s_forward_cache[FORWARD_CACHE_SIZE];
+static int s_forward_cache_cursor = 0;
+
+int
+addr_resolver_forward_cache_get(const char *hostname, uint32_t *ip_out)
+{
+  int i;
+  time_t now;
+  addr_resolver_config_t config;
+
+  if (!hostname || !ip_out)
+    return 0;
+
+  now = time(NULL);
+  addr_resolver_get_config(&config);
+
+  for (i = 0; i < FORWARD_CACHE_SIZE; i++)
+    {
+      if (s_forward_cache[i].hostname &&
+          strcmp(s_forward_cache[i].hostname, hostname) == 0)
+        {
+          time_t age = now - s_forward_cache[i].updated_at;
+          int active_ttl = s_forward_cache[i].success 
+                             ? config.forward_cache_ttl 
+                             : config.negative_cache_ttl;
+
+          if (active_ttl > 0 && age >= active_ttl)
+            return 0; /* TTL expired */
+
+          if (s_forward_cache[i].success)
+            {
+              *ip_out = s_forward_cache[i].ip_address;
+              s_telemetry.fwd_cache_hit++;
+              return 1; /* Cache hit */
+            }
+          else
+            {
+              s_telemetry.fwd_cache_negative_hit++;
+              return 0; /* Negative cache hit - not found */
+            }
+        }
+    }
+
+  s_telemetry.fwd_cache_miss++;
+  return 0; /* Cache miss */
+}
+
+void
+addr_resolver_forward_cache_add(const char *hostname, uint32_t ip_address, int success)
+{
+  int i;
+
+  if (!hostname || strlen(hostname) == 0)
+    return;
+
+  /* Check if hostname already exists; update in place */
+  for (i = 0; i < FORWARD_CACHE_SIZE; i++)
+    {
+      if (s_forward_cache[i].hostname &&
+          strcmp(s_forward_cache[i].hostname, hostname) == 0)
+        {
+          s_forward_cache[i].ip_address = ip_address;
+          s_forward_cache[i].success = success;
+          s_forward_cache[i].updated_at = time(NULL);
+          return;
+        }
+    }
+
+  /* Find first empty slot and add */
+  i = s_forward_cache_cursor;
+  if (s_forward_cache[i].hostname)
+    free_string(s_forward_cache[i].hostname);
+
+  s_forward_cache[i].hostname = make_shared_string(hostname);
+  s_forward_cache[i].ip_address = ip_address;
+  s_forward_cache[i].success = success;
+  s_forward_cache[i].updated_at = time(NULL);
+
+  s_forward_cache_cursor = (s_forward_cache_cursor + 1) % FORWARD_CACHE_SIZE;
+}
+
+const char *
+addr_resolver_reverse_cache_get(unsigned long addr_in_network_order)
+{
+  int i;
+  time_t now;
+  addr_resolver_config_t config;
+
+  now = time(NULL);
+  addr_resolver_get_config(&config);
+
+  for (i = 0; i < REVERSE_CACHE_SIZE; i++)
+    {
+      if (s_reverse_cache[i].addr == addr_in_network_order && s_reverse_cache[i].name)
+        {
+          if (config.reverse_cache_ttl > 0 &&
+              s_reverse_cache[i].updated_at > 0 &&
+              now >= s_reverse_cache[i].updated_at + config.reverse_cache_ttl)
+            {
+              return NULL; /* TTL expired */
+            }
+          s_telemetry.rev_cache_hit++;
+          return s_reverse_cache[i].name; /* Cache hit */
+        }
+    }
+
+  s_telemetry.rev_cache_miss++;
+  return NULL; /* Cache miss */
+}
+
+void
+addr_resolver_reverse_cache_add(unsigned long addr_in_network_order, const char *hostname)
+{
+  int i;
+
+  if (!hostname || strlen(hostname) == 0 || strcmp(hostname, "0") == 0)
+    return;
+
+  /* Check if address already exists; update in place */
+  for (i = 0; i < REVERSE_CACHE_SIZE; i++)
+    {
+      if (s_reverse_cache[i].addr == addr_in_network_order)
+        {
+          if (s_reverse_cache[i].name)
+            free_string(s_reverse_cache[i].name);
+          s_reverse_cache[i].name = make_shared_string(hostname);
+          s_reverse_cache[i].updated_at = time(NULL);
+          return;
+        }
+    }
+
+  /* Find first empty slot and add */
+  i = s_reverse_cache_cursor;
+  s_reverse_cache[i].addr = addr_in_network_order;
+  if (s_reverse_cache[i].name)
+    free_string(s_reverse_cache[i].name);
+  s_reverse_cache[i].name = make_shared_string(hostname);
+  s_reverse_cache[i].updated_at = time(NULL);
+
+  s_reverse_cache_cursor = (s_reverse_cache_cursor + 1) % REVERSE_CACHE_SIZE;
+}
+
+void
+addr_resolver_cache_reset(void)
+{
+  int i;
+
+  /* Reset forward cache */
+  for (i = 0; i < FORWARD_CACHE_SIZE; i++)
+    {
+      if (s_forward_cache[i].hostname)
+        {
+          free_string(s_forward_cache[i].hostname);
+          s_forward_cache[i].hostname = NULL;
+        }
+      s_forward_cache[i].ip_address = 0;
+      s_forward_cache[i].updated_at = 0;
+      s_forward_cache[i].success = 0;
+    }
+  s_forward_cache_cursor = 0;
+
+  /* Reset reverse cache */
+  for (i = 0; i < REVERSE_CACHE_SIZE; i++)
+    {
+      if (s_reverse_cache[i].name)
+        {
+          free_string(s_reverse_cache[i].name);
+          s_reverse_cache[i].name = NULL;
+        }
+      s_reverse_cache[i].addr = 0;
+      s_reverse_cache[i].updated_at = 0;
+    }
+  s_reverse_cache_cursor = 0;
 }
 
 } /* extern "C" */
