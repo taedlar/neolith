@@ -2293,11 +2293,7 @@ static program_t *epilog ()
     }
 #endif
 #ifdef BINARIES
-  if ((pragmas & PRAGMA_SAVE_BINARY)
-#ifdef LPC_TO_C
-      || compile_to_c
-#endif
-    )
+  if ((pragmas & PRAGMA_SAVE_BINARY))
     {
       save_binary (prog, &mem_block[A_INCLUDES], &mem_block[A_PATCH]);
     }

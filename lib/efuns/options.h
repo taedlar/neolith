@@ -1,110 +1,13 @@
-/*
- * options.h: defines for the compile-time configuration of the MudOS driver
- */
-
-#ifndef _OPTIONS_H_
-#define _OPTIONS_H_
-
-/****************************************************************************
- * EVERY time you change ANYTHING in this file, RECOMPILE from scratch.     *
- * (type "make clean" then "make" on a UNIX system) Failure to do so may    *
- * cause the driver to behave oddly.                                        *
- ****************************************************************************/
-
-/* NOTES:
- * Many of the configurable options are now set via the configuration file
- *  that is specified as the first argument to the driver.
- * See port.h for those #defines related to portability (compatibility) if
- *  you have problems compiling on your system.
- * Removing an efun from func_spec.c usually removes most, if not all,
- *  of the code associated with it.
- */
-
-/****************************************************************************
- *                              MALLOC                                      *
- *                             --------                                     *
- * for performance reasons, LP drivers have a variety of memory allocation  *
- * packages.  If you don't care, use the default one on your system:        *
- * #define SYSMALLOC, #undef the others.                                    *
- ****************************************************************************/
-
-/* You must choose exactly one of these malloc packages:
- *     ~~~~
- * SYSMALLOC:
- *   * Built-in system malloc.
- *   * No statistics.
- *   * SYSMALLOC incurs no additional CPU or memory overhead.
+/**
+ * options.h
  *
- * SMALLOC:
- *   * Satoria's smalloc.
- *   * Statistics available. (see wrappers and DO_MSTATS)
- *   * Faster than most system mallocs with modest ammount of memory overhead.
- *   * Can fall back onto system malloc if sbrk() not ok.
- *
- * BSDMALLOC:
- *   * BSD (Berkeley Software Distributions) malloc.
- *   * Statistics available. (see wrappers and DO_MSTATS)
- *   * Faster than SMALLOC but more memory overhead.
- *   * Requires sbrk().
+ * Defines for the legacy compile-time configurations of the MudOS driver.
+ * Several options have been removed either because they were no longer
+ * supported in Neolith, or they become mandatory not cannot be turned off.
  */
-#define SYSMALLOC
-#undef SMALLOC
-#undef BSDMALLOC
 
-/* You may optionally choose one (or none) of these malloc wrappers.  These
- * can be used in conjunction with any of the above malloc packages.
- *
- * WRAPPEDMALLOC:
- *   * Limited statistics.
- *   * Limited additional cpu overhead and no additional memory overhead.
- *
- * DEBUGMALLOC:
- *   * Statistics on precisely how much memory has been malloc'd (as well
- *     as the stats provided by WRAPPEDMALLOC).
- *   * Incurs a fair amount of overhead (both memory and CPU)
- */
-#undef WRAPPEDMALLOC
-#undef DEBUGMALLOC
-
-/* The following add certain bells and whistles to malloc: */
-
-/*
- * SBRK_OK: do not define this unless SMALLOC is chosen above.
- *   Defining this causes smalloc to use the low level memory allocation
- *   routines, and to act as a malloc replacement.  Conversely, undef'ing
- *   SBRK_OK causes smalloc to act as a wrapper for the system malloc
- *   routines.
- *
- * Note:
- *   NeXTStep 3.x users should always #undef SBRK_OK.
- */
-#undef SBRK_OK
-
-/* DO_MSTATS: do not define this unless BSDMALLOC or SMALLOC is chosen above.
- *   Defining this causes those replacement mallocs to keep statistics that
- *   the malloc_status() efun will print out (including total memory
- *   allocated/used).
- */
-#undef DO_MSTATS
-
-/* DEBUGMALLOC_EXTENSIONS: defining this (in addition to DEBUGMALLOC) enables
- * the set_malloc_mask(int) and debugmalloc(string,int) efuns.  These two
- * efuns basically allow you to cause certain malloc's and free's (with tags
- * selected by a specified mask) to print debug information (addr, tag,
- * description, size) to stdio (in the shell that invoked the driver) or to a
- * file.  Not defining this does reduce the overhead of DEBUGMALLOC from 16
- * bytes per malloc down to 8.  This macro has no effect if DEBUGMALLOC isn't
- * defined.
- */
-#undef DEBUGMALLOC_EXTENSIONS
-
-/* CHECK_MEMORY: defining this (in addition to DEBUGMALLOC and
- * DEBUGMALLOC_EXTENSIONS) causes the driver to check for memory
- * corruption due to writing before the start or end of a block.  This
- * also adds the check_memory() efun.  Takes a considerable ammount
- * more memory.  Mainly for debugging.  
- */
-#undef CHECK_MEMORY
+#ifndef OPTIONS_H
+#define OPTIONS_H
 
 /****************************************************************************
  *                          COMPATIBILITY                                   *
@@ -117,11 +20,6 @@
  *          it may assume certain settings of these options.  Check the     *
  *          instructions for details.                                       *
  ****************************************************************************/
-
-/* HAS_STATUS_TYPE: old MudOS drivers had a 'status' type which was
- * identical to the 'int' type.  Define this to bring it back.
- */
-#undef HAS_STATUS_TYPE
 
 /* explode():
  *
@@ -146,25 +44,6 @@
  */
 #undef CAST_CALL_OTHERS
 
-/* NONINTERACTIVE_STDERR_WRITE: if defined, all writes/tells/etc to
- *   noninteractive objects will be written to stderr prefixed with a ']'
- *   (old behavior).
- */
-#undef NONINTERACTIVE_STDERR_WRITE
-
-/* NO_ADD_ACTION: define this to remove add_action, commands, livings, etc.
-   process_input() then becomes the only way to deal with player input. */
-#undef NO_ADD_ACTION
-
-/* NO_ENVIRONMENT: define this to remove the handling of object containment
-   relationships by the driver */
-#undef NO_ENVIRONMENT
-
-/* NO_WIZARDS: for historical reasons, MudOS used to keep track of who
-   is and isn't a wizard.  Defining this removes that completely.
-   If this is defined, the wizardp() and related efuns don't exist */
-#undef NO_WIZARDS
-
 /* OLD_TYPE_BEHAVIOR: reintroduces a bug in type-checking that effectively
  * renders compile time type checking useless.  For backwards compatibility.
  */
@@ -182,6 +61,10 @@
  */
 #define OLD_ED
 
+/* RESTRICTED_ED: define this if you want restricted ed mode enabled.
+ */
+#define RESTRICTED_ED
+
 /****************************************************************************
  *                           MISCELLANEOUS                                  *
  *                          ---------------                                 *
@@ -191,13 +74,6 @@
  *          it may assume certain settings of these options.  Check the     *
  *          instructions for details.                                       *
  ****************************************************************************/
-
-/*
- * Define this in order to use Fermat@Equilibria's MD5 based crypt() instead 
- * of the operating system's.  It has the advantage of giving the same value
- * on all architectures, and being stronger than the standard UNIX crypt().
- */
-#define CUSTOM_CRYPT
 
 /*
  * Some minor tweaks that make it a bit easier to run code designed to run
@@ -231,16 +107,6 @@
  */
 #define LOG_CATCHES
 
-/* CONFIG_FILE_DIR specifies a directory in which the driver will search for
- *   config files by default.  If you don't wish to use this define, you may
- *   always specify a full path to the config file when starting the driver.
- */
-#ifndef LATTICE
-#define CONFIG_FILE_DIR "/usr/local/etc"
-#else
-#define CONFIG_FILE_DIR "etc:"
-#endif
-
 /* DEFAULT_PRAGMAS:  This should be a sum of pragmas you want to always
  * be on, i.e.
  *
@@ -268,11 +134,15 @@
  *                      optimize it further.  currently does jump threading.
  * PRAGMA_ERROR_CONTEXT:include some text telling where on the line a
  *                      compilation error occured.
+ * (note: definitions of PRAGMA_* are in lex.h)
  */
 #define DEFAULT_PRAGMAS PRAGMA_WARNINGS + PRAGMA_STRICT_TYPES
 
-/* NO_RESETS: completely disable the periodic calling of reset() */
-#undef NO_RESETS
+/* AUTO_TRUST_BACKBONE: define this if you want objects with the backbone
+ *   uid to automatically be trusted and to have their euid set to the uid of
+ *   the object that forced the object's creation.
+ */
+#define AUTO_TRUST_BACKBONE
 
 /* LAZY_RESETS: if this is defined, an object will only have reset()
  *   called in it when it is touched via call_other() or move_object()
@@ -316,23 +186,6 @@
 #define NO_ANSI
 #define STRIP_BEFORE_PROCESS_INPUT
 
-/* TRAP_CRASHES:  define this if you want MudOS to call crash() in master.c
- *   and then shutdown when signals are received that would normally crash the
- *   driver.
- */
-#define TRAP_CRASHES
-
-/* DROP_CORE: define this if you want the driver to attempt to create
- *   a core file when it crashes via the crash_MudOS() function.  This
- *   define only has an affect if -DDEBUG isn't defined in the makefile
- *   (except for the SIGINT and SIGTERM signals which are always trapped).
- *
- * [NOTE: keep this undefined for now since it seems to hang some machines
- *  upon crashing (some DECstations apparently).  If you want to get a core
- *  file, undef'ing TRAP_CRASHES should work.]
- */
-#undef DROP_CORE
-
 /* THIS_PLAYER_IN_CALL_OUT: define this if you wish this_player() to be
  *   usable from within call_out() callbacks.
  */
@@ -369,27 +222,9 @@
 */
 #undef INTERACTIVE_CATCH_TELL
 
-/* RESTRICTED_ED: define this if you want restricted ed mode enabled.
- */
-#define RESTRICTED_ED
-
 /* NO_SHADOWS: define this if you want to disable shadows in your driver.
  */
 #define NO_SHADOWS
-
-/* SNOOP_SHADOWED: define this if you want snoop to report what is
- *   sent to the player even in the event that the player's catch_tell() is
- *   shadowed and the player may not be seeing what is being sent.  Messages
- *   of this sort will be prefixed with $$.
- */
-#undef SNOOP_SHADOWED
-
-/* RECEIVE_SNOOP: define this if you want snoop text to be sent to
- *   the receive_snoop() function in the snooper object (instead of being
- *   sent directly via add_message()).  This is useful if you want to
- *   build a smart client that does something different with snoop messages.
- */
-#define RECEIVE_SNOOP
 
 /* PROFILE_FUNCTIONS: define this to be able to measure the CPU time used by
  *   all of the user-defined functions in each LPC object.  Note: defining
@@ -401,12 +236,6 @@
  *   microseconds will resolve to zero (0).
  */
 #undef PROFILE_FUNCTIONS
-
-/* NO_BUFFER_TYPE: if this is #define'd then LPC code using the 'buffer'
- *   type won't be allowed to compile (since the 'buffer' type won't be
- *   recognized by the lexer.
- */
-#undef NO_BUFFER_TYPE
 
 /* BINARIES: define this to enable the 'save_binary' pragma.
  *   This pragma, when set in a program, will cause it to save a
@@ -425,110 +254,23 @@
  */
 #define BINARIES
 
-/* ARRAY_RESERVED_WORD: If this is defined then the word 'array' can
- *   be used to define arrays, as in:
- *
- * int array x = ({ .... });
- *
- * A side effect is that array cannot be a variable or function name.
- */
-#undef ARRAY_RESERVED_WORD
-
 /****************************************************************************
  *                              PACKAGES                                    *
  *                              --------                                    *
  * Defining some/all of the following add certain efuns, and sometimes      *
  * add/remove code from the driver.                                         *
  *                                                                          *
- * if PACKAGE_XYZZY is defined here, then the code in packages/xyzzy.c      *
- * and the efuns in packages/xyzzy_spec.c will be added to the driver.      *
- ****************************************************************************/
-
-/* various miscellaneous efuns */
-#define PACKAGE_CONTRIB
-
-/* efuns that are only of use to those that know something about driver
-   internals */
-#define PACKAGE_DEVELOP
-
-/* PACKAGE_MATH: determines whether or not the math efuns (for floats) are
-   included.
- */
-#define PACKAGE_MATH
-
-/* PACKAGE_MATRIX: determines whether or not the 3d graphics efuns (for floats)
- *   are included - see packages/matrix.spec for a list.
- */
-#undef PACKAGE_MATRIX
-
-/* PACKAGE_MUDLIB_STATS: define this to enable domain and author stats
- *   maintenance by the driver.  These mudlib stats are more domain
- *   based than user based, and replaces the traditional wiz_list stats.
- */
-#undef PACKAGE_MUDLIB_STATS
-
-/* PACKAGE_SOCKETS: define this to enable the socket efunctions.  This
- *   causes HAS_SOCKETS to be defined for all LPC objects.
- */
-#define PACKAGE_SOCKETS
-
-/* socket_connect() hostname support is built-in and always available.
- * Resolver backend selection is controlled by HAVE_CARES (c-ares available)
- * versus the async worker fallback backend.
- */
-
-/* PACKAGE_PARSER: Natural language parsing efuns for interactive fiction
- *   type applications
- */
-#undef PACKAGE_PARSER
-
-/* PACKAGE_EXTERNAL: Allows the driver to exec() commands specified in the
- * config file.
- */
-#undef PACKAGE_EXTERNAL
-
-/* PACKAGE_DB: efuns for external database access */
-#undef PACKAGE_DB
-
-/* If PACKAGE_DB is defined above, you must pick ONE of the following supported
- * databases
- */
-#ifdef PACKAGE_DB
-#define MSQL		/* MiniSQL, it's small; it's free */
-#endif
-
-/****************************************************************************
- *                            UID PACKAGE                                   *
- *                            -----------                                   *
- * UIDS are the basis for some mudlib security systems.  Basically, they're *
- * preserved for backwards compatibility, as several ways of breaking       *
- * almost any system which relies on them are known.  (No, it's not a flaw  *
- * of uids; only that b/c of the ease with which LPC objects can call       *
- * each other, it's far to easy to leave holes)                             *
+ * In Neolith, the preferred way to enable/disable features is via CMake    *
+ * options, which will set the appropriate #defines in config.h. Defining   *
+ * these macros manually overrides the config.h settings, which may cause   *
+ * unexpected behavior.                                                     *
  *                                                                          *
- * If you don't care about security, the first option is probably what you  *
- * want.                                                                    *
+ * Check CMakeLists.txt for default enabled packages, and the CMake options *
+ * to control them.                                                         *
  ****************************************************************************/
 
-/*
- * PACKAGE_UIDS: define this if you want a driver that does use uids.
- *
+/* PACKAGE_SOCKETS: define this to enable the socket efunctions.
  */
-#define PACKAGE_UIDS
-
-/* AUTO_SETEUID: when an object is created it's euid is automatically set to
- *   the equivalent of seteuid(getuid(this_object())).  undef AUTO_SETEUID
- *   if you would rather have the euid of the created object be set to 0.
- *
- * AUTO_SETEUID is always undefined in Neolith
- */
-#undef AUTO_SETEUID
-
-/* AUTO_TRUST_BACKBONE: define this if you want objects with the backbone
- *   uid to automatically be trusted and to have their euid set to the uid of
- *   the object that forced the object's creation.
- */
-#define AUTO_TRUST_BACKBONE
 
 /*************************************************************************
  *                       FOR EXPERIENCED USERS                           *
@@ -579,33 +321,6 @@
  */
 #define CACHE_STATS
 
-/* TRACE: define this to enable the trace() and traceprefix() efuns.
- *   (keeping this undefined will cause the driver to run faster).
- */
-#undef TRACE
-
-/* LPC_TO_C: define this to enable LPC->C compilation.
- *
- * [NOTE: BINARIES must also be defined for LPC->C to work.  Actually
- *  using binaries is not required, though.]
- */
-#undef LPC_TO_C
-
-/* RUNTIME_LOADING: On systems which support it, it allows LPC->C compilation
- * 'on the fly' without having to recompile the driver.
- *
- * Note: This currently only works on machines that have the dlopen() system
- * call.  SunOS and IRIX do, as do a number of others.  AIX and Ultrix don't.
- * Linux does if you are using ELF.
- */
-#undef RUNTIME_LOADING
-
-/* TRACE_CODE: define this to enable code tracing (the driver will print
- *   out the previous lines of code to an error) eval_instruction() runs about
- *   twice as fast when this is not defined (for the most common eoperators).
- */
-#undef TRACE_CODE
-
 /* HEART_BEAT_CHUNK: The number of heart_beat chunks allocated at a time.
  * A large number wastes memory as some will be sitting around unused, while
  * a small one wastes more CPU reallocating when it needs to grow.  Default
@@ -624,32 +339,5 @@
  * recursive datastructures (with circular references).
  */
 #define MAX_SAVE_SVALUE_DEPTH 25
-
-/* NEXT_MALLOC_DEBUG: define this if using a NeXT and you want to enable
- *   the malloc_check() and/or malloc_debug() efuns.  Run the 'man malloc_debug'
- *   command on the NeXT to find out what the arguments to malloc_debug(int)
- *   mean.  The malloc_check() efun calls the NeXT NXMallocCheck() system
- *   call which does a consistency check on malloc's data structures (this
- *   consistency check is done at each malloc() and free() for certain
- *   malloc_debug() levels).  A non-zero return value indicates there was
- *   a consistency problem.  For those NeXT users wanting a bit more
- *   performance out of malloc, try defining NEXT_MALLOC_DEBUG and calling the
- *   malloc_debug(-1) efun (with an arg of -1).  This will turn all
- *   malloc debugging off and call malloc_singlethreaded() which the NeXT
- *   malloc man page claims can make NeXT system malloc 10% to 15% faster.
- *
- * [NOTE: This #define has no affect on the driver if not using the
- *  NeXTSTEP OS.]
- *
- * Warning: if you use a NeXT and define NEXT_MALLOC_DEBUG, be sure to
- *          protect the use of the malloc_check() and malloc_debug() efuns
- *          since setting certain debug levels can cause malloc() and free()
- *          to become _very_ slow (protect efuns by using simul_efuns and
- *          valid_override).
- *
- * [NOTE: malloc_debug(6) is a good compromise between efficiency and
- *  completeness of malloc debugging (malloc/free will be about half as fast).]
- */
-#define NEXT_MALLOC_DEBUG
 
 #endif

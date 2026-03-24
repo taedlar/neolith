@@ -235,22 +235,8 @@ f_malloc_status (void)
 
   outbuf_zero (&ob);
 
-#ifdef BSDMALLOC
-  outbuf_add (&ob, "Using BSD malloc");
-#endif
-#ifdef SMALLOC
-  outbuf_add (&ob, "Using Smalloc");
-#endif
-#ifdef SYSMALLOC
   outbuf_add (&ob, "Using system malloc");
-#endif
   outbuf_add (&ob, ".\n");
-#ifdef DO_MSTATS
-  show_mstats (&ob, "malloc_status()");
-#endif
-#if (defined(WRAPPEDMALLOC) || defined(DEBUGMALLOC))
-  dump_malloc_data (&ob);
-#endif
   outbuf_push (&ob);
 }
 #endif
@@ -283,10 +269,8 @@ void f_mud_status (void) {
                    add_message_calls, inet_packets,
                    (float) inet_volume / inet_packets);
 
-#ifndef NO_ADD_ACTION
       stat_living_objects (&ob);
       outbuf_add (&ob, "\n");
-#endif
 #ifdef F_CACHE_STATS
       print_cache_stats (&ob);
       outbuf_add (&ob, "\n");
@@ -675,38 +659,6 @@ f_refs (void)
                                  * refs() */
 }
 #endif
-
-#if (defined(DEBUGMALLOC) && defined(DEBUGMALLOC_EXTENSIONS))
-#ifdef F_DEBUGMALLOC
-void
-f_debugmalloc (void)
-{
-  char *res;
-
-  res = dump_debugmalloc ((sp - 1)->u.string, sp->u.number);
-  free_string_svalue (--sp);
-  sp->subtype = STRING_MALLOC;
-  sp->u.string = res;
-}
-#endif
-
-#ifdef F_SET_MALLOC_MASK
-void
-f_set_malloc_mask (void)
-{
-  set_malloc_mask ((sp--)->u.number);
-}
-#endif
-
-#ifdef F_CHECK_MEMORY
-void
-f_check_memory (void)
-{
-  check_all_blocks ((sp--)->u.number);
-}
-#endif
-#endif /* (defined(DEBUGMALLOC) &&
-        * defined(DEBUGMALLOC_EXTENSIONS)) */
 
 #ifdef F_TRACE
 void
