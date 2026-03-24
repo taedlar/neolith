@@ -291,6 +291,9 @@ extern "C" void init_config (const char *config_file)
   CONFIG_INT (__RESOLVER_REVERSE_CACHE_TTL__) = scan_config_i (config, "ResolverReverseCacheTtl", 0, 900);
   CONFIG_INT (__RESOLVER_NEGATIVE_CACHE_TTL__) = scan_config_i (config, "ResolverNegativeCacheTtl", 0, 30);
   CONFIG_INT (__RESOLVER_STALE_REFRESH_WINDOW__) = scan_config_i (config, "ResolverStaleRefreshWindow", 0, 30);
+  CONFIG_INT (__RESOLVER_FORWARD_QUOTA__) = scan_config_i (config, "ResolverForwardQuota", 0, 10);
+  CONFIG_INT (__RESOLVER_REVERSE_QUOTA__) = scan_config_i (config, "ResolverReverseQuota", 0, 4);
+  CONFIG_INT (__RESOLVER_REFRESH_QUOTA__) = scan_config_i (config, "ResolverRefreshQuota", 0, 2);
   CONFIG_INT (__EVALUATOR_STACK_SIZE__) = scan_config_i (config, "StackSize", 0, 1000);
   CONFIG_INT (__MAX_LOCAL_VARIABLES__) = scan_config_i (config, "MaxLocalVariables", 0, 25);
   CONFIG_INT (__MAX_CALL_DEPTH__) = scan_config_i (config, "MaxCallDepth", 0, 50);

@@ -311,6 +311,11 @@ Option semantics:
 
 This includes:
 - **Behavior Specification**: WITH and WITHOUT c-ares operation matrices for three classes: Forward Lookup, Reverse Lookup, and Peer Refresh.
+- **Current Policy Implementation**:
+  - Admission control is centralized in shared resolver enqueue paths (socket-layer admission gates removed).
+  - Runtime-configurable per-class quotas are active (`ResolverForwardQuota`, `ResolverReverseQuota`, `ResolverRefreshQuota`) with defaults `10/4/2` and a global in-flight cap of `64`.
+  - Resolver telemetry ownership is centralized in shared resolver core (including class-level rejected and dropped counters surfaced via socket status output).
+  - `query_ip_name()` uses peer-refresh enqueue on TTL-expired cache hits while preserving fire-and-forget immediate-return semantics.
 - **Test Status** (as of 2026-03-24):
   - ✅ Forward Lookup API coverage: 10/10 tests passing (socket_connect + resolve() path)
   - ✅ Reverse Lookup coverage: 8/8 tests passing across current no-c-ares and Windows fetched-c-ares verification runs (auto + manual `query_ip_name()` coverage)
@@ -319,7 +324,7 @@ This includes:
 - **Next Priorities** (SESSION-GATED):
   1. Verify no main-thread blocking under c-ares builds in trace output
   2. Strengthen resolve()/reverse/refresh assertions (replace scaffolds with final async contract once semantics finalize)
-  3. Finish Stage 5 telemetry, TTL-cache, and operator-documentation follow-through
+  3. Finish Stage 5 shared TTL-cache ownership migration and operator-documentation follow-through
 
 **Within this roadmap**, Stage 5:
 - Unifies mixed DNS workloads (socket connect, resolve(), reverse-refresh, query_ip_name) behind the async socket operation engine.

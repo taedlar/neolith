@@ -2006,7 +2006,8 @@ process_addr_resolver_completions (void)
         }
 #endif
 
-      if (result.type == RESOLVER_REQ_REVERSE_CACHE)
+      if (result.type == RESOLVER_REQ_REVERSE_CACHE ||
+          result.type == RESOLVER_REQ_PEER_REFRESH)
         {
           if (result.success && !result.timed_out && strcmp (result.result, "0") != 0)
             add_ip_entry (result.cache_addr, result.result);
@@ -2084,6 +2085,7 @@ process_addr_resolver_completions (void)
 typedef struct ip_name_cache_entry_s {
   unsigned long addr;
   char *name;
+  time_t updated_at;
 } ip_name_cache_entry_t;
 
 static ip_name_cache_entry_t ip_name_cache[IPSIZE];
@@ -2097,15 +2099,36 @@ static int ip_name_cache_cursor;
  */
 char *query_ip_name (object_t * ob) {
   int i;
+  time_t now;
+  addr_resolver_config_t resolver_config;
 
   if (ob == 0)
     ob = command_giver;
   if (!ob || ob->interactive == 0)
     return NULL;
+
+  now = time (NULL);
+  addr_resolver_get_config (&resolver_config);
+
   for (i = 0; i < IPSIZE; i++)
     {
       if (ip_name_cache[i].addr == ob->interactive->addr.sin_addr.s_addr && ip_name_cache[i].name)
-        return (ip_name_cache[i].name);
+        {
+          if (resolver_config.reverse_cache_ttl > 0 &&
+              ip_name_cache[i].updated_at > 0 &&
+              now >= ip_name_cache[i].updated_at + resolver_config.reverse_cache_ttl)
+            {
+              const char *ip;
+              ip = query_ip_number (ob);
+              if (ip != NULL && strcmp (ip, "N/A") != 0)
+                {
+                  (void) addr_resolver_enqueue_refresh (ob->interactive->addr.sin_addr.s_addr,
+                                                        ip,
+                                                        now + RESOLVER_TIMEOUT_SECONDS);
+                }
+            }
+          return (ip_name_cache[i].name);
+        }
     }
   query_addr_name (ob);
   return query_ip_number (ob); /* fallback to return IP address as string */
@@ -2117,12 +2140,19 @@ static void add_ip_entry (unsigned long addr, const char *name) {
   for (i = 0; i < IPSIZE; i++)
     {
       if (ip_name_cache[i].addr == addr)
-        return;
+        {
+          if (ip_name_cache[i].name)
+            free_string (ip_name_cache[i].name);
+          ip_name_cache[i].name = make_shared_string (name);
+          ip_name_cache[i].updated_at = time (NULL);
+          return;
+        }
     }
   ip_name_cache[ip_name_cache_cursor].addr = addr;
   if (ip_name_cache[ip_name_cache_cursor].name)
     free_string (ip_name_cache[ip_name_cache_cursor].name);
   ip_name_cache[ip_name_cache_cursor].name = make_shared_string (name);
+  ip_name_cache[ip_name_cache_cursor].updated_at = time (NULL);
   ip_name_cache_cursor = (ip_name_cache_cursor + 1) % IPSIZE;
 }
 
@@ -2136,6 +2166,7 @@ static void reset_ip_names (void) {
           ip_name_cache[i].name = NULL;
         }
       ip_name_cache[i].addr = 0;
+      ip_name_cache[i].updated_at = 0;
     }
 }
 

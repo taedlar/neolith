@@ -46,20 +46,6 @@
 
 #define DNS_TIMEOUT_SECONDS 30  /* Max time for DNS resolution */
 
-/* DNS telemetry counters for monitoring and debugging */
-typedef struct {
-  unsigned long admitted;         /* Total tasks successfully queued */
-  unsigned long dedup_hit;        /* Duplicate hostname:port joined existing task */
-  unsigned long rejected_global;  /* Rejected due to global cap */
-  unsigned long rejected_owner;   /* Rejected due to per-owner cap */
-  unsigned long rejected_queue;   /* Rejected due to queue full */
-  unsigned long timed_out;        /* Resolutions that exceeded deadline */
-  unsigned long completed;        /* Resolutions completed successfully */
-  unsigned long failed;           /* Resolutions that failed (no timeout) */
-} dns_telemetry_t;
-
-static dns_telemetry_t dns_telemetry = {0};
-
 lpc_socket_t *lpc_socks = 0;
 int max_lpc_socks = 0;
 
@@ -87,9 +73,6 @@ typedef struct {
 
 #define SOCKET_RUNTIME_CONTEXT_MAGIC 0x534f434b
 
-/* DNS admission control and task queue (Stage 4A) */
-#define DNS_GLOBAL_CAP 64          /* Max in-flight DNS resolutions globally */
-#define DNS_PER_OWNER_CAP 8        /* Max per-owner pending DNS resolutions */
 #define SOCKET_DNS_REQUEST_ID_BASE (RESOLVER_LOOKUP_REQUEST_CAPACITY + 1)
 
 typedef struct {
@@ -101,7 +84,6 @@ typedef struct {
 
 typedef char dns_hostname_t[ADDR_BUF_SIZE];
 
-static int dns_tasks_in_flight = 0;      /* Current global count */
 static dns_hostname_t *dns_pending_hostnames = NULL;
 static uint16_t *dns_pending_ports = NULL;
 static int *dns_pending_leaders = NULL;
@@ -2082,7 +2064,6 @@ is_socket_dns_request_id (int request_id)
  */
 static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t port) {
   int i;
-  int owner_count = 0;
   int leader_socket_id = -1;
   int leader_op_id = -1;
   int request_id = 0;
@@ -2135,31 +2116,9 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
         dns_pending_leader_op_ids[socket_id] = leader_op_id;
       if (dns_pending_request_ids != NULL)
         dns_pending_request_ids[socket_id] = request_id;
-      dns_telemetry.dedup_hit++;
+      addr_resolver_note_dedup_hit();
       return EESUCCESS;
     }
-
-  /* Check global in-flight cap */
-  if (dns_tasks_in_flight >= DNS_GLOBAL_CAP) {
-    dns_telemetry.rejected_global++;
-    return EERESOLVERBUSY;
-  }
-
-  /* Check per-owner cap */
-  if (socket_id >= 0 && socket_id < max_lpc_socks && 
-      lpc_socks[socket_id].owner_ob != NULL) {
-    for (i = 0; i < max_lpc_socks; i++) {
-      if (lpc_socks[i].owner_ob == lpc_socks[socket_id].owner_ob &&
-          socket_ops[i].active &&
-          socket_ops[i].phase == OP_DNS_RESOLVING) {
-        owner_count++;
-      }
-    }
-    if (owner_count >= DNS_PER_OWNER_CAP) {
-      dns_telemetry.rejected_owner++;
-      return EERESOLVERBUSY;
-    }
-  }
 
   if (next_socket_dns_request_id <= SOCKET_DNS_REQUEST_ID_BASE)
     next_socket_dns_request_id = SOCKET_DNS_REQUEST_ID_BASE;
@@ -2192,12 +2151,9 @@ static int queue_dns_resolution(int socket_id, const char *hostname, uint16_t po
 
   if (!addr_resolver_enqueue_lookup (request_id, hostname, deadline)) {
     clear_dns_pending_resolution (socket_id);
-    dns_telemetry.rejected_queue++;
     return EERESOLVERBUSY;
   }
 
-  dns_tasks_in_flight++;
-  dns_telemetry.admitted++;
   return EESUCCESS;
 }
 
@@ -2213,9 +2169,6 @@ handle_socket_dns_resolver_result (const resolver_result_t *result)
     return 0;
   if (!is_socket_dns_request_id (result->request_id))
     return 0;
-
-  if (dns_tasks_in_flight > 0)
-    dns_tasks_in_flight--;
 
   for (i = 0; i < max_lpc_socks; i++)
     {
@@ -2244,13 +2197,6 @@ handle_socket_dns_resolver_result (const resolver_result_t *result)
       if (inet_pton (AF_INET, result->result, &socket_result.resolved_addr) != 1)
         socket_result.success = 0;
     }
-
-  if (socket_result.timed_out)
-    dns_telemetry.timed_out++;
-  else if (!socket_result.success)
-    dns_telemetry.failed++;
-  else
-    dns_telemetry.completed++;
 
   for (i = 0; i < max_lpc_socks; i++)
     {
@@ -2301,9 +2247,7 @@ void deinit_dns_system(void) {
     dns_pending_request_ids = NULL;
   }
   socket_dns_timeout_test_hook = NULL;
-  dns_tasks_in_flight = 0;
   next_socket_dns_request_id = SOCKET_DNS_REQUEST_ID_BASE;
-  memset(&dns_telemetry, 0, sizeof(dns_telemetry));
 }
 
 /**
@@ -2320,14 +2264,8 @@ void handle_dns_completions(void) {
 
 int get_dns_telemetry_snapshot(int *in_flight, unsigned long *admitted, unsigned long *dedup_hit,
                                unsigned long *timed_out) {
-  if (in_flight != NULL)
-    *in_flight = dns_tasks_in_flight;
-  if (admitted != NULL)
-    *admitted = dns_telemetry.admitted;
-  if (dedup_hit != NULL)
-    *dedup_hit = dns_telemetry.dedup_hit;
-  if (timed_out != NULL)
-    *timed_out = dns_telemetry.timed_out;
+  if (!addr_resolver_get_dns_telemetry_snapshot(in_flight, admitted, dedup_hit, timed_out))
+    return EEFDRANGE;
   return EESUCCESS;
 }
 
@@ -2469,16 +2407,40 @@ void dump_socket_status (outbuffer_t * out) {
                    mapping_state);
     }
 
-  outbuf_add (out, "\nDNS Telemetry:\n");
-  outbuf_addv (out, "  Admitted: %lu\n", dns_telemetry.admitted);
-  outbuf_addv (out, "  Dedup hit: %lu\n", dns_telemetry.dedup_hit);
-  outbuf_addv (out, "  Rejected (global cap): %lu\n", dns_telemetry.rejected_global);
-  outbuf_addv (out, "  Rejected (owner cap): %lu\n", dns_telemetry.rejected_owner);
-  outbuf_addv (out, "  Rejected (queue full): %lu\n", dns_telemetry.rejected_queue);
-  outbuf_addv (out, "  Completed successfully: %lu\n", dns_telemetry.completed);
-  outbuf_addv (out, "  Failed (not timed out): %lu\n", dns_telemetry.failed);
-  outbuf_addv (out, "  Timed out: %lu\n", dns_telemetry.timed_out);
-  outbuf_addv (out, "  Currently in-flight: %d\n", dns_tasks_in_flight);
+  outbuf_add (out, "\nDNS Telemetry (shared resolver core):\n");
+  {
+    resolver_telemetry_t telemetry;
+    memset (&telemetry, 0, sizeof (telemetry));
+    addr_resolver_get_telemetry (&telemetry);
+
+    outbuf_addv (out, "  In-flight total: %d\n", telemetry.in_flight);
+    outbuf_addv (out, "    Forward: %d, Reverse: %d, Refresh: %d\n",
+                 telemetry.in_flight_forward,
+                 telemetry.in_flight_reverse,
+                 telemetry.in_flight_refresh);
+    outbuf_addv (out, "  Admitted total: %lu\n", telemetry.admitted);
+    outbuf_addv (out, "    Forward: %lu, Reverse: %lu, Refresh: %lu\n",
+                 telemetry.admitted_forward,
+                 telemetry.admitted_reverse,
+                 telemetry.admitted_refresh);
+    outbuf_addv (out, "  Dedup hit: %lu\n", telemetry.dedup_hit);
+    outbuf_addv (out, "  Rejected (global cap): %lu\n", telemetry.rejected_global);
+    outbuf_addv (out, "  Rejected (class quota): %lu\n", telemetry.rejected_class);
+    outbuf_addv (out, "  Rejected (queue full): %lu\n", telemetry.rejected_queue);
+    outbuf_addv (out, "    Forward: %lu, Reverse: %lu, Refresh: %lu\n",
+                 telemetry.rejected_forward,
+                 telemetry.rejected_reverse,
+                 telemetry.rejected_refresh);
+    outbuf_addv (out, "  Dropped for driver-priority enqueue: %lu\n",
+                 telemetry.dropped_driver_priority);
+    outbuf_addv (out, "    Forward: %lu, Reverse: %lu, Refresh: %lu\n",
+           telemetry.dropped_forward,
+           telemetry.dropped_reverse,
+           telemetry.dropped_refresh);
+    outbuf_addv (out, "  Completed successfully: %lu\n", telemetry.completed);
+    outbuf_addv (out, "  Failed (not timed out): %lu\n", telemetry.failed);
+    outbuf_addv (out, "  Timed out: %lu\n", telemetry.timed_out);
+  }
 }
 
 #endif /* SOCKET_EFUNS */

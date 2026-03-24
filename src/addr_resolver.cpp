@@ -38,6 +38,7 @@ extern "C" {
 #include <cctype>
 #include <cstring>
 #include <ctime>
+#include <mutex>
 
 #include "addr_resolver.h"
 
@@ -53,6 +54,7 @@ namespace {
 
 /** Maximum queue depth shared by both the task and result queues. */
 static const int AR_QUEUE_SIZE = 256;
+static const int AR_GLOBAL_ADMISSION_CAP = 64;
 
 /** Task sent from main thread to the worker. */
 typedef struct {
@@ -74,10 +76,192 @@ static async_runtime_t *s_runtime      = nullptr;
 static resolver_lookup_test_hook_t s_lookup_test_hook = nullptr;
 static addr_resolver_config_t s_config = {};
 static resolver_lookup_request_t lookup_request_table[RESOLVER_LOOKUP_REQUEST_CAPACITY];
+static resolver_telemetry_t s_telemetry = {};
+static std::mutex s_stats_mutex;
+
+enum resolver_admission_class_t {
+  RESOLVER_CLASS_FORWARD = 0,
+  RESOLVER_CLASS_REVERSE = 1,
+  RESOLVER_CLASS_REFRESH = 2
+};
+
+static resolver_admission_class_t resolve_admission_class(resolver_request_type_t type)
+{
+  if (type == RESOLVER_REQ_LOOKUP)
+    return RESOLVER_CLASS_FORWARD;
+  if (type == RESOLVER_REQ_PEER_REFRESH)
+    return RESOLVER_CLASS_REFRESH;
+  return RESOLVER_CLASS_REVERSE;
+}
+
+static bool is_driver_initiated_lookup_request(int request_id)
+{
+  return request_id > RESOLVER_LOOKUP_REQUEST_CAPACITY;
+}
+
+static void add_class_inflight(resolver_admission_class_t klass, int delta)
+{
+  if (klass == RESOLVER_CLASS_FORWARD)
+    s_telemetry.in_flight_forward += delta;
+  else if (klass == RESOLVER_CLASS_REVERSE)
+    s_telemetry.in_flight_reverse += delta;
+  else
+    s_telemetry.in_flight_refresh += delta;
+
+  s_telemetry.in_flight += delta;
+  if (s_telemetry.in_flight_forward < 0)
+    s_telemetry.in_flight_forward = 0;
+  if (s_telemetry.in_flight_reverse < 0)
+    s_telemetry.in_flight_reverse = 0;
+  if (s_telemetry.in_flight_refresh < 0)
+    s_telemetry.in_flight_refresh = 0;
+  if (s_telemetry.in_flight < 0)
+    s_telemetry.in_flight = 0;
+}
+
+static void add_class_admitted(resolver_admission_class_t klass)
+{
+  s_telemetry.admitted++;
+  if (klass == RESOLVER_CLASS_FORWARD)
+    s_telemetry.admitted_forward++;
+  else if (klass == RESOLVER_CLASS_REVERSE)
+    s_telemetry.admitted_reverse++;
+  else
+    s_telemetry.admitted_refresh++;
+}
+
+static void add_class_rejected(resolver_admission_class_t klass)
+{
+  if (klass == RESOLVER_CLASS_FORWARD)
+    s_telemetry.rejected_forward++;
+  else if (klass == RESOLVER_CLASS_REVERSE)
+    s_telemetry.rejected_reverse++;
+  else
+    s_telemetry.rejected_refresh++;
+}
+
+static bool can_admit_class(resolver_admission_class_t klass)
+{
+  if (s_telemetry.in_flight >= AR_GLOBAL_ADMISSION_CAP)
+    return false;
+
+  int forward_quota = s_config.forward_quota;
+  int reverse_quota = s_config.reverse_quota;
+  int refresh_quota = s_config.refresh_quota;
+
+  if (klass == RESOLVER_CLASS_REFRESH)
+    {
+      return s_telemetry.in_flight_refresh < refresh_quota;
+    }
+
+  if (klass == RESOLVER_CLASS_REVERSE)
+    {
+      int borrowed_refresh = refresh_quota - s_telemetry.in_flight_refresh;
+      if (borrowed_refresh < 0)
+        borrowed_refresh = 0;
+      return s_telemetry.in_flight_reverse < (reverse_quota + borrowed_refresh);
+    }
+
+  {
+    int reserved_reverse = reverse_quota - s_telemetry.in_flight_reverse;
+    int reserved_refresh = refresh_quota - s_telemetry.in_flight_refresh;
+    if (reserved_reverse < 0)
+      reserved_reverse = 0;
+    if (reserved_refresh < 0)
+      reserved_refresh = 0;
+    {
+      int effective_forward_quota = AR_GLOBAL_ADMISSION_CAP - reserved_reverse - reserved_refresh;
+      if (effective_forward_quota > forward_quota)
+        effective_forward_quota = forward_quota;
+      return s_telemetry.in_flight_forward < effective_forward_quota;
+    }
+  }
+}
+
+static bool dequeue_oldest_task_for_driver_priority()
+{
+  resolver_task_t dropped_task;
+  size_t dropped_size = 0;
+
+  if (!async_queue_dequeue(s_task_queue, &dropped_task, sizeof(dropped_task), &dropped_size) ||
+      dropped_size != sizeof(dropped_task))
+    return false;
+
+  resolver_admission_class_t dropped_class = resolve_admission_class(dropped_task.type);
+  add_class_inflight(dropped_class, -1);
+  s_telemetry.dropped_driver_priority++;
+  if (dropped_class == RESOLVER_CLASS_FORWARD)
+    s_telemetry.dropped_forward++;
+  else if (dropped_class == RESOLVER_CLASS_REVERSE)
+    s_telemetry.dropped_reverse++;
+  else
+    s_telemetry.dropped_refresh++;
+  return true;
+}
+
+static int enqueue_task_with_admission(const resolver_task_t *task, bool driver_initiated)
+{
+  if (task == nullptr || s_task_queue == nullptr)
+    return 0;
+
+  std::lock_guard<std::mutex> guard(s_stats_mutex);
+  resolver_admission_class_t klass = resolve_admission_class(task->type);
+
+  if (!can_admit_class(klass))
+    {
+      if (s_telemetry.in_flight >= AR_GLOBAL_ADMISSION_CAP)
+        s_telemetry.rejected_global++;
+      else
+        s_telemetry.rejected_class++;
+      add_class_rejected(klass);
+      return 0;
+    }
+
+  if (async_queue_is_full(s_task_queue))
+    {
+      if (!driver_initiated || !dequeue_oldest_task_for_driver_priority())
+        {
+          s_telemetry.rejected_queue++;
+          add_class_rejected(klass);
+          return 0;
+        }
+    }
+
+  if (!async_queue_enqueue(s_task_queue, task, sizeof(*task)))
+    {
+      s_telemetry.rejected_queue++;
+      add_class_rejected(klass);
+      return 0;
+    }
+
+  add_class_inflight(klass, 1);
+  add_class_admitted(klass);
+  return 1;
+}
+
+static void record_task_completion(resolver_request_type_t type, int success, int timed_out)
+{
+  std::lock_guard<std::mutex> guard(s_stats_mutex);
+  resolver_admission_class_t klass = resolve_admission_class(type);
+
+  add_class_inflight(klass, -1);
+
+  if (timed_out)
+    s_telemetry.timed_out++;
+  else if (success)
+    s_telemetry.completed++;
+  else
+    s_telemetry.failed++;
+}
 
 static int normalize_cache_ttl(int ttl)
 {
   return ttl >= 0 ? ttl : 0;
+}
+
+static int normalize_quota(int quota, int fallback)
+{
+  return quota > 0 ? quota : fallback;
 }
 
 static void sleep_for_ms(unsigned int delay_ms)
@@ -209,9 +393,10 @@ static void *resolver_worker_main(void *arg)
                 }
             }
         }
-      else if (task.type == RESOLVER_REQ_REVERSE_CACHE)
+      else if (task.type == RESOLVER_REQ_REVERSE_CACHE ||
+               task.type == RESOLVER_REQ_PEER_REFRESH)
         {
-          /* IP → hostname (reverse lookup for query_ip_name() cache refresh) */
+          /* IP → hostname (reverse lookup for cache refresh requests) */
           struct sockaddr_in addr;
           char host[NI_MAXHOST];
 
@@ -234,6 +419,8 @@ static void *resolver_worker_main(void *arg)
           result.timed_out = 1;
           result.success   = 0;
         }
+
+      record_task_completion(task.type, result.success, result.timed_out);
 
       if (s_result_queue != nullptr &&
           async_queue_enqueue(s_result_queue, &result, sizeof(result)))
@@ -427,9 +614,10 @@ cares_worker_main(void *arg)
                                            task.deadline);
                     }
                 }
-              else if (task.type == RESOLVER_REQ_REVERSE_CACHE)
+              else if (task.type == RESOLVER_REQ_REVERSE_CACHE ||
+                       task.type == RESOLVER_REQ_PEER_REFRESH)
                 {
-                  /* IP → hostname (query_ip_name() cache refresh) */
+                  /* IP → hostname (cache refresh requests) */
                   struct sockaddr_in sa;
                   std::memset(&sa, 0, sizeof(sa));
                   sa.sin_family = AF_INET;
@@ -474,6 +662,8 @@ cares_worker_main(void *arg)
           result.success   = 0;
         }
 
+      record_task_completion(task.type, result.success, result.timed_out);
+
       if (s_result_queue != nullptr &&
           async_queue_enqueue(s_result_queue, &result, sizeof(result)))
         {
@@ -505,6 +695,9 @@ addr_resolver_config_init_defaults(addr_resolver_config_t *config)
   config->reverse_cache_ttl = 900;
   config->negative_cache_ttl = 30;
   config->stale_refresh_window = 30;
+  config->forward_quota = 10;
+  config->reverse_quota = 4;
+  config->refresh_quota = 2;
 }
 
 int
@@ -521,6 +714,9 @@ addr_resolver_init(struct async_runtime_s *runtime,
   effective_config.reverse_cache_ttl = normalize_cache_ttl(effective_config.reverse_cache_ttl);
   effective_config.negative_cache_ttl = normalize_cache_ttl(effective_config.negative_cache_ttl);
   effective_config.stale_refresh_window = normalize_cache_ttl(effective_config.stale_refresh_window);
+  effective_config.forward_quota = normalize_quota(effective_config.forward_quota, 10);
+  effective_config.reverse_quota = normalize_quota(effective_config.reverse_quota, 4);
+  effective_config.refresh_quota = normalize_quota(effective_config.refresh_quota, 2);
 
   if (s_task_queue != nullptr)
     {
@@ -534,12 +730,12 @@ addr_resolver_init(struct async_runtime_s *runtime,
   s_runtime = runtime;
 
   s_task_queue = async_queue_create(AR_QUEUE_SIZE, sizeof(resolver_task_t),
-                                    ASYNC_QUEUE_DROP_OLDEST);
+                                    static_cast<async_queue_flags_t>(0));
   if (s_task_queue == nullptr)
     return 0;
 
   s_result_queue = async_queue_create(AR_QUEUE_SIZE, sizeof(resolver_result_t),
-                                      ASYNC_QUEUE_DROP_OLDEST);
+                                      static_cast<async_queue_flags_t>(0));
   if (s_result_queue == nullptr)
     {
       async_queue_destroy(s_task_queue);
@@ -613,6 +809,10 @@ addr_resolver_deinit(void)
   s_runtime = nullptr;
   s_lookup_test_hook = nullptr;
   addr_resolver_config_init_defaults(&s_config);
+  {
+    std::lock_guard<std::mutex> guard(s_stats_mutex);
+    std::memset(&s_telemetry, 0, sizeof(s_telemetry));
+  }
 
 #ifdef HAVE_CARES
   ares_library_cleanup();
@@ -674,7 +874,8 @@ addr_resolver_enqueue_lookup(int request_id, const char *query, time_t deadline)
   std::strncpy(task.query, query, sizeof(task.query) - 1);
   task.query[sizeof(task.query) - 1] = '\0';
 
-  return async_queue_enqueue(s_task_queue, &task, sizeof(task)) ? 1 : 0;
+  return enqueue_task_with_admission(&task,
+                                     is_driver_initiated_lookup_request(request_id));
 }
 
 int
@@ -692,7 +893,25 @@ addr_resolver_enqueue_reverse(unsigned long cache_addr, const char *ip, time_t d
   std::strncpy(task.query, ip, sizeof(task.query) - 1);
   task.query[sizeof(task.query) - 1] = '\0';
 
-  return async_queue_enqueue(s_task_queue, &task, sizeof(task)) ? 1 : 0;
+  return enqueue_task_with_admission(&task, false);
+}
+
+int
+addr_resolver_enqueue_refresh(unsigned long cache_addr, const char *ip, time_t deadline)
+{
+  if (s_task_queue == nullptr || ip == nullptr)
+    return 0;
+
+  resolver_task_t task;
+  std::memset(&task, 0, sizeof(task));
+  task.type       = RESOLVER_REQ_PEER_REFRESH;
+  task.request_id = 0;
+  task.cache_addr = cache_addr;
+  task.deadline   = deadline;
+  std::strncpy(task.query, ip, sizeof(task.query) - 1);
+  task.query[sizeof(task.query) - 1] = '\0';
+
+  return enqueue_task_with_admission(&task, false);
 }
 
 int
@@ -719,6 +938,43 @@ addr_resolver_get_config(addr_resolver_config_t *out)
     return;
 
   *out = s_config;
+}
+
+void
+addr_resolver_note_dedup_hit(void)
+{
+  std::lock_guard<std::mutex> guard(s_stats_mutex);
+  s_telemetry.dedup_hit++;
+}
+
+int
+addr_resolver_get_dns_telemetry_snapshot(int *in_flight,
+                                         unsigned long *admitted,
+                                         unsigned long *dedup_hit,
+                                         unsigned long *timed_out)
+{
+  std::lock_guard<std::mutex> guard(s_stats_mutex);
+
+  if (in_flight != nullptr)
+    *in_flight = s_telemetry.in_flight;
+  if (admitted != nullptr)
+    *admitted = s_telemetry.admitted;
+  if (dedup_hit != nullptr)
+    *dedup_hit = s_telemetry.dedup_hit;
+  if (timed_out != nullptr)
+    *timed_out = s_telemetry.timed_out;
+
+  return 1;
+}
+
+void
+addr_resolver_get_telemetry(resolver_telemetry_t *out)
+{
+  if (out == nullptr)
+    return;
+
+  std::lock_guard<std::mutex> guard(s_stats_mutex);
+  *out = s_telemetry;
 }
 
 } /* extern "C" */

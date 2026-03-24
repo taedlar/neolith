@@ -44,12 +44,46 @@ typedef struct {
   int reverse_cache_ttl;
   int negative_cache_ttl;
   int stale_refresh_window;
+  int forward_quota;
+  int reverse_quota;
+  int refresh_quota;
 } addr_resolver_config_t;
 
 typedef enum {
   RESOLVER_REQ_LOOKUP        = 1, /**< Forward/reverse lookup for resolve() efun */
-  RESOLVER_REQ_REVERSE_CACHE = 2  /**< Reverse lookup for query_ip_name() cache refresh */
+  RESOLVER_REQ_REVERSE_CACHE = 2, /**< Reverse lookup for query_ip_name() cache refresh */
+  RESOLVER_REQ_PEER_REFRESH  = 3  /**< Background reverse refresh with lower priority */
 } resolver_request_type_t;
+
+typedef struct {
+  int in_flight;
+  int in_flight_forward;
+  int in_flight_reverse;
+  int in_flight_refresh;
+
+  unsigned long admitted;
+  unsigned long admitted_forward;
+  unsigned long admitted_reverse;
+  unsigned long admitted_refresh;
+
+  unsigned long dedup_hit;
+
+  unsigned long rejected_global;
+  unsigned long rejected_class;
+  unsigned long rejected_queue;
+  unsigned long rejected_forward;
+  unsigned long rejected_reverse;
+  unsigned long rejected_refresh;
+
+  unsigned long dropped_driver_priority;
+  unsigned long dropped_forward;
+  unsigned long dropped_reverse;
+  unsigned long dropped_refresh;
+
+  unsigned long timed_out;
+  unsigned long completed;
+  unsigned long failed;
+} resolver_telemetry_t;
 
 /** Result produced by the resolver worker for one task. */
 typedef struct {
@@ -139,6 +173,16 @@ int addr_resolver_enqueue_reverse (unsigned long cache_addr, const char *ip,
                                    time_t deadline);
 
 /**
+ * @brief Enqueue a background reverse refresh task with lowest admission priority.
+ * @param cache_addr  IPv4 address in network byte order.
+ * @param ip          Dotted-decimal IP string.
+ * @param deadline    Absolute time_t after which the task is abandoned.
+ * @returns 1 if enqueued, 0 if the resolver rejects the request.
+ */
+int addr_resolver_enqueue_refresh (unsigned long cache_addr, const char *ip,
+                                   time_t deadline);
+
+/**
  * @brief Dequeue one completed result.
  * @param out  Caller-supplied buffer for the result.
  * @returns 1 if a result was dequeued, 0 if the queue is empty.
@@ -150,6 +194,18 @@ void addr_resolver_set_lookup_test_hook (resolver_lookup_test_hook_t hook);
 
 /** @brief Return the currently active resolver configuration. */
 void addr_resolver_get_config (addr_resolver_config_t *out);
+
+/** @brief Record one dedup/coalescing hit from socket-level request joining. */
+void addr_resolver_note_dedup_hit (void);
+
+/** @brief Compatibility telemetry snapshot used by socket tests. */
+int addr_resolver_get_dns_telemetry_snapshot (int *in_flight,
+                                              unsigned long *admitted,
+                                              unsigned long *dedup_hit,
+                                              unsigned long *timed_out);
+
+/** @brief Fetch full resolver telemetry counters. */
+void addr_resolver_get_telemetry (resolver_telemetry_t *out);
 
 #ifdef __cplusplus
 }

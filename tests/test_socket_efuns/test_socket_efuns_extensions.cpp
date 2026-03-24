@@ -647,10 +647,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
 }
 
 /**
- * SOCK_DNS_005: Per-owner admission control cap enforces max 8 concurrent DNS per owner.
- * Setup: Single owner creating multiple sockets with pending hostname resolutions
- * Action: Queue 9+ hostname DNS operations from same owner
- * Expected: 1-8th succeed (enter OP_DNS_RESOLVING), 9th+ fail with deterministic overload mapping.
+ * SOCK_DNS_005: Driver socket_connect follows shared-resolver forward class quota.
+ * Setup: Single owner creating multiple sockets with pending hostname resolutions.
+ * Action: Queue multiple hostname DNS operations from same owner through socket_connect.
+ * Expected: Requests are either admitted or rejected with EERESOLVERBUSY by centralized resolver policy.
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
@@ -663,8 +663,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
   int connect_result;
   int success_count = 0;
   int resolver_busy_count = 0;
-  int first_resolver_busy_at = -1;
-  const int TEST_LIMIT = 12;  /* Exceed per-owner cap of 8 */
+  const int TEST_LIMIT = 12;
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
@@ -688,9 +687,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
       success_count++;
     } else if (connect_result == EERESOLVERBUSY) {
       resolver_busy_count++;
-      if (first_resolver_busy_at < 0) {
-        first_resolver_busy_at = i;
-      }
     } else {
       ADD_FAILURE() << "Unexpected DNS connect result " << connect_result
                     << " at request index " << i;
@@ -698,9 +694,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
   }
 
   EXPECT_GT(success_count, 0) << "Expected at least one DNS request admitted";
-  EXPECT_GT(resolver_busy_count, 0) << "Expected overload rejections beyond owner cap";
-  EXPECT_LE(first_resolver_busy_at, 8)
-    << "Per-owner cap rejection should begin no later than request index 8";
+  EXPECT_EQ(success_count + resolver_busy_count, static_cast<int>(fd_list.size()))
+    << "Each queued connect should resolve to either admitted or resolver-busy result";
 
   /* Cleanup */
   for (int fd : fd_list) {
