@@ -1624,7 +1624,7 @@ int yylex () {
               return L_RANGE;
             }
           outptr--;
-          goto badlex;
+          return L_DOT;
         case '#':
           if (*(outptr - 2) == '\n')
             {

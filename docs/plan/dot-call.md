@@ -2,7 +2,7 @@
 
 ## Status
 - Stage 1 (Syntax + Lowering Design): complete
-- Stage 2 (Compiler Implementation): not started
+- Stage 2 (Compiler Implementation): in progress
 - Stage 3 (Validation + Tests): not started
 - Stage 4 (Docs + Rollout Guidance): not started
 
@@ -13,6 +13,15 @@
 - Compatibility rule: do not change existing efun contracts in this feature.
 - Error rule: if injected receiver makes arguments invalid for the target efun, compilation must fail in efun validation.
 - Chaining support target: allow `expr.method1(...).method2(...)` via normal expression composition.
+- Stage 2 has started with lexer/grammar/compiler lowering work.
+- Initial implementation target: tokenize bare `.` distinctly, add postfix dot-call parse rule, and lower through `validate_efun_call()` by prepending receiver as argument 1.
+- Implemented in current step:
+  - lexer returns `L_DOT` for bare `.` while preserving `..` and `...`
+  - grammar accepts `expr4 . identifier(expr_list)`
+  - dot-call currently lowers through existing efun validation by prepending receiver as argument 1
+- Validation status:
+  - `lpc` target builds successfully after parser regeneration
+  - no new opcode introduced in this slice, so `driver_id` remains unchanged
 
 ## Problem Statement
 Mudlibs may provide simul_efuns that shadow driver efuns (for example `to_json()` / `from_json()`).
@@ -91,7 +100,7 @@ Out of scope:
 - Dot-call result is an ordinary expression.
 - Chaining is allowed through normal expression composition.
 
-### Stage 2: Compiler Implementation (not started)
+### Stage 2: Compiler Implementation (in progress)
 1. Lexer update
 - Teach lexer to return a dedicated dot token for `.` while preserving existing `..` and `...` behavior.
 
