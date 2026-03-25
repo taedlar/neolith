@@ -2,9 +2,9 @@
 
 ## Status
 - Stage 1 (Syntax + Lowering Design): complete
-- Stage 2 (Compiler Implementation): in progress
-- Stage 3 (Validation + Tests): not started
-- Stage 4 (Docs + Rollout Guidance): not started
+- Stage 2 (Compiler Implementation): complete
+- Stage 3 (Validation + Tests): complete
+- Stage 4 (Docs + Rollout Guidance): in progress
 
 ## Current State Handoff
 - Agreed direction: dot-call is syntax sugar only.
@@ -13,7 +13,7 @@
 - Compatibility rule: do not change existing efun contracts in this feature.
 - Error rule: if injected receiver makes arguments invalid for the target efun, compilation must fail in efun validation.
 - Chaining support target: allow `expr.method1(...).method2(...)` via normal expression composition.
-- Stage 2 has started with lexer/grammar/compiler lowering work.
+- Stage 2 compiler implementation is complete (lexer, grammar, and lowering).
 - Initial implementation target: tokenize bare `.` distinctly, add postfix dot-call parse rule, and lower through `validate_efun_call()` by prepending receiver as argument 1.
 - Implemented in current step:
   - lexer returns `L_DOT` for bare `.` while preserving `..` and `...`
@@ -22,6 +22,10 @@
 - Validation status:
   - `lpc` target builds successfully after parser regeneration
   - no new opcode introduced in this slice, so `driver_id` remains unchanged
+  - `test_lpc_compiler` target now includes dot-call positive and negative coverage and passes in current build
+  - bad-argument dot-call validation is covered by strict-types tests for receiver type and trailing argument type mismatches
+  - Stage 3 validation scope is complete for current agreed coverage
+  - tutorial-style user documentation added at `docs/manual/lpc.md`
 
 ## Problem Statement
 Mudlibs may provide simul_efuns that shadow driver efuns (for example `to_json()` / `from_json()`).
@@ -100,7 +104,7 @@ Out of scope:
 - Dot-call result is an ordinary expression.
 - Chaining is allowed through normal expression composition.
 
-### Stage 2: Compiler Implementation (in progress)
+### Stage 2: Compiler Implementation (complete)
 1. Lexer update
 - Teach lexer to return a dedicated dot token for `.` while preserving existing `..` and `...` behavior.
 
@@ -120,7 +124,7 @@ Out of scope:
 5. Saved binary compatibility
 - If implementation introduces a new opcode or changes compiled program layout/encoding, bump `driver_id` in `lib/lpc/program/binaries.c` so saved binaries are invalidated and recompiled.
 
-### Stage 3: Validation + Tests (not started)
+### Stage 3: Validation + Tests (complete)
 1. Positive parse/compile cases
 - `x.to_json()`
 - `x.to_json(indent)`
@@ -129,7 +133,6 @@ Out of scope:
 2. Negative cases
 - Unknown method name in dot-call.
 - Efun exists but does not accept injected receiver.
-- Non-call dot forms (if out of scope) should error.
 
 3. Compatibility checks
 - `to_json(x)` still follows existing resolution.
@@ -143,13 +146,37 @@ Out of scope:
 - Verify whether the implementation required a new opcode or binary format change.
 - If yes, confirm `driver_id` was updated and saved binaries are treated as out-of-date.
 
-### Stage 4: Docs + Rollout Guidance (not started)
+Progress update:
+- Added compiler tests for:
+  - dot-call efun compile success (`"42".to_int()`)
+  - chained dot-call compile success (`"42".to_int().to_float()`)
+  - unknown efun rejection (`"42".not_an_efun()`)
+  - argument mismatch rejection (`1.enable_commands()`)
+  - bad receiver type rejection (`1.repeat_string(2)`) under `#pragma strict_types`
+  - bad trailing argument type rejection (`"x".repeat_string("y")`) under `#pragma strict_types`
+  - compatibility fixture compiling standalone, `efun::`, and dot-call forms together
+- Built `test_lpc_compiler` and ran CTest for that target successfully.
+
+Pending check after Stage 3 completion:
+- No required Stage 3 tasks remain based on current agreed test scope.
+- Optional: run broader compiler/interpreter regression subsets if we want extra confidence before final closeout.
+
+### Stage 4: Docs + Rollout Guidance (in progress)
 1. Add user-facing syntax section (manual) with explicit lowering rule.
 2. Add examples showing when to use:
 - standalone call (mudlib-aware behavior),
 - `efun::` call (explicit efun),
 - dot-call (explicit efun with receiver sugar).
 3. Note that not all efuns are suitable for dot-call; validation enforces this.
+
+Progress update:
+- Added tutorial section in `docs/manual/lpc.md` covering:
+  - dot-call lowering rule to `efun::`
+  - ambiguity rationale
+  - basic and chained examples
+  - object-argument efun examples
+  - strict-types bad-argument examples
+  - links to related efun reference docs
 
 ## Acceptance Criteria
 - Dot-call compiles and lowers to efun call with receiver-first semantics.
