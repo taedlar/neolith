@@ -1,12 +1,12 @@
 # Shared Resolver Module (`addr_resolver`)
 
-**Status**: Current implementation reference (2026-03-24)  
+**Status**: Current implementation reference (2026-03-26)  
 **Audience**: Driver developers and maintainers  
 **Scope**: Internal architecture, module boundaries, invariants, and operational internals for the shared resolver module.
 
 ## Purpose
 
-This document records the implemented architecture and behavior of the shared resolver module.  
+This document records the implemented architecture and behavior of the shared built-in resolver module.  
 It is the developer-facing counterpart to operator guidance in [../manual/dns-resolver.md](../manual/dns-resolver.md).
 
 ## Architecture
