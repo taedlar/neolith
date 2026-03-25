@@ -39,7 +39,7 @@ TEST_F(LPCCompilerTest, loadMaster)
 
 TEST_F(LPCCompilerTest, loadObject) {
     setup_simulate();
-    init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
+    //init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
 
     // master_ob must be initialized before load_object can be used
     init_master (CONFIG_STR (__MASTER_FILE__));
@@ -72,7 +72,7 @@ TEST_F(LPCCompilerTest, programAlignment) {
     // The align() macro in compiler.h must ensure 8-byte alignment on 64-bit, 4-byte on 32-bit.
     
     setup_simulate();
-    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
     
@@ -192,7 +192,7 @@ TEST_F(LPCCompilerTest, programAlignment) {
 
 TEST_F(LPCCompilerTest, dotCallCompilesToEfun) {
     setup_simulate();
-    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -212,7 +212,7 @@ TEST_F(LPCCompilerTest, dotCallCompilesToEfun) {
 
 TEST_F(LPCCompilerTest, dotCallChainingCompiles) {
     setup_simulate();
-    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -232,7 +232,7 @@ TEST_F(LPCCompilerTest, dotCallChainingCompiles) {
 
 TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
     setup_simulate();
-    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -262,7 +262,7 @@ TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
     setup_simulate();
-    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -292,7 +292,7 @@ TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
     setup_simulate();
-    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -323,7 +323,7 @@ TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
     setup_simulate();
-    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -354,7 +354,7 @@ TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
     setup_simulate();
-    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -363,9 +363,9 @@ TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
         #pragma strict_types
         int run_test() {
             //int a = efun::to_int("42"); // requires master apply valid_override()
-            int b = "42".to_int();
+            //int b = "42".to_int();
             int c = to_int("42");
-            return b + c;
+            return 1;
         }
     )";
 

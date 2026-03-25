@@ -43,7 +43,7 @@ protected:
         fs::path config_dir = fs::current_path();
         if (!fs::exists(config_dir / "m3.conf"))
             fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
-        init_stem(3, (unsigned long)0, "m3.conf"); // use highest debug level and enable all trace logs
+        init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
 
         init_config(MAIN_OPTION(config_file));
 
