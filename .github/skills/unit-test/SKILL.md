@@ -30,6 +30,8 @@ Test patterns:
 ### LPC Object Loading in Tests
 Make sure `init_master()` is called in the fixture setup before loading LPC objects, as the master object is responsible for approving `load_object()` calls. Set `current_object` to `master_ob` when loading objects in tests to ensure the master applies to approve the load.
 
+- Load `simul_efun` only when the test explicitly needs simul efuns. Avoid eager `init_simul_efun()` in generic compiler/load tests because inherited objects from simul_efun dependencies (for example, `/api/unicode`) can remain allocated and appear as leaks at teardown.
+
 When testing LPC compilation/object loading, use `load_object()` with the second parameter `pre_text` to load LPC source code directly from a string. This avoids the need for filesystem access and allows for more self-contained unit tests. Pattern:
 
 ```cpp
