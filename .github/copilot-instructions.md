@@ -225,8 +225,13 @@ python testbot.py
   - Permanent-state docs can be created during implementation only after user confirmation, and must be kept concise and focused on behavior and contracts, not implementation details. Permanent docs should not link to plan documents.
   - **HANDOFFS** after implementation starts, plan documents should include clear handoff instructions in a top-level heading "Current State Handoff" near top of the document. Keep handoffs up-to-date whenever implementation status changes.
   - **LESSONS LEARNED**: add a "Lessons Learned" section to the plan document when implementation is completed with insights that may be useful for this plan. Place this section after handoffs and read it before implementing things.
-- When you are required to archive a plan:
+- When you are reqiored to close a plan:
+  - If there are items not in `complete` status, ask for user confirmation before closing the plan. Create a sumarrized handoff notes (pre-closing) with the date of close and a brief list of any non-complete items.
+  - Do a quick review of the plan document for any useful insights or lessons learned that may be helpful for future work; add them to a "Lessons Learned" section at the end of the plan if so.
+  - Move the plan doc to [docs/history/](docs/history/) with `git mv`
+- When you are required to archive a plan (look for plan doc in [docs/plan/](docs/plan/) or [docs/history/](docs/history/)):
   - Ask for user confirmation before archiving any plan document. Show descriptive information, not the archiving action.
+  - If the plan is not in [docs/history/](docs/history/) yet, do plan closing steps above first (including handoff notes and lessons learned).
   - To archive a plan, add the plan doc to `hN.zip` in [docs/history/](docs/history/) and roll over to a new archive when the current one exceeds 1 MB. Delete the original plan doc after archiving.
 
 ### Documentation Best Practices

@@ -914,6 +914,102 @@ Another favorite programming construct is the `?` `:` operator, which also opera
     expression0 ? expression1_if_true : expression2_if_false
 ```
 In some cases, `?` `:` is an shorter way of expression constructs such as:
+
+## Dot-Call Efun Syntax
+
+Neolith supports dot-call form for efuns:
+
+- `receiver.method(args...)`
+
+Dot-call is syntax sugar for an efun call with the receiver inserted as the first argument:
+
+- `receiver.method(args...)` => `efun::method(receiver, args...)`
+
+### Why Use Dot-Call
+
+Dot-call can reduce ambiguity when mudlib code defines a simul_efun with the same name as a driver efun.
+
+- `method(x)` may resolve to a local function or simul_efun first.
+- `efun::method(x)` always resolves to the driver efun.
+- `x.method()` expresses the same driver-efun intent in a shorter receiver-first style.
+
+### Basic Examples
+
+```c
+int a = efun::to_int("42");
+int b = "42".to_int();
+int c = to_int("42");
+```
+
+```c
+string lower = "HeLLo".lower_case();
+string caps = "world".capitalize();
+string repeated = "ha".repeat_string(3);
+```
+
+```c
+int pos = "banana".strsrch("na");
+string *parts = "a,b,c".explode(",");
+int checksum = "payload".crc32();
+```
+
+### Chaining
+
+Dot-call can be chained because each call is an expression result:
+
+```c
+float n = "42".to_int().to_float();
+```
+
+### Object-First Efun Style
+
+Efuns that already accept an object as first argument map naturally:
+
+```c
+int is_living = ob.living();
+int is_user = ob.userp();
+int idle = ob.query_idle();
+```
+
+Equivalent forms:
+
+```c
+int is_living = efun::living(ob);
+int is_user = efun::userp(ob);
+int idle = efun::query_idle(ob);
+```
+
+### Type And Arity Rules
+
+Dot-call does not change efun contracts.
+If the target efun cannot accept the injected first argument, compile-time validation fails.
+
+Examples that should fail under strict type checking:
+
+```c
+#pragma strict_types
+mixed x = 1.repeat_string(2);     // bad receiver type
+mixed y = "x".repeat_string("y"); // bad second argument type
+```
+
+### Related Efun Docs
+
+- [to_int](../efuns/to_int.md)
+- [to_float](../efuns/to_float.md)
+- [lower_case](../efuns/lower_case.md)
+- [capitalize](../efuns/capitalize.md)
+- [repeat_string](../efuns/repeat_string.md)
+- [strsrch](../efuns/strsrch.md)
+- [explode](../efuns/explode.md)
+- [crc32](../efuns/crc32.md)
+- [living](../efuns/living.md)
+- [userp](../efuns/userp.md)
+- [query_idle](../efuns/query_idle.md)
+
+### Notes
+
+- Dot-call is for efun dispatch, not object `->` call_other dispatch.
+- Non-call `.` forms are out of scope for this feature.
 ```
     if (expression0)
         var = expression1;

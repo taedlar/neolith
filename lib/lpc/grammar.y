@@ -65,7 +65,7 @@ int yyparse(void);
 %token L_NOT
 
 %token L_IF L_ELSE
-%token L_SWITCH L_CASE L_DEFAULT L_RANGE L_DOT_DOT_DOT
+%token L_SWITCH L_CASE L_DEFAULT L_RANGE L_DOT L_DOT_DOT_DOT
 %token L_WHILE L_DO L_FOR L_FOREACH L_IN
 %token L_BREAK L_CONTINUE
 %token L_RETURN
@@ -2934,6 +2934,37 @@ function_call:
                 expr2->r.expr = $$->r.expr;
                 expr->r.expr = expr2;
                 $$->r.expr = expr;
+            }
+    |   expr4 L_DOT identifier '(' expr_list ')'
+            {
+                ident_hash_elem_t *ihe;
+                parse_node_t *expr;
+                int f;
+
+                $$ = $5;
+                ihe = lookup_ident($3);
+                f = ihe ? ihe->dn.efun_num : -1;
+
+                if (f == -1) {
+                    char buf[256];
+                    char *end = EndOf(buf);
+                    char *p;
+
+                    p = strput(buf, end, "Unknown efun in dot-call: ");
+                    p = strput(p, end, $3);
+                    yyerror(buf);
+                    CREATE_ERROR($$);
+                } else {
+                    CREATE_EXPR_NODE(expr, $1, 0);
+                    expr->kind = 0;
+                    expr->r.expr = $$->r.expr;
+                    $$->r.expr = expr;
+                    if ($$->l.expr == $$)
+                        $$->l.expr = expr;
+                    $$->v.number++;
+                    $$ = validate_efun_call(f, $$);
+                }
+                scratch_free($3);
             }
     |   '(' '*' comma_expr ')' '(' expr_list ')'
             {

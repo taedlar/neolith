@@ -189,3 +189,145 @@ TEST_F(LPCCompilerTest, programAlignment) {
     destruct_object(obj);
     tear_down_simulate();
 }
+
+TEST_F(LPCCompilerTest, dotCallCompilesToEfun) {
+    setup_simulate();
+    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    const char *test_code = R"(
+        mixed run_test() {
+            return "42".to_int();
+        }
+    )";
+
+    object_t *obj = load_object("test_dot_call_ok.c", test_code);
+    ASSERT_NE(obj, nullptr) << "dot-call efun lowering failed to compile.";
+
+    destruct_object(obj);
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, dotCallChainingCompiles) {
+    setup_simulate();
+    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    const char *test_code = R"(
+        mixed run_test() {
+            return "42".to_int().to_float();
+        }
+    )";
+
+    object_t *obj = load_object("test_dot_call_chain_ok.c", test_code);
+    ASSERT_NE(obj, nullptr) << "chained dot-call efun lowering failed to compile.";
+
+    destruct_object(obj);
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
+    setup_simulate();
+    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    const char *test_code = R"(
+        mixed run_test() {
+            return "42".not_an_efun();
+        }
+    )";
+
+    object_t *obj = load_object("test_dot_call_unknown_fail.c", test_code);
+    EXPECT_EQ(obj, nullptr) << "unknown efun dot-call unexpectedly compiled.";
+
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
+    setup_simulate();
+    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    const char *test_code = R"(
+        mixed run_test() {
+            return 1.enable_commands();
+        }
+    )";
+
+    object_t *obj = load_object("test_dot_call_arity_fail.c", test_code);
+    EXPECT_EQ(obj, nullptr) << "arity-mismatch dot-call unexpectedly compiled.";
+
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
+    setup_simulate();
+    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    const char *test_code = R"(
+        #pragma strict_types
+        mixed run_test() {
+            return 1.repeat_string(2);
+        }
+    )";
+
+    object_t *obj = load_object("test_dot_call_bad_receiver_type_fail.c", test_code);
+    EXPECT_EQ(obj, nullptr) << "bad receiver type in dot-call unexpectedly compiled.";
+
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
+    setup_simulate();
+    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    const char *test_code = R"(
+        #pragma strict_types
+        mixed run_test() {
+            return "x".repeat_string("y");
+        }
+    )";
+
+    object_t *obj = load_object("test_dot_call_bad_arg2_type_fail.c", test_code);
+    EXPECT_EQ(obj, nullptr) << "bad trailing argument type in dot-call unexpectedly compiled.";
+
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
+    setup_simulate();
+    init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    const char *test_code = R"(
+        #pragma strict_types
+        int run_test() {
+            int a = efun::to_int("42");
+            int b = "42".to_int();
+            int c = to_int("42");
+            return a + b + c;
+        }
+    )";
+
+    object_t *obj = load_object("test_dot_call_vs_efun_override_ok.c", test_code);
+    ASSERT_NE(obj, nullptr) << "dot-call and efun:: form compatibility failed to compile.";
+
+    destruct_object(obj);
+    tear_down_simulate();
+}
