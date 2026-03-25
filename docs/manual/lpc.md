@@ -34,6 +34,42 @@ Another difference is, when the `create()` function returns, the LPC object stay
 
 By loading LPC objects (or cloning multiple copies of the same LPC object), the LPMud can populate its virtual world with all the things you saw in the MUD.
 
+## Preprocessor Directives
+
+LPC supports the same preprocessor directives as C:
+
+| Directive | Purpose |
+|-----------|---------|
+| `#include` | Insert another file |
+| `#define` / `#undef` | Define or undefine a macro |
+| `#if` / `#ifdef` / `#ifndef` / `#elif` / `#else` / `#endif` | Conditional compilation |
+| `#pragma` | Compiler hint (see below) |
+| `#echo` | Print a message during compilation |
+
+### Indented directives
+
+Unlike original MudOS, Neolith follows the modern C preprocessor rule: a directive is recognised when `#` is the **first non-whitespace character on a line**. Leading spaces or tabs before `#` are allowed.
+
+```lpc
+    #pragma strict_types   // valid — indented
+    #ifdef DEBUG
+    #endif
+```
+
+This is particularly useful when LPC code is generated or embedded inside other text where directives may be indented.
+
+### `#pragma` options
+
+| Pragma | Effect |
+|--------|--------|
+| `strict_types` | Require explicit types on all functions and variables; enforce type checking at compile time |
+| `save_types` | Save type information for use at runtime |
+| `save_binary` | Cache compiled bytecode to disk |
+| `warnings` | Enable additional compiler warnings |
+| `show_error_context` | Include source context in error messages |
+
+Use `no_` prefix to turn a pragma off, e.g. `#pragma no_warnings`.
+
 ## Types
 
 Types can be used in four places:
