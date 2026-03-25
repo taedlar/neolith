@@ -1,6 +1,7 @@
-# Async Library Design
+# Async Library Design (Developer Reference)
 
-**Status**: Design Phase  
+**Status**: Implemented (console worker + built-in DNS resolver integrated)  
+**Audience**: Driver developers maintaining async infrastructure  
 **Created**: 2026-01-19  
 **Platform Support**: Windows, Linux, macOS  
 **Location**: `lib/async/`  
@@ -20,10 +21,10 @@ The async library provides platform-agnostic infrastructure for offloading block
 **Internal Dependencies** (lib/port):
 - **port_sync** - Platform-agnostic mutexes and events (internal use only)
 
-**Validated Use Cases**:
+**Current Use Cases**:
 - ✅ **Console Input** - Native line editing + testbot automation (HIGH PRIORITY)
 - ✅ **DNS Resolution** - Non-blocking `getaddrinfo()` (PERFORMANCE CRITICAL)
-- ✅ GUI clients, REST API, git operations, MCP server (Future)
+- ✅ GUI clients, REST API, git operations, MCP server (supported by current primitives)
 
 **Design Principles**:
 - Zero driver dependencies (fully reusable, testable in isolation)
@@ -247,7 +248,7 @@ while (running) {
 }
 ```
 
-**CRITICAL CONSTRAINT: No Double Polling**
+**CRITICAL CONSTRAINT: Single Wait Consumer**
 
 `async_runtime_wait()` **MUST** be called from a single thread only (the main/backend thread). Violating this requirement causes undefined behavior:
 
@@ -270,11 +271,11 @@ while (running) {
 
 ---
 
-## Use Case Integration Patterns
+## Implementation Reference: Integration Patterns
 
-### Pattern 1: Console Input (Phase 2)
+The following patterns document how async primitives are integrated into driver subsystems. These serve as reference implementations for adding new async-driven features.
 
-**Components**: async_queue + async_worker + async_runtime
+### Pattern 1: Console Input (Implemented)
 
 **Worker Thread**:
 ```c
@@ -294,23 +295,21 @@ if (events[i].completion_key == CONSOLE_KEY) {
 }
 ```
 
-**Benefit**: Console input becomes another completion source in event loop, eliminates 60s polling delay.
+**Benefit**: Console input becomes another completion source in the event loop with prompt command processing.
 
-### Pattern 2: Async DNS (Phase 3)
+### Pattern 2: Built-In DNS Resolver Integration (Implemented)
 
 **Components**: async_queue + async_worker + async_runtime
 
-**Worker Thread**:
+**Worker Side**:
 ```c
 while (!async_worker_should_stop(worker)) {
-    dns_request_t req;
-    if (async_queue_dequeue(request_queue, &req, sizeof(req), NULL)) {
-        struct addrinfo* result = NULL;
-        int error = getaddrinfo(req.hostname, NULL, &hints, &result);  // BLOCKS
-        
-        dns_response_t resp = {.request_id = req.id, .error = error, .result = result};
-        async_queue_enqueue(response_queue, &resp, sizeof(resp));
-        async_runtime_post_completion(runtime, DNS_KEY, req.socket_index);
+    resolver_task_t task;
+    if (async_queue_dequeue(request_queue, &task, sizeof(task), NULL)) {
+        // Blocking resolver work happens on worker threads.
+        resolver_result_t result = resolve_task(task);
+        async_queue_enqueue(result_queue, &result, sizeof(result));
+        async_runtime_post_completion(runtime, DNS_KEY, task.request_id);
     }
 }
 ```
@@ -318,76 +317,52 @@ while (!async_worker_should_stop(worker)) {
 **Main Thread**:
 ```c
 if (events[i].completion_key == DNS_KEY) {
-    dns_response_t resp;
-    while (async_queue_dequeue(response_queue, &resp, sizeof(resp), NULL)) {
-        if (resp.error == 0) {
-            socket_connect_with_addr(resp.socket_index, resp.result->ai_addr);
+    addr_resolver_result_t result;
+    while (addr_resolver_dequeue_result(&result)) {
+        if (result.status == ADDR_RESOLVER_OK) {
+            socket_connect_with_addr(result.socket_index, &result.addr);
         } else {
-            socket_dns_error(resp.socket_index, resp.error);
+            socket_dns_error(result.socket_index, result.error_code);
         }
     }
 }
 ```
 
-**Benefit**: DNS timeouts (5+ seconds) no longer freeze driver. Multiple concurrent lookups.
+**Benefit**: DNS timeouts (5+ seconds) no longer freeze driver. Completions are correlated by request id and drained from a main-thread completion path.
 
 ---
 
-## Implementation Roadmap
+## Implementation Status
 
-### Phase 1: Core Primitives (1 week)
+### Completed Components
 
-**Deliverables**:
-1. `lib/async/async_queue.{h,c}` - Message queue implementation
-2. `lib/async/async_worker.{h,c}` - Worker thread abstraction
-3. `lib/port/port_sync_{win32,pthread}.c` - Mutex/event primitives
-4. **Refactor `lib/port/io_reactor` → `lib/async/async_runtime`**
-   - Move io_reactor_{iocp,epoll,poll}.c to lib/async/
-   - Rename to async_runtime_{iocp,epoll,poll}.c
-   - Add `async_runtime_post_completion()` API
-5. Unit tests: queue thread safety, worker lifecycle, runtime event delivery
-6. CMake integration: Add lib/async to build, update dependencies
+1. **lib/async/async_queue.{h,c}** - Bounded inter-thread message passing with configurable overflow policies
+2. **lib/async/async_worker_*.c** - Platform-specific worker thread lifecycle (Windows/POSIX)
+3. **lib/async/async_runtime_*.c** - Platform-specific unified I/O + completion event loop (IOCP/epoll/poll)
+4. **lib/async/console_worker.{h,c}** - Console input worker integration
+5. **src/addr_resolver.cpp** - Built-in DNS resolver with async worker backends (see [addr-resolver.md](addr-resolver.md))
 
-**Timeline**: 5-7 days
+### Critical Invariants for Developers
 
-**Validation**: All unit tests pass. async_runtime_wait() returns both I/O and completion events.
+**Single-Consumer Constraint**:
+- `async_runtime_wait()` is called exclusively from `do_comm_polling()` in [src/comm.c](../../src/comm.c)
+- Called only from the backend's main event loop in [src/backend.c](../../src/backend.c)
+- Violation causes undefined behavior on multi-waiter or concurrent-waiter scenarios
 
-### Phase 2: Console Worker Integration (3-5 days)
+**Main-Thread Non-Blocking Guarantee**:
+- Main thread never blocks on `async_queue_dequeue()` (always 0ms timeout)
+- Main thread never calls `async_worker_join()` with indefinite timeout
+- Synchronization primitives in [lib/port/sync.h](../../lib/port/sync.h) are internal to async library, never called by main thread
 
-**Deliverables**:
-1. `lib/port/console_worker.c` using async library
-2. Backend integration: `backend.c` event loop handles console completions
-3. Platform-specific console detection (REAL/PIPE/FILE)
-4. UTF-8 encoding support (Windows code page handling)
-5. Integration tests: testbot.py instant command execution
+**Worker-to-Main Communication Pattern**:
+- Workers enqueue results then call `async_runtime_post_completion()` (order matters for atomicity)
+- Main thread drains result queues upon receiving completion key
+- Completion keys are user-defined values for correlation (do not reuse across subsystems without coordination)
 
-**Timeline**: 3-5 days
-
-**Validation**: Testbot commands execute immediately (< 10ms latency). Windows console supports native line editing.
-
-### Phase 3: Async DNS (3-5 days)
-
-**Deliverables**:
-1. `lib/socket/async_dns.{h,c}` - DNS worker pool
-2. Socket state machine: Add DNS_RESOLVING state
-3. Modify `socket_connect()` to detect hostnames vs IP addresses
-4. Backend integration: Process DNS completions in event loop
-5. Configuration: `async_dns_workers` setting (default: 2)
-
-**Timeline**: 3-5 days
-
-**Validation**: DNS timeouts don't freeze driver. Stress test: 100+ concurrent lookups.
-
-### Phase 4: Documentation & Testing (2-3 days)
-
-**Deliverables**:
-1. Update [async.md](../manual/async.md) with console worker and DNS patterns
-2. Update [socket efun docs](../efuns/) with async DNS behavior
-3. Configuration documentation in [neolith.conf](../../src/neolith.conf)
-4. Integration testing: console + sockets + heartbeats concurrent
-
-**Total Timeline**: 2-3 weeks for console worker + async DNS  
-**Incremental Delivery**: Phase 1 → Phase 2 can be shipped independently (console worker alone provides value)
+**LPC Interpreter Isolation**:
+- Workers never touch LPC object state, interpreter state, or global symbol tables
+- Result data must be self-contained (no pointers to transient allocations)
+- Callbacks must check object validity (objects can be destroyed during async operations)
 
 ---
 
@@ -436,7 +411,7 @@ See individual analysis documents for detailed patterns and implementation examp
 
 ---
 
-## Future Enhancements (Post-Phase 3)
+## Potential Enhancements
 
 ### Optional Helper Abstractions
 
@@ -456,7 +431,7 @@ These use async library but are separate concerns:
 2. **lib/git_integration/** - Git operations with progress callbacks
 3. **lib/mcp_server/** - MCP server implementation for AI tools
 
-Implementation deferred pending Phase 1-3 completion and mudlib developer feedback.
+Implementation is optional and deferred until concrete demand emerges.
 
 ### Performance Optimizations
 
@@ -479,7 +454,7 @@ Implementation deferred pending Phase 1-3 completion and mudlib developer feedba
 - [async.md](../manual/async.md) - User guide with common patterns
 
 ### Related Infrastructure
-- [io_reactor.h](../../lib/port/io_reactor.h) - Current location (to be moved to lib/async/async_runtime.h)
+- [async_runtime.h](../../lib/async/async_runtime.h) - Unified async runtime API
 - [sync.h](../../lib/port/sync.h) - Internal synchronization primitives
 
 ### External References
