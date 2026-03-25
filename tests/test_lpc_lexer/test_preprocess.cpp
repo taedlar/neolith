@@ -90,3 +90,36 @@ TEST_F(LPCLexerTest, preprocessNestedIf) {
     free_string(current_file);
     current_file = 0;
 }
+
+TEST_F(LPCLexerTest, preprocessIfWithIndentedDirectives) {
+    current_file = make_shared_string ("preprocess_if_indented_test");
+    current_file_id = 0;
+    start_new_file (-1,
+        "   #if 1\n"
+        "42\n"
+        "   #else\n"
+        "0\n"
+        "   #endif\n"
+    );
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, 42);
+    EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(current_file);
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, preprocessPragmaWithIndentedDirective) {
+    current_file = make_shared_string ("preprocess_pragma_indented_test");
+    current_file_id = 0;
+    start_new_file (-1,
+        "   #pragma strict_types\n"
+        "42\n"
+    );
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, 42);
+    EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(current_file);
+    current_file = 0;
+}

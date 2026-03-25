@@ -307,7 +307,10 @@ static int skip_to (char *token, char *atoken)
   for (nest = 0;;)
     {
       /* check for preprocessor directives */
-      if ((c = *yyp++) == '#')
+      c = *yyp++;
+      while (is_wspace (c) && c != '\n' && c != LEX_EOF)
+        c = *yyp++;
+      if (c == '#')
         {
           while (is_wspace (c = *yyp++));
           startp = yyp - 1;
@@ -1626,7 +1629,12 @@ int yylex () {
           outptr--;
           return L_DOT;
         case '#':
-          if (*(outptr - 2) == '\n')
+          {
+            char *linep = outptr - 2;
+
+            while (linep >= cur_lbuf->buf && is_wspace (*linep) && *linep != '\n')
+              linep--;
+            if (linep >= cur_lbuf->buf && *linep == '\n')
             {
               char *arg = 0;
               int quote;
@@ -1761,6 +1769,8 @@ int yylex () {
             }
           else
             goto badlex;
+          }
+          break;
         case 'L':
           /* wide character literal, see https://en.cppreference.com/w/cpp/language/character_literal.html */
           if (*outptr == '"')
