@@ -218,7 +218,8 @@ python testbot.py
   - **docs/internals style**: Emphasize design rationale (why), architecture, and integration patterns; avoid duplicating implementation details.
   - **docs/internals style**: Link to source instead of copying code.
 - **IMPORTANT**: Start feature work with a plan document in [docs/plan/](docs/plan/) to track design decisions, implementation status, and handoff instructions. Update the plan as work progresses and archive when complete.
-  - Use staged status (`not started`, `in progress`, `complete`) when work spans multiple stages. Keep the status updated and visible at the top of the document.
+  - Write a short description (< 300 words) of the plan at the top of the plan document.
+  - Use staged status (`not started`, `in progress`, `complete`) when work spans multiple stages. Keep the status updated and visible following the description.
   - If the a stage contains a long checklist, ask for user confirmation before breaking it down into sub-stages with their own status tracking.
   - **NO PERMANENT CROSS REFERENCES**: plan documents must be treated as temporary that will be archived or deleted in a future commit. Do not link to them from permanent docs or source code.
   - Permanent-state docs can be created during implementation only after user confirmation, and must be kept concise and focused on behavior and contracts, not implementation details. Permanent docs should not link to plan documents.
