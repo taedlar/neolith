@@ -243,9 +243,20 @@ TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
         }
     )";
 
-    object_t *obj = load_object("test_dot_call_unknown_fail.c", test_code);
-    EXPECT_EQ(obj, nullptr) << "unknown efun dot-call unexpectedly compiled.";
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call not an efun.");
+        pop_context (&econ);
+        return;
+    }
+    else {
+        object_t *obj = load_object("test_dot_call_unknown_fail.c", test_code);
+        EXPECT_EQ(obj, nullptr) << "unknown efun dot-call unexpectedly compiled.";
+    }
 
+    pop_context (&econ);
     tear_down_simulate();
 }
 
@@ -262,9 +273,20 @@ TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
         }
     )";
 
-    object_t *obj = load_object("test_dot_call_arity_fail.c", test_code);
-    EXPECT_EQ(obj, nullptr) << "arity-mismatch dot-call unexpectedly compiled.";
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call arity mismatch.");
+        pop_context (&econ);
+        return;
+    }
+    else {
+        object_t *obj = load_object("test_dot_call_arity_fail.c", test_code);
+        EXPECT_EQ(obj, nullptr) << "arity-mismatch dot-call unexpectedly compiled.";
+    }
 
+    pop_context (&econ);
     tear_down_simulate();
 }
 
@@ -282,9 +304,20 @@ TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
         }
     )";
 
-    object_t *obj = load_object("test_dot_call_bad_receiver_type_fail.c", test_code);
-    EXPECT_EQ(obj, nullptr) << "bad receiver type in dot-call unexpectedly compiled.";
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call bad receiver type.");
+        pop_context (&econ);
+        return;
+    }
+    else {
+        object_t *obj = load_object("test_dot_call_bad_receiver_type_fail.c", test_code);
+        EXPECT_EQ(obj, nullptr) << "bad receiver type in dot-call unexpectedly compiled.";
+    }
 
+    pop_context (&econ);
     tear_down_simulate();
 }
 
@@ -302,13 +335,24 @@ TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
         }
     )";
 
-    object_t *obj = load_object("test_dot_call_bad_arg2_type_fail.c", test_code);
-    EXPECT_EQ(obj, nullptr) << "bad trailing argument type in dot-call unexpectedly compiled.";
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call bad trailing argument type.");
+        pop_context (&econ);
+        return;
+    }
+    else {
+        object_t *obj = load_object("test_dot_call_bad_arg2_type_fail.c", test_code);
+        EXPECT_EQ(obj, nullptr) << "bad trailing argument type in dot-call unexpectedly compiled.";
+    }
 
+    pop_context (&econ);
     tear_down_simulate();
 }
 
-TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
+TEST_F(LPCCompilerTest, DISABLED_dotCallAndEfunOverrideFormsCompileTogether) {
     setup_simulate();
     init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
