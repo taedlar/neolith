@@ -190,7 +190,7 @@ private:
 // These tests verify that the c-ares resolver backend (when HAVE_CARES is defined)
 // provides identical behavior to the fallback (getaddrinfo) path.
 //
-// Test matrix per docs/plan/stage5-behavior-matrix.md:
+// Test matrix covers:
 // - Forward Lookup: socket_connect + resolve() (5 + 5 subtests)
 // - Reverse Lookup: auto reverse + query_ip_name() manual (3 + pending)
 // - Peer Refresh: internal/session refresh (pending)
@@ -205,9 +205,6 @@ private:
 // ============================================================================
 // FORWARD LOOKUP: Socket Connect hostname path (backend-neutral)
 // ============================================================================
-//
-// These tests are backend-neutral API contract checks and run on both
-// c-ares and fallback builds.
 
 /**
  * RESOLVER_FWD_001: Basic success path - hostname resolves to IP
@@ -552,21 +549,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
   free_string(write_cb.u.string);
 }
 
-
-// ============================================================================
-// CLASS B: Manual Forward Lookup (resolve efun)
-// ============================================================================
-//
-// These tests verify resolve() efun behavior through direct LPC calls.
-// The resolve() function is used by LPC code to manually trigger DNS resolution.
-//
-// Current behavior: May block on legacy backend, returns cached or live result.
-// Stage 5 target: Async callback-based semantics.
-//
-// Tests exercise: direct resolve() calls, return values, cache behavior.
-
 /**
- * RESOLVER_B_001: Basic success path - resolve localhost
+ * RESOLVER_FWD_006: Basic success path - resolve localhost
  *
  * Setup: Load test object with resolve() callable, resolve "localhost"
  * Action: Call resolve("localhost") and capture return value  
@@ -602,7 +586,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_006_BasicSuccess_LocalhostResolves)
 }
 
 /**
- * RESOLVER_B_002: Cache hit - repeated resolve verifies coalescing
+ * RESOLVER_FWD_007: Cache hit - repeated resolve verifies coalescing
  *
  * Setup: Load test object, call resolve twice on same hostname
  * Action: Call resolve("localhost") twice in succession
@@ -654,7 +638,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_007_CacheHit_DedupCoalesces) {
 }
 
 /**
- * RESOLVER_B_003: Timeout - resolve with forced DNS timeout
+ * RESOLVER_FWD_008: Timeout - resolve with forced DNS timeout
  *
  * Setup: Load test object, call resolve with timeout hook active
  * Action: Call resolve("timeout-test.invalid") with ScopedDnsTimeoutHook
@@ -706,7 +690,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_008_TimeoutPath_DeterministicFailur
 }
 
 /**
- * RESOLVER_B_004: Admission control - resolve under load
+ * RESOLVER_FWD_009: Admission control - resolve under load
  *
  * Setup: Load test object, call resolve multiple times
  * Action: Queue multiple resolve calls in quick succession
@@ -749,7 +733,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_009_AdmissionOverflow_LoadTest) {
 }
 
 /**
- * RESOLVER_B_005: Caller destruction - resolve during object destruction
+ * RESOLVER_FWD_010: Caller destruction - resolve during object destruction
  *
  * Setup: Load temp test object, call resolve, destruct object
  * Action: Create object, queue resolve, then destruct

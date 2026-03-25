@@ -7,7 +7,7 @@
 ## Purpose
 
 This document records the implemented architecture and behavior of the shared resolver module.  
-It is the developer-facing counterpart to operator guidance in [../manual/resolver-async-contract.md](../manual/resolver-async-contract.md).
+It is the developer-facing counterpart to operator guidance in [../manual/dns-resolver.md](../manual/dns-resolver.md).
 
 ## Architecture
 
@@ -171,12 +171,3 @@ Current status:
 - resolver-focused suite is green across with/without-c-ares configurations
 - `RESOLVER_NOBLOCK_001` validates enqueue non-blocking behavior
 - `RESOLVER_CACHE_001` validates forward-cache bypass behavior in socket path
-
-## Deferred Hardening (Stage 6)
-
-Explicitly deferred from Stage 5 closeout:
-
-- assertion strengthening in resolver callback-contract tests
-- production-load trace evidence capture under c-ares
-
-These are hardening/runtime-evidence tasks and do not change the resolver module architecture.

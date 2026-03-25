@@ -1,19 +1,10 @@
 # LPC Mudlib DNS Resolver Guide
 
-**Status**: Reference guide for Stage 4B (Mudlib DNS Track)  
-**Audience**: Mudlib developers implementing custom DNS resolution  
-**Availability**: Always available (no build-time feature flag required)
-
-For Stage 5 driver-managed resolver behavior (`socket_connect` hostname path, `resolve()`, `query_ip_name()`, admission policy, tracing, and telemetry), see [resolver-async-contract.md](resolver-async-contract.md).
-
 ## Overview
 
 This guide describes implementing DNS hostname resolution at the mudlib layer using LPC socket efuns (DATAGRAM mode). This approach is:
 
-- **Always available**: works regardless of whether the driver's optional DNS feature is enabled or disabled.
-- **Flexible**: allows mudlib developers to implement custom resolution logic, caching, and retry policies.
-- **Non-blocking**: uses async socket I/O to avoid stalling the LPC interpreter.
-- **Deterministic**: provides explicit failure and timeout handling you control.
+For built-in DNS resolver behavior (`socket_connect` hostname path, `resolve()`, `query_ip_name()`, admission policy, tracing, and telemetry), see [dns-resolver.md](dns-resolver.md).
 
 ## When to Use This Approach
 
