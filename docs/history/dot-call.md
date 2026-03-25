@@ -4,7 +4,12 @@
 - Stage 1 (Syntax + Lowering Design): complete
 - Stage 2 (Compiler Implementation): complete
 - Stage 3 (Validation + Tests): complete
-- Stage 4 (Docs + Rollout Guidance): in progress
+- Stage 4 (Docs + Rollout Guidance): complete
+
+## Pre-Closing Handoff (2026-03-25)
+- Close request confirmed by user.
+- Non-complete items at close time: none.
+- Optional non-blocking follow-up: broader compiler/interpreter regression subsets for extra confidence.
 
 ## Current State Handoff
 - Agreed direction: dot-call is syntax sugar only.
@@ -161,7 +166,7 @@ Pending check after Stage 3 completion:
 - No required Stage 3 tasks remain based on current agreed test scope.
 - Optional: run broader compiler/interpreter regression subsets if we want extra confidence before final closeout.
 
-### Stage 4: Docs + Rollout Guidance (in progress)
+### Stage 4: Docs + Rollout Guidance (complete)
 1. Add user-facing syntax section (manual) with explicit lowering rule.
 2. Add examples showing when to use:
 - standalone call (mudlib-aware behavior),
@@ -184,3 +189,8 @@ Progress update:
 - Invalid dot-call usage is rejected at compile time with actionable diagnostics.
 - No regressions in existing LPC syntax (`->`, standalone calls, ranges).
 - If new opcodes or binary layout changes are introduced, saved LPC binaries are invalidated by a `driver_id` bump.
+
+## Lessons Learned
+- Reusing existing efun validation (`validate_efun_call`) made dot-call implementation lower risk and preserved efun contracts.
+- Compiler-level tests were sufficient to validate most semantics quickly; strict-types cases caught receiver/argument mismatches early.
+- Explicit syntax (`dot-call` or `efun::`) materially reduces ambiguity when simul_efuns overlap driver efun names.
