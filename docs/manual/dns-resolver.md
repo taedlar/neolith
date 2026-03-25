@@ -1,26 +1,20 @@
-# Resolver Async Contract (Stage 5)
+# DNS Resolver
 
-**Status**: Stage 5 finalized (2026-03-24)  
-**Audience**: Operators and mudlib maintainers  
-**Scope**: Runtime behavior for driver-managed DNS in `socket_connect`, `resolve()`, and `query_ip_name()`.
-
-## Summary
-
-Stage 5 moves DNS resolution to the shared async resolver and removes legacy blocking resolver paths from runtime execution.
+Neolith moves DNS resolution to the shared async resolver and removes legacy blocking resolver paths (LPMud, MudOS) from runtime execution.
 
 - All DNS work is queued and processed off the main backend thread.
-- Behavior is parity-verified with and without c-ares.
+- Behavior is parity-verified with and without **c-ares**.
 - Forward and reverse resolver caches are centralized in `src/addr_resolver.cpp`.
 - Admission control and telemetry are centralized in resolver core.
 
-For developer-facing architecture and subsystem boundaries, see [../internals/addr-resolver.md](../internals/addr-resolver.md).
+For developer-facing architecture and subsystem boundaries, see [addr-resolver.md](../internals/addr-resolver.md).
 
 ## Backend Selection
 
 Build-time behavior:
 
-- `HAVE_CARES=1`: c-ares backend is used.
-- `HAVE_CARES` undefined: fallback worker pool is used around libc resolver calls.
+- if `HAVE_CARES` is defined: c-ares backend is used.
+- if `HAVE_CARES` is not defined: fallback worker pool is used around libc resolver calls.
 
 In both modes:
 
@@ -31,7 +25,7 @@ In both modes:
 
 ### `socket_connect(fd, "hostname port", read_cb, write_cb)`
 
-- Hostname arguments are supported in all Stage 5 builds.
+- Hostname arguments are supported in both resolver backends.
 - Driver checks forward cache before enqueueing DNS work.
 - On forward-cache hit, connect proceeds immediately on cached numeric address.
 - On cache miss, request is admitted through shared resolver policy and completes asynchronously.
@@ -70,6 +64,8 @@ Saturation behavior:
 
 ## Cache and TTL Policy
 
+(Note: LPMud and MudOS does not have TTL-based cache. This is a Neolith extension)
+
 Resolver-managed caches:
 
 - Forward cache: hostname -> IPv4 (includes negative cache entries)
@@ -107,7 +103,7 @@ Protection mechanisms:
 
 ### Trace Tier
 
-Stage 5 resolver/cache tracing uses `TT_COMM|3`.
+DNS resolver/cache tracing uses `TT_COMM|3`.
 
 Examples:
 
@@ -134,16 +130,7 @@ Socket status output includes shared resolver telemetry and cache counters:
 - forward cache: hit/miss/negative-hit
 - reverse cache: hit/miss
 
-## Validation Snapshot
-
-As of Stage 5 finalization:
-
-- Resolver matrix green with and without c-ares.
-- `test_socket_efuns` resolver coverage: 25/25 passing.
-- Non-blocking enqueue verified by `RESOLVER_NOBLOCK_001`.
-- Forward cache bypass verified by `RESOLVER_CACHE_001`.
-
-## Operational Guidance
+## Coding Agent Guidance
 
 Use driver-managed hostname connect by default:
 
@@ -152,4 +139,4 @@ Use driver-managed hostname connect by default:
 - Enable `TT_COMM|3` briefly during incident analysis; disable when not needed.
 - Use `dump_socket_status()` to confirm cache effectiveness and admission pressure.
 
-For mudlib-managed DNS flows (Stage 4B), see [lpc-dns-resolver.md](lpc-dns-resolver.md).
+For mudlib-managed DNS resolver, see [lpc-dns-resolver.md](lpc-dns-resolver.md).

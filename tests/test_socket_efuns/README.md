@@ -1,6 +1,6 @@
 # Socket Efun Unit Tests
 
-This directory contains comprehensive unit tests for the socket efun subsystem and the Stage 5 shared resolver backend.
+This directory contains comprehensive unit tests for the socket efun subsystem and the shared resolver backend.
 
 ## Test Organization
 
@@ -43,7 +43,7 @@ The test suite is organized into three logically separate files to isolate diffe
 
 ### 3. **test_socket_efuns_resolver.cpp** — Shared Resolver Contract Tests (`RESOLVER_FWD_*`, `RESOLVER_REV_*`, `RESOLVER_REFRESH_*`)
 
-**Purpose**: Validate the Stage 5 shared resolver backend and its three operation classes: Forward Lookup, Reverse Lookup, and Peer Refresh.
+**Purpose**: Validate the shared resolver backend and its three operation classes: Forward Lookup, Reverse Lookup, and Peer Refresh.
 
 **Test Families**:
 - `RESOLVER_FWD_001`–`RESOLVER_FWD_010`: Forward hostname→IP resolution (hostname parsing, dedup, admission control, object lifecycle).
