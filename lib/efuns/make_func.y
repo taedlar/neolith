@@ -44,16 +44,16 @@ struct type {
     char *name;
     int num;
 } types[] = {
-{ "void",	VOID },
-{ "int",	INT },
-{ "string",	STRING },
-{ "object",	OBJECT },
-{ "mapping",	MAPPING },
-{ "mixed",	MIXED },
-{ "unknown",	UNKNOWN },
-{ "float",	FLOAT},
-{ "function",	FUNCTION},
-{ "buffer",	BUFFER}
+{ "void",       VOID },
+{ "int",        INT },
+{ "string",     STRING },
+{ "object",     OBJECT },
+{ "mapping",    MAPPING },
+{ "mixed",      MIXED },
+{ "unknown",    UNKNOWN },
+{ "float",      FLOAT},
+{ "function",   FUNCTION},
+{ "buffer",     BUFFER}
 };
 
 #define NELEMS(arr) 	(sizeof arr / sizeof arr[0])
@@ -238,9 +238,8 @@ typel: arg_type			{ $$ = ($1 == VOID && min_arg == -1); }
 
 %%
 
-char *
-ctype(int n)
-{
+char* ctype(int n) {
+
     static char buff[100];	/* 100 is such a comfortable size :-) */
     char *p = (char *)NULL;
 
@@ -268,9 +267,8 @@ ctype(int n)
     return buff;
 }
 
-char *
-etype1(int n)
-{
+char* etype1(int n) {
+
     if (n & 0x10000)
         return "T_ARRAY";
     switch(n) {
@@ -296,9 +294,8 @@ etype1(int n)
     return "What?";
 }
 
-char *
-etype(int n)
-{
+char* etype(int n) {
+
     int i;
     size_t local_size = 100;
     char *buff = (char *)malloc(local_size);
@@ -336,9 +333,8 @@ etype(int n)
 
 int ident(int);
 
-int
-yylex()
-{
+int yylex() {
+
     register int c;
     
     for(;;) {
