@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_STDINT_H
+  #include <stdint.h>
+#elif HAVE_INTTYPES_H
+  #include <inttypes.h>
+#endif
 #include <ctype.h>
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
@@ -38,8 +43,6 @@ FILE *yyin = 0, *yyout = 0;
 #define HEADER_PROTOTYPE	"efuns_prototype.h"
 #define HEADER_DEFINITION	"efuns_definition.h"
 
-#define PRAGMA_NOTE_CASE_START 1
-
 int num_packages = 0;
 char *packages[100];
 char ppchar;
@@ -53,14 +56,12 @@ int in_c_case, cquote, pragmas, block_nest;
 char yytext[MAXLINE];
 static char defbuf[DEFMAX];
 
-typedef struct incstate_t
-{
+typedef struct incstate_t {
   struct incstate_t *next;
   FILE *yyin;
   int line;
   char *file;
-}
-incstate;
+} incstate;
 
 static incstate *inctop = 0;
 
@@ -75,16 +76,13 @@ static void handle_build_efuns (const char *efun_spec);
 
 /* implementations */
 
-int
-main (int argc, char *argv[])
-{
+int main (int argc, char *argv[]) {
   setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
 
-  if (argc < 3)
-    {
-      fprintf (stderr, "usage: %s OPTION LPC-SPEC\n", argv[0]);
-      exit (EXIT_FAILURE);
-    }
+  if (argc < 3) {
+    fprintf (stderr, "usage: %s OPTION LPC-SPEC\n", argv[0]);
+    exit (EXIT_FAILURE);
+  }
 
   fprintf (stderr, "----------------------------------------------\n");
   handle_options (*++argv);
@@ -94,28 +92,20 @@ main (int argc, char *argv[])
   return 0;
 }
 
-void
-yyerror (char *str)
-{
+void yyerror (char *str) {
   fprintf (stderr, "%s:%d: %s\n", current_file, current_line, str);
-  exit (1);
+  exit (EXIT_FAILURE);
 }
 
-void
-yywarn (char* str)
-{
-  /* ignore errors :)  local_options generates redefinition warnings,
-     which we don't want to see */
-  (void) str;
+void yywarn (char* str) {
+  fprintf (stderr, "%s:%d: %s\n", current_file, current_line, str);
 }
 
-void
-yyerrorp (char *str)
-{
+void yyerrorp (char *str) {
   char buff[200];
   sprintf (buff, str, ppchar);
   fprintf (stderr, "%s:%d: %s\n", current_file, current_line, buff);
-  exit (1);
+  exit (EXIT_FAILURE);
 }
 
 static void add_input (const char *p) {
@@ -129,9 +119,7 @@ static void add_input (const char *p) {
 
 #define SKIPW(foo) while (isspace(*foo)) foo++;
 
-static char *
-skip_comment (char *tmp, int flag)
-{
+static char* skip_comment (char *tmp, int flag) {
   int c;
 
   for (;;)
@@ -170,9 +158,7 @@ skip_comment (char *tmp, int flag)
     }
 }
 
-static void
-refill ()
-{
+static void refill () {
   register char *p, *yyp;
   int c;
 
@@ -201,9 +187,7 @@ refill ()
   return;
 }
 
-static void
-handle_define ()
-{
+static void handle_define () {
   char namebuf[NSIZE];
   char args[NARGS][NSIZE];
   char mtext[MLEN];
@@ -346,9 +330,7 @@ handle_define ()
 
 #define SKPW while (isspace(*outptr)) outptr++
 
-static int
-cmygetc ()
-{
+static int cmygetc () {
   int c;
 
   for (;;)
@@ -368,9 +350,7 @@ cmygetc ()
 }
 
 /* Check if yytext is a macro and expand if it is. */
-static int
-expand_define ()
-{
+static int expand_define () {
   defn_t *p;
   char expbuf[DEFMAX];
   char *args[NARGS];
@@ -516,9 +496,7 @@ expand_define ()
   return 1;
 }
 
-static int
-exgetc ()
-{
+static int exgetc () {
   register char c, *yyp;
 
   SKPW;
@@ -569,8 +547,7 @@ exgetc ()
   return c;
 }
 
-static int skip_to (char *token, char *atoken)
-{
+static int skip_to (char *token, char *atoken) {
   char b[20], *p, *end;
   int c;
   int nest;
@@ -635,9 +612,7 @@ static int skip_to (char *token, char *atoken)
 
 #include "lpc/preprocess.c"
 
-static void
-open_input_file (const char *filename)
-{
+static void open_input_file (const char *filename) {
   /* open input file */
   if (NULL == (yyin = fopen (filename, "r")))
     {
@@ -654,9 +629,7 @@ open_input_file (const char *filename)
   current_line = 0;
 }
 
-static void
-open_output_file (char *filename)
-{
+static void open_output_file (char *filename) {
   if (NULL == (yyout = fopen (filename, "w")))
     {
       perror (filename);
@@ -664,16 +637,12 @@ open_output_file (char *filename)
     }
 }
 
-static void
-close_output_file ()
-{
+static void close_output_file () {
   fclose (yyout);
   yyout = NULL;
 }
 
-static char *
-protect (char *p)
-{
+static char* protect (char *p) {
   static char xbuf[1024];
   char *bufp = xbuf;
 
@@ -687,9 +656,7 @@ protect (char *p)
   return xbuf;
 }
 
-static void
-create_option_defines ()
-{
+static void create_option_defines () {
   defn_t *p;
   int count = 0;
   int i;
@@ -701,41 +668,41 @@ create_option_defines ()
   for (i = 0; i < DEFHASH; i++)
     {
       for (p = defns[i]; p; p = p->next)
-        if (!(p->flags & DEF_IS_UNDEFINED))
-          {
-            count++;
-            fprintf (yyout, "  \"__%s__\", \"%s\",\n",
-                     p->name, protect (p->exps));
-            if (strncmp (p->name, "PACKAGE_", 8) == 0)
-              {
-                size_t len;
-                char *tmp, *t;
+        {
+          if (p->flags & DEF_IS_UNDEFINED)
+            continue;
+          if (*p->name == '_')
+            continue; /* skip internal macros starting with '_' */
+          count++;
+          fprintf (yyout, "  \"__%s__\", \"%s\",\n", p->name, protect (p->exps));
+          if (strncmp (p->name, "PACKAGE_", 8) == 0)
+            {
+              size_t len;
+              char *tmp, *t;
 
-                len = strlen (p->name + 8);
-                t = tmp = (char *) malloc (len + 1);
-                strcpy (tmp, p->name + 8);
-                while (*t)
-                  {
-                    if (isupper (*t))
-                      *t = (char) tolower (*t);
-                    t++;
-                  }
-                if (num_packages == 100)
-                  {
-                    fprintf (stderr, "Too many packages.\n");
-                    exit (-1);
-                  }
-                packages[num_packages++] = tmp;
-              }
-          }
+              len = strlen (p->name + 8);
+              t = tmp = (char *) malloc (len + 1);
+              strcpy (tmp, p->name + 8);
+              while (*t)
+                {
+                  if (isupper (*t))
+                    *t = (char) tolower (*t);
+                  t++;
+                }
+              if (num_packages == 100)
+                {
+                  fprintf (stderr, "Too many packages.\n");
+                  exit (-1);
+                }
+              packages[num_packages++] = tmp;
+            }
+        }
     }
   fprintf (yyout, "};\n\n#define NUM_OPTION_DEFS %d\n\n", count);
   close_output_file ();
 }
 
-static void
-deltrail ()
-{
+static void deltrail () {
   register char *p;
 
   p = outptr;
@@ -746,9 +713,7 @@ deltrail ()
   *p = 0;
 }
 
-static void
-handle_include (char *name)
-{
+static void handle_include (char *name) {
   char *p;
   static char xbuf[1024];
   FILE *f;
@@ -801,22 +766,26 @@ handle_include (char *name)
     }
 }
 
-static void
-handle_pragma (char *name)
-{
+void handle_pragma (char *name) {
   if (!strcmp (name, "auto_note_compiler_case_start"))
     pragmas |= PRAGMA_NOTE_CASE_START;
   else if (!strcmp (name, "no_auto_note_compiler_case_start"))
     pragmas &= ~PRAGMA_NOTE_CASE_START;
-  else if (!strncmp (name, "ppchar:", 7) && *(name + 8))
+  else if (!strcmp (name, "allow_dot_call"))
+    pragmas |= PRAGMA_ALLOW_DOT_CALL;
+  else if (!strcmp (name, "no_dot_call"))
+    pragmas &= ~PRAGMA_ALLOW_DOT_CALL;
+  else if (!strncmp (name, "ppchar:", 7) && *(name + 8)) /* change preprocessor character '#' */
     ppchar = *(name + 8);
   else
-    yyerrorp ("Unidentified %cpragma");
+    {
+      char buff[200];
+      sprintf (buff, "warning: unknown pragma ignored: %s", name);
+      yywarn (buff);
+    }
 }
 
-static void
-preprocess ()
-{
+static void preprocess () {
   register char *yyp, *yyp2;
   int c;
   int cond;
@@ -1076,7 +1045,6 @@ preprocess ()
               if (line_to_print)
                 fprintf (yyout, "#line %d \"%s\"\n", current_line + 1,
                          current_file);
-
             }
         }
     }
@@ -1111,9 +1079,7 @@ preprocess ()
     yyin = 0;
 }
 
-void
-make_efun_tables ()
-{
+void make_efun_tables () {
 #define NUM_FILES     4
   static char *outfiles[NUM_FILES] = {
     HEADER_VECTOR, HEADER_OPCODE, HEADER_PROTOTYPE, HEADER_DEFINITION
@@ -1215,11 +1181,9 @@ make_efun_tables ()
 
 /*  handle_options()
 
-    generate HEADER_OPTION
+    generate HEADER_OPTION (from options.h)
  */
-static void
-handle_options (char *fname)
-{
+static void handle_options (char *fname) {
   open_input_file (fname);
   ppchar = '#';
   preprocess ();
@@ -1229,15 +1193,13 @@ handle_options (char *fname)
 
 /*  handle_build_efuns()
 
-    Generate the following files:
+    Generate the following files (from func_spec.i):
         HEADER_VECTOR
         HEADER_OPCODE
         HEADER_PROTOTYPE
         HEADER_DEFINITION
  */
-static void
-handle_build_efuns (const char *efun_spec)
-{
+static void handle_build_efuns (const char *efun_spec) {
   num_buff = op_code = efun_code = efun1_code = 0;
 
   open_input_file (efun_spec);

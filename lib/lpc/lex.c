@@ -2636,7 +2636,7 @@ void init_instrs () {
     }
   for (i = 0; i < (int)NELEM (predefs); i++) /* efuns */
     {
-      n = predefs[i].token; /* used as instruction number */
+      n = predefs[i].token & TOKEN_MASK; /* opcode number only; exclude IHE_ flag bits */
       if (n & F_ALIAS_FLAG)
         {
           predefs[i].token ^= F_ALIAS_FLAG;
@@ -3488,7 +3488,8 @@ void init_predefines (void) {
   ident_hash_elem_t *ihe;
   for (i = 0; i < sizeof(predefs) / sizeof(predefs[0]); i++)
     {
-      ihe = find_or_add_perm_ident (predefs[i].word, IHE_EFUN);
+      uint32_t flags = IHE_EFUN | (predefs[i].token & IHE_ALLOW_DOT_CALL);
+      ihe = find_or_add_perm_ident (predefs[i].word, flags);
       ihe->sem_value++;
       ihe->dn.efun_num = (short)i;
     }

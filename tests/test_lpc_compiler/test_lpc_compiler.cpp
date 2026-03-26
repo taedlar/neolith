@@ -375,3 +375,33 @@ TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
     destruct_object(obj);
     tear_down_simulate();
 }
+
+TEST_F(LPCCompilerTest, dotCallDisallowedEfunFailsCompile) {
+    setup_simulate();
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    /* shutdown does not have #pragma allow_dot_call, so dot-call must be rejected. */
+    const char *test_code = R"(
+        mixed run_test() {
+            return 0.shutdown();
+        }
+    )";
+
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call on disallowed efun.");
+        pop_context (&econ);
+        return;
+    }
+    else {
+        object_t *obj = load_object("test_dot_call_disallowed_fail.c", test_code);
+        EXPECT_EQ(obj, nullptr) << "disallowed efun dot-call unexpectedly compiled.";
+    }
+
+    pop_context (&econ);
+    tear_down_simulate();
+}

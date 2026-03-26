@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_STDINT_H
+  #include <stdint.h>
+#elif HAVE_INTTYPES_H
+  #include <inttypes.h>
+#endif
 #include <ctype.h>
 
 #define EDIT_SOURCE
@@ -174,8 +179,10 @@ func: type ID optional_ID '(' arg_list optional_default ')' ';'
         if (!strcmp($2, "call_other") && !lookup_define("CAST_CALL_OTHERS")) {
             $1 = MIXED;
         }
-        sprintf(buff, "{\"%s\",%s,0,0,%d,%d,%s,%s,%s,%s,%s,%d,%s},\n",
-            $2, f_name, min_arg, limit_max ? -1 : $5, 
+        sprintf(buff, "{\"%s\",%s%s,0,0,%d,%d,%s,%s,%s,%s,%s,%d,%s},\n",
+            $2, f_name,
+            (pragmas & PRAGMA_ALLOW_DOT_CALL) ? "|IHE_ALLOW_DOT_CALL" : "",
+            min_arg, limit_max ? -1 : $5, 
             $1 != VOID ? ctype($1) : "TYPE_NOVALUE",
             etype(0), etype(1), etype(2), etype(3), i, $6);
         if (strlen(buff) > sizeof buff)
@@ -367,6 +374,11 @@ int yylex() {
                 strcpy(current_file, fname);
             } else if (sscanf(aBuf, "%d", &line) == 1) {
                 current_line = line;
+            } else if (strncmp(aBuf, "pragma ", 7) == 0) {
+                char *end = aBuf + strlen(aBuf) - 1;
+                while (end > aBuf && (*end == '\n' || *end == '\r' || *end == ' '))
+                    *end-- = '\0';
+                handle_pragma(aBuf + 7);
             }
             current_line++;
             continue;
