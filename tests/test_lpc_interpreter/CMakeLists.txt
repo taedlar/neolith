@@ -19,7 +19,8 @@ add_custom_command(TARGET test_lpc_interpreter POST_BUILD
 
 gtest_discover_tests(test_lpc_interpreter
     PROPERTIES
-    LABELS "LPC"
+        LABELS "LPC"
     DISCOVERY_TIMEOUT 20
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

@@ -334,6 +334,20 @@ static void *resolver_worker_main(void *arg)
       std::strncpy(result.query, task.query, sizeof(result.query) - 1);
       result.query[sizeof(result.query) - 1] = '\0';
 
+      if (std::time(nullptr) >= task.deadline)
+        {
+          result.timed_out = 1;
+          record_task_completion(task.type, result.success, result.timed_out);
+
+          if (s_result_queue != nullptr &&
+              async_queue_enqueue(s_result_queue, &result, sizeof(result)))
+            {
+              if (s_runtime != nullptr)
+                async_runtime_post_completion(s_runtime, RESOLVER_COMPLETION_KEY, 1);
+            }
+          continue;
+        }
+
       if (s_lookup_test_hook != nullptr)
         s_lookup_test_hook(task.query, &delay_ms, &effective_query);
 
@@ -555,6 +569,20 @@ cares_worker_main(void *arg)
       result.cache_addr = task.cache_addr;
       std::strncpy(result.query, task.query, sizeof(result.query) - 1);
       result.query[sizeof(result.query) - 1] = '\0';
+
+      if (std::time(nullptr) >= task.deadline)
+        {
+          result.timed_out = 1;
+          record_task_completion(task.type, result.success, result.timed_out);
+
+          if (s_result_queue != nullptr &&
+              async_queue_enqueue(s_result_queue, &result, sizeof(result)))
+            {
+              if (s_runtime != nullptr)
+                async_runtime_post_completion(s_runtime, RESOLVER_COMPLETION_KEY, 1);
+            }
+          continue;
+        }
 
       if (s_lookup_test_hook != nullptr)
         s_lookup_test_hook(task.query, &delay_ms, &effective_query);

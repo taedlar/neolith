@@ -8,19 +8,15 @@
 extern "C" {
   #include "std.h"
   #include "rc.h"
+  #include "async/async_runtime.h"
+  #include "port/socket_comm.h"
   #include "lpc/compiler.h"
   #include "lpc/array.h"
   #include "lpc/program.h"
-  #include "lpc/svalue.h"
   #include "lpc/types.h"
   #include "lpc/object.h"
-  #include "lpc/functional.h"
   #include "socket/socket_efuns.h"
-  #include "async/async_runtime.h"
   #include "lpc/include/socket_err.h"
-  #include "port/socket_comm.h"
-  #include "interpret.h"
-  #include "backend.h"
 }
 
 /**
@@ -63,23 +59,6 @@ static inline bool WaitForDNSCompletion(int socket_id, int timeout_ms = 5000) {
 }
 
 using namespace testing;
-
-#ifdef WINSOCK
-class WinsockEnvironment : public Environment {
-public:
-  void SetUp() override {
-    WSADATA wsa_data;
-    int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-    if (result != 0) {
-      throw std::runtime_error("WSAStartup failed");
-    }
-  }
-
-  void TearDown() override {
-    WSACleanup();
-  }
-};
-#endif
 
 /**
  * @brief Tracks callback invocations for behavioral verification.
@@ -149,6 +128,12 @@ protected:
     setup_simulate();
     eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
 
+    // Initialize async runtime (needed for socket operations and DNS)
+    if (g_runtime == nullptr) {
+      g_runtime = async_runtime_init();
+      ASSERT_NE(g_runtime, nullptr) << "Failed to initialize async runtime";
+    }
+
     // Initialize master object for apply dispatch
     init_master("/master.c");
 
@@ -161,6 +146,13 @@ protected:
     if (master_ob) {
       close_referencing_sockets(master_ob);
     }
+
+    // Deinitialize async runtime
+    if (g_runtime != nullptr) {
+      async_runtime_deinit(g_runtime);
+      g_runtime = nullptr;
+    }
+
     tear_down_simulate();
     deinit_lpc_compiler();
     deinit_strings();
@@ -317,6 +309,18 @@ protected:
   }
 
   /**
+   * @brief OP_PHASES - Socket operation lifecycle phases for state tracking.
+   */
+  static constexpr int OP_INIT = 0;
+  static constexpr int OP_DNS_RESOLVING = 1;
+  static constexpr int OP_CONNECTING = 2;
+  static constexpr int OP_TRANSFERRING = 3;
+  static constexpr int OP_COMPLETED = 4;
+  static constexpr int OP_FAILED = 5;
+  static constexpr int OP_TIMED_OUT = 6;
+  static constexpr int OP_CANCELED = 7;
+
+  /**
    * @brief Set the current_object context for socket API calls.
    *
    * Socket APIs (socket_create, socket_bind, etc.) use the current_object
@@ -339,4 +343,101 @@ protected:
       current_object = saved_ob;
     }
   };
+
+  /**
+   * @brief RAII guard for DNS timeout test hook.
+   *
+   * Sets a test hook that forces DNS operations to timeout on construction,
+   * clears it on destruction. Enables deterministic DNS timeout testing.
+   *
+   * Usage:
+   *   {
+   *     ScopedDnsTimeoutHook timeout_hook;
+   *     // DNS operations will timeout within this scope
+   *   }
+   */
+  class ScopedDnsTimeoutHook {
+  public:
+    ScopedDnsTimeoutHook() {
+      set_socket_dns_timeout_test_hook(_ForceDnsTimeoutHookImpl);
+    }
+
+    ~ScopedDnsTimeoutHook() {
+      set_socket_dns_timeout_test_hook(nullptr);
+    }
+
+  private:
+    static int _ForceDnsTimeoutHookImpl(int, const char *, uint16_t) {
+      return 1;
+    }
+  };
+
+  /**
+   * @brief RAII guard for resolver lookup test hook.
+   *
+   * Sets a custom test hook for resolver DNS queries on construction,
+   * clears it on destruction. Enables deterministic DNS behavior testing.
+   *
+   * Usage:
+   *   ScopedResolverLookupHook hook(my_hook_function);
+   *   // Resolver queries will use my_hook_function
+   */
+  class ScopedResolverLookupHook {
+  public:
+    explicit ScopedResolverLookupHook(void (*hook)(const char *, unsigned int *, const char **)) {
+      addr_resolver_set_lookup_test_hook(hook);
+    }
+
+    ~ScopedResolverLookupHook() {
+      addr_resolver_set_lookup_test_hook(nullptr);
+    }
+  };
+
+  /**
+   * @brief RAII guard for resolver initialization and cleanup.
+   *
+   * Manages resolver lifecycle for tests that validate DNS resolution behavior.
+   * The async_runtime must already be initialized (by the test fixture).
+   *
+   * On construction: deinitializes any existing resolver (to reset telemetry to zero)
+   * and initializes a fresh resolver with the configured backend.
+   *
+   * On destruction: deinitializes the resolver to clean up worker threads and state.
+   */
+  class ScopedResolver {
+  public:
+    ScopedResolver() : resolver_ready_(false) {
+      if (g_runtime != nullptr) {
+        // Deinit any existing resolver to reset telemetry counters
+        addr_resolver_deinit();
+
+        // Initialize fresh resolver from config
+        addr_resolver_config_t resolver_config;
+        stem_get_addr_resolver_config(&resolver_config);
+        resolver_ready_ = (addr_resolver_init(g_runtime, &resolver_config) != 0);
+      }
+    }
+
+    ~ScopedResolver() {
+      addr_resolver_deinit();
+    }
+
+    bool IsReady() const {
+      return g_runtime != nullptr && resolver_ready_;
+    }
+
+  private:
+    bool resolver_ready_;
+  };
+
 }; // SocketEfunsBehaviorTest
+
+/* OP_PHASES definitions for all socket tests */
+#define OP_INIT 0
+#define OP_DNS_RESOLVING 1
+#define OP_CONNECTING 2
+#define OP_TRANSFERRING 3
+#define OP_COMPLETED 4
+#define OP_FAILED 5
+#define OP_TIMED_OUT 6
+#define OP_CANCELED 7

@@ -1,6 +1,6 @@
 ---
 name: unit-test
-description: "Add unit tests for individual components. Use the GoogleTest (GTest) framework to define test cases and assertions."
+description: "Add unit tests for individual components. Use the GoogleTest (GTest) framework to define test cases and assertions. Troubleshooting test failures involves checking test logs, reproducing failures locally, and debugging with breakpoints or additional logging to identify root causes."
 ---
 # Unit Test Skill Instructions
 Unit testing involves writing test cases for individual components of the codebase to verify their correctness in isolation. This helps catch bugs early and ensures that each part of the system behaves as expected.
@@ -12,7 +12,25 @@ Unit testing involves writing test cases for individual components of the codeba
 - Use `get_machine_state()` to check subsystem initialization state and avoid redundant setup. For example, if testing a feature that requires simulate, check if it's already initialized before calling `setup_simulate()`.
 - The `SetUp()` method in the test fixture should follow the same order as in `src/main.c`: configurations, then resource pools, LPC compiler, followed by world simulation and mudlib vital objects and epilogue. This ensures that all dependencies are properly initialized for the tests.
 - The `TearDown()` method should clean up resources in the reverse order of setup to ensure proper teardown without leaving dangling pointers or unfreed memory. See `do_shutdown()` in `src/simulate.c` for reference.
-
+- Use the `Test` suffix for fixture classes (e.g. `LPCCompilerTest`) to follow GoogleTest conventions.
+- **Locating `m3.conf` in fixture SetUp()**: Before calling `init_stem()` to setup MAIN_OPTIONS, locate `m3.conf` from the current working directory first (${CMAKE_CURRENT_BINARY_DIR}, hopefully).
+  - If not found, fallback to the parent directory of current working directory (to support running tests from the test executable's own directory).
+  - This happens when IDE or other tools have no knowledge of the `WORKING_DIRECTORY` set in CMake. Pattern:
+```cpp
+    namespace fs = std::filesystem;
+    fs::path config_dir = fs::current_path();
+    if (!fs::exists(config_dir / "m3.conf"))
+      config_dir = fs::current_path().parent_path();
+    init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
+```
+- After `m3.conf` is loaded, locate the mudlib directory from the config and change wokring directory to the mudlib directory. Note that if the mudlib directory is not an absolute path, it's relative to the directory of `m3.conf`. Pattern:
+```cpp
+    fs::path mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
+    if (mudlib_path.is_relative())
+      mudlib_path = config_dir / mudlib_path;
+    s_previous_cwd = fs::current_path(); // saved for later restoration in TearDown()
+    fs::current_path(mudlib_path);
+```
 ### CMake settings for unit test programs
 - In `CMakeLists.txt`, link unit-test program to `GTest::gtest_main` and the specific libraries needed for the test (e.g., `async`, `socket`, `stem` for driver tests)
 Test patterns:
@@ -121,6 +139,14 @@ static ::testing::Environment* const winsock_env =
     ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
 #endif
 ```
+- **IMPORTANT**: For Winsock, only call `AddGlobalTestEnvironment` once per test binary.
+
+### RAII and Fixture Ownership**:
+- Put shared subsystem lifecycle in the test fixture when every test in the binary depends on it. Example: initialize and tear down `async_runtime` in `SetUp()` / `TearDown()` rather than in per-test guards.
+- Use small RAII guards only for optional or test-local state, such as temporary hooks, resolver initialization, or object-context switching.
+- Each RAII guard should own one boundary only. Avoid composite guards that mix unrelated responsibilities like runtime creation plus resolver initialization.
+- Prefer shared helper guards in a common `fixtures.hpp` over duplicating identical RAII classes across multiple test `.cpp` files.
+- When isolating tests that use shared global state, a dedicated RAII guard may reset just that subsystem per test while the fixture continues to own the broader runtime.
 
 ## Unit Test File Organization
 
@@ -129,5 +155,3 @@ static ::testing::Environment* const winsock_env =
 cd out/build/linux/tests/test_lpc_compiler
 ./RelWithDebInfo/test_lpc_compiler
 ```
-- Individual test files (e.g., `test_lpc_compiler.cpp`): Include common header, write tests,
-- Common header `fixtures.hpp`: Define test fixtures for shared setup (e.g., `LPCCompilerTest` that initializes simulate subsystem). Use the `Test` suffix for fixture classes to follow GoogleTest conventions.

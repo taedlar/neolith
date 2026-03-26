@@ -17,6 +17,7 @@ add_custom_command(TARGET test_backend POST_BUILD
 
 gtest_discover_tests(test_backend
     PROPERTIES
-    LABELS "STEM"
+        LABELS "STEM"
     DISCOVERY_TIMEOUT 20
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

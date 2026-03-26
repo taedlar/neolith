@@ -18,6 +18,7 @@ add_custom_command(TARGET test_efuns POST_BUILD
 
 gtest_discover_tests(test_efuns
     PROPERTIES
-    LABELS "LPC"
+        LABELS "EFUNS"
     DISCOVERY_TIMEOUT 20
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

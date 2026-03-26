@@ -18,6 +18,8 @@ if(UNIX)
 endif()
 
 gtest_discover_tests(test_async_worker
+    PROPERTIES
+        LABELS "STEM"
     DISCOVERY_TIMEOUT 20
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
