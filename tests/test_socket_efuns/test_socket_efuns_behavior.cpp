@@ -5,6 +5,22 @@
 #include "fixtures.hpp"
 
 #ifdef WINSOCK
+// Winsock requires initialization before use and cleanup after.
+class WinsockEnvironment : public Environment {
+public:
+  void SetUp() override {
+    WSADATA wsa_data;
+    int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+    if (result != 0) {
+      throw std::runtime_error("WSAStartup failed");
+    }
+  }
+
+  void TearDown() override {
+    WSACleanup();
+  }
+};
+
 static ::testing::Environment* const winsock_env =
   ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
 #endif
@@ -84,21 +100,6 @@ bool AcceptPendingConnection(socket_fd_t listener_fd, socket_fd_t *accepted_fd) 
   return *accepted_fd != INVALID_SOCKET_FD;
 }
 
-extern "C" int ForceDnsTimeoutHook(int, const char *, uint16_t) {
-  return 1;
-}
-
-class ScopedDnsTimeoutHook {
-public:
-  ScopedDnsTimeoutHook() {
-    set_socket_dns_timeout_test_hook(ForceDnsTimeoutHook);
-  }
-
-  ~ScopedDnsTimeoutHook() {
-    set_socket_dns_timeout_test_hook(nullptr);
-  }
-};
-
 extern "C" void DelayLocalhostResolverHook(const char *query,
                                              unsigned int *delay_ms_out,
                                              const char **effective_query_out) {
@@ -123,50 +124,7 @@ extern "C" void DelayLocalhostResolverHook(const char *query,
   }
 }
 
-class ScopedResolverLookupHook {
-public:
-  explicit ScopedResolverLookupHook(void (*hook)(const char *, unsigned int *, const char **)) {
-    addr_resolver_set_lookup_test_hook(hook);
-  }
-
-  ~ScopedResolverLookupHook() {
-    addr_resolver_set_lookup_test_hook(nullptr);
-  }
-};
-
-/* OP_PHASES definitions needed by tests */
-#define OP_INIT 0
-#define OP_DNS_RESOLVING 1
-#define OP_CONNECTING 2
-#define OP_TRANSFERRING 3
-#define OP_COMPLETED 4
-#define OP_FAILED 5
-#define OP_TIMED_OUT 6
-#define OP_CANCELED 7
-
-class ScopedAsyncRuntime {
-public:
-  ScopedAsyncRuntime() : owns_runtime_(false) {
-    if (g_runtime == nullptr) {
-      g_runtime = async_runtime_init();
-      owns_runtime_ = (g_runtime != nullptr);
-    }
-  }
-
-  ~ScopedAsyncRuntime() {
-    if (owns_runtime_ && g_runtime != nullptr) {
-      async_runtime_deinit(g_runtime);
-      g_runtime = nullptr;
-    }
-  }
-
-  bool IsReady() const {
-    return g_runtime != nullptr;
-  }
-
-private:
-  bool owns_runtime_;
-};
+/* OP_PHASES definitions needed by tests - now in fixtures.hpp */
 
 object_t *LoadInlineObject(const char *name, const char *code) {
   object_t *saved_current;

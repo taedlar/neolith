@@ -14,6 +14,7 @@ add_custom_command(TARGET test_simul_efuns POST_BUILD
 
 gtest_discover_tests(test_simul_efuns
     PROPERTIES
-    LABELS "SimulEfun"
+        LABELS "LPC"
     DISCOVERY_TIMEOUT 20
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

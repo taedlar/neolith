@@ -18,6 +18,7 @@ add_custom_command(TARGET test_socket_efuns POST_BUILD
 
 gtest_discover_tests(test_socket_efuns
     PROPERTIES
-    LABELS "STEM;SOCKET"
+        LABELS "EFUNS"
     DISCOVERY_TIMEOUT 20
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

@@ -16,6 +16,7 @@ add_custom_command(TARGET test_stack_machine POST_BUILD
 
 gtest_discover_tests(test_stack_machine
     PROPERTIES
-    LABELS "STEM"
+        LABELS "STEM"
     DISCOVERY_TIMEOUT 20
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

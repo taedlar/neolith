@@ -80,26 +80,52 @@ ASSERT_TRUE(interactive.IsReady()) << "Failed to create test interactive";
 
 ---
 
-### Resolver Tests: `ScopedAsyncRuntime`
+### Shared Test Fixture: `SocketEfunsBehaviorTest`
 
-**Critical**: Resolver tests must explicitly initialize the shared resolver, even when running in isolation.
+**Critical**: The shared async runtime is now initialized once per test by the fixture, not by per-test guards.
 
 ```cpp
-ScopedAsyncRuntime runtime_guard;
-ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required";
+TEST_F(SocketEfunsBehaviorTest, SOCK_OP_001_ConnectTracksOperationLifecycle) {
+  ASSERT_TRUE(master_ob) << "Master object not initialized";
+  ScopedObjectContext ctx(this, master_ob);
+  // ... async runtime is already available here
+}
+```
+
+**What It Does**:
+1. Initializes the LPC test environment and mudlib.
+2. Creates `g_runtime` in `SetUp()` via `async_runtime_init()`.
+3. Deinitializes `g_runtime` in `TearDown()` via `async_runtime_deinit()`.
+4. Provides shared RAII helpers such as `ScopedObjectContext`, `ScopedDnsTimeoutHook`, and `ScopedResolverLookupHook`.
+
+**Why This Matters**:
+- Socket behavior, extension, and resolver tests all depend on the async runtime.
+- Centralizing runtime lifecycle in the fixture removes redundant per-file guards and makes ownership explicit.
+- Resolver tests still run in isolation correctly because the fixture guarantees the runtime exists before test code runs.
+
+---
+
+### Resolver Tests: `ScopedResolver`
+
+Resolver tests must still explicitly initialize the shared resolver, but that lifecycle is now separate from async runtime ownership.
+
+```cpp
+ScopedResolver resolver_guard;
+ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 // ... now addr_resolver_enqueue_*() and addr_resolver_dequeue_result() work
 ```
 
 **What It Does**:
-1. Creates the global async runtime (if not already initialized).
-2. Fetches resolver configuration from `stem_get_addr_resolver_config()`.
-3. Initializes the shared resolver via `addr_resolver_init(g_runtime, &config)`.
-4. On destructor: calls `addr_resolver_deinit()` and optionally `async_runtime_deinit()` (only if this test owned the runtime).
+1. Assumes the fixture already created `g_runtime`.
+2. Resets any existing resolver state with `addr_resolver_deinit()`.
+3. Fetches resolver configuration from `stem_get_addr_resolver_config()`.
+4. Initializes the shared resolver via `addr_resolver_init(g_runtime, &config)`.
+5. On destruction: calls `addr_resolver_deinit()` to clean up worker threads, queues, and telemetry.
 
 **Why This Matters**:
-- Running resolver tests in isolation (not through the full driver startup sequence) means the shared resolver won't auto-initialize.
-- Without explicit initialization, `addr_resolver_enqueue_reverse()` returns 0 (task queue is null), making tests fail spuriously.
-- `ScopedAsyncRuntime` ensures deterministic, reproducible test runs on both platforms.
+- Running resolver tests in isolation still requires explicit resolver initialization.
+- Without resolver init, `addr_resolver_enqueue_reverse()` returns 0 because the task queue is null.
+- Separating `ScopedResolver` from fixture-owned async runtime keeps ownership boundaries clean: fixture owns infrastructure, resolver tests own resolver state.
 
 ---
 
@@ -236,10 +262,10 @@ Splitting tests into behavior, extensions, and resolver-contract files:
 
 ### 3. **Explicit Init/Deinit Is Critical for Isolated Tests**
 
-Tests that run in isolation (not through the full driver startup) need explicit initialization of subsystems they depend on. The resolver test harness learned this hard way: tests failed spuriously until `ScopedAsyncRuntime` was added to explicitly call `addr_resolver_init()`.
+Tests that run in isolation (not through the full driver startup) need explicit initialization of the subsystems they depend on. The resolver test harness learned this hard way: tests failed spuriously until the fixture took ownership of `g_runtime` and resolver tests added `ScopedResolver` to explicitly call `addr_resolver_init()`.
 
 **Best Practice**:
-- Use RAII scoped guards (`ScopedAsyncRuntime`, `ScopedResolverLookupHook`) for every subsystem dependency.
+- Put shared infrastructure in fixture `SetUp()` / `TearDown()`, then use RAII scoped guards such as `ScopedResolver` and `ScopedResolverLookupHook` for per-test subsystem state.
 - Don't assume main-loop initialization sequences apply to isolated tests.
 - Add assertions (e.g., `IsReady()`) to catch initialization failures early.
 
@@ -299,4 +325,16 @@ ctest --preset ut-linux -R "SocketEfuns"
 - [src/addr_resolver.cpp](../../src/addr_resolver.cpp) — Shared resolver implementation (c-ares and fallback backends).
 - [src/addr_resolver.h](../../src/addr_resolver.h) — Shared resolver public API and test hook declarations.
 - [src/comm.c](../../src/comm.c) — Socket layer and resolver integration (query_ip_name, query_addr_name).
-- [fixtures.hpp](./fixtures.hpp) — Shared test infrastructure (ScopedAsyncRuntime, ScopedResolverLookupHook, helpers).
+### 6. **RAII Guards Should Match Ownership Boundaries**
+
+RAII test helpers are most reliable when each guard owns exactly one subsystem boundary.
+
+**Current pattern**:
+- The fixture owns async runtime lifecycle for every socket test.
+- `ScopedResolver` owns resolver lifecycle only for resolver-contract tests.
+- `ScopedDnsTimeoutHook` and `ScopedResolverLookupHook` own temporary test hook installation only.
+
+**Best Practice**:
+- Put shared infrastructure setup in the fixture `SetUp()`/`TearDown()`.
+- Use narrow RAII guards for optional per-test subsystems or hooks.
+- Avoid composite guards that mix unrelated ownership concerns such as runtime creation plus resolver initialization.

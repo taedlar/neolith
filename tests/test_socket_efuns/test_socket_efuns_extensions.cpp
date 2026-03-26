@@ -4,11 +4,6 @@
 
 #include "fixtures.hpp"
 
-#ifdef WINSOCK
-static ::testing::Environment* const winsock_env =
-  ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
-#endif
-
 namespace {
 
 bool CreateLoopbackListener(socket_fd_t *listener_fd, int *port) {
@@ -84,21 +79,6 @@ bool AcceptPendingConnection(socket_fd_t listener_fd, socket_fd_t *accepted_fd) 
   return *accepted_fd != INVALID_SOCKET_FD;
 }
 
-extern "C" int ForceDnsTimeoutHookExtensions(int, const char *, uint16_t) {
-  return 1;
-}
-
-class ScopedDnsTimeoutHook {
-public:
-  ScopedDnsTimeoutHook() {
-    set_socket_dns_timeout_test_hook(ForceDnsTimeoutHookExtensions);
-  }
-
-  ~ScopedDnsTimeoutHook() {
-    set_socket_dns_timeout_test_hook(nullptr);
-  }
-};
-
 extern "C" void DelayLocalhostResolverHookExtensions(const char *query,
                                              unsigned int *delay_ms_out,
                                              const char **effective_query_out) {
@@ -162,40 +142,6 @@ bool WaitForSocketPhase(int socket_id, int expected_phase, int timeout_ms) {
 
   return false;
 }
-
-/* OP_PHASES definitions needed by tests */
-#define OP_INIT 0
-#define OP_DNS_RESOLVING 1
-#define OP_CONNECTING 2
-#define OP_TRANSFERRING 3
-#define OP_COMPLETED 4
-#define OP_FAILED 5
-#define OP_TIMED_OUT 6
-#define OP_CANCELED 7
-
-class ScopedAsyncRuntime {
-public:
-  ScopedAsyncRuntime() : owns_runtime_(false) {
-    if (g_runtime == nullptr) {
-      g_runtime = async_runtime_init();
-      owns_runtime_ = (g_runtime != nullptr);
-    }
-  }
-
-  ~ScopedAsyncRuntime() {
-    if (owns_runtime_ && g_runtime != nullptr) {
-      async_runtime_deinit(g_runtime);
-      g_runtime = nullptr;
-    }
-  }
-
-  bool IsReady() const {
-    return g_runtime != nullptr;
-  }
-
-private:
-  bool owns_runtime_;
-};
 
 object_t *LoadInlineObject(const char *name, const char *code) {
   object_t *saved_current;
@@ -526,8 +472,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolutions) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS admission tests";
 
   svalue_t read_cb, write_cb;
   std::vector<int> fd_list;
@@ -605,8 +549,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS admission tests";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb, write_cb;
@@ -665,8 +607,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS timeout tests";
   ScopedObjectContext ctx(this, master_ob);
   ScopedDnsTimeoutHook timeout_hook;
 
@@ -726,8 +666,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWork) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS coalescing tests";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb;
@@ -782,8 +720,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlocking) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS concurrency tests";
   ScopedObjectContext ctx(this, master_ob);
   ScopedResolverLookupHook resolver_hook(DelayLocalhostResolverHookExtensions);
 
@@ -869,8 +805,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlockin
  */
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlood) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for DNS responsiveness tests";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb, write_cb;
@@ -929,8 +863,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntimeEntry) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for Stage 3 runtime tests";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb;
@@ -973,8 +905,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for Stage 3 runtime tests";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb;
@@ -1032,8 +962,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_003_RuntimeRegistrationStress_NoLeaks) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for Stage 3 runtime tests";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb;

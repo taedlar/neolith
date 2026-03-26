@@ -25,5 +25,7 @@ endif()
 # Test discovery
 gtest_discover_tests(test_console_worker
     PROPERTIES
-        DISCOVERY_TIMEOUT 20
+        LABELS "STEM"
+    DISCOVERY_TIMEOUT 20
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

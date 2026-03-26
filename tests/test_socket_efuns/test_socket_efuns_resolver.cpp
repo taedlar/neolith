@@ -33,21 +33,6 @@ bool WaitForResolverResult(resolver_result_t *out, int timeout_ms = 5000) {
   return false;
 }
 
-int ForceDnsTimeoutHook(int, const char *, uint16_t) {
-  return 1;
-}
-
-class ScopedDnsTimeoutHook {
-public:
-  ScopedDnsTimeoutHook() {
-    set_socket_dns_timeout_test_hook(ForceDnsTimeoutHook);
-  }
-
-  ~ScopedDnsTimeoutHook() {
-    set_socket_dns_timeout_test_hook(nullptr);
-  }
-};
-
 void ReverseCacheLoopbackHook(const char *query,
                               unsigned int *delay_ms_out,
                               const char **effective_query_out) {
@@ -68,49 +53,6 @@ void ReverseCacheLoopbackHook(const char *query,
     }
   }
 }
-
-class ScopedResolverLookupHook {
-public:
-  explicit ScopedResolverLookupHook(void (*hook)(const char *, unsigned int *, const char **)) {
-    addr_resolver_set_lookup_test_hook(hook);
-  }
-
-  ~ScopedResolverLookupHook() {
-    addr_resolver_set_lookup_test_hook(nullptr);
-  }
-};
-
-class ScopedAsyncRuntime {
-public:
-  ScopedAsyncRuntime() : owns_runtime_(false), resolver_ready_(false) {
-    if (g_runtime == nullptr) {
-      g_runtime = async_runtime_init();
-      owns_runtime_ = (g_runtime != nullptr);
-    }
-
-    if (g_runtime != nullptr) {
-      addr_resolver_config_t resolver_config;
-      stem_get_addr_resolver_config(&resolver_config);
-      resolver_ready_ = (addr_resolver_init(g_runtime, &resolver_config) != 0);
-    }
-  }
-
-  ~ScopedAsyncRuntime() {
-    if (owns_runtime_ && g_runtime != nullptr) {
-      addr_resolver_deinit();
-      async_runtime_deinit(g_runtime);
-      g_runtime = nullptr;
-    }
-  }
-
-  bool IsReady() const {
-    return g_runtime != nullptr && resolver_ready_;
-  }
-
-private:
-  bool owns_runtime_;
-  bool resolver_ready_;
-};
 
 object_t *LoadInlineObject(const char *name, const char *code) {
   object_t *saved_current;
@@ -222,8 +164,8 @@ private:
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_001_BasicSuccess_HostnameResolves) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb;
@@ -298,8 +240,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_001_BasicSuccess_HostnameResolves) 
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_002_CacheHit_DedupCoalesces) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb;
@@ -372,8 +314,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_002_CacheHit_DedupCoalesces) {
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_003_TimeoutPath_DeterministicFailure) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedObjectContext ctx(this, master_ob);
   ScopedDnsTimeoutHook timeout_hook;
 
@@ -442,8 +384,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_003_TimeoutPath_DeterministicFailur
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_004_AdmissionOverflow_RejectsWork) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedObjectContext ctx(this, master_ob);
 
   svalue_t read_cb;
@@ -504,8 +446,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_004_AdmissionOverflow_RejectsWork) 
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 
   // Load a temporary callback owner
   object_t* temp_owner = LoadCallbackOwner("resolver_test_owner_fallback.c");
@@ -564,6 +506,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_006_BasicSuccess_LocalhostResolves) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
+  ScopedResolver resolver_guard;
+
   // Create inline test object that can call resolve via LPC
   static const char test_obj_code[] =
     "int resolve_test(string hostname) {\n"
@@ -600,8 +544,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_006_BasicSuccess_LocalhostResolves)
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_007_CacheHit_DedupCoalesces) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 
   static const char test_obj_code[] =
     "int resolve_twice(string hostname) {\n"
@@ -652,8 +596,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_007_CacheHit_DedupCoalesces) {
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_008_TimeoutPath_DeterministicFailure) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedDnsTimeoutHook timeout_hook;
 
   static const char test_obj_code[] =
@@ -704,8 +648,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_008_TimeoutPath_DeterministicFailur
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_009_AdmissionOverflow_LoadTest) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 
   static const char test_obj_code[] =
     "int resolve_under_load(int count) {\n"
@@ -748,8 +692,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_009_AdmissionOverflow_LoadTest) {
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_010_CallerDestruction_SafeCleanup) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 
   static const char test_obj_code[] =
     "int resolve_and_cleanup() {\n"
@@ -782,8 +726,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_010_CallerDestruction_SafeCleanup) 
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_001_BasicSuccess_AutoReversePopulatesCache) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedResolverLookupHook resolver_hook(ReverseCacheLoopbackHook);
 
   object_t *obj = LoadInlineObject("resolver_rev_auto_obj_001.c", "void create() { }\n");
@@ -815,8 +759,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_001_BasicSuccess_AutoReversePopulat
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_002_CacheHit_RepeatLookupUsesCache) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedResolverLookupHook resolver_hook(ReverseCacheLoopbackHook);
 
   object_t *obj = LoadInlineObject("resolver_rev_auto_obj_002.c", "void create() { }\n");
@@ -860,8 +804,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_002_CacheHit_RepeatLookupUsesCache)
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_003_Timeout_ConnectionPathRemainsNonBlocking) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedDnsTimeoutHook timeout_hook;
 
   object_t *obj = LoadInlineObject("resolver_rev_auto_obj_003.c", "void create() { }\n");
@@ -908,8 +852,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_003_Timeout_ConnectionPathRemainsNo
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_004_CacheMiss_ReturnsIPImmediatelySchedulesRefresh) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedResolverLookupHook resolver_hook(ReverseCacheLoopbackHook);
 
   object_t *obj = LoadInlineObject("resolver_rev_manual_obj_004.c", "void create() { }\n");
@@ -945,8 +889,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_004_CacheMiss_ReturnsIPImmediatelyS
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_005_CacheHit_RepeatQueryUsesCache) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 
   object_t *obj = LoadInlineObject("resolver_rev_manual_obj_005.c", "void create() { }\n");
   ASSERT_NE(obj, nullptr) << "Failed to load reverse-lookup test object";
@@ -977,8 +921,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_005_CacheHit_RepeatQueryUsesCache) 
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_006_Timeout_CacheRemainsUnchanged) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedDnsTimeoutHook timeout_hook;
 
   object_t *obj = LoadInlineObject("resolver_rev_manual_obj_006.c", "void create() { }\n");
@@ -1012,8 +956,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_006_Timeout_CacheRemainsUnchanged) 
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_007_AdmissionReject_ExplicitFailure) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 
   object_t *obj = LoadInlineObject("resolver_rev_manual_obj_007.c", "void create() { }\n");
   ASSERT_NE(obj, nullptr) << "Failed to load reverse-lookup test object";
@@ -1062,14 +1006,13 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_007_AdmissionReject_ExplicitFailure
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_008_ObjectDestruction_SafeCleanup) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime is required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 
   object_t *obj = LoadInlineObject("resolver_rev_manual_obj_008.c", "void create() { }\n");
   ASSERT_NE(obj, nullptr) << "Failed to load reverse-lookup test object";
 
-  int in_flight_before = 0;
-  ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_before, nullptr, nullptr, nullptr), EESUCCESS);
+  int in_flight_after_enqueue = 0;
 
   {
     ScopedTestInteractiveAddr interactive(obj, "192.0.2.45");
@@ -1077,14 +1020,24 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_008_ObjectDestruction_SafeCleanup) 
 
     // Trigger cache miss
     query_ip_name(obj);
+
+    ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_after_enqueue, nullptr, nullptr, nullptr), EESUCCESS);
+    EXPECT_GE(in_flight_after_enqueue, 1)
+      << "Cache miss should admit reverse lookup work";
   }
 
   // Destroy object while refresh is pending
   destruct_object(obj);
+  remove_destructed_objects();
 
-  // Process remaining completions - should not crash or leak
-  for (int i = 0; i < 100; i++) {
+  // Process remaining completions - should not crash, and admitted work should quiesce.
+  int in_flight_after = 0;
+  for (int i = 0; i < 700; i++) {
     handle_dns_completions();
+    ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_after, nullptr, nullptr, nullptr), EESUCCESS);
+    if (in_flight_after == 0) {
+      break;
+    }
 #ifdef WINSOCK
     Sleep(5);
 #else
@@ -1092,10 +1045,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_008_ObjectDestruction_SafeCleanup) 
 #endif
   }
 
-  int in_flight_after = 0;
-  ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_after, nullptr, nullptr, nullptr), EESUCCESS);
-  EXPECT_GE(in_flight_before, in_flight_after) 
-    << "In-flight count should decrease after object destruction";
+  EXPECT_EQ(in_flight_after, 0)
+    << "In-flight count should quiesce after object destruction and completion draining";
 }
 
 // PEER REFRESH: Background cache refresh via direct enqueue
@@ -1103,8 +1054,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REV_008_ObjectDestruction_SafeCleanup) 
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_001_BasicRefresh_EnqueueProcessComplete) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedResolverLookupHook resolver_hook(ReverseCacheLoopbackHook);
 
   object_t *obj = LoadInlineObject("resolver_refresh_obj_001.c", "void create() { }\n");
@@ -1127,8 +1078,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_001_BasicRefresh_EnqueueProcess
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_002_Coalescing_MultipleIPsCoalesce) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedResolverLookupHook hook_guard(
     [](const char *query, unsigned int *delay_ms_out, const char **effective_query_out) {
       if (delay_ms_out != nullptr) {
@@ -1174,8 +1125,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_002_Coalescing_MultipleIPsCoale
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_003_TimeoutAndCleanup_SafeStateAfterExpiry) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for resolver tests";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedResolverLookupHook hook_guard(
     [](const char *query, unsigned int *delay_ms_out, const char **effective_query_out) {
       if (delay_ms_out != nullptr && query != nullptr && strcmp(query, "127.0.0.4") == 0) {
@@ -1223,8 +1174,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_REFRESH_003_TimeoutAndCleanup_SafeState
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_NOBLOCK_001_EnqueueIsNonBlocking) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for this test";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
 
   /* Install a 500 ms delay hook so the worker takes measurable time */
   ScopedResolverLookupHook hook_guard(
@@ -1280,8 +1231,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_NOBLOCK_001_EnqueueIsNonBlocking) {
 TEST_F(SocketEfunsBehaviorTest, RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWorker) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  ScopedAsyncRuntime runtime_guard;
-  ASSERT_TRUE(runtime_guard.IsReady()) << "async runtime and resolver are required for this test";
+  ScopedResolver resolver_guard;
+  ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedObjectContext ctx(this, master_ob);
 
   /* Pre-populate forward cache: testcache.local -> 127.0.0.1 */

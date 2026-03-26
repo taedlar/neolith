@@ -19,6 +19,8 @@ if(WIN32)
 endif()
 
 gtest_discover_tests(test_async_queue
+    PROPERTIES
+        LABELS "STEM"
     DISCOVERY_TIMEOUT 20
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
