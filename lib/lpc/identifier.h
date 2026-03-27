@@ -1,11 +1,12 @@
 #pragma once
 
 /* to speed up cleaning the hash table, and identify the union */
-#define IHE_RESWORD    0x8000
-#define IHE_EFUN       0x4000
-#define IHE_SIMUL      0x2000
-#define IHE_PERMANENT  (IHE_RESWORD | IHE_EFUN | IHE_SIMUL)
-#define TOKEN_MASK     0x0fff
+#define IHE_RESWORD        0x80000000
+#define IHE_EFUN           0x40000000
+#define IHE_SIMUL          0x20000000
+#define IHE_PERMANENT      (IHE_RESWORD | IHE_EFUN | IHE_SIMUL)
+#define IHE_ALLOW_DOT_CALL 0x00001000  /* efun permits dot-call syntax */
+#define TOKEN_MASK         0x00000fff
 
 #define INDENT_HASH_SIZE 1024 /* must be a power of 2 */
 
@@ -17,8 +18,8 @@ typedef struct defined_name_s {
 
 typedef struct ident_hash_elem_s {
     char *name;
-    short token;                /* only flags */
-    short sem_value;            /* 0: reserved word or not defined, >1 a count of the ambiguity */
+    uint32_t token;                /* only flags */
+    uint32_t sem_value;            /* 0: reserved word or not defined, >1 a count of the ambiguity */
     struct ident_hash_elem_s *next;
 /* the fields above must correspond to struct keyword_t */
     struct ident_hash_elem_s *next_dirty;
@@ -34,8 +35,8 @@ extern ident_hash_elem_list_t *ihe_list;
 
 typedef struct keyword_s {
     char *word;
-    unsigned short token;       /* flags here too */
-    short sem_value;            /* semantic value for predefined tokens */
+    uint32_t token;       /* flags here too */
+    uint32_t sem_value;            /* semantic value for predefined tokens */
     ident_hash_elem_t *next;
 /* the fields above must correspond to struct ident_hash_elem */
     short min_args;             /* Minimum number of arguments. */
@@ -54,7 +55,7 @@ typedef struct keyword_s {
 #define FOA_NEEDS_MALLOC       0x2
 ident_hash_elem_t *find_or_add_ident(char *, int);
 
-ident_hash_elem_t *find_or_add_perm_ident(char *, short);
+ident_hash_elem_t *find_or_add_perm_ident(char *, uint32_t);
 ident_hash_elem_t *lookup_ident(const char *);
 void free_unused_identifiers(void);
 void add_keyword (const char *name, keyword_t * entry);

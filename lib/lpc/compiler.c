@@ -1588,7 +1588,7 @@ parse_node_t* validate_efun_call (int f, parse_node_t * args) {
   if (f != -1)
     {
       /* should this move out of here? */
-      switch (predefs[f].token)
+      switch (predefs[f].token & TOKEN_MASK)
         {
 #ifdef F_SIZEOF
         case F_SIZEOF:
@@ -1732,7 +1732,7 @@ parse_node_t* validate_efun_call (int f, parse_node_t * args) {
             }
         }
       args->l.number = num;
-      args->v.number = predefs[f].token;
+      args->v.number = predefs[f].token & TOKEN_MASK;
       args->type = predefs[f].ret_type;
       if (args->type == TYPE_NOVALUE)
         {

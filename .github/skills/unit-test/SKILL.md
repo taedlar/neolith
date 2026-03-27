@@ -23,6 +23,10 @@ Unit testing involves writing test cases for individual components of the codeba
       config_dir = fs::current_path().parent_path();
     init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
 ```
+- `init_stem()` is used for creating a driver-like environment similar to the command line interface of the MUD driver.
+  - Use `MAIN_COPTION` macro to set/get any driver options needed for the test.
+  - The order of applying options matters. Rule of thumb: call `init_config(MAIN_OPTION(config_file))` after `init_stem()` to apply options from config file, then apply any test-specific overrides with `MAIN_COPTION` after that.
+  - For unit-test environment, `pedantic` mode is recommended since it enables stricter checks and cleans up all objects in `tear_down_simulate()`, saving the code to call `destruct_object()` manually in each test and preventing state leakage between tests.
 - After `m3.conf` is loaded, locate the mudlib directory from the config and change wokring directory to the mudlib directory. Note that if the mudlib directory is not an absolute path, it's relative to the directory of `m3.conf`. Pattern:
 ```cpp
     fs::path mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));

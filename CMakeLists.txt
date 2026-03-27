@@ -9,8 +9,6 @@ project(neolith
 )
 set(CMAKE_CXX_STANDARD 17)
 
-option(PACKAGE_SOCKETS "Enable LPC socket support" ON)
-
 if(MSVC)
 	option(USE_STATIC_MSVC_RUNTIME "Enable static MSVC Runtime library (-MT/-MD)" ON)
 	if (USE_STATIC_MSVC_RUNTIME)

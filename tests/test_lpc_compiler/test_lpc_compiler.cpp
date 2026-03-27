@@ -19,8 +19,7 @@ TEST_F(LPCCompilerTest, compileFile) {
     free_prog(prog, 1);
 }
 
-TEST_F(LPCCompilerTest, loadMaster)
-{
+TEST_F(LPCCompilerTest, loadMaster) {
     setup_simulate();
     init_master (CONFIG_STR (__MASTER_FILE__));
     ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
@@ -39,31 +38,28 @@ TEST_F(LPCCompilerTest, loadMaster)
 
 TEST_F(LPCCompilerTest, loadObject) {
     setup_simulate();
-    //init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__));
 
     // master_ob must be initialized before load_object can be used
     init_master (CONFIG_STR (__MASTER_FILE__));
-    ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
+    ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
 
     // load a nonexistent object
     current_object = master_ob;
-    object_t* obj = load_object("nonexistent_file.c", 0);
-    EXPECT_TRUE(obj == nullptr) << "load_object() did not return null for nonexistent file.";
+    object_t* obj = load_object("/path/to/non-existing/object.c", 0);
+    EXPECT_EQ(obj, nullptr) << "load_object() did not return null for non-existent file.";
 
     // load an existing object
     obj = load_object("user.c", 0);
-    ASSERT_TRUE(obj != nullptr) << "load_object() returned null for user.c.";
+    ASSERT_NE(obj, nullptr) << "load_object() returned null for user.c.";
     // the object name removes leading slash and trailing ".c"
     EXPECT_STREQ(obj->name, "user") << "Loaded object name mismatch.";
-    destruct_object(obj);
-    EXPECT_TRUE(obj->flags & O_DESTRUCTED) << "Object not marked destructed after destruct_object().";
 
+    // load an object with pre-text (source file is optional if pre-text is provided)
     obj = load_object("path/to/test_object.c", "// Pre-text for testing\nvoid create() {}\n");
-    ASSERT_TRUE(obj != nullptr) << "load_object() returned null for test_object.c with pre-text.";
+    ASSERT_NE(obj, nullptr) << "load_object() unable to load with pre-text.";
     EXPECT_STREQ(obj->name, "path/to/test_object") << "Loaded object name mismatch.";
-    destruct_object(obj);
-    EXPECT_TRUE(obj->flags & O_DESTRUCTED) << "Object not marked destructed after destruct_object().";
-    
+
+    // clean up all loaded objects automatically
     tear_down_simulate();
 }
 
@@ -72,7 +68,7 @@ TEST_F(LPCCompilerTest, programAlignment) {
     // The align() macro in compiler.h must ensure 8-byte alignment on 64-bit, 4-byte on 32-bit.
     
     setup_simulate();
-    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
     
@@ -185,14 +181,13 @@ TEST_F(LPCCompilerTest, programAlignment) {
     std::cout << "Platform: " << (ptr_size == 8 ? "64-bit" : "32-bit") 
               << ", pointer size: " << ptr_size << " bytes" << std::endl;
     std::cout << "Program total_size: " << prog->total_size << " bytes" << std::endl;
-    
-    destruct_object(obj);
+
     tear_down_simulate();
 }
 
 TEST_F(LPCCompilerTest, dotCallCompilesToEfun) {
     setup_simulate();
-    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -206,13 +201,12 @@ TEST_F(LPCCompilerTest, dotCallCompilesToEfun) {
     object_t *obj = load_object("test_dot_call_ok.c", test_code);
     ASSERT_NE(obj, nullptr) << "dot-call efun lowering failed to compile.";
 
-    destruct_object(obj);
     tear_down_simulate();
 }
 
 TEST_F(LPCCompilerTest, dotCallChainingCompiles) {
     setup_simulate();
-    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -226,13 +220,12 @@ TEST_F(LPCCompilerTest, dotCallChainingCompiles) {
     object_t *obj = load_object("test_dot_call_chain_ok.c", test_code);
     ASSERT_NE(obj, nullptr) << "chained dot-call efun lowering failed to compile.";
 
-    destruct_object(obj);
     tear_down_simulate();
 }
 
 TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
     setup_simulate();
-    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -248,8 +241,6 @@ TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
     if (setjmp(econ.context)) {
         restore_context (&econ);
         debug_message("***** expected error: dot-call not an efun.");
-        pop_context (&econ);
-        return;
     }
     else {
         object_t *obj = load_object("test_dot_call_unknown_fail.c", test_code);
@@ -262,7 +253,7 @@ TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
     setup_simulate();
-    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -278,8 +269,6 @@ TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
     if (setjmp(econ.context)) {
         restore_context (&econ);
         debug_message("***** expected error: dot-call arity mismatch.");
-        pop_context (&econ);
-        return;
     }
     else {
         object_t *obj = load_object("test_dot_call_arity_fail.c", test_code);
@@ -292,7 +281,7 @@ TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
     setup_simulate();
-    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -309,8 +298,6 @@ TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
     if (setjmp(econ.context)) {
         restore_context (&econ);
         debug_message("***** expected error: dot-call bad receiver type.");
-        pop_context (&econ);
-        return;
     }
     else {
         object_t *obj = load_object("test_dot_call_bad_receiver_type_fail.c", test_code);
@@ -323,7 +310,7 @@ TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
     setup_simulate();
-    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -340,8 +327,6 @@ TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
     if (setjmp(econ.context)) {
         restore_context (&econ);
         debug_message("***** expected error: dot-call bad trailing argument type.");
-        pop_context (&econ);
-        return;
     }
     else {
         object_t *obj = load_object("test_dot_call_bad_arg2_type_fail.c", test_code);
@@ -354,7 +339,6 @@ TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
     setup_simulate();
-    //init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
     init_master(CONFIG_STR(__MASTER_FILE__));
     ASSERT_NE(master_ob, nullptr);
 
@@ -363,7 +347,7 @@ TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
         #pragma strict_types
         int run_test() {
             //int a = efun::to_int("42"); // requires master apply valid_override()
-            //int b = "42".to_int();
+            int b = "42".to_int();
             int c = to_int("42");
             return 1;
         }
@@ -372,6 +356,33 @@ TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
     object_t *obj = load_object("test_dot_call_vs_efun_override_ok.c", test_code);
     ASSERT_NE(obj, nullptr) << "dot-call and efun:: form compatibility failed to compile.";
 
-    destruct_object(obj);
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, dotCallDisallowedEfunFailsCompile) {
+    setup_simulate();
+    init_master(CONFIG_STR(__MASTER_FILE__));
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    /* shutdown does not have #pragma allow_dot_call, so dot-call must be rejected. */
+    const char *test_code = R"(
+        mixed run_test() {
+            return 0.shutdown();
+        }
+    )";
+
+    error_context_t econ;
+    save_context (&econ);
+    if (setjmp(econ.context)) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call on disallowed efun.");
+    }
+    else {
+        object_t *obj = load_object("test_dot_call_disallowed_fail.c", test_code);
+        EXPECT_EQ(obj, nullptr) << "disallowed efun dot-call unexpectedly compiled.";
+    }
+
+    pop_context (&econ);
     tear_down_simulate();
 }

@@ -7,6 +7,7 @@ extern "C" {
     #include "std.h"
     #include "rc.h"
     #include "src/simul_efun.h"
+    #include "src/simulate.h"
     #include "uids.h"
     #include "lpc/object.h"
     #include "lpc/otable.h"
@@ -34,28 +35,34 @@ protected:
      *  and predefines.
      * 
      *  The master object and simul_efun object are NOT loaded here.
+     *
+     *  Using MAIN_OPTION(pedantic) = 1 enables pedantic mode for stricter
+     *  checks during testing. It also ensures that all objects are destructed
+     *  (in safe order) at the end of each test, preventing state leakage
+     *  between tests.
      *  --------------------------------
      */
     void SetUp() override {
+        namespace fs = std::filesystem;
+        previous_cwd = fs::current_path();
         debug_set_log_with_date (0);
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
-        namespace fs = std::filesystem;
+
         fs::path config_dir = fs::current_path();
         if (!fs::exists(config_dir / "m3.conf"))
             fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
         init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
+        MAIN_OPTION(pedantic) = 1; // enable pedantic mode for stricter checks
 
         init_config(MAIN_OPTION(config_file));
 
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-        ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
-        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relative to cwd
-        if (mudlib_path.is_relative()) {
+        ASSERT_NE(CONFIG_STR(__MUD_LIB_DIR__), nullptr);
+        fs::path mudlib_path (CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relative to cwd
+        if (mudlib_path.is_relative())
             mudlib_path = fs::current_path() / mudlib_path;
-        }
         ASSERT_TRUE(fs::exists(mudlib_path)) << "Mudlib directory does not exist: " << mudlib_path;
-        previous_cwd = fs::current_path();
-        fs::current_path(mudlib_path); // change working directory to mudlib
+        fs::current_path (mudlib_path); // change working directory to mudlib
 
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
         init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__), CONFIG_STR (__INCLUDE_DIRS__));

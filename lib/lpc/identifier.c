@@ -79,7 +79,7 @@ ident_hash_elem_t *lookup_ident (const char *name) {
  * @param name The name of the identifier. No reference is made to the string after this call.
  * @return A pointer to the identifier hash element.
  */
-ident_hash_elem_t* find_or_add_perm_ident (char *name, short token_flag) {
+ident_hash_elem_t* find_or_add_perm_ident (char *name, uint32_t token_flag) {
   int h = IdentHash (name);
   ident_hash_elem_t *hptr, *hptr2;
 

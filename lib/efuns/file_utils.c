@@ -412,60 +412,6 @@ int legal_path (const char *path) {
   return 1;
 }				/* legal_path() */
 
-/*
- * There is an error in a specific file. Ask the master object to log the
- * message somewhere.
- */
-void
-smart_log (char *error_file, int line, char *what, int flag)
-{
-  char *buff;
-  svalue_t *mret;
-  extern int pragmas;
-
-  buff = (char *) DMALLOC (strlen (error_file) + strlen (what) +
-             ((pragmas & PRAGMA_ERROR_CONTEXT) ? 100 : 40), TAG_TEMPORARY,
-             "smart_log: 1");
-
-  if (flag)
-    sprintf (buff, "%s line %d: Warning: %s", error_file, line, what);
-  else
-    sprintf (buff, "%s line %d: %s", error_file, line, what);
-
-  if (pragmas & PRAGMA_ERROR_CONTEXT)
-    {
-      char *ls = strrchr (buff, '\n');
-      char *tmp;
-      if (ls)
-        {
-          tmp = ls + 1;
-          while (*tmp && isspace (*tmp))
-            tmp++;
-          if (!*tmp)
-            *ls = 0;
-        }
-      strcat (buff, show_error_context ());
-    }
-  else
-    strcat (buff, "\n");
-
-  if (flag)
-    sprintf (buff, "%s line %d: Warning: %s%s", error_file, line, what,
-             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
-  else
-    sprintf (buff, "%s line %d: %s%s", error_file, line, what,
-             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
-
-  share_and_push_string (error_file);
-  copy_and_push_string (buff);
-  mret = safe_apply_master_ob (APPLY_LOG_ERROR, 2);
-  if (!mret || mret == (svalue_t *) - 1)
-    {
-      log_message (NULL, "\t%s", buff);
-    }
-  FREE (buff);
-}				/* smart_log() */
-
 /**
  *  @brief Append string to file.
  *  @param file The file to write to.

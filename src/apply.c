@@ -469,7 +469,7 @@ svalue_t *safe_apply (const char *fun, object_t * ob, int num_arg, int where)
  * some cases, the check should succeed.
  */
 svalue_t *apply_master_ob (const char *fun, int num_arg) {
-  if (NULL == master_ob)
+  if (!master_ob)
     {
       opt_trace (TT_EVAL, "no master object: \"%s\"", fun);
       pop_n_elems (num_arg);
@@ -480,7 +480,7 @@ svalue_t *apply_master_ob (const char *fun, int num_arg) {
   if (apply_low (fun, master_ob, num_arg) == 0)
     return 0;
 
-  free_svalue (&apply_ret_value, "sapply");
+  free_svalue (&apply_ret_value, "apply_master_ob");
   apply_ret_value = *sp--;
 
   return &apply_ret_value;

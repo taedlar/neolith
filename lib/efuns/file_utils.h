@@ -24,7 +24,6 @@
 
 int legal_path(const char *);
 char *check_valid_path(const char* path, object_t *, const char *, int);
-void smart_log(char *, int, char *, int);
 void dump_file_descriptors(outbuffer_t *);
 
 char *read_file(const char *file, long start, size_t len);

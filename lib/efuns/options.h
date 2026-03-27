@@ -4,10 +4,17 @@
  * Defines for the legacy compile-time configurations of the MudOS driver.
  * Several options have been removed either because they were no longer
  * supported in Neolith, or they become mandatory not cannot be turned off.
+ * 
+ * NOTE: This file is also processed by the edit_source tool to generate
+ * LPC preprocessor predefined macros. The following special rules apply to
+ * this file:
+ * - Only #define macros are processed; all other code is ignored.
+ * - Macro names starting with '_' are filtered out and not generated as
+ *   predefined macros. 
  */
 
-#ifndef OPTIONS_H
-#define OPTIONS_H
+#ifndef _OPTIONS_H
+#define _OPTIONS_H
 
 /****************************************************************************
  *                          COMPATIBILITY                                   *
@@ -271,6 +278,7 @@
 
 /* PACKAGE_SOCKETS: define this to enable the socket efunctions.
  */
+#define PACKAGE_SOCKETS
 
 /*************************************************************************
  *                       FOR EXPERIENCED USERS                           *
@@ -340,4 +348,4 @@
  */
 #define MAX_SAVE_SVALUE_DEPTH 25
 
-#endif
+#endif /* _OPTIONS_H */

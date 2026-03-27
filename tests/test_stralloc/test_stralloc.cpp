@@ -16,6 +16,7 @@ protected:
         debug_set_log_with_date (0);
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
         init_stem(3, 0177, ""); // use highest debug level and enable all trace logs
+        MAIN_OPTION(pedantic) = 1; // enable pedantic mode for stricter checks
         init_strings (15000, 1000000);   // will be forced to 16384 inside the function
     }
     void TearDown() override {

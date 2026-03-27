@@ -16,6 +16,8 @@
 
 /* Wrap C headers that lack extern "C" guards. */
 extern "C" {
+#include "std.h"
+#include "port/socket_comm.h"
 #include "async/async_queue.h"
 #include "async/async_worker.h"
 #include "async/async_runtime.h"
@@ -23,17 +25,6 @@ extern "C" {
 #include "lpc/object.h"
 #include "stralloc.h"
 }
-
-#ifdef WINSOCK
-#  include <winsock2.h>
-#  include <ws2tcpip.h>
-#else
-#  include <sys/socket.h>
-#  include <netinet/in.h>
-#  include <arpa/inet.h>
-#  include <netdb.h>
-#  include <unistd.h>
-#endif
 
 #include <cctype>
 #include <cstring>
@@ -331,7 +322,7 @@ static void *resolver_worker_main(void *arg)
       result.type       = task.type;
       result.request_id = task.request_id;
       result.cache_addr = task.cache_addr;
-      std::strncpy(result.query, task.query, sizeof(result.query) - 1);
+      std::memcpy(result.query, task.query, sizeof(result.query) - 1);
       result.query[sizeof(result.query) - 1] = '\0';
 
       if (std::time(nullptr) >= task.deadline)

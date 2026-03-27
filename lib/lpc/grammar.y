@@ -2954,6 +2954,15 @@ function_call:
                     p = strput(p, end, $3);
                     yyerror(buf);
                     CREATE_ERROR($$);
+                } else if (!(ihe->token & IHE_ALLOW_DOT_CALL)) {
+                    char buf[256];
+                    char *end = EndOf(buf);
+                    char *p;
+
+                    p = strput(buf, end, "Efun does not permit dot-call syntax: ");
+                    p = strput(p, end, $3);
+                    yyerror(buf);
+                    CREATE_ERROR($$);
                 } else {
                     CREATE_EXPR_NODE(expr, $1, 0);
                     expr->kind = 0;

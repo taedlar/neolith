@@ -100,7 +100,7 @@ object_t* mudlib_connect(int port, const char* addr) {
    */
   add_ref (master_ob, "mudlib_connect");
   push_number (port);
-  ret = apply_master_ob (APPLY_CONNECT, 1);
+  ret = safe_apply_master_ob (APPLY_CONNECT, 1);
   /* master_ob->interactive can be zero if the master object self destructed in the above. */
   if (ret == 0 || ret == (svalue_t *) - 1 || ret->type != T_OBJECT || !master_ob->interactive)
     {
@@ -154,7 +154,17 @@ mudlib_logon (object_t * ob)
 void init_console_user(int reconnect) {
 
   object_t* ob;
+  if (!master_ob)
+    {
+      debug_message("No master object loaded, cannot initialize console user.\n");
+      return;
+    }
   new_interactive(STDIN_FILENO);
+  if (!master_ob->interactive)
+    {
+      debug_message("Failed to create interactive for console user.\n");
+      return;
+    }
   master_ob->interactive->connection_type = CONSOLE_USER;
   master_ob->interactive->addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
@@ -458,13 +468,11 @@ static void look_for_objects_to_swap () {
  * is shadowed, check the shadowed object if living. There is no need to save
  * the value of the command_giver, as the caller resets it to 0 anyway.  */
 
-typedef struct
-{
+typedef struct heart_beat_s {
   object_t *ob;
   short heart_beat_ticks; /* ticks until next heart beat */
   short time_to_heart_beat; /* configured heart beat interval (tick counts) */
-}
-heart_beat_t;
+} heart_beat_t;
 
 static heart_beat_t *heart_beats = 0;
 static int max_heart_beats = 0;
