@@ -117,7 +117,7 @@ operator expand_varargs;
 /* used by X->f() */
 unknown call_other(object | string | object *, string | mixed *,...);
 /* used by (*f)(...) */
-mixed evaluate(mixed, ...);
+mixed evaluate (mixed, ...);
 /* default argument for some efuns */
 object this_object();
 
@@ -127,6 +127,8 @@ object this_object();
  * security applies (e.g. valid_override).
  */
 #pragma allow_dot_call
+/* get object uid */
+string getuid(object default:F_THIS_OBJECT);
 
 /* used for implicit float/int conversions */
 int to_int(string | float | int | buffer);
@@ -149,6 +151,10 @@ string file_name(object default: F_THIS_OBJECT);
 
 #pragma allow_dot_call
 string capitalize(string);
+string upper_case(string);
+string lower_case(string);
+string replace_string(string, string, string,...);
+string repeat_string(string, int);
 string *explode(string, string);
 mixed implode(mixed *, string | function, void | mixed);
 #pragma no_dot_call
@@ -158,11 +164,14 @@ int member_array(mixed, string | mixed *, void | int);
 int input_to(string | function,...);
 int random(int);
 
+#pragma allow_dot_call
 object environment(void | object);
 object *all_inventory(object default: F_THIS_OBJECT);
-object *deep_inventory(object default: F_THIS_OBJECT);
 object first_inventory(object|string default: F_THIS_OBJECT);
 object next_inventory(object default: F_THIS_OBJECT);
+#pragma no_dot_call
+object *deep_inventory(object default: F_THIS_OBJECT);
+
 void say(string, void | object | object *);
 void tell_room(object | string, string | object | int | float, void | object *);
 object present(object | string, void | object);
@@ -182,9 +191,6 @@ object find_living(string);
 object find_player(string);
 void notify_fail(string | function);
 
-string lower_case(string);
-string replace_string(string, string, string,...);
-#pragma no_dot_call
 int restore_object(string, void | int);
 int save_object(string, void | int);
 string save_variable(mixed);
@@ -216,30 +222,29 @@ mapping allocate_mapping(int);
 #pragma allow_dot_call
 mixed *values(mapping);
 mixed *keys(mapping);
+mixed match_path(mapping, string);
 #pragma no_dot_call
 void map_delete(mapping, mixed);
+
 #pragma allow_dot_call
-mixed match_path(mapping, string);
+	/* all the *p() type functions */
+	int clonep(mixed default: F_THIS_OBJECT);
+	int intp(mixed);
+	int undefinedp(mixed);
+	int nullp undefinedp(mixed);
+	int floatp(mixed);
+	int stringp(mixed);
+	int virtualp(object default: F_THIS_OBJECT);
+	int functionp(mixed);
+	int pointerp(mixed);
+	int arrayp pointerp(mixed);
+	int objectp(mixed);
+	int classp(mixed);
+	string typeof(mixed);
 
-/* all the *p() type functions */
-
-int clonep(mixed default: F_THIS_OBJECT);
-int intp(mixed);
-int undefinedp(mixed);
-int nullp undefinedp(mixed);
-int floatp(mixed);
-int stringp(mixed);
-int virtualp(object default: F_THIS_OBJECT);
-int functionp(mixed);
-int pointerp(mixed);
-int arrayp pointerp(mixed);
-int objectp(mixed);
-int classp(mixed);
-string typeof(mixed);
-
-#ifndef DISALLOW_BUFFER_TYPE
-int bufferp(mixed);
-#endif
+	#ifndef DISALLOW_BUFFER_TYPE
+	int bufferp(mixed);
+	#endif
 #pragma no_dot_call
 
 int inherits(string, object);
@@ -297,67 +302,68 @@ string oldcrypt(string, string | int);
 
 #pragma allow_dot_call
 string ctime(int);
+mixed *localtime(int);
+
 #pragma no_dot_call
 int exec(object, object);
-#pragma allow_dot_call
-mixed *localtime(int);
-#pragma no_dot_call
 string function_exists(string, void | object, void | int);
-
 object *objects(void | string | function, void | object);
+
 #pragma allow_dot_call
 string query_host_name();
 int query_idle(object default:F_THIS_OBJECT);
 string query_ip_name(void | object);
 string query_ip_number(void | object);
+int query_ip_port(void | object);
+int query_heart_beat(object default:F_THIS_OBJECT);
 #pragma no_dot_call
+
+/* both snooping status should be kept manageable by mudlib */
 object query_snoop(object default:F_THIS_OBJECT);
 object query_snooping(object default:F_THIS_OBJECT);
-#pragma no_dot_call
+object snoop(object, void | object);
+
 int remove_call_out(int | void | string);
 void set_heart_beat(int);
-int query_heart_beat(object default:F_THIS_OBJECT);
 void set_hide(int);
-
 void set_reset(object, void | int);
 
-object snoop(object, void | object);
-#pragma allow_dot_call
-mixed *sort_array(mixed *, int | string | function, ...);
-#pragma no_dot_call
 int tail(string);
 void throw(mixed);
-#pragma allow_dot_call
 int time();
+int uptime();
+
+#pragma allow_dot_call
+mixed *sort_array(mixed *, int | string | function, ...);
 mixed *unique_array(mixed *, string | function, void | mixed);
 mapping unique_mapping(mixed *, string | function, ...);
 string *deep_inherit_list(object default:F_THIS_OBJECT);
 string *shallow_inherit_list(object default:F_THIS_OBJECT);
 string *inherit_list shallow_inherit_list(object default:F_THIS_OBJECT);
 #pragma no_dot_call
+
 void printf(string,...);
+
 #pragma allow_dot_call
 string sprintf(string,...);
 #pragma no_dot_call
+
 int mapp(mixed);
-#pragma allow_dot_call
 mixed *stat(string, int default: 0);
 
 /*
  * Object properties
  */
 #pragma allow_dot_call
-int interactive(object default:F_THIS_OBJECT);
-string in_edit(object default:F_THIS_OBJECT);
-int in_input(object default:F_THIS_OBJECT);
-int userp(object default:F_THIS_OBJECT);
+	int interactive(object default:F_THIS_OBJECT);
+	string in_edit(object default:F_THIS_OBJECT);
+	int in_input(object default:F_THIS_OBJECT);
+	int userp(object default:F_THIS_OBJECT);
+	int wizardp(object default:F_THIS_OBJECT);
 #pragma no_dot_call
 
 void enable_wizard();
 void disable_wizard();
-#pragma allow_dot_call
-int wizardp(object default:F_THIS_OBJECT);
-#pragma no_dot_call
 
 object master();
 
@@ -365,8 +371,9 @@ object master();
  * various mudlib statistics
  */
 #pragma allow_dot_call
-int memory_info(object | void);
+	int memory_info(object | void);
 #pragma no_dot_call
+
 mixed get_config(int);
 
 int get_char(string | function,...);
@@ -375,8 +382,7 @@ object *children(string);
 void reload_object(object);
 
 void error(string);
-#pragma allow_dot_call
-int uptime();
+
 #pragma allow_dot_call
 int strcmp(string, string);
 #pragma no_dot_call
@@ -391,11 +397,10 @@ void ed(string | void, string | void, string | int | void, int | void);
 string cache_stats();
 #endif
 
+#pragma allow_dot_call
 mixed filter(mixed * | mapping, string | function, ...);
 mixed filter_array filter(mixed *, string | function, ...);
 mapping filter_mapping filter(mapping, string | function, ...);
-
-#pragma allow_dot_call
 mixed *map(string | mapping | mixed *, string | function, ...);
 mapping map_mapping map(mapping, string | function, ...);
 mixed *map_array map(mixed *, string | function, ...);
@@ -430,52 +435,43 @@ int resolve(string, string);
 
 mixed query_notify_fail();
 object *named_livings();
+
 #pragma allow_dot_call
-mixed copy(mixed);
-string *functions(object, int default: 0);
-string *variables(object, int default: 0);
+	mixed copy(mixed);
+	string *functions(object, int default: 0);
+	string *variables(object, int default: 0);
+	object function_owner(function);
 #pragma no_dot_call
+
 object *heart_beats();
 #ifdef COMPAT_32
 object *heart_beat_info heart_beats();
 #endif
-#pragma allow_dot_call
 int file_length(string);
-string upper_case(string);
-#pragma no_dot_call
 int replaceable(object, void | string *);
 string program_info(void | object);
 void store_variable(string, mixed);
 mixed fetch_variable(string);
 void remove_interactive(object default: F_THIS_OBJECT);
-#pragma allow_dot_call
-int query_ip_port(void | object);
-#pragma no_dot_call
 void debug_message(string);
-object function_owner(function);
-#pragma allow_dot_call
-string repeat_string(string, int);
-#pragma no_dot_call
 mapping memory_summary();
-
 mixed debug_info(int, object);
-int refs(mixed);
-
 void dump_prog(object,...);
 
 #pragma allow_dot_call
-float cos(float);
-float sin(float);
-float tan(float);
-float asin(float);
-float acos(float);
-float atan(float);
-float sqrt(float);
-float log(float);
-float pow(float, float);
-float exp(float);
-float floor(float);
-float ceil(float);
+	int refs(mixed);
+	float cos(float);
+	float sin(float);
+	float tan(float);
+	float asin(float);
+	float acos(float);
+	float atan(float);
+	float sqrt(float);
+	float log(float);
+	float pow(float, float);
+	float exp(float);
+	float floor(float);
+	float ceil(float);
 #pragma no_dot_call
 
 #ifdef PACKAGE_SOCKETS
@@ -498,7 +494,6 @@ string dump_socket_status();
 
 int export_uid(object);
 string geteuid(function | object default:F_THIS_OBJECT);
-string getuid(object default:F_THIS_OBJECT);
 int seteuid(string | int);
 
 string strwrap (string, int, int|void);
