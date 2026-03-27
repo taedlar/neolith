@@ -105,6 +105,7 @@ protected:
     if (!fs::exists(config_dir / "m3.conf"))
       config_dir = fs::current_path().parent_path();
     init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
+    MAIN_OPTION(pedantic) = 1; // enable pedantic mode for stricter checks
     init_config(MAIN_OPTION(config_file));
     debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
 
