@@ -278,6 +278,7 @@
 
 /* PACKAGE_SOCKETS: define this to enable the socket efunctions.
  */
+#define PACKAGE_SOCKETS
 
 /*************************************************************************
  *                       FOR EXPERIENCED USERS                           *
