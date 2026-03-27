@@ -912,12 +912,18 @@ void init_master (const char *master_file) {
   set_master (new_ob);
 }
 
-static char *saved_master_name = "";
-static char *saved_simul_name = "";
+static object_t *saved_name_ob = NULL;
+static char *saved_name_value = "";
+static object_t *vital_destruct_guard = NULL;
 
 static void fix_object_names (void) {
-  master_ob->name = saved_master_name;
-  simul_efun_ob->name = saved_simul_name;
+  if (saved_name_ob)
+    {
+      saved_name_ob->name = saved_name_value;
+      saved_name_ob = NULL;
+      saved_name_value = "";
+      vital_destruct_guard = NULL;
+    }
 }
 
 static object_t *restrict_destruct;
@@ -937,12 +943,28 @@ void destruct_object (object_t * ob) {
   object_t *super;
   object_t *save_restrict_destruct = restrict_destruct;
 
+  /*
+   * Destruction is a two-stage process in this driver:
+   * 1) detach and sanitize runtime references immediately (this function)
+   * 2) defer final object variable/prog release to remove_destructed_objects()
+   *
+   * This ordering keeps stack/apply code safe when destruction happens during
+   * nested LPC execution.
+   */
   DEBUG_CHECK (!ob, "destruct_object() called with NULL pointer.\n");
 
+  /*
+   * Guard against illegal recursive destruct requests coming from move_or_destruct.
+   * The restrict_destruct token is temporary and intentionally narrow in scope.
+   */
   opt_trace (TT_EVAL|1, "start destructing: /%s", ob->name);
   if (restrict_destruct && restrict_destruct != ob)
     error ("*Only this_object() can be destructed from move_or_destruct.");
 
+  /*
+   * simul_efun is special: bytecode embeds simul indexes, so while master exists
+   * we reject direct simul destruction to avoid corrupting live call targets.
+   */
   if ((ob == simul_efun_ob) && master_ob)
     {
       /* simul efun object is a special object that the F_SIMUL_EFUN instruction in compiled LPC
@@ -969,10 +991,15 @@ void destruct_object (object_t * ob) {
 
   if (ob->flags & O_DESTRUCTED)
     {
+      /* Idempotent API: repeated destruction requests are treated as no-op. */
       opt_trace (TT_EVAL|1, "object /%s already destructed", ob->name);
       return;
     }
 
+  /*
+   * Drop stack-visible references first so active execution no longer points
+   * at this object as a live target.
+   */
   remove_object_from_stack (ob);
   if (apply_ret_value.type == T_OBJECT && apply_ret_value.u.ob == ob)
     {
@@ -981,7 +1008,11 @@ void destruct_object (object_t * ob) {
       apply_ret_value = const0;
     }
 
-  /* try to move our contents somewhere */
+  /*
+   * Evict inventory before unlinking from world lists.
+   * This preserves move/destruct semantics for contained objects and keeps
+   * environment callbacks consistent.
+   */
   super = ob->super;
 
   while (ob->contains)
@@ -1008,11 +1039,12 @@ void destruct_object (object_t * ob) {
           (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
           restrict_destruct = save_restrict_destruct;
 
-          /* OUCH! we could be dested by this. -Beek */
+          /* APPLY_MOVE may destruct us as a side effect; stop immediately if so. */
           if (ob->flags & O_DESTRUCTED)
             return;
         }
 
+      /* If move callback left object in place, force destruction to make progress. */
       if (otmp == ob->contains) /* not moved elsewhere ... see move_or_destruct() apply */
         destruct_object (otmp);
     }
@@ -1028,34 +1060,35 @@ void destruct_object (object_t * ob) {
     }
 #endif
 
+  /*
+   * Unlink from environment and tear down action sentences visible to nearby
+   * command-enabled objects. This prevents stale command routes.
+   */
   if (ob->super)
     {
-      /*
-      * Remove us out of this current room (if any). Remove all sentences
-      * defined by this object from all objects here.
-      */
-      if (ob->super)
+      /* if we are carried by an object that enables commands, remove our sentences */
+      if (ob->super->flags & O_ENABLE_COMMANDS)
+        remove_sent (ob, ob->super);
+
+      for (pp = &ob->super->contains; *pp;)
         {
-          if (ob->super->flags & O_ENABLE_COMMANDS)
-            remove_sent (ob, ob->super);
+          /* remove our sentences from objects in the same environment */
+          if ((*pp)->flags & O_ENABLE_COMMANDS)
+            remove_sent (ob, *pp);
 
-          for (pp = &ob->super->contains; *pp;)
-            {
-              if ((*pp)->flags & O_ENABLE_COMMANDS)
-                remove_sent (ob, *pp);
-
-              if (*pp != ob)
-                pp = &(*pp)->next_inv;
-              else
-                *pp = (*pp)->next_inv;
-            }
+          if (*pp != ob)
+            pp = &(*pp)->next_inv;
+          else
+            *pp = (*pp)->next_inv;
         }
       opt_trace (TT_EVAL|1, "moved /%s out of environment", ob->name);
     }
 
-  /* At this point, we can still back out, but this is the very last
-   * minute we can do so.  Make sure we have a new object to replace
-   * us if this is a vital object.
+  /*
+   * Remove from object-name hash table.
+   * Vital objects (master/simul) are replaced atomically: load replacement,
+   * retarget global pointer, then remove old object without touching the new
+   * entry that has the same canonical name.
    */
   if ((ob == master_ob) || (ob == simul_efun_ob))
     {
@@ -1063,14 +1096,23 @@ void destruct_object (object_t * ob) {
       char *tmp = ob->name; /* a shared string */
       char *vital_obj_name = NULL;
 
-      /* this could be called before set_master() or set_simul_efun() returns */
+      /* Dedicated reentrancy guard for vital-object swap path. */
+      if (vital_destruct_guard)
+        {
+          error ("*Nested vital object destruct is not allowed.");
+        }
+
+      /*
+       * Register an unwind handler before we blank the name; if an error jumps
+       * out, fix_object_names() restores the original name and guard state.
+       */
       (++sp)->type = T_ERROR_HANDLER;
       sp->u.error_handler = fix_object_names;
-      saved_master_name = master_ob ? master_ob->name : "";
-      saved_simul_name = simul_efun_ob ? simul_efun_ob->name : "";
+      saved_name_ob = ob;
+      saved_name_value = tmp;
+      vital_destruct_guard = ob;
 
-      /* hack to make sure we don't find ourselves at several points
-         in the following process */
+      /* Temporarily hide old name so lookups during reload cannot select old object. */
       ob->name = "";
 
       /* get current setting of the vital object name */
@@ -1086,14 +1128,20 @@ void destruct_object (object_t * ob) {
           if (!strip_name (vital_obj_name, new_name, sizeof (new_name)))
             {
               ob->name = tmp;
+                saved_name_ob = NULL;
+                saved_name_value = "";
+                vital_destruct_guard = NULL;
               sp--;
               error ("*Destruction of vital object rejected due to invalid config setting (\"%s\").", vital_obj_name);
             }
-          opt_trace (TT_EVAL|1, "reloading vital object: /%s", tmp);
-          new_ob = load_object (tmp, 0);
+          opt_trace (TT_EVAL|1, "reloading vital object: /%s", new_name);
+          new_ob = load_object (new_name, 0);
           if (!new_ob)
             {
               ob->name = tmp;
+                saved_name_ob = NULL;
+                saved_name_value = "";
+                vital_destruct_guard = NULL;
               sp--;
               error ("*Destruct on vital object failed: new copy failed to reload.");
             }
@@ -1101,19 +1149,23 @@ void destruct_object (object_t * ob) {
 
       if (ob == master_ob)
         {
-          set_master (new_ob); /* could be NULL */
+          set_master (new_ob); /* could be NULL when unit-test or shutdown */
         }
       else if (ob == simul_efun_ob)
         {
-          set_simul_efun (new_ob); /* could be NULL */
+          set_simul_efun (new_ob); /* could be NULL when unit-test or shutdown */
         }
 
-      sp--;			/* error handler */
+      sp--;			/* pop T_ERROR_HANDLER */
 
-      /* Set the name back so we can remove it from the hash table.
-         Also be careful not to remove the new object, which has
-         the same name. */
+      /*
+       * Restore old name for hash removal and temporarily blank replacement name,
+       * so remove_object_hash() cannot accidentally unlink the replacement object.
+       */
       ob->name = tmp;
+      saved_name_ob = NULL;
+      saved_name_value = "";
+      vital_destruct_guard = NULL;
       if (new_ob)
         {
           tmp = new_ob->name; /* could be different */
@@ -1128,8 +1180,8 @@ void destruct_object (object_t * ob) {
   opt_trace (TT_EVAL|1, "removed /%s from object name hash table", ob->name);
 
   /*
-   * Now remove us out of the list of all objects. This must be done last,
-   * because an error in the above code would halt execution.
+   * Remove from global object list after hash/env/vital transitions complete.
+   * Doing this last preserves recoverability if errors occur in earlier phases.
    */
   removed = 0;
   for (pp = &obj_list; *pp; pp = &(*pp)->next_all)
@@ -1149,10 +1201,11 @@ void destruct_object (object_t * ob) {
       remove_living_name (ob);
     }
 
-  /* Free all sentences defined by this object (actions it can respond to).
-   * This must be done before deallocation to properly release references
-   * to other objects. Without this, cross-referencing objects (e.g., NPCs
-   * that add_action to each other) will trigger ref count warnings. */
+  /*
+   * Free action sentences owned by this object.
+   * This releases cross-object references before deferred deallocation runs,
+   * avoiding reference-count leaks in command wiring.
+   */
   if (ob->sent)
     {
       sentence_t *s, *next;
@@ -1165,9 +1218,10 @@ void destruct_object (object_t * ob) {
       ob->sent = NULL;
     }
 
-  /* Clean up any input_to references pointing to this object.
-   * Without this, destructed objects remain in memory if users with pending
-   * input_to prompts go AFK before typing anything. */
+  /*
+   * Clean input_to/get_char callback references pointing at this object.
+   * Otherwise dormant interactives can retain a dead object indefinitely.
+   */
   if (all_users)
     {
       for (int i = 0; i < max_users; i++)
@@ -1193,6 +1247,10 @@ void destruct_object (object_t * ob) {
         }
     }
 
+  /*
+   * Final detach: object is no longer command-capable or reachable from world
+   * topology, and enters deferred-destruction list.
+   */
   ob->flags &= ~O_ENABLE_COMMANDS;
   ob->super = 0;
   ob->next_inv = 0;
@@ -1201,6 +1259,7 @@ void destruct_object (object_t * ob) {
   obj_list_destruct = ob;
 
   set_heart_beat (ob, 0);
+  /* Mark after detaching to keep traversal code from treating it as live. */
   ob->flags |= O_DESTRUCTED; /* mark as destructed */
 
   /* moved this here from destruct2() -- see comments in destruct2() */
@@ -1214,7 +1273,15 @@ void destruct_object (object_t * ob) {
 
 
 /*
- * This one is called when no program is executing from the main loop.
+ * Deferred destruction stage.
+ *
+ * Preconditions:
+ * - object was detached and marked O_DESTRUCTED in destruct_object()
+ * - no LPC code is currently executing on this object
+ *
+ * Responsibility:
+ * - release object-owned runtime values safely
+ * - then drop the final object reference via free_object()
  */
 void destruct2 (object_t * ob) {
   /*
@@ -1242,6 +1309,7 @@ void destruct2 (object_t * ob) {
         }
     }
   if (ob->ref > 1)
+    /* Not fatal: external references can legally postpone final memory release. */
     opt_warn (1, "object /%s has ref count %d\n", ob->name, ob->ref);
 
   /*
@@ -1249,22 +1317,32 @@ void destruct2 (object_t * ob) {
    * by other objects, it will not be freed until the last reference is gone. If the
    * object is not referenced by any other objects, it will be freed immediately.
    */
-  free_object (ob, "destruct_object");
+  free_object (ob, "destruct2");
 }
 
-/* All destructed objects are moved into a sperate linked list,
- * and deallocated after program execution.  */
+/*
+ * Flush deferred destruction queue.
+ *
+ * Objects are first detached in destruct_object(), then consumed here after the
+ * active execution window ends. This avoids freeing structures that may still be
+ * observed transiently by in-flight driver code.
+ */
 
 void remove_destructed_objects () {
   object_t *ob, *next;
 
+  /* Apply pending replace_program requests before reclaiming object programs. */
   if (obj_list_replace)
     replace_programs ();
+
+  /* Walk stable next pointers; destruct2() may free current object immediately. */
   for (ob = obj_list_destruct; ob; ob = next)
     {
       next = ob->next_all;
       destruct2 (ob);
     }
+
+  /* Queue fully drained for next driver tick. */
   obj_list_destruct = 0;
 }				/* remove_destructed_objects() */
 
@@ -2483,6 +2561,8 @@ int get_machine_state() {
 }
 
 void setup_simulate() {
+  if (master_ob || simul_efun_ob || obj_list || obj_list_destruct)
+    fatal ("setup_simulate() called but master_ob, simul_efun_ob, obj_list or obj_list_destruct is not empty");
   init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
   init_objects ();              /* lib/lpc/object.c */
   init_precomputed_tables ();   /* backend.c */
@@ -2536,6 +2616,8 @@ void tear_down_simulate() {
       destruct_object (simul_efun_ob);
       set_simul_efun (0);
     }
+  current_object = previous_ob = command_giver = 0;
+
   remove_destructed_objects(); // actually free destructed objects
   clear_apply_cache(); // clear shared strings referenced by apply cache
 
