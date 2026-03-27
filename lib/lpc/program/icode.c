@@ -808,7 +808,7 @@ void i_generate_node (parse_node_t * expr) {
           ins_short ((short)(expr->v.number >> 8));
           break;
         case FP_EFUN:
-          ins_short ((short)predefs[expr->v.number >> 8].token);
+          ins_short ((short)(predefs[expr->v.number >> 8].token & TOKEN_MASK));
           break;
         case FP_FUNCTIONAL:
         case FP_FUNCTIONAL | FP_NOT_BINDABLE:
