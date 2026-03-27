@@ -38,6 +38,7 @@ void save_command_giver (object_t*);
 void restore_command_giver (void);
 
 object_t *load_object(const char *mudlib_filename, const char *pre_text);
+void smart_log(const char *, int, const char *, int);
 void reset_load_object_limits();
 object_t *clone_object(const char *, int);
 object_t *environment(svalue_t *);

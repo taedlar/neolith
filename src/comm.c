@@ -1229,7 +1229,8 @@ void process_io () {
 
 /**
  *  @brief Creates a new interactive structure for a given socket file descriptor.
- *  The new interactive_t structure is allocated and added to the \c all_users array (dynamically resized if needed).
+ *  The new interactive_t structure is allocated and added to the \c all_users
+ *  array (dynamically resized if needed).
  *  The master object is set as the command giver object for this new interactive.
  *  @param socket_fd The file descriptor of the socket to associate with the new interactive.
  */
@@ -1243,7 +1244,8 @@ void new_interactive (socket_fd_t socket_fd) {
   if (socket_fd == (socket_fd_t)STDIN_FILENO) {
     /* Console user is always at slot #0 in all_users */
     if (all_users && all_users[0]) {
-      debug_message ("Console user already exists, cannot create another.\n");
+      // console user already exists, or we are trying to create a new one while
+      // existing console user's connect() raised an error (would need Ctrl-C).
       return;
     }
     i = 0; /* reserve slot #0 for console user */
