@@ -142,14 +142,15 @@ object this_player(int default: 0);
 object this_interactive this_player( int default: 1);
 object this_user this_player( int default: 0);
 mixed previous_object(int default: 0);
+void destruct(object);
 object *all_previous_objects previous_object(int default: -1);
 mixed *call_stack(int default: 0);
 int sizeof(mixed);
 int strlen sizeof(string);
-void destruct(object);
-string file_name(object default: F_THIS_OBJECT);
 
 #pragma allow_dot_call
+string file_name(object default: F_THIS_OBJECT);
+int len sizeof(mixed);
 string capitalize(string);
 string upper_case(string);
 string lower_case(string);
@@ -181,7 +182,6 @@ void add_action(string | function, string | string *, void | int, ...);
 string query_verb();
 int command(string);
 int remove_action(string, string);
-int living (object default:F_THIS_OBJECT);
 mixed *commands();
 void disable_commands();
 void enable_commands();
@@ -198,11 +198,13 @@ mixed restore_variable(string);
 object *users();
 mixed *get_dir(string, int default: 0);
 #pragma allow_dot_call
-int strsrch(string, string | int, int default: 0);
+	int strcmp (string, string);
+	int strsrch (string, string | int, int default: 0);
+	string strwrap (string, int, int|void);
+#pragma no_dot_call
 
 /* communication functions */
 
-#pragma no_dot_call
 void write(mixed);
 void tell_object(object, string);
 void shout(string);
@@ -218,7 +220,7 @@ int find_call_out(int|string);
 
 /* mapping functions */
 
-mapping allocate_mapping(int);
+mapping allocate_mapping (int);
 #pragma allow_dot_call
 mixed *values(mapping);
 mixed *keys(mapping);
@@ -226,6 +228,7 @@ mixed match_path(mapping, string);
 #pragma no_dot_call
 void map_delete(mapping, mixed);
 
+string typeof(mixed);
 #pragma allow_dot_call
 	/* all the *p() type functions */
 	int clonep(mixed default: F_THIS_OBJECT);
@@ -238,9 +241,10 @@ void map_delete(mapping, mixed);
 	int functionp(mixed);
 	int pointerp(mixed);
 	int arrayp pointerp(mixed);
+	int mapp(mixed);
 	int objectp(mixed);
 	int classp(mixed);
-	string typeof(mixed);
+	string type typeof(mixed);
 
 	#ifndef DISALLOW_BUFFER_TYPE
 	int bufferp(mixed);
@@ -262,22 +266,19 @@ mixed *call_out_info();
 
 /* 32-bit cyclic redundancy code - see crc32.c and crctab.h */
 #pragma allow_dot_call
-int crc32(string | buffer);
+int crc32 (string | buffer);
 #pragma no_dot_call
 
 /* commands operating on files */
 
 #ifndef DISALLOW_BUFFER_TYPE
-mixed read_buffer(string | buffer, void | int, void | int);
+mixed read_buffer (string | buffer, void | int, void | int);
+int write_buffer (string | buffer, int, string | buffer | int);
 #endif
 
 int write_file(string, string, void | int);
 int rename(string, string);
 int write_bytes(string, int, string);
-
-#ifndef DISALLOW_BUFFER_TYPE
-int write_buffer(string | buffer, int, string | buffer | int);
-#endif
 
 int file_size(string);
 string read_bytes(string, void | int, void | int);
@@ -292,31 +293,28 @@ int rmdir(string);
 /* the bit string functions */
 
 #pragma allow_dot_call
-string clear_bit(string, int);
-int test_bit(string, int);
-string set_bit(string, int);
-int next_bit(string, int);
+	string clear_bit(string, int);
+	int test_bit(string, int);
+	string set_bit(string, int);
+	int next_bit(string, int);
 
-string crypt(string, string | int);
-string oldcrypt(string, string | int);
+	string crypt(string, string | int);
+	string oldcrypt(string, string | int);
+#pragma no_dot_call
 
-#pragma allow_dot_call
 string ctime(int);
 mixed *localtime(int);
 
-#pragma no_dot_call
 int exec(object, object);
 string function_exists(string, void | object, void | int);
 object *objects(void | string | function, void | object);
 
-#pragma allow_dot_call
 string query_host_name();
-int query_idle(object default:F_THIS_OBJECT);
-string query_ip_name(void | object);
-string query_ip_number(void | object);
-int query_ip_port(void | object);
-int query_heart_beat(object default:F_THIS_OBJECT);
-#pragma no_dot_call
+int query_idle (object default:F_THIS_OBJECT);
+string query_ip_name (void | object);
+string query_ip_number (void | object);
+int query_ip_port (void | object);
+int query_heart_beat (object default:F_THIS_OBJECT);
 
 /* both snooping status should be kept manageable by mudlib */
 object query_snoop(object default:F_THIS_OBJECT);
@@ -333,22 +331,24 @@ void throw(mixed);
 int time();
 int uptime();
 
-#pragma allow_dot_call
 mixed *sort_array(mixed *, int | string | function, ...);
 mixed *unique_array(mixed *, string | function, void | mixed);
 mapping unique_mapping(mixed *, string | function, ...);
-string *deep_inherit_list(object default:F_THIS_OBJECT);
 string *shallow_inherit_list(object default:F_THIS_OBJECT);
+#pragma allow_dot_call
+mixed *sort sort_array(mixed *, int | string | function, ...);
+mixed *unique unique_array(mixed *, string | function, void | mixed);
+mapping transform unique_mapping(mixed *, string | function, ...);
 string *inherit_list shallow_inherit_list(object default:F_THIS_OBJECT);
 #pragma no_dot_call
+string *deep_inherit_list(object default:F_THIS_OBJECT);
 
-void printf(string,...);
+void printf(string, ...);
 
 #pragma allow_dot_call
 string sprintf(string,...);
 #pragma no_dot_call
 
-int mapp(mixed);
 mixed *stat(string, int default: 0);
 
 /*
@@ -356,11 +356,12 @@ mixed *stat(string, int default: 0);
  */
 #pragma allow_dot_call
 	int interactive(object default:F_THIS_OBJECT);
-	string in_edit(object default:F_THIS_OBJECT);
-	int in_input(object default:F_THIS_OBJECT);
+	int living (object default:F_THIS_OBJECT);
 	int userp(object default:F_THIS_OBJECT);
-	int wizardp(object default:F_THIS_OBJECT);
 #pragma no_dot_call
+string in_edit(object default:F_THIS_OBJECT);
+int in_input(object default:F_THIS_OBJECT);
+int wizardp(object default:F_THIS_OBJECT);
 
 void enable_wizard();
 void disable_wizard();
@@ -383,15 +384,11 @@ void reload_object(object);
 
 void error(string);
 
-#pragma allow_dot_call
-int strcmp(string, string);
-#pragma no_dot_call
-
 mapping rusage();
 
-void flush_messages(void | object);
+void flush_messages (void | object);
 
-void ed(string | void, string | void, string | int | void, int | void);
+void ed (string | void, string | void, string | int | void, int | void);
 
 #ifdef CACHE_STATS
 string cache_stats();
@@ -399,19 +396,19 @@ string cache_stats();
 
 #pragma allow_dot_call
 mixed filter(mixed * | mapping, string | function, ...);
+mixed *map(string | mapping | mixed *, string | function, ...);
+#pragma no_dot_call
 mixed filter_array filter(mixed *, string | function, ...);
 mapping filter_mapping filter(mapping, string | function, ...);
-mixed *map(string | mapping | mixed *, string | function, ...);
 mapping map_mapping map(mapping, string | function, ...);
 mixed *map_array map(mixed *, string | function, ...);
-#pragma no_dot_call
 
 /*
  * parser 'magic' functions, turned into efuns
  */
 string malloc_status();
-string mud_status(int default: 0);
-void dumpallobj(string | void);
+string mud_status (int default: 0);
+void dumpallobj (string | void);
 
 string dump_file_descriptors();
 string query_load_average();
@@ -431,7 +428,7 @@ int max_eval_cost set_eval_limit(int default: 1);
 mapping *function_profile(object default:F_THIS_OBJECT);
 #endif
 
-int resolve(string, string);
+int resolve (string, string);
 
 mixed query_notify_fail();
 object *named_livings();
@@ -447,16 +444,16 @@ object *heart_beats();
 #ifdef COMPAT_32
 object *heart_beat_info heart_beats();
 #endif
-int file_length(string);
-int replaceable(object, void | string *);
-string program_info(void | object);
-void store_variable(string, mixed);
-mixed fetch_variable(string);
-void remove_interactive(object default: F_THIS_OBJECT);
-void debug_message(string);
-mapping memory_summary();
-mixed debug_info(int, object);
-void dump_prog(object,...);
+int file_length (string);
+int replaceable (object, void | string *);
+string program_info (void | object);
+void store_variable (string, mixed);
+mixed fetch_variable (string);
+void remove_interactive (object default: F_THIS_OBJECT);
+void debug_message (string);
+mapping memory_summary ();
+mixed debug_info (int, object);
+void dump_prog (object, ...);
 
 #pragma allow_dot_call
 	int refs(mixed);
@@ -493,10 +490,10 @@ string dump_socket_status();
 #endif
 
 int export_uid(object);
+#pragma allow_dot_call
 string geteuid(function | object default:F_THIS_OBJECT);
+#pragma no_dot_call
 int seteuid(string | int);
 
-string strwrap (string, int, int|void);
-
 /* shutdown is at the end because it is only called once per boot cycle :) */
-void shutdown(void | int);
+void shutdown (void | int);

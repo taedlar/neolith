@@ -194,7 +194,7 @@ TEST_F(LPCCompilerTest, dotCallCompilesToEfun) {
     current_object = master_ob;
     const char *test_code = R"(
         mixed run_test() {
-            return "42".to_int();
+            return master().getuid(); //"42".to_int();
         }
     )";
 
