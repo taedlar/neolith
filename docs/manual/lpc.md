@@ -961,6 +961,12 @@ Dot-call is syntax sugar for an efun call with the receiver inserted as the firs
 
 - `receiver.method(args...)` => `efun::method(receiver, args...)`
 
+### Declaration Requirement
+
+Not all efuns allow dot-call. Each efun must be explicitly opted-in via `#pragma allow_dot_call` in `func_spec.c`. Efuns that must not bypass the `valid_override` security check or that have other policy constraints are marked with `#pragma no_dot_call` instead.
+
+Attempting to use dot-call on an efun that has not been opted in produces a compile-time error.
+
 ### Why Use Dot-Call
 
 Dot-call can reduce ambiguity when mudlib code defines a simul_efun with the same name as a driver efun.
@@ -1002,17 +1008,17 @@ float n = "42".to_int().to_float();
 Efuns that already accept an object as first argument map naturally:
 
 ```c
-int is_living = ob.living();
 int is_user = ob.userp();
-int idle = ob.query_idle();
+int is_alive = ob.living();
+int is_interactive = ob.interactive();
 ```
 
 Equivalent forms:
 
 ```c
-int is_living = efun::living(ob);
 int is_user = efun::userp(ob);
-int idle = efun::query_idle(ob);
+int is_alive = efun::living(ob);
+int is_interactive = efun::interactive(ob);
 ```
 
 ### Type And Arity Rules
@@ -1028,33 +1034,47 @@ mixed x = 1.repeat_string(2);     // bad receiver type
 mixed y = "x".repeat_string("y"); // bad second argument type
 ```
 
-### Related Efun Docs
+### Allowed Efuns
 
-- [to_int](../efuns/to_int.md)
-- [to_float](../efuns/to_float.md)
-- [lower_case](../efuns/lower_case.md)
-- [capitalize](../efuns/capitalize.md)
-- [repeat_string](../efuns/repeat_string.md)
-- [strsrch](../efuns/strsrch.md)
-- [explode](../efuns/explode.md)
-- [crc32](../efuns/crc32.md)
-- [living](../efuns/living.md)
-- [userp](../efuns/userp.md)
-- [query_idle](../efuns/query_idle.md)
+The following efuns are opted in for dot-call. Aliases are listed under their primary name.
+
+| Category | Efuns |
+|---|---|
+| Conversion | `to_int`, `to_float` |
+| String | `file_name`, `capitalize`, `upper_case`, `lower_case`, `replace_string`, `repeat_string`, `explode`, `implode`, `strsrch`, `strcmp`, `strwrap`, `sprintf` |
+| Size | `len` (alias for `sizeof`) |
+| Regex | `regexp`, `reg_assoc` |
+| Bit string | `clear_bit`, `set_bit`, `test_bit`, `next_bit` |
+| Math | `cos`, `sin`, `tan`, `asin`, `acos`, `atan`, `sqrt`, `log`, `pow`, `exp`, `floor`, `ceil` |
+| Crypto | `crypt`, `oldcrypt` |
+| Checksum | `crc32` |
+| Type check | `type` (alias for `typeof`) `clonep`, `intp`, `floatp`, `stringp`, `objectp`, `pointerp` (`arrayp`), `mapp`, `functionp`, `classp`, `undefinedp` (`nullp`), `virtualp`, `refs`, `bufferp` |
+| Object info | `getuid`, `geteuid`, `environment`, `all_inventory`, `first_inventory`, `next_inventory`, `interactive`, `living`, `userp`, `memory_info` |
+| Mapping | `keys`, `values`, `match_path` |
+| Array / functional | `sort` (alias for `sort_array`), `unique` (alias for `unique_array`), `transform` (alias for `unique_mapping`), `filter` (alias for `filter_array`, `filter_mapping`), `map` (alias for `map_array`, `map_mapping`) |
+| Inheritance | `inherit_list` (alias for `shallow_inherit_list`) |
+| Reflection | `copy`, `functions`, `variables`, `function_owner` |
+
+\* `bufferp` is available only when `DISALLOW_BUFFER_TYPE` is not defined.
 
 ### Notes
 
+- Dot-call requires `#pragma allow_dot_call` opt-in in `func_spec.c`; efuns not opted in produce a compile-time error.
 - Dot-call is for efun dispatch, not object `->` call_other dispatch.
 - Non-call `.` forms are out of scope for this feature.
+
+### The `?:` conditional operator
+LPC provides the ternary conditional operator `?:` (shorthand of `if-else` statement that returns a value) so that:
+
+```cxx
+if (expression0)
+    var = expression1;
+else
+    var = expression2;
 ```
-    if (expression0)
-        var = expression1;
-    else
-        var = expression2;
-```
-which can be equivalently translated to:
-```
-    var = expression0 ? expression1 : expression;
+can be equivalently translated to:
+```cxx
+var = expression0 ? expression1 : expression;
 ```
 
 ### The `for` loop

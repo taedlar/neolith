@@ -176,16 +176,16 @@ f_replaceable (void)
     {
       numignore = sp->u.arr->size;
       if (numignore)
-	ignore = CALLOCATE (numignore, char *, TAG_TEMPORARY, "replaceable");
+        ignore = CALLOCATE (numignore, char *, TAG_TEMPORARY, "replaceable");
       else
-	ignore = 0;
+	      ignore = 0;
       for (i = 0; i < numignore; i++)
-	{
-	  if (sp->u.arr->item[i].type == T_STRING)
-	    ignore[i] = findstring (sp->u.arr->item[i].u.string);
-	  else
-	    ignore[i] = 0;
-	}
+        {
+          if (sp->u.arr->item[i].type == T_STRING)
+            ignore[i] = findstring (sp->u.arr->item[i].u.string);
+          else
+            ignore[i] = 0;
+        }
       prog = (sp - 1)->u.ob->prog;
     }
   else
@@ -201,13 +201,12 @@ f_replaceable (void)
   for (i = 0; i < num; i++)
     {
       if (prog->function_flags[i] & (NAME_INHERITED | NAME_NO_CODE))
-	continue;
+	      continue;
       for (j = 0; j < numignore; j++)
-	if (ignore[j] ==
-	    prog->function_table[FIND_FUNC_ENTRY (prog, i)->def.f_index].name)
-	  break;
+	      if (ignore[j] == prog->function_table[FIND_FUNC_ENTRY (prog, i)->def.f_index].name)
+	        break;
       if (j == numignore)
-	break;
+	      break;
     }
   if (st_num_arg == 2)
     free_array ((sp--)->u.arr);
