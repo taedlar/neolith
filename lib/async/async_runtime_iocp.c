@@ -264,6 +264,7 @@ void async_runtime_deinit(async_runtime_t* runtime) {
 /* I/O source management */
 
 int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
+    (void)events;  /* IOCP doesn't need explicit event flags */
     if (!runtime || fd == INVALID_SOCKET) return -1;
     
     /* Check if this is a listening socket */
