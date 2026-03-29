@@ -1,0 +1,5 @@
+{
+    "cmake.configureArgs": [
+        "-DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0"
+    ]
+}
