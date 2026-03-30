@@ -301,8 +301,7 @@ static void handle_define () {
       add_define (namebuf, arg, mtext);
     }
   else if (isspace (*tmp) || (!*tmp)) {
-                *(tmp + 1) = '\0';
-                 *tmp = ' ';
+      SKIPW (tmp);
       end = mtext + MLEN - 2;
       for (q = mtext; *tmp;)
         {
