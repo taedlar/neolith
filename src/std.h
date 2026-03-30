@@ -62,7 +62,7 @@
 
 #ifndef	EDIT_SOURCE
 /* all options and configuration */
-#include "efuns/options.h"
+#include "lpc/options.h"
 #endif	/* ! EDIT_SOURCE */
 
 #include "port/wrapper.h"

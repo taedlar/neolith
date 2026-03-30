@@ -1,3 +1,18 @@
+/* edit_source.c - a utility to generate efun tables and option definitions
+ *                 from the source code of the efuns.
+ *
+ * The edit_source utility is MudOS's LPC specification compiler. It reads
+ * the following files:
+ * - "options.h": contains #defines for all the options that can be used in
+ *   the driver compilation AND in LPC code.
+ * - "func_spec": contains the specification of all efuns, including their
+ *   prototypes and other relevant information.
+ *
+ * In Neolith, a CMake pass is added to generate "options.h" and "func_spec"
+ * from "options.h.in" and "func_spec.in", respectively, allowing standardized
+ * configuration step to be used instead of editing the source files directly.
+ */
+
 #ifdef	HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
@@ -19,8 +34,6 @@
 #ifdef	HAVE_ARGP_H
 #include <argp.h>
 #endif /* HAVE_ARGP_H */
-
-#define CONFIGURE_VERSION	5
 
 #define EDIT_SOURCE
 #define NO_MALLOC
