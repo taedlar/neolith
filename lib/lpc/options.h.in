@@ -16,6 +16,9 @@
 #ifndef _OPTIONS_H
 #define _OPTIONS_H
 
+#define NEOLITH "@CMAKE_PROJECT_NAME@"
+#define VERSION "@CMAKE_PROJECT_VERSION@"
+
 /****************************************************************************
  *                          COMPATIBILITY                                   *
  *                         ---------------                                  *

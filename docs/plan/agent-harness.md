@@ -73,7 +73,7 @@ Non-nil return value replaces the tool result before injecting into context. All
 | File | Role |
 |---|---|
 | `agent-harness.md` | This plan |
-| `lib/efuns/func_spec.c` | Add 6 new efun declarations |
+| `lib/lpc/func_spec.c` | Add 6 new efun declarations |
 | `lib/efuns/agent.c` (new) | Loop, tool dispatch, async integration |
 | `lib/efuns/agent.h` (new) | Agent state struct, role/error constants |
 | `lib/lpc/buffer.h` | Reuse `T_BUFFER` as-is for context window |

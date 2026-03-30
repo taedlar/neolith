@@ -12,24 +12,37 @@ target_include_directories(edit_source PRIVATE
 
 target_compile_definitions(edit_source PRIVATE _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(edit_source PRIVATE port misc)
+configure_file(func_spec.c.in ${CMAKE_CURRENT_BINARY_DIR}/func_spec.c @ONLY)
+configure_file(options.h.in ${CMAKE_BINARY_DIR}/options.h @ONLY)
 
 # preprocessor-only command
 if(MSVC)
-    set(CPP_COMMAND ${CMAKE_C_COMPILER} /I ${CMAKE_CURRENT_SOURCE_DIR} /EP) # cl
+    set(CPP_COMMAND ${CMAKE_C_COMPILER} /DHAVE_CONFIG_H
+        /I ${CMAKE_CURRENT_SOURCE_DIR} /I ${CMAKE_BINARY_DIR} /I ${CMAKE_CURRENT_BINARY_DIR} /EP) # cl
 else()
-    set(CPP_COMMAND ${CMAKE_C_COMPILER} -I ${CMAKE_CURRENT_SOURCE_DIR} -E)  # gcc
+    set(CPP_COMMAND ${CMAKE_C_COMPILER} -DHAVE_CONFIG_H -x c
+        -I ${CMAKE_CURRENT_SOURCE_DIR} -I ${CMAKE_BINARY_DIR} -I ${CMAKE_CURRENT_BINARY_DIR} -E)  # gcc
 endif()
 
-# generate efun tables
+# generate preprocessed func_spec.i (configured from func_spec.c.in and includes options.h)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/func_spec.i
+    COMMAND ${CPP_COMMAND} ${CMAKE_CURRENT_BINARY_DIR}/func_spec.c > ${CMAKE_CURRENT_BINARY_DIR}/func_spec.i
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/func_spec.c ${CMAKE_BINARY_DIR}/options.h
+)
+add_custom_target(generate_func_spec_i DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/func_spec.i)
+add_dependencies(edit_source generate_func_spec_i)
+
+# generate efun tables at ${CMAKE_BINARY_DIR}
 add_custom_command(TARGET edit_source POST_BUILD
-    COMMAND ${CPP_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/func_spec.c > ${CMAKE_CURRENT_BINARY_DIR}/func_spec.i
-    COMMAND $<TARGET_FILE:edit_source> ${CMAKE_CURRENT_SOURCE_DIR}/options.h ${CMAKE_CURRENT_BINARY_DIR}/func_spec.i
+    COMMAND $<TARGET_FILE:edit_source> ${CMAKE_BINARY_DIR}/options.h ${CMAKE_CURRENT_BINARY_DIR}/func_spec.i
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
 BISON_TARGET(grammar grammar.y ${CMAKE_CURRENT_BINARY_DIR}/grammar.c
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/grammar.h
 )
+add_custom_target(generate_grammar DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/grammar.h) # for generated header dependency
 
 set(lpc_SOURCES
     array.c
@@ -58,8 +71,5 @@ target_sources(lpc INTERFACE
     BASE_DIRS ..
     FILES array.h buffer.h class.h functional.h mapping.h object.h otable.h program.h svalue.h types.h
 )
-target_include_directories(lpc PUBLIC
-    ${CMAKE_SOURCE_DIR}
-    ${PROJECT_BINARY_DIR}
-)
 target_link_libraries(lpc PUBLIC port misc logger efuns rc)
+target_include_directories(lpc PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})

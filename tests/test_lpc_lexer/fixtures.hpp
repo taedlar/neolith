@@ -8,7 +8,7 @@ extern "C" {
     #include "rc.h"
     #include "lpc/lex.h"
     #include "lpc/compiler.h"
-    #include "lib/lpc/grammar.h"
+    #include "grammar.h"
 }
 
 using namespace testing;
