@@ -864,6 +864,98 @@ We may assume that `special.c` wants to sometimes act like a weapon and sometime
 
 See the section [Special Types](#special-types) for more information on how inherited objects may hide data and function definitions from objects that inherit them.
 
+### `class` declarations and expressions
+
+Neolith supports MudOS-style `class` as a typed aggregate.
+
+#### 1) Declare a class type
+
+```c
+class ClassName {
+    type member0;
+    type member1;
+    ...;
+}
+```
+
+Example:
+
+```c
+class Position {
+    int x;
+    int y;
+    string zone;
+}
+```
+
+Notes:
+
+- Class declarations are top-level declarations.
+- Member declarations use normal LPC type syntax.
+- Declaring a member as `void` is illegal.
+- Redefining the same class name in the same compile scope is illegal.
+
+#### 2) Use class as a type
+
+You can use `class Name` anywhere a basic type is allowed (globals, locals, arguments, return types).
+
+```c
+class Position p;
+class Position make_origin();
+void set_pos(class Position p);
+```
+
+#### 3) Construct class values
+
+Class values are constructed with `new(class ...)`:
+
+```c
+class Position p0;
+class Position p1;
+
+p0 = new(class Position);
+p1 = new(class Position, x: 10, y: 20, zone: "start");
+```
+
+Important behavior:
+
+- Initializers are named members in `member: expression` form.
+- Unspecified members are initialized to `0`.
+- Unknown member names are compile-time errors.
+- If a member is listed more than once, the later value in the initializer list wins.
+
+#### 4) Access class members
+
+Use `->` to access a class member:
+
+```c
+int x = p1->x;
+p1->zone = "town";
+```
+
+Notes:
+
+- The left-hand side of `->` must be a class-typed expression.
+- Accessing a non-existent member is a compile-time error.
+
+#### Complete example
+
+```c
+class Position {
+    int x;
+    int y;
+    string zone;
+}
+
+class Position make_spawn(string z) {
+    class Position p;
+
+    p = new(class Position, x: 0, y: 0, zone: z);
+    p->x += 5;
+    return p;
+}
+```
+
 ### Function Prototypes
 
 The LPC function prototype is very similar to that of ANSI C.
