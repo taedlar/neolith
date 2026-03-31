@@ -16,6 +16,9 @@
 #ifndef _OPTIONS_H
 #define _OPTIONS_H
 
+#cmakedefine NEOLITH "@CMAKE_PROJECT_NAME@"
+#cmakedefine VERSION "@CMAKE_PROJECT_VERSION@"
+
 /****************************************************************************
  *                          COMPATIBILITY                                   *
  *                         ---------------                                  *
@@ -43,8 +46,8 @@
  * are every stripped.  So the example above gives
  * ({ "", "", "x", "y", "", "z", "", "" }).
  */
-#define SANE_EXPLODE_STRING
-#define REVERSIBLE_EXPLODE_STRING
+#cmakedefine SANE_EXPLODE_STRING
+#cmakedefine REVERSIBLE_EXPLODE_STRING
 
 /* CAST_CALL_OTHERS: define this if you want to require casting of call_other's;
  *   this was the default behavior of the driver prior to this addition.
@@ -54,23 +57,23 @@
 /* OLD_TYPE_BEHAVIOR: reintroduces a bug in type-checking that effectively
  * renders compile time type checking useless.  For backwards compatibility.
  */
-#undef OLD_TYPE_BEHAVIOR
+#cmakedefine OLD_TYPE_BEHAVIOR
 
 /* OLD_RANGE_BEHAVIOR: define this if you want negative indexes in string
  * or buffer range values (not lvalue, i.e. x[-2..-1]; for e.g. not 
  * x[-2..-1] = foo, the latter is always illegal) to mean counting from the 
  * end 
  */
-#define OLD_RANGE_BEHAVIOR
+#cmakedefine OLD_RANGE_BEHAVIOR
 
 /* OLD_ED: ed() efun backwards compatible with the old version.  The new
  * version requires/allows a mudlib front end.
  */
-#define OLD_ED
+#cmakedefine OLD_ED
 
 /* RESTRICTED_ED: define this if you want restricted ed mode enabled.
  */
-#define RESTRICTED_ED
+#cmakedefine RESTRICTED_ED
 
 /****************************************************************************
  *                           MISCELLANEOUS                                  *
@@ -92,19 +95,19 @@
  * . inherit_list() means deep_inherit_list(), not shallow_inherit_list()
  * . heart_beat_info() is a synonym for heart_beats()
  */
-#undef COMPAT_32
+#cmakedefine COMPAT_32
 
 /*
  * Keep statistics about allocated strings, etc.  Which can be veiwed with
  * the mud_status() efun.  If this is off, mud_status() and memory_info()
  * ignore allocated strings, but string operations run faster.
  */
-#define STRING_STATS
+#cmakedefine STRING_STATS
 
 /*
  * Similarly for arrays ...
  */
-#define ARRAY_STATS
+#cmakedefine ARRAY_STATS
 
 /* LOG_CATCHES: define this to cause errors that are catch()'d to be
  *   sent to the debug log anyway.
@@ -112,7 +115,7 @@
  * On by default, because newer libs use catch() alot, and it's confusing
  * if the errors don't show up in the logs.
  */
-#define LOG_CATCHES
+#cmakedefine LOG_CATCHES
 
 /* DEFAULT_PRAGMAS:  This should be a sum of pragmas you want to always
  * be on, i.e.
@@ -143,13 +146,13 @@
  *                      compilation error occured.
  * (note: definitions of PRAGMA_* are in lex.h)
  */
-#define DEFAULT_PRAGMAS PRAGMA_WARNINGS + PRAGMA_STRICT_TYPES
+#cmakedefine DEFAULT_PRAGMAS @DEFAULT_PRAGMAS@
 
 /* AUTO_TRUST_BACKBONE: define this if you want objects with the backbone
  *   uid to automatically be trusted and to have their euid set to the uid of
  *   the object that forced the object's creation.
  */
-#define AUTO_TRUST_BACKBONE
+#cmakedefine AUTO_TRUST_BACKBONE
 
 /* LAZY_RESETS: if this is defined, an object will only have reset()
  *   called in it when it is touched via call_other() or move_object()
@@ -160,20 +163,20 @@
  *   once and never again (which can save memory since some objects won't get
  *   reloaded that otherwise would).
  */
-#undef LAZY_RESETS
+#cmakedefine LAZY_RESETS
 
 /* COMPRESS_FUNCTION_TABLES: Causes function tables to take up significantly
  * less memory, at the cost of a slight increase in function call overhead
  * (speed).
  */
-#define COMPRESS_FUNCTION_TABLES
+#cmakedefine COMPRESS_FUNCTION_TABLES
 
 /* SAVE_EXTENSION: defines the file extension used by save_object().
  *   and restore_object().  Some sysadmins run scripts that periodically
  *   scan for and remove files ending in .o (but many mudlibs are already
  *   set up to use .o thus we leave .o as the default).
  */
-#define SAVE_EXTENSION ".o"
+#cmakedefine SAVE_EXTENSION "@SAVE_EXTENSION@"
 
 /* NO_ANSI: define if you wish to disallow users from typing in commands that
  *   contain ANSI escape sequences.  Defining NO_ANSI causes all escapes
@@ -190,13 +193,13 @@
  * If you anticipate problems with users intentionally typing in ANSI codes
  * to make your terminal flash, etc define this.
  */
-#define NO_ANSI
-#define STRIP_BEFORE_PROCESS_INPUT
+#cmakedefine NO_ANSI
+#cmakedefine STRIP_BEFORE_PROCESS_INPUT
 
 /* THIS_PLAYER_IN_CALL_OUT: define this if you wish this_player() to be
  *   usable from within call_out() callbacks.
  */
-#define THIS_PLAYER_IN_CALL_OUT
+#cmakedefine THIS_PLAYER_IN_CALL_OUT
 
 /* CALLOUT_HANDLES: If this is defined, call_out() returns an integer, which
  * can be passed to remove_call_out() or find_call_out().  Removing call_outs
@@ -204,12 +207,12 @@
  * doesn't work for function pointers.  This option adds 4 bytes overhead
  * per callout to keep track of the handle.
  */
-#define CALLOUT_HANDLES
+#cmakedefine CALLOUT_HANDLES
 
 /* FLUSH_OUTPUT_IMMEDIATELY: Causes output to be written to sockets
  * immediately after being generated.  Useful for debugging.  
  */
-#undef FLUSH_OUTPUT_IMMEDIATELY
+#cmakedefine FLUSH_OUTPUT_IMMEDIATELY
 
 /* PRIVS: define this if you want object privledges.  Your mudlib must
  *   explicitly make use of this functionality to be useful.  Defining this
@@ -221,17 +224,17 @@
  * [NOTE: for those who'd rather do such things at the mudlib level, look at
  *  the inherits() efun and the 'valid_object' apply to master.]
  */
-#undef PRIVS
+#cmakedefine PRIVS
 
 /* INTERACTIVE_CATCH_TELL: define this if you want catch_tell called on
  *   interactives as well as NPCs.  If this is defined, user.c will need a
  *   catch_tell(msg) method that calls receive(msg);
 */
-#undef INTERACTIVE_CATCH_TELL
+#cmakedefine INTERACTIVE_CATCH_TELL
 
 /* NO_SHADOWS: define this if you want to disable shadows in your driver.
  */
-#define NO_SHADOWS
+#cmakedefine NO_SHADOWS
 
 /* PROFILE_FUNCTIONS: define this to be able to measure the CPU time used by
  *   all of the user-defined functions in each LPC object.  Note: defining
@@ -242,7 +245,7 @@
  *   resolution is 1/60 of a second, then any time less than approxmately 15k
  *   microseconds will resolve to zero (0).
  */
-#undef PROFILE_FUNCTIONS
+#cmakedefine PROFILE_FUNCTIONS
 
 /* BINARIES: define this to enable the 'save_binary' pragma.
  *   This pragma, when set in a program, will cause it to save a
@@ -259,7 +262,7 @@
  *   saved.  Allowing any file by any wizard to be saved as a
  *   binary is convenient, but may take up a lot of disk space.
  */
-#define BINARIES
+#cmakedefine BINARIES
 
 /****************************************************************************
  *                              PACKAGES                                    *
@@ -278,7 +281,7 @@
 
 /* PACKAGE_SOCKETS: define this to enable the socket efunctions.
  */
-#define PACKAGE_SOCKETS
+#cmakedefine PACKAGE_SOCKETS
 
 /*************************************************************************
  *                       FOR EXPERIENCED USERS                           *
@@ -290,13 +293,8 @@
  *   1,000,000 us = 1 second.  The value of this macro specifies
  *   the frequency with which the heart_beat method will be called in
  *   those LPC objects which have called set_heart_beat(1).
- *
- * [NOTE: if ualarm() isn't available, alarm() is used instead.  Since
- *  alarm() requires its argument in units of a second, we map 1 - 1,000,000 us
- *  to an actual interval of one (1) second and 1,000,001 - 2,000,000 maps to
- *  an actual interval of two (2) seconds, etc.]
  */
-#define HEARTBEAT_INTERVAL 2000000
+#cmakedefine HEARTBEAT_INTERVAL @HEARTBEAT_INTERVAL@
 
 /* 
  * CALLOUT_CYCLE_SIZE: This is the number of slots in the call_out list.
@@ -305,40 +303,40 @@
  * prime to any common call_out lengths.  If all this is too confusing, 32
  * isn't a bad number :-)
  */
-#define CALLOUT_CYCLE_SIZE 32
+#cmakedefine CALLOUT_CYCLE_SIZE @CALLOUT_CYCLE_SIZE@
 
 /* LARGEST_PRINTABLE_STRING: defines the size of the vsprintf() buffer in
  *   comm.c's add_message(). Instead of blindly making this value larger,
  *   mudlib should be coded to not send huge strings to users.
  */
-#define LARGEST_PRINTABLE_STRING 8192
+#cmakedefine LARGEST_PRINTABLE_STRING @LARGEST_PRINTABLE_STRING@
 
 /* MESSAGE_BUFFER_SIZE: determines the size of the buffer for output that
  *   is sent to users.
  */
-#define MESSAGE_BUFFER_SIZE 4096
+#cmakedefine MESSAGE_BUFFER_SIZE @MESSAGE_BUFFER_SIZE@
 
 /* APPLY_CACHE_BITS: defines the number of bits to use in the call_other cache
  *   (in interpret.c).  Somewhere between six (6) and ten (10) is probably
  *   sufficient for small muds.
  */
-#define APPLY_CACHE_BITS 11
+#cmakedefine APPLY_CACHE_BITS @APPLY_CACHE_BITS@
 
 /* CACHE_STATS: define this if you want call_other (apply_low) cache 
  * statistics.  Causes HAS_CACHE_STATS to be defined in all LPC objects.
  */
-#define CACHE_STATS
+#cmakedefine CACHE_STATS
 
 /* HEART_BEAT_CHUNK: The number of heart_beat chunks allocated at a time.
  * A large number wastes memory as some will be sitting around unused, while
  * a small one wastes more CPU reallocating when it needs to grow.  Default
  * to a middlish value.
  */
-#define HEART_BEAT_CHUNK      32
+#cmakedefine HEART_BEAT_CHUNK @HEART_BEAT_CHUNK@
 
 /* Some maximum string sizes
  */
-#define SMALL_STRING_SIZE     100
+#cmakedefine SMALL_STRING_SIZE @SMALL_STRING_SIZE@
 #define LARGE_STRING_SIZE     1000
 #define COMMAND_BUF_SIZE      2000
 
@@ -346,6 +344,6 @@
  * crashes from occuring when saving objects containing variables containing
  * recursive datastructures (with circular references).
  */
-#define MAX_SAVE_SVALUE_DEPTH 25
+#cmakedefine MAX_SAVE_SVALUE_DEPTH @MAX_SAVE_SVALUE_DEPTH@
 
 #endif /* _OPTIONS_H */

@@ -169,6 +169,34 @@ cmake --preset linux -DFETCH_CARES_FROM_SOURCE=v1.34.6
 > 3. `socket_connect()` hostname support is always enabled; c-ares controls resolver backend choice, not feature availability.
 > 4. When c-ares is available, it is used as the preferred async DNS backend for `socket_connect()` hostname resolution.
 
+## LPC Configuration
+
+The LPC language built-ins (operators and efuns) are defined in
+[`lib/lpc/func_spec.c.in`](../lib/lpc/func_spec.c.in) and compiled into
+generated C headers during the build. Feature availability is controlled
+by CMake options and the `options.h.in` legacy configuration header.
+
+### Build pipeline
+
+| Step | Input | Output | When |
+|------|-------|--------|------|
+| CMake `configure_file` | `func_spec.c.in` | `func_spec.c` | Configure |
+| CMake `configure_file` | `options.h.in` | `options.h` | Configure |
+| C preprocessor | `func_spec.c` | `func_spec.i` | Build |
+| `edit_source` POST_BUILD | `options.h` + `func_spec.i` | `efuns_*.h` | Build |
+
+The generated headers are written to `${CMAKE_BINARY_DIR}` and included
+automatically by the driver and LPC compiler sources.
+
+### Changing efuns or opcodes
+
+If you add, remove, or reorder operators or efuns in `func_spec.c.in`,
+or change any `#define` in `config.h.in` / `options.h.in` that controls
+a conditional efun block, opcode numbers will shift. This breaks binary
+compatibility with previously saved LPC programs. Always bump `driver_id`
+in [`lib/lpc/program/binaries.c`](../lib/lpc/program/binaries.c) to force
+recompilation of affected LPC binaries.
+
 ## Building with CMake Presets
 
 From repository root:

@@ -60,11 +60,6 @@
 #include <sys/param.h>
 #endif	/* HAVE_SYS_PARAM_H */
 
-#ifndef	EDIT_SOURCE
-/* all options and configuration */
-#include "efuns/options.h"
-#endif	/* ! EDIT_SOURCE */
-
 #include "port/wrapper.h"
 #include "port/byte_code.h"
 #include "port/debug.h"
