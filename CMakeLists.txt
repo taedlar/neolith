@@ -7,6 +7,9 @@ project(neolith
 	DESCRIPTION "A minimalist LPMud server based on MudOS v22 and focus on stability and performance."
 	LANGUAGES C CXX
 )
+
+include(cmake/options.cmake) # options (cached)
+
 set(CMAKE_CXX_STANDARD 17)
 
 if(MSVC)
@@ -104,9 +107,6 @@ if(TARGET c-ares::cares)
 		message(STATUS "Found c-ares: ${CARES_LIBRARY}")
 	endif()
 endif()
-
-# options (cached)
-include(cmake/options.cmake)
 
 if(PACKAGE_JSON)
 	if(NOT Boost_FOUND)

@@ -45,7 +45,11 @@ extern "C" {
 #endif
 
 #ifdef HAVE_BOOST_JSON
+#ifdef BOOST_JSON_HEADER_ONLY
+#include <boost/json/src.hpp>  // Boost.JSON header-only implementation
+#else
 #include <boost/json.hpp>
+#endif
 
 
 /* --------------------------------------------------------------------------
