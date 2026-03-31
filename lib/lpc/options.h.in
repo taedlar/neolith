@@ -283,6 +283,11 @@
  */
 #cmakedefine PACKAGE_SOCKETS
 
+/* PACKAGE_JSON: Enables to_json() and from_json() efuns.
+ * Requires Boost.JSON at build time (set PACKAGE_JSON=ON and have Boost with json component).
+ */
+#cmakedefine PACKAGE_JSON
+
 /*************************************************************************
  *                       FOR EXPERIENCED USERS                           *
  *                      -----------------------                          *

@@ -4,7 +4,7 @@ Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed b
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 1 | Build system | not started |
+| 1 | Build system | complete |
 | 2 | Efun registration | not started |
 | 3 | Implementation | not started |
 | 4 | Docs | not started |
@@ -46,7 +46,7 @@ Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed b
 | bool | T_NUMBER 0/1 subtype 0 |
 | null | T_NUMBER 0 subtype T_UNDEFINED |
 
-## Phase 1: Build System `not started`
+## Phase 1: Build System `complete`
 
 Steps are independent of each other.
 
@@ -89,9 +89,9 @@ Steps are independent of each other.
 
 *Depends on Phase 1.*
 
-- **lib/efuns/func_spec.c**: Add signatures in the data-conversion group (near `to_int`, `to_float`), guarded by `#ifdef HAVE_BOOST_JSON`:
+- **lib/lpc/func_spec.c.in**: Add signatures in the data-conversion group (near `to_int`, `to_float`), guarded by `#ifdef PACKAGE_JSON`:
   ```c
-  #ifdef HAVE_BOOST_JSON
+  #ifdef PACKAGE_JSON
   string to_json(mixed);
   mixed from_json(string);
   #endif
@@ -132,7 +132,7 @@ New file `lib/efuns/json.cpp`. Include `config.h`, then C driver headers inside 
 | `lib/lpc/options.h.in` | `#cmakedefine PACKAGE_JSON` for LPC visibility |
 | `CMakeLists.txt` | Boost `OPTIONAL_COMPONENTS json`, `HAVE_BOOST_JSON` derived var |
 | `config.h.in` | `#cmakedefine HAVE_BOOST_JSON` |
-| `lib/efuns/func_spec.c` | Guarded efun signatures |
+| `lib/lpc/func_spec.c.in` | Guarded efun signatures |
 | `lib/efuns/CMakeLists.txt` | `json.cpp` in sources, conditional `Boost::json` link |
 | `lib/efuns/json.cpp` | New file — implementation |
 | `docs/efuns/to_json.md` | New efun doc |

@@ -17,6 +17,7 @@ cmake_dependent_option(USE_STATIC_MSVC_RUNTIME "Enable static MSVC Runtime libra
 # the LPC predefines table.
 # -------------------------------------------------------------------------
 option(PACKAGE_SOCKETS "Enable support for socket efunctions" ON)
+option(PACKAGE_JSON "Enable JSON efuns to_json() and from_json() (requires Boost.JSON)" OFF)
 option(BINARIES "Enable support for saving compiled LPC programs as binary files (e.g., .o files)" ON)
 set(HEARTBEAT_INTERVAL 2000000 CACHE STRING "Interval in microseconds between heartbeat() calls for individual LPC objects")
 

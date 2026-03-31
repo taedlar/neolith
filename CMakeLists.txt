@@ -66,10 +66,17 @@ endif()
 
 # check dependencies
 find_package(BISON REQUIRED)
-find_package(Boost)
+find_package(Boost OPTIONAL_COMPONENTS json)
 if(Boost_FOUND)
 	set(HAVE_BOOST 1)
 	message(STATUS "Found Boost: ${Boost_INCLUDE_DIRS} (found version ${Boost_VERSION})")
+endif()
+if(PACKAGE_JSON)
+	if(NOT Boost_json_FOUND)
+		message(FATAL_ERROR "PACKAGE_JSON requires Boost.JSON (Boost::json component not found)")
+	endif()
+	set(HAVE_BOOST_JSON 1)
+	message(STATUS "PACKAGE_JSON enabled: JSON efuns will use Boost.JSON")
 endif()
 
 find_package(OpenSSL QUIET) # FindOpenSSL.cmake or FetchContent-provided

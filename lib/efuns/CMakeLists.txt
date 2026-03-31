@@ -39,3 +39,7 @@ target_include_directories(efuns PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 target_link_libraries(efuns PUBLIC port misc logger lpc rc socket)
+if(HAVE_BOOST_JSON)
+    target_sources(efuns PRIVATE json.cpp)
+    target_link_libraries(efuns PUBLIC Boost::json)
+endif()
