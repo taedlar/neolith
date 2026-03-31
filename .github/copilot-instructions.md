@@ -17,7 +17,7 @@ Neolith is a minimalist LPMud driver forked from MudOS v22pre5, modernizing deca
 **Core Source** (frequently modified)
 - [src/backend.c](src/backend.c) — main event loop; [src/interpret.c](src/interpret.c) — LPC VM; [src/simulate.c](src/simulate.c) — object management
 - [src/comm.c](src/comm.c) — network I/O; [src/apply.c](src/apply.c) — LPC apply dispatch
-- [lib/lpc/func_spec.c](lib/lpc/func_spec.c) — efun definitions (code-generated, do not edit generated output)
+- [lib/lpc/func_spec.c.in](lib/lpc/func_spec.c.in) — efun definitions source template; edited directly, configured by CMake into `func_spec.c` then preprocessed into `func_spec.i`
 - [lib/lpc/grammar.y](lib/lpc/grammar.y) — LPC parser grammar
 
 **Reference Docs** (ground truth for LPC behavior)
@@ -185,7 +185,7 @@ python testbot.py
   - `lpc -> logger, efuns, rc`
   - `efuns -> port, misc`
 - Efuns are generated, not manually registered:
-  1. Update [lib/lpc/func_spec.c](lib/lpc/func_spec.c)
+  1. Update [lib/lpc/func_spec.c.in](lib/lpc/func_spec.c.in)
   2. Build to produce `func_spec.i`
   3. Let `edit_source` regenerate dispatch tables
   4. Implement guarded C code in [lib/efuns/](lib/efuns/)

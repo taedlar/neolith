@@ -7,8 +7,10 @@ project(neolith
 	DESCRIPTION "A minimalist LPMud server based on MudOS v22 and focus on stability and performance."
 	LANGUAGES C CXX
 )
+
+include(cmake/options.cmake) # options (cached)
+
 set(CMAKE_CXX_STANDARD 17)
-include(cmake/options.cmake)
 
 if(MSVC)
 	if (USE_STATIC_MSVC_RUNTIME)
@@ -66,7 +68,21 @@ endif()
 
 # check dependencies
 find_package(BISON REQUIRED)
-find_package(Boost)
+set(Boost_NO_WARN_NEW_VERSIONS ON) # Suppress warnings about newer Boost versions not known to FindBoost.cmake
+# On MSVC, match the runtime linkage of the rest of the build so FindBoost selects
+# the correct lib variant (static vs. DLL, /MT vs. /MD).  Without these hints the
+# imported Boost::json target may resolve to the DLL import lib while Boost's
+# autolink pragma tries to link the static-runtime variant (or vice-versa), causing
+# LNK1104.  We also define BOOST_ALL_NO_LIB (in lib/efuns/CMakeLists.txt) to
+# disable the autolink pragma entirely and let CMake's target link handle it.
+if(MSVC)
+    if(USE_STATIC_MSVC_RUNTIME)
+        set(Boost_USE_STATIC_RUNTIME ON)
+    else()
+        set(Boost_USE_STATIC_RUNTIME OFF)
+    endif()
+endif()
+find_package(Boost OPTIONAL_COMPONENTS json)
 if(Boost_FOUND)
 	set(HAVE_BOOST 1)
 	message(STATUS "Found Boost: ${Boost_INCLUDE_DIRS} (found version ${Boost_VERSION})")
@@ -89,6 +105,26 @@ if(TARGET c-ares::cares)
 		message(STATUS "Found c-ares: ${CARES_VERSION}")
 	else()
 		message(STATUS "Found c-ares: ${CARES_LIBRARY}")
+	endif()
+endif()
+
+if(PACKAGE_JSON)
+	if(NOT Boost_FOUND)
+		message(FATAL_ERROR "PACKAGE_JSON requires Boost (Boost headers not found)")
+	endif()
+	if(Boost_json_FOUND)
+		set(HAVE_BOOST_JSON 1)
+		message(STATUS "PACKAGE_JSON enabled: JSON efuns will use Boost.JSON (compiled library)")
+	else()
+		# Fall back to header-only mode (Boost.JSON is header-only since Boost 1.75)
+		find_file(BOOST_JSON_HPP NAMES boost/json.hpp
+			HINTS ${Boost_INCLUDE_DIRS} NO_DEFAULT_PATH)
+		if(NOT BOOST_JSON_HPP)
+			message(FATAL_ERROR "PACKAGE_JSON requires Boost.JSON (boost/json.hpp not found in ${Boost_INCLUDE_DIRS})")
+		endif()
+		set(HAVE_BOOST_JSON 1)
+		set(BOOST_JSON_HEADER_ONLY 1)
+		message(STATUS "PACKAGE_JSON enabled: JSON efuns will use Boost.JSON (header-only)")
 	endif()
 endif()
 

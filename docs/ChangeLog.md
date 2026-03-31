@@ -2,6 +2,14 @@
 
 ## neolith-1.0.0-alpha (unreleased)
 
+### Unreleased
+
+#### Features
+- feat: add optional `PACKAGE_JSON` support with `to_json()` and `from_json()` efuns
+
+#### Documentation
+- doc: add efun docs for `to_json()` and `from_json()`
+
 ### 1.0.0-alpha.8 — 2026-03-25
 
 #### Changes since 1.0.0-alpha.7

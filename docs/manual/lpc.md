@@ -1055,7 +1055,7 @@ Dot-call is syntax sugar for an efun call with the receiver inserted as the firs
 
 ### Declaration Requirement
 
-Not all efuns allow dot-call. Each efun must be explicitly opted-in via `#pragma allow_dot_call` in `func_spec.c`. Efuns that must not bypass the `valid_override` security check or that have other policy constraints are marked with `#pragma no_dot_call` instead.
+Not all efuns allow dot-call. Each efun must be explicitly opted-in via `#pragma allow_dot_call` in `func_spec.c.in`. Efuns that must not bypass the `valid_override` security check or that have other policy constraints are marked with `#pragma no_dot_call` instead.
 
 Attempting to use dot-call on an efun that has not been opted in produces a compile-time error.
 
@@ -1151,7 +1151,7 @@ The following efuns are opted in for dot-call. Aliases are listed under their pr
 
 ### Notes
 
-- Dot-call requires `#pragma allow_dot_call` opt-in in `func_spec.c`; efuns not opted in produce a compile-time error.
+- Dot-call requires `#pragma allow_dot_call` opt-in in `func_spec.c.in`; efuns not opted in produce a compile-time error.
 - Dot-call is for efun dispatch, not object `->` call_other dispatch.
 - Non-call `.` forms are out of scope for this feature.
 

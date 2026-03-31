@@ -140,6 +140,11 @@ string getuid(object default:F_THIS_OBJECT);
 int to_int(string | float | int | buffer);
 float to_float(string | float | int);
 
+#ifdef PACKAGE_JSON
+string to_json(mixed);
+mixed from_json(string);
+#endif
+
 #pragma no_dot_call
 
 object clone_object(string, ...);
