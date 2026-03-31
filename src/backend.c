@@ -228,6 +228,7 @@ void backend () {
   clear_state ();
   save_context (&econ);
 
+#ifdef HEARTBEAT_INTERVAL
   /* start timer if any of the timer flags are set */
   if (MAIN_OPTION(timer_flags) & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
     {
@@ -257,6 +258,7 @@ void backend () {
    * This is always done even if no timer is started, so that current_time is valid.
    */
   call_heart_beat ();
+#endif /* HEARTBEAT_INTERVAL */
 
   if (setjmp (econ.context))
     restore_context (&econ);

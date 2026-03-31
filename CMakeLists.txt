@@ -8,9 +8,9 @@ project(neolith
 	LANGUAGES C CXX
 )
 set(CMAKE_CXX_STANDARD 17)
+include(cmake/options.cmake)
 
 if(MSVC)
-	option(USE_STATIC_MSVC_RUNTIME "Enable static MSVC Runtime library (-MT/-MD)" ON)
 	if (USE_STATIC_MSVC_RUNTIME)
 		message(STATUS "Using static MSVC Runtime Library. (-MT)")
 		set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
