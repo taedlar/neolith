@@ -5,7 +5,7 @@ Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed b
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Build system | complete |
-| 2 | Efun registration | not started |
+| 2 | Efun registration | complete |
 | 3 | Implementation | not started |
 | 4 | Docs | not started |
 
@@ -85,7 +85,7 @@ Steps are independent of each other.
   ```
   Note: `CPP_COMMAND` in `lib/lpc/CMakeLists.txt` already passes `-I ${CMAKE_BINARY_DIR}` where `config.h` lives, so `#ifdef HAVE_BOOST_JSON` in `func_spec.c` will resolve correctly without changes.
 
-## Phase 2: Efun Registration `not started`
+## Phase 2: Efun Registration `complete`
 
 *Depends on Phase 1.*
 
