@@ -33,10 +33,7 @@ endif()
 if(NOT WIN32)
     target_link_libraries(stem PUBLIC -lm)
 endif()
-target_include_directories(stem PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}
-)
+target_include_directories(stem PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # ================================================================
 # build neolith executable

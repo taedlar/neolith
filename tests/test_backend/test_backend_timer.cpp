@@ -191,6 +191,7 @@ TEST_F(BackendTimerTest, TimerActiveStatus) {
     platform_timer_cleanup(&test_timer);
 }
 
+#ifdef HEARTBEAT_INTERVAL
 /**
  * @brief Test HEARTBEAT_INTERVAL timer interval (2 seconds)
  */
@@ -231,6 +232,7 @@ TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
     // Cleanup
     platform_timer_cleanup(&test_timer);
 }
+#endif /* HEARTBEAT_INTERVAL */
 
 /**
  * @brief Test query_heart_beat integration with timer

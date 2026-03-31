@@ -245,5 +245,5 @@ External code linking to driver must update:
 
 - **Type System**: [lpc-types.md](lpc-types.md) - Complete type encoding reference
 - **Compiler Internals**: [lpc-program.md](lpc-program.md) - Memory block system
-- **Opcode Reference**: [lib/efuns/func_spec.c](../../lib/efuns/func_spec.c) - Operator definitions
+- **Opcode Reference**: [lib/lpc/func_spec.c](../../lib/lpc/func_spec.c) - Operator definitions
 - **Byte Encoding**: [lib/port/byte_code.h](../../lib/port/byte_code.h) - Portable I/O macros
