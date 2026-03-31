@@ -1,6 +1,6 @@
 # Plan: LPC to_json / from_json Efuns
 
-Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed by Boost.JSON. The efuns are conditionally compiled — they only exist in the driver when `HAVE_BOOST_JSON` is detected at cmake time and no `PACKAGE_JSON` cmake option overrides the backend. Implementation lives in `lib/efuns/json.cpp` (C++ translation unit with `extern "C"` efun symbols) to access the Boost.JSON API directly without a separate bridge library.
+Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed by Boost.JSON. The efuns are conditionally compiled — they only exist in the driver when the `PACKAGE_JSON` cmake option is `ON` and Boost.JSON is found at configure time (`HAVE_BOOST_JSON`). Implementation lives in `lib/efuns/json.cpp` (C++ translation unit with `extern "C"` efun symbols) to access the Boost.JSON API directly without a separate bridge library.
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -14,7 +14,9 @@ Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed b
 - **JSON null → LPC**: `T_NUMBER 0` with `subtype = T_UNDEFINED` (reuses existing constant; same as what `undefinedp()` checks)
 - **Non-serializable LPC types** (objects, functions, buffers, classes) in `to_json` → emit JSON null
 - **Mapping with non-string keys** in `to_json` → `error()`
-- **No backend**: efuns are absent from `func_spec.c` when no JSON backend is configured
+- **`PACKAGE_JSON` semantics**: a boolean `option()` (default `OFF`); enables JSON efuns when Boost.JSON is available. Consistent with `PACKAGE_SOCKETS`. LPC-visible via `options.h.in`.
+- **`HAVE_BOOST_JSON` semantics**: derived cmake variable (not a user option); set when `PACKAGE_JSON` is `ON` and `Boost_json_FOUND`. Declared in `config.h.in` as a detection macro.
+- **No backend**: efuns are absent from `func_spec.c` when `PACKAGE_JSON` is `OFF` or Boost.JSON is not found
 - **Implementation language**: `lib/efuns/json.cpp` with `extern "C"` for efun symbols
 
 ## Type Conversion
@@ -48,13 +50,44 @@ Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed b
 
 Steps are independent of each other.
 
-- **CMakeLists.txt**: Change `find_package(Boost)` → `find_package(Boost COMPONENTS json)`. Add `PACKAGE_JSON` cmake cache string option (empty default). Set `HAVE_BOOST_JSON=1` if `Boost_json_FOUND AND NOT PACKAGE_JSON`.
-- **config.h.in**: Add `#cmakedefine HAVE_BOOST_JSON` after `#cmakedefine HAVE_BOOST`.
-- **lib/efuns/CMakeLists.txt**: Append `json.cpp` to `efuns_SOURCES` and link `Boost::json` conditionally on `HAVE_BOOST_JSON AND NOT PACKAGE_JSON`. Verify `CPP_COMMAND` used for `func_spec.c` preprocessing includes the cmake binary directory (where `config.h` lives) so `#ifdef HAVE_BOOST_JSON` resolves; add `-I${CMAKE_BINARY_DIR}` if missing.
+- **cmake/options.cmake**: Add in the MudOS options section (near `PACKAGE_SOCKETS`):
+  ```cmake
+  option(PACKAGE_JSON "Enable JSON efuns to_json() and from_json() (requires Boost.JSON)" OFF)
+  ```
+
+- **lib/lpc/options.h.in**: Add `#cmakedefine PACKAGE_JSON` in the Miscellaneous section (near other `PACKAGE_*` entries) so LPC code can test `#ifdef __PACKAGE_JSON__`:
+  ```c
+  /* PACKAGE_JSON: Enables to_json() and from_json() efuns.
+   * Requires Boost.JSON at build time (set PACKAGE_JSON=ON and have Boost with json component).
+   */
+  #cmakedefine PACKAGE_JSON
+  ```
+
+- **CMakeLists.txt**: Change `find_package(Boost)` → `find_package(Boost OPTIONAL_COMPONENTS json)` so the json component is discovered without being required. After the existing `Boost_FOUND` block, add:
+  ```cmake
+  if(PACKAGE_JSON)
+      if(NOT Boost_json_FOUND)
+          message(FATAL_ERROR "PACKAGE_JSON requires Boost.JSON (Boost::json component not found)")
+      endif()
+      set(HAVE_BOOST_JSON 1)
+      message(STATUS "PACKAGE_JSON enabled: JSON efuns will use Boost.JSON")
+  endif()
+  ```
+
+- **config.h.in**: Add `#cmakedefine HAVE_BOOST_JSON` immediately after `#cmakedefine HAVE_BOOST`.
+
+- **lib/efuns/CMakeLists.txt**: After the `add_library(efuns ...)` block, conditionally compile `json.cpp` and link `Boost::json`:
+  ```cmake
+  if(HAVE_BOOST_JSON)
+      target_sources(efuns PRIVATE json.cpp)
+      target_link_libraries(efuns PUBLIC Boost::json)
+  endif()
+  ```
+  Note: `CPP_COMMAND` in `lib/lpc/CMakeLists.txt` already passes `-I ${CMAKE_BINARY_DIR}` where `config.h` lives, so `#ifdef HAVE_BOOST_JSON` in `func_spec.c` will resolve correctly without changes.
 
 ## Phase 2: Efun Registration `not started`
 
-*Depends on Phase 1 (CPP_COMMAND include fix).*
+*Depends on Phase 1.*
 
 - **lib/efuns/func_spec.c**: Add signatures in the data-conversion group (near `to_int`, `to_float`), guarded by `#ifdef HAVE_BOOST_JSON`:
   ```c
@@ -95,7 +128,9 @@ New file `lib/efuns/json.cpp`. Include `config.h`, then C driver headers inside 
 
 | File | Change |
 |------|--------|
-| `CMakeLists.txt` | Boost COMPONENTS json, `HAVE_BOOST_JSON`, `PACKAGE_JSON` option |
+| `cmake/options.cmake` | `PACKAGE_JSON` boolean option declaration |
+| `lib/lpc/options.h.in` | `#cmakedefine PACKAGE_JSON` for LPC visibility |
+| `CMakeLists.txt` | Boost `OPTIONAL_COMPONENTS json`, `HAVE_BOOST_JSON` derived var |
 | `config.h.in` | `#cmakedefine HAVE_BOOST_JSON` |
 | `lib/efuns/func_spec.c` | Guarded efun signatures |
 | `lib/efuns/CMakeLists.txt` | `json.cpp` in sources, conditional `Boost::json` link |
