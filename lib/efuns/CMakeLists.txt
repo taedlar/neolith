@@ -42,6 +42,13 @@ target_link_libraries(efuns PUBLIC port misc logger lpc rc socket)
 if(HAVE_BOOST_JSON)
     target_sources(efuns PRIVATE json.cpp)
     if(Boost_json_FOUND)
+        # Suppress Boost's MSVC autolink pragma so the linker uses only the
+        # full-path library that CMake resolves via the Boost::json target.
+        # BOOST_ALL_NO_LIB is a no-op on non-MSVC compilers (Linux/Clang),
+        # where the pragma-based autolink mechanism does not exist.
+        if(MSVC)
+            target_compile_definitions(efuns PRIVATE BOOST_ALL_NO_LIB)
+        endif()
         target_link_libraries(efuns PUBLIC Boost::json)
     elseif(TARGET Boost::headers)
         target_link_libraries(efuns PRIVATE Boost::headers)
