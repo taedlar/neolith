@@ -6,7 +6,7 @@ Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed b
 |-------|-------------|--------|
 | 1 | Build system | complete |
 | 2 | Efun registration | complete |
-| 3 | Implementation | not started |
+| 3 | Implementation | complete |
 | 4 | Docs | not started |
 
 ## Decisions
@@ -97,7 +97,7 @@ Steps are independent of each other.
   #endif
   ```
 
-## Phase 3: Implementation `not started`
+## Phase 3: Implementation `complete`
 
 *Depends on Phases 1–2.*
 
@@ -152,5 +152,5 @@ New file `lib/efuns/json.cpp`. Include `config.h`, then C driver headers inside 
 ## Further Considerations
 
 1. **Mapping iteration API**: `insert_in_mapping()` handles writes. For reading mapping key/value pairs in `to_json`, need the internal C iteration API — check `lib/lpc/mapping.h` for the correct hash-walk function. Highest-risk unknown.
-2. **Boost.JSON header-only fallback**: If the installed Boost does not provide a compiled `Boost::json` cmake target, add `#define BOOST_JSON_HEADER_ONLY` before the include and drop the `target_link_libraries` call.
+2. **Boost.JSON header-only fallback**: Boost.JSON 1.75+ is NOT header-only; it requires linking `libboost_json`. The `BOOST_JSON_HEADER_ONLY` detection path in `CMakeLists.txt` (for old Boost) is retained but will fail at configure if `boost/json.hpp` is absent. In practice, install `libboost-json-dev` (e.g. `apt install libboost-json1.83-dev`). The CMakeLists.txt also detects `Boost_json_FOUND` correctly once the compiled library is installed via `find_package(Boost OPTIONAL_COMPONENTS json)`.
 3. **longjmp + C++ destructors**: Pre-validation in `f_to_json` prevents `error()` from being called mid-Boost-allocation. For `from_json`, the error-code parse overload avoids Boost-side exceptions; LPC allocation errors in `json_to_lpc()` are catastrophic-context and treated as unrecoverable. Document this limitation in the efun docs.

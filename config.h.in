@@ -38,6 +38,7 @@
 
 #cmakedefine HAVE_BOOST
 #cmakedefine HAVE_BOOST_JSON
+#cmakedefine BOOST_JSON_HEADER_ONLY
 #cmakedefine HAVE_OPENSSL
 #cmakedefine HAVE_CURL
 #cmakedefine HAVE_CARES
