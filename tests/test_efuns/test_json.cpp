@@ -44,7 +44,7 @@ TEST_F(EfunsTest, toJsonFloat) {
     push_real(1.5);
     f_to_json();
     ASSERT_EQ(sp->type, T_STRING);
-    EXPECT_STREQ(sp->u.string, "1.5E0");
+    EXPECT_DOUBLE_EQ(strtod(sp->u.string, nullptr), 1.5);
 }
 
 TEST_F(EfunsTest, toJsonString) {

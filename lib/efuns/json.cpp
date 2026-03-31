@@ -56,19 +56,23 @@ extern "C" {
  * Validation pass (f_to_json only)
  *
  * Recursively walks the LPC value tree and calls error() if any mapping key
- * is not T_STRING.  Must complete before any Boost.JSON objects are allocated.
+ * is not T_STRING or if nesting exceeds MAX_SAVE_SVALUE_DEPTH.  Must complete
+ * before any Boost.JSON objects are allocated.
  * -------------------------------------------------------------------------- */
 
-static void validate_for_json(svalue_t *v)
+static void validate_for_json(svalue_t *v, int depth)
 {
   mapping_t *m;
   mapping_node_t *node;
   int i;
 
+  if (depth > MAX_SAVE_SVALUE_DEPTH)
+    error("to_json: value nested too deep (%d).\n", MAX_SAVE_SVALUE_DEPTH);
+
   switch (v->type) {
   case T_ARRAY:
     for (i = 0; i < (int)v->u.arr->size; i++)
-      validate_for_json(&v->u.arr->item[i]);
+      validate_for_json(&v->u.arr->item[i], depth + 1);
     break;
 
   case T_MAPPING:
@@ -77,7 +81,7 @@ static void validate_for_json(svalue_t *v)
       for (node = m->table[i]; node; node = node->next) {
         if (node->values[0].type != T_STRING)
           error("to_json: mapping has a non-string key.\n");
-        validate_for_json(&node->values[1]);
+        validate_for_json(&node->values[1], depth + 1);
       }
     }
     break;
@@ -162,7 +166,7 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
   case boost::json::kind::uint64:
     out->type = T_NUMBER;
     out->subtype = 0;
-    out->u.number = static_cast<int64_t>(jv.get_uint64());
+    out->u.number = jv.get_uint64() > INT64_MAX ? INT64_MAX : static_cast<int64_t>(jv.get_uint64());
     break;
 
   case boost::json::kind::double_:
@@ -213,7 +217,9 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
       svalue_t key;
       key.type = T_STRING;
       key.subtype = STRING_CONSTANT;
-      key.u.string = const_cast<char *>(kv.key().data());
+      std::string k (kv.key().data(), kv.key().size() + 1);
+      k.at(kv.key().size()) = '\0';  /* ensure null-terminated for string_copy */
+      key.u.string = const_cast<char *>(k.data());
       svalue_t *val = find_for_insert(m, &key, 1);
       free_string(key.u.string);  /* release shared-string ref from find_for_insert */
       val->type = T_INVALID;
@@ -244,7 +250,7 @@ extern "C" {
  */
 void f_to_json(void)
 {
-  validate_for_json(sp);  /* may call error(); no C++ objects allocated yet */
+  validate_for_json(sp, 0);  /* may call error(); no C++ objects allocated yet */
 
   {
     boost::json::value jv = lpc_to_json(sp);
@@ -268,31 +274,40 @@ void f_to_json(void)
  */
 void f_from_json(void)
 {
-  boost::system::error_code ec;
-  boost::json::value jv = boost::json::parse(
-      boost::json::string_view(sp->u.string),
-      ec
-  );
+  boost::json::value* parsed = nullptr;
 
-  free_string_svalue(sp);
-  sp->type = T_INVALID;
+  {
+    boost::system::error_code ec;
+    boost::json::value jv = boost::json::parse(
+        boost::json::string_view(sp->u.string, SVALUE_STRLEN(sp)),
+        ec
+    );
 
-  if (ec) {
-    /* Build error message before any longjmp.  jv is a default null value
-     * when parse fails (no heap allocation), so longjmping over it is safe. */
-    char errbuf[256];
-    {
-      std::string msg = ec.message();
-      snprintf(errbuf, sizeof(errbuf), "from_json: invalid JSON: %s\n",
-               msg.c_str());
+    free_string_svalue(sp);
+    sp->type = T_INVALID;
+
+    if (ec) {
+      /* Build error message before any longjmp.  jv is a default null value
+      * when parse fails (no heap allocation), so longjmping over it is safe. */
+      char errbuf[256];
+      {
+        std::string msg = ec.message();
+        snprintf(errbuf, sizeof(errbuf), "from_json: invalid JSON: %s\n",
+                msg.c_str());
+      }
+      sp->type = T_NUMBER;
+      sp->subtype = 0;
+      sp->u.number = 0;
+      error("%s", errbuf);
     }
-    sp->type = T_NUMBER;
-    sp->subtype = 0;
-    sp->u.number = 0;
-    error("%s", errbuf);
+    /* move parsed result to the heap.
+     * if we kept it on the stack, json_to_lpc() would have to longjmp over it on OOM,
+     * which would be unsafe. */
+    parsed = new boost::json::value(std::move(jv));
   }
 
-  json_to_lpc(jv, sp);
+  json_to_lpc(*parsed, sp);
+  delete parsed;
 }
 #endif /* F_FROM_JSON */
 
