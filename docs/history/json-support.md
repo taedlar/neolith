@@ -198,6 +198,7 @@ New file `tests/test_efuns/test_json.cpp`. All test bodies are guarded by `#ifde
 - Boost.JSON may choose scientific notation for floating-point output, so tests and docs should assert numeric behavior, not a hand-written decimal spelling unless the exact backend format is part of the contract.
 - `find_for_insert()` is the practical mapping-construction helper for tests and conversion code, but it mutates string-key ownership semantics through shared-string interning; tests must release the extra shared-string reference they create.
 - When efuns are build-gated, the cleanest test strategy is to always compile the test file and gate the individual test bodies with generated `F_*` macros instead of adding more CMake conditionals.
+- **Boost MSVC autolink vs CMake targets (post-close fix, 2026-03-31)**: On MSVC, Boost headers emit `#pragma comment(lib, ...)` to autolink the implementation. The pragma encodes the lib variant suffix (e.g. `-s-` for static CRT) based on compiler defines at point of inclusion, independent of CMake's `Boost::json` target. If `Boost_USE_STATIC_RUNTIME` is not set before `find_package(Boost)`, CMake resolves `Boost::json` to a different variant than the pragma expects, causing LNK1104. Fix: set `Boost_USE_STATIC_RUNTIME ON/OFF` before `find_package` conditioned on `USE_STATIC_MSVC_RUNTIME`, and define `BOOST_ALL_NO_LIB` (scoped to `if(MSVC)`) to disable the pragma so CMake is the sole link mechanism. `BOOST_ALL_NO_LIB` is a no-op on Linux/GCC/Clang where autolink does not exist.
 
 ## Remaining Work
 
