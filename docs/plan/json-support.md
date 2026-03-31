@@ -7,7 +7,15 @@ Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed b
 | 1 | Build system | complete |
 | 2 | Efun registration | complete |
 | 3 | Implementation | complete |
-| 4 | Docs | not started |
+| 3b | Unit tests | complete |
+| 4 | Docs | complete |
+
+## Current State Handoff
+
+- JSON efuns are complete: build gating, efun registration, implementation, unit tests, and documentation are all in place.
+- Availability is controlled by `PACKAGE_JSON`; when it is `OFF`, `to_json()` and `from_json()` are absent from generated efun tables.
+- Unit coverage lives in `tests/test_efuns/test_json.cpp` and is compiled unconditionally; test bodies are gated by generated `F_TO_JSON` / `F_FROM_JSON` macros.
+- User-facing docs now live in `docs/efuns/to_json.md` and `docs/efuns/from_json.md`.
 
 ## Decisions
 
@@ -16,8 +24,9 @@ Add `to_json(mixed) → string` and `from_json(string) → mixed` efuns backed b
 - **Mapping with non-string keys** in `to_json` → `error()`
 - **`PACKAGE_JSON` semantics**: a boolean `option()` (default `OFF`); enables JSON efuns when Boost.JSON is available. Consistent with `PACKAGE_SOCKETS`. LPC-visible via `options.h.in`.
 - **`HAVE_BOOST_JSON` semantics**: derived cmake variable (not a user option); set when `PACKAGE_JSON` is `ON` and `Boost_json_FOUND`. Declared in `config.h.in` as a detection macro.
-- **No backend**: efuns are absent from `func_spec.c` when `PACKAGE_JSON` is `OFF` or Boost.JSON is not found
+- **No backend**: efuns are absent from generated efun tables when `PACKAGE_JSON` is `OFF` or Boost.JSON is not found
 - **Implementation language**: `lib/efuns/json.cpp` with `extern "C"` for efun symbols
+- **Float text form**: `to_json()` preserves numeric value, but the exact JSON number spelling comes from Boost.JSON and may use scientific notation (for example `1.5E0`)
 
 ## Type Conversion
 
@@ -115,14 +124,47 @@ New file `lib/efuns/json.cpp`. Include `config.h`, then C driver headers inside 
 
 **Recursive helpers** (file-static, not exported):
 - `lpc_to_json(svalue_t*)` → `boost::json::value` — maps all LPC types per conversion table above.
-- `json_to_lpc(boost::json::value const&, svalue_t*)` — writes into a pre-freed svalue slot; for arrays uses `allocate_array()`, for objects uses `allocate_mapping()` + `insert_in_mapping()`.
+- `json_to_lpc(boost::json::value const&, svalue_t*)` — writes into a pre-freed svalue slot; for arrays uses `allocate_array()`, for objects uses `allocate_mapping()` + `find_for_insert()`.
 
-## Phase 4: Docs `not started`
+## Phase 3b: Unit Tests `complete`
 
-*Parallel with Phase 3.*
+*Depends on Phase 3. Tests live in `tests/test_efuns/test_json.cpp`, compiled as part of the `test_efuns` target.*
 
-- **docs/efuns/to_json.md** and **docs/efuns/from_json.md** — follow existing efun doc style. Cover: signature, type conversion table, null round-trip behavior (`T_UNDEFINED` subtype; same as `undefinedp()`), error conditions.
-- **docs/ChangeLog.md** — add entry for the two new efuns.
+New file `tests/test_efuns/test_json.cpp`. All test bodies are guarded by `#ifdef F_TO_JSON` / `#ifdef F_FROM_JSON` so the file compiles (with empty test suite) when `PACKAGE_JSON=OFF`.
+
+**`to_json` tests** (guarded by `#ifdef F_TO_JSON`):
+- `toJsonInteger` / `toJsonNegativeInteger` — integer → `"42"` / `"-7"`
+- `toJsonFloat` — float 1.5 → JSON numeric text (currently `"1.5E0"` with Boost.JSON)
+- `toJsonString` — `"hello"` → `'"hello"'`
+- `toJsonUndefined` — undefined (subtype `T_UNDEFINED`) → `"null"`
+- `toJsonArray` — array `[1,2,3]` → `"[1,2,3]"`
+- `toJsonMapping` — single-key mapping `{"k":99}` → `'{"k":99}'`
+- `toJsonNonStringKeyError` — mapping with integer key → `error()` via `setjmp`/`restore_context`
+
+**`from_json` tests** (guarded by `#ifdef F_FROM_JSON`):
+- `fromJsonInteger` / `fromJsonNegativeInteger` — `"42"` / `"-7"` → `T_NUMBER`
+- `fromJsonFloat` — `"1.5"` → `T_REAL`
+- `fromJsonString` — `'"hello"'` → `T_STRING "hello"`
+- `fromJsonNull` — `"null"` → `T_NUMBER 0` subtype `T_UNDEFINED`
+- `fromJsonBoolTrue` / `fromJsonBoolFalse` — `"true"` / `"false"` → `T_NUMBER 1` / `0`
+- `fromJsonArray` — `"[1,2,3]"` → `T_ARRAY` size 3 with correct elements
+- `fromJsonObject` — `'{"a":1}'` → `T_MAPPING` with key `"a"` → 1
+- `fromJsonInvalidError` — `"{ invalid"` → `error()` via `setjmp`/`restore_context`
+
+**Round-trip tests** (guarded by `#if defined(F_TO_JSON) && defined(F_FROM_JSON)`):
+- `roundTripInteger` — `from_json(to_json(12345))` → `T_NUMBER 12345`
+- `roundTripString` — `from_json(to_json("hello world"))` → `T_STRING "hello world"`
+- `roundTripNull` — `to_json(undefined)` → `"null"`; `from_json("null")` has subtype `T_UNDEFINED`
+- `roundTripArray` — array `[10, 20]` round-trips with correct element values
+- `roundTripFloat` — float round-trips by numeric value regardless of serialized spelling
+
+**CMake**: add `test_json.cpp` to `test_efuns` target (unconditionally; `#ifdef` guards handle the disabled case).
+
+## Phase 4: Docs `complete`
+
+- Added `docs/efuns/to_json.md` with availability, conversion, and error semantics for `to_json()`.
+- Added `docs/efuns/from_json.md` with JSON-to-LPC conversion rules and parse-failure behavior for `from_json()`.
+- Updated `docs/ChangeLog.md` with unreleased feature and documentation notes for JSON efuns.
 
 ## Relevant Files
 
@@ -135,6 +177,7 @@ New file `lib/efuns/json.cpp`. Include `config.h`, then C driver headers inside 
 | `lib/lpc/func_spec.c.in` | Guarded efun signatures |
 | `lib/efuns/CMakeLists.txt` | `json.cpp` in sources, conditional `Boost::json` link |
 | `lib/efuns/json.cpp` | New file — implementation |
+| `tests/test_efuns/test_json.cpp` | New unit tests for JSON efuns |
 | `docs/efuns/to_json.md` | New efun doc |
 | `docs/efuns/from_json.md` | New efun doc |
 | `docs/ChangeLog.md` | Changelog entry |
@@ -147,10 +190,15 @@ New file `lib/efuns/json.cpp`. Include `config.h`, then C driver headers inside 
 4. LPC null: `undefinedp(from_json("null"))` is true; `to_json(from_json("null"))` produces `"null"`.
 5. LPC error: `to_json` on a mapping with integer key → error via `catch()`.
 6. LPC error: `from_json("{ invalid")` → controlled error via `catch()`.
-7. Docs structurally consistent with adjacent efun docs.
+7. Unit tests pass in `test_efuns` with JSON enabled.
+8. Docs structurally consistent with adjacent efun docs.
 
-## Further Considerations
+## Lessons Learned
 
-1. **Mapping iteration API**: `insert_in_mapping()` handles writes. For reading mapping key/value pairs in `to_json`, need the internal C iteration API — check `lib/lpc/mapping.h` for the correct hash-walk function. Highest-risk unknown.
-2. **Boost.JSON header-only fallback**: Boost.JSON 1.75+ is NOT header-only; it requires linking `libboost_json`. The `BOOST_JSON_HEADER_ONLY` detection path in `CMakeLists.txt` (for old Boost) is retained but will fail at configure if `boost/json.hpp` is absent. In practice, install `libboost-json-dev` (e.g. `apt install libboost-json1.83-dev`). The CMakeLists.txt also detects `Boost_json_FOUND` correctly once the compiled library is installed via `find_package(Boost OPTIONAL_COMPONENTS json)`.
-3. **longjmp + C++ destructors**: Pre-validation in `f_to_json` prevents `error()` from being called mid-Boost-allocation. For `from_json`, the error-code parse overload avoids Boost-side exceptions; LPC allocation errors in `json_to_lpc()` are catastrophic-context and treated as unrecoverable. Document this limitation in the efun docs.
+- Boost.JSON may choose scientific notation for floating-point output, so tests and docs should assert numeric behavior, not a hand-written decimal spelling unless the exact backend format is part of the contract.
+- `find_for_insert()` is the practical mapping-construction helper for tests and conversion code, but it mutates string-key ownership semantics through shared-string interning; tests must release the extra shared-string reference they create.
+- When efuns are build-gated, the cleanest test strategy is to always compile the test file and gate the individual test bodies with generated `F_*` macros instead of adding more CMake conditionals.
+
+## Remaining Work
+
+- None for this feature. Archive or close the plan only when requested.
