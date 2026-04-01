@@ -803,8 +803,8 @@ void init_curl_subsystem(void) {
     return;
   }
 
-  s_task_queue = async_queue_create(CURL_QUEUE_SIZE, sizeof(curl_task_t), 0);
-  s_result_queue = async_queue_create(CURL_QUEUE_SIZE, sizeof(curl_completion_t), 0);
+  s_task_queue = async_queue_create(CURL_QUEUE_SIZE, sizeof(curl_task_t), static_cast<async_queue_flags_t>(0));
+  s_result_queue = async_queue_create(CURL_QUEUE_SIZE, sizeof(curl_completion_t), static_cast<async_queue_flags_t>(0));
   if (!s_task_queue || !s_result_queue) {
     if (s_task_queue) {
       async_queue_destroy(s_task_queue);
