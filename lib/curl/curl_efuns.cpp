@@ -903,9 +903,24 @@ void drain_curl_completions(void) {
 
     arg_count = 2 + (handle->callback_args ? handle->callback_args->size : 0);
     push_number(completion.success);
-    copy_and_push_string(completion.success ?
-                         (handle->response_buf ? handle->response_buf : "") :
-                         (handle->error_msg ? handle->error_msg : curl_easy_strerror(handle->curl_error)));
+    if (completion.success) {
+      if (handle->response_buf && handle->response_len > 0) {
+        buffer_t *buf = allocate_buffer(handle->response_len);
+        if (buf && buf->item) {
+          memcpy(buf->item, handle->response_buf, handle->response_len);
+        }
+        push_refed_buffer(buf);
+      }
+      else {
+        /* Empty response body: push an empty buffer. */
+        buffer_t *buf = allocate_buffer(0);
+        push_refed_buffer(buf);
+      }
+    }
+    else {
+      const char *err = handle->error_msg ? handle->error_msg : curl_easy_strerror(handle->curl_error);
+      copy_and_push_string(err);
+    }
     if (handle->callback_args) {
       push_some_svalues(handle->callback_args->item, handle->callback_args->size);
     }
