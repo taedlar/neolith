@@ -41,7 +41,11 @@ static size_t curl_response_write_callback(void *ptr, size_t size, size_t nmemb,
 namespace {
 
 static const int CURL_QUEUE_SIZE = 256;
-static const int CURL_INITIAL_HANDLE_CAPACITY = 16;
+/* s_curl_handles is allocated once at init and never resized while the worker
+ * thread is running.  Keeping the array pointer stable eliminates a data race
+ * where the worker holds a derived pointer (including CURLOPT_WRITEDATA) into
+ * the array while the main thread could otherwise realloc it. */
+static const int CURL_MAX_HANDLE_CAPACITY = 256;
 
 static curl_http_t *s_curl_handles = nullptr;
 static int s_num_curl_handles = 0;
@@ -179,10 +183,7 @@ static int ensure_handle_capacity(int required_index) {
     return 1;
   }
 
-  new_capacity = s_num_curl_handles > 0 ? s_num_curl_handles : CURL_INITIAL_HANDLE_CAPACITY;
-  while (required_index >= new_capacity) {
-    new_capacity *= 2;
-  }
+  new_capacity = CURL_MAX_HANDLE_CAPACITY;
 
   new_handles = RESIZE(s_curl_handles, new_capacity, curl_http_t, TAG_TEMPORARY, "curl:handle_resize");
   if (!new_handles) {
@@ -238,14 +239,9 @@ static int allocate_handle_index(object_t *owner) {
     }
   }
 
-  index = s_num_curl_handles;
-  if (!ensure_handle_capacity(index)) {
-    return -1;
-  }
-
-  s_curl_handles[index].owner_ob = owner;
-  s_curl_handles[index].state = CURL_STATE_IDLE;
-  return index;
+  /* All CURL_MAX_HANDLE_CAPACITY slots are allocated at init and never grown;
+   * reaching here means every slot is occupied. */
+  return -1;
 }
 
 static int ensure_easy_handle(curl_http_t *handle) {
@@ -759,7 +755,7 @@ void init_curl_subsystem(void) {
     return;
   }
 
-  if (!ensure_handle_capacity(CURL_INITIAL_HANDLE_CAPACITY - 1)) {
+  if (!ensure_handle_capacity(CURL_MAX_HANDLE_CAPACITY - 1)) {
     curl_multi_cleanup(s_curl_multi);
     s_curl_multi = nullptr;
     curl_global_cleanup();
