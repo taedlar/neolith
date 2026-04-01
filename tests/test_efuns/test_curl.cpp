@@ -107,7 +107,14 @@ private:
       timeout.tv_sec = 0;
       timeout.tv_usec = 100000;
 
-      if (select(FD_SETSIZE, &read_set, nullptr, nullptr, &timeout) <= 0) {
+      int nfds;
+#ifdef WINSOCK
+      nfds = 0;
+#else
+      nfds = static_cast<int>(listener_fd_) + 1;
+#endif
+
+      if (select(nfds, &read_set, nullptr, nullptr, &timeout) <= 0) {
         continue;
       }
 
