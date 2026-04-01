@@ -11,16 +11,22 @@ void create() {
 }
 
 #ifdef __PACKAGE_CURL__
-void handle_curlget_result(int ok, string payload, string url) {
+void handle_curlget_result(int ok, mixed payload, string url) {
+  string payload_str;
+
+  /* perform_to() returns a buffer on success and a string on failure;
+   * normalize to string for display. */
+  payload_str = sprintf("%s", payload);
+
   if (ok) {
     write("CURL response from " + url + ":\n");
-    write(payload);
-    if (strlen(payload) == 0 || payload[<1] != '\n') {
+    write(payload_str);
+    if (strlen(payload_str) == 0 || payload_str[<1] != '\n') {
       write("\n");
     }
   }
   else {
-    write("CURL request failed for " + url + ": " + payload + "\n");
+    write("CURL request failed for " + url + ": " + payload_str + "\n");
   }
   write_prompt();
 }
