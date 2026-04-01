@@ -30,7 +30,9 @@ extern "C" {
 }
 
 #include <cstdint>
+#include <chrono>
 #include <cstring>
+#include <thread>
 
 #include "curl_efuns.h"
 
@@ -570,7 +572,7 @@ static void *curl_worker_main(void *) {
     }
 
     if (!processed_task) {
-      usleep(10000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
 
