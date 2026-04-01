@@ -153,15 +153,14 @@ void init_curl_subsystem(void);
 void deinit_curl_subsystem(void);
 
 /**
- * @brief Cancel and clean up CURL handles for a destructing object.
+ * @brief Cancel and clean up CURL handles for a object.
  *
- * Called from free_object() in lib/lpc/object.c when an LPC object is being
- * destructed. For idle or configured handles, resources are freed immediately.
+ * For idle or configured handles, resources are freed immediately.
  * For in-flight transfers a CURL_TASK_CANCEL task is enqueued to the worker,
  * which removes the easy handle from curl_multi and posts a stale completion.
  * drain_curl_completions() then reclaims the slot without dispatching a callback.
- *
- * @param ob LPC object being destructed
+ * 
+ * @param ob LPC object whose CURL handles should be closed (e.g. on destruction)
  */
 void close_curl_handles(object_t *ob);
 

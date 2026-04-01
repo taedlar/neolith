@@ -902,6 +902,9 @@ void close_curl_handles(object_t *ob) {
       cancel_task.handle_id = static_cast<uint32_t>(index);
       cancel_task.generation = active_gen;
       async_queue_enqueue(s_task_queue, &cancel_task, sizeof(cancel_task));
+      // failure to enqueue a cancel task is not critical since the generation
+      // bump above ensures the completed transfer will be treated as stale and
+      // cleaned up without a callback.
       continue;
     }
 
