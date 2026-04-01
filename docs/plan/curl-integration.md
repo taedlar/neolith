@@ -3,6 +3,8 @@
 ## Overview
 Implement non-blocking CURL REST API integration with async worker threads, per-object handle management, and callback dispatch on completion. Total estimated scope: ~2500 LOC across foundation, efuns, and callback dispatch.
 
+**All phases complete.** Ready to close or archive.
+
 ## Project Status
 
 ### Phase 1: Foundation ✅ COMPLETE
@@ -20,26 +22,26 @@ Implement non-blocking CURL REST API integration with async worker threads, per-
 - [x] Implement stub versions in [lib/curl/curl_efuns.cpp](lib/curl/curl_efuns.cpp)
 - **Status**: Efuns register in LPC, callable but return empty/0; all traces green
 
-### Phase 3: Async Runtime Integration ⏸️ NOT STARTED
-Implement full async worker thread pool, per-object handle management, and callback dispatch.
-- Per-object handle pool (array-based, reusable slots, generation tracking)
-- Async task/result queues for main↔worker communication
-- Worker thread driving curl_multi_perform and curl_multi_poll
-- Completion key integration with async_runtime_wait() from main comm polling loop
-- **Blockers**: Requires careful understanding of safe_apply patterns for LPC callbacks during async completion drain
+### Phase 3: Async Runtime Integration ✅ COMPLETE
+Implemented full async worker thread pool, per-object handle management, and callback dispatch.
+- [x] Per-object handle pool (array-based, reusable slots, generation tracking)
+- [x] Async task/result queues for main↔worker communication
+- [x] Worker thread driving `curl_multi_perform` and `curl_multi_poll`
+- [x] Completion key integration with `async_runtime_wait()` via `CURL_COMPLETION_KEY` in [src/comm.c](src/comm.c)
+- [x] `drain_curl_completions()` dispatches callbacks via `safe_apply` and `safe_call_function_pointer`
+- [x] `init_curl_subsystem()` / `deinit_curl_subsystem()` wired into comm init/deinit
+- [x] `close_curl_handles()` cleans up per-object state on object destruction
+- **Status**: All implementation complete; build and tests pass
 
 ## Current State Handoff
 
-**Completed as of [2025-01-16]:**
-- libcurl is integrated as an optional build dependency (CMake option `PACKAGE_CURL`)
-- Three efuns are registered and callable from LPC: `perform_using()`, `perform_to()`, `in_perform()`
-- Stubs are in place in [lib/curl/curl_efuns.cpp](lib/curl/curl_efuns.cpp)
-- Build passes with all tests green
-
-**Next phase requires:**
-1. Deep refamiliarization with [docs/internals/async-library.md](docs/internals/async-library.md) for worker/queue/runtime patterns
-2. Review [src/apply.c](src/apply.c) and existing callback patterns (heart_beat, reset, init) to design safe callback dispatch during async drain
-3. Implementation of Phase 3: worker thread management, per-object handle pool lifecycle, and callback queueing on completion
+**Completed as of [2026-04-01]:**
+- All three phases fully implemented and passing
+- libcurl integrated as an optional build dependency (`PACKAGE_CURL`)
+- Three efuns fully operational from LPC: `perform_using()`, `perform_to()`, `in_perform()`
+- Non-blocking async worker drives `curl_multi_perform`; completions drain on the main loop via `CURL_COMPLETION_KEY`
+- Callback dispatch uses `safe_apply` / `safe_call_function_pointer` with generation-based stale-completion guards
+- Object destruction correctly cancels in-flight transfers and cleans up handles
 
 ## Lessons Learned
 - CMake target-based dependencies (e.g., `PkgConfig::libcurl`) simplify platform compatibility vs manual dependency linking
