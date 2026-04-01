@@ -652,6 +652,10 @@ void f_perform_using(void) {
   int handle_id;
   curl_http_t *handle;
 
+  if (!s_curl_multi) {
+    error("CURL subsystem is not available.\n");
+  }
+
   if (option_value->type != T_STRING) {
     error("perform_using() option must be a string.\n");
   }
@@ -683,6 +687,10 @@ void f_perform_to(void) {
   int handle_id;
   curl_http_t *handle;
   curl_task_t task;
+
+  if (!s_curl_multi) {
+    error("CURL subsystem is not available.\n");
+  }
 
   if (argc < 2) {
     error("perform_to() requires at least a callback and flags argument.\n");
@@ -750,12 +758,14 @@ void init_curl_subsystem(void) {
   s_runtime = get_async_runtime();
   s_curl_multi = curl_multi_init();
   if (!s_curl_multi) {
+    s_runtime = nullptr;
     curl_global_cleanup();
     debug_message("Warning: failed to initialize CURL multi handle; PACKAGE_CURL disabled.\n");
     return;
   }
 
   if (!ensure_handle_capacity(CURL_MAX_HANDLE_CAPACITY - 1)) {
+    s_runtime = nullptr;
     curl_multi_cleanup(s_curl_multi);
     s_curl_multi = nullptr;
     curl_global_cleanup();
@@ -774,8 +784,12 @@ void init_curl_subsystem(void) {
       async_queue_destroy(s_result_queue);
       s_result_queue = nullptr;
     }
+    FREE(s_curl_handles);
+    s_curl_handles = nullptr;
+    s_num_curl_handles = 0;
     curl_multi_cleanup(s_curl_multi);
     s_curl_multi = nullptr;
+    s_runtime = nullptr;
     curl_global_cleanup();
     debug_message("Warning: failed to create CURL queues; PACKAGE_CURL disabled.\n");
     return;
@@ -787,8 +801,12 @@ void init_curl_subsystem(void) {
     async_queue_destroy(s_result_queue);
     s_task_queue = nullptr;
     s_result_queue = nullptr;
+    FREE(s_curl_handles);
+    s_curl_handles = nullptr;
+    s_num_curl_handles = 0;
     curl_multi_cleanup(s_curl_multi);
     s_curl_multi = nullptr;
+    s_runtime = nullptr;
     curl_global_cleanup();
     debug_message("Warning: failed to start CURL worker; PACKAGE_CURL disabled.\n");
   }
