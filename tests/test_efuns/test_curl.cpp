@@ -283,6 +283,7 @@ static const char kCallbackOwnerCode[] =
   "int event_count = 0;\n"
   "void create() { last = ({}); events = ({}); event_count = 0; }\n"
   "varargs void curl_done(int ok, string payload, mixed a, mixed b) { last = ({ ok, payload, a, b }); events += ({ copy(last) }); event_count++; }\n"
+  "varargs int try_perform_to(string callback, int flags, mixed a, mixed b) { return catch(perform_to(callback, flags, a, b)) ? 1 : 0; }\n"
   "mixed *query_last() { return last; }\n"
   "int query_event_count() { return event_count; }\n"
   "void clear_events() { last = ({}); events = ({}); event_count = 0; }\n";
@@ -358,19 +359,14 @@ TEST_F(CurlEfunsTest, InPerformAndOneActiveTransferEnforced) {
   EXPECT_EQ(sp->u.number, 1);
   pop_stack();
 
-  bool second_transfer_error = false;
-  error_context_t econ;
-  save_context(&econ);
-  if (setjmp(econ.context)) {
-    restore_context(&econ);
-    second_transfer_error = true;
-  }
-  else {
-    StartTransfer(owner, "curl_done", 18, "second");
-    FAIL() << "perform_to() should reject a second active transfer.";
-  }
-  pop_context(&econ);
-  EXPECT_TRUE(second_transfer_error);
+  push_constant_string("curl_done");
+  push_number(0);
+  push_number(18);
+  push_constant_string("second");
+  apply_low("try_perform_to", owner, 4);
+  ASSERT_EQ(sp->type, T_NUMBER);
+  EXPECT_EQ(sp->u.number, 1);
+  pop_stack();
 
   ASSERT_TRUE(PumpUntil([&]() { return QueryEventCount(owner) == 1; }))
     << "Timed out waiting for curl callback";
