@@ -504,7 +504,7 @@ string dump_socket_status();
 /*
  * CURL REST API efuns
  */
-void perform_using(mixed, mixed);
+void perform_using(string, mixed);
 void perform_to(string | function, int,...);
 int in_perform(void);
 #endif
