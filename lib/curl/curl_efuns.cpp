@@ -534,6 +534,28 @@ static void drain_multi_messages(void) {
   }
 }
 
+static void cancel_transfer_task(const curl_task_t *task) {
+  curl_http_t *handle;
+
+  if (task->handle_id >= static_cast<uint32_t>(s_num_curl_handles)) {
+    return;
+  }
+
+  handle = &s_curl_handles[task->handle_id];
+  if (handle->active_generation != task->generation) {
+    return;
+  }
+
+  if (handle->easy_handle && s_curl_multi) {
+    curl_multi_remove_handle(s_curl_multi, handle->easy_handle);
+  }
+
+  /* Post a stale completion (generation was bumped on the main thread before
+   * enqueueing this task) so drain_curl_completions reclaims the slot without
+   * dispatching a callback. */
+  post_completion_record(task->handle_id, task->generation, 0);
+}
+
 static void *curl_worker_main(void *) {
   async_worker_t *worker = async_worker_current();
 
@@ -546,7 +568,12 @@ static void *curl_worker_main(void *) {
 
     while (async_queue_dequeue(s_task_queue, &task, sizeof(task), &task_size)) {
       if (task_size == sizeof(task)) {
-        start_transfer_task(&task);
+        if (task.type == CURL_TASK_CANCEL) {
+          cancel_transfer_task(&task);
+        }
+        else {
+          start_transfer_task(&task);
+        }
         processed_task = 1;
       }
     }
@@ -725,6 +752,7 @@ void f_perform_to(void) {
   handle->active_generation = handle->generation;
   free_transfer_buffers(handle);
 
+  task.type = CURL_TASK_TRANSFER;
   task.handle_id = static_cast<uint32_t>(handle_id);
   task.generation = handle->active_generation;
   if (!async_queue_enqueue(s_task_queue, &task, sizeof(task))) {
@@ -864,8 +892,16 @@ void close_curl_handles(object_t *ob) {
 
     free_callback_state(handle);
     if (handle->state == CURL_STATE_TRANSFERRING) {
+      curl_task_t cancel_task;
+      uint32_t active_gen = handle->active_generation;
+
       handle->owner_ob = nullptr;
       handle->generation++;
+
+      cancel_task.type = CURL_TASK_CANCEL;
+      cancel_task.handle_id = static_cast<uint32_t>(index);
+      cancel_task.generation = active_gen;
+      async_queue_enqueue(s_task_queue, &cancel_task, sizeof(cancel_task));
       continue;
     }
 

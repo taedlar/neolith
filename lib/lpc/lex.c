@@ -2629,6 +2629,25 @@ static void int_add_instr_name (char *name, int n, short t) {
  */
 void init_instrs () {
   int i, n;
+  static int predefs_patched = 0;
+
+  /* Strip F_ALIAS_FLAG from alias entries in predefs so that the lexer
+   * resolves alias names (e.g. "strlen", "len") to the base opcode number
+   * via token & TOKEN_MASK.  This mutation must happen exactly once per
+   * process: a second XOR would re-add the flag, causing the alias entry
+   * to be treated as a canonical efun in the instrs[] loop below and
+   * overwrite the real efun's name and arg types (e.g. "strlen"/T_STRING
+   * clobbering "sizeof"/T_ANY, leading to bogus type-check errors). */
+  if (!predefs_patched)
+    {
+      for (i = 0; i < (int)NELEM (predefs); i++)
+        {
+          n = predefs[i].token & TOKEN_MASK;
+          if (n & F_ALIAS_FLAG)
+            predefs[i].token ^= F_ALIAS_FLAG;
+        }
+      predefs_patched = 1;
+    }
 
   for (i = 0; i < BASE; i++)
     {
@@ -2639,6 +2658,8 @@ void init_instrs () {
       n = predefs[i].token & TOKEN_MASK; /* opcode number only; exclude IHE_ flag bits */
       if (n & F_ALIAS_FLAG)
         {
+          /* Should not be reached after the one-time patch above, but keep
+           * the guard for safety (e.g. if predefs is extended dynamically). */
           predefs[i].token ^= F_ALIAS_FLAG;
         }
       else

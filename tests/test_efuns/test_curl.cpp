@@ -7,6 +7,7 @@
 #ifdef PACKAGE_CURL
 
 #include <atomic>
+#include <cstring>
 #include <functional>
 #include <string>
 #include <thread>
@@ -18,6 +19,7 @@ extern "C" {
 #include "src/error_context.h"
 #include "src/simulate.h"
 #include "curl/curl_efuns.h"
+#include "lpc/buffer.h"
 #include "lpc/functional.h"
 }
 
@@ -47,6 +49,10 @@ public:
 
   bool valid() const {
     return valid_;
+  }
+
+  int handled_requests() const {
+    return handled_requests_;
   }
 
 private:
@@ -261,22 +267,32 @@ protected:
     apply_low("clear_events", owner, 0);
     pop_stack();
   }
+
+  void ExpectBufferEq(const svalue_t &sv, const char *expected) {
+    size_t expected_len = std::strlen(expected);
+    ASSERT_EQ(sv.type, T_BUFFER);
+    ASSERT_NE(sv.u.buf, nullptr);
+    EXPECT_EQ(static_cast<size_t>(sv.u.buf->size), expected_len);
+    EXPECT_EQ(std::memcmp(sv.u.buf->item, expected, expected_len), 0);
+  }
 };
 
 static const char kCallbackOwnerCode[] =
   "mixed *last = ({});\n"
   "mixed *events = ({});\n"
-  "void create() { last = ({}); events = ({}); }\n"
-  "varargs void curl_done(int ok, string payload, mixed a, mixed b) { last = ({ ok, payload, a, b }); events += ({ copy(last) }); }\n"
+  "int event_count = 0;\n"
+  "void create() { last = ({}); events = ({}); event_count = 0; }\n"
+  "varargs void curl_done(int ok, string payload, mixed a, mixed b) { last = ({ ok, payload, a, b }); events += ({ copy(last) }); event_count++; }\n"
   "mixed *query_last() { return last; }\n"
-  "int query_event_count() { return sizeof(events); }\n"
-  "void clear_events() { last = ({}); events = ({}); }\n";
+  "int query_event_count() { return event_count; }\n"
+  "void clear_events() { last = ({}); events = ({}); event_count = 0; }\n";
 
 static const char kObserverCode[] =
   "mixed *events = ({});\n"
-  "void create() { events = ({}); }\n"
-  "void record(mixed ok, mixed payload) { events += ({ ({ ok, payload }) }); }\n"
-  "int query_event_count() { return sizeof(events); }\n";
+  "int event_count = 0;\n"
+  "void create() { events = ({}); event_count = 0; }\n"
+  "void record(mixed ok, mixed payload) { events += ({ ({ ok, payload }) }); event_count++; }\n"
+  "int query_event_count() { return event_count; }\n";
 
 static const char kDestroyOwnerCode[] =
   "object observer;\n"
@@ -382,8 +398,7 @@ TEST_F(CurlEfunsTest, CallbackOrderingAndOptionPersistenceAcrossIdlePeriods) {
   ASSERT_EQ(first->size, 4);
   EXPECT_EQ(first->item[0].type, T_NUMBER);
   EXPECT_EQ(first->item[0].u.number, 1);
-  EXPECT_EQ(first->item[1].type, T_STRING);
-  EXPECT_STREQ(first->item[1].u.string, "hello from curl");
+  ExpectBufferEq(first->item[1], "hello from curl");
   EXPECT_EQ(first->item[2].type, T_NUMBER);
   EXPECT_EQ(first->item[2].u.number, 123);
   EXPECT_EQ(first->item[3].type, T_STRING);
@@ -399,7 +414,7 @@ TEST_F(CurlEfunsTest, CallbackOrderingAndOptionPersistenceAcrossIdlePeriods) {
   array_t *second = QueryLast(owner);
   ASSERT_EQ(second->size, 4);
   EXPECT_EQ(second->item[0].u.number, 1);
-  EXPECT_STREQ(second->item[1].u.string, "hello from curl");
+  ExpectBufferEq(second->item[1], "hello from curl");
   EXPECT_EQ(second->item[2].u.number, 456);
   EXPECT_STREQ(second->item[3].u.string, "again");
   pop_stack();
@@ -425,8 +440,7 @@ TEST_F(CurlEfunsTest, FunctionPointerCallbackDispatchesCarryoverArguments) {
   ASSERT_EQ(result->size, 4);
   EXPECT_EQ(result->item[0].type, T_NUMBER);
   EXPECT_EQ(result->item[0].u.number, 1);
-  EXPECT_EQ(result->item[1].type, T_STRING);
-  EXPECT_STREQ(result->item[1].u.string, "funptr-body");
+  ExpectBufferEq(result->item[1], "funptr-body");
   EXPECT_EQ(result->item[2].type, T_NUMBER);
   EXPECT_EQ(result->item[2].u.number, 321);
   EXPECT_EQ(result->item[3].type, T_STRING);
@@ -469,8 +483,7 @@ TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
   ASSERT_EQ(result_a->size, 4);
   EXPECT_EQ(result_a->item[0].type, T_NUMBER);
   EXPECT_EQ(result_a->item[0].u.number, 1);
-  EXPECT_EQ(result_a->item[1].type, T_STRING);
-  EXPECT_STREQ(result_a->item[1].u.string, "shared-body");
+  ExpectBufferEq(result_a->item[1], "shared-body");
   EXPECT_EQ(result_a->item[2].type, T_NUMBER);
   EXPECT_EQ(result_a->item[2].u.number, 11);
   EXPECT_EQ(result_a->item[3].type, T_STRING);
@@ -481,8 +494,7 @@ TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
   ASSERT_EQ(result_b->size, 4);
   EXPECT_EQ(result_b->item[0].type, T_NUMBER);
   EXPECT_EQ(result_b->item[0].u.number, 1);
-  EXPECT_EQ(result_b->item[1].type, T_STRING);
-  EXPECT_STREQ(result_b->item[1].u.string, "shared-body");
+  ExpectBufferEq(result_b->item[1], "shared-body");
   EXPECT_EQ(result_b->item[2].type, T_NUMBER);
   EXPECT_EQ(result_b->item[2].u.number, 22);
   EXPECT_EQ(result_b->item[3].type, T_STRING);
@@ -500,6 +512,59 @@ TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
   ASSERT_EQ(sp->type, T_NUMBER);
   EXPECT_EQ(sp->u.number, 0);
   pop_stack();
+}
+
+// Verifies that destructing the owner while a transfer is actively in-flight triggers
+// the cancel path: close_curl_handles() enqueues CURL_TASK_CANCEL, the worker removes the
+// easy handle from curl_multi, and drain_curl_completions() discards the stale completion
+// without dispatching a callback.  The server delay (2000ms) ensures the transfer cannot
+// complete before the owner is destructed, unlike DestroyedOwnerSkipsCallbackDispatch which
+// uses a shorter delay where the transfer may already be done.
+TEST_F(CurlEfunsTest, OwnerDestructionCancelsInFlightTransfer) {
+  // 2000ms response delay: transfer is still active at the point of destruction.
+  HttpTestServer server("cancelled-body", 1, 2000);
+  ASSERT_TRUE(server.valid());
+
+  object_t *observer = LoadInlineObject("/tests/efuns/curl_cancel_obs", kObserverCode);
+  object_t *owner = LoadInlineObject("/tests/efuns/curl_cancel_owner", kDestroyOwnerCode);
+  ASSERT_NE(observer, nullptr);
+  ASSERT_NE(owner, nullptr);
+
+  push_object(observer);
+  apply_low("set_observer", owner, 1);
+  pop_stack();
+
+  ConfigureUrl(owner, server.url());
+  StartTransfer(owner, "curl_done");
+
+  // Confirm the transfer is genuinely in-flight before destruction.
+  current_object = owner;
+  f_in_perform();
+  ASSERT_EQ(sp->type, T_NUMBER);
+  ASSERT_EQ(sp->u.number, 1) << "Transfer must be active before destructing the owner";
+  pop_stack();
+
+  // Destruct: close_curl_handles() sets owner_ob=nullptr, bumps generation, and posts
+  // CURL_TASK_CANCEL.  The callback state is freed here; the transfer may still be running.
+  current_object = owner;
+  destruct_object(owner);
+
+  // Pump for 800ms: enough for the cancel task to reach the worker, remove the easy handle
+  // from curl_multi, post the (now-stale) completion, and for drain_curl_completions() to
+  // discard it.  The 2000ms server delay means no real completion arrives in this window.
+  bool unexpected_early = PumpUntil([&]() { return QueryEventCount(observer) > 0; }, 800);
+  EXPECT_FALSE(unexpected_early) << "No callback expected while cancel drains";
+
+  // Pump past the server delay so any completion that might arrive (e.g. if the network
+  // stack completed the transfer despite cancellation) is also processed.  The generation
+  // mismatch guard in drain_curl_completions() must discard it without dispatching.
+  bool unexpected_delayed = PumpUntil([&]() { return QueryEventCount(observer) > 0; }, 1400);
+  EXPECT_FALSE(unexpected_delayed) << "No deferred callback expected after server delay";
+
+  EXPECT_EQ(QueryEventCount(observer), 0) << "Observer must have received zero callbacks";
+  // Server may or may not have completed the send (implementation-defined on cancel), but
+  // the driver side must never have dispatched a callback regardless.
+  EXPECT_EQ(server.handled_requests(), 0) << "Server should not have completed a response before cancel";
 }
 
 TEST_F(CurlEfunsTest, DestroyedOwnerSkipsCallbackDispatch) {

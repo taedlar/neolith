@@ -71,9 +71,18 @@ typedef struct {
 } curl_http_t;
 
 /**
+ * @brief Task type for worker thread dispatch.
+ */
+typedef enum {
+    CURL_TASK_TRANSFER = 0,  /* Start a new transfer via curl_multi_add_handle */
+    CURL_TASK_CANCEL = 1,    /* Remove an in-flight transfer from curl_multi */
+} curl_task_type_t;
+
+/**
  * @brief Task enqueued to worker thread for curl_multi_perform.
  */
 typedef struct {
+    uint32_t type;                   /* curl_task_type_t: TRANSFER or CANCEL */
     uint32_t handle_id;              /* Index into curl_handles[] pool */
     uint32_t generation;             /* Generation ID from handle (for stale check) */
 } curl_task_t;
@@ -144,10 +153,13 @@ void init_curl_subsystem(void);
 void deinit_curl_subsystem(void);
 
 /**
- * @brief Cleanup CURL transfers for destructing object.
- * 
+ * @brief Cancel and clean up CURL handles for a destructing object.
+ *
  * Called from free_object() in lib/lpc/object.c when an LPC object is being
- * destructed. Cancels any in-flight transfer for that object and frees resources.
+ * destructed. For idle or configured handles, resources are freed immediately.
+ * For in-flight transfers a CURL_TASK_CANCEL task is enqueued to the worker,
+ * which removes the easy handle from curl_multi and posts a stale completion.
+ * drain_curl_completions() then reclaims the slot without dispatching a callback.
  *
  * @param ob LPC object being destructed
  */
