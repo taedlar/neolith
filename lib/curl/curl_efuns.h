@@ -17,6 +17,10 @@ extern "C" {
 
 #include <curl/curl.h>
 
+#include "lpc/object.h"
+#include "lpc/array.h"
+#include "lpc/functional.h"
+
 /**
  * @brief CURL transfer state machine.
  */

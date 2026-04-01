@@ -18,13 +18,17 @@ The callback may be a function name string or a function pointer. On completion 
 is invoked with:
 
 ~~~cxx
-(int success, string body_or_error, mixed ...args)
+(int success, buffer | string body_or_error, mixed ...args)
 ~~~
 
-`success` is non-zero when the request completed successfully. `body_or_error`
-contains the response body on success or an error message on failure. Any extra
-arguments passed to `perform_to()` are appended after those two standard callback
-arguments.
+`success` is non-zero when the request completed successfully.
+
+- On success, `body_or_error` is a `buffer` containing the raw response body.
+  An empty response body produces an empty buffer (size 0).
+- On failure, `body_or_error` is a `string` containing the error message.
+
+Any extra arguments passed to `perform_to()` are appended after those two standard
+callback arguments.
 
 If the owner object is destructed before completion, the transfer is cancelled and
 the callback is not invoked.

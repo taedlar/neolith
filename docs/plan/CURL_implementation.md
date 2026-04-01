@@ -10,7 +10,7 @@ Implement PACKAGE_CURL, an opt-in feature that adds three LPC efuns for non-bloc
 
 **Key Constraints**:
 - One active transfer per object (additional perform_to calls fail if transfer active)
-- Callback receives (success_flag, body_or_error, ...carryover_args) per input_to convention
+- Callback receives (success_flag, body_or_error, ...carryover_args) per input_to convention; on success body_or_error is a buffer, on failure it is a string error message
 - Transfers cancelled and callback not invoked on object destruction
 - Worker thread pool handles curl_multi_perform/curl_multi_poll; main thread does callbacks
 
@@ -65,7 +65,7 @@ Implement PACKAGE_CURL, an opt-in feature that adds three LPC efuns for non-bloc
    - Consume completion records from result queue upon completion key event
    - Skip callback if owner object destructed (check O_DESTRUCTED flag)
    - Invoke callback using safe apply/function-pointer patterns from socket/input precedents
-   - Pass (success_flag, body_or_error, ...carryover_args) per contract
+   - Pass (success_flag, body_or_error, ...carryover_args) per contract; body is a buffer on success, string on failure
 
 ### Phase 4: Lifecycle & Cancellation Guarantees ✅ COMPLETE
 **Subtasks**:

@@ -24,6 +24,8 @@ extern "C" {
 #include "lpc/object.h"
 #include "lpc/svalue.h"
 #include "lpc/include/origin.h"
+#include "lpc/include/runtime_config.h"
+#include "rc/rc.h"
 #include "async/async_queue.h"
 #include "async/async_runtime.h"
 #include "async/async_worker.h"
@@ -902,11 +904,20 @@ void drain_curl_completions(void) {
     }
 
     arg_count = 2 + (handle->callback_args ? handle->callback_args->size : 0);
-    push_number(completion.success);
-    if (completion.success) {
+
+    /* Pre-check response size before touching the stack: allocate_buffer()
+     * raises an error (longjmp) when the size exceeds max_buffer_size, which
+     * would skip cleanup and leave the handle in TRANSFERRING state forever. */
+    int effective_success = completion.success;
+    if (effective_success && handle->response_len > CONFIG_INT(__MAX_BUFFER_SIZE__)) {
+      effective_success = 0;
+    }
+
+    push_number(effective_success);
+    if (effective_success) {
       if (handle->response_buf && handle->response_len > 0) {
         buffer_t *buf = allocate_buffer(handle->response_len);
-        if (buf && buf->item) {
+        if (buf) {
           memcpy(buf->item, handle->response_buf, handle->response_len);
         }
         push_refed_buffer(buf);
@@ -918,7 +929,13 @@ void drain_curl_completions(void) {
       }
     }
     else {
-      const char *err = handle->error_msg ? handle->error_msg : curl_easy_strerror(handle->curl_error);
+      const char *err;
+      if (completion.success && !effective_success) {
+        err = "response body exceeds max_buffer_size";
+      }
+      else {
+        err = handle->error_msg ? handle->error_msg : curl_easy_strerror(handle->curl_error);
+      }
       copy_and_push_string(err);
     }
     if (handle->callback_args) {
