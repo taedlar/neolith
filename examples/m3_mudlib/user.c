@@ -10,6 +10,22 @@ void create() {
   seteuid (getuid()); // enable loading inventory objects
 }
 
+#ifdef __PACKAGE_CURL__
+void handle_curlget_result(int ok, string payload, string url) {
+  if (ok) {
+    write("CURL response from " + url + ":\n");
+    write(payload);
+    if (strlen(payload) == 0 || payload[<1] != '\n') {
+      write("\n");
+    }
+  }
+  else {
+    write("CURL request failed for " + url + ": " + payload + "\n");
+  }
+  write_prompt();
+}
+#endif
+
 void logon() {
   write("=========================================\n");
   write("Welcome to M3: the Minimal-Makeshift-MUD!\n");
@@ -21,6 +37,9 @@ void logon() {
   add_action("cmd_say", "say");
   add_action("cmd_help", "help");
   add_action("cmd_shutdown", "shutdown");
+#ifdef __PACKAGE_CURL__
+  add_action("cmd_curlget", "curlget");
+#endif
 
   // Move the player to the starting room
   move_object (find_object("room/start_room.c", 1));
@@ -63,6 +82,9 @@ int cmd_help (string arg) {
   write("  help           - Show this help\n");
   write("  quit           - Exit the MUD\n");
   write("  shutdown       - Shutdown the driver\n");
+#ifdef __PACKAGE_CURL__
+  write("  curlget <url>  - Fetch a URL with the PACKAGE_CURL demo\n");
+#endif
   return 1;
 }
 
@@ -71,6 +93,28 @@ int cmd_shutdown (string arg) {
   shutdown();
   return 1;
 }
+
+#ifdef __PACKAGE_CURL__
+int cmd_curlget (string arg) {
+  if (!arg || arg == "") {
+    write("Usage: curlget <url>\n");
+    return 1;
+  }
+
+  if (in_perform()) {
+    write("A CURL transfer is already in progress for this user.\n");
+    return 1;
+  }
+
+  perform_using("url", arg);
+  perform_using("follow_location", 1);
+  perform_using("timeout_ms", 5000);
+  perform_to("handle_curlget_result", 0, arg);
+
+  write("Fetching " + arg + " ...\n");
+  return 1;
+}
+#endif
 
 // Catch-all for unknown commands
 int catch_tell(string msg) {

@@ -26,7 +26,7 @@ set(stem_SOURCES
     stralloc.c
 )
 add_library(stem OBJECT ${stem_SOURCES})
-target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket async)
+target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket curl async)
 if(TARGET c-ares::cares)
     target_link_libraries(stem PUBLIC c-ares::cares)
 endif()

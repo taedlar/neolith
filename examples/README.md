@@ -15,6 +15,7 @@ A minimal example mudlib demonstrating core LPC functionality:
 - `help` - Show available commands
 - `quit` - Disconnect from MUD
 - `shutdown` - Shutdown the driver (console mode)
+- `curlget <url>` - Fetch a URL asynchronously when the driver is built with `PACKAGE_CURL`
 
 ### testbot.py
 Example of an automated **testing robot** using console mode.

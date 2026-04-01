@@ -128,6 +128,12 @@ if(PACKAGE_JSON)
 	endif()
 endif()
 
+if(PACKAGE_CURL)
+	find_package(CURL REQUIRED)
+	set(HAVE_LIBCURL 1 CACHE BOOL "libcurl library is available")
+	message(STATUS "PACKAGE_CURL enabled: REST API efuns (perform_to, perform_using, in_perform) will be available")
+endif()
+
 # generate global header "config.h" for build configurations
 configure_file(config.h.in config.h @ONLY)
 include_directories(
@@ -145,6 +151,7 @@ add_subdirectory(lib/misc)
 add_subdirectory(lib/efuns)
 add_subdirectory(lib/lpc)
 add_subdirectory(lib/socket)
+add_subdirectory(lib/curl)
 add_subdirectory(src)
 
 # unit-tests

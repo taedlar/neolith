@@ -19,6 +19,9 @@
 #include "efuns/call_out.h"
 #include "efuns/file_utils.h"
 #include "socket/socket_efuns.h"
+#ifdef PACKAGE_CURL
+#include "curl/curl_efuns.h"
+#endif
 
 #include <sys/stat.h>
 
@@ -2171,6 +2174,11 @@ void reload_object (object_t * obj) {
     {
       close_referencing_sockets (obj);
     }
+
+#ifdef PACKAGE_CURL
+  /* Close any CURL transfers for this object */
+  close_curl_handles (obj);
+#endif
 
   if (obj->living_name)
     remove_living_name (obj);

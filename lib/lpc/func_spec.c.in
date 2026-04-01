@@ -500,6 +500,15 @@ string socket_address(int | object);
 string dump_socket_status();
 #endif
 
+#ifdef PACKAGE_CURL
+/*
+ * CURL REST API efuns
+ */
+void perform_using(mixed, mixed);
+void perform_to(string | function, int,...);
+int in_perform(void);
+#endif
+
 int export_uid(object);
 #pragma allow_dot_call
 string geteuid(function | object default:F_THIS_OBJECT);
