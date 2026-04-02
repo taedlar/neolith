@@ -32,9 +32,7 @@ extern "C" {
 }
 
 #include <cstdint>
-#include <chrono>
 #include <cstring>
-#include <thread>
 
 #include "curl_efuns.h"
 
@@ -48,6 +46,15 @@ static const int CURL_QUEUE_SIZE = 256;
  * where the worker holds a derived pointer (including CURLOPT_WRITEDATA) into
  * the array while the main thread could otherwise realloc it. */
 static const int CURL_MAX_HANDLE_CAPACITY = 256;
+/* With curl_multi_wakeup available, the worker can block longer in
+ * curl_multi_poll() and still react immediately when the main thread queues
+ * a new transfer/cancel task. On older libcurl, keep the timeout short to
+ * avoid extra enqueue-to-start latency. */
+#if LIBCURL_VERSION_NUM >= 0x074400
+static const int CURL_POLL_TIMEOUT_MS = 1000;
+#else
+static const int CURL_POLL_TIMEOUT_MS = 50;
+#endif
 
 static curl_http_t *s_curl_handles = nullptr;
 static int s_num_curl_handles = 0;
@@ -477,6 +484,14 @@ static void post_completion_record(uint32_t handle_id, uint32_t generation, int 
   }
 }
 
+static void wakeup_curl_worker(void) {
+#if LIBCURL_VERSION_NUM >= 0x074400
+  if (s_curl_multi) {
+    (void)curl_multi_wakeup(s_curl_multi);
+  }
+#endif
+}
+
 static void start_transfer_task(const curl_task_t *task) {
   curl_http_t *handle;
   CURLMcode multi_code;
@@ -584,20 +599,15 @@ static void *curl_worker_main(void *) {
     }
     drain_multi_messages();
 
-    if (still_running > 0) {
+    if (still_running > 0 || !processed_task) {
       int numfds = 0;
 
-      curl_multi_poll(s_curl_multi, nullptr, 0, 50, &numfds);
+      curl_multi_poll(s_curl_multi, nullptr, 0, CURL_POLL_TIMEOUT_MS, &numfds);
       multi_code = curl_multi_perform(s_curl_multi, &still_running);
       while (multi_code == CURLM_CALL_MULTI_PERFORM) {
         multi_code = curl_multi_perform(s_curl_multi, &still_running);
       }
       drain_multi_messages();
-      continue;
-    }
-
-    if (!processed_task) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
 
@@ -760,6 +770,7 @@ void f_perform_to(void) {
     free_callback_state(handle);
     error("CURL transfer queue is full.\n");
   }
+  wakeup_curl_worker();
 
   pop_n_elems(argc);
 }
@@ -901,7 +912,9 @@ void close_curl_handles(object_t *ob) {
       cancel_task.type = CURL_TASK_CANCEL;
       cancel_task.handle_id = static_cast<uint32_t>(index);
       cancel_task.generation = active_gen;
-      async_queue_enqueue(s_task_queue, &cancel_task, sizeof(cancel_task));
+      if (async_queue_enqueue(s_task_queue, &cancel_task, sizeof(cancel_task))) {
+        wakeup_curl_worker();
+      }
       // failure to enqueue a cancel task is not critical since the generation
       // bump above ensures the completed transfer will be treated as stale and
       // cleaned up without a callback.
