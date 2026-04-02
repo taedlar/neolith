@@ -2,7 +2,7 @@
  * json.cpp — LPC to_json / from_json efuns backed by Boost.JSON.
  *
  * to_json(mixed) → string  — serializes an LPC value tree to a JSON string.
- * from_json(string) → mixed — parses a JSON string into an LPC value tree.
+ * from_json(string|buffer) → mixed — parses JSON bytes into an LPC value tree.
  *
  * Conditional compilation: both efuns are absent unless HAVE_BOOST_JSON is
  * defined (i.e. PACKAGE_JSON=ON at cmake configure time with Boost.JSON
@@ -31,6 +31,7 @@ extern "C" {
 #include "src/std.h"
 #include "src/interpret.h"
 #include "lpc/array.h"
+#include "lpc/buffer.h"
 #include "lpc/mapping.h"
 }
 
@@ -266,7 +267,7 @@ void f_to_json(void)
 
 #ifdef F_FROM_JSON
 /**
- * @brief from_json(string json) → mixed
+ * @brief from_json(string|buffer json) → mixed
  *
  * Parses a JSON string into an LPC value.  Raises a runtime error on parse
  * failure.  JSON null becomes the LPC undefined value (undefinedp() returns
@@ -275,15 +276,30 @@ void f_to_json(void)
 void f_from_json(void)
 {
   boost::json::value* parsed = nullptr;
+  const char *input = nullptr;
+  size_t input_len = 0;
+
+  if (sp->type == T_STRING) {
+    input = sp->u.string;
+    input_len = SVALUE_STRLEN(sp);
+  }
+  else if (sp->type == T_BUFFER) {
+    input = reinterpret_cast<const char *>(sp->u.buf->item);
+    input_len = sp->u.buf->size;
+  }
+  else {
+    bad_argument(sp, T_STRING | T_BUFFER, 1, F_FROM_JSON);
+    return;
+  }
 
   {
     boost::system::error_code ec;
     boost::json::value jv = boost::json::parse(
-        boost::json::string_view(sp->u.string, SVALUE_STRLEN(sp)),
+        boost::json::string_view(input, input_len),
         ec
     );
 
-    free_string_svalue(sp);
+    free_svalue(sp, "f_from_json");
     sp->type = T_INVALID;
 
     if (ec) {

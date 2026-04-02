@@ -55,7 +55,7 @@ allocate_buffer (size_t size)
   /* using calloc() so that memory will be zero'd out when allocated */
   buf = (buffer_t *) DCALLOC (sizeof (buffer_t) + size - 1, 1,
                               TAG_BUFFER, "allocate_buffer");
-  buf->size = (unsigned short)size;
+  buf->size = (unsigned int)size;
   buf->ref = 1;
   return buf;
 #else
