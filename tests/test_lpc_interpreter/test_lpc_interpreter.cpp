@@ -7,6 +7,8 @@
 extern "C" {
     #include "lpc/program.h"
     #include "lpc/program/disassemble.h"
+    #include "lpc/buffer.h"
+    #include "lpc/mapping.h"
 }
 
 TEST_F(LPCInterpreterTest, disassemble) {
@@ -175,3 +177,43 @@ TEST_F(LPCInterpreterTest, foreachUtf8String) {
     free_svalue(&ret, "test");
     free_prog(prog, 1);
 }
+
+#ifdef F_FROM_JSON
+TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
+    /* Compile a small LPC object that calls from_json(buffer) through the
+     * full LPC interpreter dispatch path, verifying end-to-end buffer→value. */
+    init_simul_efun("/simul_efun.c");
+    ASSERT_NE(simul_efun_ob, nullptr) << "simul_efun_ob is null";
+    init_master("/master.c");
+    ASSERT_NE(master_ob, nullptr) << "master_ob is null";
+
+    program_t *prog = compile_file(-1, "json_buf_test.c",
+        "mixed test_from_json_buf(buffer b) { return from_json(b); }\n"
+    );
+    ASSERT_TRUE(prog != nullptr) << "compile_file returned null";
+
+    int index, fio, vio;
+    svalue_t ret;
+    program_t *found = find_function(prog, findstring("test_from_json_buf"), &index, &fio, &vio);
+    ASSERT_EQ(found, prog);
+    int runtime_index = found->function_table[index].runtime_index;
+
+    /* Build buffer holding {\"x\":7} */
+    static const char payload[] = "{\"x\":7}";
+    buffer_t *buf = allocate_buffer(sizeof(payload) - 1);
+    memcpy(buf->item, payload, sizeof(payload) - 1);
+    push_refed_buffer(buf);
+
+    eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
+    call_function(prog, runtime_index, 1, &ret);
+
+    ASSERT_EQ(ret.type, T_MAPPING) << "Expected T_MAPPING from from_json buffer via LPC VM";
+    svalue_t *found_val = find_string_in_mapping(ret.u.map, (char *)"x");
+    ASSERT_NE(found_val, &const0u) << "key 'x' not found";
+    EXPECT_EQ(found_val->type, T_NUMBER);
+    EXPECT_EQ(found_val->u.number, 7);
+
+    free_svalue(&ret, "fromJsonBufferViaLpcVm");
+    free_prog(prog, 1);
+}
+#endif /* F_FROM_JSON */

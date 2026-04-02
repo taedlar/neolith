@@ -6,6 +6,7 @@
 
 #### Features
 - feat: add optional `PACKAGE_JSON` support with `to_json()` and `from_json()` efuns
+- feat: extend `from_json()` to accept `buffer` input for large JSON payloads
 - feat: add optional `PACKAGE_CURL` support with `perform_using()`, `perform_to()`, and `in_perform()` efuns
 
 #### Documentation

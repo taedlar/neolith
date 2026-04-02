@@ -142,7 +142,7 @@ float to_float(string | float | int);
 
 #ifdef PACKAGE_JSON
 string to_json(mixed);
-mixed from_json(string);
+mixed from_json(string | buffer);
 #endif
 
 #pragma no_dot_call

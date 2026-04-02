@@ -1,15 +1,18 @@
 # from_json()
 ## NAME
-**from_json** - parse a JSON string into an LPC value
+**from_json** - parse JSON text from a string or buffer into an LPC value
 
 ## SYNOPSIS
 ~~~cxx
-mixed from_json( string json );
+mixed from_json( string | buffer json );
 ~~~
 
 ## DESCRIPTION
-The `from_json()` efun parses a JSON string and returns the
+The `from_json()` efun parses JSON text and returns the
 corresponding LPC value.
+
+The input may be either an LPC string or an LPC buffer. Buffer input is
+useful when JSON payload size can exceed the driver's max string length.
 
 This efun is available only when the driver is built with
 `PACKAGE_JSON` enabled.
