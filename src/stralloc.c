@@ -274,25 +274,28 @@ static block_t* alloc_new_string (const char *string, int h) {
 char* make_shared_string (const char *str) {
   block_t *b;
   int h;
-  size_t len;
+  size_t hard_limit;
   size_t effective_len;
+  const char *nul;
   const char *lookup = str;
   char *tmp = NULL;
 
   assert(str != NULL);
 
-  len = strlen (str);
-  effective_len = len;
-  if (effective_len > max_string_length)
+  hard_limit = max_string_length;
+  if (hard_limit >= USHRT_MAX)
     {
-      effective_len = max_string_length;
-    }
-  if (effective_len >= USHRT_MAX)
-    {
-      effective_len = USHRT_MAX - 1;
+      hard_limit = USHRT_MAX - 1;
     }
 
-  if (effective_len != len)
+  /*
+   * Probe only up to the maximum representable shared-string length.
+   * If no NUL is found in that window, the input must be truncated.
+   */
+  nul = (const char *)memchr (str, '\0', hard_limit + 1);
+  effective_len = nul ? (size_t)(nul - str) : hard_limit;
+
+  if (!nul)
     {
       tmp = (char *) DXALLOC (effective_len + 1, TAG_STRING, "make_shared_string");
       memcpy (tmp, str, effective_len);
