@@ -81,7 +81,7 @@ TEST_F(StrAllocTest, sharedStringOversizeIsTruncatedAndDeduped) {
     EXPECT_EQ(s1, s2);
     EXPECT_EQ(static_cast<size_t>(USHRT_MAX) - 1, strlen(s1));
     EXPECT_EQ(MSTR_SIZE(s1), static_cast<unsigned short>(USHRT_MAX - 1));
-    EXPECT_NE(findstring(input.c_str()), s1);
+    EXPECT_EQ(findstring(input.c_str()), nullptr);
     EXPECT_EQ(findstring(truncated.c_str()), s1);
 
     free_string(s1);
