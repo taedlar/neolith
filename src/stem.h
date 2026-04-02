@@ -21,6 +21,7 @@ extern int slow_shutdown_to_do;
 extern char *reserved_area;
 extern char *xalloc(size_t);
 
+#include "outbuf.h" /* for outbuffer_t */
 #include "malloc.h" /* selection of DMALLOC/DXALLOC/DREALLOC/DCALLOC/FREE */
 
 #define ALLOCATE(type, tag, desc) ((type *)DXALLOC(sizeof(type), tag, desc))

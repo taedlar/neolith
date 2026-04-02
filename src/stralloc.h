@@ -1,7 +1,7 @@
 #pragma once
 
-#include "outbuf.h"
-
+struct outbuffer_s;
+typedef struct outbuffer_s outbuffer_t;
 /**
  * Shared string (STRING_SHARED) block header.
  * The string hash table consists of linked lists of these blocks.
@@ -17,17 +17,27 @@ typedef struct block_s {
 } block_t;
 
 /**
- * Malloc block header for STRING_MALLOC and STRING_SHARED strings.
+ * Malloc block header for STRING_MALLOC strings.
  * The layout is designed to align with block_t for efficient access.
- * 
+ *
  * - MSTR_* macros depend on this structure.
- * - MSTR_REF and MSTR_SIZE is compatible to both STRING_MALLOC and STRING_SHARED.
- * - A malloc string is *NOT* added to the string hash table. It's reference count is set to 1
- *   when created that allows it to be freed in free_string_svalue(). This allows malloc strings
- *   to be used as left-hand-side string values without worrying about sharing.
+ * - MSTR_REF and MSTR_SIZE are compatible with both STRING_MALLOC and STRING_SHARED.
+ * - A malloc string is NOT added to the shared string hash table. Its reference count
+ *   is set to 1 on creation so it can be freed via free_string_svalue() without sharing.
+ *
+ * Length representation:
+ * - When size < USHRT_MAX: size holds the exact string length.
+ * - When size == USHRT_MAX (sentinel): the string is longer than USHRT_MAX - 1 bytes.
+ *   blkend points one past the last byte of the string payload, allowing O(1) length
+ *   recovery via (char*)blkend - str.  blkend is set by all allocation/resize paths
+ *   (int_new_string, extend_string, int_string_unlink).
+ *
+ * Invariant: STRING_SHARED strings are always shorter than USHRT_MAX bytes, so the
+ * sentinel case is exclusive to STRING_MALLOC. Generic counted-string macros that
+ * read size == USHRT_MAX may therefore safely use blkend without subtype dispatch.
  */
 typedef struct malloc_block_s {
-    block_t* unused;		/* to force MSTR_BLOCK align with block_t */
+    void *blkend;   /* end of string payload; non-null only when size == USHRT_MAX */
     unsigned short size;
     unsigned short ref;
 } malloc_block_t;
@@ -35,10 +45,12 @@ typedef struct malloc_block_s {
 #define MSTR_BLOCK(x) (((malloc_block_t *)(x)) - 1) 
 #define MSTR_REF(x) (MSTR_BLOCK(x)->ref)
 #define MSTR_SIZE(x) (MSTR_BLOCK(x)->size)
+#define MSTR_BLKEND(x) (MSTR_BLOCK(x)->blkend)
 #define MSTR_UPDATE_SIZE(x, y) do {\
         ADD_STRING_SIZE(y - MSTR_SIZE(x));\
         MSTR_BLOCK(x)->size = \
         (y > USHRT_MAX ? USHRT_MAX : y);\
+   MSTR_BLOCK(x)->blkend = (y >= USHRT_MAX ? (void *)((x) + (y)) : (void *)0);\
         } while(0)
 
 #define FREE_MSTR(x) do {\
@@ -65,12 +77,23 @@ typedef struct malloc_block_s {
 #define SUB_STRING(x)
 #endif
 
-/* This counts on some rather crucial alignment between malloc_block_t and
- * block_t.  COUNTED_STRLEN(x) is the same as strlen(sv->u.string) when
- * sv->subtype is STRING_MALLOC or STRING_SHARED, and runs significantly
- * faster.
+/*
+ * COUNTED_STRLEN(x) returns the logical length of a counted string (STRING_MALLOC
+ * or STRING_SHARED) without scanning for a NUL byte for short strings.
+ *
+ * Three cases:
+ *   size < USHRT_MAX  => exact length, returned directly (O(1)).
+ *   size == USHRT_MAX and blkend != NULL => long STRING_MALLOC; pointer-difference
+ *                            gives length in O(1) without NUL scanning.
+ *   size == USHRT_MAX and blkend == NULL => legacy/compatibility path; falls back
+ *                            to strlen starting at offset USHRT_MAX.
+ *
+ * The two-pointer alignment between malloc_block_t and block_t is still required
+ * so that MSTR_SIZE and MSTR_REF work uniformly on both string kinds.
  */
-#define COUNTED_STRLEN(x) ((MSTR_SIZE(x) == USHRT_MAX) ? (strlen((x)+USHRT_MAX)+USHRT_MAX) : MSTR_SIZE(x))
+#define COUNTED_STRLEN(x) ((MSTR_SIZE(x) == USHRT_MAX) ? \
+        (MSTR_BLKEND(x) ? (size_t)((char *)MSTR_BLKEND(x) - (x)) : (strlen((x)+USHRT_MAX)+USHRT_MAX)) : \
+        MSTR_SIZE(x))
 
 /* return the number of references to a STRING_MALLOC or STRING_SHARED 
    string */

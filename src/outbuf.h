@@ -1,6 +1,6 @@
 #pragma once
 
-typedef struct {
+typedef struct outbuffer_s {
     size_t real_size;
     char *buffer;
 } outbuffer_t;

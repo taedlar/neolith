@@ -69,3 +69,118 @@ TEST_F(StrAllocTest, findString) {
     found2 = findstring("test string");
     EXPECT_EQ(found2, nullptr); // should not be found after all frees
 }
+
+TEST_F(StrAllocTest, sharedStringOversizeIsTruncatedAndDeduped) {
+    const size_t input_len = static_cast<size_t>(USHRT_MAX) + 123;
+    std::string input(input_len, 'x');
+    std::string truncated(static_cast<size_t>(USHRT_MAX) - 1, 'x');
+
+    char* s1 = make_shared_string(input.c_str());
+    char* s2 = make_shared_string(input.c_str());
+
+    EXPECT_EQ(s1, s2);
+    EXPECT_EQ(static_cast<size_t>(USHRT_MAX) - 1, strlen(s1));
+    EXPECT_EQ(MSTR_SIZE(s1), static_cast<unsigned short>(USHRT_MAX - 1));
+    EXPECT_EQ(findstring(input.c_str()), nullptr);
+    EXPECT_EQ(findstring(truncated.c_str()), s1);
+
+    free_string(s1);
+    free_string(s2);
+}
+
+TEST_F(StrAllocTest, mallocLongStringTracksBlkendAndCountedLength) {
+    const size_t len = static_cast<size_t>(USHRT_MAX) + 37;
+    char* s = int_new_string(len);
+
+    memset(s, 'm', len);
+    s[len] = '\0';
+
+    EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX));
+    EXPECT_EQ(static_cast<char*>(MSTR_BLKEND(s)), s + len);
+    EXPECT_EQ(COUNTED_STRLEN(s), len);
+
+    FREE_MSTR(s);
+}
+
+TEST_F(StrAllocTest, extendStringUpdatesBlkendAcrossThresholds) {
+    const size_t short_len = 64;
+    const size_t long_len = static_cast<size_t>(USHRT_MAX) + 19;
+
+    char* s = int_new_string(short_len);
+    memset(s, 'a', short_len);
+    s[short_len] = '\0';
+
+    EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(short_len));
+    EXPECT_EQ(MSTR_BLKEND(s), nullptr);
+
+    s = extend_string(s, long_len);
+    memset(s + short_len, 'b', long_len - short_len);
+    s[long_len] = '\0';
+
+    EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX));
+    EXPECT_EQ(static_cast<char*>(MSTR_BLKEND(s)), s + long_len);
+    EXPECT_EQ(COUNTED_STRLEN(s), long_len);
+
+    s = extend_string(s, short_len);
+    s[short_len] = '\0';
+
+    EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(short_len));
+    EXPECT_EQ(MSTR_BLKEND(s), nullptr);
+    EXPECT_EQ(COUNTED_STRLEN(s), short_len);
+
+    FREE_MSTR(s);
+}
+
+TEST_F(StrAllocTest, unlinkLongMallocStringPreservesBlkendLength) {
+    const size_t len = static_cast<size_t>(USHRT_MAX) + 53;
+    char* raw = int_new_string(len);
+    memset(raw, 'u', len);
+    raw[len] = '\0';
+
+    MSTR_REF(raw) = 2;
+
+    svalue_t sv;
+    sv.type = T_STRING;
+    sv.subtype = STRING_MALLOC;
+    sv.u.string = raw;
+
+    unlink_string_svalue(&sv);
+
+    EXPECT_NE(sv.u.string, raw);
+    EXPECT_EQ(MSTR_REF(raw), 1);
+    EXPECT_EQ(MSTR_SIZE(sv.u.string), static_cast<unsigned short>(USHRT_MAX));
+    EXPECT_EQ(static_cast<char*>(MSTR_BLKEND(sv.u.string)), sv.u.string + len);
+    EXPECT_EQ(COUNTED_STRLEN(sv.u.string), len);
+
+    FREE_MSTR(raw);
+    FREE_MSTR(sv.u.string);
+}
+
+TEST_F(StrAllocTest, longMallocStringFallbackWorksWhenBlkendMissing) {
+    const size_t len = static_cast<size_t>(USHRT_MAX) + 29;
+    char* s = int_new_string(len);
+    memset(s, 'f', len);
+    s[len] = '\0';
+
+    MSTR_BLKEND(s) = nullptr;
+
+    EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX));
+    EXPECT_EQ(COUNTED_STRLEN(s), len);
+
+    FREE_MSTR(s);
+}
+
+TEST_F(StrAllocTest, sharedStringAtUshortMaxIsTruncatedToUshortMaxMinusOne) {
+    const size_t input_len = static_cast<size_t>(USHRT_MAX);
+    std::string input(input_len, 'z');
+    std::string truncated(static_cast<size_t>(USHRT_MAX) - 1, 'z');
+
+    char* s = make_shared_string(input.c_str());
+
+    EXPECT_EQ(strlen(s), static_cast<size_t>(USHRT_MAX) - 1);
+    EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX - 1));
+    EXPECT_EQ(findstring(truncated.c_str()), s);
+    EXPECT_EQ(findstring(input.c_str()), nullptr);
+
+    free_string(s);
+}
