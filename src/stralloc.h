@@ -1,5 +1,7 @@
 #pragma once
 
+struct outbuffer_s;
+typedef struct outbuffer_s outbuffer_t;
 /**
  * Shared string (STRING_SHARED) block header.
  * The string hash table consists of linked lists of these blocks.
