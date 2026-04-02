@@ -288,6 +288,11 @@
  */
 #cmakedefine PACKAGE_JSON
 
+/* PACKAGE_CURL: Enables perform_to(), perform_using(), and in_perform() efuns for REST API calls.
+ * Requires libcurl at build time (set PACKAGE_CURL=ON and have libcurl development headers).
+ */
+#cmakedefine PACKAGE_CURL
+
 /*************************************************************************
  *                       FOR EXPERIENCED USERS                           *
  *                      -----------------------                          *

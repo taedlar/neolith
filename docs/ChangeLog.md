@@ -6,9 +6,12 @@
 
 #### Features
 - feat: add optional `PACKAGE_JSON` support with `to_json()` and `from_json()` efuns
+- feat: add optional `PACKAGE_CURL` support with `perform_using()`, `perform_to()`, and `in_perform()` efuns
 
 #### Documentation
 - doc: add efun docs for `to_json()` and `from_json()`
+- doc: add efun docs and unit tests for CURL efuns
+- doc: add guarded `curlget` PACKAGE_CURL example to the sample mudlib
 
 ### 1.0.0-alpha.8 — 2026-03-25
 

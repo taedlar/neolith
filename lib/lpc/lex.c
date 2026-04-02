@@ -2639,7 +2639,7 @@ void init_instrs () {
       n = predefs[i].token & TOKEN_MASK; /* opcode number only; exclude IHE_ flag bits */
       if (n & F_ALIAS_FLAG)
         {
-          predefs[i].token ^= F_ALIAS_FLAG;
+          continue;
         }
       else
         {

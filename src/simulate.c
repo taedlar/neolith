@@ -24,6 +24,9 @@
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
 #include "socket/socket_efuns.h"
+#ifdef PACKAGE_CURL
+#include "curl/curl_efuns.h"
+#endif
 #include "efuns/call_out.h"
 #include "efuns/ed.h"
 #include "efuns/file_utils.h"
@@ -1042,6 +1045,10 @@ void destruct_object (object_t * ob) {
     {
       close_referencing_sockets (ob);
     }
+
+#ifdef PACKAGE_CURL
+  close_curl_handles (ob);
+#endif
 
   if (ob->flags & O_DESTRUCTED)
     {

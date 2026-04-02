@@ -2,6 +2,7 @@
 
 add_executable(test_efuns
     test_efuns.cpp
+    test_curl.cpp
     test_file.cpp
     test_json.cpp
     test_replace_string.cpp

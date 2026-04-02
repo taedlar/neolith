@@ -16,6 +16,9 @@
 #include "async/console_mode.h"
 #include "socket/socket_efuns.h"
 #include "efuns/ed.h"
+#ifdef PACKAGE_CURL
+#include "curl/curl_efuns.h"
+#endif
 
 #include "lpc/include/origin.h"
 
@@ -259,6 +262,10 @@ void init_user_conn () {
       }
   }
 
+#ifdef PACKAGE_CURL
+  init_curl_subsystem ();
+#endif
+
 #ifndef _WIN32
   /* register signal handler for SIGPIPE. */
   if (signal (SIGPIPE, sigpipe_handler) == SIG_ERR)
@@ -292,6 +299,10 @@ void ipc_remove () {
 
   addr_resolver_cache_reset ();
   addr_resolver_deinit ();
+
+#ifdef PACKAGE_CURL
+  deinit_curl_subsystem ();
+#endif
 }
 
 int do_comm_polling (struct timeval *timeout) {
@@ -1166,6 +1177,12 @@ void process_io () {
         {
           process_addr_resolver_completions ();
         }
+#ifdef PACKAGE_CURL
+      else if (evt->completion_key == CURL_COMPLETION_KEY)
+        {
+          drain_curl_completions ();
+        }
+#endif
       else if (is_interactive_user (evt->context))
         {
           /* Interactive user socket */
