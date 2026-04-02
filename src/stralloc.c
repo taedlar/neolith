@@ -232,6 +232,11 @@ static block_t* alloc_new_string (const char *string, int h) {
     {
       len = max_string_length;
     }
+  if (len >= USHRT_MAX)
+    {
+      /* Keep USHRT_MAX sentinel reserved for long STRING_MALLOC strings. */
+      len = USHRT_MAX - 1;
+    }
 
   /* A shared string is allocated with a block_t header followed by
    * the string data itself:
@@ -244,11 +249,8 @@ static block_t* alloc_new_string (const char *string, int h) {
   strncpy (STRING (b), string, len);
   STRING (b)[len] = '\0';	/* truncate string if its length exceeds max_string_length */
 
-  /* The 'size' field stores a 16-bit length of the string.
-   * If the string length exceeds USHRT_MAX (0xffff), the 'size' is set to USHRT_MAX.
-   * Note that the string data itself is always allocated with the full length regardless.
-   */
-  SIZE (b) = (unsigned short)(len > USHRT_MAX ? USHRT_MAX : len);
+  /* Shared strings are capped below USHRT_MAX, so 'size' is exact. */
+  SIZE (b) = (unsigned short)len;
   REFS (b) = 1;
   /* add to string hash table */
   NEXT (b) = base_table[h];
@@ -272,22 +274,50 @@ static block_t* alloc_new_string (const char *string, int h) {
 char* make_shared_string (const char *str) {
   block_t *b;
   int h;
+  size_t len;
+  size_t effective_len;
+  const char *lookup = str;
+  char *tmp = NULL;
 
   assert(str != NULL);
 
-  b = hfindblock (str, h);	/* hfindblock macro sets h = StrHash(s) */
+  len = strlen (str);
+  effective_len = len;
+  if (effective_len > max_string_length)
+    {
+      effective_len = max_string_length;
+    }
+  if (effective_len >= USHRT_MAX)
+    {
+      effective_len = USHRT_MAX - 1;
+    }
+
+  if (effective_len != len)
+    {
+      tmp = (char *) DXALLOC (effective_len + 1, TAG_STRING, "make_shared_string");
+      memcpy (tmp, str, effective_len);
+      tmp[effective_len] = '\0';
+      lookup = tmp;
+    }
+
+  b = hfindblock (lookup, h);	/* hfindblock macro sets h = StrHash(s) */
   if (!b)
     {
-      b = alloc_new_string (str, h);
+      b = alloc_new_string (lookup, h);
     }
   else
     {
       if (REFS (b)) /* if reference count overflown, let it stay zero ... */
         {
-          opt_trace (TT_MEMORY|3, "add ref (was %d): \"%s\"", REFS (b), str);
+          opt_trace (TT_MEMORY|3, "add ref (was %d): \"%s\"", REFS (b), lookup);
           REFS (b)++;
         }
       ADD_STRING (SIZE (b));
+    }
+
+  if (tmp)
+    {
+      FREE (tmp);
     }
 
   /* Return a pointer to the string data. The block_t header is hidden from the caller. */
@@ -429,6 +459,7 @@ char* int_new_string (size_t size) {
   malloc_block_t *mbt;
 
   mbt = (malloc_block_t *) DXALLOC (size + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, tag);
+  mbt->blkend = NULL;
   if (size < USHRT_MAX)
     {
       mbt->size = (unsigned short)size;
@@ -437,6 +468,7 @@ char* int_new_string (size_t size) {
   else
     {
       mbt->size = USHRT_MAX;
+      mbt->blkend = STRING(mbt) + size;
       ADD_NEW_STRING (USHRT_MAX, sizeof (malloc_block_t)); /* FIXME: this is probably incorrect ... */
     }
   mbt->ref = 1;
@@ -485,10 +517,12 @@ char *extend_string (char *str, size_t len) {
   if (len < USHRT_MAX)
     {
       mbt->size = (unsigned short)len;
+      mbt->blkend = NULL;
     }
   else
     {
       mbt->size = USHRT_MAX;
+      mbt->blkend = STRING(mbt) + len;
     }
   ADD_STRING_SIZE (mbt->size - oldsize);
   return STRING(mbt);
@@ -526,10 +560,19 @@ static char *int_string_unlink (char *str) {
 
   if (MSTR_SIZE (str) == USHRT_MAX)
     {
-      size_t len = strlen (str + USHRT_MAX) + USHRT_MAX;	/* ouch */
+      size_t len;
+      if (MSTR_BLKEND (str))
+        {
+          len = (size_t)((char *)MSTR_BLKEND (str) - str);
+        }
+      else
+        {
+          len = strlen (str + USHRT_MAX) + USHRT_MAX;	/* fallback for old strings */
+        }
 
       newmbt = (malloc_block_t *) DXALLOC (len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "int_string_unlink");
       memcpy (STRING(newmbt), str, len + 1);
+      newmbt->blkend = STRING(newmbt) + len;
       newmbt->size = USHRT_MAX;
       ADD_NEW_STRING (USHRT_MAX, sizeof (malloc_block_t)); /* FIXME: this is probably incorrect ... */
     }
@@ -537,6 +580,7 @@ static char *int_string_unlink (char *str) {
     {
       newmbt = (malloc_block_t *) DXALLOC (MSTR_SIZE (str) + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "int_string_unlink");
       memcpy (STRING(newmbt), str, MSTR_SIZE (str) + 1);
+      newmbt->blkend = NULL;
       newmbt->size = MSTR_SIZE (str);
       ADD_NEW_STRING (MSTR_SIZE (str), sizeof (malloc_block_t));
     }
