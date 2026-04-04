@@ -1,4 +1,4 @@
-# Counted String Length Representation
+# Counted and Shared String Length Representation
 
 Consolidates the length-storage change to `malloc_block_t`, its invariants, and a
 catalogue of paths that still depend on NUL termination. < 300 words.
@@ -17,6 +17,11 @@ This keeps the `size == USHRT_MAX` sentinel exclusive to STRING_MALLOC, so gener
 counted-string macros do not need to branch on subtype to decide whether `blkend` is
 valid.
 
+Shared-string table lookup is now length-aware and no longer depends on NUL
+termination. `sfindblock()` compares by `(SIZE == len && memcmp(...))`, hashing uses
+`whashstr(s, end, ...)` through `StrHashN`, and lookup/insert APIs
+(`findstring`, `make_shared_string`) avoid temporary NUL-terminated copies.
+
 ## Status
 
 | Stage | Status |
@@ -24,6 +29,7 @@ valid.
 | Rename `unused` → `blkend`, wire on all malloc create/resize/unlink paths | complete |
 | `COUNTED_STRLEN` O(1) long-string path via `blkend` | complete |
 | Shared-string length cap below USHRT_MAX | complete |
+| Shared-string table supports non-NUL-terminated keys (`StrHashN`/`findblockn`) | complete |
 | Unit tests for all blkend paths | complete |
 | `STRING_TYPE_SAFETY` cmake option: typed aliases + always-on runtime guards | complete |
 
@@ -50,7 +56,7 @@ sources:
 
 | Function | Expected pointer kind | Access pattern |
 |---|---|---|
-| `ref_string(shared_str_t)` | `STRING_SHARED` payload | Uses `BLOCK(str)`, verifies via `findblock` |
+| `ref_string(shared_str_t)` | `STRING_SHARED` payload | Uses `BLOCK(str)`, verifies via `findblockn` |
 | `free_string(shared_str_t)` | `STRING_SHARED` payload | Uses `BLOCK(str)`, removes from shared table |
 | `extend_string(malloc_str_t, size_t)` | `STRING_MALLOC` payload | Reallocates from `MSTR_BLOCK(str)` |
 | `push_shared_string(char *)` | `STRING_SHARED` payload | Delegates to `ref_string()` |
@@ -149,22 +155,47 @@ The typed members supplement it; they do not replace it.
 
 ## Paths still relying on NUL termination
 
-These are **not addressed** by this change. Any future move to binary-safe (embedded
-NUL) strings must fix each one.
+These are partially addressed. Shared-string table lookup/insert now supports
+non-NUL-terminated keys, but end-to-end runtime behavior is still NUL-dependent in
+many VM and efun paths.
 
-### Shared-string table
+### Shared-string table (updated)
 | Location | Reason |
 |---|---|
-| [src/stralloc.c `sfindblock`](../../src/stralloc.c) | Uses `strcmp` and first-char comparison for hash-chain lookup. |
-| [src/stralloc.c `alloc_new_string`](../../src/stralloc.c) | Measures input with `strlen` before storing. |
-| [src/stralloc.c `make_shared_string`](../../src/stralloc.c) | Measures input with `strlen` to build the truncated key. |
+| [src/stralloc.c `sfindblock`](../../src/stralloc.c) | Addressed: length-aware compare via `SIZE` + `memcmp`. |
+| [src/stralloc.c `findstring` / `make_shared_string`](../../src/stralloc.c) | Addressed: span-aware lookup (`const char *s, const char *end`) without temporary NUL copy. |
+| [src/stralloc.c trace logs](../../src/stralloc.c) | Updated: tracing now prints pointer addresses (`%p`) instead of `%s` to avoid truncation/over-read on non-NUL payloads. |
 
 ### Malloc string creation and copy
 | Location | Reason |
 |---|---|
 | [src/stralloc.c `int_string_copy`](../../src/stralloc.c) | Measures source with `strlen`. |
 | [src/stralloc.c `int_alloc_cstring`](../../src/stralloc.c) | Plain `strdup`-equivalent; no block header. |
-| [src/stralloc.c `unlink_string_svalue` STRING_SHARED branch](../../src/stralloc.c) | Copies via `strncpy` using `SHARED_STRLEN` (safe for counted), but the source shared string is still NUL-terminated by construction. |
+| [src/stralloc.c `unlink_string_svalue` STRING_SHARED branch](../../src/stralloc.c) | Uses `strncpy`; this is still NUL-sensitive and can lose bytes after embedded `\0`. |
+
+## TODO: Non-NUL string flow from LPC operators and efuns
+
+The shared-string table can now intern and find byte spans with embedded NUL, but
+LPC operators and efuns mostly still consume/produce C strings. To make non-NUL
+strings usable from LPC execution paths, add span-aware plumbing in these stages:
+
+1. Operators in [lib/lpc/operator.c](../../lib/lpc/operator.c):
+  - Add/route `(start, end)` spans for substring/concatenation paths instead of
+    relying on `strlen`/`strcpy`.
+  - Ensure empty/non-empty slice constructors preserve explicit lengths.
+2. Interpreter string macros in [src/interpret.h](../../src/interpret.h):
+  - Replace `strlen`/`strcpy` usage in `EXTEND_SVALUE_STRING`,
+    `SVALUE_STRING_ADD_LEFT`, and `SVALUE_STRING_JOIN` with explicit-length copies.
+3. String efuns in [lib/efuns/string.c](../../lib/efuns/string.c) and related efuns:
+  - Introduce length-aware variants internally for compare/search/case operations.
+  - Preserve existing LPC-visible behavior where text semantics are required.
+4. API convergence:
+  - Standardize internal helpers around `(const char *s, size_t len)` or
+    `(start, end)` forms, and call `make_shared_string(s, end)`/`findstring(s, end)`
+    at boundaries.
+5. Tests:
+  - Add LPC-level regression tests that build strings containing embedded `\0`
+    and validate operator + efun behavior matches documented contracts.
 
 ### VM string operations
 | Location | Reason |
