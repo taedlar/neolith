@@ -1,7 +1,6 @@
 #pragma once
 
 #include "lpc/types.h"
-#include "stralloc.h"
 
 #define APPLY_CACHE_SIZE (1 << APPLY_CACHE_BITS)
 
