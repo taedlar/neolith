@@ -180,22 +180,22 @@ LPC operators and efuns mostly still consume/produce C strings. To make non-NUL
 strings usable from LPC execution paths, add span-aware plumbing in these stages:
 
 1. Operators in [lib/lpc/operator.c](../../lib/lpc/operator.c):
-  - Add/route `(start, end)` spans for substring/concatenation paths instead of
-    relying on `strlen`/`strcpy`.
-  - Ensure empty/non-empty slice constructors preserve explicit lengths.
+    - Add/route `(start, end)` spans for substring/concatenation paths instead of
+      relying on `strlen`/`strcpy`.
+    - Ensure empty/non-empty slice constructors preserve explicit lengths.
 2. Interpreter string macros in [src/interpret.h](../../src/interpret.h):
-  - Replace `strlen`/`strcpy` usage in `EXTEND_SVALUE_STRING`,
-    `SVALUE_STRING_ADD_LEFT`, and `SVALUE_STRING_JOIN` with explicit-length copies.
+    - Replace `strlen`/`strcpy` usage in `EXTEND_SVALUE_STRING`,
+      `SVALUE_STRING_ADD_LEFT`, and `SVALUE_STRING_JOIN` with explicit-length copies.
 3. String efuns in [lib/efuns/string.c](../../lib/efuns/string.c) and related efuns:
-  - Introduce length-aware variants internally for compare/search/case operations.
-  - Preserve existing LPC-visible behavior where text semantics are required.
+    - Introduce length-aware variants internally for compare/search/case operations.
+    - Preserve existing LPC-visible behavior where text semantics are required.
 4. API convergence:
-  - Standardize internal helpers around `(const char *s, size_t len)` or
-    `(start, end)` forms, and call `make_shared_string(s, end)`/`findstring(s, end)`
-    at boundaries.
+    - Standardize internal helpers around `(const char *s, size_t len)` or
+      `(start, end)` forms, and call `make_shared_string(s, end)`/`findstring(s, end)`
+      at boundaries.
 5. Tests:
-  - Add LPC-level regression tests that build strings containing embedded `\0`
-    and validate operator + efun behavior matches documented contracts.
+    - Add LPC-level regression tests that build strings containing embedded `\0`
+      and validate operator + efun behavior matches documented contracts.
 
 ### VM string operations
 | Location | Reason |
