@@ -77,20 +77,75 @@ builds — not only via debug-mode `assert`.  A ref count of 0 on entry to eithe
 function (indicating an immortal `STRING_SHARED` or freed pointer) triggers
 `debug_fatal` + `abort`.
 
-### Path to full compile-time enforcement
+### Path to full compile-time enforcement (TODO)
 
-Changing `shared_str_t` and `malloc_str_t` from transparent aliases to opaque
-struct pointer types would turn contract violations into compile errors.  This
-requires:
+When `STRING_TYPE_SAFETY` is defined, `shared_str_t` and `malloc_str_t` will
+become opaque struct pointer types, turning contract violations at boundary
+functions into hard compile errors.  Currently they remain transparent
+`typedef char *` aliases; the migration must happen before the opaque form can
+be enabled.
 
-1. Updating struct fields and variables that store shared/malloc strings from
-   `char *` to the appropriate typedef.
-2. Adding explicit cast macros (`SHARED_STR(x)`, `MALLOC_STR(x)`) at call
-   sites where the type must be converted.
+**Mechanical change to `stralloc.h`** — replace the transparent aliases with
+forward-declared opaque pointer types, gated on `STRING_TYPE_SAFETY`:
 
-This change is deferred because it affects a large portion of the codebase;
-the typed function signatures and always-on runtime guards provide sufficient
-protection for now.
+```c
+#ifdef STRING_TYPE_SAFETY
+  struct _shared_str_opaque;
+  struct _malloc_str_opaque;
+  typedef struct _shared_str_opaque *shared_str_t;
+  typedef struct _malloc_str_opaque *malloc_str_t;
+  /* Escape hatches for call sites that genuinely need a raw char * */
+  #define SHARED_STR_P(x)  ((char *)(x))
+  #define MALLOC_STR_P(x)  ((char *)(x))
+  #define TO_SHARED_STR(x) ((shared_str_t)(x))
+  #define TO_MALLOC_STR(x) ((malloc_str_t)(x))
+#else
+  typedef char *shared_str_t;
+  typedef char *malloc_str_t;
+  #define SHARED_STR_P(x)  (x)
+  #define MALLOC_STR_P(x)  (x)
+  #define TO_SHARED_STR(x) (x)
+  #define TO_MALLOC_STR(x) (x)
+#endif
+```
+
+`svalue_u` gets two typed members alongside `u.string`:
+
+```c
+union svalue_u {
+    char        *string;        /* generic / STRING_CONSTANT access */
+    shared_str_t shared_string; /* STRING_SHARED payload */
+    malloc_str_t malloc_string; /* STRING_MALLOC payload */
+    ...
+};
+```
+
+With opaque types these three are distinct to the compiler even though they
+occupy the same storage.  Code that knows the subtype can use the typed member
+for a free compile-time assertion; generic code continues using `u.string`.
+
+**Migration order** — work from the smallest boundary outward.
+
+1. `stralloc.h` / `stralloc.c` — make typedefs opaque, wire cast macros
+   throughout, verify `STRING_TYPE_SAFETY=ON` build.
+2. `svalue_u` — add `shared_string` / `malloc_string` members; no callers
+   change yet.
+3. Boundary storage sites — use typed members in subtype-specific assignments:
+   - `push_shared_string` / `push_malloced_string` in [src/stack.c](../../src/stack.c)
+   - `free_string_svalue` / `unlink_string_svalue` shared and malloc branches
+     in [src/stralloc.c](../../src/stralloc.c)
+   - The `EXTEND_SVALUE_STRING` / `SVALUE_STRING_JOIN` macros in
+     [src/interpret.h](../../src/interpret.h) (already gate on
+     `subtype == STRING_MALLOC`)
+4. High-traffic efun sites — migrate `u.string` writes to typed members where
+   the subtype is already known at the assignment point.
+5. Generic read sites (`strcmp`, output, NUL-reliant paths) — keep `u.string`;
+   these are catalogued in the NUL-termination section and are a separate future
+   concern.
+
+**Key constraint**: `u.string` must remain available as the generic view because
+many legitimate call sites do not know the subtype (comparisons, tracing, output).
+The typed members supplement it; they do not replace it.
 
 ## Paths still relying on NUL termination
 
@@ -147,7 +202,8 @@ NUL) strings must fix each one.
 - The fallback `strlen` path in `COUNTED_STRLEN` (for `blkend == NULL`) is needed
   for compatibility with older binary caches loaded before the change; it can be
   removed once binary format is bumped.
-- Transparent `typedef char *` aliases enforce nothing at compile time; they serve
-  as documentation only until call sites are migrated to opaque struct pointer types.
-  The runtime guards (Layer 2) are therefore the primary enforcement mechanism
-  while the codebase is being incrementally migrated.
+- Transparent `typedef char *` aliases enforce nothing at compile time today; they
+  serve as documentation and as the named migration target for when the typedefs
+  become opaque under `STRING_TYPE_SAFETY`.  The runtime guards (Layer 2) are
+  the primary enforcement mechanism in the interim.  See the TODO migration plan
+  in "Path to full compile-time enforcement" for the staged upgrade checklist.
