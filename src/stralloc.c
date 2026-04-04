@@ -482,7 +482,7 @@ malloc_str_t int_new_string (size_t size) {
  * @return A pointer to the newly allocated string.
  */
 malloc_str_t int_string_copy (const char *str, const char *end) {
-  char *p;
+  malloc_str_t p;
   size_t len;
 
   assert (str != NULL);
@@ -669,7 +669,7 @@ void free_string_svalue (svalue_t * v) {
 
 void unlink_string_svalue (svalue_t * s) {
 
-  char *str;
+  malloc_str_t str;
 
   switch (s->subtype)
     {
@@ -679,11 +679,13 @@ void unlink_string_svalue (svalue_t * s) {
       break;
     case STRING_SHARED:
       {
+        shared_str_t shared;
         size_t len = SHARED_STRLEN (s->u.string);
 
         str = new_string (len, "unlink_string_svalue");
         strncpy (str, s->u.string, len + 1);
-        free_string (s->u.string);
+        shared = s->u.string;
+        free_string (shared);
         s->subtype = STRING_MALLOC;
         s->u.string = str;
         break;

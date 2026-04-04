@@ -6,6 +6,31 @@
     #include <inttypes.h>
 #endif
 
+/*
+ * Typed aliases for contract-bearing char * parameters.
+ *
+ * shared_str_t: a char * known to be a STRING_SHARED payload (block_t header
+ *               immediately precedes the pointer; managed by the shared string
+ *               table).  Pass to ref_string() and free_string().
+ *
+ * malloc_str_t: a char * known to be a STRING_MALLOC payload (malloc_block_t
+ *               header immediately precedes the pointer).  Pass to
+ *               extend_string(); returned by int_new_string() and
+ *               int_string_copy().
+ *
+ * In all build modes the typedefs are transparent (identical to char *), so no
+ * existing call sites require changes and there is no runtime overhead.
+ * When STRING_TYPE_SAFETY is defined (default ON), the boundary functions
+ * additionally validate their pointer contract at runtime even in release builds.
+ *
+ * Path to full compile-time enforcement: change the typedefs to opaque struct
+ * pointer types, update struct fields / variables that store typed strings, and
+ * add SHARED_STR()/MALLOC_STR() cast macros at call sites where conversion is
+ * needed.
+ */
+typedef char *shared_str_t;  /* STRING_SHARED payload pointer */
+typedef char *malloc_str_t;  /* STRING_MALLOC payload pointer */
+
 typedef unsigned short lpc_type_t; /* entry type in A_ARGUMENT_TYPES area */
 typedef unsigned short function_index_t; /* an integer type for LPC function index (runtime_function_u) */
 
@@ -26,8 +51,12 @@ typedef struct {
 } refed_t;
 
 union svalue_u {
+    /* C-string semantics*/
     char *string;
     const char *const_string;
+    shared_str_t shared_string;
+    malloc_str_t malloc_string;
+
     int64_t number;    /* Neolith extension: fixed 64-bit integer for consistent cross-platform semantics */
     double real;    /* Neolith extension: both float and double are in native double precision */
 

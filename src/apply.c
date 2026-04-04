@@ -61,7 +61,7 @@ typedef struct cache_entry_s
   program_t *oprogp;
   program_t *progp;
   int index;			/* index into progp's function_table */
-  char *name;
+  shared_str_t name;
   unsigned short num_arg, num_local;
   int function_index_offset;
   int variable_index_offset;
@@ -104,7 +104,7 @@ const char *origin_name (int orig) {
  *  @param[out] vio Output parameter for the variable index offset.
  *  @return The program_t where the function was found, or NULL if not found.
  */
-program_t *find_function (program_t * prog, const char *name, int *index, int *fio, int *vio) {
+program_t *find_function (program_t * prog, shared_str_t name, int *index, int *fio, int *vio) {
   int high = prog->num_functions_defined - 1;
   int low = 0;
   int i;
@@ -164,7 +164,7 @@ program_t *find_function (program_t * prog, const char *name, int *index, int *f
   return 0;
 }
 
-static program_t *find_function_by_name2 (object_t * ob, char **name, int *index, int *fio, int *vio) {
+static program_t *find_function_by_name2 (object_t * ob, shared_str_t *name, int *index, int *fio, int *vio) {
   *name = findstring(*name, NULL); /* shared string */
 
   if (!*name)
@@ -206,7 +206,7 @@ static int function_visible (int origin, int func_flags) {
  */
 int apply_low (const char *fun, object_t * ob, int num_arg) {
 
-  char *sfun;
+  shared_str_t sfun;
   cache_entry_t *entry;
   program_t *progp, *prog;
   int ix, fio, vio;
@@ -316,7 +316,7 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
           apply_low_collisions++;
         }
 #endif
-      sfun = (char *) fun;
+      sfun = (shared_str_t) fun;
       prog = find_function_by_name2 (ob, &sfun, &index, &fio, &vio);
 
       if (prog)
@@ -501,7 +501,7 @@ svalue_t *safe_apply_master_ob (const char *fun, int num_arg)
  * function names are pointers to shared strings, which means that equality
  * can be tested simply through pointer comparison.
  */
-static program_t *ffbn_recurse (program_t * prog, char *name, int *index, int *runtime_index)
+static program_t *ffbn_recurse (program_t * prog, shared_str_t name, int *index, int *runtime_index)
 {
   int high = prog->num_functions_defined - 1;
   int low = 0;
@@ -550,7 +550,7 @@ static program_t *ffbn_recurse (program_t * prog, char *name, int *index, int *r
 
 static program_t *find_function_by_name (object_t * ob, const char *name, int *index, int *runtime_index)
 {
-  char *funname = findstring(name, NULL);
+  shared_str_t funname = findstring(name, NULL);
 
   if (!funname)
     return 0;
@@ -564,7 +564,7 @@ static program_t *find_function_by_name (object_t * ob, const char *name, int *i
  * functions exist.  Note that if you actually intend to call the function,
  * it's faster to just try to call it and check if apply() returns zero.
  */
-char *
+shared_str_t
 function_exists (const char *fun, object_t * ob, int flag)
 {
   int index, runtime_index;

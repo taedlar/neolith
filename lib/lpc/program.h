@@ -134,7 +134,7 @@ typedef struct compressed_offset_table_s
  */
 typedef struct compiler_function_s
 {
-    char *name;
+    shared_str_t name;
     lpc_type_t type; /* return type of function */
     function_index_t runtime_index; /* index into A_FUNCTION_FLAGS area */
     function_address_t address; /* opcode offset in the program_t.program */
@@ -175,7 +175,7 @@ typedef struct class_member_entry_s
 /***** Area A_VAR_NAME and A_VAR_TEMP *****/
 typedef struct variable_s
 {
-    char *name;
+    shared_str_t name;
     lpc_type_t type;	/* Type of variable. See above. TYPE_ */
 } variable_t;
 
@@ -191,7 +191,7 @@ typedef struct inherit_s
 /***** The program structure *****/
 typedef struct program_s
 {
-    char *name;	                /* Name of file that defined prog */
+    shared_str_t name;	        /* Name of file that defined prog */
     int flags;
     unsigned short ref;	        /* Reference count */
     unsigned short func_ref;
@@ -209,8 +209,8 @@ typedef struct program_s
 #endif
     class_def_t *classes;
     class_member_entry_t *class_members;
-    char **strings;	        /* All strings uses by the program */
-    char **variable_table;  /* variables defined by this program */
+    shared_str_t *strings;	        /* All strings uses by the program */
+    shared_str_t *variable_table;  /* variables defined by this program */
     lpc_type_t *variable_types;	/* variables defined by this program */
     inherit_t *inherit;     /* List of inherited prgms (A_INHERITS area) */
     int total_size;	        /* Sum of all data in this struct */

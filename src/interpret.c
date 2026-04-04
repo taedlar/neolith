@@ -182,7 +182,7 @@ static void push_indexed_lvalue (int reverse) {
             unlink_string_svalue (lv);
             sp->type = T_LVALUE;
             sp->u.lvalue = &global_lvalue_byte;
-            global_lvalue_byte.u.lvalue_byte = (unsigned char *) &lv->u.string[ind];
+            global_lvalue_byte.u.lvalue_byte = (unsigned char *) &lv->u.malloc_string[ind];
             break;
           }
 
@@ -430,13 +430,13 @@ static void copy_lvalue_range (svalue_t * from) {
             /* since fsize >= 0, ind2 - ind1 <= strlen(orig string) */
             /* because both of them can only range from 0 to len */
 
-            strncpy (owner->u.string + ind1, from->u.string, fsize);
+            strncpy (owner->u.malloc_string + ind1, from->u.string, fsize);
           }
         else
           {
-            char *tmp, *dstr = owner->u.string;
+            malloc_str_t tmp, dstr = owner->u.malloc_string;
 
-            owner->u.string = tmp = new_string (size - ind2 + ind1 + fsize, "copy_lvalue_range");
+            owner->u.malloc_string = tmp = new_string (size - ind2 + ind1 + fsize, "copy_lvalue_range");
             if (ind1 >= 1)
               {
                 strncpy (tmp, dstr, ind1);
@@ -560,13 +560,13 @@ static void assign_lvalue_range (svalue_t * from) {
             /* since fsize >= 0, ind2 - ind1 <= strlen(orig string) */
             /* because both of them can only range from 0 to len */
 
-            strncpy (owner->u.string + ind1, from->u.string, fsize);
+            strncpy (owner->u.malloc_string + ind1, from->u.string, fsize);
           }
         else
           {
-            char *tmp, *dstr = owner->u.string;
+            malloc_str_t tmp, dstr = owner->u.malloc_string;
 
-            owner->u.string = tmp =
+            owner->u.malloc_string = tmp =
               new_string (size - ind2 + ind1 + fsize, "assign_lvalue_range");
             if (ind1 >= 1)
               {

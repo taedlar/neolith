@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lpc/types.h"
+#include "stralloc.h"
 
 #define APPLY_CACHE_SIZE (1 << APPLY_CACHE_BITS)
 
@@ -27,6 +28,6 @@ svalue_t *safe_apply_master_ob(const char *, int);
 
 void clear_apply_cache(void);
 
-program_t *find_function (program_t * prog, const char *name, int *index, int *fio, int *vio);
+program_t *find_function (program_t * prog, shared_str_t name, int *index, int *fio, int *vio);
 
-char *function_exists(const char *, object_t *, int);
+shared_str_t function_exists(const char *, object_t *, int);
