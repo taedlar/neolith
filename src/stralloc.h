@@ -78,6 +78,31 @@ typedef struct malloc_block_s {
 #endif
 
 /*
+ * Typed aliases for contract-bearing char * parameters.
+ *
+ * shared_str_t: a char * known to be a STRING_SHARED payload (block_t header
+ *               immediately precedes the pointer; managed by the shared string
+ *               table).  Pass to ref_string() and free_string().
+ *
+ * malloc_str_t: a char * known to be a STRING_MALLOC payload (malloc_block_t
+ *               header immediately precedes the pointer).  Pass to
+ *               extend_string(); returned by int_new_string() and
+ *               int_string_copy().
+ *
+ * In all build modes the typedefs are transparent (identical to char *), so no
+ * existing call sites require changes and there is no runtime overhead.
+ * When STRING_TYPE_SAFETY is defined (default ON), the boundary functions
+ * additionally validate their pointer contract at runtime even in release builds.
+ *
+ * Path to full compile-time enforcement: change the typedefs to opaque struct
+ * pointer types, update struct fields / variables that store typed strings, and
+ * add SHARED_STR()/MALLOC_STR() cast macros at call sites where conversion is
+ * needed.
+ */
+typedef char *shared_str_t;  /* STRING_SHARED payload pointer */
+typedef char *malloc_str_t;  /* STRING_MALLOC payload pointer */
+
+/*
  * COUNTED_STRLEN(x) returns the logical length of a counted string (STRING_MALLOC
  * or STRING_SHARED) without scanning for a NUL byte for short strings.
  *
@@ -131,13 +156,13 @@ extern size_t overhead_bytes;
 extern size_t add_string_status(outbuffer_t *, int);
 
 /* STRING_SHARED */
-extern char *findstring(const char *);
-extern char *make_shared_string(const char *);
-extern char *ref_string(char *);
-extern void free_string(char *);
+extern shared_str_t findstring(const char *);
+extern shared_str_t make_shared_string(const char *);
+extern shared_str_t ref_string(shared_str_t);
+extern void free_string(shared_str_t);
 
 /* STRING_MALLOC */
-extern char *int_new_string(size_t);
-extern char *int_string_copy(const char *);
-extern char *extend_string(char *, size_t);
+extern malloc_str_t int_new_string(size_t);
+extern malloc_str_t int_string_copy(const char *);
+extern malloc_str_t extend_string(malloc_str_t, size_t);
 extern char *int_alloc_cstring(const char *);

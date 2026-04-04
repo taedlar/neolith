@@ -56,6 +56,7 @@ option(PRIVS "Enable the object privileges system (requires mudlib support via p
 option(NO_SHADOWS "Disable shadow support in the driver" ON)
 option(PROFILE_FUNCTIONS "Measure CPU time used by user-defined LPC functions (adds overhead to function headers)" OFF)
 
+option(STRING_TYPE_SAFETY "Enable always-on runtime contract checks for STRING_MALLOC/STRING_SHARED boundary functions, including in release builds; typed aliases (shared_str_t/malloc_str_t) are always defined" ON)
 option(STRING_STATS "Track statistics about allocated strings for mud_status()" ON)
 option(ARRAY_STATS "Track statistics about allocated arrays" ON)
 option(CACHE_STATS "Collect call_other cache statistics; adds HAS_CACHE_STATS LPC predefined macro" ON)
