@@ -638,7 +638,7 @@ void free_string_svalue (svalue_t * v) {
 
   if (v->subtype & STRING_COUNTED) /* reference counted string? (STRING_MALLOC or STRING_SHARED) */
     {
-  size_t size = MSTR_SIZE (str);
+      size_t size = MSTR_SIZE (str);
       if (DEC_COUNTED_REF (str))
         {
           SUB_STRING (size);
