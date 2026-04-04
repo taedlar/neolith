@@ -977,7 +977,7 @@ void f_switch () {
             }
           else
             {
-              s = (intptr_t) findstring (sp->u.string);
+              s = (intptr_t) findstring(sp->u.string, NULL);
               opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)sp->u.string);
               free_string_svalue (sp--);
             }

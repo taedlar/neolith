@@ -69,7 +69,7 @@ int search_len = 0;
 int num_str_searches = 0;
 #endif
 
-#define StrHash(s) (whashstr((s), 20) & (htable_size_minus_one))
+#define StrHash(s) (whashstr((s), NULL, 20) & (htable_size_minus_one))
 
 #define hfindblock(s, h) sfindblock(s, h = StrHash(s))
 #define findblock(s) sfindblock(s, StrHash(s))
@@ -198,15 +198,40 @@ static block_t *sfindblock (const char *s, int h) {
 /**
  * Find a shared string in the string table or return NULL if not found.
  */
-shared_str_t findstring (const char *s) {
+shared_str_t findstring (const char *s, const char *end) {
   block_t *b;
+  const char *lookup = s;
+  char *tmp = NULL;
+  size_t len;
 
-  if ((b = findblock (s)))
+  assert (s != NULL);
+  if (end)
     {
+      if (end <= s)
+        {
+          return NULL;
+        }
+      len = (size_t)(end - s);
+      tmp = (char *) DXALLOC (len + 1, TAG_STRING, "findstring");
+      memcpy (tmp, s, len);
+      tmp[len] = '\0';
+      lookup = tmp;
+    }
+
+  if ((b = findblock (lookup)))
+    {
+      if (tmp)
+        {
+          FREE (tmp);
+        }
       return STRING (b);
     }
   else
     {
+      if (tmp)
+        {
+          FREE (tmp);
+        }
       return (NULL);
     }
 }
@@ -271,7 +296,7 @@ static block_t* alloc_new_string (const char *string, int h) {
  * @param str The string to share.
  * @return A pointer to the shared string.
  */
-shared_str_t make_shared_string (const char *str) {
+shared_str_t make_shared_string (const char *str, const char *end) {
   block_t *b;
   int h;
   size_t hard_limit;
@@ -288,12 +313,28 @@ shared_str_t make_shared_string (const char *str) {
       hard_limit = USHRT_MAX - 1;
     }
 
-  /*
-   * Probe only up to the maximum representable shared-string length.
-   * If no NUL is found in that window, the input must be truncated.
-   */
-  nul = (const char *)memchr (str, '\0', hard_limit + 1);
-  effective_len = nul ? (size_t)(nul - str) : hard_limit;
+  if (end)
+    {
+      if (end <= str)
+        {
+          return make_shared_string ("", NULL);
+        }
+      effective_len = (size_t)(end - str);
+      if (effective_len > hard_limit)
+        {
+          effective_len = hard_limit;
+        }
+      nul = NULL;
+    }
+  else
+    {
+      /*
+       * Probe only up to the maximum representable shared-string length.
+       * If no NUL is found in that window, the input must be truncated.
+       */
+      nul = (const char *)memchr (str, '\0', hard_limit + 1);
+      effective_len = nul ? (size_t)(nul - str) : hard_limit;
+    }
 
   if (!nul)
     {
@@ -485,23 +526,38 @@ malloc_str_t int_new_string (size_t size) {
  * @param str The string to copy. This can be any null-terminated string.
  * @return A pointer to the newly allocated string.
  */
-malloc_str_t int_string_copy (const char *str) {
+malloc_str_t int_string_copy (const char *str, const char *end) {
   char *p;
   size_t len;
 
   assert (str != NULL);
-  len = strlen (str);
+  if (end)
+    {
+      if (end <= str)
+        {
+          len = 0;
+        }
+      else
+        {
+          len = (size_t)(end - str);
+        }
+    }
+  else
+    {
+      len = strlen (str);
+    }
   if (len > max_string_length)
     {
       len = max_string_length;
       p = new_string (len, desc);
-      (void) strncpy (p, str, len); /* truncate */
+      memcpy (p, str, len); /* truncate */
       p[len] = '\0';
     }
   else
     {
       p = new_string (len, desc);
-      (void) strncpy (p, str, len + 1); /* copy including null byte */
+      memcpy (p, str, len);
+      p[len] = '\0';
     }
   return p;
 }
@@ -545,12 +601,29 @@ malloc_str_t extend_string (malloc_str_t str, size_t len) {
  * @param str The string to copy. This can be any null-terminated string.
  * @return A pointer to the newly allocated string.
  */
-char *int_alloc_cstring (const char *str) {
+char *int_alloc_cstring (const char *str, const char *end) {
   char *ret;
+  size_t len;
 
   assert (str != NULL);
-  ret = (char *) DXALLOC (strlen (str) + 1, TAG_STRING, tag);
-  strcpy (ret, str);
+  if (end)
+    {
+      if (end <= str)
+        {
+          len = 0;
+        }
+      else
+        {
+          len = (size_t)(end - str);
+        }
+    }
+  else
+    {
+      len = strlen (str);
+    }
+  ret = (char *) DXALLOC (len + 1, TAG_STRING, tag);
+  memcpy (ret, str, len);
+  ret[len] = '\0';
   return ret;
 }
 

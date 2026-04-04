@@ -1,4 +1,4 @@
 #pragma once
 
 int hashstr(const char *, int, int);
-int whashstr(const char *, int);
+int whashstr(const char *, const char *, int);

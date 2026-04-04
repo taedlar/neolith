@@ -164,7 +164,7 @@ typedef struct {
 #define put_constant_string(x) do {\
         sp->type = T_STRING;\
         sp->subtype = STRING_SHARED;\
-        sp->u.string = make_shared_string(x);\
+        sp->u.string = make_shared_string(x, NULL);\
         } while(0)
 
 #define put_malloced_string(x) do {\

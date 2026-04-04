@@ -172,7 +172,7 @@ funptr_t* make_lfun_funp_by_name(const char *name, svalue_t *args) {
     return NULL;
 
   // Find the shared string (function must exist in string table to be in program)
-  const char *shared_name = findstring(name);
+  const char *shared_name = findstring(name, NULL);
   if (!shared_name)
     return NULL;  // Function name not in string table = doesn't exist
 

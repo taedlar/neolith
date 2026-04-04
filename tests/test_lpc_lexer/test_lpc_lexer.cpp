@@ -25,7 +25,7 @@ TEST_F(LPCLexerTest, getOpcodeName) {
 TEST_F(LPCLexerTest, startNewFile) {
     int fd = FILE_OPEN("master.c", O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open include file master.c";
-    current_file = make_shared_string ("master.c");
+    current_file = make_shared_string("master.c", NULL);
     current_file_id = 0;
 
     // run lexer until EOF
@@ -42,7 +42,7 @@ TEST_F(LPCLexerTest, startNewFile) {
 
 TEST_F(LPCLexerTest, parseNumber) {
     debug_message("Size of yylval: %zu", sizeof(yylval));
-    current_file = make_shared_string ("number_test");
+    current_file = make_shared_string("number_test", NULL);
     current_file_id = 0;
     // start_new_file (-1, "12345 0x1A3F 0755 3.1415926 2.71828e10\n");
     start_new_file (-1, "12345 0x1A3F 3.1415926 2.71828e10d 4e+2f\n");
@@ -65,7 +65,7 @@ TEST_F(LPCLexerTest, parseNumber) {
 }
 
 TEST_F(LPCLexerTest, parseStringLiteral) {
-    current_file = make_shared_string ("string_test");
+    current_file = make_shared_string("string_test", NULL);
     current_file_id = 0;
     start_new_file (-1, "\"Hello world\" \"你好\" L\"こんにちは\"\n");
     EXPECT_EQ(yylex(), L_STRING);
@@ -81,7 +81,7 @@ TEST_F(LPCLexerTest, parseStringLiteral) {
 }
 
 TEST_F(LPCLexerTest, parseCharLiteral) {
-    current_file = make_shared_string ("char_test");
+    current_file = make_shared_string("char_test", NULL);
     current_file_id = 0;
     start_new_file (-1, "'c' '\\n' '\\\\' L'は'\n");
     EXPECT_EQ(yylex(), L_NUMBER);
@@ -98,7 +98,7 @@ TEST_F(LPCLexerTest, parseCharLiteral) {
 }
 
 TEST_F(LPCLexerTest, skipComments) {
-    current_file = make_shared_string ("comment_test");
+    current_file = make_shared_string("comment_test", NULL);
     current_file_id = 0;
     start_new_file (-1, "// cxx comments\n/* c comments\n still work */\n\"Hello world\"\n");
     EXPECT_EQ(yylex(), L_STRING);
@@ -110,7 +110,7 @@ TEST_F(LPCLexerTest, skipComments) {
 }
 
 TEST_F(LPCLexerTest, parseReservedWords) {
-    current_file = make_shared_string ("reserved_word_test");
+    current_file = make_shared_string("reserved_word_test", NULL);
     current_file_id = 0;
     start_new_file (-1, "for\nwhile\nif\nelse\nreturn\n");
     EXPECT_EQ(yylex(), L_FOR);
@@ -125,7 +125,7 @@ TEST_F(LPCLexerTest, parseReservedWords) {
 }
 
 TEST_F(LPCLexerTest, parseEfuns) {
-    current_file = make_shared_string ("efun_test");
+    current_file = make_shared_string("efun_test", NULL);
     current_file_id = 0;
     start_new_file (-1, "call_other\nfoobar\n");
     EXPECT_EQ(yylex(), L_DEFINED_NAME);

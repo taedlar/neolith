@@ -877,7 +877,7 @@ one_parse (array_t * obarr, char *pat, array_t * warr, int *cix_in, int *fail,
     case 'w':
       parse_ret.type = T_STRING;
       parse_ret.subtype = STRING_SHARED;
-      parse_ret.u.string = make_shared_string (warr->item[*cix_in].u.string);
+      parse_ret.u.string = make_shared_string(warr->item[*cix_in].u.string, NULL);
       pval = &parse_ret;
       (*cix_in)++;
       *fail = 0;

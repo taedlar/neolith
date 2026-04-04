@@ -705,7 +705,7 @@ f_query_privs (void)
     {
       free_object (ob, "f_query_privs");
       sp->type = T_STRING;
-      sp->u.string = make_shared_string (ob->privs);
+      sp->u.string = make_shared_string(ob->privs, NULL);
       sp->subtype = STRING_SHARED;
     }
   else
@@ -798,7 +798,7 @@ f_set_privs (void)
     }
   else
     {
-      ob->privs = make_shared_string (sp->u.string);
+      ob->privs = make_shared_string(sp->u.string, NULL);
       free_string_svalue (sp--);
     }
   free_object (ob, "f_set_privs");
@@ -1316,7 +1316,7 @@ f_functions (void)
           get_type_name (buf, end, funp->type);
           subvec->item[2].type = T_STRING;
           subvec->item[2].subtype = STRING_SHARED;
-          subvec->item[2].u.string = make_shared_string (buf);
+          subvec->item[2].u.string = make_shared_string(buf, NULL);
 
           for (j = 0; j < func_entry->def.num_arg; j++)
             {
@@ -1325,7 +1325,7 @@ f_functions (void)
                   get_type_name (buf, end, types[j]);
                   subvec->item[3 + j].type = T_STRING;
                   subvec->item[3 + j].subtype = STRING_SHARED;
-                  subvec->item[3 + j].u.string = make_shared_string (buf);
+                  subvec->item[3 + j].u.string = make_shared_string(buf, NULL);
                 }
               else
                 {

@@ -645,7 +645,7 @@ static void store_callback(curl_http_t *handle, svalue_t *callback_value) {
   }
 
   handle->callback_is_fp = 0;
-  handle->callback.s = make_shared_string(callback_value->u.string);
+  handle->callback.s = make_shared_string(callback_value->u.string, NULL);
 }
 
 }  // namespace

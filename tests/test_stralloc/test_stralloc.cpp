@@ -34,12 +34,12 @@ TEST_F(StrAllocTest, initialState) {
 
 TEST_F(StrAllocTest, makeSharedString) {
     // create shared string (reference counted)
-    char* str1 = make_shared_string("hello world");
-    char* str2 = make_shared_string("hello world");
+    char* str1 = make_shared_string("hello world", NULL);
+    char* str2 = make_shared_string("hello world", NULL);
     EXPECT_EQ(str1, str2);
 
     free_string(str1);
-    char* str3 = make_shared_string("hello world");
+    char* str3 = make_shared_string("hello world", NULL);
     EXPECT_EQ(str2, str3);
 
     free_string(str2);
@@ -48,25 +48,25 @@ TEST_F(StrAllocTest, makeSharedString) {
 }
 
 TEST_F(StrAllocTest, findString) {
-    char* str1 = make_shared_string("test string");
-    char* found1 = findstring("test string"); // no reference count increase
+    char* str1 = make_shared_string("test string", NULL);
+    char* found1 = findstring("test string", NULL); // no reference count increase
     EXPECT_EQ(str1, found1);
 
     free_string(str1);
-    char* found2 = findstring("test string");
+    char* found2 = findstring("test string", NULL);
     EXPECT_EQ(found2, nullptr); // should not be found after free
 
-    char* str2 = make_shared_string("test string");
-    found1 = findstring("test string");
+    char* str2 = make_shared_string("test string", NULL);
+    found1 = findstring("test string", NULL);
     EXPECT_EQ(str2, found1);
     char* str3 = ref_string(found1); // increase reference count
 
     free_string(str2);
-    char* found3 = findstring("test string");
+    char* found3 = findstring("test string", NULL);
     EXPECT_EQ(str3, found3); // should still be found due to str3
 
     free_string(str3);
-    found2 = findstring("test string");
+    found2 = findstring("test string", NULL);
     EXPECT_EQ(found2, nullptr); // should not be found after all frees
 }
 
@@ -75,14 +75,14 @@ TEST_F(StrAllocTest, sharedStringOversizeIsTruncatedAndDeduped) {
     std::string input(input_len, 'x');
     std::string truncated(static_cast<size_t>(USHRT_MAX) - 1, 'x');
 
-    char* s1 = make_shared_string(input.c_str());
-    char* s2 = make_shared_string(input.c_str());
+    char* s1 = make_shared_string(input.c_str(), NULL);
+    char* s2 = make_shared_string(input.c_str(), NULL);
 
     EXPECT_EQ(s1, s2);
     EXPECT_EQ(static_cast<size_t>(USHRT_MAX) - 1, strlen(s1));
     EXPECT_EQ(MSTR_SIZE(s1), static_cast<unsigned short>(USHRT_MAX - 1));
-    EXPECT_EQ(findstring(input.c_str()), nullptr);
-    EXPECT_EQ(findstring(truncated.c_str()), s1);
+    EXPECT_EQ(findstring(input.c_str(), NULL), nullptr);
+    EXPECT_EQ(findstring(truncated.c_str(), NULL), s1);
 
     free_string(s1);
     free_string(s2);
@@ -175,12 +175,12 @@ TEST_F(StrAllocTest, sharedStringAtUshortMaxIsTruncatedToUshortMaxMinusOne) {
     std::string input(input_len, 'z');
     std::string truncated(static_cast<size_t>(USHRT_MAX) - 1, 'z');
 
-    char* s = make_shared_string(input.c_str());
+    char* s = make_shared_string(input.c_str(), NULL);
 
     EXPECT_EQ(strlen(s), static_cast<size_t>(USHRT_MAX) - 1);
     EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX - 1));
-    EXPECT_EQ(findstring(truncated.c_str()), s);
-    EXPECT_EQ(findstring(input.c_str()), nullptr);
+    EXPECT_EQ(findstring(truncated.c_str(), NULL), s);
+    EXPECT_EQ(findstring(input.c_str(), NULL), nullptr);
 
     free_string(s);
 }

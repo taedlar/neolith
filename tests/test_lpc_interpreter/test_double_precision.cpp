@@ -21,7 +21,7 @@ TEST_F(LPCInterpreterTest, floatingPointPrecision) {
     // (no global variables used in the test functions)
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(prog, findstring("bar"), &index, &fio, &vio);
+    program_t* found_prog = find_function(prog, findstring("bar", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for bar().";
     current_prog = prog; // set current_prog for the calling local function
     int runtime_index = found_prog->function_table[index].runtime_index;

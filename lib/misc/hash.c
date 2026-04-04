@@ -64,21 +64,38 @@ hashstr (const char *s,		/* string to hash */
  */
 
 int
-whashstr (const char *s, int maxn)
+whashstr (const char *s, const char *end, int maxn)
 {
   register unsigned char oh, h;
   register unsigned char *p;
   register int i;
 
-  if (!*s)
-    return 0;
-  p = (unsigned char *) s;
-  oh = (unsigned char) T[*p];
-  h = (*(p++) + 1) & 0xff;
-  for (i = maxn - 1; *p && --i >= 0;)
+  if (end)
     {
-      oh = (unsigned char) T[oh ^ *p];
-      h = (unsigned char) T[h ^ *(p++)];
+      if (end <= s || maxn <= 0)
+        return 0;
+
+      p = (unsigned char *) s;
+      oh = (unsigned char) T[*p];
+      h = (*(p++) + 1) & 0xff;
+      for (i = maxn - 1; p < (const unsigned char *) end && --i >= 0;)
+        {
+          oh = (unsigned char) T[oh ^ *p];
+          h = (unsigned char) T[h ^ *(p++)];
+        }
+    }
+  else
+    {
+      if (!*s)
+        return 0;
+      p = (unsigned char *) s;
+      oh = (unsigned char) T[*p];
+      h = (*(p++) + 1) & 0xff;
+      for (i = maxn - 1; *p && --i >= 0;)
+        {
+          oh = (unsigned char) T[oh ^ *p];
+          h = (unsigned char) T[h ^ *(p++)];
+        }
     }
 
   return (oh << 8) + h;

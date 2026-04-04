@@ -102,7 +102,7 @@ int new_call_out (object_t * ob, svalue_t * fun, time_t delay, int num_args, sva
 
   if (fun->type == T_STRING)
     {
-      cop->function.s = make_shared_string (fun->u.string);
+      cop->function.s = make_shared_string(fun->u.string, NULL);
       cop->ob = ob;
       add_ref (ob, "call_out");
     }
@@ -433,7 +433,7 @@ array_t* get_all_call_outs () {
               add_ref (cop->ob, "get_all_call_outs");
               vv->item[1].type = T_STRING;
               vv->item[1].subtype = STRING_SHARED;
-              vv->item[1].u.string = make_shared_string (cop->function.s);
+              vv->item[1].u.string = make_shared_string(cop->function.s, NULL);
             }
           else
             {
@@ -442,7 +442,7 @@ array_t* get_all_call_outs () {
               add_ref (cop->function.f->hdr.owner, "get_all_call_outs");
               vv->item[1].type = T_STRING;
               vv->item[1].subtype = STRING_SHARED;
-              vv->item[1].u.string = make_shared_string ("<function>");
+              vv->item[1].u.string = make_shared_string("<function>", NULL);
             }
           vv->item[2].type = T_NUMBER;
           if (j > tm)

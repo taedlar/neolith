@@ -19,7 +19,7 @@ static ident_hash_elem_t *ident_dirty_list = 0;
 
 /* identifier hash table stuff, size must be an even power of two */
 #define IDENT_HASH_SIZE 1024
-#define IdentHash(s) (whashstr((s), 20) & (IDENT_HASH_SIZE - 1))
+#define IdentHash(s) (whashstr((s), NULL, 20) & (IDENT_HASH_SIZE - 1))
 
 /* The identifier table is hashed for speed.  The hash chains are circular
  * linked lists, so that we can rotate them, since identifier lookup is

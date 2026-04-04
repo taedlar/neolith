@@ -10,7 +10,7 @@ extern "C" {
 TEST_F(LPCLexerTest, handleInclude) {
     int fd = FILE_OPEN("user.c", O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open include file user.c";
-    current_file = make_shared_string ("user.c");
+    current_file = make_shared_string("user.c", NULL);
     current_file_id = 0;
 
     // run lexer until EOF, which will process #include directives
@@ -27,7 +27,7 @@ TEST_F(LPCLexerTest, handleInclude) {
 }
 
 TEST_F(LPCLexerTest, preprocessIf) {
-    current_file = make_shared_string ("preprocess_if_test");
+    current_file = make_shared_string("preprocess_if_test", NULL);
     current_file_id = 0;
     start_new_file (-1,
         "#if 1 + 1 == 2\n"
@@ -45,7 +45,7 @@ TEST_F(LPCLexerTest, preprocessIf) {
 }
 
 TEST_F(LPCLexerTest, preprocessIfElifElse) {
-    current_file = make_shared_string ("preprocess_if_elif_else_test");
+    current_file = make_shared_string("preprocess_if_elif_else_test", NULL);
     current_file_id = 0;
     start_new_file (-1,
         "#if 0\n"
@@ -67,7 +67,7 @@ TEST_F(LPCLexerTest, preprocessIfElifElse) {
 }
 
 TEST_F(LPCLexerTest, preprocessNestedIf) {
-    current_file = make_shared_string ("preprocess_nested_if_test");
+    current_file = make_shared_string("preprocess_nested_if_test", NULL);
     current_file_id = 0;
     start_new_file (-1,
         "#if 1\n"
@@ -92,7 +92,7 @@ TEST_F(LPCLexerTest, preprocessNestedIf) {
 }
 
 TEST_F(LPCLexerTest, preprocessIfWithIndentedDirectives) {
-    current_file = make_shared_string ("preprocess_if_indented_test");
+    current_file = make_shared_string("preprocess_if_indented_test", NULL);
     current_file_id = 0;
     start_new_file (-1,
         "   #if 1\n"
@@ -110,7 +110,7 @@ TEST_F(LPCLexerTest, preprocessIfWithIndentedDirectives) {
 }
 
 TEST_F(LPCLexerTest, preprocessPragmaWithIndentedDirective) {
-    current_file = make_shared_string ("preprocess_pragma_indented_test");
+    current_file = make_shared_string("preprocess_pragma_indented_test", NULL);
     current_file_id = 0;
     start_new_file (-1,
         "   #pragma strict_types\n"

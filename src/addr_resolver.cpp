@@ -851,8 +851,8 @@ addr_resolver_reserve_lookup_request(const char *name, const char *call_back, ob
       if (lookup_request_table[i].name != nullptr)
         continue;
 
-      lookup_request_table[i].name = make_shared_string(name);
-      lookup_request_table[i].call_back = make_shared_string(call_back);
+      lookup_request_table[i].name = make_shared_string(name, NULL);
+      lookup_request_table[i].call_back = make_shared_string(call_back, NULL);
       lookup_request_table[i].ob_to_call = ob;
       add_ref(ob, "addr_resolver_reserve_lookup_request: ");
       return i + 1;
@@ -1097,7 +1097,7 @@ addr_resolver_forward_cache_add(const char *hostname, uint32_t ip_address, int s
   if (s_forward_cache[i].hostname)
     free_string(s_forward_cache[i].hostname);
 
-  s_forward_cache[i].hostname = make_shared_string(hostname);
+  s_forward_cache[i].hostname = make_shared_string(hostname, NULL);
   s_forward_cache[i].ip_address = ip_address;
   s_forward_cache[i].success = success;
   s_forward_cache[i].updated_at = time(NULL);
@@ -1149,7 +1149,7 @@ addr_resolver_reverse_cache_add(unsigned long addr_in_network_order, const char 
         {
           if (s_reverse_cache[i].name)
             free_string(s_reverse_cache[i].name);
-          s_reverse_cache[i].name = make_shared_string(hostname);
+          s_reverse_cache[i].name = make_shared_string(hostname, NULL);
           s_reverse_cache[i].updated_at = time(NULL);
           return;
         }
@@ -1160,7 +1160,7 @@ addr_resolver_reverse_cache_add(unsigned long addr_in_network_order, const char 
   s_reverse_cache[i].addr = addr_in_network_order;
   if (s_reverse_cache[i].name)
     free_string(s_reverse_cache[i].name);
-  s_reverse_cache[i].name = make_shared_string(hostname);
+  s_reverse_cache[i].name = make_shared_string(hostname, NULL);
   s_reverse_cache[i].updated_at = time(NULL);
 
   s_reverse_cache_cursor = (s_reverse_cache_cursor + 1) % REVERSE_CACHE_SIZE;

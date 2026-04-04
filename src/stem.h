@@ -31,9 +31,9 @@ extern char *xalloc(size_t);
 /* dynamic string allocations */
 #include "stralloc.h"
 
-#define string_copy(x,y) int_string_copy(x)
+#define string_copy(x,y) int_string_copy(x, NULL)
 #define new_string(x,y) int_new_string(x)
-#define alloc_cstring(x,y) int_alloc_cstring(x)
+#define alloc_cstring(x,y) int_alloc_cstring(x, NULL)
 
 /* LPC types and the LPMud virtual machine */
 #include "lpc/types.h"

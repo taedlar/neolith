@@ -131,7 +131,7 @@ TEST_F(SimulEfunsTest, findSimulEfun)
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
-    char* func_name = findstring("textwrap");
+    char* func_name = findstring("textwrap", NULL);
     ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'textwrap'.";
     EXPECT_NE(find_simul_efun(func_name), -1) << "find_simul_efun failed to find 'textwrap'.";
 
@@ -139,7 +139,7 @@ TEST_F(SimulEfunsTest, findSimulEfun)
     ASSERT_TRUE(ihe != nullptr) << "lookup_ident failed to find 'textwrap'.";
     EXPECT_TRUE(ihe->token & IHE_SIMUL) << "'textwrap' ident_hash_elem_t does not have IHE_SIMUL flag set.";
 
-    func_name = findstring("create"); // create() is always attempted when loading an object
+    func_name = findstring("create", NULL); // create() is always attempted when loading an object
     ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'create'.";
     EXPECT_EQ(find_simul_efun(func_name), -1);
 
@@ -156,7 +156,7 @@ TEST_F(SimulEfunsTest, callSimulEfun)
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
-    char* func_name = findstring("textwrap");
+    char* func_name = findstring("textwrap", NULL);
     ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'textwrap'.";
     int index = find_simul_efun(func_name);
     EXPECT_NE(index, -1) << "find_simul_efun failed to find 'textwrap'.";

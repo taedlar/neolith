@@ -188,7 +188,7 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     args[0].u.number = 42;
     args[1].type = T_STRING;
     args[1].subtype = STRING_SHARED;
-    args[1].u.string = make_shared_string("extra");
+    args[1].u.string = make_shared_string("extra", NULL);
     
     int result = input_to(&fun, 0, 2, args);
     EXPECT_EQ(result, 1) << "input_to with args should succeed";
@@ -268,7 +268,7 @@ TEST_F(InputToGetCharTest, GetCharWithArgs) {
     args[0].u.number = 123;
     args[1].type = T_STRING;
     args[1].subtype = STRING_SHARED;
-    args[1].u.string = make_shared_string("context");
+    args[1].u.string = make_shared_string("context", NULL);
     
     int result = get_char(&fun, 0, 2, args);
     EXPECT_EQ(result, 1);
@@ -399,7 +399,7 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_STRING;
     args[0].subtype = STRING_SHARED;
-    args[0].u.string = make_shared_string("test_string"); // ref = 1
+    args[0].u.string = make_shared_string("test_string", NULL); // ref = 1
     args[1].type = T_ARRAY;
     args[1].u.arr = allocate_empty_array(3); // ref = 1
     
@@ -430,7 +430,7 @@ TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     args[0].u.number = 111;
     args[1].type = T_STRING;
     args[1].subtype = STRING_SHARED;
-    args[1].u.string = make_shared_string("arg2");
+    args[1].u.string = make_shared_string("arg2", NULL);
     
     input_to(&fun, 0, 2, args);
     simulate_input("user_input");

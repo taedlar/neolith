@@ -490,7 +490,7 @@ static void handle_include (const char *inc_name, int optional) {
       current_line_base += current_line;
       current_line_saved = 0;
       current_line = 1;
-      current_file = make_shared_string (buf);
+      current_file = make_shared_string(buf, NULL);
       current_file_id = add_program_file (buf, 0);
       yyin_desc = fd;
       refill_buffer ();
@@ -3437,7 +3437,7 @@ void set_inc_list (const char *list) {
           inc_list[i] = 0;
           continue;
         }
-      inc_list[i] = make_shared_string (p);
+      inc_list[i] = make_shared_string(p, NULL);
     }
   free (list_copy);
 }

@@ -234,7 +234,7 @@ protected:
 
     ClearCallbacks();
 
-    found_prog = find_function(owner->prog, findstring("query_events"), &index, &fio, &vio);
+    found_prog = find_function(owner->prog, findstring("query_events", NULL), &index, &fio, &vio);
     ASSERT_NE(found_prog, nullptr) << "query_events() not found on callback owner object";
 
     runtime_index = found_prog->function_table[index].runtime_index + fio;
@@ -295,7 +295,7 @@ protected:
 
     ASSERT_NE(owner, nullptr) << "Callback owner object is null";
 
-    found_prog = find_function(owner->prog, findstring("clear_events"), &index, &fio, &vio);
+    found_prog = find_function(owner->prog, findstring("clear_events", NULL), &index, &fio, &vio);
     ASSERT_NE(found_prog, nullptr) << "clear_events() not found on callback owner object";
 
     runtime_index = found_prog->function_table[index].runtime_index + fio;

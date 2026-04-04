@@ -847,7 +847,7 @@ void arrange_call_inherited (char *name, parse_node_t * node) {
     }
   num_inherits = NUM_INHERITS;
   /* no need to look for it unless its in the shared string table */
-  if ((shared_string = findstring (real_name)))
+  if ((shared_string = findstring(real_name, NULL)))
     {
       ip = (inherit_t *) mem_block[A_INHERITS].block;
       for (; num_inherits > 0; ip++, num_inherits--)
@@ -1010,7 +1010,7 @@ function_number_t define_new_function (char *name, int num_arg, int num_local, u
       num = (int)(mem_block[A_COMPILER_FUNCTIONS].current_size / sizeof (compiler_function_t));
       funp = (compiler_function_t *) allocate_in_mem_block (A_COMPILER_FUNCTIONS, sizeof (compiler_function_t));
 
-      funp->name = make_shared_string (name);
+      funp->name = make_shared_string(name, NULL);
       argument_start_index = INDEX_START_NONE;
       add_to_mem_block (A_ARGUMENT_INDEX, (char *) &argument_start_index, sizeof (argument_start_index));
 
@@ -1111,7 +1111,7 @@ int define_new_variable (char *name, int type) {
   char **np;
 
   var_defined = 1;
-  name = make_shared_string (name);
+  name = make_shared_string(name, NULL);
   n = define_variable (name, type, 0);
   np = (char **) allocate_in_mem_block (A_VAR_NAME, sizeof (char *));
   *np = name;
@@ -1181,7 +1181,7 @@ short store_prog_string (const char *string_data) {
   intptr_t hash;
   unsigned char mask, *tagp;
 
-  str = make_shared_string (string_data);
+  str = make_shared_string(string_data, NULL);
   STRING_HASH (hash, str);
   idxp = &string_idx[hash];
 
@@ -2349,7 +2349,7 @@ static void prolog (const char *name)
   freed_string = -1;
   initialize_parser ();
 
-  current_file = make_shared_string (name);
+  current_file = make_shared_string(name, NULL);
   current_file_id = add_program_file (name, 1);
 }
 
