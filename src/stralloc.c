@@ -198,7 +198,7 @@ static block_t *sfindblock (const char *s, int h) {
 /**
  * Find a shared string in the string table or return NULL if not found.
  */
-char* findstring (const char *s) {
+shared_str_t findstring (const char *s) {
   block_t *b;
 
   if ((b = findblock (s)))
@@ -271,7 +271,7 @@ static block_t* alloc_new_string (const char *string, int h) {
  * @param str The string to share.
  * @return A pointer to the shared string.
  */
-char* make_shared_string (const char *str) {
+shared_str_t make_shared_string (const char *str) {
   block_t *b;
   int h;
   size_t hard_limit;
@@ -331,7 +331,7 @@ char* make_shared_string (const char *str) {
  * Increase the reference count of a shared string.
  * It is fatal to call this function on a string that isn't shared.
  */
-char* ref_string (char *str) {
+shared_str_t ref_string (shared_str_t str) {
   block_t *b;
 
   assert (str != NULL);
@@ -355,7 +355,7 @@ char* ref_string (char *str) {
  * If the reference count goes to zero, the string is removed from the
  * hash table and the memory is freed.
  */
-void free_string (char *str) {
+void free_string (shared_str_t str) {
   block_t **prev, *b;
   int h;
 
@@ -458,7 +458,7 @@ size_t add_string_status (outbuffer_t * out, int verbose) {
  * @param size The size of the string to allocate.
  * @return A pointer to the newly allocated string (uninitialized).
  */
-char* int_new_string (size_t size) {
+malloc_str_t int_new_string (size_t size) {
   malloc_block_t *mbt;
 
   mbt = (malloc_block_t *) DXALLOC (size + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, tag);
@@ -485,7 +485,7 @@ char* int_new_string (size_t size) {
  * @param str The string to copy. This can be any null-terminated string.
  * @return A pointer to the newly allocated string.
  */
-char *int_string_copy (const char *str) {
+malloc_str_t int_string_copy (const char *str) {
   char *p;
   size_t len;
 
@@ -509,10 +509,17 @@ char *int_string_copy (const char *str) {
 /**
  * Extend a reference counted string (STRING_MALLOC).
  */
-char *extend_string (char *str, size_t len) {
+malloc_str_t extend_string (malloc_str_t str, size_t len) {
   malloc_block_t *mbt;
 
   assert (str != NULL);
+  assert (MSTR_REF (str) > 0);
+#ifdef STRING_TYPE_SAFETY
+  if (MSTR_REF (str) == 0) {
+    debug_fatal ("extend_string: contract violation: ref count is 0 (immortal STRING_SHARED or freed pointer)\n");
+    abort ();
+  }
+#endif
 #ifdef STRING_STATS
   int oldsize = MSTR_SIZE (str);
 #endif
@@ -554,11 +561,17 @@ char *int_alloc_cstring (const char *str) {
  * @param str The string to unlink. This must be a STRING_MALLOC string with reference count > 1.
  * @return A pointer to the newly allocated string.
  */
-static char *int_string_unlink (char *str) {
+static malloc_str_t int_string_unlink (malloc_str_t str) {
   malloc_block_t *newmbt;
 
   assert (str != NULL);
   assert (MSTR_REF (str) > 1);
+#ifdef STRING_TYPE_SAFETY
+  if (MSTR_REF (str) <= 1) {
+    debug_fatal ("int_string_unlink: contract violation: ref count not > 1 (not a live STRING_MALLOC with multiple refs)\n");
+    abort ();
+  }
+#endif
   MSTR_REF (str)--; /* decrement reference count */
 
   if (MSTR_SIZE (str) == USHRT_MAX)

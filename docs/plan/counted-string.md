@@ -25,6 +25,7 @@ valid.
 | `COUNTED_STRLEN` O(1) long-string path via `blkend` | complete |
 | Shared-string length cap below USHRT_MAX | complete |
 | Unit tests for all blkend paths | complete |
+| `STRING_TYPE_SAFETY` cmake option: typed aliases + always-on runtime guards | complete |
 
 ## Rationale
 
@@ -32,6 +33,64 @@ Before this change the only way to recover the length of a counted string longer
 65534 bytes was `strlen(str + USHRT_MAX) + USHRT_MAX` — a full scan past the first
 65535 bytes every time. The `blkend` field turns that into a two-pointer subtraction
 kept consistent by every allocation and resize path.
+
+## Header-backed `char *` contracts and type safety
+
+A raw `char *` carries no runtime tag indicating whether it points to a
+`STRING_SHARED` or `STRING_MALLOC` payload. The decision is made from one of two
+sources:
+
+1. `svalue_t.subtype` (`STRING_MALLOC`, `STRING_SHARED`, `STRING_COUNTED`,
+   `STRING_HASHED`) for generic runtime paths that branch before touching a
+   block header.
+2. Function contract and pointer provenance for the small set of public
+   functions that take a typed bare `char *`.
+
+### Contract-bearing functions
+
+| Function | Expected pointer kind | Access pattern |
+|---|---|---|
+| `ref_string(shared_str_t)` | `STRING_SHARED` payload | Uses `BLOCK(str)`, verifies via `findblock` |
+| `free_string(shared_str_t)` | `STRING_SHARED` payload | Uses `BLOCK(str)`, removes from shared table |
+| `extend_string(malloc_str_t, size_t)` | `STRING_MALLOC` payload | Reallocates from `MSTR_BLOCK(str)` |
+| `push_shared_string(char *)` | `STRING_SHARED` payload | Delegates to `ref_string()` |
+| `push_malloced_string(char *)` | `STRING_MALLOC` payload | Sets svalue subtype to `STRING_MALLOC` |
+
+Constructor and plain C-string functions (`make_shared_string`, `findstring`,
+`int_new_string`, `int_string_copy`, `int_alloc_cstring`) accept ordinary
+C strings or return typed pointers by construction and are not part of this
+contract.
+
+### Type-safety hardening (`STRING_TYPE_SAFETY`)
+
+The `STRING_TYPE_SAFETY` cmake option (default: ON) adds two layers of hardening.
+
+**Layer 1 — typed aliases.**  `stralloc.h` exports `shared_str_t` and
+`malloc_str_t` as transparent `typedef char *` aliases.  Function signatures
+for the contract-bearing functions use these types so intent is visible at
+every declaration site.  Because the typedefs are transparent in all build
+modes, no existing call sites require changes and there is no runtime overhead.
+
+**Layer 2 — always-on runtime guards.**  Under `STRING_TYPE_SAFETY`, `extend_string`
+and `int_string_unlink` check their pointer contract even in NDEBUG/release
+builds — not only via debug-mode `assert`.  A ref count of 0 on entry to either
+function (indicating an immortal `STRING_SHARED` or freed pointer) triggers
+`debug_fatal` + `abort`.
+
+### Path to full compile-time enforcement
+
+Changing `shared_str_t` and `malloc_str_t` from transparent aliases to opaque
+struct pointer types would turn contract violations into compile errors.  This
+requires:
+
+1. Updating struct fields and variables that store shared/malloc strings from
+   `char *` to the appropriate typedef.
+2. Adding explicit cast macros (`SHARED_STR(x)`, `MALLOC_STR(x)`) at call
+   sites where the type must be converted.
+
+This change is deferred because it affects a large portion of the codebase;
+the typed function signatures and always-on runtime guards provide sufficient
+protection for now.
 
 ## Paths still relying on NUL termination
 
@@ -88,3 +147,7 @@ NUL) strings must fix each one.
 - The fallback `strlen` path in `COUNTED_STRLEN` (for `blkend == NULL`) is needed
   for compatibility with older binary caches loaded before the change; it can be
   removed once binary format is bumped.
+- Transparent `typedef char *` aliases enforce nothing at compile time; they serve
+  as documentation only until call sites are migrated to opaque struct pointer types.
+  The runtime guards (Layer 2) are therefore the primary enforcement mechanism
+  while the codebase is being incrementally migrated.
