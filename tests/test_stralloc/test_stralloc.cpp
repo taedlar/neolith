@@ -6,6 +6,7 @@ extern "C" {
     #include "stralloc.h"
 }
 #include <gtest/gtest.h>
+#include <array>
 using namespace testing;
 
 class StrAllocTest: public Test {
@@ -183,4 +184,40 @@ TEST_F(StrAllocTest, sharedStringAtUshortMaxIsTruncatedToUshortMaxMinusOne) {
     EXPECT_EQ(findstring(input.c_str(), NULL), nullptr);
 
     free_string(s);
+}
+
+TEST_F(StrAllocTest, sharedStringFromNonNullTerminatedSpanRoundTrips) {
+    std::array<char, 5> bytes = {'h', 'e', 'l', 'l', 'o'};
+
+    char* s = make_shared_string(bytes.data(), bytes.data() + bytes.size());
+    EXPECT_NE(s, nullptr);
+    EXPECT_EQ(MSTR_SIZE(s), bytes.size());
+
+    char* found_span = findstring(bytes.data(), bytes.data() + bytes.size());
+    EXPECT_EQ(found_span, s);
+
+    char* found_cstr = findstring("hello", NULL);
+    EXPECT_EQ(found_cstr, s);
+
+    free_string(s);
+}
+
+TEST_F(StrAllocTest, sharedStringEmbeddedNulSpanIsDistinctFromPrefix) {
+    std::array<char, 5> bytes = {'a', 'b', '\0', 'c', 'd'};
+
+    char* s1 = make_shared_string(bytes.data(), bytes.data() + bytes.size());
+    char* s2 = make_shared_string(bytes.data(), bytes.data() + bytes.size());
+
+    EXPECT_EQ(s1, s2);
+    EXPECT_EQ(MSTR_SIZE(s1), bytes.size());
+    EXPECT_EQ(memcmp(s1, bytes.data(), bytes.size()), 0);
+
+    char* found_span = findstring(bytes.data(), bytes.data() + bytes.size());
+    EXPECT_EQ(found_span, s1);
+
+    char* found_prefix = findstring("ab", NULL);
+    EXPECT_EQ(found_prefix, nullptr);
+
+    free_string(s1);
+    free_string(s2);
 }
