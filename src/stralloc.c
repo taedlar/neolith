@@ -25,8 +25,8 @@
    (using MallocDebug on a NeXT) and 2) because it looks cleaner this way.
    --Truilkan@TMI 92/04/19
 
-   modified to make calls to strlen() unnecessary and to remove superfluous
-   calls to findblock().  -- Truilkan@TMI, 1992/08/05
+  modernized further to support length-aware shared-string lookup via
+  explicit spans (start/end) while preserving NUL-terminated call paths.
 */
 
 /*
@@ -69,7 +69,6 @@ int search_len = 0;
 int num_str_searches = 0;
 #endif
 
-#define StrHash(s) (whashstr((s), NULL, 20) & (htable_size_minus_one))
 #define StrHashN(s, len) (whashstr((s), (s) + (len), 20) & (htable_size_minus_one))
 
 #define hfindblockn(s, len, h) sfindblock(s, len, h = StrHashN(s, len))
@@ -91,7 +90,7 @@ static size_t htable_size_minus_one;
 static size_t max_string_length;
 
 static block_t *sfindblock (const char *s, size_t len, int h);
-static void dealloc_string (const char *str, size_t len);
+static void dealloc_string (shared_str_t str);
 static block_t* alloc_new_string (const char *, size_t, int);
 
 /**
@@ -154,9 +153,9 @@ void deinit_strings(void) {
 }
 
 /**
- * Looks for a string in the table.  If it finds it, returns a pointer to
- * the start of the string part, and moves the entry for the string to
- * the head of the pointer chain.
+ * Looks for a byte span in a hash bucket.
+ * If found, returns the owning block and moves it to the head of the chain.
+ * Lookup is length-aware (SIZE + memcmp), so embedded NUL bytes are handled.
  */
 static block_t *sfindblock (const char *s, size_t len, int h) {
 
@@ -197,7 +196,9 @@ static block_t *sfindblock (const char *s, size_t len, int h) {
 }
 
 /**
- * Find a shared string in the string table or return NULL if not found.
+ * Find a shared string by key.
+ * If end is non-NULL, key bytes are [s, end). Otherwise s is treated as a
+ * NUL-terminated C string. Returns NULL when not found.
  */
 shared_str_t findstring (const char *s, const char *end) {
   block_t *b;
@@ -212,14 +213,14 @@ shared_str_t findstring (const char *s, const char *end) {
 }
 
 /**
- * Make a space for a string and add it to the hash table.
- * This is the internal function of the string manager.
- * For external use, see make_shared_string().
- * 
- * @param string The string to add.
- * @param h The hash value of the string.
- * @return A pointer to the newly allocated string block entry.
- * @see make_shared_string
+ * Allocate and insert a new shared-string block.
+ * The payload length is provided by the caller and may include embedded NUL.
+ * A trailing '\0' guard is still appended for compatibility with legacy paths.
+ *
+ * @param string Pointer to source bytes.
+ * @param len Number of payload bytes.
+ * @param h Precomputed hash bucket index.
+ * @return Pointer to the newly allocated block.
  */
 static block_t* alloc_new_string (const char *string, size_t len, int h) {
 
@@ -254,12 +255,12 @@ static block_t* alloc_new_string (const char *string, size_t len, int h) {
 
 /**
  * Create or retrieve a shared string (reference counted).
- * - If the string already exists in the string table, its reference count
- *   is incremented and a pointer to the existing string is returned.
- * - If the string does not exist, a new entry is created in the string table
- *   and a pointer to the new string (with reference count 1) is returned.
- * @param str The string to share.
- * @return A pointer to the shared string.
+ * - If end is non-NULL, bytes in [str, end) are interned (span mode).
+ * - Otherwise str is interpreted as a NUL-terminated C string.
+ * - Oversize inputs are truncated to the maximum shared-string length.
+ *
+ * Existing entry: increments refcount and returns existing payload pointer.
+ * New entry: inserts a new shared block and returns its payload pointer.
  */
 shared_str_t make_shared_string (const char *str, const char *end) {
   block_t *b;
@@ -386,17 +387,23 @@ void free_string (shared_str_t str) {
 }
 
 /**
- * Deallocate a shared string in the string hash table.
- * This function ignores the reference count and locate the string in the hash table
- * by the looking for the string data memory address directly.
- * If the string is not found, this is no-op.
- * 
- * @param str Pointer to the string to deallocate.
+ * Deallocate a shared string from the hash table, ignoring reference count.
+ *
+ * This helper is used by free_string_svalue() when a counted STRING_SHARED
+ * reaches refcount zero through generic counted-string macros.
+ * The hash bucket is derived from the shared block header length, then the
+ * entry is removed by payload-pointer identity.
+ *
+ * If the pointer is not found in the expected bucket, this is a no-op.
  */
-static void dealloc_string (const char *str, size_t len) {
+static void dealloc_string (shared_str_t str) {
 
   int h;
   block_t *b, **prev;
+  size_t len;
+
+  assert (str != NULL);
+  len = SIZE (BLOCK (str));
 
   h = StrHashN (str, len);
   prev = base_table + h;
@@ -513,7 +520,7 @@ malloc_str_t int_string_copy (const char *str, const char *end) {
 /**
  * Extend a reference counted string (STRING_MALLOC).
  */
-malloc_str_t extend_string (malloc_str_t str, size_t len) {
+malloc_str_t int_extend_string (malloc_str_t str, size_t len) {
   malloc_block_t *mbt;
 
   assert (str != NULL);
@@ -645,7 +652,7 @@ void free_string_svalue (svalue_t * v) {
           if (v->subtype & STRING_HASHED) /* STRING_SHARED */
             {
               SUB_NEW_STRING (size, sizeof (block_t));
-              dealloc_string (str, size);
+              dealloc_string (str);
             }
           else /* STRING_MALLOC */
             {

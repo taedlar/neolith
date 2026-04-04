@@ -164,5 +164,5 @@ extern void free_string(shared_str_t);
 /* STRING_MALLOC */
 extern malloc_str_t int_new_string(size_t);
 extern malloc_str_t int_string_copy(const char *, const char *);
-extern malloc_str_t extend_string(malloc_str_t, size_t);
+extern malloc_str_t int_extend_string(malloc_str_t, size_t);
 extern char *int_alloc_cstring(const char *, const char *);
