@@ -152,7 +152,7 @@ void set_notify_fail_message (char *str) {
   if (!command_giver || !command_giver->interactive)
     return;
   clear_notify (command_giver->interactive);
-  command_giver->interactive->default_err_message.s = make_shared_string (str);
+  command_giver->interactive->default_err_message.s = make_shared_string(str, NULL);
 }				/* set_notify_fail_message() */
 
 void set_notify_fail_function (funptr_t * funp) {

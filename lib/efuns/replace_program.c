@@ -182,7 +182,7 @@ f_replaceable (void)
       for (i = 0; i < numignore; i++)
         {
           if (sp->u.arr->item[i].type == T_STRING)
-            ignore[i] = findstring (sp->u.arr->item[i].u.string);
+            ignore[i] = findstring(sp->u.arr->item[i].u.string, NULL);
           else
             ignore[i] = 0;
         }
@@ -192,7 +192,7 @@ f_replaceable (void)
     {
       numignore = 1;
       ignore = CALLOCATE (1, char *, TAG_TEMPORARY, "replaceable");
-      ignore[0] = findstring (APPLY_CREATE);
+      ignore[0] = findstring(APPLY_CREATE, NULL);
       prog = sp->u.ob->prog;
     }
 

@@ -44,7 +44,7 @@ TEST_F(LPCInterpreterTest, callFunction) {
     // (no global variables used in the test functions)
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(prog, findstring("add"), &index, &fio, &vio);
+    program_t* found_prog = find_function(prog, findstring("add", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for add().";
     int runtime_index = found_prog->function_table[index].runtime_index + fio;
 
@@ -66,7 +66,7 @@ TEST_F(LPCInterpreterTest, callInheritedFunction) {
     object_t* obj = load_object("room/start_room.c", 0); // start_room inherits from base/room.c which defines query_exit()
     ASSERT_NE(obj, nullptr) << "load_object returned null object.";
 
-    char* method = findstring("query_exit"); // function names are always stored as shared strings
+    char* method = findstring("query_exit", NULL); // function names are always stored as shared strings
     ASSERT_NE(method, nullptr) << "findstring returned null for `query_exit`.";
 
     int index, fio, vio;
@@ -111,7 +111,7 @@ TEST_F(LPCInterpreterTest, evalCostLimit) {
         // no object is created; we just call the functions directly
         // (no global variables used in the test functions)
         int index, fio, vio;
-        program_t* found_prog = find_function(prog, findstring("create"), &index, &fio, &vio);
+        program_t* found_prog = find_function(prog, findstring("create", NULL), &index, &fio, &vio);
         ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for create().";
         int runtime_index = found_prog->function_table[index].runtime_index;
 
@@ -145,7 +145,7 @@ TEST_F(LPCInterpreterTest, foreachUtf8String) {
     // Find and call the function
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(prog, findstring("test_utf8_foreach"), &index, &fio, &vio);
+    program_t* found_prog = find_function(prog, findstring("test_utf8_foreach", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program.";
     int runtime_index = found_prog->function_table[index].runtime_index;
 
@@ -194,7 +194,7 @@ TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
 
     int index, fio, vio;
     svalue_t ret;
-    program_t *found = find_function(prog, findstring("test_from_json_buf"), &index, &fio, &vio);
+    program_t *found = find_function(prog, findstring("test_from_json_buf", NULL), &index, &fio, &vio);
     ASSERT_EQ(found, prog);
     int runtime_index = found->function_table[index].runtime_index;
 

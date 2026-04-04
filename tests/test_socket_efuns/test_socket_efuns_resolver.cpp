@@ -76,7 +76,7 @@ int QueryObjectNumberMethod(object_t *obj, const char *method) {
   svalue_t ret;
   int result = 0;
 
-  found_prog = find_function(obj->prog, findstring(method), &index, &fio, &vio);
+  found_prog = find_function(obj->prog, findstring(method, NULL), &index, &fio, &vio);
   if (found_prog == nullptr) {
     return 0;
   }
@@ -183,10 +183,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_001_BasicSuccess_HostnameResolves) 
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   // Capture telemetry before
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_before, &admitted_before, &dedup_before, &timed_out_before), EESUCCESS)
@@ -257,10 +257,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_002_CacheHit_DedupCoalesces) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted_before, &dedup_before, &timed_out), EESUCCESS);
 
@@ -335,10 +335,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_003_TimeoutPath_DeterministicFailur
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted, &dedup, &timed_out_before), EESUCCESS);
 
@@ -394,10 +394,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_004_AdmissionOverflow_RejectsWork) 
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   // Create several sockets and attempt DNS connects
   // Goal: exercise the resolver under load without hitting test infrastructure limits
@@ -459,10 +459,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   {
     ScopedObjectContext ctx(this, temp_owner);
@@ -1244,10 +1244,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWo
   svalue_t write_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   int in_flight = 0;
   unsigned long admitted_before = 0;

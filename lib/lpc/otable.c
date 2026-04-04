@@ -83,7 +83,7 @@ char *add_slash (const char *str) {
 /*
  * Object hash function, ripped off from stralloc.c.
  */
-#define ObjHash(s) whashstr(s, 40) & otable_size_minus_one
+#define ObjHash(s) whashstr((s), NULL, 40) & otable_size_minus_one
 
 /*
  * hash table - list of pointers to heads of object chains.

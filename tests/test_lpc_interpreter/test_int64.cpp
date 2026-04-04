@@ -18,7 +18,7 @@ TEST_F(LPCInterpreterTest, int64_SmallValues) {
     
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(prog, findstring("test"), &index, &fio, &vio);
+    program_t* found_prog = find_function(prog, findstring("test", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return expected program.";
     int runtime_index = found_prog->function_table[index].runtime_index;
 
@@ -38,7 +38,7 @@ TEST_F(LPCInterpreterTest, int64_LargePositive) {
     
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(prog, findstring("test"), &index, &fio, &vio);
+    program_t* found_prog = find_function(prog, findstring("test", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return expected program.";
     int runtime_index = found_prog->function_table[index].runtime_index;
 
@@ -58,7 +58,7 @@ TEST_F(LPCInterpreterTest, int64_LargeNegative) {
     
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(prog, findstring("test"), &index, &fio, &vio);
+    program_t* found_prog = find_function(prog, findstring("test", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return expected program.";
     int runtime_index = found_prog->function_table[index].runtime_index;
 
@@ -80,7 +80,7 @@ TEST_F(LPCInterpreterTest, int64_Arithmetic) {
     // Test addition
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(prog, findstring("test_add"), &index, &fio, &vio);
+    program_t* found_prog = find_function(prog, findstring("test_add", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return expected program.";
     int runtime_index = found_prog->function_table[index].runtime_index;
 
@@ -90,7 +90,7 @@ TEST_F(LPCInterpreterTest, int64_Arithmetic) {
     EXPECT_EQ(ret.u.number, 2147483649LL) << "Expected 2147483647 + 2 = 2147483649.";
     
     // Test multiplication
-    found_prog = find_function(prog, findstring("test_mult"), &index, &fio, &vio);
+    found_prog = find_function(prog, findstring("test_mult", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return expected program.";
     runtime_index = found_prog->function_table[index].runtime_index;
 
@@ -111,7 +111,7 @@ TEST_F(LPCInterpreterTest, int64_MaxValue) {
     
     int index, fio, vio;
     svalue_t ret;
-    program_t* found_prog = find_function(prog, findstring("test"), &index, &fio, &vio);
+    program_t* found_prog = find_function(prog, findstring("test", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return expected program.";
     int runtime_index = found_prog->function_table[index].runtime_index;
 

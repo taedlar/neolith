@@ -165,7 +165,7 @@ program_t *find_function (program_t * prog, const char *name, int *index, int *f
 }
 
 static program_t *find_function_by_name2 (object_t * ob, char **name, int *index, int *fio, int *vio) {
-  *name = findstring (*name); /* shared string */
+  *name = findstring(*name, NULL); /* shared string */
 
   if (!*name)
     return 0;
@@ -371,7 +371,7 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
           entry->name = sfun;
         }
       else
-        entry->name = make_shared_string (fun);
+        entry->name = make_shared_string(fun, NULL);
       entry->progp = (program_t *) 0;
     }
 
@@ -550,7 +550,7 @@ static program_t *ffbn_recurse (program_t * prog, char *name, int *index, int *r
 
 static program_t *find_function_by_name (object_t * ob, const char *name, int *index, int *runtime_index)
 {
-  char *funname = findstring (name);
+  char *funname = findstring(name, NULL);
 
   if (!funname)
     return 0;

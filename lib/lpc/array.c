@@ -1455,7 +1455,7 @@ static svalue_t* alist_sort (array_t * inlist) {
             }
           else if ((tmp->type == T_STRING) && !(tmp->subtype == STRING_SHARED))
             {
-              sv_tab[j].u.string = make_shared_string (tmp->u.string);
+              sv_tab[j].u.string = make_shared_string(tmp->u.string, NULL);
               (tmp = sv_tab + j)->subtype = STRING_SHARED;
               tmp->type = T_STRING;
             }
@@ -1491,7 +1491,7 @@ static svalue_t* alist_sort (array_t * inlist) {
             }
           else if ((tmp->type == T_STRING) && !(tmp->subtype == STRING_SHARED))
             {
-              str = make_shared_string (tmp->u.string);
+              str = make_shared_string(tmp->u.string, NULL);
               free_string_svalue (tmp);
               tmp->u.string = str;
               tmp->subtype = STRING_SHARED;
@@ -1580,7 +1580,7 @@ array_t* subtract_array (array_t * minuend, array_t * subtrahend) {
         {
           svalue_t stmp = { .type = T_STRING, STRING_SHARED };
 
-          if (!(stmp.u.string = findstring (source->u.string)))
+          if (!(stmp.u.string = findstring(source->u.string, NULL)))
             {
               assign_svalue_no_free (dest++, source);
               continue;
@@ -1683,7 +1683,7 @@ intersect_array (array_t * a1, array_t * a2)
           else if ((tmp->type == T_STRING)
                    && !(tmp->subtype == STRING_SHARED))
             {
-              sv_tab[j].u.string = make_shared_string (tmp->u.string);
+              sv_tab[j].u.string = make_shared_string(tmp->u.string, NULL);
               (tmp = sv_tab + j)->subtype = STRING_SHARED;
               tmp->type = T_STRING;
             }
@@ -1723,7 +1723,7 @@ intersect_array (array_t * a1, array_t * a2)
           else if ((tmp->type == T_STRING)
                    && !(tmp->subtype == STRING_SHARED))
             {
-              str = make_shared_string (tmp->u.string);
+              str = make_shared_string(tmp->u.string, NULL);
               free_string_svalue (tmp);
               tmp->u.string = str;
               tmp->subtype = STRING_SHARED;

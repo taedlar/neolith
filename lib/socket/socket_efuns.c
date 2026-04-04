@@ -320,7 +320,7 @@ int check_valid_socket (char *what, socket_fd_t fd, object_t * owner, char *addr
   assign_socket_owner (&info->item[1], owner);
   info->item[2].type = T_STRING;
   info->item[2].subtype = STRING_SHARED;
-  info->item[2].u.string = make_shared_string (addr);
+  info->item[2].u.string = make_shared_string(addr, NULL);
   info->item[3].type = T_NUMBER;
   info->item[3].u.number = port;
 
@@ -620,7 +620,7 @@ void set_read_callback (int which, svalue_t * cb) {
       else
         {
           lpc_socks[which].read_callback.s =
-            make_shared_string (cb->u.string);
+            make_shared_string(cb->u.string, NULL);
         }
     }
   else
@@ -650,7 +650,7 @@ void set_write_callback (int which, svalue_t * cb) {
       else
         {
           lpc_socks[which].write_callback.s =
-            make_shared_string (cb->u.string);
+            make_shared_string(cb->u.string, NULL);
         }
     }
   else
@@ -680,7 +680,7 @@ void set_close_callback (int which, svalue_t * cb) {
       else
         {
           lpc_socks[which].close_callback.s =
-            make_shared_string (cb->u.string);
+            make_shared_string(cb->u.string, NULL);
         }
     }
   else

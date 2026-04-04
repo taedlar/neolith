@@ -687,7 +687,7 @@ f_traceprefix (void)
       if (sp->type & T_STRING)
         {
           command_giver->interactive->trace_prefix =
-            make_shared_string (sp->u.string);
+            make_shared_string(sp->u.string, NULL);
           free_string_svalue (sp);
         }
       else

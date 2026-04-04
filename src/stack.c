@@ -116,7 +116,7 @@ void share_and_push_string (const char *p) {
   CHECK_AND_PUSH(1);
   sp->type = T_STRING;
   sp->subtype = STRING_SHARED;
-  sp->u.string = make_shared_string (p);
+  sp->u.string = make_shared_string(p, NULL);
 }
 
 void push_some_svalues (svalue_t * v, int num) {

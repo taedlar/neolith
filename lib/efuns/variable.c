@@ -103,7 +103,7 @@ fv_recurse (array_t * arr, int *idx, program_t * prog, int type, uint64_t flag)
           get_type_name (buf, end, prog->variable_types[i]);
           subarr->item[1].type = T_STRING;
           subarr->item[1].subtype = STRING_SHARED;
-          subarr->item[1].u.string = make_shared_string (buf);
+          subarr->item[1].u.string = make_shared_string(buf, NULL);
         }
       else
         {

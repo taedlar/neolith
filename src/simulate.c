@@ -2025,12 +2025,12 @@ int user_parser (char *buff) {
   p = strchr (buff, ' ');
   if (p == 0)
     {
-      user_verb = findstring (buff);
+      user_verb = findstring(buff, NULL);
     }
   else
     {
       *p = '\0';
-      user_verb = findstring (buff);
+      user_verb = findstring(buff, NULL);
       *p = ' ';
       length = p - buff;
     }
@@ -2228,7 +2228,7 @@ void add_action (svalue_t * str, char *cmd, int flag, int num_carry, svalue_t *c
   p = alloc_sentence ();
   if (str->type == T_STRING)
     {
-      p->function.s = make_shared_string (str->u.string);
+      p->function.s = make_shared_string(str->u.string, NULL);
       p->flags = flag;
     }
   else
@@ -2239,7 +2239,7 @@ void add_action (svalue_t * str, char *cmd, int flag, int num_carry, svalue_t *c
     }
   p->ob = ob;
   add_ref (ob, "add_action");
-  p->verb = make_shared_string (cmd);
+  p->verb = make_shared_string(cmd, NULL);
 
   /* Store carryover args in sentence */
   if (num_carry > 0)

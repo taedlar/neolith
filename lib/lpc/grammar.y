@@ -296,7 +296,7 @@ def
         '(' argument ')'
         {
             char *p = $3;
-            $3 = make_shared_string($3);
+            $3 = make_shared_string($3, NULL);
             scratch_free(p);
 
             /* (If we had nested functions, we would need to check

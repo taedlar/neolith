@@ -53,13 +53,13 @@ TEST_F(StackMachineTest, pushValueAlloc) {
     ASSERT_EQ(sp->type, T_STRING);
     ASSERT_STREQ(sp->u.string, "dynamic string");
     ASSERT_EQ(sp->subtype, STRING_MALLOC);
-    EXPECT_FALSE(findstring("dynamic string")); // a private malloced string, not shared
+    EXPECT_FALSE(findstring("dynamic string", NULL)); // a private malloced string, not shared
 
     share_and_push_string("shared string");
     ASSERT_EQ(sp->type, T_STRING);
     ASSERT_STREQ(sp->u.string, "shared string");
     ASSERT_EQ(sp->subtype, STRING_SHARED);
-    EXPECT_TRUE(findstring("shared string")); // a shared string
+    EXPECT_TRUE(findstring("shared string", NULL)); // a shared string
 
     share_and_push_string("shared string");
     ASSERT_EQ(sp->type, T_STRING);

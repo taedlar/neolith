@@ -595,7 +595,7 @@ program_t *load_binary (const char *name) {
       return OUT_OF_DATE;
     }
   locate_in (p);		/* from swap.c */
-  p->name = make_shared_string (name);
+  p->name = make_shared_string(name, NULL);
   opt_trace (TT_COMPILE|3, "loaded program structure ok. size = %zu bytes.", len);
 
   /*
@@ -669,7 +669,7 @@ program_t *load_binary (const char *name) {
           if (fread (buf, sizeof (char), len, f) == len)
             {
               buf[len] = '\0';
-              p->strings[i] = make_shared_string (buf);
+              p->strings[i] = make_shared_string(buf, NULL);
               continue;
             }
         }
@@ -699,7 +699,7 @@ program_t *load_binary (const char *name) {
           if (fread (buf, sizeof (char), len, f) == len)
             {
               buf[len] = '\0';
-              p->variable_table[i] = make_shared_string (buf);
+              p->variable_table[i] = make_shared_string(buf, NULL);
               continue;
             }
         }
@@ -734,7 +734,7 @@ program_t *load_binary (const char *name) {
           if (fread (buf, sizeof (char), len, f) == len)
             {
               buf[len] = '\0';
-              p->function_table[i].name = make_shared_string (buf);
+              p->function_table[i].name = make_shared_string(buf, NULL);
               continue;
             }
         }

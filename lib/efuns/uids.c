@@ -150,7 +150,7 @@ userid_t *add_uid (const char *name) {
   userid_t *uid, t_uid;
   char *sname;
 
-  sname = make_shared_string (name);
+  sname = make_shared_string(name, NULL);
   t_uid.name = sname;
   if ((uid = (userid_t *) tree_srch (uids, uidcmp, (char *) &t_uid)))
     {
@@ -174,7 +174,7 @@ set_root_uid (char *name)
   tree_delete (&uids, uidcmp, (char *) root_uid, NULL);
   if (root_uid->name)
     free_string (root_uid->name);
-  root_uid->name = make_shared_string (name);
+  root_uid->name = make_shared_string(name, NULL);
   tree_add (&uids, uidcmp, (char *) root_uid, NULL);
   return root_uid;
 }
@@ -188,7 +188,7 @@ set_backbone_uid (char *name)
   tree_delete (&uids, uidcmp, (char *) backbone_uid, NULL);
   if (backbone_uid->name)
     free_string (backbone_uid->name);
-  backbone_uid->name = make_shared_string (name);
+  backbone_uid->name = make_shared_string(name, NULL);
   tree_add (&uids, uidcmp, (char *) backbone_uid, NULL);
   return backbone_uid;
 }

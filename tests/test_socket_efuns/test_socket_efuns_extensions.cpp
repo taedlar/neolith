@@ -176,10 +176,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_001_ConnectTracksOperationLifecycle) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -228,10 +228,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_002_BadAddressDoesNotStartOperation) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -273,10 +273,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_003_CloseClearsOperationAndDuplicateTerm
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -329,10 +329,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_001_NumericConnectBaselineUnchanged) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -381,10 +381,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_MalformedHostnameEndpointRejected) 
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -428,10 +428,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -490,10 +490,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   for (int i = 0; i < OWNER_COUNT; i++) {
     std::string owner_name = "test_socket_dns_owner_" + std::to_string(i) + ".c";
@@ -560,10 +560,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   /* Create TEST_LIMIT sockets all owned by master_ob */
   for (int i = 0; i < TEST_LIMIT; i++) {
@@ -626,10 +626,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -682,10 +682,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd_a = socket_create(STREAM, &read_cb, NULL);
   fd_b = socket_create(STREAM, &read_cb, NULL);
@@ -741,10 +741,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlockin
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   slow_fd = socket_create(STREAM, &read_cb, NULL);
   fast_fd = socket_create(STREAM, &read_cb, NULL);
@@ -817,10 +817,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   for (int i = 0; i < 24; i++) {
     int fd = socket_create(STREAM, &read_cb, NULL);
@@ -876,7 +876,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -920,10 +920,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback");
+  write_cb.u.string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -970,7 +970,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_003_RuntimeRegistrationStress_NoLeaks) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback");
+  read_cb.u.string = make_shared_string("read_callback", NULL);
 
   baseline_registrations = get_socket_runtime_registration_count();
   ASSERT_GE(baseline_registrations, 0);

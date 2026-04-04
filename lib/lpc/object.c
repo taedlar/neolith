@@ -1404,7 +1404,7 @@ static int fgv_recurse (program_t * prog, int *idx, char *name, unsigned short *
 
 int find_global_variable (program_t * prog, char *name, unsigned short *type) {
   int idx = 0;
-  char *str = findstring (name);
+  char *str = findstring(name, NULL);
 
   if (str && fgv_recurse (prog, &idx, str, type))
     {
@@ -1982,7 +1982,7 @@ object_t **hashed_living;
 static int num_living_names, num_searches = 1, search_length = 1;
 
 static int hash_living_name (char *str) {
-  return whashstr (str, 20) % CONFIG_INT (__LIVING_HASH_TABLE_SIZE__);
+  return whashstr (str, NULL, 20) % CONFIG_INT (__LIVING_HASH_TABLE_SIZE__);
 }
 
 object_t* find_living_object (char *str, int user) {
@@ -2033,7 +2033,7 @@ void set_living_name (object_t * ob, char *str) {
   hl = &hashed_living[hash_living_name (str)];
   ob->next_hashed_living = *hl;
   *hl = ob;
-  ob->living_name = make_shared_string (str);
+  ob->living_name = make_shared_string(str, NULL);
   return;
 }
 
