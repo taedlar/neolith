@@ -174,7 +174,7 @@ TEST_F(StringOperatorsTest, AddLeftViaLenWithEmbeddedNul) {
     // Result should be "A\0BEnd" (6 bytes)
     ASSERT_EQ(memcmp(result, "A\0BEnd", 6), 0);
 
-    FREE(MSTR_BLOCK(result));
+    FREE_MSTR(result);
 }
 
 // === SVALUE_STRING_JOIN Tests ===
