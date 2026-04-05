@@ -64,57 +64,71 @@ typedef struct {
 #define CHECK_TYPES(val, t, arg, inst) \
   if (!((val)->type & (t))) bad_argument(val, t, arg, inst);
 
-/* Beek - add some sanity to joining strings */
-/* add to an svalue */
-#define EXTEND_SVALUE_STRING(x, y, z) do {\
-        malloc_str_t ess_res; size_t ess_len; size_t ess_r; \
-        ess_len = (ess_r = SVALUE_STRLEN(x)) + strlen(y); \
-        if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
-                                        ess_res = extend_string((x)->u.string, ess_len); \
-          if (!ess_res) fatal("Out of memory!\n"); \
-          strcpy(ess_res + ess_r, (y)); \
-        } else { \
-          ess_res = new_string(ess_len, z); \
-          strcpy(ess_res, (x)->u.string); \
-          strcpy(ess_res + ess_r, (y)); \
-          free_string_svalue(x); \
-          (x)->subtype = STRING_MALLOC; \
-        } \
-        (x)->u.string = ess_res;\
+/* Append a byte span to an svalue string using explicit source length. */
+#define EXTEND_SVALUE_STRING_LEN(target_sv, src_bytes, src_len, alloc_tag) do {\
+                malloc_str_t ess_res; size_t ess_len; size_t ess_r; \
+                const char *ess_src = (src_bytes); size_t ess_src_len = (src_len); \
+                ess_len = (ess_r = SVALUE_STRLEN(target_sv)) + ess_src_len; \
+                if ((target_sv)->subtype == STRING_MALLOC && MSTR_REF((target_sv)->u.string) == 1) { \
+                        ess_res = extend_string((target_sv)->u.string, ess_len); \
+                        if (!ess_res) fatal("Out of memory!\n"); \
+                        memcpy(ess_res + ess_r, ess_src, ess_src_len); \
+                        ess_res[ess_len] = '\0'; \
+                } else { \
+                        ess_res = new_string(ess_len, alloc_tag); \
+                        memcpy(ess_res, (target_sv)->u.string, ess_r); \
+                        memcpy(ess_res + ess_r, ess_src, ess_src_len); \
+                        ess_res[ess_len] = '\0'; \
+                        free_string_svalue(target_sv); \
+                        (target_sv)->subtype = STRING_MALLOC; \
+                } \
+                (target_sv)->u.string = ess_res;\
         } while(0)
 
-/* <something that needs no free> + string svalue */
-#define SVALUE_STRING_ADD_LEFT(y, z) do {\
-        malloc_str_t pss_res; size_t pss_r; size_t pss_len; \
-        pss_len = SVALUE_STRLEN(sp) + (pss_r = strlen(y)); \
-        pss_res = new_string(pss_len, z); \
-        strcpy(pss_res, y); \
-        strcpy(pss_res + pss_r, sp->u.string); \
-        free_string_svalue(sp--); \
-        sp->type = T_STRING; \
-        sp->u.string = pss_res; \
-        sp->subtype = STRING_MALLOC; \
+/* Compatibility wrapper for NUL-terminated callers. */
+#define EXTEND_SVALUE_STRING(target_sv, cstr_src, alloc_tag) \
+        EXTEND_SVALUE_STRING_LEN((target_sv), (cstr_src), strlen(cstr_src), (alloc_tag))
+
+/* Prepend a byte span to the stack-top string value using explicit length. */
+#define SVALUE_STRING_ADD_LEFT_LEN(prefix_bytes, prefix_len, alloc_tag) do {\
+                malloc_str_t pss_res; size_t pss_r; size_t pss_len; \
+                const char *pss_src = (prefix_bytes); \
+                pss_len = SVALUE_STRLEN(sp) + (pss_r = (prefix_len)); \
+                pss_res = new_string(pss_len, alloc_tag); \
+                memcpy(pss_res, pss_src, pss_r); \
+                memcpy(pss_res + pss_r, sp->u.string, SVALUE_STRLEN(sp)); \
+                pss_res[pss_len] = '\0'; \
+                free_string_svalue(sp--); \
+                sp->type = T_STRING; \
+                sp->u.string = pss_res; \
+                sp->subtype = STRING_MALLOC; \
         } while(0)
 
-/* basically, string + string; faster than using extend b/c of SVALUE_STRLEN */
-#define SVALUE_STRING_JOIN(x, y, z) do {\
-        malloc_str_t ssj_res; size_t ssj_r; size_t ssj_len; \
-        ssj_r = SVALUE_STRLEN(x); \
-        ssj_len = ssj_r + SVALUE_STRLEN(y); \
-        if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
-            ssj_res = extend_string((x)->u.string, ssj_len); \
-            if (!ssj_res) fatal("Out of memory!\n"); \
-            (void) strcpy(ssj_res + ssj_r, (y)->u.string); \
-            free_string_svalue(y); \
-        } else { \
-                        ssj_res = new_string(ssj_len, z); \
-            strcpy(ssj_res, (x)->u.string); \
-            strcpy(ssj_res + ssj_r, (y)->u.string); \
-            free_string_svalue(y); \
-            free_string_svalue(x); \
-            (x)->subtype = STRING_MALLOC; \
-        } \
-        (x)->u.string = ssj_res; \
+/* Compatibility wrapper for NUL-terminated callers. */
+#define SVALUE_STRING_ADD_LEFT(prefix_cstr, alloc_tag) \
+        SVALUE_STRING_ADD_LEFT_LEN((prefix_cstr), strlen(prefix_cstr), (alloc_tag))
+
+/* Join two svalue strings via counted lengths instead of C-string scans. */
+#define SVALUE_STRING_JOIN(left_sv, right_sv, alloc_tag) do {\
+                malloc_str_t ssj_res; size_t ssj_r; size_t ssj_len; \
+                ssj_r = SVALUE_STRLEN(left_sv); \
+                ssj_len = ssj_r + SVALUE_STRLEN(right_sv); \
+                if ((left_sv)->subtype == STRING_MALLOC && MSTR_REF((left_sv)->u.string) == 1) { \
+                        ssj_res = extend_string((left_sv)->u.string, ssj_len); \
+                        if (!ssj_res) fatal("Out of memory!\n"); \
+                        memcpy(ssj_res + ssj_r, (right_sv)->u.string, SVALUE_STRLEN(right_sv)); \
+                        ssj_res[ssj_len] = '\0'; \
+                        free_string_svalue(right_sv); \
+                } else { \
+                        ssj_res = new_string(ssj_len, alloc_tag); \
+                        memcpy(ssj_res, (left_sv)->u.string, ssj_r); \
+                        memcpy(ssj_res + ssj_r, (right_sv)->u.string, SVALUE_STRLEN(right_sv)); \
+                        ssj_res[ssj_len] = '\0'; \
+                        free_string_svalue(right_sv); \
+                        free_string_svalue(left_sv); \
+                        (left_sv)->subtype = STRING_MALLOC; \
+                } \
+                (left_sv)->u.string = ssj_res; \
         } while(0)
 
 #define STACK_CHECK(n)		do {\

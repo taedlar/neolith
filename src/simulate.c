@@ -901,7 +901,7 @@ static object_t* object_present2 (const char *str, object_t * ob) {
 
           if (*scan == ' ')
             {
-              count = atoi (scan + 1) - 1;
+              count = atoi ((const char*)scan + 1) - 1;
               length = scan - (const unsigned char*)str;
             }
         }
@@ -2328,7 +2328,7 @@ int in_fatal_error() {
   return (proceeding_fatal_error != 0);
 }
 
-void fatal (char *fmt, ...) {
+void fatal (const char *fmt, ...) {
   char *msg = "(error message buffer cannot be allocated)";
   va_list args;
 

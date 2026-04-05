@@ -175,10 +175,16 @@ void f_eq () {
 
     case T_STRING:
       {
+        size_t lhs_len;
+
         if (SVALUE_STRLEN_DIFFERS (sp - 1, sp))
           i = 0;
         else
-          i = !strcmp ((sp - 1)->u.string, sp->u.string);
+          {
+            lhs_len = SVALUE_STRLEN (sp - 1);
+            i = (lhs_len == 0)
+                || (memcmp ((sp - 1)->u.string, sp->u.string, lhs_len) == 0);
+          }
         free_string_svalue (sp--);
         free_string_svalue (sp);
         break;
@@ -551,10 +557,16 @@ void f_ne () {
 
     case T_STRING:
       {
+        size_t lhs_len;
+
         if (SVALUE_STRLEN_DIFFERS (sp - 1, sp))
           i = 1;
         else
-          i = !!strcmp ((sp - 1)->u.string, sp->u.string);
+          {
+            lhs_len = SVALUE_STRLEN (sp - 1);
+            i = (lhs_len != 0)
+                && (memcmp ((sp - 1)->u.string, sp->u.string, lhs_len) != 0);
+          }
         free_string_svalue (sp--);
         free_string_svalue (sp);
         break;
@@ -657,18 +669,19 @@ void f_range (int code) {
             return;
           }
 
-        if (to >= len - 1)
-          {
-            put_malloced_string (string_copy (res + from, "f_range"));
-          }
-        else
-          {
-            char *tmp;
-            tmp = new_string (to - from + 1, "f_range");
-            strncpy (tmp, res + from, to - from + 1);
-            tmp[to - from + 1] = '\0';
-            put_malloced_string (tmp);
-          }
+        {
+          size_t out_len;
+          malloc_str_t tmp;
+
+          if (to >= len)
+            to = len - 1;
+
+          out_len = (size_t)(to - from + 1);
+          tmp = new_string (out_len, "f_range");
+          memcpy (tmp, res + from, out_len);
+          tmp[out_len] = '\0';
+          put_malloced_string (tmp);
+        }
         free_string_svalue (sp + 2);
         break;
       }
