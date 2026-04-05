@@ -176,12 +176,15 @@ void f_eq () {
     case T_STRING:
       {
         size_t lhs_len;
+        size_t rhs_len;
 
-        if (SVALUE_STRLEN_DIFFERS (sp - 1, sp))
+        lhs_len = SVALUE_STRLEN (sp - 1);
+        rhs_len = SVALUE_STRLEN (sp);
+
+        if (lhs_len != rhs_len)
           i = 0;
         else
           {
-            lhs_len = SVALUE_STRLEN (sp - 1);
             i = (lhs_len == 0)
                 || (memcmp ((sp - 1)->u.string, sp->u.string, lhs_len) == 0);
           }
@@ -558,12 +561,15 @@ void f_ne () {
     case T_STRING:
       {
         size_t lhs_len;
+        size_t rhs_len;
 
-        if (SVALUE_STRLEN_DIFFERS (sp - 1, sp))
+        lhs_len = SVALUE_STRLEN (sp - 1);
+        rhs_len = SVALUE_STRLEN (sp);
+
+        if (lhs_len != rhs_len)
           i = 1;
         else
           {
-            lhs_len = SVALUE_STRLEN (sp - 1);
             i = (lhs_len != 0)
                 && (memcmp ((sp - 1)->u.string, sp->u.string, lhs_len) != 0);
           }

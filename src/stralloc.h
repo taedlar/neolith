@@ -114,10 +114,14 @@ typedef struct malloc_block_s {
                           COUNTED_STRLEN((x)->u.string) : \
                           strlen((x)->u.string))
 
-/* For quick checks on string lengths without scanning for NUL bytes */
+/*
+ * Compare two svalue string lengths.
+ * - Counted/counting pairs use counted logical lengths (handles blkend long strings).
+ * - Any path involving STRING_CONSTANT falls back to SVALUE_STRLEN(), which uses strlen.
+ */
 #define SVALUE_STRLEN_DIFFERS(x, y) ((((x)->subtype & STRING_COUNTED) && ((y)->subtype & STRING_COUNTED)) \
-        ? COUNTED_STRLEN((x)->u.string) != COUNTED_STRLEN((y)->u.string) \
-        : 0)
+        ? (COUNTED_STRLEN((x)->u.string) != COUNTED_STRLEN((y)->u.string)) \
+        : (SVALUE_STRLEN(x) != SVALUE_STRLEN(y)))
 
 extern void init_strings(size_t hash_size, size_t max_len);
 extern void deinit_strings();

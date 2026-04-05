@@ -53,6 +53,7 @@ As of 2026-04-05:
 - Identifier-class shared strings remain NUL-terminated by contract.
 - This includes function names, variable names, and predefines.
 - `u.string` remains available as a generic view; typed members supplement it.
+- When migrating functions or macros that process `svalue_t`, always validate all runtime string semantics: `STRING_MALLOC`, `STRING_SHARED`, `STRING_CONSTANT`.
 
 ## Counted-String Contract and Type Safety
 
