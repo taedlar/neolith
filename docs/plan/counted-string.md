@@ -1,110 +1,91 @@
 # Counted and Shared String Length Representation
 
-Consolidates the length-storage change to `malloc_block_t`, its invariants, and a
-catalogue of paths that still depend on NUL termination. < 300 words.
-
 ## Summary
 
-The `unused` pointer field in `malloc_block_t` was renamed to `blkend` and given
-meaning: when `size == USHRT_MAX` (the sentinel value for strings longer than 65534
-bytes), `blkend` points one byte past the end of the string payload. This makes
-`COUNTED_STRLEN` O(1) for all counted strings and removes the last remaining
-`strlen` scan inside the counted-string fast path.
+This plan tracks migration from implicit C-string behavior to explicit byte-span
+semantics for LPC runtime strings while preserving compatibility constraints.
 
-A complementary invariant is enforced: **STRING_SHARED strings are capped at
-USHRT_MAX − 1 bytes** at allocation time (`alloc_new_string`, `make_shared_string`).
-This keeps the `size == USHRT_MAX` sentinel exclusive to STRING_MALLOC, so generic
-counted-string macros do not need to branch on subtype to decide whether `blkend` is
-valid.
+Completed foundation work:
 
-Shared-string table lookup is now length-aware and no longer depends on NUL
-termination. `sfindblock()` compares by `(SIZE == len && memcmp(...))`, hashing uses
-`whashstr(s, end, ...)` through `StrHashN`, and lookup/insert APIs
-(`findstring`, `make_shared_string`) avoid temporary NUL-terminated copies.
+- `malloc_block_t.unused` was replaced with `blkend`, enabling O(1)
+  `COUNTED_STRLEN` even when `size == USHRT_MAX`.
+- `STRING_SHARED` allocation is capped at `USHRT_MAX - 1`, so sentinel
+  `size == USHRT_MAX` remains exclusive to `STRING_MALLOC`.
+- Shared-string table lookup/insert is length-aware (`StrHashN`, `findblockn`,
+  `make_shared_string(s,end)`, `findstring(s,end)`), so intern/find no longer
+  depends on temporary NUL-terminated copies.
+
+Remaining work is implementation and validation: remove NUL-dependent VM/efun
+paths, enforce typed counted-string boundaries, and harden JSON boundary behavior.
 
 ## Status
 
 | Stage | Status |
 |---|---|
-| Rename `unused` → `blkend`, wire on all malloc create/resize/unlink paths | complete |
-| `COUNTED_STRLEN` O(1) long-string path via `blkend` | complete |
-| Shared-string length cap below USHRT_MAX | complete |
-| Shared-string table supports non-NUL-terminated keys (`StrHashN`/`findblockn`) | complete |
-| Unit tests for all blkend paths | complete |
-| `STRING_TYPE_SAFETY` cmake option: typed aliases + always-on runtime guards | complete |
+| Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
+| Implementation: VM/operator NUL-removal and span API normalization | in progress |
+| Implementation: abstract typed handles + runtime contract enforcement | not started |
+| Implementation: C++ RAII wrapper + exception boundary migration | not started |
+| Implementation: efun byte-span readiness | not started |
+| Implementation: JSON boundary contract and tests | in progress |
+| Validation: end-to-end LPC/JSON regression matrix | not started |
 
-## Rationale
+## Current State Handoff
 
-Before this change the only way to recover the length of a counted string longer than
-65534 bytes was `strlen(str + USHRT_MAX) + USHRT_MAX` — a full scan past the first
-65535 bytes every time. The `blkend` field turns that into a two-pointer subtraction
-kept consistent by every allocation and resize path.
+As of 2026-04-05:
 
-## Header-backed `char *` contracts and type safety
+- Core counted/shared length representation changes are complete and tested.
+- Planning scope is now narrowed to one consolidated backlog with acceptance criteria.
+- Next implementation start should be P0 VM/operator and helper API work,
+  followed by typed-handle enforcement.
+- `int_alloc_cstring` remains intentionally outside counted-string semantics.
 
-A raw `char *` carries no runtime tag indicating whether it points to a
-`STRING_SHARED` or `STRING_MALLOC` payload. The decision is made from one of two
-sources:
+## Design Constraints (Canonical)
 
-1. `svalue_t.subtype` (`STRING_MALLOC`, `STRING_SHARED`, `STRING_COUNTED`,
-   `STRING_HASHED`) for generic runtime paths that branch before touching a
-   block header.
-2. Function contract and pointer provenance for the small set of public
-   functions that take a typed bare `char *`.
+- LPC runtime string semantics are byte-sequence semantics, not JSON text semantics.
+- JSON semantics are enforced only at JSON boundaries.
+- `from_json` validates UTF-8 at runtime before constructing LPC strings.
+- Identifier-class shared strings remain NUL-terminated by contract.
+- This includes function names, variable names, and predefines.
+- `u.string` remains available as a generic view; typed members supplement it.
 
-### Contract-bearing functions
+## Counted-String Contract and Type Safety
 
-| Function | Expected pointer kind | Access pattern |
-|---|---|---|
-| `ref_string(shared_str_t)` | `STRING_SHARED` payload | Uses `BLOCK(str)`, verifies via `findblockn` |
-| `free_string(shared_str_t)` | `STRING_SHARED` payload | Uses `BLOCK(str)`, removes from shared table |
-| `extend_string(malloc_str_t, size_t)` | `STRING_MALLOC` payload | Reallocates from `MSTR_BLOCK(str)` |
-| `push_shared_string(char *)` | `STRING_SHARED` payload | Delegates to `ref_string()` |
-| `push_malloced_string(char *)` | `STRING_MALLOC` payload | Sets svalue subtype to `STRING_MALLOC` |
+Type/source of truth for counted-string contract:
 
-Constructor and plain C-string functions (`make_shared_string`, `findstring`,
-`int_new_string`, `int_string_copy`, `int_alloc_cstring`) accept ordinary
-C strings or return typed pointers by construction and are not part of this
-contract.
+1. `svalue_t.subtype` for generic runtime paths.
+2. Function boundary contract for typed pointer parameters.
 
-### Type-safety hardening (`STRING_TYPE_SAFETY`)
+Contract-bearing boundary functions:
 
-The `STRING_TYPE_SAFETY` cmake option (default: ON) adds two layers of hardening.
+| Function | Contract |
+|---|---|
+| `ref_string(shared_str_t)` / `free_string(shared_str_t)` | requires shared payload |
+| `extend_string(malloc_str_t, size_t)` | requires malloc payload |
+| `push_shared_string(shared_str_t)` / `push_malloced_string(malloc_str_t)` | subtype-specific storage boundaries |
 
-**Layer 1 — typed aliases.**  `stralloc.h` exports `shared_str_t` and
-`malloc_str_t` as transparent `typedef char *` aliases.  Function signatures
-for the contract-bearing functions use these types so intent is visible at
-every declaration site.  Because the typedefs are transparent in all build
-modes, no existing call sites require changes and there is no runtime overhead.
+These boundary signatures are now type-specific end to end; the remaining hardening
+work is abstract-handle mode and expanded typed-member write coverage.
 
-**Layer 2 — always-on runtime guards.**  Under `STRING_TYPE_SAFETY`, `extend_string`
-and `int_string_unlink` check their pointer contract even in NDEBUG/release
-builds — not only via debug-mode `assert`.  A ref count of 0 on entry to either
-function (indicating an immortal `STRING_SHARED` or freed pointer) triggers
-`debug_fatal` + `abort`.
+`STRING_TYPE_SAFETY` behavior:
 
-### Path to full compile-time enforcement (TODO)
+- Layer 1: typed aliases in signatures (`shared_str_t`, `malloc_str_t`).
+- Layer 2: always-on runtime contract checks for `extend_string` and
+  `int_string_unlink` in release builds.
 
-When `STRING_TYPE_SAFETY` is defined, `shared_str_t` and `malloc_str_t` will
-become opaque struct pointer types, turning contract violations at boundary
-functions into hard compile errors.  Currently they remain transparent
-`typedef char *` aliases; the migration must happen before the opaque form can
-be enabled.
+## Planned Abstract Handle Migration
 
-**Mechanical change to `stralloc.h`** — replace the transparent aliases with
-forward-declared opaque pointer types, gated on `STRING_TYPE_SAFETY`:
+Target: when `STRING_TYPE_SAFETY` is enabled, switch from transparent aliases to
+abstract handle typedefs plus explicit bridge macros.
 
 ```c
 #ifdef STRING_TYPE_SAFETY
-  struct _shared_str_opaque;
-  struct _malloc_str_opaque;
-  typedef struct _shared_str_opaque *shared_str_t;
-  typedef struct _malloc_str_opaque *malloc_str_t;
-  /* Escape hatches for call sites that genuinely need a raw char * */
-  #define SHARED_STR_P(x)  ((char *)(x))
-  #define MALLOC_STR_P(x)  ((char *)(x))
-  #define TO_SHARED_STR(x) ((shared_str_t)(x))
-  #define TO_MALLOC_STR(x) ((malloc_str_t)(x))
+  typedef struct { char *raw; } shared_str_t;
+  typedef struct { char *raw; } malloc_str_t;
+  #define SHARED_STR_P(x)  ((x).raw)
+  #define MALLOC_STR_P(x)  ((x).raw)
+  #define TO_SHARED_STR(x) ((shared_str_t){ .raw = (x) })
+  #define TO_MALLOC_STR(x) ((malloc_str_t){ .raw = (x) })
 #else
   typedef char *shared_str_t;
   typedef char *malloc_str_t;
@@ -115,126 +96,51 @@ forward-declared opaque pointer types, gated on `STRING_TYPE_SAFETY`:
 #endif
 ```
 
-`svalue_u` gets two typed members alongside `u.string`:
+Migration order:
 
-```c
-union svalue_u {
-    char        *string;        /* generic / STRING_CONSTANT access */
-    shared_str_t shared_string; /* STRING_SHARED payload */
-    malloc_str_t malloc_string; /* STRING_MALLOC payload */
-    ...
-};
-```
+1. `stralloc.h`/`stralloc.c` handle typedef + macros.
+2. Add typed members in `svalue_u` alongside `u.string`.
+3. Convert subtype-specific storage boundaries first.
+4. Expand to efun write sites where subtype is known.
+5. Leave generic read-only paths on `u.string` until separate NUL-path migration.
 
-With opaque types these three are distinct to the compiler even though they
-occupy the same storage.  Code that knows the subtype can use the typed member
-for a free compile-time assertion; generic code continues using `u.string`.
+## C++ Wrapper and Exception Migration
 
-**Migration order** — work from the smallest boundary outward.
+- Keep `svalue_t`/`svalue_u` as C-layout POD in C-visible headers.
+- Add C++ wrappers:
+- `BorrowedValue` (non-owning view over `svalue_t *`) and `OwnedValue` (RAII owner).
+- No exception may cross `extern "C"` boundaries.
+- Move/dtor paths for wrappers must be `noexcept`.
+- `BorrowedValue` must be allocation-free in hot interpreter paths.
 
-1. `stralloc.h` / `stralloc.c` — make typedefs opaque, wire cast macros
-   throughout, verify `STRING_TYPE_SAFETY=ON` build.
-2. `svalue_u` — add `shared_string` / `malloc_string` members; no callers
-   change yet.
-3. Boundary storage sites — use typed members in subtype-specific assignments:
-   - `push_shared_string` / `push_malloced_string` in [src/stack.c](../../src/stack.c)
-   - `free_string_svalue` / `unlink_string_svalue` shared and malloc branches
-     in [src/stralloc.c](../../src/stralloc.c)
-   - The `EXTEND_SVALUE_STRING` / `SVALUE_STRING_JOIN` macros in
-     [src/interpret.h](../../src/interpret.h) (already gate on
-     `subtype == STRING_MALLOC`)
-4. High-traffic efun sites — migrate `u.string` writes to typed members where
-   the subtype is already known at the assignment point.
-5. Generic read sites (`strcmp`, output, NUL-reliant paths) — keep `u.string`;
-   these are catalogued in the NUL-termination section and are a separate future
-   concern.
+## Consolidated Backlog with Acceptance Criteria
 
-**Key constraint**: `u.string` must remain available as the generic view because
-many legitimate call sites do not know the subtype (comparisons, tracing, output).
-The typed members supplement it; they do not replace it.
+| Priority | Item | Scope | Acceptance criteria |
+|---|---|---|---|
+| P0 | Remove NUL-dependent VM/operator paths | [lib/lpc/operator.c](../../lib/lpc/operator.c), [src/interpret.h](../../src/interpret.h) | No `strlen`/`strcpy` in touched concat/join paths; touched code uses explicit length/span forms; no behavior change for normal (non-embedded-NUL) strings. |
+| P0 | Normalize internal helper APIs | string construction/lookup boundaries | New/updated helpers accept explicit lengths/spans; touched callers stop using sentinel termination as logical length; shared-string boundaries continue to route via `make_shared_string(s,end)` / `findstring(s,end)`. |
+| P0 | Enforce counted-string semantic boundaries | [src/stralloc.h](../../src/stralloc.h), [lib/lpc/types.h](../../lib/lpc/types.h), typed-string boundaries | Abstract handle mode enabled under `STRING_TYPE_SAFETY`; boundary APIs require explicit typed handles or bridge macros; runtime contract checks remain release-enabled; identifier-class shared strings remain NUL-terminated. |
+| P1 | C++ wrapper and exception boundaries | C++ boundaries around `svalue_t` | `BorrowedValue`/`OwnedValue` introduced without C ABI layout change; all `extern "C"` entry points catch/translate exceptions; wrapper move/dtor are `noexcept`; targeted perf checks show no hot-path regression. |
+| P1 | Efun byte-span readiness | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Touched binary-sensitive efun paths use explicit lengths; text-oriented paths explicitly document C-string assumptions; existing efun tests remain green. |
+| P1 | JSON boundary contract | JSON efuns/helpers (`from_json`, `to_json`) | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 consistently; `to_json` escaping policy documented and tested. |
+| P1 | Unicode and escape consistency | JSON encode/decode implementation | Encoder/decoder are symmetric for control escapes, `\\`, `\"`, `\uXXXX`, and surrogate pairs; non-BMP behavior documented and validated. |
+| P2 | End-to-end regression matrix | LPC-level and efun/unit tests | Add round-trip/negative tests for embedded `\0`, control bytes, invalid UTF-8, astral code points, mixed escapes, and JSON validation failures; CI passes with new coverage. |
 
-## Paths still relying on NUL termination
+## Remaining NUL-Dependent Paths (Index)
 
-These are partially addressed. Shared-string table lookup/insert now supports
-non-NUL-terminated keys, but end-to-end runtime behavior is still NUL-dependent in
-many VM and efun paths.
-
-### Shared-string table (updated)
-| Location | Reason |
-|---|---|
-| [src/stralloc.c `sfindblock`](../../src/stralloc.c) | Addressed: length-aware compare via `SIZE` + `memcmp`. |
-| [src/stralloc.c `findstring` / `make_shared_string`](../../src/stralloc.c) | Addressed: span-aware lookup (`const char *s, const char *end`) without temporary NUL copy. |
-| [src/stralloc.c trace logs](../../src/stralloc.c) | Updated: tracing now prints pointer addresses (`%p`) instead of `%s` to avoid truncation/over-read on non-NUL payloads. |
-
-### Malloc string creation and copy
-| Location | Reason |
-|---|---|
-| [src/stralloc.c `int_string_copy`](../../src/stralloc.c) | Measures source with `strlen`. |
-| [src/stralloc.c `int_alloc_cstring`](../../src/stralloc.c) | Plain `strdup`-equivalent; no block header. |
-| [src/stralloc.c `unlink_string_svalue` STRING_SHARED branch](../../src/stralloc.c) | Uses `strncpy`; this is still NUL-sensitive and can lose bytes after embedded `\0`. |
-
-## TODO: Non-NUL string flow from LPC operators and efuns
-
-The shared-string table can now intern and find byte spans with embedded NUL, but
-LPC operators and efuns mostly still consume/produce C strings. To make non-NUL
-strings usable from LPC execution paths, add span-aware plumbing in these stages:
-
-1. Operators in [lib/lpc/operator.c](../../lib/lpc/operator.c):
-    - Add/route `(start, end)` spans for substring/concatenation paths instead of
-      relying on `strlen`/`strcpy`.
-    - Ensure empty/non-empty slice constructors preserve explicit lengths.
-2. Interpreter string macros in [src/interpret.h](../../src/interpret.h):
-    - Replace `strlen`/`strcpy` usage in `EXTEND_SVALUE_STRING`,
-      `SVALUE_STRING_ADD_LEFT`, and `SVALUE_STRING_JOIN` with explicit-length copies.
-3. String efuns in [lib/efuns/string.c](../../lib/efuns/string.c) and related efuns:
-    - Introduce length-aware variants internally for compare/search/case operations.
-    - Preserve existing LPC-visible behavior where text semantics are required.
-4. API convergence:
-    - Standardize internal helpers around `(const char *s, size_t len)` or
-      `(start, end)` forms, and call `make_shared_string(s, end)`/`findstring(s, end)`
-      at boundaries.
-5. Tests:
-    - Add LPC-level regression tests that build strings containing embedded `\0`
-      and validate operator + efun behavior matches documented contracts.
-
-### VM string operations
-| Location | Reason |
-|---|---|
-| [src/interpret.h `EXTEND_SVALUE_STRING`](../../src/interpret.h) | Appended C string `y` measured with `strlen`. |
-| [src/interpret.h `SVALUE_STRING_ADD_LEFT`](../../src/interpret.h) | Prefix `y` measured with `strlen`. |
-| [src/interpret.h `SVALUE_STRING_JOIN`](../../src/interpret.h) | Second operand copied with `strcpy`. |
-| [src/stralloc.h `SVALUE_STRLEN`](../../src/stralloc.h) | Falls back to `strlen` for STRING_CONSTANT. |
-
-### String efuns
-| Location | Reason |
-|---|---|
-| [lib/efuns/string.c `f_strcmp`](../../lib/efuns/string.c) | Uses `strcmp`. |
-| [lib/efuns/string.c case-conversion loops](../../lib/efuns/string.c) | Iterates to NUL. |
-| [lib/efuns/unsorted.c member-search](../../lib/efuns/unsorted.c) | Uses `strcmp` for string array lookup. |
-| [lib/efuns/replace_program.c](../../lib/efuns/replace_program.c) | Uses `strlen` on the program name svalue. |
-| [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c) | Iterates `*str` loop to NUL for `%s` column filling. |
-| [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Treats format and input strings as C strings. |
-
-### Driver internals
-| Location | Reason |
-|---|---|
-| [src/apply.c function name lookup](../../src/apply.c) | `strcmp` on function names (shared strings, bounded by identifier length). |
-| [src/comm.c / output paths](../../src/comm.c) | Sends `u.string` directly to network write; relies on NUL or explicit length from `SVALUE_STRLEN`. |
-| [lib/lpc/mapping.c restore path](../../lib/lpc/mapping.c) | Parses saved-object text; string values reconstructed from NUL-terminated C buffers. |
+| Area | Location | Note |
+|---|---|---|
+| VM string ops | [src/interpret.h](../../src/interpret.h) (`EXTEND_SVALUE_STRING`, `SVALUE_STRING_ADD_LEFT`, `SVALUE_STRING_JOIN`) | still uses `strlen`/`strcpy` semantics |
+| Generic length macro | [src/stralloc.h](../../src/stralloc.h) (`SVALUE_STRLEN`) | still falls back to `strlen` for `STRING_CONSTANT` |
+| String efuns | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | text/C-string assumptions remain in several paths |
+| Driver internals | [src/comm.c](../../src/comm.c), [lib/lpc/mapping.c](../../lib/lpc/mapping.c) | output/restore paths still depend on C-string-oriented behavior |
+| Intentional contract | [src/apply.c](../../src/apply.c), [lib/efuns/replace_program.c](../../lib/efuns/replace_program.c) | identifier/text contracts intentionally remain NUL-terminated |
 
 ## Lessons Learned
 
-- Enforcing the size-cap invariant only in the _allocator_ (`alloc_new_string` /
-  `make_shared_string`) is sufficient: callers never see a shared string at the
-  sentinel length.
-- Canonicalizing the truncated key _before_ the hash lookup in `make_shared_string`
-  ensures oversized inputs deduplicate to the same shared block rather than creating
-  a second block that `findstring` can never locate by the original key.
-- The fallback `strlen` path in `COUNTED_STRLEN` (for `blkend == NULL`) is needed
-  for compatibility with older binary caches loaded before the change; it can be
-  removed once binary format is bumped.
-- Transparent `typedef char *` aliases enforce nothing at compile time today; they
-  serve as documentation and as the named migration target for when the typedefs
-  become opaque under `STRING_TYPE_SAFETY`.  The runtime guards (Layer 2) are
-  the primary enforcement mechanism in the interim.  See the TODO migration plan
-  in "Path to full compile-time enforcement" for the staged upgrade checklist.
+- Enforcing shared-size cap at allocation boundaries is sufficient.
+- Canonicalizing oversized shared keys before hash lookup is required for dedupe.
+- `COUNTED_STRLEN` fallback for legacy `blkend == NULL` remains necessary until
+  binary-format bump.
+- Transparent aliases are a staging step; runtime checks are the effective
+  enforcement until abstract handles are enabled.
