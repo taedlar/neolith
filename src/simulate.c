@@ -885,25 +885,24 @@ object_t* object_present (svalue_t * v, object_t * ob) {
 static object_t* object_present2 (const char *str, object_t * ob) {
 
   svalue_t *ret;
-  const char *scan;
   malloc_str_t name;
   size_t count = 0, length;
 
   if ((length = strlen (str)))
     {
-      scan = str + length - 1;
+      const unsigned char* scan = (const unsigned char*)str + length - 1;
       if (isdigit (*scan))
         {
           do
             {
               scan--;
             }
-          while (scan > str && isdigit (*scan));
+          while (scan > (const unsigned char*)str && isdigit (*scan));
 
           if (*scan == ' ')
             {
               count = atoi (scan + 1) - 1;
-              length = scan - str;
+              length = scan - (const unsigned char*)str;
             }
         }
     }
