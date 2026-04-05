@@ -76,7 +76,7 @@ extern int get_machine_state();
 #define MS_MUDLIB_LIMBO         1     /* The mudlib is in limbo, vital objects (master_ob and simul_efun_on) were loaded successfully. */
 #define MS_MUDLIB_INTERACTIVE   2     /* The mudlib is ready for human interactions, master_ob has finished epilog() successfully. */
 
-void fatal(char *, ...) NO_RETURN;
+void fatal(const char* fmt, ...) NO_RETURN;
 int in_fatal_error(void);
 
 void do_shutdown (void) NO_RETURN;

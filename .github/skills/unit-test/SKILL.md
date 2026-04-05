@@ -11,6 +11,7 @@ Unit testing involves writing test cases for individual components of the codeba
 Test patterns:
   - Generic library tests (e.g., [test_logger](tests/test_logger/)) link only needed dependencies
   - Driver component tests link the `stem` object library (all driver code except main.c)
+- `gtest_discover_tests()` is required for per-case discovery in CTest; manual `add_test()` registration can hide individual cases and produce `_NOT_BUILT`-style confusion.
 - For tests that require mudlib access, add a custom command to copy the testing mudlib in [examples/](examples/) to the build directory at POST_BUILD. Pattern:
   ```cmake
   add_custom_command(TARGET test_lpc_compiler POST_BUILD

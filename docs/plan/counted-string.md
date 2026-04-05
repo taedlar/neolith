@@ -15,20 +15,21 @@ Completed foundation work:
   `make_shared_string(s,end)`, `findstring(s,end)`), so intern/find no longer
   depends on temporary NUL-terminated copies.
 
-Remaining work is implementation and validation: remove NUL-dependent VM/efun
-paths, enforce typed counted-string boundaries, and harden JSON boundary behavior.
+Remaining work is implementation and validation focused on typed counted-string
+boundaries, efun byte-span hardening, JSON boundary behavior, and expanded
+regression coverage.
 
 ## Status
 
 | Stage | Status |
 |---|---|
 | Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
-| Implementation: VM/operator NUL-removal and span API normalization | in progress |
+| Implementation: VM/operator NUL-removal and span API normalization | complete |
 | Implementation: abstract typed handles + runtime contract enforcement | not started |
 | Implementation: C++ RAII wrapper + exception boundary migration | not started |
 | Implementation: efun byte-span readiness | not started |
 | Implementation: JSON boundary contract and tests | in progress |
-| Validation: end-to-end LPC/JSON regression matrix | not started |
+| Validation: end-to-end LPC/JSON regression matrix | in progress |
 
 ## Current State Handoff
 
@@ -36,9 +37,13 @@ As of 2026-04-05:
 
 - Core counted/shared length representation changes are complete and tested.
 - Planning scope is now narrowed to one consolidated backlog with acceptance criteria.
-- Next implementation start should be P0 VM/operator and helper API work,
-  followed by typed-handle enforcement.
-- `int_alloc_cstring` remains intentionally outside counted-string semantics.
+- P0 VM/operator NUL-removal and span migration is complete in
+  `src/interpret.h` and `lib/lpc/operator.c`.
+- New unit coverage for string operators is in `tests/test_string_operators`,
+  and discovery now uses `gtest_discover_tests()`.
+- Current implementation focus should move to typed-handle enforcement and
+  efun/json boundary hardening.
+- `alloc_cstring` remains intentionally outside counted-string semantics.
 
 ## Design Constraints (Canonical)
 
@@ -48,6 +53,7 @@ As of 2026-04-05:
 - Identifier-class shared strings remain NUL-terminated by contract.
 - This includes function names, variable names, and predefines.
 - `u.string` remains available as a generic view; typed members supplement it.
+- When migrating functions or macros that process `svalue_t`, always validate all runtime string semantics: `STRING_MALLOC`, `STRING_SHARED`, `STRING_CONSTANT`.
 
 ## Counted-String Contract and Type Safety
 
@@ -71,7 +77,7 @@ work is abstract-handle mode and expanded typed-member write coverage.
 
 - Layer 1: typed aliases in signatures (`shared_str_t`, `malloc_str_t`).
 - Layer 2: always-on runtime contract checks for `extend_string` and
-  `int_string_unlink` in release builds.
+  `string_unlink` in release builds.
 
 ## Planned Abstract Handle Migration
 
@@ -117,20 +123,20 @@ Migration order:
 
 | Priority | Item | Scope | Acceptance criteria |
 |---|---|---|---|
-| P0 | Remove NUL-dependent VM/operator paths | [lib/lpc/operator.c](../../lib/lpc/operator.c), [src/interpret.h](../../src/interpret.h) | No `strlen`/`strcpy` in touched concat/join paths; touched code uses explicit length/span forms; no behavior change for normal (non-embedded-NUL) strings. |
+| P0 | Remove NUL-dependent VM/operator paths | [lib/lpc/operator.c](../../lib/lpc/operator.c), [src/interpret.h](../../src/interpret.h) | complete: touched concat/join paths now use explicit lengths and byte-copy semantics; equality/inequality and string range use counted-length compare/copy; behavior remains compatible for normal strings. |
 | P0 | Normalize internal helper APIs | string construction/lookup boundaries | New/updated helpers accept explicit lengths/spans; touched callers stop using sentinel termination as logical length; shared-string boundaries continue to route via `make_shared_string(s,end)` / `findstring(s,end)`. |
 | P0 | Enforce counted-string semantic boundaries | [src/stralloc.h](../../src/stralloc.h), [lib/lpc/types.h](../../lib/lpc/types.h), typed-string boundaries | Abstract handle mode enabled under `STRING_TYPE_SAFETY`; boundary APIs require explicit typed handles or bridge macros; runtime contract checks remain release-enabled; identifier-class shared strings remain NUL-terminated. |
 | P1 | C++ wrapper and exception boundaries | C++ boundaries around `svalue_t` | `BorrowedValue`/`OwnedValue` introduced without C ABI layout change; all `extern "C"` entry points catch/translate exceptions; wrapper move/dtor are `noexcept`; targeted perf checks show no hot-path regression. |
 | P1 | Efun byte-span readiness | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Touched binary-sensitive efun paths use explicit lengths; text-oriented paths explicitly document C-string assumptions; existing efun tests remain green. |
 | P1 | JSON boundary contract | JSON efuns/helpers (`from_json`, `to_json`) | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 consistently; `to_json` escaping policy documented and tested. |
 | P1 | Unicode and escape consistency | JSON encode/decode implementation | Encoder/decoder are symmetric for control escapes, `\\`, `\"`, `\uXXXX`, and surrogate pairs; non-BMP behavior documented and validated. |
-| P2 | End-to-end regression matrix | LPC-level and efun/unit tests | Add round-trip/negative tests for embedded `\0`, control bytes, invalid UTF-8, astral code points, mixed escapes, and JSON validation failures; CI passes with new coverage. |
+| P2 | End-to-end regression matrix | LPC-level and efun/unit tests | in progress: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest); remaining coverage is LPC/JSON round-trip and negative matrix expansion. |
 
 ## Remaining NUL-Dependent Paths (Index)
 
 | Area | Location | Note |
 |---|---|---|
-| VM string ops | [src/interpret.h](../../src/interpret.h) (`EXTEND_SVALUE_STRING`, `SVALUE_STRING_ADD_LEFT`, `SVALUE_STRING_JOIN`) | still uses `strlen`/`strcpy` semantics |
+| VM string ops | [src/interpret.h](../../src/interpret.h) (`EXTEND_SVALUE_STRING`, `SVALUE_STRING_ADD_LEFT`, `SVALUE_STRING_JOIN`) | primary paths migrated to explicit-length macros; compatibility wrappers still use `strlen` for NUL-terminated call sites |
 | Generic length macro | [src/stralloc.h](../../src/stralloc.h) (`SVALUE_STRLEN`) | still falls back to `strlen` for `STRING_CONSTANT` |
 | String efuns | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | text/C-string assumptions remain in several paths |
 | Driver internals | [src/comm.c](../../src/comm.c), [lib/lpc/mapping.c](../../lib/lpc/mapping.c) | output/restore paths still depend on C-string-oriented behavior |
@@ -142,5 +148,10 @@ Migration order:
 - Canonicalizing oversized shared keys before hash lookup is required for dedupe.
 - `COUNTED_STRLEN` fallback for legacy `blkend == NULL` remains necessary until
   binary-format bump.
+- `SVALUE_STRING_JOIN` consumes/frees the right operand but leaves the left
+  operand owning the joined result; tests must explicitly free the left value.
+- `SVALUE_STRLEN_DIFFERS` using only `MSTR_SIZE` is conservative for sentinel
+  long malloc strings (`size == USHRT_MAX`); exact long-string mismatch
+  fast-paths should consult counted logical length (`COUNTED_STRLEN`).
 - Transparent aliases are a staging step; runtime checks are the effective
   enforcement until abstract handles are enabled.
