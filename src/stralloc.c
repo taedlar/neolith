@@ -521,7 +521,8 @@ malloc_str_t int_string_copy (const char *str, const char *end) {
 /**
  * Extend a reference counted string (STRING_MALLOC).
  * @param str The string to extend. This must be a STRING_MALLOC string.
- * @param len The new desired length of the string. If this exceeds max_string_length, it is truncated.
+ * @param len The new desired length of the string.
+ *            NOTE: If this exceeds max_string_length, it is NOT truncated.
  * @return A pointer to the extended string. The original string pointer must not be used after this call.
  *         A NUL-terminator is appended for compatibility, but is not counted in the length.
  */

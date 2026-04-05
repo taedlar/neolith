@@ -19,7 +19,6 @@ extern "C" {
 // Test fixture providing VM and string allocation context
 class StringOperatorsTest : public ::testing::Test {
 protected:
-    svalue_t *saved_sp_ = nullptr;
     std::filesystem::path previous_cwd_;
 
     void SetUp() override {
@@ -36,6 +35,7 @@ protected:
         init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
         MAIN_OPTION(pedantic) = 1;
         init_config(MAIN_OPTION(config_file));
+        debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
 
         ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
         auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
@@ -50,16 +50,10 @@ protected:
         init_strings(65536, 1024 * 1024);
         init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__), CONFIG_STR(__INCLUDE_DIRS__));
         setup_simulate();
-
-        // Preserve baseline VM stack pointer so tests can safely mutate sp.
-        saved_sp_ = sp;
     }
 
     void TearDown() override {
         namespace fs = std::filesystem;
-
-        // Restore stack state even if a test exits early via ASSERT_*.
-        sp = saved_sp_;
 
         tear_down_simulate();
         deinit_lpc_compiler();
