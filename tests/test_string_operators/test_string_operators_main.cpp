@@ -362,7 +362,7 @@ TEST_F(StringOperatorsTest, RangeWithEmbeddedNul) {
     ASSERT_EQ(result[1], 'B');
     ASSERT_EQ(result[2], '\0');
 
-    FREE(MSTR_BLOCK(result));
+    FREE_MSTR(result);
     free_svalue_string(&sv);
 }
 
