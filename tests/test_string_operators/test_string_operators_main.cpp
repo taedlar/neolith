@@ -29,9 +29,10 @@ protected:
         ASSERT_TRUE(sv != nullptr);
         sv->type = T_STRING;
         sv->subtype = STRING_MALLOC;
-        sv->u.string = int_new_string(len);
+        sv->u.string = new_string(len, "test");
         ASSERT_TRUE(sv->u.string != nullptr);
         memcpy(sv->u.string, content, len);
+        sv->u.string[len] = '\0';  // Ensure null-termination for testing
     }
 
     // Helper: Create a shared-based svalue with given content
@@ -188,7 +189,8 @@ TEST_F(StringOperatorsTest, JoinTwoMallocStrings) {
     SVALUE_STRING_JOIN(&left, &right, "test");
 
     assert_string_content(&left, "LeftRight", 9, STRING_MALLOC);
-    // right should be freed by macro
+    // right is consumed by the macro; left still owns the joined result.
+    free_svalue_string(&left);
 }
 
 TEST_F(StringOperatorsTest, JoinEmptyStrings) {
@@ -200,6 +202,7 @@ TEST_F(StringOperatorsTest, JoinEmptyStrings) {
     SVALUE_STRING_JOIN(&left, &right, "test");
 
     assert_string_content(&left, "", 0, STRING_MALLOC);
+    free_svalue_string(&left);
 }
 
 TEST_F(StringOperatorsTest, JoinWithEmbeddedNuls) {
@@ -215,6 +218,7 @@ TEST_F(StringOperatorsTest, JoinWithEmbeddedNuls) {
 
     // Result should be "A\0BC\0D" (6 bytes)
     assert_string_content(&left, "A\0BC\0D", 6, STRING_MALLOC);
+    free_svalue_string(&left);
 }
 
 TEST_F(StringOperatorsTest, JoinMallocSelfReuse) {
@@ -226,6 +230,7 @@ TEST_F(StringOperatorsTest, JoinMallocSelfReuse) {
     SVALUE_STRING_JOIN(&left, &right, "test");
 
     assert_string_content(&left, "FirstSecond", 11, STRING_MALLOC);
+    free_svalue_string(&left);
 }
 
 // === String Equality Operator Tests (memcmp semantics) ===
@@ -301,7 +306,7 @@ TEST_F(StringOperatorsTest, RangeFullString) {
 
     ASSERT_TRUE(memcmp(result, "Testing", out_len) == 0);
 
-    FREE(MSTR_BLOCK(result));
+    FREE_MSTR(result);
     free_svalue_string(&sv);
 }
 
@@ -372,7 +377,7 @@ TEST_F(StringOperatorsTest, VeryLongStringExtend) {
     // Test extending a large string (tests blkend tracking for USHRT_MAX)
     svalue_t target;
     size_t large_size = 100000;
-    malloc_str_t large_str = int_new_string(large_size);
+    malloc_str_t large_str = new_string(large_size, "test");
     memset(large_str, 'A', large_size);
     target.type = T_STRING;
     target.subtype = STRING_MALLOC;

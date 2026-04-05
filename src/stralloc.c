@@ -478,29 +478,30 @@ malloc_str_t int_new_string (size_t size) {
 /**
  * Create a copy of a string as a reference counted string (STRING_MALLOC).
  * If the string length exceeds max_string_length, it is truncated.
- * @param str The string to copy. This can be any null-terminated string.
+ * @param str The string to copy.
+ * @param end If non-NULL, the string to copy is the byte span [str, end).
+ *            Otherwise str is treated as a NUL-terminated C string.
  * @return A pointer to the newly allocated string.
+ *         A NUL-terminator is appended for compatibility, but is not counted in the length.
  */
 malloc_str_t int_string_copy (const char *str, const char *end) {
   malloc_str_t p;
   size_t len;
 
-  assert (str != NULL);
+  if (!str)
+    fatal ("string_copy: null pointer passed as string argument");
   if (end)
     {
-      if (end <= str)
-        {
-          len = 0;
-        }
+      if (end == str)
+        len = 0;
+      else if (end > str)
+        len = (size_t)(end - str);
       else
-        {
-          len = (size_t)(end - str);
-        }
+        fatal ("string_copy: end pointer is before start pointer");
     }
   else
-    {
-      len = strlen (str);
-    }
+    len = strlen (str);
+
   if (len > max_string_length)
     {
       len = max_string_length;
@@ -519,17 +520,19 @@ malloc_str_t int_string_copy (const char *str, const char *end) {
 
 /**
  * Extend a reference counted string (STRING_MALLOC).
+ * @param str The string to extend. This must be a STRING_MALLOC string.
+ * @param len The new desired length of the string. If this exceeds max_string_length, it is truncated.
+ * @return A pointer to the extended string. The original string pointer must not be used after this call.
+ *         A NUL-terminator is appended for compatibility, but is not counted in the length.
  */
 malloc_str_t int_extend_string (malloc_str_t str, size_t len) {
   malloc_block_t *mbt;
 
-  assert (str != NULL);
-  assert (MSTR_REF (str) > 0);
+  if (!str)
+    fatal ("extend_string: null pointer passed as string argument");
 #ifdef STRING_TYPE_SAFETY
-  if (MSTR_REF (str) == 0) {
-    debug_fatal ("extend_string: contract violation: ref count is 0 (immortal STRING_SHARED or freed pointer)\n");
-    abort ();
-  }
+  if (MSTR_REF (str) == 0)
+    fatal ("extend_string: contract violation: ref count is 0 (immortal STRING_SHARED or freed pointer)\n");
 #endif
 #ifdef STRING_STATS
   int oldsize = MSTR_SIZE (str);
@@ -551,31 +554,33 @@ malloc_str_t int_extend_string (malloc_str_t str, size_t len) {
 
 /**
  * Allocate a new C string and copy the given string into it.
- * This function does exactly what strdup() does but uses the
- * driver memory allocation functions. No block header is added.
+ * The returned string is always NUL-terminated, and the length is determined by either
+ * the provided end pointer or the first NUL byte in str.
+ * No block header is added.
  * @param str The string to copy. This can be any null-terminated string.
+ * @param end If non-NULL, the string to copy is the byte span [str, end).
+ *            Otherwise str is treated as a NUL-terminated C string.
  * @return A pointer to the newly allocated string.
+ *         A NUL-terminator is appended for compatibility, but is not counted in the length.
  */
 char *int_alloc_cstring (const char *str, const char *end) {
   char *ret;
   size_t len;
 
-  assert (str != NULL);
+  if (!str)
+    fatal ("alloc_cstring: null pointer passed as string argument");
   if (end)
     {
-      if (end <= str)
-        {
-          len = 0;
-        }
+      if (end == str)
+        len = 0;
+      else if (end > str)
+        len = (size_t)(end - str);
       else
-        {
-          len = (size_t)(end - str);
-        }
+        fatal ("alloc_cstring: end pointer is before start pointer");
     }
   else
-    {
       len = strlen (str);
-    }
+
   ret = (char *) DXALLOC (len + 1, TAG_STRING, tag);
   memcpy (ret, str, len);
   ret[len] = '\0';
@@ -589,14 +594,14 @@ char *int_alloc_cstring (const char *str, const char *end) {
  * @param str The string to unlink. This must be a STRING_MALLOC string with reference count > 1.
  * @return A pointer to the newly allocated string.
  */
-static malloc_str_t int_string_unlink (malloc_str_t str) {
+malloc_str_t int_string_unlink (malloc_str_t str) {
   malloc_block_t *newmbt;
 
   assert (str != NULL);
   assert (MSTR_REF (str) > 1);
 #ifdef STRING_TYPE_SAFETY
   if (MSTR_REF (str) <= 1) {
-    debug_fatal ("int_string_unlink: contract violation: ref count not > 1 (not a live STRING_MALLOC with multiple refs)\n");
+    debug_fatal ("string_unlink: contract violation: ref count not > 1 (not a live STRING_MALLOC with multiple refs)\n");
     abort ();
   }
 #endif
@@ -614,7 +619,7 @@ static malloc_str_t int_string_unlink (malloc_str_t str) {
           len = strlen (str + USHRT_MAX) + USHRT_MAX;	/* fallback for old strings */
         }
 
-      newmbt = (malloc_block_t *) DXALLOC (len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "int_string_unlink");
+      newmbt = (malloc_block_t *) DXALLOC (len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "string_unlink");
       memcpy (STRING(newmbt), str, len + 1);
       newmbt->blkend = STRING(newmbt) + len;
       newmbt->size = USHRT_MAX;
@@ -622,7 +627,7 @@ static malloc_str_t int_string_unlink (malloc_str_t str) {
     }
   else
     {
-      newmbt = (malloc_block_t *) DXALLOC (MSTR_SIZE (str) + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "int_string_unlink");
+      newmbt = (malloc_block_t *) DXALLOC (MSTR_SIZE (str) + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "string_unlink");
       memcpy (STRING(newmbt), str, MSTR_SIZE (str) + 1);
       newmbt->blkend = NULL;
       newmbt->size = MSTR_SIZE (str);
@@ -675,7 +680,7 @@ void unlink_string_svalue (svalue_t * s) {
     {
     case STRING_MALLOC:
       if (MSTR_REF (s->u.string) > 1)
-        s->u.string = int_string_unlink (s->u.string);
+        s->u.string = string_unlink (s->u.string, "unlink_string_svalue");
       break;
     case STRING_SHARED:
       {

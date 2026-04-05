@@ -32,7 +32,7 @@ typedef struct block_s {
  * - When size == USHRT_MAX (sentinel): the string is longer than USHRT_MAX - 1 bytes.
  *   blkend points one past the last byte of the string payload, allowing O(1) length
  *   recovery via (char*)blkend - str.  blkend is set by all allocation/resize paths
- *   (int_new_string, extend_string, int_string_unlink).
+ *   (new_string, extend_string, string_unlink).
  *
  * Invariant: STRING_SHARED strings are always shorter than USHRT_MAX bytes, so the
  * sentinel case is exclusive to STRING_MALLOC. Generic counted-string macros that
@@ -114,11 +114,10 @@ typedef struct malloc_block_s {
                           COUNTED_STRLEN((x)->u.string) : \
                           strlen((x)->u.string))
 
-/* For quick checks.  Avoid strlen(), etc.  This is  */
-#define SVALUE_STRLEN_DIFFERS(x, y) ((((x)->subtype & STRING_COUNTED) && \
-                                     ((y)->subtype & STRING_COUNTED)) ? \
-                                     MSTR_SIZE((x)->u.string) != \
-                                     MSTR_SIZE((y)->u.string) : 0)
+/* For quick checks on string lengths without scanning for NUL bytes */
+#define SVALUE_STRLEN_DIFFERS(x, y) ((((x)->subtype & STRING_COUNTED) && ((y)->subtype & STRING_COUNTED)) \
+        ? COUNTED_STRLEN((x)->u.string) != COUNTED_STRLEN((y)->u.string) \
+        : 0)
 
 extern void init_strings(size_t hash_size, size_t max_len);
 extern void deinit_strings();
@@ -142,4 +141,5 @@ extern void free_string(shared_str_t);
 extern malloc_str_t int_new_string(size_t);
 extern malloc_str_t int_string_copy(const char *, const char *);
 extern malloc_str_t int_extend_string(malloc_str_t, size_t);
+extern malloc_str_t int_string_unlink (malloc_str_t);
 extern char *int_alloc_cstring(const char *, const char *);

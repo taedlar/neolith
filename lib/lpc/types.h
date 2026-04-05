@@ -15,8 +15,8 @@
  *
  * malloc_str_t: a char * known to be a STRING_MALLOC payload (malloc_block_t
  *               header immediately precedes the pointer).  Pass to
- *               extend_string(); returned by int_new_string() and
- *               int_string_copy().
+ *               extend_string(); returned by new_string() and
+ *               string_copy().
  *
  * In all build modes the typedefs are transparent (identical to char *), so no
  * existing call sites require changes and there is no runtime overhead.

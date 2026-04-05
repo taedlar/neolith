@@ -22,22 +22,22 @@ extern char *reserved_area;
 extern char *xalloc(size_t);
 
 #include "outbuf.h" /* for outbuffer_t */
-#include "malloc.h" /* selection of DMALLOC/DXALLOC/DREALLOC/DCALLOC/FREE */
 
+#include "malloc.h" /* selection of DMALLOC/DXALLOC/DREALLOC/DCALLOC/FREE */
 #define ALLOCATE(type, tag, desc) ((type *)DXALLOC(sizeof(type), tag, desc))
 #define CALLOCATE(num, type, tag, desc) ((type *)DXALLOC(sizeof(type[1]) * (num), tag, desc))
 #define RESIZE(ptr, num, type, tag, desc) ((type *)DREALLOC((void *)ptr, sizeof(type) * (num), tag, desc))
 
+/* LPC types and the LPMud virtual machine */
+#include "lpc/types.h"
+
 /* dynamic string allocations */
 #include "stralloc.h"
-
 #define string_copy(x,y) int_string_copy(x, NULL)
+#define string_unlink(x,y) int_string_unlink(x)
 #define new_string(x,y) int_new_string(x)
 #define extend_string(x,sz) int_extend_string(x, sz)
 #define alloc_cstring(x,y) int_alloc_cstring(x, NULL)
-
-/* LPC types and the LPMud virtual machine */
-#include "lpc/types.h"
 
 /* interfaces to the LPMud virtual machine */
 #include "applies.h"

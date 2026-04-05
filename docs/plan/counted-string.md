@@ -43,7 +43,7 @@ As of 2026-04-05:
   and discovery now uses `gtest_discover_tests()`.
 - Current implementation focus should move to typed-handle enforcement and
   efun/json boundary hardening.
-- `int_alloc_cstring` remains intentionally outside counted-string semantics.
+- `alloc_cstring` remains intentionally outside counted-string semantics.
 
 ## Design Constraints (Canonical)
 
@@ -76,7 +76,7 @@ work is abstract-handle mode and expanded typed-member write coverage.
 
 - Layer 1: typed aliases in signatures (`shared_str_t`, `malloc_str_t`).
 - Layer 2: always-on runtime contract checks for `extend_string` and
-  `int_string_unlink` in release builds.
+  `string_unlink` in release builds.
 
 ## Planned Abstract Handle Migration
 
@@ -147,5 +147,10 @@ Migration order:
 - Canonicalizing oversized shared keys before hash lookup is required for dedupe.
 - `COUNTED_STRLEN` fallback for legacy `blkend == NULL` remains necessary until
   binary-format bump.
+- `SVALUE_STRING_JOIN` consumes/frees the right operand but leaves the left
+  operand owning the joined result; tests must explicitly free the left value.
+- `SVALUE_STRLEN_DIFFERS` using only `MSTR_SIZE` is conservative for sentinel
+  long malloc strings (`size == USHRT_MAX`); exact long-string mismatch
+  fast-paths should consult counted logical length (`COUNTED_STRLEN`).
 - Transparent aliases are a staging step; runtime checks are the effective
   enforcement until abstract handles are enabled.

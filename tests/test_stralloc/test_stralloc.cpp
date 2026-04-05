@@ -91,7 +91,7 @@ TEST_F(StrAllocTest, sharedStringOversizeIsTruncatedAndDeduped) {
 
 TEST_F(StrAllocTest, mallocLongStringTracksBlkendAndCountedLength) {
     const size_t len = static_cast<size_t>(USHRT_MAX) + 37;
-    char* s = int_new_string(len);
+    char* s = new_string(len, "test");
 
     memset(s, 'm', len);
     s[len] = '\0';
@@ -107,7 +107,7 @@ TEST_F(StrAllocTest, extendStringUpdatesBlkendAcrossThresholds) {
     const size_t short_len = 64;
     const size_t long_len = static_cast<size_t>(USHRT_MAX) + 19;
 
-    char* s = int_new_string(short_len);
+    malloc_str_t s = new_string(short_len, "test");
     memset(s, 'a', short_len);
     s[short_len] = '\0';
 
@@ -134,7 +134,7 @@ TEST_F(StrAllocTest, extendStringUpdatesBlkendAcrossThresholds) {
 
 TEST_F(StrAllocTest, unlinkLongMallocStringPreservesBlkendLength) {
     const size_t len = static_cast<size_t>(USHRT_MAX) + 53;
-    char* raw = int_new_string(len);
+    char* raw = new_string(len, "test");
     memset(raw, 'u', len);
     raw[len] = '\0';
 
@@ -159,7 +159,7 @@ TEST_F(StrAllocTest, unlinkLongMallocStringPreservesBlkendLength) {
 
 TEST_F(StrAllocTest, longMallocStringFallbackWorksWhenBlkendMissing) {
     const size_t len = static_cast<size_t>(USHRT_MAX) + 29;
-    char* s = int_new_string(len);
+    char* s = new_string(len, "test");
     memset(s, 'f', len);
     s[len] = '\0';
 
