@@ -6,6 +6,20 @@ description: "Add unit tests for individual components. Use the GoogleTest (GTes
 Unit testing involves writing test cases for individual components of the codebase to verify their correctness in isolation. This helps catch bugs early and ensures that each part of the system behaves as expected.
 ## Writing Unit Tests
 
+### CMake settings for unit test programs
+- In `CMakeLists.txt`, link unit-test program to `GTest::gtest_main` and the specific libraries needed for the test (e.g., `async`, `socket`, `stem` for driver tests)
+Test patterns:
+  - Generic library tests (e.g., [test_logger](tests/test_logger/)) link only needed dependencies
+  - Driver component tests link the `stem` object library (all driver code except main.c)
+- For tests that require mudlib access, add a custom command to copy the testing mudlib in [examples/](examples/) to the build directory at POST_BUILD. Pattern:
+  ```cmake
+  add_custom_command(TARGET test_lpc_compiler POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/examples/m3_mudlib ${CMAKE_CURRENT_BINARY_DIR}/m3_mudlib
+      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/examples/m3.conf ${CMAKE_CURRENT_BINARY_DIR}
+  )
+  ```
+- Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
+
 ### Unit Test Fixtures
 
 - When adding unit tests, reuse existing fixture classes defined in `fixtures.hpp` when possible. These provide common setup/teardown for subsystems like simulate, async runtime, etc.
@@ -35,20 +49,6 @@ Unit testing involves writing test cases for individual components of the codeba
     s_previous_cwd = fs::current_path(); // saved for later restoration in TearDown()
     fs::current_path(mudlib_path);
 ```
-### CMake settings for unit test programs
-- In `CMakeLists.txt`, link unit-test program to `GTest::gtest_main` and the specific libraries needed for the test (e.g., `async`, `socket`, `stem` for driver tests)
-Test patterns:
-  - Generic library tests (e.g., [test_logger](tests/test_logger/)) link only needed dependencies
-  - Driver component tests link the `stem` object library (all driver code except main.c)
-- For tests that require mudlib access, add a custom command to copy the testing mudlib in [examples/](examples/) to the build directory at POST_BUILD. Pattern:
-  ```cmake
-  add_custom_command(TARGET test_lpc_compiler POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/examples/m3_mudlib ${CMAKE_CURRENT_BINARY_DIR}/m3_mudlib
-      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/examples/m3.conf ${CMAKE_CURRENT_BINARY_DIR}
-  )
-  ```
-- Always set `DISCOVERY_TIMEOUT 20` to avoid cloud antivirus conflicts
-
 ### LPC Object Loading in Tests
 Make sure `init_master()` is called in the fixture setup before loading LPC objects, as the master object is responsible for approving `load_object()` calls. Set `current_object` to `master_ob` when loading objects in tests to ensure the master applies to approve the load.
 
@@ -71,8 +71,8 @@ destruct_object(obj);
 ```
 
 ### Calling LPC functions from tests
-1. Get the shared string for the function name using `findstring` (e.g., `findstring("create")`)
-2. Call `find_function()` to get the function index from the program and the `program_t` pointer if the function is inherited from a parent program. Note that `find_function` requires pointer to a shared string returned from `findstring`. Pattern:
+1. Get the shared string for the function name using `findstring` (e.g., `findstring("create", NULL)`)
+2. Call `find_function()` to get the function index from the program and the `program_t` pointer if the function is inherited from a parent program. Note that `find_function` requires a `shared_str_t` returned from `findstring`. Pattern:
 ```cpp
 // found_prog is the program where the function is defined.
 // index is the COMPILER function index (position in found_prog's function_table).
@@ -82,7 +82,10 @@ program_t* found_prog = find_function(prog, findstring("add"), &index, &fio, &vi
 ASSERT_NE(found_prog, nullptr);
 ```
 3. If `found_prog` is different from `prog`, the function is inherited. The `index` can be used to obtain the `compiler_function_t` in `found_prog`'s function_table where function address and argument count are stored. **CRITICAL:** `index` is a compiler index, NOT a runtime index. Convert it using `found_prog->function_table[index].runtime_index` then add `fio` for inheritance offset: `(found_prog->function_table[index].runtime_index + fio)` gives the runtime dispatch index in `prog`.
-4. Push arguments onto the stack using `push_number()`, `push_string()`, etc. Find available push functions in [src/stack.c](src/stack.c).
+4. Push arguments onto the stack using `push_number()`, typed string push helpers, and related APIs in [src/stack.c](src/stack.c).
+  - `push_shared_string(shared_str_t)` is for shared-string ownership paths.
+  - `push_malloced_string(malloc_str_t)` is for malloc-string ownership paths.
+  - Avoid passing raw `char *` directly to these typed push helpers in new tests.
 5. Call `call_function()` with the actual function runtime index and number of arguments already pushed onto the stack (`num_args`). Pattern:
 ```cpp
 // Convert compiler index to runtime index, then add inheritance offset
@@ -91,6 +94,12 @@ int runtime_index = found_prog->function_table[index].runtime_index + fio;
 svalue_t ret;
 call_function (prog, runtime_index, num_args, &ret);
 ```
+
+### Typed String Boundary Lessons Learned
+
+- In tests that validate subtype-specific behavior, use the typed push helpers (`push_shared_string(shared_str_t)`, `push_malloced_string(malloc_str_t)`) rather than generic string push paths so subtype bugs fail at the right boundary.
+- Create any function-name lookup key through `findstring(...)` and keep it as `shared_str_t`; do not downcast to plain `char *` in test code.
+- When a test asserts string subtype handling, verify both data and ownership side effects (for example, no premature free/unlink after push/pop flow).
 
 ### LPC Callback Testing Lessons (from socket behavior tests)
 
