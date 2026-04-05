@@ -36,7 +36,7 @@
  */
 
 struct sentence_s {
-    char *verb;
+    shared_str_t verb;
     struct sentence_s *next;
     object_t *ob;
     string_or_func_t function;
@@ -60,7 +60,7 @@ struct object_s {
     struct interactive_s *interactive;	/* Data about an interactive user */
     sentence_t *sent;
     struct object_s *next_hashed_living;
-    char *living_name;		/* Name of living object if in hash */
+    shared_str_t living_name;		/* Name of living object if in hash */
     userid_t *uid;		/* the "owner" of this object */
     userid_t *euid;		/* the effective "owner" */
     svalue_t variables[1];	/* All variables to this program */

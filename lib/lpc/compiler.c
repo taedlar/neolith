@@ -831,7 +831,7 @@ void arrange_call_inherited (char *name, parse_node_t * node) {
   size_t num_inherits = 0;
   size_t super_length = 0;
   char *super_name = NULL, *p, *real_name = name;
-  char *shared_string;
+  shared_str_t func_name;
 
   if (real_name[0] == ':')
     {
@@ -847,7 +847,7 @@ void arrange_call_inherited (char *name, parse_node_t * node) {
     }
   num_inherits = NUM_INHERITS;
   /* no need to look for it unless its in the shared string table */
-  if ((shared_string = findstring(real_name, NULL)))
+  if ((func_name = findstring(real_name, NULL)))
     {
       ip = (inherit_t *) mem_block[A_INHERITS].block;
       for (; num_inherits > 0; ip++, num_inherits--)
@@ -862,7 +862,7 @@ void arrange_call_inherited (char *name, parse_node_t * node) {
                   !((l - 2 == super_length) || ((ip->prog->name + l - 3 - super_length)[0] == '/')))
                 continue;
             }
-          if (find_matching_function (ip->prog, shared_string, node))
+          if (find_matching_function (ip->prog, func_name, node))
             {
               node->l.number += ((ip - (inherit_t *) mem_block[A_INHERITS].block) << 16);
               return;

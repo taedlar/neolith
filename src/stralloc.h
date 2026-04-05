@@ -1,5 +1,7 @@
 #pragma once
 
+#include "lpc/types.h"
+
 struct outbuffer_s;
 typedef struct outbuffer_s outbuffer_t;
 /**
@@ -50,7 +52,7 @@ typedef struct malloc_block_s {
         ADD_STRING_SIZE(y - MSTR_SIZE(x));\
         MSTR_BLOCK(x)->size = \
         (y > USHRT_MAX ? USHRT_MAX : y);\
-   MSTR_BLOCK(x)->blkend = (y >= USHRT_MAX ? (void *)((x) + (y)) : (void *)0);\
+        MSTR_BLOCK(x)->blkend = (y >= USHRT_MAX ? (void *)((x) + (y)) : (void *)0);\
         } while(0)
 
 #define FREE_MSTR(x) do {\
@@ -76,31 +78,6 @@ typedef struct malloc_block_s {
 #define ADD_STRING_SIZE(x)
 #define SUB_STRING(x)
 #endif
-
-/*
- * Typed aliases for contract-bearing char * parameters.
- *
- * shared_str_t: a char * known to be a STRING_SHARED payload (block_t header
- *               immediately precedes the pointer; managed by the shared string
- *               table).  Pass to ref_string() and free_string().
- *
- * malloc_str_t: a char * known to be a STRING_MALLOC payload (malloc_block_t
- *               header immediately precedes the pointer).  Pass to
- *               extend_string(); returned by int_new_string() and
- *               int_string_copy().
- *
- * In all build modes the typedefs are transparent (identical to char *), so no
- * existing call sites require changes and there is no runtime overhead.
- * When STRING_TYPE_SAFETY is defined (default ON), the boundary functions
- * additionally validate their pointer contract at runtime even in release builds.
- *
- * Path to full compile-time enforcement: change the typedefs to opaque struct
- * pointer types, update struct fields / variables that store typed strings, and
- * add SHARED_STR()/MALLOC_STR() cast macros at call sites where conversion is
- * needed.
- */
-typedef char *shared_str_t;  /* STRING_SHARED payload pointer */
-typedef char *malloc_str_t;  /* STRING_MALLOC payload pointer */
 
 /*
  * COUNTED_STRLEN(x) returns the logical length of a counted string (STRING_MALLOC

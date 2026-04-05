@@ -816,7 +816,7 @@ int64_t command_for_object (char *str) {
  */
 
 
-static object_t *object_present2 (char *, object_t *);
+static object_t *object_present2 (const char *, object_t *);
 
 object_t* object_present (svalue_t * v, object_t * ob) {
   svalue_t *ret;
@@ -882,38 +882,38 @@ object_t* object_present (svalue_t * v, object_t * ob) {
  * @param ob The inventory to search in.
  * @return The found object, or NULL if not found.
  */
-static object_t* object_present2 (char *str, object_t * ob) {
+static object_t* object_present2 (const char *str, object_t * ob) {
 
   svalue_t *ret;
-  char *p;
+  malloc_str_t name;
   size_t count = 0, length;
 
   if ((length = strlen (str)))
     {
-      p = str + length - 1;
-      if (isdigit (*p))
+      const unsigned char* scan = (const unsigned char*)str + length - 1;
+      if (isdigit (*scan))
         {
           do
             {
-              p--;
+              scan--;
             }
-          while (p > str && isdigit (*p));
+          while (scan > (const unsigned char*)str && isdigit (*scan));
 
-          if (*p == ' ')
+          if (*scan == ' ')
             {
-              count = atoi (p + 1) - 1;
-              length = p - str;
+              count = atoi (scan + 1) - 1;
+              length = scan - (const unsigned char*)str;
             }
         }
     }
 
   for (; ob; ob = ob->next_inv)
     {
-      p = new_string (length, "object_present2");
-      memcpy (p, str, length);
-      p[length] = 0;
+      name = new_string (length, "object_present2");
+      memcpy (name, str, length);
+      name[length] = 0;
 
-      push_malloced_string (p);
+      push_malloced_string (name);
       ret = apply (APPLY_ID, ob, 1, ORIGIN_DRIVER);
 
       if (ob->flags & O_DESTRUCTED)

@@ -215,7 +215,7 @@ push_refed_class (array_t * v)
  * Push a string on the stack that is already malloced.
  */
 void
-push_malloced_string (char *p)
+push_malloced_string (malloc_str_t p)
 {
   sp++;
   sp->type = T_STRING;
@@ -228,7 +228,7 @@ push_malloced_string (char *p)
  * push_malloced_string doesn't.
  */
 void
-push_shared_string (char *p)
+push_shared_string (shared_str_t p)
 {
   sp++;
   sp->type = T_STRING;

@@ -67,10 +67,10 @@ typedef struct {
 /* Beek - add some sanity to joining strings */
 /* add to an svalue */
 #define EXTEND_SVALUE_STRING(x, y, z) do {\
-        char *ess_res; size_t ess_len; size_t ess_r; \
+        malloc_str_t ess_res; size_t ess_len; size_t ess_r; \
         ess_len = (ess_r = SVALUE_STRLEN(x)) + strlen(y); \
         if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
-          ess_res = (char *) extend_string((x)->u.string, ess_len); \
+                                        ess_res = extend_string((x)->u.string, ess_len); \
           if (!ess_res) fatal("Out of memory!\n"); \
           strcpy(ess_res + ess_r, (y)); \
         } else { \
@@ -85,7 +85,7 @@ typedef struct {
 
 /* <something that needs no free> + string svalue */
 #define SVALUE_STRING_ADD_LEFT(y, z) do {\
-        char *pss_res; size_t pss_r; size_t pss_len; \
+        malloc_str_t pss_res; size_t pss_r; size_t pss_len; \
         pss_len = SVALUE_STRLEN(sp) + (pss_r = strlen(y)); \
         pss_res = new_string(pss_len, z); \
         strcpy(pss_res, y); \
@@ -98,16 +98,16 @@ typedef struct {
 
 /* basically, string + string; faster than using extend b/c of SVALUE_STRLEN */
 #define SVALUE_STRING_JOIN(x, y, z) do {\
-        char *ssj_res; size_t ssj_r; size_t ssj_len; \
+        malloc_str_t ssj_res; size_t ssj_r; size_t ssj_len; \
         ssj_r = SVALUE_STRLEN(x); \
         ssj_len = ssj_r + SVALUE_STRLEN(y); \
         if ((x)->subtype == STRING_MALLOC && MSTR_REF((x)->u.string) == 1) { \
-            ssj_res = (char *) extend_string((x)->u.string, ssj_len); \
+            ssj_res = extend_string((x)->u.string, ssj_len); \
             if (!ssj_res) fatal("Out of memory!\n"); \
             (void) strcpy(ssj_res + ssj_r, (y)->u.string); \
             free_string_svalue(y); \
         } else { \
-            ssj_res = (char *) new_string(ssj_len, z); \
+                        ssj_res = new_string(ssj_len, z); \
             strcpy(ssj_res, (x)->u.string); \
             strcpy(ssj_res + ssj_r, (y)->u.string); \
             free_string_svalue(y); \
@@ -245,8 +245,8 @@ void push_mapping(mapping_t *);
 void push_refed_mapping(mapping_t *);
 void push_class(array_t *);
 void push_refed_class(array_t *);
-void push_malloced_string(char *);
-void push_shared_string(char *);
+void push_malloced_string(malloc_str_t);
+void push_shared_string(shared_str_t);
 void push_constant_string(const char *);
 void pop_stack(void);
 void pop_n_elems(size_t);
