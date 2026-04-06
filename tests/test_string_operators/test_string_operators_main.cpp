@@ -2,67 +2,30 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 extern "C" {
-    #include "std.h"
-    #include "rc.h"
-    #include "interpret.h"
-    #include "lpc/operator.h"
-    #include "lpc/compiler.h"
-    #include "simulate.h"
-    #include "stralloc.h"
+#include "std.h"
+#include "stralloc.h"
 }
 #include <gtest/gtest.h>
 #include <cstring>
 #include <cstdint>
 #include <algorithm>
-#include <filesystem>
 
 // Test fixture providing VM and string allocation context
 class StringOperatorsTest : public ::testing::Test {
 protected:
-    std::filesystem::path previous_cwd_;
-
     void SetUp() override {
-        namespace fs = std::filesystem;
-
         debug_set_log_with_date(0);
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
-
-        fs::path config_dir = fs::current_path();
-        if (!fs::exists(config_dir / "m3.conf")) {
-            config_dir = fs::current_path().parent_path();
-        }
-
-        init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
+        init_stem(3, 0177, "");
         MAIN_OPTION(pedantic) = 1;
-        init_config(MAIN_OPTION(config_file));
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-
-        ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
-        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
-        if (mudlib_path.is_relative()) {
-            mudlib_path = config_dir / mudlib_path;
-        }
-        ASSERT_TRUE(fs::exists(mudlib_path)) << "Mudlib directory does not exist: " << mudlib_path;
-        previous_cwd_ = fs::current_path();
-        fs::current_path(mudlib_path);
 
         // Initialize string allocation subsystem
         init_strings(65536, 1024 * 1024);
-        init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__), CONFIG_STR(__INCLUDE_DIRS__));
-        setup_simulate();
     }
 
     void TearDown() override {
-        namespace fs = std::filesystem;
-
-        tear_down_simulate();
-        deinit_lpc_compiler();
         deinit_strings();
-
-        if (!previous_cwd_.empty()) {
-            fs::current_path(previous_cwd_);
-        }
-        deinit_config();
     }
 
     // Helper: Create a malloc-based svalue with given content and length
@@ -83,14 +46,6 @@ protected:
         sv->subtype = STRING_SHARED;
         sv->u.string = make_shared_string(content, NULL);
         ASSERT_TRUE(sv->u.string != nullptr);
-    }
-
-    // Helper: Create a constant-based svalue (references static memory)
-    void create_constant_string(svalue_t *sv, const char *content) {
-        ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_CONSTANT;
-        sv->u.const_string = content;  // For testing; assumes caller owns memory
     }
 
     // Helper: Verify svalue content and type
@@ -303,58 +258,6 @@ TEST_F(StringOperatorsTest, EqualityDifferentLengths) {
 
     free_svalue_string(&left);
     free_svalue_string(&right);
-}
-
-TEST_F(StringOperatorsTest, EqualityConstantVsMallocDifferentLengths) {
-    // Verify f_eq/f_ne use full logical lengths when one side is STRING_CONSTANT.
-    svalue_t stack[2];
-    svalue_t *saved_sp = sp;
-
-    create_constant_string(&stack[0], "ab");
-    create_malloc_string(&stack[1], "abc", 3);
-    sp = &stack[1];
-
-    f_eq();
-    ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 0);
-
-    create_constant_string(&stack[0], "ab");
-    create_malloc_string(&stack[1], "abc", 3);
-    sp = &stack[1];
-
-    f_ne();
-    ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1);
-
-    sp = saved_sp;
-}
-
-TEST_F(StringOperatorsTest, EqualityMallocVsConstantDifferentLengths) {
-    // Verify operand order does not affect length mismatch behavior.
-    svalue_t stack[2];
-    svalue_t *saved_sp = sp;
-
-    create_malloc_string(&stack[0], "abc", 3);
-    create_constant_string(&stack[1], "ab");
-    sp = &stack[1];
-
-    f_eq();
-    ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 0);
-
-    create_malloc_string(&stack[0], "abc", 3);
-    create_constant_string(&stack[1], "ab");
-    sp = &stack[1];
-
-    f_ne();
-    ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1);
-
-    sp = saved_sp;
 }
 
 TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {

@@ -452,7 +452,9 @@ size_t add_string_status (outbuffer_t * out, int verbose) {
 /**
  * Create a new reference counted string (STRING_MALLOC) of specified size.
  * @param size The size of the string to allocate.
- * @return A pointer to the newly allocated string (uninitialized).
+ * @return A pointer to the newly allocated string. The payload bytes [0,size)
+ *         are uninitialized, but byte [size] is always set to '\0' as a
+ *         compatibility guard and is not part of the logical counted length.
  */
 malloc_str_t int_new_string (size_t size) {
   malloc_block_t *mbt;
@@ -472,6 +474,7 @@ malloc_str_t int_new_string (size_t size) {
     }
   mbt->ref = 1;
   ADD_STRING (mbt->size);
+  STRING(mbt)[size] = '\0';
   return STRING(mbt);
 }
 
@@ -524,7 +527,8 @@ malloc_str_t int_string_copy (const char *str, const char *end) {
  * @param len The new desired length of the string.
  *            NOTE: If this exceeds max_string_length, it is NOT truncated.
  * @return A pointer to the extended string. The original string pointer must not be used after this call.
- *         A NUL-terminator is appended for compatibility, but is not counted in the length.
+ *         Byte [len] is always set to '\0' for compatibility, but is not
+ *         counted in the logical length.
  */
 malloc_str_t int_extend_string (malloc_str_t str, size_t len) {
   malloc_block_t *mbt;
@@ -550,6 +554,7 @@ malloc_str_t int_extend_string (malloc_str_t str, size_t len) {
       mbt->blkend = STRING(mbt) + len;
     }
   ADD_STRING_SIZE (mbt->size - oldsize);
+  STRING(mbt)[len] = '\0';
   return STRING(mbt);
 }
 
