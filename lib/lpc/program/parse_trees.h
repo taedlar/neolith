@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NODES_PER_BLOCK         256
 
 enum node_type {
@@ -274,3 +278,7 @@ parse_node_t *make_range_node(int, parse_node_t *, parse_node_t *, parse_node_t 
 parse_node_t *insert_pop_value(parse_node_t *);
 parse_node_t *optimize_loop_test(parse_node_t *);
 int is_boolean(parse_node_t *);
+
+#ifdef __cplusplus
+}
+#endif

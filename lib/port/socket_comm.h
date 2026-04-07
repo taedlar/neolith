@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef _WIN32
     /* Windows Sockets */
     #include <winsock2.h>
@@ -73,3 +77,7 @@ int set_socket_owner(socket_fd_t fd, int which);
  * @return 0 on success, -1 on failure.
  */
 int set_socket_async(socket_fd_t fd, int which);
+
+#ifdef __cplusplus
+}
+#endif

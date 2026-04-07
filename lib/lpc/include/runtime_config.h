@@ -1,6 +1,10 @@
 #ifndef RUNTIME_CONFIG_H
 #define RUNTIME_CONFIG_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BASE_CONFIG_STR			0
 #define CFG_STR(x)			((x) + BASE_CONFIG_STR)
 
@@ -65,4 +69,8 @@
 #define NUM_CONFIG_STRS		(BASE_CONFIG_INT - BASE_CONFIG_STR)
 #define NUM_CONFIG_INTS		(RUNTIME_CONFIG_NEXT - BASE_CONFIG_INT)
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif	/* ! RUNTIME_CONFIG_H */

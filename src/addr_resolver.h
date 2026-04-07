@@ -249,6 +249,8 @@ void addr_resolver_reverse_cache_add (unsigned long addr_in_network_order, const
  */
 void addr_resolver_cache_reset (void);
 
+void stem_get_addr_resolver_config(addr_resolver_config_t *config);
+
 #ifdef __cplusplus
 }
 #endif

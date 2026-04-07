@@ -8,9 +8,7 @@
 
 #include <gtest/gtest.h>
 
-extern "C" {
 #include "async/console_worker.h"
-}
 
 /**
  * Test console type detection

@@ -2,7 +2,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-extern "C" {
 #include "std.h"
 #include "rc.h"
 #include "interpret.h"
@@ -12,9 +11,6 @@ extern "C" {
 #include "lpc/program.h"
 #include "simulate.h"
 #include "stralloc.h"
-}
-
-#include "lpc/types.hpp"
 
 #include <gtest/gtest.h>
 #include <filesystem>

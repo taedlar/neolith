@@ -11,11 +11,9 @@
 #include <thread>
 #include <chrono>
 
-extern "C" {
-    #include "std.h"
-    #include "backend.h"
-    #include "port/timer.h"
-}
+#include "std.h"
+#include "backend.h"
+#include "port/timer.h"
 
 using namespace testing;
 

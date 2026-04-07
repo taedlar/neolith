@@ -4,9 +4,7 @@
 
 #include "fixtures.hpp"
 
-extern "C" {
-    #include "lpc/program.h"
-}
+#include "lpc/program.h"
 
 TEST_F(LPCInterpreterTest, floatingPointPrecision) {
     // compile a simple test file

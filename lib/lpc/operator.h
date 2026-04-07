@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void f_ge(void);
 void f_le(void);
 void f_lt(void);
@@ -26,3 +30,7 @@ void f_xor(void);
 void f_xor_eq(void);
 void f_function_constructor(void);
 void f_evaluate(void);
+
+#ifdef __cplusplus
+}
+#endif

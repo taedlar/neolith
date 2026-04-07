@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "types.h"
 
 /*
@@ -262,3 +266,7 @@ runtime_function_u *find_func_entry(const program_t*, int);
 #endif
 
 int translate_absolute_line(int, unsigned short *, size_t, int *, int *);
+
+#ifdef __cplusplus
+}
+#endif

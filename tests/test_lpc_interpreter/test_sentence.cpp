@@ -4,10 +4,8 @@
 
 #include "fixtures.hpp"
 
-extern "C" {
-    #include "lpc/functional.h"
-    #include "lpc/include/function.h"
-}
+#include "lpc/functional.h"
+#include "lpc/include/function.h"
 
 class SentenceTest : public LPCInterpreterTest {};
 

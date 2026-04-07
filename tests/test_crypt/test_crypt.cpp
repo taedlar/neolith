@@ -2,9 +2,7 @@
 #include <cstring>
 #include <cstdlib>
 
-extern "C" {
-    char* crypt(const char* key, const char* salt);
-}
+extern "C" char* crypt(const char* key, const char* salt);
 
 class CryptTest : public ::testing::Test {
 protected:

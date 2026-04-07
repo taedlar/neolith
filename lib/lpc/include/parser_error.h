@@ -1,6 +1,10 @@
 #ifndef	LPC_PARSER_ERROR_H
 #define	LPC_PARSER_ERROR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define	ERR_IS_NOT		1
 #define	ERR_NOT_LIVING		2
 #define	ERR_NOT_ACCESSIBLE	3
@@ -10,4 +14,8 @@
 #define	ERR_THERE_IS_NO		7
 #define	ERR_BAD_MULTIPLE	8
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif	/* ! LPC_PARSER_ERROR_H */

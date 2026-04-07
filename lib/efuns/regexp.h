@@ -1,6 +1,10 @@
 #ifndef _REGEXP_H_
 #define _REGEXP_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Definitions etc. for regexp(3) routines.
  *
@@ -31,4 +35,8 @@ regexp *regcomp(unsigned char *, int);
 int regexec(regexp *, char *);
 char *regsub(regexp *, char *, char *, int);
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif

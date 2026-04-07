@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "lpc/types.h"
 
 #define V_SHORT         1
@@ -81,3 +85,7 @@ int in_fatal_error(void);
 
 void do_shutdown (void) NO_RETURN;
 void do_slow_shutdown (int);
+
+#ifdef __cplusplus
+}
+#endif

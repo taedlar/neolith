@@ -12,11 +12,9 @@
 
 #include <gtest/gtest.h>
 
-extern "C" {
 #include "std.h"
 #include "comm.h"
 #include "backend.h"
-}
 
 using namespace testing;
 

@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "lpc/types.h"
 
 void call_out(void);
@@ -11,3 +15,7 @@ int find_call_out(object_t *, char *);
 array_t *get_all_call_outs(void);
 int print_call_out_usage(outbuffer_t *, int);
 void mark_call_outs(void);
+
+#ifdef __cplusplus
+}
+#endif

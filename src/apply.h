@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "lpc/types.h"
 
 #define APPLY_CACHE_SIZE (1 << APPLY_CACHE_BITS)
@@ -30,3 +34,7 @@ void clear_apply_cache(void);
 program_t *find_function (program_t * prog, shared_str_t name, int *index, int *fio, int *vio);
 
 shared_str_t function_exists(const char *, object_t *, int);
+
+#ifdef __cplusplus
+}
+#endif

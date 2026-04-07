@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "interpret.h"
 #include "async/async_runtime.h"
 #include "async/async_queue.h"
@@ -30,3 +34,7 @@ void update_compile_av(int);
 char *query_load_av(void);
 
 void init_console_user(int reconnect);
+
+#ifdef __cplusplus
+}
+#endif

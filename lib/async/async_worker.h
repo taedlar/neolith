@@ -6,6 +6,10 @@
 #ifndef ASYNC_WORKER_H
 #define ASYNC_WORKER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h>
 #include <stdbool.h>
 #include "port/sync.h"
@@ -95,4 +99,8 @@ async_worker_state_t async_worker_get_state(const async_worker_t* worker);
  */
 platform_event_t* async_worker_get_stop_event(async_worker_t* worker);
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* ASYNC_WORKER_H */

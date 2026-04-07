@@ -3,11 +3,8 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
-#include "lpc/types.hpp"
 
-extern "C" {
-    #include "efuns/sscanf.h"
-}
+#include "efuns/sscanf.h"
 
 TEST_F(EfunsTest, sscanfBasic) {
     svalue_t *framep = sp + 1; // frame pointer

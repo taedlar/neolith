@@ -3,15 +3,13 @@
 #endif /* HAVE_CONFIG_H */
 #include <gtest/gtest.h>
 #include <filesystem>
-#include "lpc/types.hpp"
-extern "C" {
-    #include "std.h"
-    #include "rc.h"
-    #include "src/simul_efun.h"
-    #include "uids.h"
-    #include "lpc/lex.h"
-    #include "lpc/object.h"
-}
+
+#include "std.h"
+#include "rc.h"
+#include "src/simul_efun.h"
+#include "uids.h"
+#include "lpc/lex.h"
+#include "lpc/object.h"
 
 using namespace testing;
 

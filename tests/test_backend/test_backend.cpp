@@ -4,11 +4,9 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 
-extern "C" {
-    #include "std.h"
-    #include "rc.h"
-    #include "lpc/compiler.h"
-}
+#include "std.h"
+#include "rc.h"
+#include "lpc/compiler.h"
 
 using namespace testing;
 

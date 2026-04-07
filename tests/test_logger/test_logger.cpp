@@ -1,7 +1,10 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #include <gtest/gtest.h>
-extern "C" {
 #include "logger/logger.h"
-}
+
 #include <filesystem>
 #include <system_error>
 

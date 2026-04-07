@@ -11,10 +11,8 @@
 #include <unistd.h>
 #endif
 
-extern "C" {
 #include "async/async_queue.h"
 #include "async/async_worker.h"
-}
 
 #include <atomic>
 #include <cstring>

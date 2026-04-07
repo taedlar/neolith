@@ -4,10 +4,8 @@
 
 #include "fixtures.hpp"
 
-extern "C" {
-    #include "lpc/object.h"
-    #include "lpc/otable.h"
-}
+#include "lpc/object.h"
+#include "lpc/otable.h"
 
 using namespace testing;
 

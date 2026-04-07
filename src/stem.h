@@ -3,6 +3,10 @@
 /* command line arguments and trace settings */
 #include "main.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* stem states */
 extern int g_proceeding_shutdown;
 extern int g_exit_code;
@@ -21,15 +25,22 @@ extern int slow_shutdown_to_do;
 extern char *reserved_area;
 extern char *xalloc(size_t);
 
+extern int init_stem(
+    int debug_level,
+    unsigned long trace_flags,
+    const char* config_file
+);
+
+#ifdef __cplusplus
+}
+#endif
+
 #include "outbuf.h" /* for outbuffer_t */
 
 #include "malloc.h" /* selection of DMALLOC/DXALLOC/DREALLOC/DCALLOC/FREE */
 #define ALLOCATE(type, tag, desc) ((type *)DXALLOC(sizeof(type), tag, desc))
 #define CALLOCATE(num, type, tag, desc) ((type *)DXALLOC(sizeof(type[1]) * (num), tag, desc))
 #define RESIZE(ptr, num, type, tag, desc) ((type *)DREALLOC((void *)ptr, sizeof(type) * (num), tag, desc))
-
-/* LPC types and the LPMud virtual machine */
-#include "lpc/types.h"
 
 /* dynamic string allocations */
 #include "stralloc.h"
@@ -40,6 +51,7 @@ extern char *xalloc(size_t);
 #define alloc_cstring(x,y) int_alloc_cstring(x, NULL)
 
 /* interfaces to the LPMud virtual machine */
+#include "lpc/types.h"
 #include "applies.h"
 #include "backend.h"
 #include "simulate.h"
@@ -47,13 +59,3 @@ extern char *xalloc(size_t);
 
 /* stem initialization */
 #include "addr_resolver.h"
-
-extern int init_stem(
-    int debug_level,
-    unsigned long trace_flags,
-    const char* config_file
-);
-
-extern void stem_get_addr_resolver_config(
-    addr_resolver_config_t *config
-);

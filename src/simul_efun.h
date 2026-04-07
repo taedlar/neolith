@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "lpc/compiler.h"
 
 /**
@@ -64,3 +68,7 @@ extern int find_simul_efun(const char *func_name);
  * @return Upon return, the return value is on the stack.
  */
 extern void call_simul_efun (int simul_num, int num_args);
+
+#ifdef __cplusplus
+}
+#endif

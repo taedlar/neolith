@@ -3,14 +3,11 @@
 #endif
 
 #include "fixtures.hpp"
-#include "lpc/types.hpp"
 
-extern "C" {
-    #include "lpc/program.h"
-    #include "lpc/program/disassemble.h"
-    #include "lpc/buffer.h"
-    #include "lpc/mapping.h"
-}
+#include "lpc/program.h"
+#include "lpc/program/disassemble.h"
+#include "lpc/buffer.h"
+#include "lpc/mapping.h"
 
 namespace {
 

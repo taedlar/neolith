@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "interpret.h"
 #include <setjmp.h>
 
@@ -31,3 +35,7 @@ void throw_error(void) NO_RETURN;
 const char *type_name(int c);
 void bad_arg(int, int) NO_RETURN;
 void bad_argument(svalue_t *, int, int, int) NO_RETURN;
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,6 +1,10 @@
 #ifndef	LPC_LOCALTIME_H
 #define	LPC_LOCALTIME_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Definitions for localtime() efun */
 
 #define	LT_SEC		0
@@ -14,4 +18,8 @@
 #define	LT_GMTOFF	8
 #define	LT_ZONE		9
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif	/* ! LPC_LOCALTIME_H */

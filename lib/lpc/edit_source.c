@@ -1130,6 +1130,7 @@ void make_efun_tables () {
     }
 
   fprintf (files[1], "\n/* 1 arg efuns */\n#define BASE %d\n\n", op_code + 1);
+  fprintf (files[2], "\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n");
   for (i = 0; i < efun1_code; i++)
     {
       fprintf (files[0], "\tf_%s,\n", efun1_names[i]);
@@ -1147,6 +1148,7 @@ void make_efun_tables () {
                i + op_code + efun1_code + 1);
       fprintf (files[2], "void f_%s(void);\n", efun_names[i]);
     }
+  fprintf (files[2], "\n#ifdef __cplusplus\n}\n#endif\n\n");
   fprintf (files[0], "};\n");
 
   if (efun1_code + op_code >= 256)

@@ -1,6 +1,10 @@
 #ifndef	LPC_ORIGIN_H
 #define	LPC_ORIGIN_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef	__LPC__
 
 /* codes returned by the origin() efun */
@@ -31,4 +35,8 @@
 
 #endif	/* ! __LPC__ */
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif	/* ! LPC_ORIGIN_H */

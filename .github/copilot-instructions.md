@@ -139,7 +139,7 @@ python testbot.py
 ### Includes and Headers
 - In `.c` files, include `config.h` first.
 - In [src/](src/) `.c` files, include `std.h` immediately after `config.h`.
-- Keep headers C/C++ compatible (`extern "C"` guards) and avoid unnecessary includes.
+- Keep headers C/C++ compatible (`extern "C"` guards when `__cplusplus` is defined) and avoid unnecessary includes.
 
 ### Formatting
 - C uses K&R style; C++ uses Stroustrup style.

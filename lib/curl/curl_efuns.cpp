@@ -9,7 +9,6 @@
 
 #ifdef PACKAGE_CURL
 
-extern "C" {
 #include "src/std.h"
 #include "src/apply.h"
 #include "src/applies.h"
@@ -29,7 +28,6 @@ extern "C" {
 #include "async/async_queue.h"
 #include "async/async_runtime.h"
 #include "async/async_worker.h"
-}
 
 #include <cstdint>
 #include <cstring>
@@ -684,7 +682,7 @@ static size_t curl_response_write_callback(void *ptr, size_t size, size_t nmemb,
   return chunk_size;
 }
 
-void f_perform_using(void) {
+extern "C" void f_perform_using(void) {
   svalue_t *option_value = sp - 1;
   svalue_t *setting_value = sp;
   const char *option;
@@ -719,7 +717,7 @@ void f_perform_using(void) {
   pop_n_elems(2);
 }
 
-void f_perform_to(void) {
+extern "C" void f_perform_to(void) {
   int argc = st_num_arg;
   svalue_t *callback_value;
   svalue_t *flag_value;
@@ -775,7 +773,7 @@ void f_perform_to(void) {
   pop_n_elems(argc);
 }
 
-void f_in_perform(void) {
+extern "C" void f_in_perform(void) {
   int handle_id = find_handle_index_for_owner(current_object);
 
   if (handle_id >= 0 && s_curl_handles[handle_id].state == CURL_STATE_TRANSFERRING) {

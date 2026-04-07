@@ -3,7 +3,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
-#include "lpc/types.hpp"
 
 namespace {
 

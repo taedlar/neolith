@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef HAVE_STDINT_H
     #include <stdint.h>
 #elif HAVE_INTTYPES_H
@@ -79,4 +83,8 @@
 #define STORE_PTR(x, y)		STORE8(x,y)
 #else
 #error only supports pointer size of 4 or 8 bytes
+#endif
+
+#ifdef __cplusplus
+}
 #endif

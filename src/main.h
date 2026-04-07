@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef __linux__
 #include <linux/limits.h>
 #endif /* __linux__ */
@@ -27,3 +31,7 @@ extern main_options_t* g_main_options;
 #define TIMER_FLAG_RESET       0x01  /* Enable reset timer */
 #define TIMER_FLAG_HEARTBEAT   0x02  /* Enable heart_beat timer */
 #define TIMER_FLAG_CALLOUT     0x04  /* Enable call_out timer */
+
+#ifdef __cplusplus
+}
+#endif

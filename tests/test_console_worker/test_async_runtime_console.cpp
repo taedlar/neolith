@@ -8,10 +8,8 @@
 
 #include <gtest/gtest.h>
 
-extern "C" {
 #include "async/async_runtime.h"
 #include "async/console_worker.h"
-}
 
 /**
  * Test async_runtime_get_console_type returns NONE before add_console

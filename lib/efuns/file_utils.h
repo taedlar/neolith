@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "lpc/types.h"
 
 #ifdef _WIN32
@@ -36,3 +40,7 @@ int file_size(char *);
 int copy_file(char *, char *);
 int do_rename(char *, char *, int);
 int remove_file(char *);
+
+#ifdef __cplusplus
+}
+#endif

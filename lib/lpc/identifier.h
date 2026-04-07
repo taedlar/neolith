@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* to speed up cleaning the hash table, and identify the union */
 #define IHE_RESWORD        0x80000000
 #define IHE_EFUN           0x40000000
@@ -61,3 +65,7 @@ void free_unused_identifiers(void);
 void add_keyword (const char *name, keyword_t * entry);
 void init_identifiers(void);
 void deinit_identifiers(void);
+
+#ifdef __cplusplus
+}
+#endif

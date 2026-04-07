@@ -3,15 +3,13 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 
-extern "C" {
-    #include "std.h"
-    #include "rc.h"
-    #include "src/simul_efun.h"
-    #include "src/simulate.h"
-    #include "uids.h"
-    #include "lpc/object.h"
-    #include "lpc/otable.h"
-}
+#include "std.h"
+#include "rc.h"
+#include "src/simul_efun.h"
+#include "src/simulate.h"
+#include "uids.h"
+#include "lpc/object.h"
+#include "lpc/otable.h"
 
 using namespace testing;
 

@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* mapping.h - 1992/07/19 */
 
 #define MAP_POINTER_HASH(x) ((intptr_t)x >> 4)
@@ -95,3 +99,7 @@ void add_mapping_shared_string(mapping_t *, char *, char *);
 
 int growMap (mapping_t * m);
 int restore_hash_string (char **val, svalue_t * sv);
+
+#ifdef __cplusplus
+}
+#endif

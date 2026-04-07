@@ -134,10 +134,8 @@ Tests using network sockets require special initialization handling:
 **Header Includes**:
 ```cpp
 #include <gtest/gtest.h>
-extern "C" {
 #include "async/async_runtime.h"
 #include "port/socket_comm.h"  // Provides create_test_socket_pair()
-}
 ```
 
 **Windows Socket Initialization**:
@@ -178,7 +176,7 @@ When asserting results on the eval stack or validating `svalue_t` values, use th
 
 **Include the wrapper header:**
 ```cpp
-#include "lpc/types.hpp"  // Must be included outside any extern "C" block
+#include "lpc/types.h"  // includes the svalue_view wrapper in C++ context
 ```
 
 **Replace raw union access with view accessors:**
@@ -227,6 +225,5 @@ view.set_number(42);
 - Eliminates raw `sp->u.X` access that bypasses type checks
 - Makes intended assertions clearer (read `.c_str()` not `->u.string`)
 - Scales across string subtypes without duplicating test logic
-- Statically enforces correct includes (wrapper only in `types.hpp`, never under `extern "C"`)
 
-This wrapper pattern is now **the preferred form for all new test assertions on svalue_t structures**.
+This wrapper pattern is now **the preferred form for all new test code that interacts with svalue_t structures**.
