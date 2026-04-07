@@ -100,14 +100,21 @@ protected:
         int fio = 0;
         int vio = 0;
         svalue_t ret;
+        memset(&ret, 0, sizeof(ret));
 
         program_t *found_prog = find_function(obj->prog, findstring(method, NULL), &index, &fio, &vio);
         EXPECT_NE(found_prog, nullptr) << "find_function failed for method: " << method;
 
-        int runtime_index = found_prog->function_table[index].runtime_index + fio;
-        current_object = obj;
-        variable_index_offset = vio;
-        call_function(obj->prog, runtime_index, 0, &ret);
+        if (found_prog) {
+            int runtime_index = found_prog->function_table[index].runtime_index + fio;
+            object_t* saved_current_object = current_object;
+            current_object = obj;
+            int saved_variable_index_offset = variable_index_offset;
+            variable_index_offset = vio;
+            call_function(obj->prog, runtime_index, 0, &ret);
+            variable_index_offset = saved_variable_index_offset;
+            current_object = saved_current_object;
+        }
         return ret;
     }
 };
