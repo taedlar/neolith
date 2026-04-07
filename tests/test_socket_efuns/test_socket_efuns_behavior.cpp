@@ -204,11 +204,11 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_001_CreateStream_Success) {
   svalue_t read_cb, close_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   
   close_cb.type = T_STRING;
   close_cb.subtype = STRING_SHARED;
-  close_cb.u.string = make_shared_string("close_callback", NULL);
+  close_cb.u.shared_string = make_shared_string("close_callback", NULL);
   
   // Create stream socket with callbacks
   int fd = socket_create(STREAM, &read_cb, &close_cb);
@@ -222,8 +222,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_001_CreateStream_Success) {
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   // Cleanup
-  free_string(read_cb.u.string);
-  free_string(close_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(close_cb.u.shared_string);
 }
 
 /**
@@ -240,11 +240,11 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_002_CreateDatagram_CloseCallbackIgnored
   svalue_t read_cb, close_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   
   close_cb.type = T_STRING;
   close_cb.subtype = STRING_SHARED;
-  close_cb.u.string = make_shared_string("close_callback", NULL);
+  close_cb.u.shared_string = make_shared_string("close_callback", NULL);
   
   // Create datagram socket - close callback should be ignored
   int fd = socket_create(DATAGRAM, &read_cb, &close_cb);
@@ -254,8 +254,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_002_CreateDatagram_CloseCallbackIgnored
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
-  free_string(read_cb.u.string);
-  free_string(close_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(close_cb.u.shared_string);
 }
 
 /**
@@ -272,7 +272,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_003_CreateInvalidMode_Rejected) {
   svalue_t read_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   
   // Try to create socket with invalid mode (999 is not a valid enum value)
   int fd = socket_create((enum socket_mode)999, &read_cb, NULL);
@@ -282,7 +282,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_003_CreateInvalidMode_Rejected) {
   EXPECT_LT(fd, 1) << "socket_create with invalid mode should return error code";
   ExpectNoCallbacks();
   
-  free_string(read_cb.u.string);
+  free_string(read_cb.u.shared_string);
 }
 
 /**
@@ -300,7 +300,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_004_BindUnbound_Success) {
   svalue_t read_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   int fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket for SOCK_BHV_004";
   
@@ -313,7 +313,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_004_BindUnbound_Success) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
-  free_string(read_cb.u.string);
+  free_string(read_cb.u.shared_string);
 }
 
 /**
@@ -331,7 +331,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_005_BindAlreadyBound_Rejected) {
   svalue_t read_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   int fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket";
   
@@ -347,7 +347,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_005_BindAlreadyBound_Rejected) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
-  free_string(read_cb.u.string);
+  free_string(read_cb.u.shared_string);
 }
 
 /**
@@ -365,7 +365,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_006_ListenBoundStream_Success) {
   svalue_t read_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   int fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket";
   
@@ -376,7 +376,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_006_ListenBoundStream_Success) {
   svalue_t listen_cb;
   listen_cb.type = T_STRING;
   listen_cb.subtype = STRING_SHARED;
-  listen_cb.u.string = make_shared_string("listen_callback", NULL);
+  listen_cb.u.shared_string = make_shared_string("listen_callback", NULL);
   int result = socket_listen(fd, &listen_cb);
   
   EXPECT_EQ(result, EESUCCESS) 
@@ -385,8 +385,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_006_ListenBoundStream_Success) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
-  free_string(read_cb.u.string);
-  free_string(listen_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(listen_cb.u.shared_string);
 }
 
 /**
@@ -404,7 +404,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_007_ListenDatagram_Rejected) {
   svalue_t read_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   int fd = socket_create(DATAGRAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create datagram socket";
   
@@ -415,7 +415,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_007_ListenDatagram_Rejected) {
   svalue_t listen_cb;
   listen_cb.type = T_STRING;
   listen_cb.subtype = STRING_SHARED;
-  listen_cb.u.string = make_shared_string("listen_callback", NULL);
+  listen_cb.u.shared_string = make_shared_string("listen_callback", NULL);
   int result = socket_listen(fd, &listen_cb);
   
   EXPECT_EQ(result, EEMODENOTSUPP) 
@@ -424,8 +424,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_007_ListenDatagram_Rejected) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
-  free_string(read_cb.u.string);
-  free_string(listen_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(listen_cb.u.shared_string);
 }
 
 /**
@@ -457,13 +457,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   listen_cb.type = T_STRING;
   listen_cb.subtype = STRING_SHARED;
-  listen_cb.u.string = make_shared_string("read_callback", NULL);
+  listen_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   listen_fd = socket_create(STREAM, &read_cb, nullptr);
   ASSERT_GE(listen_fd, 0) << "Failed to create listening socket";
@@ -489,9 +489,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
   EXPECT_EQ(socket_close(listen_fd, 1), EESUCCESS);
   SOCKET_CLOSE(native_client_fd);
 
-  free_string(read_cb.u.string);
-  free_string(listen_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(listen_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -509,7 +509,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_009_AcceptNotListening_Rejected) {
   svalue_t read_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   int fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket";
   
@@ -517,7 +517,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_009_AcceptNotListening_Rejected) {
   svalue_t write_cb;
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
   int result = socket_accept(fd, &read_cb, &write_cb);
   
   EXPECT_EQ(result, EENOTLISTN) 
@@ -526,8 +526,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_009_AcceptNotListening_Rejected) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -554,10 +554,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_010_ConnectNumericAddress_SuccessPath) 
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -574,8 +574,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_010_ConnectNumericAddress_SuccessPath) 
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(listener_fd);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -593,7 +593,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_011_ConnectMalformedAddress_Rejected) {
   svalue_t read_cb;
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   int fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket";
   
@@ -601,7 +601,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_011_ConnectMalformedAddress_Rejected) {
   svalue_t write_cb;
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
   char *bad_addr = make_shared_string("bad_address_format", NULL);
   int result = socket_connect(fd, bad_addr, &read_cb, &write_cb);
   
@@ -612,8 +612,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_011_ConnectMalformedAddress_Rejected) {
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(bad_addr);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -643,13 +643,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_012_StreamWriteConnected_SuccessOrCallb
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
   payload.type = T_STRING;
   payload.subtype = STRING_SHARED;
-  payload.u.string = make_shared_string("payload", NULL);
+  payload.u.shared_string = make_shared_string("payload", NULL);
 
   fd = socket_create(STREAM, &read_cb, nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -678,9 +678,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_012_StreamWriteConnected_SuccessOrCallb
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(accepted_fd);
   SOCKET_CLOSE(listener_fd);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
-  free_string(payload.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
+  free_string(payload.u.shared_string);
 }
 
 /**
@@ -707,13 +707,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_013_StreamWriteBlocked_Rejected) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
   payload.type = T_STRING;
   payload.subtype = STRING_SHARED;
-  payload.u.string = make_shared_string("payload", NULL);
+  payload.u.shared_string = make_shared_string("payload", NULL);
 
   fd = socket_create(STREAM, &read_cb, nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -733,9 +733,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_013_StreamWriteBlocked_Rejected) {
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(accepted_fd);
   SOCKET_CLOSE(listener_fd);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
-  free_string(payload.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
+  free_string(payload.u.shared_string);
 }
 
 /**
@@ -757,21 +757,21 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_014_DatagramWriteNoAddress_Rejected) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
 
   fd = socket_create(DATAGRAM, &read_cb, nullptr);
   ASSERT_GE(fd, 0) << "Failed to create datagram socket";
 
   payload.type = T_STRING;
   payload.subtype = STRING_SHARED;
-  payload.u.string = make_shared_string("payload", NULL);
+  payload.u.shared_string = make_shared_string("payload", NULL);
 
   EXPECT_EQ(socket_write(fd, &payload, nullptr), EENOADDR)
     << "Datagram write without address should return EENOADDR";
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string(payload.u.string);
-  free_string(read_cb.u.string);
+  free_string(payload.u.shared_string);
+  free_string(read_cb.u.shared_string);
 }
 
 /**
@@ -791,21 +791,21 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_015_DatagramWriteInvalidAddress_Rejecte
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
 
   fd = socket_create(DATAGRAM, &read_cb, nullptr);
   ASSERT_GE(fd, 0) << "Failed to create datagram socket";
 
   payload.type = T_STRING;
   payload.subtype = STRING_SHARED;
-  payload.u.string = make_shared_string("payload", NULL);
+  payload.u.shared_string = make_shared_string("payload", NULL);
 
   EXPECT_EQ(socket_write(fd, &payload, (char *)"bad"), EEBADADDR)
     << "Datagram write with malformed address should return EEBADADDR";
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string(payload.u.string);
-  free_string(read_cb.u.string);
+  free_string(payload.u.shared_string);
+  free_string(read_cb.u.shared_string);
 }
 
 /**
@@ -830,10 +830,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_016_CloseByOwner_Success) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   close_cb.type = T_STRING;
   close_cb.subtype = STRING_SHARED;
-  close_cb.u.string = make_shared_string("close_callback", NULL);
+  close_cb.u.shared_string = make_shared_string("close_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, &close_cb);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -852,8 +852,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_016_CloseByOwner_Success) {
   EXPECT_EQ(record.socket_fd, fd);
   ExpectNoCallbacks();
 
-  free_string(read_cb.u.string);
-  free_string(close_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(close_cb.u.shared_string);
 }
 
 /**
@@ -879,7 +879,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_017_CloseByNonOwner_Rejected) {
     ScopedObjectContext owner_ctx(this, owner_a);
     read_cb.type = T_STRING;
     read_cb.subtype = STRING_SHARED;
-    read_cb.u.string = make_shared_string("read_callback", NULL);
+    read_cb.u.shared_string = make_shared_string("read_callback", NULL);
     fd = socket_create(STREAM, &read_cb, nullptr);
     ASSERT_GE(fd, 0) << "Failed to create stream socket owned by owner_a";
   }
@@ -895,7 +895,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_017_CloseByNonOwner_Rejected) {
     EXPECT_EQ(socket_close(fd, 1), EESUCCESS) << "Owner cleanup close should succeed";
   }
 
-  free_string(read_cb.u.string);
+  free_string(read_cb.u.shared_string);
 }
 
 /**
@@ -932,7 +932,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_018_ReleaseThenAcquire_Success) {
 
   owner_a_read_cb.type = T_STRING;
   owner_a_read_cb.subtype = STRING_SHARED;
-  owner_a_read_cb.u.string = make_shared_string("read_callback", NULL);
+  owner_a_read_cb.u.shared_string = make_shared_string("read_callback", NULL);
 
   {
     ScopedObjectContext owner_a_ctx(this, owner_a);
@@ -942,16 +942,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_018_ReleaseThenAcquire_Success) {
 
   release_cb.type = T_STRING;
   release_cb.subtype = STRING_SHARED;
-  release_cb.u.string = make_shared_string("release_callback", NULL);
+  release_cb.u.shared_string = make_shared_string("release_callback", NULL);
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
   close_cb.type = T_STRING;
   close_cb.subtype = STRING_SHARED;
-  close_cb.u.string = make_shared_string("close_callback", NULL);
+  close_cb.u.shared_string = make_shared_string("close_callback", NULL);
 
   release_hook_read_cb = &read_cb;
   release_hook_write_cb = &write_cb;
@@ -982,11 +982,11 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_018_ReleaseThenAcquire_Success) {
     EXPECT_EQ(socket_close(fd, 1), EESUCCESS) << "New owner should close acquired socket";
   }
 
-  free_string(owner_a_read_cb.u.string);
-  free_string(release_cb.u.string);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
-  free_string(close_cb.u.string);
+  free_string(owner_a_read_cb.u.shared_string);
+  free_string(release_cb.u.shared_string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
+  free_string(close_cb.u.shared_string);
 }
 
 /**
@@ -1010,13 +1010,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_019_AcquireWithoutRelease_Rejected) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
   close_cb.type = T_STRING;
   close_cb.subtype = STRING_SHARED;
-  close_cb.u.string = make_shared_string("close_callback", NULL);
+  close_cb.u.shared_string = make_shared_string("close_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -1026,9 +1026,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_019_AcquireWithoutRelease_Rejected) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
-  free_string(close_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
+  free_string(close_cb.u.shared_string);
 }
 
 /**
@@ -1057,10 +1057,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_020_ReadCallbackOrdering_InboundData) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -1092,6 +1092,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_020_ReadCallbackOrdering_InboundData) {
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(accepted_fd);
   SOCKET_CLOSE(listener_fd);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }

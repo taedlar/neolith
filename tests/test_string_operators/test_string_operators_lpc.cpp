@@ -75,10 +75,10 @@ protected:
         ASSERT_TRUE(sv != nullptr);
         sv->type = T_STRING;
         sv->subtype = STRING_MALLOC;
-        sv->u.string = new_string(len, "test");
-        ASSERT_TRUE(sv->u.string != nullptr);
-        memcpy(sv->u.string, content, len);
-        sv->u.string[len] = '\0';
+        sv->u.malloc_string = new_string(len, "test");
+        ASSERT_TRUE(sv->u.malloc_string != nullptr);
+        memcpy(sv->u.malloc_string, content, len);
+        sv->u.malloc_string[len] = '\0';
     }
 
     void create_constant_string(svalue_t *sv, const char *content) {

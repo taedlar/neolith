@@ -157,7 +157,7 @@ TEST_F(StrAllocTest, extendStringUpdatesBlkendAcrossThresholds) {
 
 TEST_F(StrAllocTest, unlinkLongMallocStringPreservesBlkendLength) {
     const size_t len = static_cast<size_t>(USHRT_MAX) + 53;
-    char* raw = new_string(len, "test");
+    malloc_str_t raw = new_string(len, "test");
     memset(raw, 'u', len);
     raw[len] = '\0';
 
@@ -166,18 +166,18 @@ TEST_F(StrAllocTest, unlinkLongMallocStringPreservesBlkendLength) {
     svalue_t sv;
     sv.type = T_STRING;
     sv.subtype = STRING_MALLOC;
-    sv.u.string = raw;
+    sv.u.malloc_string = raw;
 
     unlink_string_svalue(&sv);
 
-    EXPECT_NE(sv.u.string, raw);
+    EXPECT_NE(sv.u.malloc_string, raw);
     EXPECT_EQ(MSTR_REF(raw), 1);
-    EXPECT_EQ(MSTR_SIZE(sv.u.string), static_cast<unsigned short>(USHRT_MAX));
-    EXPECT_EQ(static_cast<char*>(MSTR_BLKEND(sv.u.string)), sv.u.string + len);
-    EXPECT_EQ(COUNTED_STRLEN(sv.u.string), len);
+    EXPECT_EQ(MSTR_SIZE(sv.u.malloc_string), static_cast<unsigned short>(USHRT_MAX));
+    EXPECT_EQ(static_cast<char*>(MSTR_BLKEND(sv.u.malloc_string)), sv.u.malloc_string + len);
+    EXPECT_EQ(COUNTED_STRLEN(sv.u.malloc_string), len);
 
     FREE_MSTR(raw);
-    FREE_MSTR(sv.u.string);
+    FREE_MSTR(sv.u.malloc_string);
 }
 
 TEST_F(StrAllocTest, longMallocStringFallbackWorksWhenBlkendMissing) {

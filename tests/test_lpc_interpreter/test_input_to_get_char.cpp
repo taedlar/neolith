@@ -188,7 +188,7 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     args[0].u.number = 42;
     args[1].type = T_STRING;
     args[1].subtype = STRING_SHARED;
-    args[1].u.string = make_shared_string("extra", NULL);
+    args[1].u.shared_string = make_shared_string("extra", NULL);
     
     int result = input_to(&fun, 0, 2, args);
     EXPECT_EQ(result, 1) << "input_to with args should succeed";
@@ -211,7 +211,7 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     EXPECT_EQ(callback_args->item[0].type, T_NUMBER);
     EXPECT_EQ(callback_args->item[0].u.number, 42);
     EXPECT_EQ(callback_args->item[1].type, T_STRING);
-    EXPECT_STREQ(callback_args->item[1].u.string, "extra");
+    EXPECT_STREQ(callback_args->item[1].u.shared_string, "extra");
 }
 
 TEST_F(InputToGetCharTest, InputToFunctionPointer) {
@@ -268,7 +268,7 @@ TEST_F(InputToGetCharTest, GetCharWithArgs) {
     args[0].u.number = 123;
     args[1].type = T_STRING;
     args[1].subtype = STRING_SHARED;
-    args[1].u.string = make_shared_string("context", NULL);
+    args[1].u.shared_string = make_shared_string("context", NULL);
     
     int result = get_char(&fun, 0, 2, args);
     EXPECT_EQ(result, 1);
@@ -281,7 +281,7 @@ TEST_F(InputToGetCharTest, GetCharWithArgs) {
     array_t* callback_args = get_array_var("callback_args");
     ASSERT_NE(callback_args, nullptr);
     EXPECT_EQ(callback_args->item[0].u.number, 123);
-    EXPECT_STREQ(callback_args->item[1].u.string, "context");
+    EXPECT_STREQ(callback_args->item[1].u.shared_string, "context");
 }
 
 TEST_F(InputToGetCharTest, InputToNoCommandGiver) {
@@ -399,7 +399,7 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_STRING;
     args[0].subtype = STRING_SHARED;
-    args[0].u.string = make_shared_string("test_string", NULL); // ref = 1
+    args[0].u.shared_string = make_shared_string("test_string", NULL); // ref = 1
     args[1].type = T_ARRAY;
     args[1].u.arr = allocate_empty_array(3); // ref = 1
     
@@ -415,7 +415,7 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     simulate_input("input");
     
     // Cleanup our local references
-    free_string(args[0].u.string);
+    free_string(args[0].u.shared_string);
     free_array(args[1].u.arr);
 }
 
@@ -430,7 +430,7 @@ TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     args[0].u.number = 111;
     args[1].type = T_STRING;
     args[1].subtype = STRING_SHARED;
-    args[1].u.string = make_shared_string("arg2", NULL);
+    args[1].u.shared_string = make_shared_string("arg2", NULL);
     
     input_to(&fun, 0, 2, args);
     simulate_input("user_input");
@@ -442,6 +442,6 @@ TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     array_t* callback_args = get_array_var("callback_args");
     ASSERT_NE(callback_args, nullptr);
     EXPECT_EQ(callback_args->item[0].u.number, 111) << "First carryover arg should be second";
-    EXPECT_STREQ(callback_args->item[1].u.string, "arg2") << "Second carryover arg should be third";
+    EXPECT_STREQ(callback_args->item[1].u.shared_string, "arg2") << "Second carryover arg should be third";
 }
 

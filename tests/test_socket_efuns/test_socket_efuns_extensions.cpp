@@ -176,10 +176,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_001_ConnectTracksOperationLifecycle) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -203,8 +203,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_001_ConnectTracksOperationLifecycle) {
     SOCKET_CLOSE(listener_fd);
   }
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -228,10 +228,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_002_BadAddressDoesNotStartOperation) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -247,8 +247,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_002_BadAddressDoesNotStartOperation) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -273,10 +273,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_003_CloseClearsOperationAndDuplicateTerm
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -301,8 +301,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_003_CloseClearsOperationAndDuplicateTerm
   if (listener_fd != INVALID_SOCKET_FD) {
     SOCKET_CLOSE(listener_fd);
   }
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -329,10 +329,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_001_NumericConnectBaselineUnchanged) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -356,8 +356,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_001_NumericConnectBaselineUnchanged) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(listener_fd);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -381,10 +381,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_MalformedHostnameEndpointRejected) 
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -400,8 +400,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_MalformedHostnameEndpointRejected) 
   EXPECT_EQ(op_phase, OP_INIT);
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -428,10 +428,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -460,8 +460,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(listener_fd);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -490,10 +490,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   for (int i = 0; i < OWNER_COUNT; i++) {
     std::string owner_name = "test_socket_dns_owner_" + std::to_string(i) + ".c";
@@ -537,8 +537,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
     socket_close(fd, 1);
   }
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -560,10 +560,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   /* Create TEST_LIMIT sockets all owned by master_ob */
   for (int i = 0; i < TEST_LIMIT; i++) {
@@ -595,8 +595,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
     socket_close(fd, 1);
   }
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -626,10 +626,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -654,8 +654,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
   EXPECT_EQ(op_phase, OP_INIT);
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -682,10 +682,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd_a = socket_create(STREAM, &read_cb, NULL);
   fd_b = socket_create(STREAM, &read_cb, NULL);
@@ -708,8 +708,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
 
   EXPECT_EQ(socket_close(fd_a, 1), EESUCCESS);
   EXPECT_EQ(socket_close(fd_b, 1), EESUCCESS);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -741,10 +741,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlockin
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   slow_fd = socket_create(STREAM, &read_cb, NULL);
   fast_fd = socket_create(STREAM, &read_cb, NULL);
@@ -793,8 +793,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlockin
   EXPECT_EQ(socket_close(fast_fd, 1), EESUCCESS);
   SOCKET_CLOSE(slow_listener_fd);
   SOCKET_CLOSE(fast_listener_fd);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 /**
@@ -817,10 +817,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   for (int i = 0; i < 24; i++) {
     int fd = socket_create(STREAM, &read_cb, NULL);
@@ -857,8 +857,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
     socket_close(fd, 1);
   }
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntimeEntry) {
@@ -876,7 +876,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -900,7 +900,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
   EXPECT_EQ(tracked_fd, INVALID_SOCKET_FD);
   EXPECT_EQ(resolve_lpc_socket_context(runtime_context, native_fd, &resolved_socket), 0);
 
-  free_string(read_cb.u.string);
+  free_string(read_cb.u.shared_string);
 }
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
@@ -920,10 +920,10 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
   write_cb.type = T_STRING;
   write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  write_cb.u.shared_string = make_shared_string("write_callback", NULL);
 
   fd = socket_create(STREAM, &read_cb, NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
@@ -956,8 +956,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
   if (listener_fd != INVALID_SOCKET_FD) {
     SOCKET_CLOSE(listener_fd);
   }
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string(read_cb.u.shared_string);
+  free_string(write_cb.u.shared_string);
 }
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_003_RuntimeRegistrationStress_NoLeaks) {
@@ -970,7 +970,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_003_RuntimeRegistrationStress_NoLeaks) {
 
   read_cb.type = T_STRING;
   read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
+  read_cb.u.shared_string = make_shared_string("read_callback", NULL);
 
   baseline_registrations = get_socket_runtime_registration_count();
   ASSERT_GE(baseline_registrations, 0);
@@ -986,6 +986,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_003_RuntimeRegistrationStress_NoLeaks) {
       << "Registration count should return to baseline after close";
   }
 
-  free_string(read_cb.u.string);
+  free_string(read_cb.u.shared_string);
 }
 

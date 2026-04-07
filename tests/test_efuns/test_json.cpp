@@ -91,11 +91,11 @@ TEST_F(EfunsTest, toJsonMapping) {
     svalue_t key;
     key.type = T_STRING;
     key.subtype = STRING_CONSTANT;
-    key.u.string = (char *)"k";
+    key.u.const_string = "k";
     svalue_t *val = find_for_insert(m, &key, 1);
     /* find_for_insert converts STRING_CONSTANT to STRING_SHARED via svalue_to_int;
-     * key.u.string now points to the shared string — release the extra ref. */
-    free_string(key.u.string);
+     * key.u.shared_string now points to the shared string — release the extra ref. */
+    free_string(key.u.shared_string);
     val->type = T_NUMBER;
     val->subtype = 0;
     val->u.number = 99;

@@ -33,10 +33,10 @@ protected:
         ASSERT_TRUE(sv != nullptr);
         sv->type = T_STRING;
         sv->subtype = STRING_MALLOC;
-        sv->u.string = new_string(len, "test");
-        ASSERT_TRUE(sv->u.string != nullptr);
-        memcpy(sv->u.string, content, len);
-        sv->u.string[len] = '\0';  // Ensure null-termination for testing
+        sv->u.malloc_string = new_string(len, "test");
+        ASSERT_TRUE(sv->u.malloc_string != nullptr);
+        memcpy(sv->u.malloc_string, content, len);
+        sv->u.malloc_string[len] = '\0';  // Ensure null-termination for testing
     }
 
     // Helper: Create a shared-based svalue with given content
@@ -44,8 +44,8 @@ protected:
         ASSERT_TRUE(sv != nullptr);
         sv->type = T_STRING;
         sv->subtype = STRING_SHARED;
-        sv->u.string = make_shared_string(content, NULL);
-        ASSERT_TRUE(sv->u.string != nullptr);
+        sv->u.shared_string = make_shared_string(content, NULL);
+        ASSERT_TRUE(sv->u.shared_string != nullptr);
     }
 
     // Helper: Verify svalue content and type
@@ -145,13 +145,13 @@ TEST_F(StringOperatorsTest, AddLeftViaLenPrependNormal) {
     // since the macro depends on VM stack state
     malloc_str_t result = new_string(prefix_len + 5, "test");
     memcpy(result, prefix, prefix_len);
-    memcpy(result + prefix_len, target.u.string, 5);
+    memcpy(result + prefix_len, target.u.malloc_string, 5);
     result[prefix_len + 5] = '\0';
 
     svalue_t combined;
     combined.type = T_STRING;
     combined.subtype = STRING_MALLOC;
-    combined.u.string = result;
+    combined.u.malloc_string = result;
 
     assert_string_content(&combined, "Hello World", 11, STRING_MALLOC);
     free_svalue_string(&combined);
@@ -238,7 +238,7 @@ TEST_F(StringOperatorsTest, EqualityIdenticalStrings) {
     create_malloc_string(&right, "Same", 4);
 
     // Simulate memcmp check used in operator
-    int cmp_result = memcmp(left.u.string, right.u.string, SVALUE_STRLEN(&left));
+    int cmp_result = memcmp(left.u.malloc_string, right.u.malloc_string, SVALUE_STRLEN(&left));
     ASSERT_EQ(cmp_result, 0);
     ASSERT_EQ(SVALUE_STRLEN(&left), SVALUE_STRLEN(&right));
 
@@ -272,11 +272,11 @@ TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
     create_malloc_string(&s3, content3, 3);
 
     // s1 == s2 via memcmp
-    ASSERT_EQ(memcmp(s1.u.string, s2.u.string, 3), 0);
+    ASSERT_EQ(memcmp(s1.u.malloc_string, s2.u.malloc_string, 3), 0);
     ASSERT_EQ(SVALUE_STRLEN(&s1), SVALUE_STRLEN(&s2));
 
     // s1 != s3 due to byte difference at position 2
-    ASSERT_NE(memcmp(s1.u.string, s3.u.string, 3), 0);
+    ASSERT_NE(memcmp(s1.u.malloc_string, s3.u.malloc_string, 3), 0);
 
     free_svalue_string(&s1);
     free_svalue_string(&s2);
@@ -297,7 +297,7 @@ TEST_F(StringOperatorsTest, RangeFullString) {
     size_t from = 0, to = 6;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.string + from, out_len);
+    memcpy(result, sv.u.malloc_string + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_TRUE(memcmp(result, "Testing", out_len) == 0);
@@ -316,7 +316,7 @@ TEST_F(StringOperatorsTest, RangeMiddleSlice) {
     size_t from = 2, to = 5;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.string + from, out_len);
+    memcpy(result, sv.u.malloc_string + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_TRUE(memcmp(result, "2345", 4) == 0);
@@ -335,7 +335,7 @@ TEST_F(StringOperatorsTest, RangeSingleChar) {
     size_t from = 2, to = 2;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.string + from, out_len);
+    memcpy(result, sv.u.malloc_string + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_EQ(result[0], 'C');
@@ -355,7 +355,7 @@ TEST_F(StringOperatorsTest, RangeWithEmbeddedNul) {
     size_t from = 1, to = 3;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.string + from, out_len);
+    memcpy(result, sv.u.malloc_string + from, out_len);
     result[out_len] = '\0';
 
     // Result should be "\0B\0" (3 bytes plus terminator)
@@ -377,14 +377,14 @@ TEST_F(StringOperatorsTest, VeryLongStringExtend) {
     memset(large_str, 'A', large_size);
     target.type = T_STRING;
     target.subtype = STRING_MALLOC;
-    target.u.string = large_str;
+    target.u.malloc_string = large_str;
 
     const char *suffix = "END";
     EXTEND_SVALUE_STRING_LEN(&target, suffix, 3, "test");
 
     size_t final_len = SVALUE_STRLEN(&target);
     ASSERT_EQ(final_len, large_size + 3);
-    ASSERT_EQ(target.u.string[large_size + 2], 'D');
+    ASSERT_EQ(target.u.malloc_string[large_size + 2], 'D');
 
     free_svalue_string(&target);
 }
