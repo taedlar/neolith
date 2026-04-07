@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
+#include "lpc/types.hpp"
 
 TEST_F(EfunsTest, saveObject) {
     namespace fs = std::filesystem;
@@ -21,8 +22,9 @@ TEST_F(EfunsTest, saveObject) {
     push_number(0); // flag to indicate saving variables
     f_save_object();
 
-    ASSERT_TRUE(sp->type == T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1) << "Failed to save object state";
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    ASSERT_EQ(view.number(), 1) << "Failed to save object state";
     destruct_object(obj);
 
     EXPECT_TRUE (fs::exists(save_file_path)) << "Save file was not created";
@@ -40,13 +42,15 @@ TEST_F(EfunsTest, saveObject) {
     st_num_arg = 1;
     push_constant_string(save_file_path);
     f_restore_object();
-    ASSERT_TRUE(sp->type == T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1) << "Failed to restore object state";
+    view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    ASSERT_EQ(view.number(), 1) << "Failed to restore object state";
 
     // Verify that the variable 'x' was restored correctly
     apply_low("get_number", obj, 0);
-    ASSERT_TRUE(sp->type == T_NUMBER);
-    ASSERT_EQ(sp->u.number, 42) << "Restored variable value is incorrect";
+    view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    ASSERT_EQ(view.number(), 42) << "Restored variable value is incorrect";
     pop_stack();
 
     destruct_object(obj);

@@ -5,6 +5,7 @@ extern "C" {
     #include "std.h"
     #include "stralloc.h"
 }
+#include "lpc/types.hpp"
 #include <gtest/gtest.h>
 #include <array>
 using namespace testing;
@@ -50,21 +51,21 @@ TEST_F(StrAllocTest, makeSharedString) {
 }
 
 TEST_F(StrAllocTest, findString) {
-    char* str1 = make_shared_string("test string", NULL);
-    char* found1 = findstring("test string", NULL); // no reference count increase
+    shared_str_t str1 = make_shared_string("test string", NULL);
+    shared_str_t found1 = findstring("test string", NULL); // no reference count increase
     EXPECT_EQ(str1, found1);
 
     free_string(str1);
-    char* found2 = findstring("test string", NULL);
+    shared_str_t found2 = findstring("test string", NULL);
     EXPECT_EQ(found2, nullptr); // should not be found after free
 
-    char* str2 = make_shared_string("test string", NULL);
+    shared_str_t str2 = make_shared_string("test string", NULL);
     found1 = findstring("test string", NULL);
     EXPECT_EQ(str2, found1);
-    char* str3 = ref_string(found1); // increase reference count
+    shared_str_t str3 = ref_string(found1); // increase reference count
 
     free_string(str2);
-    char* found3 = findstring("test string", NULL);
+    shared_str_t found3 = findstring("test string", NULL);
     EXPECT_EQ(str3, found3); // should still be found due to str3
 
     free_string(str3);
@@ -157,27 +158,26 @@ TEST_F(StrAllocTest, extendStringUpdatesBlkendAcrossThresholds) {
 
 TEST_F(StrAllocTest, unlinkLongMallocStringPreservesBlkendLength) {
     const size_t len = static_cast<size_t>(USHRT_MAX) + 53;
-    char* raw = new_string(len, "test");
+    malloc_str_t raw = new_string(len, "test");
     memset(raw, 'u', len);
     raw[len] = '\0';
 
     MSTR_REF(raw) = 2;
 
     svalue_t sv;
-    sv.type = T_STRING;
-    sv.subtype = STRING_MALLOC;
-    sv.u.string = raw;
+    lpc::svalue_view sv_view = lpc::svalue_view::from(&sv);
+    sv_view.set_malloc_string(raw);
 
     unlink_string_svalue(&sv);
 
-    EXPECT_NE(sv.u.string, raw);
+    EXPECT_NE(sv_view.malloc_string(), raw);
     EXPECT_EQ(MSTR_REF(raw), 1);
-    EXPECT_EQ(MSTR_SIZE(sv.u.string), static_cast<unsigned short>(USHRT_MAX));
-    EXPECT_EQ(static_cast<char*>(MSTR_BLKEND(sv.u.string)), sv.u.string + len);
-    EXPECT_EQ(COUNTED_STRLEN(sv.u.string), len);
+    EXPECT_EQ(MSTR_SIZE(sv_view.malloc_string()), static_cast<unsigned short>(USHRT_MAX));
+    EXPECT_EQ(static_cast<char*>(MSTR_BLKEND(sv_view.malloc_string())), sv_view.malloc_string() + len);
+    EXPECT_EQ(sv_view.length(), len);
 
     FREE_MSTR(raw);
-    FREE_MSTR(sv.u.string);
+    FREE_MSTR(sv_view.malloc_string());
 }
 
 TEST_F(StrAllocTest, longMallocStringFallbackWorksWhenBlkendMissing) {

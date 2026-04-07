@@ -5,6 +5,7 @@ extern "C" {
 #include "std.h"
 #include "stralloc.h"
 }
+#include "lpc/types.hpp"
 #include <gtest/gtest.h>
 #include <cstring>
 #include <cstdint>
@@ -31,39 +32,31 @@ protected:
     // Helper: Create a malloc-based svalue with given content and length
     void create_malloc_string(svalue_t *sv, const char *content, size_t len) {
         ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_MALLOC;
-        sv->u.string = new_string(len, "test");
-        ASSERT_TRUE(sv->u.string != nullptr);
-        memcpy(sv->u.string, content, len);
-        sv->u.string[len] = '\0';  // Ensure null-termination for testing
+        lpc::svalue_view view = lpc::svalue_view::from(sv);
+        view.set_malloc_string(new_string(len, "test"));
+        ASSERT_TRUE(view.malloc_string() != nullptr);
+        memcpy(view.malloc_string(), content, len);
+        view.malloc_string()[len] = '\0';
     }
 
     // Helper: Create a shared-based svalue with given content
     void create_shared_string(svalue_t *sv, const char *content) {
         ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_SHARED;
-        sv->u.string = make_shared_string(content, NULL);
-        ASSERT_TRUE(sv->u.string != nullptr);
+        lpc::svalue_view view = lpc::svalue_view::from(sv);
+        view.set_shared_string(make_shared_string(content, NULL));
+        ASSERT_TRUE(view.shared_string() != nullptr);
     }
 
     // Helper: Verify svalue content and type
     void assert_string_content(svalue_t *sv, const char *expected, size_t expected_len,
                                unsigned short expected_subtype) {
         ASSERT_FALSE(sv == nullptr);
-        ASSERT_EQ(sv->type, (int)T_STRING);
+        lpc::svalue_view view = lpc::svalue_view::from(sv);
+        ASSERT_TRUE(view.is_string());
         ASSERT_EQ(sv->subtype, expected_subtype);
-        size_t actual_len = SVALUE_STRLEN(sv);
+        size_t actual_len = view.length();
         ASSERT_EQ(actual_len, expected_len);
-        ASSERT_TRUE(memcmp(sv->u.string, expected, expected_len) == 0);
-    }
-
-    // Helper: Free an svalue string
-    void free_svalue_string(svalue_t *sv) {
-        if (sv != nullptr && sv->type == T_STRING) {
-            free_string_svalue(sv);
-        }
+        ASSERT_TRUE(memcmp(view.c_str(), expected, expected_len) == 0);
     }
 };
 
@@ -80,7 +73,7 @@ TEST_F(StringOperatorsTest, ExtendViaLenAppendNormal) {
     EXTEND_SVALUE_STRING_LEN(&target, suffix, suffix_len, "test");
 
     assert_string_content(&target, "Hello World", 11, STRING_MALLOC);
-    free_svalue_string(&target);
+    free_string_svalue(&target);
 }
 
 TEST_F(StringOperatorsTest, ExtendViaLenAppendEmpty) {
@@ -91,7 +84,7 @@ TEST_F(StringOperatorsTest, ExtendViaLenAppendEmpty) {
     EXTEND_SVALUE_STRING_LEN(&target, "", 0, "test");
 
     assert_string_content(&target, "Test", 4, STRING_MALLOC);
-    free_svalue_string(&target);
+    free_string_svalue(&target);
 }
 
 TEST_F(StringOperatorsTest, ExtendViaLenAppendToEmpty) {
@@ -102,7 +95,7 @@ TEST_F(StringOperatorsTest, ExtendViaLenAppendToEmpty) {
     EXTEND_SVALUE_STRING_LEN(&target, "Data", 4, "test");
 
     assert_string_content(&target, "Data", 4, STRING_MALLOC);
-    free_svalue_string(&target);
+    free_string_svalue(&target);
 }
 
 TEST_F(StringOperatorsTest, ExtendViaLenAppendWithEmbeddedNul) {
@@ -115,7 +108,7 @@ TEST_F(StringOperatorsTest, ExtendViaLenAppendWithEmbeddedNul) {
 
     // Result should be "StartA\0B" (8 bytes)
     assert_string_content(&target, "StartA\0B", 8, STRING_MALLOC);
-    free_svalue_string(&target);
+    free_string_svalue(&target);
 }
 
 TEST_F(StringOperatorsTest, ExtendViaLenMallocSelfReuse) {
@@ -127,7 +120,7 @@ TEST_F(StringOperatorsTest, ExtendViaLenMallocSelfReuse) {
     EXTEND_SVALUE_STRING_LEN(&target, " Again", 6, "test");
 
     assert_string_content(&target, "Hello Again", 11, STRING_MALLOC);
-    free_svalue_string(&target);
+    free_string_svalue(&target);
 }
 
 // === SVALUE_STRING_ADD_LEFT_LEN Tests ===
@@ -145,16 +138,14 @@ TEST_F(StringOperatorsTest, AddLeftViaLenPrependNormal) {
     // since the macro depends on VM stack state
     malloc_str_t result = new_string(prefix_len + 5, "test");
     memcpy(result, prefix, prefix_len);
-    memcpy(result + prefix_len, target.u.string, 5);
+    memcpy(result + prefix_len, lpc::svalue_view::from(&target).malloc_string(), 5);
     result[prefix_len + 5] = '\0';
 
     svalue_t combined;
-    combined.type = T_STRING;
-    combined.subtype = STRING_MALLOC;
-    combined.u.string = result;
+    lpc::svalue_view::from(&combined).set_malloc_string(result);
 
     assert_string_content(&combined, "Hello World", 11, STRING_MALLOC);
-    free_svalue_string(&combined);
+    free_string_svalue(&combined);
     free_string_svalue(&target);
 }
 
@@ -186,7 +177,7 @@ TEST_F(StringOperatorsTest, JoinTwoMallocStrings) {
 
     assert_string_content(&left, "LeftRight", 9, STRING_MALLOC);
     // right is consumed by the macro; left still owns the joined result.
-    free_svalue_string(&left);
+    free_string_svalue(&left);
 }
 
 TEST_F(StringOperatorsTest, JoinEmptyStrings) {
@@ -198,7 +189,7 @@ TEST_F(StringOperatorsTest, JoinEmptyStrings) {
     SVALUE_STRING_JOIN(&left, &right, "test");
 
     assert_string_content(&left, "", 0, STRING_MALLOC);
-    free_svalue_string(&left);
+    free_string_svalue(&left);
 }
 
 TEST_F(StringOperatorsTest, JoinWithEmbeddedNuls) {
@@ -214,7 +205,7 @@ TEST_F(StringOperatorsTest, JoinWithEmbeddedNuls) {
 
     // Result should be "A\0BC\0D" (6 bytes)
     assert_string_content(&left, "A\0BC\0D", 6, STRING_MALLOC);
-    free_svalue_string(&left);
+    free_string_svalue(&left);
 }
 
 TEST_F(StringOperatorsTest, JoinMallocSelfReuse) {
@@ -226,7 +217,7 @@ TEST_F(StringOperatorsTest, JoinMallocSelfReuse) {
     SVALUE_STRING_JOIN(&left, &right, "test");
 
     assert_string_content(&left, "FirstSecond", 11, STRING_MALLOC);
-    free_svalue_string(&left);
+    free_string_svalue(&left);
 }
 
 // === String Equality Operator Tests (memcmp semantics) ===
@@ -238,12 +229,14 @@ TEST_F(StringOperatorsTest, EqualityIdenticalStrings) {
     create_malloc_string(&right, "Same", 4);
 
     // Simulate memcmp check used in operator
-    int cmp_result = memcmp(left.u.string, right.u.string, SVALUE_STRLEN(&left));
+    lpc::svalue_view left_view = lpc::svalue_view::from(&left);
+    lpc::svalue_view right_view = lpc::svalue_view::from(&right);
+    int cmp_result = memcmp(left_view.malloc_string(), right_view.malloc_string(), left_view.length());
     ASSERT_EQ(cmp_result, 0);
-    ASSERT_EQ(SVALUE_STRLEN(&left), SVALUE_STRLEN(&right));
+    ASSERT_EQ(left_view.length(), right_view.length());
 
-    free_svalue_string(&left);
-    free_svalue_string(&right);
+    free_string_svalue(&left);
+    free_string_svalue(&right);
 }
 
 TEST_F(StringOperatorsTest, EqualityDifferentLengths) {
@@ -256,8 +249,8 @@ TEST_F(StringOperatorsTest, EqualityDifferentLengths) {
     bool differs = SVALUE_STRLEN(&left) != SVALUE_STRLEN(&right);
     ASSERT_TRUE(differs);
 
-    free_svalue_string(&left);
-    free_svalue_string(&right);
+    free_string_svalue(&left);
+    free_string_svalue(&right);
 }
 
 TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
@@ -272,15 +265,15 @@ TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
     create_malloc_string(&s3, content3, 3);
 
     // s1 == s2 via memcmp
-    ASSERT_EQ(memcmp(s1.u.string, s2.u.string, 3), 0);
+    ASSERT_EQ(memcmp(s1.u.malloc_string, s2.u.malloc_string, 3), 0);
     ASSERT_EQ(SVALUE_STRLEN(&s1), SVALUE_STRLEN(&s2));
 
     // s1 != s3 due to byte difference at position 2
-    ASSERT_NE(memcmp(s1.u.string, s3.u.string, 3), 0);
+    ASSERT_NE(memcmp(s1.u.malloc_string, s3.u.malloc_string, 3), 0);
 
-    free_svalue_string(&s1);
-    free_svalue_string(&s2);
-    free_svalue_string(&s3);
+    free_string_svalue(&s1);
+    free_string_svalue(&s2);
+    free_string_svalue(&s3);
 }
 
 // === String Range Operator Tests ===
@@ -297,13 +290,13 @@ TEST_F(StringOperatorsTest, RangeFullString) {
     size_t from = 0, to = 6;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.string + from, out_len);
+    memcpy(result, sv.u.malloc_string + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_TRUE(memcmp(result, "Testing", out_len) == 0);
 
     FREE_MSTR(result);
-    free_svalue_string(&sv);
+    free_string_svalue(&sv);
 }
 
 TEST_F(StringOperatorsTest, RangeMiddleSlice) {
@@ -316,13 +309,13 @@ TEST_F(StringOperatorsTest, RangeMiddleSlice) {
     size_t from = 2, to = 5;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.string + from, out_len);
+    memcpy(result, sv.u.malloc_string + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_TRUE(memcmp(result, "2345", 4) == 0);
 
     FREE_MSTR(result);
-    free_svalue_string(&sv);
+    free_string_svalue(&sv);
 }
 
 TEST_F(StringOperatorsTest, RangeSingleChar) {
@@ -335,14 +328,14 @@ TEST_F(StringOperatorsTest, RangeSingleChar) {
     size_t from = 2, to = 2;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.string + from, out_len);
+    memcpy(result, sv.u.malloc_string + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_EQ(result[0], 'C');
     ASSERT_EQ(out_len, 1);
 
     FREE_MSTR(result);
-    free_svalue_string(&sv);
+    free_string_svalue(&sv);
 }
 
 TEST_F(StringOperatorsTest, RangeWithEmbeddedNul) {
@@ -355,7 +348,7 @@ TEST_F(StringOperatorsTest, RangeWithEmbeddedNul) {
     size_t from = 1, to = 3;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.string + from, out_len);
+    memcpy(result, sv.u.malloc_string + from, out_len);
     result[out_len] = '\0';
 
     // Result should be "\0B\0" (3 bytes plus terminator)
@@ -364,7 +357,7 @@ TEST_F(StringOperatorsTest, RangeWithEmbeddedNul) {
     ASSERT_EQ(result[2], '\0');
 
     FREE_MSTR(result);
-    free_svalue_string(&sv);
+    free_string_svalue(&sv);
 }
 
 // === Edge Cases and Boundary Conditions ===
@@ -375,18 +368,16 @@ TEST_F(StringOperatorsTest, VeryLongStringExtend) {
     size_t large_size = 100000;
     malloc_str_t large_str = new_string(large_size, "test");
     memset(large_str, 'A', large_size);
-    target.type = T_STRING;
-    target.subtype = STRING_MALLOC;
-    target.u.string = large_str;
+    lpc::svalue_view::from(&target).set_malloc_string(large_str);
 
     const char *suffix = "END";
     EXTEND_SVALUE_STRING_LEN(&target, suffix, 3, "test");
 
     size_t final_len = SVALUE_STRLEN(&target);
     ASSERT_EQ(final_len, large_size + 3);
-    ASSERT_EQ(target.u.string[large_size + 2], 'D');
+    ASSERT_EQ(lpc::svalue_view::from(&target).c_str()[large_size + 2], 'D');
 
-    free_svalue_string(&target);
+    free_string_svalue(&target);
 }
 
 TEST_F(StringOperatorsTest, StringLengthConsistency) {
@@ -402,7 +393,7 @@ TEST_F(StringOperatorsTest, StringLengthConsistency) {
     ASSERT_EQ(len2, 12);
     ASSERT_EQ(len2 - len1, 5);
 
-    free_svalue_string(&sv);
+    free_string_svalue(&sv);
 }
 
 TEST_F(StringOperatorsTest, MallocStringLengthConsistency) {
@@ -418,5 +409,5 @@ TEST_F(StringOperatorsTest, MallocStringLengthConsistency) {
     // Verify new length is correct  
     ASSERT_EQ(SVALUE_STRLEN(&sv), 8);
 
-    free_svalue_string(&sv);
+    free_string_svalue(&sv);
 }

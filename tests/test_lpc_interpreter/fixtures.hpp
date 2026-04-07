@@ -15,6 +15,8 @@ extern "C" {
     #include "lpc/array.h"
 }
 
+#include "lpc/types.hpp"
+
 using namespace testing;
 
 // according to GoogleTest FAQ, the test suite name and test name should not

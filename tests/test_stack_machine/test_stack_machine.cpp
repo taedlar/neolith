@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
+#include "lpc/types.hpp"
 
 using namespace testing;
 
@@ -22,21 +23,20 @@ TEST_F(StackMachineTest, pushValueStatic) {
     svalue_t *initial_sp = sp;
 
     push_number(42);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 42);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number());
+    ASSERT_EQ(lpc::svalue_view::from(sp).number(), 42);
 
     push_real(3.14);
-    ASSERT_EQ(sp->type, T_REAL);
-    ASSERT_DOUBLE_EQ(sp->u.real, 3.14);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_real());
+    ASSERT_DOUBLE_EQ(lpc::svalue_view::from(sp).real(), 3.14);
 
     push_undefined();
-    ASSERT_EQ(sp->type, T_NUMBER);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number());
     ASSERT_EQ(sp->subtype, T_UNDEFINED);
 
     push_constant_string("hello");
-    ASSERT_EQ(sp->type, T_STRING);
-    ASSERT_STREQ(sp->u.const_string, "hello");
-    ASSERT_EQ(sp->subtype, STRING_CONSTANT);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_constant());
+    ASSERT_STREQ(lpc::svalue_view::from(sp).c_str(), "hello");
 
     // Stack pointer should have moved up by 4 svalue_ts
     ASSERT_EQ(sp, initial_sp + 4);
@@ -50,21 +50,19 @@ TEST_F(StackMachineTest, pushValueAlloc) {
     svalue_t *initial_sp = sp;
 
     copy_and_push_string("dynamic string");
-    ASSERT_EQ(sp->type, T_STRING);
-    ASSERT_STREQ(sp->u.string, "dynamic string");
-    ASSERT_EQ(sp->subtype, STRING_MALLOC);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_malloc());
+    ASSERT_STREQ(lpc::svalue_view::from(sp).c_str(), "dynamic string");
     EXPECT_FALSE(findstring("dynamic string", NULL)); // a private malloced string, not shared
 
     share_and_push_string("shared string");
-    ASSERT_EQ(sp->type, T_STRING);
-    ASSERT_STREQ(sp->u.string, "shared string");
-    ASSERT_EQ(sp->subtype, STRING_SHARED);
-    EXPECT_TRUE(findstring("shared string", NULL)); // a shared string
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_shared());
+    ASSERT_STREQ(lpc::svalue_view::from(sp).c_str(), "shared string");
+    EXPECT_EQ(findstring("shared string", NULL), lpc::svalue_view::from(sp).shared_string()); // a shared string
 
     share_and_push_string("shared string");
-    ASSERT_EQ(sp->type, T_STRING);
-    ASSERT_EQ(sp->u.string, (sp - 1)->u.string); // pointer should be the same, reference counted
-    ASSERT_EQ(sp->subtype, STRING_SHARED);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_shared());
+    ASSERT_EQ(lpc::svalue_view::from(sp).shared_string(), findstring("shared string", NULL)); // pushing the same shared string again should give the same pointer
+    ASSERT_EQ(lpc::svalue_view::from(sp).shared_string(), lpc::svalue_view(sp - 1).shared_string());
 
     pop_n_elems(3);
     ASSERT_EQ(sp, initial_sp); // back to initial position

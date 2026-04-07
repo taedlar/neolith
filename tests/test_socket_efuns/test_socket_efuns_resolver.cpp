@@ -90,8 +90,8 @@ int QueryObjectNumberMethod(object_t *obj, const char *method) {
   current_object = saved_current;
   variable_index_offset = saved_vio;
 
-  if (ret.type == T_NUMBER) {
-    result = (int)ret.u.number;
+  if ( lpc::svalue_view::from(&ret).is_number()) {
+    result = (int)lpc::svalue_view::from(&ret).number();
   }
   free_svalue(&ret, "QueryObjectNumberMethod");
   return result;
@@ -181,12 +181,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_001_BasicSuccess_HostnameResolves) 
   unsigned long timed_out_before = 0;
   unsigned long timed_out_after = 0;
 
-  read_cb.type = T_STRING;
-  read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
-  write_cb.type = T_STRING;
-  write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
 
   // Capture telemetry before
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_before, &admitted_before, &dedup_before, &timed_out_before), EESUCCESS)
@@ -220,8 +216,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_001_BasicSuccess_HostnameResolves) 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS)
     << "Socket close should succeed after DNS resolution";
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string_svalue(&read_cb);
+  free_string_svalue(&write_cb);
 }
 
 /**
@@ -255,12 +251,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_002_CacheHit_DedupCoalesces) {
   unsigned long dedup_after = 0;
   unsigned long timed_out = 0;
 
-  read_cb.type = T_STRING;
-  read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
-  write_cb.type = T_STRING;
-  write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
 
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted_before, &dedup_before, &timed_out), EESUCCESS);
 
@@ -293,8 +285,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_002_CacheHit_DedupCoalesces) {
   EXPECT_EQ(socket_close(fd_a, 1), EESUCCESS);
   EXPECT_EQ(socket_close(fd_b, 1), EESUCCESS);
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string_svalue(&read_cb);
+  free_string_svalue(&write_cb);
 }
 
 /**
@@ -333,12 +325,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_003_TimeoutPath_DeterministicFailur
   unsigned long timed_out_before = 0;
   unsigned long timed_out_after = 0;
 
-  read_cb.type = T_STRING;
-  read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
-  write_cb.type = T_STRING;
-  write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
 
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted, &dedup, &timed_out_before), EESUCCESS);
 
@@ -365,8 +353,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_003_TimeoutPath_DeterministicFailur
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string_svalue(&read_cb);
+  free_string_svalue(&write_cb);
 }
 
 /**
@@ -392,12 +380,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_004_AdmissionOverflow_RejectsWork) 
   svalue_t write_cb;
   std::vector<int> socket_fds;
 
-  read_cb.type = T_STRING;
-  read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
-  write_cb.type = T_STRING;
-  write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
 
   // Create several sockets and attempt DNS connects
   // Goal: exercise the resolver under load without hitting test infrastructure limits
@@ -426,8 +410,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_004_AdmissionOverflow_RejectsWork) 
     socket_close(fd, 1);
   }
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string_svalue(&read_cb);
+  free_string_svalue(&write_cb);
 }
 
 /**
@@ -457,12 +441,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
   svalue_t write_cb;
   int fd;
 
-  read_cb.type = T_STRING;
-  read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
-  write_cb.type = T_STRING;
-  write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
 
   {
     ScopedObjectContext ctx(this, temp_owner);
@@ -487,8 +467,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
 
   EXPECT_TRUE(true) << "Survived owner destruction during pending DNS";
 
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string_svalue(&read_cb);
+  free_string_svalue(&write_cb);
 }
 
 /**
@@ -1242,12 +1222,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWo
 
   svalue_t read_cb;
   svalue_t write_cb;
-  read_cb.type = T_STRING;
-  read_cb.subtype = STRING_SHARED;
-  read_cb.u.string = make_shared_string("read_callback", NULL);
-  write_cb.type = T_STRING;
-  write_cb.subtype = STRING_SHARED;
-  write_cb.u.string = make_shared_string("write_callback", NULL);
+  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
 
   int in_flight = 0;
   unsigned long admitted_before = 0;
@@ -1280,6 +1256,6 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWo
     << "fwd_cache_hit counter must increment on forward cache hit";
 
   socket_close(fd, 1);
-  free_string(read_cb.u.string);
-  free_string(write_cb.u.string);
+  free_string_svalue(&read_cb);
+  free_string_svalue(&write_cb);
 }

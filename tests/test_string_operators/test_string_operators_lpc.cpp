@@ -14,6 +14,8 @@ extern "C" {
 #include "stralloc.h"
 }
 
+#include "lpc/types.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
 
@@ -73,19 +75,16 @@ protected:
 
     void create_malloc_string(svalue_t *sv, const char *content, size_t len) {
         ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_MALLOC;
-        sv->u.string = new_string(len, "test");
-        ASSERT_TRUE(sv->u.string != nullptr);
-        memcpy(sv->u.string, content, len);
-        sv->u.string[len] = '\0';
+        lpc::svalue_view view = lpc::svalue_view::from(sv);
+        view.set_malloc_string(new_string(len, "test"));
+        ASSERT_TRUE(view.malloc_string() != nullptr);
+        memcpy(view.malloc_string(), content, len);
+        view.malloc_string()[len] = '\0';
     }
 
     void create_constant_string(svalue_t *sv, const char *content) {
         ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_CONSTANT;
-        sv->u.const_string = content;
+        lpc::svalue_view::from(sv).set_constant_string(content);
     }
 
     object_t *load_inline_object(const char *name, const char *code) {
@@ -129,9 +128,10 @@ TEST_F(StringOperatorsLPCTest, LpcConcatReturnsExpectedString) {
     ASSERT_NE(obj, nullptr);
 
     svalue_t ret = call_noarg(obj, "run_test");
-    ASSERT_EQ(ret.type, T_STRING);
-    ASSERT_EQ(SVALUE_STRLEN(&ret), 11u);
-    ASSERT_EQ(memcmp(ret.u.string, "Hello World", 11), 0);
+    lpc::svalue_view ret_view = lpc::svalue_view::from(&ret);
+    ASSERT_TRUE(ret_view.is_string());
+    ASSERT_EQ(ret_view.length(), 11u);
+    ASSERT_EQ(memcmp(ret_view.c_str(), "Hello World", 11), 0);
 
     free_string_svalue(&ret);
     destruct_object(obj);
@@ -150,12 +150,14 @@ TEST_F(StringOperatorsLPCTest, LpcEqNeOnConstantAndConcat) {
     ASSERT_NE(obj, nullptr);
 
     svalue_t eq_ret = call_noarg(obj, "test_eq");
-    ASSERT_EQ(eq_ret.type, T_NUMBER);
-    ASSERT_EQ(eq_ret.u.number, 1);
+    lpc::svalue_view eq_ret_view = lpc::svalue_view::from(&eq_ret);
+    ASSERT_TRUE(eq_ret_view.is_number());
+    ASSERT_EQ(eq_ret_view.number(), 1);
 
     svalue_t ne_ret = call_noarg(obj, "test_ne");
-    ASSERT_EQ(ne_ret.type, T_NUMBER);
-    ASSERT_EQ(ne_ret.u.number, 1);
+    lpc::svalue_view ne_ret_view = lpc::svalue_view::from(&ne_ret);
+    ASSERT_TRUE(ne_ret_view.is_number());
+    ASSERT_EQ(ne_ret_view.number(), 1);
 
     destruct_object(obj);
 }
@@ -171,9 +173,10 @@ TEST_F(StringOperatorsLPCTest, LpcRangeSlicesExpectedBytes) {
     ASSERT_NE(obj, nullptr);
 
     svalue_t ret = call_noarg(obj, "run_test");
-    ASSERT_EQ(ret.type, T_STRING);
-    ASSERT_EQ(SVALUE_STRLEN(&ret), 4u);
-    ASSERT_EQ(memcmp(ret.u.string, "2345", 4), 0);
+    lpc::svalue_view ret_view = lpc::svalue_view::from(&ret);
+    ASSERT_TRUE(ret_view.is_string());
+    ASSERT_EQ(ret_view.length(), 4u);
+    ASSERT_EQ(memcmp(ret_view.c_str(), "2345", 4), 0);
 
     free_string_svalue(&ret);
     destruct_object(obj);
@@ -187,18 +190,20 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocDifferentLengths) {
     sp = &stack[1];
 
     f_eq();
+    lpc::svalue_view result_view = lpc::svalue_view::from(sp);
     ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 0);
+    ASSERT_TRUE(result_view.is_number());
+    ASSERT_EQ(result_view.number(), 0);
 
     create_constant_string(&stack[0], "ab");
     create_malloc_string(&stack[1], "abc", 3);
     sp = &stack[1];
 
     f_ne();
+    result_view = lpc::svalue_view::from(sp);
     ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1);
+    ASSERT_TRUE(result_view.is_number());
+    ASSERT_EQ(result_view.number(), 1);
 }
 
 TEST_F(StringOperatorsLPCTest, EqNeMallocVsConstantDifferentLengths) {
@@ -209,18 +214,20 @@ TEST_F(StringOperatorsLPCTest, EqNeMallocVsConstantDifferentLengths) {
     sp = &stack[1];
 
     f_eq();
+    lpc::svalue_view result_view = lpc::svalue_view::from(sp);
     ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 0);
+    ASSERT_TRUE(result_view.is_number());
+    ASSERT_EQ(result_view.number(), 0);
 
     create_malloc_string(&stack[0], "abc", 3);
     create_constant_string(&stack[1], "ab");
     sp = &stack[1];
 
     f_ne();
+    result_view = lpc::svalue_view::from(sp);
     ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1);
+    ASSERT_TRUE(result_view.is_number());
+    ASSERT_EQ(result_view.number(), 1);
 }
 
 TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLength) {
@@ -231,18 +238,20 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLength) {
     sp = &stack[1];
 
     f_eq();
+    lpc::svalue_view result_view = lpc::svalue_view::from(sp);
     ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1);
+    ASSERT_TRUE(result_view.is_number());
+    ASSERT_EQ(result_view.number(), 1);
 
     create_constant_string(&stack[0], "abc");
     create_malloc_string(&stack[1], "abc", 3);
     sp = &stack[1];
 
     f_ne();
+    result_view = lpc::svalue_view::from(sp);
     ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 0);
+    ASSERT_TRUE(result_view.is_number());
+    ASSERT_EQ(result_view.number(), 0);
 }
 
 TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLengthDifferentBytes) {
@@ -253,16 +262,18 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLengthDifferentBytes) {
     sp = &stack[1];
 
     f_eq();
+    lpc::svalue_view result_view = lpc::svalue_view::from(sp);
     ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 0);
+    ASSERT_TRUE(result_view.is_number());
+    ASSERT_EQ(result_view.number(), 0);
 
     create_constant_string(&stack[0], "abc");
     create_malloc_string(&stack[1], "abd", 3);
     sp = &stack[1];
 
     f_ne();
+    result_view = lpc::svalue_view::from(sp);
     ASSERT_EQ(sp, &stack[0]);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1);
+    ASSERT_TRUE(result_view.is_number());
+    ASSERT_EQ(result_view.number(), 1);
 }
