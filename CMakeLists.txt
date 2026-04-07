@@ -106,6 +106,7 @@ if(TARGET c-ares::cares)
 	else()
 		message(STATUS "Found c-ares: ${CARES_LIBRARY}")
 	endif()
+	add_compile_definitions(CARES_NO_DEPRECATED)
 endif()
 
 if(PACKAGE_JSON)
