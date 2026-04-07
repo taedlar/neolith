@@ -3,6 +3,34 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
+#include "lpc/types.hpp"
+
+namespace {
+
+void ExpectArrayItemString(const array_t *arr, int index, const char *expected) {
+    auto view = lpc::svalue_view::from(&arr->item[index]);
+    ASSERT_TRUE(view.is_string());
+    ASSERT_STREQ(view.c_str(), expected);
+}
+
+void ExpectTopString(const char *expected) {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    ASSERT_STREQ(view.c_str(), expected);
+}
+
+void ExpectTopNumber(int64_t expected) {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    ASSERT_EQ(view.number(), expected);
+}
+
+void ExpectTopReal(double expected) {
+    ASSERT_EQ(sp->type, T_REAL);
+    ASSERT_DOUBLE_EQ(sp->u.real, expected);
+}
+
+} // namespace
 
 TEST_F(EfunsTest, throwError) {
     error_context_t econ;
@@ -25,38 +53,31 @@ TEST_F(EfunsTest, stringCaseConversion) {
     push_constant_string("Hello World!");
 
     f_upper_case();
-    ASSERT_EQ(sp->type, T_STRING);
-    ASSERT_STREQ(sp->u.string, "HELLO WORLD!");
+    ExpectTopString("HELLO WORLD!");
 
     f_lower_case();
-    ASSERT_EQ(sp->type, T_STRING);
-    ASSERT_STREQ(sp->u.string, "hello world!");
+    ExpectTopString("hello world!");
 
     f_capitalize();
-    ASSERT_EQ(sp->type, T_STRING);
-    ASSERT_STREQ(sp->u.string, "Hello world!");
+    ExpectTopString("Hello world!");
 }
 
 TEST_F(EfunsTest, floatFunctions) {
     push_constant_string("3.14159");
     f_to_float();
-    ASSERT_EQ(sp->type, T_REAL);
-    ASSERT_DOUBLE_EQ(sp->u.real, 3.14159);
+    ExpectTopReal(3.14159);
 
     push_number(42);
     f_to_float();
-    ASSERT_EQ(sp->type, T_REAL);
-    ASSERT_DOUBLE_EQ(sp->u.real, 42.0);
+    ExpectTopReal(42.0);
 
     f_floatp();
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 1); // true for float
+    ExpectTopNumber(1); // true for float
 
     pop_n_elems(1);
     push_constant_string("Not a float");
     f_floatp();
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 0); // false for not a float
+    ExpectTopNumber(0); // false for not a float
 }
 
 TEST_F(EfunsTest, stringExplode) {
@@ -66,8 +87,8 @@ TEST_F(EfunsTest, stringExplode) {
     f_explode();
     ASSERT_EQ(sp->type, T_ARRAY);
     ASSERT_EQ(sp->u.arr->size, 2);
-    ASSERT_STREQ(sp->u.arr->item[0].u.string, "Hello");
-    ASSERT_STREQ(sp->u.arr->item[1].u.string, "World!");
+    ExpectArrayItemString(sp->u.arr, 0, "Hello");
+    ExpectArrayItemString(sp->u.arr, 1, "World!");
 
     // Explode with empty delimiter string (Neolith extension: splits into wide characters)
     push_constant_string("こんにちは");
@@ -75,11 +96,11 @@ TEST_F(EfunsTest, stringExplode) {
     f_explode();
     ASSERT_EQ(sp->type, T_ARRAY);
     ASSERT_EQ(sp->u.arr->size, 5);
-    ASSERT_STREQ(sp->u.arr->item[0].u.string, "こ");
-    ASSERT_STREQ(sp->u.arr->item[1].u.string, "ん");
-    ASSERT_STREQ(sp->u.arr->item[2].u.string, "に");
-    ASSERT_STREQ(sp->u.arr->item[3].u.string, "ち");
-    ASSERT_STREQ(sp->u.arr->item[4].u.string, "は");
+    ExpectArrayItemString(sp->u.arr, 0, "こ");
+    ExpectArrayItemString(sp->u.arr, 1, "ん");
+    ExpectArrayItemString(sp->u.arr, 2, "に");
+    ExpectArrayItemString(sp->u.arr, 3, "ち");
+    ExpectArrayItemString(sp->u.arr, 4, "は");
 
     // Explode with multibyte delimiter (Neolith extension: does not break multibyte characters)
     push_constant_string("小星星");
@@ -87,14 +108,14 @@ TEST_F(EfunsTest, stringExplode) {
     f_explode();
     ASSERT_EQ(sp->type, T_ARRAY);
     ASSERT_EQ(sp->u.arr->size, 2);
-    ASSERT_STREQ(sp->u.arr->item[0].u.string, "");
-    ASSERT_STREQ(sp->u.arr->item[1].u.string, "星星");
+    ExpectArrayItemString(sp->u.arr, 0, "");
+    ExpectArrayItemString(sp->u.arr, 1, "星星");
     push_constant_string("小星星");
     push_constant_string("\xE5\xB0"); // partial sequence of "小" in UTF-8
     f_explode();
     ASSERT_EQ(sp->type, T_ARRAY);
     ASSERT_EQ(sp->u.arr->size, 1);
-    ASSERT_STREQ(sp->u.arr->item[0].u.string, "小星星"); // delimiter not found, not even at character boundary
+    ExpectArrayItemString(sp->u.arr, 0, "小星星"); // delimiter not found, not even at character boundary
 }
 
 TEST_F(EfunsTest, stringExplodeUtf8) {
@@ -113,24 +134,32 @@ TEST_F(EfunsTest, stringExplodeUtf8) {
     
     // Verify ASCII characters (single bytes)
     ASSERT_EQ(sp->u.arr->item[0].type, T_STRING);
-    ASSERT_STREQ(sp->u.arr->item[0].u.string, "H");
+    ExpectArrayItemString(sp->u.arr, 0, "H");
     ASSERT_EQ(sp->u.arr->item[1].type, T_STRING);
-    ASSERT_STREQ(sp->u.arr->item[1].u.string, "e");
+    ExpectArrayItemString(sp->u.arr, 1, "e");
     ASSERT_EQ(sp->u.arr->item[2].type, T_STRING);
-    ASSERT_STREQ(sp->u.arr->item[2].u.string, "l");
+    ExpectArrayItemString(sp->u.arr, 2, "l");
     ASSERT_EQ(sp->u.arr->item[3].type, T_STRING);
-    ASSERT_STREQ(sp->u.arr->item[3].u.string, "l");
+    ExpectArrayItemString(sp->u.arr, 3, "l");
     ASSERT_EQ(sp->u.arr->item[4].type, T_STRING);
-    ASSERT_STREQ(sp->u.arr->item[4].u.string, "o");
+    ExpectArrayItemString(sp->u.arr, 4, "o");
     
     // Verify UTF-8 multibyte characters (3 bytes each for Chinese characters)
     ASSERT_EQ(sp->u.arr->item[5].type, T_STRING);
-    ASSERT_STREQ(sp->u.arr->item[5].u.string, "\xe4\xb8\x96"); // '世'
-    ASSERT_EQ(strlen(sp->u.arr->item[5].u.string), 3) << "UTF-8 '世' should be 3 bytes";
+    {
+        auto world_char = lpc::svalue_view::from(&sp->u.arr->item[5]);
+        ASSERT_TRUE(world_char.is_string());
+        ASSERT_STREQ(world_char.c_str(), "\xe4\xb8\x96"); // '世'
+        ASSERT_EQ(strlen(world_char.c_str()), 3) << "UTF-8 '世' should be 3 bytes";
+    }
     
     ASSERT_EQ(sp->u.arr->item[6].type, T_STRING);
-    ASSERT_STREQ(sp->u.arr->item[6].u.string, "\xe7\x95\x8c"); // '界'
-    ASSERT_EQ(strlen(sp->u.arr->item[6].u.string), 3) << "UTF-8 '界' should be 3 bytes";
+    {
+        auto world_char = lpc::svalue_view::from(&sp->u.arr->item[6]);
+        ASSERT_TRUE(world_char.is_string());
+        ASSERT_STREQ(world_char.c_str(), "\xe7\x95\x8c"); // '界'
+        ASSERT_EQ(strlen(world_char.c_str()), 3) << "UTF-8 '界' should be 3 bytes";
+    }
     
     pop_stack(); // Clean up the result array
     
@@ -142,9 +171,9 @@ TEST_F(EfunsTest, stringExplodeUtf8) {
     ASSERT_EQ(sp->type, T_ARRAY);
     ASSERT_EQ(sp->u.arr->size, 3) << "Expected 3 Japanese characters";
     
-    ASSERT_STREQ(sp->u.arr->item[0].u.string, "\xe6\x97\xa5"); // '日'
-    ASSERT_STREQ(sp->u.arr->item[1].u.string, "\xe6\x9c\xac"); // '本'
-    ASSERT_STREQ(sp->u.arr->item[2].u.string, "\xe8\xaa\x9e"); // '語'
+    ExpectArrayItemString(sp->u.arr, 0, "\xe6\x97\xa5"); // '日'
+    ExpectArrayItemString(sp->u.arr, 1, "\xe6\x9c\xac"); // '本'
+    ExpectArrayItemString(sp->u.arr, 2, "\xe8\xaa\x9e"); // '語'
     
     pop_stack();
 }

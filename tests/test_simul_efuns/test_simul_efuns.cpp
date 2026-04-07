@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <gtest/gtest.h>
 #include <filesystem>
+#include "lpc/types.hpp"
 extern "C" {
     #include "std.h"
     #include "rc.h"
@@ -131,7 +132,7 @@ TEST_F(SimulEfunsTest, findSimulEfun)
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
-    char* func_name = findstring("textwrap", NULL);
+    shared_str_t func_name = findstring("textwrap", NULL);
     ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'textwrap'.";
     EXPECT_NE(find_simul_efun(func_name), -1) << "find_simul_efun failed to find 'textwrap'.";
 
@@ -156,7 +157,7 @@ TEST_F(SimulEfunsTest, callSimulEfun)
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
-    char* func_name = findstring("textwrap", NULL);
+    shared_str_t func_name = findstring("textwrap", NULL);
     ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'textwrap'.";
     int index = find_simul_efun(func_name);
     EXPECT_NE(index, -1) << "find_simul_efun failed to find 'textwrap'.";
@@ -165,9 +166,9 @@ TEST_F(SimulEfunsTest, callSimulEfun)
     push_constant_string("Hello, world. This will be wrapped.");
     push_number(10);
     call_simul_efun (index, 2);
-    EXPECT_TRUE(sp->type == T_STRING) << "Return value type from simul efun 'textwrap' is not T_STRING.";
-    //GTEST_LOG_(INFO) << "Simul efun 'textwrap' returned: " << sp->u.string;
-    EXPECT_STREQ(sp->u.string, "Hello, world.\nThis will be\nwrapped.") << "Return value from simul efun 'textwrap' is not correct.";
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string()) << "Return value type from simul efun 'textwrap' is not T_STRING.";
+    EXPECT_STREQ(view.c_str(), "Hello, world.\nThis will be\nwrapped.") << "Return value from simul efun 'textwrap' is not correct.";
 
     pop_stack(); // pop string result
 

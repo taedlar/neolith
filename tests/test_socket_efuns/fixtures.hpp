@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <queue>
 #include <memory>
+#include "lpc/types.hpp"
 
 extern "C" {
   #include "std.h"
@@ -263,16 +264,20 @@ protected:
       ASSERT_EQ(event_fd->type, T_NUMBER) << "Callback record fd should be a number";
 
       CallbackRecord::CallbackType type = CallbackRecord::CB_READ;
-      if (strcmp(event_type->u.string, "write") == 0) {
+        auto event_type_view = lpc::svalue_view::from(event_type);
+        ASSERT_TRUE(event_type_view.is_string()) << "Callback record type should be a string";
+        if (strcmp(event_type_view.c_str(), "write") == 0) {
         type = CallbackRecord::CB_WRITE;
-      } else if (strcmp(event_type->u.string, "close") == 0) {
+        } else if (strcmp(event_type_view.c_str(), "close") == 0) {
         type = CallbackRecord::CB_CLOSE;
       }
 
       std::string payload;
       if (event_payload != nullptr) {
         if (event_payload->type == T_STRING) {
-          payload = event_payload->u.string;
+            auto event_payload_view = lpc::svalue_view::from(event_payload);
+            ASSERT_TRUE(event_payload_view.is_string());
+            payload = event_payload_view.c_str();
         } else if (event_payload->type == T_NUMBER) {
           payload = std::to_string(event_payload->u.number);
         }

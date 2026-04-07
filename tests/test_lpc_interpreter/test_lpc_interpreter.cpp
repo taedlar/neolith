@@ -3,6 +3,7 @@
 #endif
 
 #include "fixtures.hpp"
+#include "lpc/types.hpp"
 
 extern "C" {
     #include "lpc/program.h"
@@ -10,6 +11,16 @@ extern "C" {
     #include "lpc/buffer.h"
     #include "lpc/mapping.h"
 }
+
+namespace {
+
+void ExpectArrayItemNumber(const array_t *arr, int index, int64_t expected, const char *msg) {
+    auto view = lpc::svalue_view::from(&arr->item[index]);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), expected) << msg;
+}
+
+} // namespace
 
 TEST_F(LPCInterpreterTest, disassemble) {
     // compile a simple test file
@@ -52,8 +63,9 @@ TEST_F(LPCInterpreterTest, callFunction) {
     push_number(2);
     call_function (prog, runtime_index, 2, &ret);
 
-    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-    EXPECT_EQ(ret.u.number, 3) << "Expected return value of add(1,2) to be 3.";
+    auto ret_view = lpc::svalue_view::from(&ret);
+    EXPECT_TRUE(ret_view.is_number()) << "Expected return type to be T_NUMBER.";
+    EXPECT_EQ(ret_view.number(), 3) << "Expected return value of add(1,2) to be 3.";
     free_prog(prog, 1);
 }
 
@@ -66,7 +78,7 @@ TEST_F(LPCInterpreterTest, callInheritedFunction) {
     object_t* obj = load_object("room/start_room.c", 0); // start_room inherits from base/room.c which defines query_exit()
     ASSERT_NE(obj, nullptr) << "load_object returned null object.";
 
-    char* method = findstring("query_exit", NULL); // function names are always stored as shared strings
+    shared_str_t method = findstring("query_exit", NULL); // function names are always stored as shared strings
     ASSERT_NE(method, nullptr) << "findstring returned null for `query_exit`.";
 
     int index, fio, vio;
@@ -81,7 +93,11 @@ TEST_F(LPCInterpreterTest, callInheritedFunction) {
     call_function (obj->prog, runtime_index, 1, &ret);
 
     EXPECT_EQ(ret.type, T_STRING) << "Expected return type to be T_STRING.";
-    EXPECT_STREQ(ret.u.string, "room/observatory.c") << "Expected return value of query_exit(\"north\") to be \"room/observatory.c\".";
+    {
+        auto ret_view = lpc::svalue_view::from(&ret);
+        ASSERT_TRUE(ret_view.is_string());
+        EXPECT_STREQ(ret_view.c_str(), "room/observatory.c") << "Expected return value of query_exit(\"north\") to be \"room/observatory.c\".";
+    }
     free_string_svalue(&ret);
     destruct_object(obj);
 
@@ -159,20 +175,13 @@ TEST_F(LPCInterpreterTest, foreachUtf8String) {
     // Verify the array contains the correct Unicode code points:
     // 'H' = 72, 'e' = 101, 'l' = 108, 'l' = 108, 'o' = 111
     // '世' = 0x4E16 (19990), '界' = 0x754C (30028)
-    EXPECT_EQ(ret.u.arr->item[0].type, T_NUMBER);
-    EXPECT_EQ(ret.u.arr->item[0].u.number, 72) << "Expected 'H' (72).";
-    EXPECT_EQ(ret.u.arr->item[1].type, T_NUMBER);
-    EXPECT_EQ(ret.u.arr->item[1].u.number, 101) << "Expected 'e' (101).";
-    EXPECT_EQ(ret.u.arr->item[2].type, T_NUMBER);
-    EXPECT_EQ(ret.u.arr->item[2].u.number, 108) << "Expected 'l' (108).";
-    EXPECT_EQ(ret.u.arr->item[3].type, T_NUMBER);
-    EXPECT_EQ(ret.u.arr->item[3].u.number, 108) << "Expected 'l' (108).";
-    EXPECT_EQ(ret.u.arr->item[4].type, T_NUMBER);
-    EXPECT_EQ(ret.u.arr->item[4].u.number, 111) << "Expected 'o' (111).";
-    EXPECT_EQ(ret.u.arr->item[5].type, T_NUMBER);
-    EXPECT_EQ(ret.u.arr->item[5].u.number, 19990) << "Expected '世' (0x4E16 = 19990).";
-    EXPECT_EQ(ret.u.arr->item[6].type, T_NUMBER);
-    EXPECT_EQ(ret.u.arr->item[6].u.number, 30028) << "Expected '界' (0x754C = 30028).";
+    ExpectArrayItemNumber(ret.u.arr, 0, 72, "Expected 'H' (72).");
+    ExpectArrayItemNumber(ret.u.arr, 1, 101, "Expected 'e' (101).");
+    ExpectArrayItemNumber(ret.u.arr, 2, 108, "Expected 'l' (108).");
+    ExpectArrayItemNumber(ret.u.arr, 3, 108, "Expected 'l' (108).");
+    ExpectArrayItemNumber(ret.u.arr, 4, 111, "Expected 'o' (111).");
+    ExpectArrayItemNumber(ret.u.arr, 5, 19990, "Expected '世' (0x4E16 = 19990).");
+    ExpectArrayItemNumber(ret.u.arr, 6, 30028, "Expected '界' (0x754C = 30028).");
 
     free_svalue(&ret, "test");
     free_prog(prog, 1);
@@ -210,8 +219,9 @@ TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
     ASSERT_EQ(ret.type, T_MAPPING) << "Expected T_MAPPING from from_json buffer via LPC VM";
     svalue_t *found_val = find_string_in_mapping(ret.u.map, (char *)"x");
     ASSERT_NE(found_val, &const0u) << "key 'x' not found";
-    EXPECT_EQ(found_val->type, T_NUMBER);
-    EXPECT_EQ(found_val->u.number, 7);
+    auto found_view = lpc::svalue_view::from(found_val);
+    ASSERT_TRUE(found_view.is_number());
+    EXPECT_EQ(found_view.number(), 7);
 
     free_svalue(&ret, "fromJsonBufferViaLpcVm");
     free_prog(prog, 1);

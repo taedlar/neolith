@@ -12,6 +12,7 @@
  */
 
 #include <cstddef>
+#include <climits>
 #include <string>
 #include <type_traits>
 
@@ -44,6 +45,9 @@ namespace lpc {
  *   - str<StringT>() returns an owned copy of the full byte-span using the
  *     subtype-safe length; safe for embedded NUL bytes. StringT defaults to
  *     std::string and must be constructible from (const char *, std::size_t).
+ *   - Small non-string accessors (number/object) support common test assertions
+ *     without requiring direct union-member access for simple scalar/reference
+ *     types.
  *   - length() is O(1) for STRING_MALLOC / STRING_SHARED (reads the block header)
  *     and O(n) fallback for STRING_CONSTANT.
  */
@@ -86,6 +90,14 @@ public:
         return sv_ != nullptr && sv_->subtype == STRING_CONSTANT;
     }
 
+    [[nodiscard]] bool is_number() const noexcept {
+        return sv_ != nullptr && sv_->type == T_NUMBER;
+    }
+
+    [[nodiscard]] bool is_object() const noexcept {
+        return sv_ != nullptr && sv_->type == T_OBJECT;
+    }
+
     /**
      * c_str(): null-terminated const char*, safe for all string subtypes.
      * Null termination is a driver invariant for all subtypes; semantics match
@@ -108,6 +120,16 @@ public:
     /** Precondition: is_constant() — literal/constant string; not ref-counted. */
     [[nodiscard]] const char *const_string() const noexcept {
         return sv_ ? sv_->u.const_string : nullptr;
+    }
+
+    /** Precondition: is_number(). */
+    [[nodiscard]] int64_t number() const noexcept {
+        return sv_ ? sv_->u.number : 0;
+    }
+
+    /** Precondition: is_object(). */
+    [[nodiscard]] object_t *object() const noexcept {
+        return sv_ ? sv_->u.ob : nullptr;
     }
 
     /** Assign a STRING_SHARED payload; stamps type=T_STRING, subtype=STRING_SHARED. */
@@ -138,6 +160,26 @@ public:
         sv_->type = T_STRING;
         sv_->subtype = STRING_CONSTANT;
         sv_->u.const_string = s;
+    }
+
+    /** Assign a number payload; stamps type=T_NUMBER. */
+    void set_number(int64_t value) noexcept {
+        if (sv_ == nullptr) {
+            return;
+        }
+        sv_->type = T_NUMBER;
+        sv_->subtype = 0;
+        sv_->u.number = value;
+    }
+
+    /** Assign an object payload; stamps type=T_OBJECT. */
+    void set_object(object_t *ob) noexcept {
+        if (sv_ == nullptr) {
+            return;
+        }
+        sv_->type = T_OBJECT;
+        sv_->subtype = 0;
+        sv_->u.ob = ob;
     }
 
     /** O(1) for counted strings, O(n) fallback for STRING_CONSTANT. */

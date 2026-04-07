@@ -3,6 +3,7 @@
 #endif
 
 #include "fixtures.hpp"
+#include "lpc/types.hpp"
 
 extern "C" {
     #include "lpc/functional.h"
@@ -123,8 +124,9 @@ protected:
      */
     std::string get_string_var(const char* var_name) {
         svalue_t* var = get_var(var_name);
-        if (var && var->type == T_STRING && var->u.string) {
-            return std::string(var->u.string);
+        auto view = lpc::svalue_view::from(var);
+        if (view.is_string() && view.c_str() != nullptr) {
+            return std::string(view.c_str());
         }
         return "";
     }
@@ -134,10 +136,21 @@ protected:
      */
     int64_t get_number_var(const char* var_name) {
         svalue_t* var = get_var(var_name);
-        if (var && var->type == T_NUMBER) {
-            return var->u.number;
+        auto view = lpc::svalue_view::from(var);
+        if (view.is_number()) {
+            return view.number();
         }
         return 0;
+    }
+
+    /**
+     * Helper to create callback function-name arguments for input_to/get_char.
+     */
+    svalue_t make_function_name_svalue(const char* name) {
+        svalue_t fun = {};
+        auto view = lpc::svalue_view::from(&fun);
+        view.set_constant_string(name);
+        return fun;
     }
     
     /**
@@ -154,9 +167,7 @@ protected:
 
 TEST_F(InputToGetCharTest, InputToStringCallback) {
     // Test: input_to("callback", 0)
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback");
+    svalue_t fun = make_function_name_svalue("callback");
     
     int result = input_to(&fun, 0, 0, nullptr);
     EXPECT_EQ(result, 1) << "input_to should succeed";
@@ -179,16 +190,12 @@ TEST_F(InputToGetCharTest, InputToStringCallback) {
 
 TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     // Test: input_to("callback_with_args", 0, 42, "extra")
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback_with_args");
+    svalue_t fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_NUMBER;
     args[0].u.number = 42;
-    args[1].type = T_STRING;
-    args[1].subtype = STRING_SHARED;
-    args[1].u.shared_string = make_shared_string("extra", NULL);
+    lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("extra", NULL));
     
     int result = input_to(&fun, 0, 2, args);
     EXPECT_EQ(result, 1) << "input_to with args should succeed";
@@ -210,8 +217,11 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     EXPECT_EQ(callback_args->size, 2);
     EXPECT_EQ(callback_args->item[0].type, T_NUMBER);
     EXPECT_EQ(callback_args->item[0].u.number, 42);
-    EXPECT_EQ(callback_args->item[1].type, T_STRING);
-    EXPECT_STREQ(callback_args->item[1].u.shared_string, "extra");
+    {
+        auto arg1_view = lpc::svalue_view::from(&callback_args->item[1]);
+        ASSERT_TRUE(arg1_view.is_string());
+        EXPECT_STREQ(arg1_view.c_str(), "extra");
+    }
 }
 
 TEST_F(InputToGetCharTest, InputToFunctionPointer) {
@@ -239,9 +249,7 @@ TEST_F(InputToGetCharTest, InputToFunctionPointer) {
 
 TEST_F(InputToGetCharTest, GetCharSingleCharMode) {
     // Test: get_char("callback", 0)
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback");
+    svalue_t fun = make_function_name_svalue("callback");
     
     int result = get_char(&fun, 0, 0, nullptr);
     EXPECT_EQ(result, 1) << "get_char should succeed";
@@ -259,16 +267,12 @@ TEST_F(InputToGetCharTest, GetCharSingleCharMode) {
 
 TEST_F(InputToGetCharTest, GetCharWithArgs) {
     // Test: get_char("callback_with_args", 0, 123, "context")
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback_with_args");
+    svalue_t fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_NUMBER;
     args[0].u.number = 123;
-    args[1].type = T_STRING;
-    args[1].subtype = STRING_SHARED;
-    args[1].u.shared_string = make_shared_string("context", NULL);
+    lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("context", NULL));
     
     int result = get_char(&fun, 0, 2, args);
     EXPECT_EQ(result, 1);
@@ -281,16 +285,18 @@ TEST_F(InputToGetCharTest, GetCharWithArgs) {
     array_t* callback_args = get_array_var("callback_args");
     ASSERT_NE(callback_args, nullptr);
     EXPECT_EQ(callback_args->item[0].u.number, 123);
-    EXPECT_STREQ(callback_args->item[1].u.shared_string, "context");
+    {
+        auto arg1_view = lpc::svalue_view::from(&callback_args->item[1]);
+        ASSERT_TRUE(arg1_view.is_string());
+        EXPECT_STREQ(arg1_view.c_str(), "context");
+    }
 }
 
 TEST_F(InputToGetCharTest, InputToNoCommandGiver) {
     // Test error case: no command_giver
     command_giver = nullptr;
     
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback");
+    svalue_t fun = make_function_name_svalue("callback");
     
     int result = input_to(&fun, 0, 0, nullptr);
     EXPECT_EQ(result, 0) << "input_to should fail gracefully without command_giver";
@@ -301,9 +307,7 @@ TEST_F(InputToGetCharTest, InputToDestructedObject) {
     // Mark object as destructed
     command_giver->flags |= O_DESTRUCTED;
     
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback");
+    svalue_t fun = make_function_name_svalue("callback");
     
     int result = input_to(&fun, 0, 0, nullptr);
     EXPECT_EQ(result, 0) << "input_to should fail on destructed object";
@@ -314,9 +318,7 @@ TEST_F(InputToGetCharTest, InputToDestructedObject) {
 
 TEST_F(InputToGetCharTest, NestedInputTo) {
     // Test calling input_to from within a callback
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("nested_callback");
+    svalue_t fun = make_function_name_svalue("nested_callback");
     
     int result = input_to(&fun, 0, 0, nullptr);
     EXPECT_EQ(result, 1);
@@ -339,9 +341,7 @@ TEST_F(InputToGetCharTest, NestedInputTo) {
 
 TEST_F(InputToGetCharTest, InputToNoEchoFlag) {
     // Test I_NOECHO flag
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback");
+    svalue_t fun = make_function_name_svalue("callback");
     
     int result = input_to(&fun, I_NOECHO, 0, nullptr);
     EXPECT_EQ(result, 1);
@@ -355,9 +355,7 @@ TEST_F(InputToGetCharTest, InputToNoEchoFlag) {
 
 TEST_F(InputToGetCharTest, InputToNoEscFlag) {
     // Test I_NOESC flag
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback");
+    svalue_t fun = make_function_name_svalue("callback");
     
     int result = input_to(&fun, I_NOESC, 0, nullptr);
     EXPECT_EQ(result, 1);
@@ -368,9 +366,7 @@ TEST_F(InputToGetCharTest, InputToNoEscFlag) {
 
 TEST_F(InputToGetCharTest, MultipleInputToCallsOnlyFirstSucceeds) {
     // LPC spec: if input_to() is called multiple times, only first succeeds
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback");
+    svalue_t fun = make_function_name_svalue("callback");
     
     int result1 = input_to(&fun, 0, 0, nullptr);
     EXPECT_EQ(result1, 1) << "First input_to should succeed";
@@ -391,15 +387,11 @@ TEST_F(InputToGetCharTest, MultipleInputToCallsOnlyFirstSucceeds) {
 
 TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     // Test that args array is properly freed
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback_with_args");
+    svalue_t fun = make_function_name_svalue("callback_with_args");
     
     // Create args with reference-counted types
     svalue_t args[2] = {};  // Zero-initialize
-    args[0].type = T_STRING;
-    args[0].subtype = STRING_SHARED;
-    args[0].u.shared_string = make_shared_string("test_string", NULL); // ref = 1
+    lpc::svalue_view::from(&args[0]).set_shared_string(make_shared_string("test_string", NULL)); // ref = 1
     args[1].type = T_ARRAY;
     args[1].u.arr = allocate_empty_array(3); // ref = 1
     
@@ -415,22 +407,18 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     simulate_input("input");
     
     // Cleanup our local references
-    free_string(args[0].u.shared_string);
+    free_string(lpc::svalue_view::from(&args[0]).shared_string());
     free_array(args[1].u.arr);
 }
 
 TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     // Critical test: verify args come AFTER input, not before
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_STRING;
-    fun.u.string = const_cast<char*>("callback_with_args");
+    svalue_t fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
     args[0].type = T_NUMBER;
     args[0].u.number = 111;
-    args[1].type = T_STRING;
-    args[1].subtype = STRING_SHARED;
-    args[1].u.shared_string = make_shared_string("arg2", NULL);
+    lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("arg2", NULL));
     
     input_to(&fun, 0, 2, args);
     simulate_input("user_input");
@@ -442,6 +430,10 @@ TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     array_t* callback_args = get_array_var("callback_args");
     ASSERT_NE(callback_args, nullptr);
     EXPECT_EQ(callback_args->item[0].u.number, 111) << "First carryover arg should be second";
-    EXPECT_STREQ(callback_args->item[1].u.shared_string, "arg2") << "Second carryover arg should be third";
+    {
+        auto arg1_view = lpc::svalue_view::from(&callback_args->item[1]);
+        ASSERT_TRUE(arg1_view.is_string());
+        EXPECT_STREQ(arg1_view.c_str(), "arg2") << "Second carryover arg should be third";
+    }
 }
 

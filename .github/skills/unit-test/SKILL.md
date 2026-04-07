@@ -169,3 +169,64 @@ static ::testing::Environment* const winsock_env =
 cd out/build/linux/tests/test_lpc_compiler
 ./RelWithDebInfo/test_lpc_compiler
 ```
+
+## Type-Safe svalue_t Assertions with svalue_view
+
+**Preferred Pattern for Test Assertions**
+
+When asserting results on the eval stack or validating `svalue_t` values, use the `lpc::svalue_view` non-owning wrapper instead of direct union-member access. This provides type-safe accessors that eliminate common mistakes and improve test code clarity.
+
+**Include the wrapper header:**
+```cpp
+#include "lpc/types.hpp"  // Must be included outside any extern "C" block
+```
+
+**Replace raw union access with view accessors:**
+
+*Before (unsafe, prone to type confusion):*
+```cpp
+ASSERT_EQ(sp->type, T_STRING);
+EXPECT_STREQ(sp->u.string, "hello");
+```
+
+*After (type-safe, clearer intent):*
+```cpp
+auto view = lpc::svalue_view::from(sp);
+ASSERT_TRUE(view.is_string());
+EXPECT_STREQ(view.c_str(), "hello");
+```
+
+**String accessors (by subtype for clarity):**
+- `view.c_str()` — Safe const pointer (null-terminated for all subtypes)
+- `view.shared_string()` — Retrieve shared-string subtype (or nullptr)
+- `view.malloc_string()` — Retrieve malloc-string subtype (or nullptr)
+- `view.const_string()` — Retrieve constant-string subtype (or nullptr)
+
+**Numeric/object accessors:**
+- `view.is_number()` — Type predicate
+- `view.number()` — Retrieve int64_t value (0 if not T_NUMBER)
+- `view.is_object()` — Type predicate
+- `view.object()` — Retrieve object_t* (nullptr if not T_OBJECT)
+
+**Type predicates (for selective assertions):**
+- `view.is_string()`, `view.is_counted()`, `view.is_shared()`, `view.is_malloc()`, `view.is_constant()`
+
+**Null-safety**
+The wrapper safely handles null `svalue_t*` pointers. All accessors check the pointer and return safe defaults (nullptr, 0, false) if the pointer is null.
+
+**Set up stack values using the wrapper (for consistency):**
+```cpp
+svalue_t sv;
+auto view = lpc::svalue_view::from(&sv);
+view.set_malloc_string(allocated_str);  // Set type and union atomically
+view.set_shared_string(shared_str);
+view.set_number(42);
+```
+
+**Key benefits:**
+- Eliminates raw `sp->u.X` access that bypasses type checks
+- Makes intended assertions clearer (read `.c_str()` not `->u.string`)
+- Scales across string subtypes without duplicating test logic
+- Statically enforces correct includes (wrapper only in `types.hpp`, never under `extern "C"`)
+
+This wrapper pattern is now **the preferred form for all new test assertions on svalue_t structures**.

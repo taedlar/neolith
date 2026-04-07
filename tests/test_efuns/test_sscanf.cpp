@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
+#include "lpc/types.hpp"
 
 extern "C" {
     #include "efuns/sscanf.h"
@@ -32,7 +33,11 @@ TEST_F(EfunsTest, sscanfBasic) {
 
     arg++;
     ASSERT_EQ(arg->type, T_STRING);
-    ASSERT_STREQ(arg->u.string, "abc");
+    {
+        auto view = lpc::svalue_view::from(arg);
+        ASSERT_TRUE(view.is_string());
+        ASSERT_STREQ(view.c_str(), "abc");
+    }
 
     arg++;
     ASSERT_EQ(arg->type, T_NUMBER);

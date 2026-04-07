@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
+#include "lpc/types.hpp"
 
 #ifdef PACKAGE_CURL
 
@@ -257,8 +258,9 @@ protected:
 
   int QueryEventCount(object_t *owner) {
     apply_low("query_event_count", owner, 0);
-    EXPECT_EQ(sp->type, T_NUMBER);
-    int count = static_cast<int>(sp->u.number);
+    auto view = lpc::svalue_view::from(sp);
+    EXPECT_TRUE(view.is_number());
+    int count = static_cast<int>(view.number());
     pop_stack();
     return count;
   }
@@ -274,6 +276,24 @@ protected:
     ASSERT_NE(sv.u.buf, nullptr);
     EXPECT_EQ(static_cast<size_t>(sv.u.buf->size), expected_len);
     EXPECT_EQ(std::memcmp(sv.u.buf->item, expected, expected_len), 0);
+  }
+
+  void ExpectArrayItemNumber(const array_t *arr, int index, int64_t expected) {
+    auto view = lpc::svalue_view::from(&arr->item[index]);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), expected);
+  }
+
+  void ExpectArrayItemString(const array_t *arr, int index, const char *expected) {
+    auto view = lpc::svalue_view::from(&arr->item[index]);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_STREQ(view.c_str(), expected);
+  }
+
+  void ExpectTopNumber(int64_t expected) {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), expected);
   }
 };
 
@@ -355,8 +375,11 @@ TEST_F(CurlEfunsTest, InPerformAndOneActiveTransferEnforced) {
 
   current_object = owner;
   f_in_perform();
-  ASSERT_EQ(sp->type, T_NUMBER);
-  EXPECT_EQ(sp->u.number, 1);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1);
+  }
   pop_stack();
 
   push_constant_string("curl_done");
@@ -364,8 +387,11 @@ TEST_F(CurlEfunsTest, InPerformAndOneActiveTransferEnforced) {
   push_number(18);
   push_constant_string("second");
   apply_low("try_perform_to", owner, 4);
-  ASSERT_EQ(sp->type, T_NUMBER);
-  EXPECT_EQ(sp->u.number, 1);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1);
+  }
   pop_stack();
 
   ASSERT_TRUE(PumpUntil([&]() { return QueryEventCount(owner) == 1; }))
@@ -373,8 +399,11 @@ TEST_F(CurlEfunsTest, InPerformAndOneActiveTransferEnforced) {
 
   current_object = owner;
   f_in_perform();
-  ASSERT_EQ(sp->type, T_NUMBER);
-  EXPECT_EQ(sp->u.number, 0);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 0);
+  }
   pop_stack();
 }
 
@@ -392,13 +421,10 @@ TEST_F(CurlEfunsTest, CallbackOrderingAndOptionPersistenceAcrossIdlePeriods) {
 
   array_t *first = QueryLast(owner);
   ASSERT_EQ(first->size, 4);
-  EXPECT_EQ(first->item[0].type, T_NUMBER);
-  EXPECT_EQ(first->item[0].u.number, 1);
+  ExpectArrayItemNumber(first, 0, 1);
   ExpectBufferEq(first->item[1], "hello from curl");
-  EXPECT_EQ(first->item[2].type, T_NUMBER);
-  EXPECT_EQ(first->item[2].u.number, 123);
-  EXPECT_EQ(first->item[3].type, T_STRING);
-  EXPECT_STREQ(first->item[3].u.string, "tail");
+  ExpectArrayItemNumber(first, 2, 123);
+  ExpectArrayItemString(first, 3, "tail");
   pop_stack();
 
   ClearEvents(owner);
@@ -409,10 +435,10 @@ TEST_F(CurlEfunsTest, CallbackOrderingAndOptionPersistenceAcrossIdlePeriods) {
 
   array_t *second = QueryLast(owner);
   ASSERT_EQ(second->size, 4);
-  EXPECT_EQ(second->item[0].u.number, 1);
+  ExpectArrayItemNumber(second, 0, 1);
   ExpectBufferEq(second->item[1], "hello from curl");
-  EXPECT_EQ(second->item[2].u.number, 456);
-  EXPECT_STREQ(second->item[3].u.string, "again");
+  ExpectArrayItemNumber(second, 2, 456);
+  ExpectArrayItemString(second, 3, "again");
   pop_stack();
 }
 
@@ -434,13 +460,10 @@ TEST_F(CurlEfunsTest, FunctionPointerCallbackDispatchesCarryoverArguments) {
 
   array_t *result = QueryLast(owner);
   ASSERT_EQ(result->size, 4);
-  EXPECT_EQ(result->item[0].type, T_NUMBER);
-  EXPECT_EQ(result->item[0].u.number, 1);
+  ExpectArrayItemNumber(result, 0, 1);
   ExpectBufferEq(result->item[1], "funptr-body");
-  EXPECT_EQ(result->item[2].type, T_NUMBER);
-  EXPECT_EQ(result->item[2].u.number, 321);
-  EXPECT_EQ(result->item[3].type, T_STRING);
-  EXPECT_STREQ(result->item[3].u.string, "fp-tail");
+  ExpectArrayItemNumber(result, 2, 321);
+  ExpectArrayItemString(result, 3, "fp-tail");
   pop_stack();
 }
 
@@ -461,14 +484,12 @@ TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
 
   current_object = owner_a;
   f_in_perform();
-  ASSERT_EQ(sp->type, T_NUMBER);
-  EXPECT_EQ(sp->u.number, 1);
+  ExpectTopNumber(1);
   pop_stack();
 
   current_object = owner_b;
   f_in_perform();
-  ASSERT_EQ(sp->type, T_NUMBER);
-  EXPECT_EQ(sp->u.number, 1);
+  ExpectTopNumber(1);
   pop_stack();
 
   ASSERT_TRUE(PumpUntil([&]() {
@@ -477,36 +498,28 @@ TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
 
   array_t *result_a = QueryLast(owner_a);
   ASSERT_EQ(result_a->size, 4);
-  EXPECT_EQ(result_a->item[0].type, T_NUMBER);
-  EXPECT_EQ(result_a->item[0].u.number, 1);
+  ExpectArrayItemNumber(result_a, 0, 1);
   ExpectBufferEq(result_a->item[1], "shared-body");
-  EXPECT_EQ(result_a->item[2].type, T_NUMBER);
-  EXPECT_EQ(result_a->item[2].u.number, 11);
-  EXPECT_EQ(result_a->item[3].type, T_STRING);
-  EXPECT_STREQ(result_a->item[3].u.string, "owner-a");
+  ExpectArrayItemNumber(result_a, 2, 11);
+  ExpectArrayItemString(result_a, 3, "owner-a");
   pop_stack();
 
   array_t *result_b = QueryLast(owner_b);
   ASSERT_EQ(result_b->size, 4);
-  EXPECT_EQ(result_b->item[0].type, T_NUMBER);
-  EXPECT_EQ(result_b->item[0].u.number, 1);
+  ExpectArrayItemNumber(result_b, 0, 1);
   ExpectBufferEq(result_b->item[1], "shared-body");
-  EXPECT_EQ(result_b->item[2].type, T_NUMBER);
-  EXPECT_EQ(result_b->item[2].u.number, 22);
-  EXPECT_EQ(result_b->item[3].type, T_STRING);
-  EXPECT_STREQ(result_b->item[3].u.string, "owner-b");
+  ExpectArrayItemNumber(result_b, 2, 22);
+  ExpectArrayItemString(result_b, 3, "owner-b");
   pop_stack();
 
   current_object = owner_a;
   f_in_perform();
-  ASSERT_EQ(sp->type, T_NUMBER);
-  EXPECT_EQ(sp->u.number, 0);
+  ExpectTopNumber(0);
   pop_stack();
 
   current_object = owner_b;
   f_in_perform();
-  ASSERT_EQ(sp->type, T_NUMBER);
-  EXPECT_EQ(sp->u.number, 0);
+  ExpectTopNumber(0);
   pop_stack();
 }
 
@@ -536,8 +549,11 @@ TEST_F(CurlEfunsTest, OwnerDestructionCancelsInFlightTransfer) {
   // Confirm the transfer is genuinely in-flight before destruction.
   current_object = owner;
   f_in_perform();
-  ASSERT_EQ(sp->type, T_NUMBER);
-  ASSERT_EQ(sp->u.number, 1) << "Transfer must be active before destructing the owner";
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1) << "Transfer must be active before destructing the owner";
+  }
   pop_stack();
 
   // Destruct: close_curl_handles() sets owner_ob=nullptr, bumps generation, and posts
@@ -583,7 +599,7 @@ TEST_F(CurlEfunsTest, DestroyedOwnerSkipsCallbackDispatch) {
 
   ASSERT_TRUE(PumpUntil([&]() {
     apply_low("query_event_count", observer, 0);
-    bool done = (sp->type == T_NUMBER && sp->u.number == 0);
+    bool done = (lpc::svalue_view::from(sp).is_number() && lpc::svalue_view::from(sp).number() == 0);
     pop_stack();
     return done;
   }, 700)) << "Destroyed-owner callback unexpectedly reached observer";

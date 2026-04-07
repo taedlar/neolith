@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
+#include "lpc/types.hpp"
 
 TEST_F(EfunsTest, replaceStringThreeArgs) {
     // replace "world" with "there" in "hello world"
@@ -12,8 +13,9 @@ TEST_F(EfunsTest, replaceStringThreeArgs) {
     st_num_arg = 3;
     f_replace_string();
 
-    ASSERT_EQ(sp->type, T_STRING);
-    EXPECT_STREQ(sp->u.string, "hello there");
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_STREQ(view.c_str(), "hello there");
 
     // replace "大" with "小" in "大千世界"
     copy_and_push_string("大千世界");
@@ -22,8 +24,9 @@ TEST_F(EfunsTest, replaceStringThreeArgs) {
     st_num_arg = 3;
     f_replace_string();
 
-    ASSERT_EQ(sp->type, T_STRING);
-    EXPECT_STREQ(sp->u.string, "小千世界");
+    view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_STREQ(view.c_str(), "小千世界");
 }
 
 TEST_F(EfunsTest, replaceStringFourArgs) {
@@ -35,8 +38,9 @@ TEST_F(EfunsTest, replaceStringFourArgs) {
     st_num_arg = 4;
     f_replace_string();
 
-    ASSERT_EQ(sp->type, T_STRING);
-    EXPECT_STREQ(sp->u.string, "to do or not to do");
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_STREQ(view.c_str(), "to do or not to do");
 
     push_constant_string("do");
     push_constant_string("be");
@@ -44,8 +48,9 @@ TEST_F(EfunsTest, replaceStringFourArgs) {
     st_num_arg = 4;
     f_replace_string();
 
-    ASSERT_EQ(sp->type, T_STRING);
-    EXPECT_STREQ(sp->u.string, "to be or not to do");
+    view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_STREQ(view.c_str(), "to be or not to do");
 }
 
 TEST_F(EfunsTest, replaceStringFiveArgs) {
@@ -58,6 +63,7 @@ TEST_F(EfunsTest, replaceStringFiveArgs) {
     st_num_arg = 5;
     f_replace_string();
 
-    ASSERT_EQ(sp->type, T_STRING);
-    EXPECT_STREQ(sp->u.string, "to be or not to do");
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_STREQ(view.c_str(), "to be or not to do");
 }
