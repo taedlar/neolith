@@ -167,7 +167,7 @@ TEST_F(SimulEfunsTest, callSimulEfun)
     push_number(10);
     call_simul_efun (index, 2);
     auto view = lpc::svalue_view::from(sp);
-    ASSERT_TRUE(view.is_string()) << "Return value type from simul efun 'textwrap' is not T_STRING.";
+    ASSERT_TRUE(view.is_string()) << "Return value type from simul efun 'textwrap' is not a string.";
     EXPECT_STREQ(view.c_str(), "Hello, world.\nThis will be\nwrapped.") << "Return value from simul efun 'textwrap' is not correct.";
 
     pop_stack(); // pop string result

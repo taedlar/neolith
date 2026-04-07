@@ -24,8 +24,8 @@ TEST_F(LPCInterpreterTest, int64_SmallValues) {
 
     call_function (prog, runtime_index, 0, &ret);
 
-    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-    EXPECT_EQ(ret.u.number, 42) << "Expected return value of test() to be 42.";
+    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_number()) << "Expected return type to be integer.";
+    EXPECT_EQ(lpc::svalue_view::from(&ret).number(), 42) << "Expected return value of test() to be 42.";
     free_prog(prog, 1);
 }
 
@@ -44,8 +44,8 @@ TEST_F(LPCInterpreterTest, int64_LargePositive) {
 
     call_function (prog, runtime_index, 0, &ret);
 
-    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-    EXPECT_EQ(ret.u.number, 2147483648LL) << "Expected return value to be 2147483648 (INT32_MAX + 1).";
+    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_number()) << "Expected return type to be integer.";
+    EXPECT_EQ(lpc::svalue_view::from(&ret).number(), 2147483648LL) << "Expected return value to be 2147483648 (INT32_MAX + 1).";
     free_prog(prog, 1);
 }
 
@@ -64,8 +64,8 @@ TEST_F(LPCInterpreterTest, int64_LargeNegative) {
 
     call_function (prog, runtime_index, 0, &ret);
 
-    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-    EXPECT_EQ(ret.u.number, -2147483649LL) << "Expected return value to be -2147483649 (INT32_MIN - 1).";
+    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_number()) << "Expected return type to be integer.";
+    EXPECT_EQ(lpc::svalue_view::from(&ret).number(), -2147483649LL) << "Expected return value to be -2147483649 (INT32_MIN - 1).";
     free_prog(prog, 1);
 }
 
@@ -86,8 +86,8 @@ TEST_F(LPCInterpreterTest, int64_Arithmetic) {
 
     call_function (prog, runtime_index, 0, &ret);
 
-    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-    EXPECT_EQ(ret.u.number, 2147483649LL) << "Expected 2147483647 + 2 = 2147483649.";
+    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_number()) << "Expected return type to be integer.";
+    EXPECT_EQ(lpc::svalue_view::from(&ret).number(), 2147483649LL) << "Expected 2147483647 + 2 = 2147483649.";
     
     // Test multiplication
     found_prog = find_function(prog, findstring("test_mult", NULL), &index, &fio, &vio);
@@ -96,8 +96,8 @@ TEST_F(LPCInterpreterTest, int64_Arithmetic) {
 
     call_function (prog, runtime_index, 0, &ret);
 
-    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-    EXPECT_EQ(ret.u.number, 3000000000LL) << "Expected 1000000000 * 3 = 3000000000.";
+    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_number()) << "Expected return type to be integer.";
+    EXPECT_EQ(lpc::svalue_view::from(&ret).number(), 3000000000LL) << "Expected 1000000000 * 3 = 3000000000.";
     
     free_prog(prog, 1);
 }
@@ -117,7 +117,7 @@ TEST_F(LPCInterpreterTest, int64_MaxValue) {
 
     call_function (prog, runtime_index, 0, &ret);
 
-    EXPECT_EQ(ret.type, T_NUMBER) << "Expected return type to be T_NUMBER.";
-    EXPECT_EQ(ret.u.number, 9223372036854775806LL) << "Expected return value to be INT64_MAX - 1.";
+    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_number()) << "Expected return type to be integer.";
+    EXPECT_EQ(lpc::svalue_view::from(&ret).number(), 9223372036854775806LL) << "Expected return value to be INT64_MAX - 1.";
     free_prog(prog, 1);
 }

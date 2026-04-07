@@ -11,13 +11,13 @@ TEST_F(EfunsTest, strsrchBasic) {
     push_number(0); // left to right
     f_strsrch();
 
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 6); // "world" starts at index 6
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number());
+    ASSERT_EQ(lpc::svalue_view::from(sp).number(), 6); // "world" starts at index 6
 
     push_constant_string("大千世界");
     push_number(L'千');
     push_number(0); // left to right
     f_strsrch();
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 3); // '千' starts at byte index 3 in UTF-8
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number());
+    ASSERT_EQ(lpc::svalue_view::from(sp).number(), 3); // '千' starts at byte index 3 in UTF-8
 }

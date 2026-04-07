@@ -192,7 +192,7 @@ TEST_F(EfunsTest, fromJsonBuffer) {
 }
 
 TEST_F(EfunsTest, fromJsonNull) {
-    /* JSON null maps to T_NUMBER 0 with subtype T_UNDEFINED (same as what undefinedp() checks) */
+    /* JSON null maps to number 0 with subtype T_UNDEFINED (same as what undefinedp() checks) */
     copy_and_push_string("null");
     f_from_json();
     auto view = lpc::svalue_view::from(sp);
@@ -219,7 +219,7 @@ TEST_F(EfunsTest, fromJsonBoolFalse) {
 TEST_F(EfunsTest, fromJsonArray) {
     copy_and_push_string("[1,2,3]");
     f_from_json();
-    ASSERT_EQ(sp->type, T_ARRAY);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_array());
     ASSERT_EQ((int)sp->u.arr->size, 3);
     EXPECT_TRUE(lpc::svalue_view::from(&sp->u.arr->item[0]).is_number());
     EXPECT_EQ(lpc::svalue_view::from(&sp->u.arr->item[0]).number(), 1);
@@ -317,17 +317,14 @@ TEST_F(EfunsTest, fromJsonLargeBuffer) {
     /* Spot-check first and last key */
     svalue_t *v0 = find_string_in_mapping(sp->u.map, (char *)"k000");
     ASSERT_NE(v0, &const0u) << "key 'k000' not found";
-    EXPECT_EQ(v0->type, T_STRING);
-    {
-        auto v0_view = lpc::svalue_view::from(v0);
-        ASSERT_TRUE(v0_view.is_string());
-        EXPECT_EQ(strlen(v0_view.c_str()), (size_t)VALUE_LEN);
-    }
+    ASSERT_TRUE(lpc::svalue_view::from(v0).is_string());
+    ASSERT_EQ(lpc::svalue_view::from(v0).length(), VALUE_LEN) << "value length mismatch for key 'k000'";
+
     char lastkey[16];
     snprintf(lastkey, sizeof(lastkey), "k%03d", NKEYS - 1);
     svalue_t *vlast = find_string_in_mapping(sp->u.map, lastkey);
     ASSERT_NE(vlast, &const0u) << "last key not found";
-    EXPECT_EQ(vlast->type, T_STRING);
+    ASSERT_TRUE(lpc::svalue_view::from(vlast).is_string());
 }
 
 #endif /* F_FROM_JSON */
@@ -341,7 +338,7 @@ TEST_F(EfunsTest, fromJsonLargeBuffer) {
 TEST_F(EfunsTest, roundTripInteger) {
     push_number(12345);
     f_to_json();
-    ASSERT_EQ(sp->type, T_STRING);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
     f_from_json();
     auto view = lpc::svalue_view::from(sp);
     ASSERT_TRUE(view.is_number());
@@ -351,31 +348,23 @@ TEST_F(EfunsTest, roundTripInteger) {
 TEST_F(EfunsTest, roundTripString) {
     copy_and_push_string("hello world");
     f_to_json();
-    ASSERT_EQ(sp->type, T_STRING);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
     f_from_json();
-    ASSERT_EQ(sp->type, T_STRING);
-    {
-        auto view = lpc::svalue_view::from(sp);
-        ASSERT_TRUE(view.is_string());
-        EXPECT_STREQ(view.c_str(), "hello world");
-    }
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
+    EXPECT_STREQ(lpc::svalue_view::from(sp).c_str(), "hello world");
 }
 
 TEST_F(EfunsTest, roundTripNull) {
     /* to_json(undefined) → "null" */
     push_undefined();
     f_to_json();
-    ASSERT_EQ(sp->type, T_STRING);
-    {
-        auto view = lpc::svalue_view::from(sp);
-        ASSERT_TRUE(view.is_string());
-        EXPECT_STREQ(view.c_str(), "null");
-    }
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
+    EXPECT_STREQ(lpc::svalue_view::from(sp).c_str(), "null");
 
-    /* from_json("null") → T_NUMBER 0 subtype T_UNDEFINED */
+    /* from_json("null") → number 0 subtype T_UNDEFINED */
     copy_and_push_string("null");
     f_from_json();
-    ASSERT_EQ(sp->type, T_NUMBER);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number());
     EXPECT_EQ(sp->subtype, T_UNDEFINED);
 }
 
@@ -385,9 +374,9 @@ TEST_F(EfunsTest, roundTripArray) {
     arr->item[1].u.number = 20;
     push_refed_array(arr);
     f_to_json();
-    ASSERT_EQ(sp->type, T_STRING);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
     f_from_json();
-    ASSERT_EQ(sp->type, T_ARRAY);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_array());
     ASSERT_EQ((int)sp->u.arr->size, 2);
     EXPECT_EQ(sp->u.arr->item[0].u.number, 10);
     EXPECT_EQ(sp->u.arr->item[1].u.number, 20);
@@ -397,10 +386,10 @@ TEST_F(EfunsTest, roundTripFloat) {
     /* Verify the float round-trip regardless of Boost.JSON serialization format */
     push_real(3.14);
     f_to_json();
-    ASSERT_EQ(sp->type, T_STRING);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
     f_from_json();
-    ASSERT_EQ(sp->type, T_REAL);
-    EXPECT_DOUBLE_EQ(sp->u.real, 3.14);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_real());
+    EXPECT_DOUBLE_EQ(lpc::svalue_view::from(sp).real(), 3.14);
 }
 
 #endif /* F_TO_JSON && F_FROM_JSON */

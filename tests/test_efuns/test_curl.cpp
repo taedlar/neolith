@@ -252,7 +252,7 @@ protected:
 
   array_t *QueryLast(object_t *owner) {
     apply_low("query_last", owner, 0);
-    EXPECT_EQ(sp->type, T_ARRAY);
+    EXPECT_TRUE(lpc::svalue_view::from(sp).is_array());
     return sp->u.arr;
   }
 

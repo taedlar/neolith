@@ -23,21 +23,20 @@ TEST_F(StackMachineTest, pushValueStatic) {
     svalue_t *initial_sp = sp;
 
     push_number(42);
-    ASSERT_EQ(sp->type, T_NUMBER);
-    ASSERT_EQ(sp->u.number, 42);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number());
+    ASSERT_EQ(lpc::svalue_view::from(sp).number(), 42);
 
     push_real(3.14);
-    ASSERT_EQ(sp->type, T_REAL);
-    ASSERT_DOUBLE_EQ(sp->u.real, 3.14);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_real());
+    ASSERT_DOUBLE_EQ(lpc::svalue_view::from(sp).real(), 3.14);
 
     push_undefined();
-    ASSERT_EQ(sp->type, T_NUMBER);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number());
     ASSERT_EQ(sp->subtype, T_UNDEFINED);
 
     push_constant_string("hello");
-    ASSERT_EQ(sp->type, T_STRING);
-    ASSERT_STREQ(sp->u.const_string, "hello");
-    ASSERT_EQ(sp->subtype, STRING_CONSTANT);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_constant());
+    ASSERT_STREQ(lpc::svalue_view::from(sp).c_str(), "hello");
 
     // Stack pointer should have moved up by 4 svalue_ts
     ASSERT_EQ(sp, initial_sp + 4);

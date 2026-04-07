@@ -64,7 +64,7 @@ TEST_F(LPCInterpreterTest, callFunction) {
     call_function (prog, runtime_index, 2, &ret);
 
     auto ret_view = lpc::svalue_view::from(&ret);
-    EXPECT_TRUE(ret_view.is_number()) << "Expected return type to be T_NUMBER.";
+    EXPECT_TRUE(ret_view.is_number()) << "Expected return type to be integer.";
     EXPECT_EQ(ret_view.number(), 3) << "Expected return value of add(1,2) to be 3.";
     free_prog(prog, 1);
 }
@@ -92,12 +92,8 @@ TEST_F(LPCInterpreterTest, callInheritedFunction) {
     push_constant_string("north");
     call_function (obj->prog, runtime_index, 1, &ret);
 
-    EXPECT_EQ(ret.type, T_STRING) << "Expected return type to be T_STRING.";
-    {
-        auto ret_view = lpc::svalue_view::from(&ret);
-        ASSERT_TRUE(ret_view.is_string());
-        EXPECT_STREQ(ret_view.c_str(), "room/observatory.c") << "Expected return value of query_exit(\"north\") to be \"room/observatory.c\".";
-    }
+    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_string()) << "Expected return value to be a string.";
+    EXPECT_STREQ(lpc::svalue_view::from(&ret).c_str(), "room/observatory.c") << "Expected return value of query_exit(\"north\") to be \"room/observatory.c\".";
     free_string_svalue(&ret);
     destruct_object(obj);
 
@@ -168,7 +164,7 @@ TEST_F(LPCInterpreterTest, foreachUtf8String) {
     call_function(prog, runtime_index, 0, &ret);
 
     // Verify the return value is an array
-    EXPECT_EQ(ret.type, T_ARRAY) << "Expected return type to be T_ARRAY.";
+    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_array()) << "Expected return value to be an array.";
     ASSERT_TRUE(ret.u.arr != nullptr) << "Expected non-null array.";
     EXPECT_EQ(ret.u.arr->size, 7) << "Expected array size to be 7.";
 

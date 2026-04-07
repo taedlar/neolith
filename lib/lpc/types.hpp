@@ -94,8 +94,16 @@ public:
         return sv_ != nullptr && sv_->type == T_NUMBER;
     }
 
+    [[nodiscard]] bool is_real() const noexcept {
+        return sv_ != nullptr && sv_->type == T_REAL;
+    }
+
     [[nodiscard]] bool is_object() const noexcept {
         return sv_ != nullptr && sv_->type == T_OBJECT;
+    }
+
+    [[nodiscard]] bool is_array() const noexcept {
+        return sv_ != nullptr && sv_->type == T_ARRAY;
     }
 
     /**
@@ -125,6 +133,11 @@ public:
     /** Precondition: is_number(). */
     [[nodiscard]] int64_t number() const noexcept {
         return sv_ ? sv_->u.number : 0;
+    }
+
+    /** Precondition: is_real(). */
+    [[nodiscard]] double real() const noexcept {
+        return sv_ ? sv_->u.real : 0.0;
     }
 
     /** Precondition: is_object(). */
@@ -172,6 +185,16 @@ public:
         sv_->u.number = value;
     }
 
+    /** Assign a real payload; stamps type=T_REAL. */
+    void set_real(double value) noexcept {
+        if (sv_ == nullptr) {
+            return;
+        }
+        sv_->type = T_REAL;
+        sv_->subtype = 0;
+        sv_->u.real = value;
+    }
+
     /** Assign an object payload; stamps type=T_OBJECT. */
     void set_object(object_t *ob) noexcept {
         if (sv_ == nullptr) {
@@ -180,6 +203,16 @@ public:
         sv_->type = T_OBJECT;
         sv_->subtype = 0;
         sv_->u.ob = ob;
+    }
+
+    /** Assign an array payload; stamps type=T_ARRAY. */
+    void set_array(array_t *arr) noexcept {
+        if (sv_ == nullptr) {
+            return;
+        }
+        sv_->type = T_ARRAY;
+        sv_->subtype = 0;
+        sv_->u.arr = arr;
     }
 
     /** O(1) for counted strings, O(n) fallback for STRING_CONSTANT. */

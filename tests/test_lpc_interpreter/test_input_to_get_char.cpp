@@ -158,9 +158,8 @@ protected:
      */
     array_t* get_array_var(const char* var_name) {
         svalue_t* var = get_var(var_name);
-        if (var && var->type == T_ARRAY) {
+        if (lpc::svalue_view::from(var).is_array())
             return var->u.arr;
-        }
         return nullptr;
     }
 };
@@ -193,8 +192,7 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     svalue_t fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
-    args[0].type = T_NUMBER;
-    args[0].u.number = 42;
+    lpc::svalue_view::from(&args[0]).set_number(42);
     lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("extra", NULL));
     
     int result = input_to(&fun, 0, 2, args);
@@ -215,8 +213,8 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     array_t* callback_args = get_array_var("callback_args");
     ASSERT_NE(callback_args, nullptr);
     EXPECT_EQ(callback_args->size, 2);
-    EXPECT_EQ(callback_args->item[0].type, T_NUMBER);
-    EXPECT_EQ(callback_args->item[0].u.number, 42);
+    EXPECT_TRUE(lpc::svalue_view::from(&callback_args->item[0]).is_number());
+    EXPECT_EQ(lpc::svalue_view::from(&callback_args->item[0]).number(), 42);
     {
         auto arg1_view = lpc::svalue_view::from(&callback_args->item[1]);
         ASSERT_TRUE(arg1_view.is_string());
@@ -227,8 +225,7 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
 TEST_F(InputToGetCharTest, InputToFunctionPointer) {
     // Create a function pointer for "callback"
     svalue_t dummy = {};  // Zero-initialize
-    dummy.type = T_NUMBER;
-    dummy.u.number = 0;
+    lpc::svalue_view::from(&dummy).set_number(0); // dummy svalue for function pointer creation
     
     funptr_t* funp = make_lfun_funp_by_name("callback", &dummy);
     ASSERT_NE(funp, nullptr) << "Should create function pointer";
@@ -270,8 +267,7 @@ TEST_F(InputToGetCharTest, GetCharWithArgs) {
     svalue_t fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
-    args[0].type = T_NUMBER;
-    args[0].u.number = 123;
+    lpc::svalue_view::from(&args[0]).set_number(123);
     lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("context", NULL));
     
     int result = get_char(&fun, 0, 2, args);
@@ -284,7 +280,7 @@ TEST_F(InputToGetCharTest, GetCharWithArgs) {
     
     array_t* callback_args = get_array_var("callback_args");
     ASSERT_NE(callback_args, nullptr);
-    EXPECT_EQ(callback_args->item[0].u.number, 123);
+    EXPECT_EQ(lpc::svalue_view::from(&callback_args->item[0]).number(), 123);
     {
         auto arg1_view = lpc::svalue_view::from(&callback_args->item[1]);
         ASSERT_TRUE(arg1_view.is_string());
@@ -392,8 +388,7 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     // Create args with reference-counted types
     svalue_t args[2] = {};  // Zero-initialize
     lpc::svalue_view::from(&args[0]).set_shared_string(make_shared_string("test_string", NULL)); // ref = 1
-    args[1].type = T_ARRAY;
-    args[1].u.arr = allocate_empty_array(3); // ref = 1
+    lpc::svalue_view::from(&args[1]).set_array(allocate_empty_array(3)); // ref = 1
     
     int initial_arr_ref = args[1].u.arr->ref;
     
@@ -416,8 +411,7 @@ TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     svalue_t fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
-    args[0].type = T_NUMBER;
-    args[0].u.number = 111;
+    lpc::svalue_view::from(&args[0]).set_number(111);
     lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("arg2", NULL));
     
     input_to(&fun, 0, 2, args);
@@ -429,7 +423,7 @@ TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     
     array_t* callback_args = get_array_var("callback_args");
     ASSERT_NE(callback_args, nullptr);
-    EXPECT_EQ(callback_args->item[0].u.number, 111) << "First carryover arg should be second";
+    EXPECT_EQ(lpc::svalue_view::from(&callback_args->item[0]).number(), 111) << "First carryover arg should be second";
     {
         auto arg1_view = lpc::svalue_view::from(&callback_args->item[1]);
         ASSERT_TRUE(arg1_view.is_string());

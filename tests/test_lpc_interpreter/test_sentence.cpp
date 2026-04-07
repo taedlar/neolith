@@ -25,8 +25,7 @@ TEST_F(SentenceTest, MakeLfunFunpByName) {
     
     // Create a function pointer by name
     svalue_t dummy;
-    dummy.type = T_NUMBER;
-    dummy.u.number = 0;
+    lpc::svalue_view::from(&dummy).set_number(0); // dummy svalue for argument passing; value doesn't matter for this test
     funptr_t* funp = make_lfun_funp_by_name("add", &dummy);
     
     ASSERT_NE(funp, nullptr) << "Function pointer should be created successfully";
@@ -52,8 +51,7 @@ TEST_F(SentenceTest, MakeLfunFunpByNameNonExistent) {
     
     // Try to create funptr for non-existent function
     svalue_t dummy;
-    dummy.type = T_NUMBER;
-    dummy.u.number = 0;
+    lpc::svalue_view::from(&dummy).set_number(0); // dummy svalue for argument passing; value doesn't matter for this test
     funptr_t* funp = make_lfun_funp_by_name("nonexistent", &dummy);
     
     EXPECT_EQ(funp, nullptr) << "Function pointer should be NULL for non-existent function";
@@ -83,8 +81,7 @@ TEST_F(SentenceTest, MakeLfunFunpByNameInherited) {
     
     // Create funptr for inherited function
     svalue_t dummy;
-    dummy.type = T_NUMBER;
-    dummy.u.number = 0;
+    lpc::svalue_view::from(&dummy).set_number(0); // dummy svalue for argument passing; value doesn't matter for this test
     funptr_t* funp = make_lfun_funp_by_name("parent_func", &dummy);
     
     ASSERT_NE(funp, nullptr) << "Function pointer should be created for inherited function";
@@ -110,12 +107,10 @@ TEST_F(SentenceTest, MakeLfunFunpByNameWithBoundArgs) {
     
     // Create array with bound args
     array_t* args = allocate_empty_array(1);
-    args->item[0].type = T_NUMBER;
-    args->item[0].u.number = 5;
+    lpc::svalue_view::from(&args->item[0]).set_number(5); // bind first argument to 5
     
     svalue_t args_sval;
-    args_sval.type = T_ARRAY;
-    args_sval.u.arr = args;
+    lpc::svalue_view::from(&args_sval).set_array(args);
     funptr_t* funp = make_lfun_funp_by_name("multiply", &args_sval);
     
     ASSERT_NE(funp, nullptr);

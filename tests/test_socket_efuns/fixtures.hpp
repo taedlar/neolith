@@ -247,12 +247,12 @@ protected:
     current_object = saved_current_object;
     variable_index_offset = saved_vio;
 
-    ASSERT_EQ(ret.type, T_ARRAY) << "query_events() should return an array";
+    ASSERT_TRUE(lpc::svalue_view::from(&ret).is_array()) << "query_events() should return an array";
     ASSERT_NE(ret.u.arr, nullptr) << "query_events() returned a null array";
 
     for (event_index = 0; event_index < ret.u.arr->size; event_index++) {
       svalue_t* event = &ret.u.arr->item[event_index];
-      ASSERT_EQ(event->type, T_ARRAY) << "Each callback record should be an array";
+      ASSERT_TRUE(lpc::svalue_view::from(event).is_array()) << "Each callback record should be an array";
       ASSERT_NE(event->u.arr, nullptr) << "Callback record array is null";
       ASSERT_GE(event->u.arr->size, 2) << "Callback record should have at least type and fd";
 
@@ -260,30 +260,30 @@ protected:
       svalue_t* event_fd = &event->u.arr->item[1];
       svalue_t* event_payload = event->u.arr->size > 2 ? &event->u.arr->item[2] : nullptr;
 
-      ASSERT_EQ(event_type->type, T_STRING) << "Callback record type should be a string";
-      ASSERT_EQ(event_fd->type, T_NUMBER) << "Callback record fd should be a number";
+      ASSERT_TRUE(lpc::svalue_view::from(event_type).is_string()) << "Callback record type should be a string";
+      ASSERT_TRUE(lpc::svalue_view::from(event_fd).is_number()) << "Callback record fd should be a number";
 
       CallbackRecord::CallbackType type = CallbackRecord::CB_READ;
-        auto event_type_view = lpc::svalue_view::from(event_type);
-        ASSERT_TRUE(event_type_view.is_string()) << "Callback record type should be a string";
-        if (strcmp(event_type_view.c_str(), "write") == 0) {
+      auto event_type_view = lpc::svalue_view::from(event_type);
+      ASSERT_TRUE(event_type_view.is_string()) << "Callback record type should be a string";
+      if (strcmp(event_type_view.c_str(), "write") == 0) {
         type = CallbackRecord::CB_WRITE;
-        } else if (strcmp(event_type_view.c_str(), "close") == 0) {
+      } else if (strcmp(event_type_view.c_str(), "close") == 0) {
         type = CallbackRecord::CB_CLOSE;
       }
 
       std::string payload;
       if (event_payload != nullptr) {
-        if (event_payload->type == T_STRING) {
+        if (lpc::svalue_view::from(event_payload).is_string()) {
             auto event_payload_view = lpc::svalue_view::from(event_payload);
             ASSERT_TRUE(event_payload_view.is_string());
             payload = event_payload_view.c_str();
-        } else if (event_payload->type == T_NUMBER) {
-          payload = std::to_string(event_payload->u.number);
+        } else if (lpc::svalue_view::from(event_payload).is_number()) {
+          payload = std::to_string(lpc::svalue_view::from(event_payload).number());
         }
       }
 
-      callback_records.emplace(type, static_cast<int>(event_fd->u.number), 0, payload);
+      callback_records.emplace(type, static_cast<int>(lpc::svalue_view::from(event_fd).number()), 0, payload);
     }
 
     free_svalue(&ret, "CaptureCallbacksFromOwner");
