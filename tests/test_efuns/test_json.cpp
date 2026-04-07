@@ -13,14 +13,11 @@
 
 #include <string>
 #include "fixtures.hpp"
-#include "lpc/types.hpp"
 
-extern "C" {
-    #include "lpc/buffer.h"
-    #include "lpc/mapping.h"
-    #include "src/stralloc.h"
-    #include "src/error_context.h"
-}
+#include "lpc/buffer.h"
+#include "lpc/mapping.h"
+#include "src/stralloc.h"
+#include "src/error_context.h"
 
 /* ------------------------------------------------------------------ */
 /* to_json tests                                                       */

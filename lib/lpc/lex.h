@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "hash.h"
 #include "identifier.h"
 
@@ -117,3 +121,7 @@ void add_predefines(void);
 void free_defines (int include_predefs);
 
 char *show_error_context(void);
+
+#ifdef __cplusplus
+}
+#endif

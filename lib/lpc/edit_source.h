@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern FILE *yyin;
 
 #define MAX_FUNC    2048  /* If we need more than this we're in trouble! */
@@ -31,3 +35,7 @@ extern int arg_types[400], last_current_type;
 char *ctype(int);
 char *etype(int);
 void handle_pragma(char *);
+
+#ifdef __cplusplus
+}
+#endif

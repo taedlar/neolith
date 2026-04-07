@@ -3,9 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
-extern "C" {
-    #include "lpc/preprocess.h"
-}
+#include "lpc/preprocess.h"
 
 TEST_F(LPCLexerTest, handleInclude) {
     int fd = FILE_OPEN("user.c", O_RDONLY);

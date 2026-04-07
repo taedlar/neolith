@@ -10,11 +10,9 @@
 #include <thread>
 #include <chrono>
 
-extern "C" {
 #include "async/console_worker.h"
 #include "async/async_runtime.h"
 #include "async/async_queue.h"
-}
 
 /**
  * Test console worker initialization and shutdown

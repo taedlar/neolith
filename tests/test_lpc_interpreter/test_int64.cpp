@@ -4,10 +4,8 @@
 
 #include "fixtures.hpp"
 
-extern "C" {
-    #include "lpc/program.h"
-    #include "lpc/program/disassemble.h"
-}
+#include "lpc/program.h"
+#include "lpc/program/disassemble.h"
 
 TEST_F(LPCInterpreterTest, int64_SmallValues) {
     // Test that small values still work correctly with int64_t runtime

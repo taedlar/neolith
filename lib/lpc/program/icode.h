@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "parse_trees.h"
 
 void i_generate___INIT(void);
@@ -21,3 +25,7 @@ void i_generate_final_program(int);
 void i_generate_inherited_init_call(int index, int initializer);
 
 void optimize_icode(char *, char *, char *);
+
+#ifdef __cplusplus
+}
+#endif

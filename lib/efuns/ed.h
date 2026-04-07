@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "src/comm.h"
 #include "regexp.h"
 
@@ -147,4 +151,8 @@ void object_ed_output(char *);
 void object_ed_outputv(char *, ...);
 
 extern outbuffer_t current_ed_results;
+#endif
+
+#ifdef __cplusplus
+}
 #endif

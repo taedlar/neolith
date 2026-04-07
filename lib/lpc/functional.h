@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "types.h"
 
 /* FP_LOCAL */
@@ -65,3 +69,7 @@ void free_funp(funptr_t *);
 int merge_arg_lists(int, array_t *, int);
 svalue_t *call_function_pointer(funptr_t *, int);
 svalue_t *safe_call_function_pointer(funptr_t *, int);
+
+#ifdef __cplusplus
+}
+#endif

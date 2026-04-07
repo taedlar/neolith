@@ -6,10 +6,8 @@
 
 #include "fixtures.hpp"
 
-extern "C" {
 #include "comm.h"
 #include "stem.h"
-}
 
 namespace {
 

@@ -3,7 +3,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
-#include "lpc/types.hpp"
 
 #ifdef PACKAGE_CURL
 
@@ -13,7 +12,6 @@
 #include <string>
 #include <thread>
 
-extern "C" {
 #include "src/apply.h"
 #include "src/backend.h"
 #include "src/comm.h"
@@ -22,7 +20,6 @@ extern "C" {
 #include "curl/curl_efuns.h"
 #include "lpc/buffer.h"
 #include "lpc/functional.h"
-}
 
 namespace {
 

@@ -1,6 +1,10 @@
 #ifndef	LPC_FUNCTION_H
 #define	LPC_FUNCTION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* codes returned by the functionp() efun */
 
 #define	FP_LOCAL        2
@@ -20,4 +24,8 @@
 #define	FP_OWNER_DESTED     0x20
 #define	FP_NOT_BINDABLE     0x40
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif	/* ! LPC_FUNCTION_H */

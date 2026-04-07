@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* buffer.h by John Garnett, 1993/11/07 */
 
 struct buffer_s {
@@ -21,3 +25,7 @@ void free_buffer(buffer_t *);
 buffer_t *allocate_buffer(size_t);
 int write_buffer(buffer_t* b, long start, char *, size_t len);
 char *read_buffer(buffer_t* b, long start, size_t len, size_t *rlen);
+
+#ifdef __cplusplus
+}
+#endif

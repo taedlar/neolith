@@ -3,14 +3,11 @@
 #endif
 
 #include "fixtures.hpp"
-#include "lpc/types.hpp"
 
-extern "C" {
-    #include "lpc/functional.h"
-    #include "lpc/include/function.h"
-    #include "efuns_prototype.h"
-    #include "error_context.h"
-}
+#include "lpc/functional.h"
+#include "lpc/include/function.h"
+#include "efuns_prototype.h"
+#include "error_context.h"
 
 class InputToGetCharTest : public LPCInterpreterTest {
 protected:

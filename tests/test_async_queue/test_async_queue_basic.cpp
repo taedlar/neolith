@@ -5,9 +5,7 @@
 
 #include <gtest/gtest.h>
 
-extern "C" {
 #include "async/async_queue.h"
-}
 
 #include <cstring>
 

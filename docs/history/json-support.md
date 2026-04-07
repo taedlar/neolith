@@ -110,7 +110,7 @@ Steps are independent of each other.
 
 *Depends on Phases 1–2.*
 
-New file `lib/efuns/json.cpp`. Include `config.h`, then C driver headers inside `extern "C" { }`, then `<boost/json.hpp>` under `#ifdef HAVE_BOOST_JSON`. Efun bodies inside a second `extern "C" { }` block, guarded by `F_TO_JSON` / `F_FROM_JSON`.
+New file `lib/efuns/json.cpp`. Include `config.h`, then C driver headers, then `<boost/json.hpp>` under `#ifdef HAVE_BOOST_JSON`. Efun bodies inside a `extern "C" { }` block, guarded by `F_TO_JSON` / `F_FROM_JSON`.
 
 **`f_to_json`** (1 arg at `sp`):
 - Pre-validate all mapping keys before allocating any Boost.JSON objects (prevents longjmp bypassing C++ stack cleanup).

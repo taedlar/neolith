@@ -27,13 +27,11 @@
 #  include <config.h>
 #endif
 
-extern "C" {
 #include "src/std.h"
 #include "src/interpret.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
-}
 
 /* mapping.h defines max(x,y) for C compatibility; undefine before C++ headers
  * to avoid conflicts with std::max templates in Boost and the C++ standard

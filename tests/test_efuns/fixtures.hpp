@@ -3,18 +3,14 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 
-extern "C" {
-    #include "std.h"
-    #include "rc.h"
-    #include "efuns_prototype.h"
-    #include "src/simul_efun.h"
-    #include "uids.h"
-    #include "lpc/array.h"
-    #include "lpc/object.h"
-    #include "lpc/otable.h"
-}
-
-#include "lpc/types.hpp"
+#include "std.h"
+#include "rc.h"
+#include "efuns_prototype.h"
+#include "src/simul_efun.h"
+#include "uids.h"
+#include "lpc/array.h"
+#include "lpc/object.h"
+#include "lpc/otable.h"
 
 using namespace testing;
 

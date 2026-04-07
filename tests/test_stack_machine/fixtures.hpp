@@ -3,10 +3,8 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 
-extern "C" {
-    #include "std.h"
-    #include "rc.h"
-}
+#include "std.h"
+#include "rc.h"
 
 using namespace testing;
 

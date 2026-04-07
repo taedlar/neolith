@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "types.h"
 
 struct array_s {
@@ -61,3 +65,7 @@ void dealloc_array(array_t *);
 #define RESIZE_ARRAY(vec, nelem) \
     (array_t *)DREALLOC(vec, sizeof (array_t) + \
 	  sizeof(svalue_t) * (nelem - 1), TAG_ARRAY, "RESIZE_ARRAY")
+
+#ifdef __cplusplus
+}
+#endif

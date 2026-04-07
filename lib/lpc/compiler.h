@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "lpc/lex.h"
 #include "lpc/program.h"
 #include "lpc/program/parse_trees.h"
@@ -286,3 +290,7 @@ insert_in_mem_block(int n, int where, size_t size)
 extern size_t num_local_variables_allowed;
 extern void init_lpc_compiler(size_t max_locals, const char* include_dirs);
 extern void deinit_lpc_compiler(void);
+
+#ifdef __cplusplus
+}
+#endif

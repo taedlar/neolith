@@ -3,13 +3,11 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 
-extern "C" {
-    #include "std.h"
-    #include "rc.h"
-    #include "lpc/lex.h"
-    #include "lpc/compiler.h"
-    #include "grammar.h"
-}
+#include "std.h"
+#include "rc.h"
+#include "lpc/lex.h"
+#include "lpc/compiler.h"
+#include "grammar.h"
 
 using namespace testing;
 

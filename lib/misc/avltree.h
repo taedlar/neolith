@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*
  * avltree.h
  *
@@ -17,3 +21,7 @@ void tree_add(tree **, int (*pfi_compare) (), char *, int (*) ());
 int tree_delete(tree **, int (*pfi_compare) (), char *, int (*) ());
 int tree_trav(tree **, int (*pfi_action) ());
 void tree_mung(tree **, int (*pfi_action) ());
+
+#ifdef __cplusplus
+}
+#endif

@@ -14,6 +14,10 @@
 #ifndef CONSOLE_WORKER_H
 #define CONSOLE_WORKER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "async/async_queue.h"
 #include "async/async_runtime.h"
 #include "async/async_worker.h"
@@ -89,4 +93,8 @@ void console_worker_destroy(console_worker_context_t* ctx);
  */
 const char* console_type_str(console_type_t type);
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* CONSOLE_WORKER_H */

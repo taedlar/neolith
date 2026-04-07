@@ -20,6 +20,10 @@
 #ifndef ASYNC_RUNTIME_H
 #define ASYNC_RUNTIME_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "port/socket_comm.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -321,4 +325,8 @@ HANDLE async_runtime_get_iocp(async_runtime_t* runtime);
 int async_runtime_get_event_loop_handle(async_runtime_t* runtime);
 #endif
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* ASYNC_RUNTIME_H */

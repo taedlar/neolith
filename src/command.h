@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "comm.h"
 #include "lpc/functional.h"
 
@@ -22,3 +26,7 @@ object_t *query_snooping (object_t *);
 /* command buffer handling */
 int cmd_in_buf (interactive_t *);
 int process_user_command (void);
+
+#ifdef __cplusplus
+}
+#endif

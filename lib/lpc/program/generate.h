@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "lpc/program.h"
 #include "icode.h"
 
@@ -12,3 +16,7 @@ int node_always_true(parse_node_t *);
 short generate(parse_node_t *);
 short generate_function(compiler_function_t *, parse_node_t *, int);
 int generate_conditional_branch(parse_node_t *);
+
+#ifdef __cplusplus
+}
+#endif

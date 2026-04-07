@@ -10,6 +10,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct async_queue_s async_queue_t;
 
 /**
@@ -102,4 +106,8 @@ void async_queue_clear(async_queue_t* queue);
  */
 void async_queue_get_stats(const async_queue_t* queue, async_queue_stats_t* stats);
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* ASYNC_QUEUE_H */

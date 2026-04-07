@@ -1,11 +1,8 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
-extern "C" {
 #include "std.h"
 #include "stralloc.h"
-}
-#include "lpc/types.hpp"
 #include <gtest/gtest.h>
 #include <cstring>
 #include <cstdint>

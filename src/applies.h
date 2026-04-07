@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* the folowing must be the first character of __INIT */
 #define APPLY___INIT_SPECIAL_CHAR           '#'
 #define APPLY___INIT                        "#global_init#"
@@ -53,3 +57,7 @@
 #define APPLY_VALID_WRITE                   "valid_write"
 #define APPLY_WINDOW_SIZE                   "set_window_size"
 #define APPLY_WRITE_PROMPT                  "write_prompt"
+
+#ifdef __cplusplus
+}
+#endif

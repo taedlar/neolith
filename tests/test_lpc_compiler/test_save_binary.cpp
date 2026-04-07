@@ -5,9 +5,7 @@
 #include <system_error>
 
 #include "fixtures.hpp"
-extern "C" {
-    #include "lpc/program/binaries.h"
-}
+#include "lpc/program/binaries.h"
 
 using namespace testing;
 

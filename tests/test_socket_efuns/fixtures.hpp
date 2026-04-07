@@ -4,21 +4,18 @@
 #include <filesystem>
 #include <queue>
 #include <memory>
-#include "lpc/types.hpp"
 
-extern "C" {
-  #include "std.h"
-  #include "rc.h"
-  #include "async/async_runtime.h"
-  #include "port/socket_comm.h"
-  #include "lpc/compiler.h"
-  #include "lpc/array.h"
-  #include "lpc/program.h"
-  #include "lpc/types.h"
-  #include "lpc/object.h"
-  #include "socket/socket_efuns.h"
-  #include "lpc/include/socket_err.h"
-}
+#include "std.h"
+#include "rc.h"
+#include "async/async_runtime.h"
+#include "port/socket_comm.h"
+#include "lpc/compiler.h"
+#include "lpc/array.h"
+#include "lpc/program.h"
+#include "lpc/types.h"
+#include "lpc/object.h"
+#include "socket/socket_efuns.h"
+#include "lpc/include/socket_err.h"
 
 /**
  * @brief Poll DNS completion state for a socket operation.

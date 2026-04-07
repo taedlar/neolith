@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* Tim Hollebeek
  *
  * The data must also consist of zero terminated chunks, with lengths in the
@@ -47,3 +51,7 @@ char *scratch_join2(char *, char *);
 char *scratch_realloc(char *, size_t);
 char *scratch_copy_string(char *);
 char *scratch_large_alloc(size_t);
+
+#ifdef __cplusplus
+}
+#endif

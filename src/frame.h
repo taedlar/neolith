@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "lpc/types.h"
 #include "lpc/array.h"
 #include "lpc/program.h"
@@ -16,3 +20,7 @@ char* get_line_number (const char *p, const program_t * progp);
 void get_line_number_info (char **ret_file, int *ret_line);
 char *dump_trace (int);
 array_t *get_svalue_trace (int);
+
+#ifdef __cplusplus
+}
+#endif

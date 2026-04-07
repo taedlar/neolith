@@ -14,8 +14,6 @@
 #include <config.h>
 #endif
 
-/* Wrap C headers that lack extern "C" guards. */
-extern "C" {
 #include "std.h"
 #include "port/socket_comm.h"
 #include "async/async_queue.h"
@@ -24,7 +22,6 @@ extern "C" {
 #include "outbuf.h"
 #include "lpc/object.h"
 #include "stralloc.h"
-}
 
 #include <cctype>
 #include <cstring>

@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <assert.h>
 #include "logger/logger.h"
 
@@ -58,3 +62,7 @@
 #define DEBUG_CHECK(x, y)		if(x) opt_error(1,"%s",(y))
 #define DEBUG_CHECK1(x, y, a)		if(x) opt_error(1,(y),(a))
 #define DEBUG_CHECK2(x, y, a, b)	if(x) opt_error(1,(y),(a),(b))
+
+#ifdef __cplusplus
+}
+#endif

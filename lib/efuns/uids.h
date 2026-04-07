@@ -1,4 +1,8 @@
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*
     ORIGINAL AUTHOR
 	Erik Kay
@@ -21,3 +25,7 @@ userid_t *set_backbone_uid(char *name);
 
 void init_uids(void);
 void deinit_uids(void);
+
+#ifdef __cplusplus
+}
+#endif

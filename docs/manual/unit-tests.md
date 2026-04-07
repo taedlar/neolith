@@ -59,16 +59,13 @@ Begin the `.cpp` file with some mandatory #include like below:
 #ifdef HAVE_CONFIG_H
 #include <config.h> // configuration defines
 #endif
-extern "C" {
-    #include "std.h" // standard includes
-    // insert more testee unit's #include here
-}
+#include "std.h" // standard includes
+// insert more testee unit's #include here
 #include <gtest/gtest.h> // googletest
 
 using namespace testing; // googletest
 ~~~
 
-Note that the `extern "C"` block is necessary since the googletest code is in C++.
 Implement your unit-testing code with `TEST()` or `TEST_F()` blocks. For example:
 ~~~cxx
 TEST(TestSuite, testName) {

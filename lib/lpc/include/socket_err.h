@@ -7,6 +7,10 @@
 #ifndef	LPC_SOCKET_ERRORS_H
 #define	LPC_SOCKET_ERRORS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define EESUCCESS	  1	/* Call was successful */
 #define EESOCKET	 -1	/* Problem creating socket */
 #define EESETSOCKOPT	 -2	/* Problem with setsockopt */
@@ -44,4 +48,8 @@
 
 #define	ERROR_STRINGS	 34	/* sizeof (error_strings) */
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif	/* ! LPC_SOCKET_ERRORS_H */

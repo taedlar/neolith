@@ -11,9 +11,7 @@
 #include <unistd.h>
 #endif
 
-extern "C" {
 #include "async/async_worker.h"
-}
 
 #include <atomic>
 

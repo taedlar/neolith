@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "port/socket_comm.h"
 #include "lpc/functional.h"
 
@@ -129,3 +133,7 @@ struct async_runtime_s *get_async_runtime (void);
 /* Test helper functions for creating mock interactive structures */
 interactive_t* create_test_interactive (object_t *);
 void remove_test_interactive (interactive_t *);
+
+#ifdef __cplusplus
+}
+#endif

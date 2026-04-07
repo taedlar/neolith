@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void replace_programs(void);
 
 typedef struct replace_ob_s {
@@ -10,3 +14,7 @@ typedef struct replace_ob_s {
 } replace_ob_t;
 
 extern replace_ob_t *obj_list_replace;
+
+#ifdef __cplusplus
+}
+#endif

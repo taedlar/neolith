@@ -1,6 +1,10 @@
 #ifndef ANSI_ESCAPE_H
 #define ANSI_ESCAPE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ANSI - The American National Standards Institute
  * ANSI escape sequences for terminal colors, screen clearing, cursor positioning, etc.
  * See http://en.wikipedia.org/wiki/ANSI_escape_code
@@ -75,4 +79,8 @@
 #define DECSC   "\x1b7"         /* Saves the cursor position, encoding shift state and formatting attributes. */
 #define DECRC   "\x1b8"         /* Restores states saved by a previous DECSC, or reset all to their defaults. */
 
+
+#ifdef __cplusplus
+}
+#endif
 #endif  /* ANSI_ESCAPE_H */
