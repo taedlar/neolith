@@ -5,6 +5,7 @@ extern "C" {
 #include "std.h"
 #include "stralloc.h"
 }
+#include "lpc/types.hpp"
 #include <gtest/gtest.h>
 #include <cstring>
 #include <cstdint>
@@ -31,32 +32,31 @@ protected:
     // Helper: Create a malloc-based svalue with given content and length
     void create_malloc_string(svalue_t *sv, const char *content, size_t len) {
         ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_MALLOC;
-        sv->u.malloc_string = new_string(len, "test");
-        ASSERT_TRUE(sv->u.malloc_string != nullptr);
-        memcpy(sv->u.malloc_string, content, len);
-        sv->u.malloc_string[len] = '\0';  // Ensure null-termination for testing
+        lpc::svalue_view view = lpc::svalue_view::from(sv);
+        view.set_malloc_string(new_string(len, "test"));
+        ASSERT_TRUE(view.malloc_string() != nullptr);
+        memcpy(view.malloc_string(), content, len);
+        view.malloc_string()[len] = '\0';
     }
 
     // Helper: Create a shared-based svalue with given content
     void create_shared_string(svalue_t *sv, const char *content) {
         ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_SHARED;
-        sv->u.shared_string = make_shared_string(content, NULL);
-        ASSERT_TRUE(sv->u.shared_string != nullptr);
+        lpc::svalue_view view = lpc::svalue_view::from(sv);
+        view.set_shared_string(make_shared_string(content, NULL));
+        ASSERT_TRUE(view.shared_string() != nullptr);
     }
 
     // Helper: Verify svalue content and type
     void assert_string_content(svalue_t *sv, const char *expected, size_t expected_len,
                                unsigned short expected_subtype) {
         ASSERT_FALSE(sv == nullptr);
-        ASSERT_EQ(sv->type, (int)T_STRING);
+        lpc::svalue_view view = lpc::svalue_view::from(sv);
+        ASSERT_TRUE(view.is_string());
         ASSERT_EQ(sv->subtype, expected_subtype);
-        size_t actual_len = SVALUE_STRLEN(sv);
+        size_t actual_len = view.length();
         ASSERT_EQ(actual_len, expected_len);
-        ASSERT_TRUE(memcmp(sv->u.string, expected, expected_len) == 0);
+        ASSERT_TRUE(memcmp(view.c_str(), expected, expected_len) == 0);
     }
 
     // Helper: Free an svalue string
@@ -145,13 +145,11 @@ TEST_F(StringOperatorsTest, AddLeftViaLenPrependNormal) {
     // since the macro depends on VM stack state
     malloc_str_t result = new_string(prefix_len + 5, "test");
     memcpy(result, prefix, prefix_len);
-    memcpy(result + prefix_len, target.u.malloc_string, 5);
+    memcpy(result + prefix_len, lpc::svalue_view::from(&target).malloc_string(), 5);
     result[prefix_len + 5] = '\0';
 
     svalue_t combined;
-    combined.type = T_STRING;
-    combined.subtype = STRING_MALLOC;
-    combined.u.malloc_string = result;
+    lpc::svalue_view::from(&combined).set_malloc_string(result);
 
     assert_string_content(&combined, "Hello World", 11, STRING_MALLOC);
     free_svalue_string(&combined);
@@ -238,9 +236,11 @@ TEST_F(StringOperatorsTest, EqualityIdenticalStrings) {
     create_malloc_string(&right, "Same", 4);
 
     // Simulate memcmp check used in operator
-    int cmp_result = memcmp(left.u.malloc_string, right.u.malloc_string, SVALUE_STRLEN(&left));
+    lpc::svalue_view left_view = lpc::svalue_view::from(&left);
+    lpc::svalue_view right_view = lpc::svalue_view::from(&right);
+    int cmp_result = memcmp(left_view.malloc_string(), right_view.malloc_string(), left_view.length());
     ASSERT_EQ(cmp_result, 0);
-    ASSERT_EQ(SVALUE_STRLEN(&left), SVALUE_STRLEN(&right));
+    ASSERT_EQ(left_view.length(), right_view.length());
 
     free_svalue_string(&left);
     free_svalue_string(&right);

@@ -14,6 +14,8 @@ extern "C" {
 #include "stralloc.h"
 }
 
+#include "lpc/types.hpp"
+
 #include <gtest/gtest.h>
 #include <filesystem>
 
@@ -73,19 +75,16 @@ protected:
 
     void create_malloc_string(svalue_t *sv, const char *content, size_t len) {
         ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_MALLOC;
-        sv->u.malloc_string = new_string(len, "test");
-        ASSERT_TRUE(sv->u.malloc_string != nullptr);
-        memcpy(sv->u.malloc_string, content, len);
-        sv->u.malloc_string[len] = '\0';
+        lpc::svalue_view view = lpc::svalue_view::from(sv);
+        view.set_malloc_string(new_string(len, "test"));
+        ASSERT_TRUE(view.malloc_string() != nullptr);
+        memcpy(view.malloc_string(), content, len);
+        view.malloc_string()[len] = '\0';
     }
 
     void create_constant_string(svalue_t *sv, const char *content) {
         ASSERT_TRUE(sv != nullptr);
-        sv->type = T_STRING;
-        sv->subtype = STRING_CONSTANT;
-        sv->u.const_string = content;
+        lpc::svalue_view::from(sv).set_constant_string(content);
     }
 
     object_t *load_inline_object(const char *name, const char *code) {
@@ -129,9 +128,10 @@ TEST_F(StringOperatorsLPCTest, LpcConcatReturnsExpectedString) {
     ASSERT_NE(obj, nullptr);
 
     svalue_t ret = call_noarg(obj, "run_test");
-    ASSERT_EQ(ret.type, T_STRING);
-    ASSERT_EQ(SVALUE_STRLEN(&ret), 11u);
-    ASSERT_EQ(memcmp(ret.u.string, "Hello World", 11), 0);
+    lpc::svalue_view ret_view = lpc::svalue_view::from(&ret);
+    ASSERT_TRUE(ret_view.is_string());
+    ASSERT_EQ(ret_view.length(), 11u);
+    ASSERT_EQ(memcmp(ret_view.c_str(), "Hello World", 11), 0);
 
     free_string_svalue(&ret);
     destruct_object(obj);
@@ -171,9 +171,10 @@ TEST_F(StringOperatorsLPCTest, LpcRangeSlicesExpectedBytes) {
     ASSERT_NE(obj, nullptr);
 
     svalue_t ret = call_noarg(obj, "run_test");
-    ASSERT_EQ(ret.type, T_STRING);
-    ASSERT_EQ(SVALUE_STRLEN(&ret), 4u);
-    ASSERT_EQ(memcmp(ret.u.string, "2345", 4), 0);
+    lpc::svalue_view ret_view = lpc::svalue_view::from(&ret);
+    ASSERT_TRUE(ret_view.is_string());
+    ASSERT_EQ(ret_view.length(), 4u);
+    ASSERT_EQ(memcmp(ret_view.c_str(), "2345", 4), 0);
 
     free_string_svalue(&ret);
     destruct_object(obj);
