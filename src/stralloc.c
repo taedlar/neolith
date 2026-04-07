@@ -489,7 +489,7 @@ malloc_str_t int_new_string (size_t size) {
  */
 malloc_str_t int_string_copy (const char *str, const char *end) {
   malloc_str_t p;
-  size_t len;
+  size_t len = 0;
 
   if (!str)
     fatal ("string_copy: null pointer passed as string argument");
@@ -571,7 +571,7 @@ malloc_str_t int_extend_string (malloc_str_t str, size_t len) {
  */
 char *int_alloc_cstring (const char *str, const char *end) {
   char *ret;
-  size_t len;
+  size_t len = 0;
 
   if (!str)
     fatal ("alloc_cstring: null pointer passed as string argument");

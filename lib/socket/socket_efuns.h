@@ -13,6 +13,10 @@
 #include "port/socket_comm.h"
 #include "src/addr_resolver.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum socket_mode {
     MUD, STREAM, DATAGRAM, STREAM_BINARY, DATAGRAM_BINARY
 };
@@ -73,10 +77,6 @@ extern int max_lpc_socks;
 #define S_WRITE_FP      0x40
 #define S_CLOSE_FP      0x80
 #define S_EXTERNAL	0x100
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int check_valid_socket(char *, socket_fd_t, object_t *, char *, int);
 void socket_read_select_handler(int);
