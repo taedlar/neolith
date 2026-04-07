@@ -18,6 +18,7 @@ protected:
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
         init_stem(3, 0177, ""); // use highest debug level and enable all trace logs
         MAIN_OPTION(pedantic) = 1; // enable pedantic mode for stricter checks
+        debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
         init_strings (15000, 1000000);   // will be forced to 16384 inside the function
     }
     void TearDown() override {
@@ -99,6 +100,28 @@ TEST_F(StrAllocTest, mallocLongStringTracksBlkendAndCountedLength) {
     EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX));
     EXPECT_EQ(static_cast<char*>(MSTR_BLKEND(s)), s + len);
     EXPECT_EQ(COUNTED_STRLEN(s), len);
+
+    FREE_MSTR(s);
+}
+
+TEST_F(StrAllocTest, newStringAlwaysSetsTrailingNulGuard) {
+    const size_t len = 7;
+    malloc_str_t s = new_string(len, "test");
+
+    EXPECT_EQ(s[len], '\0');
+
+    FREE_MSTR(s);
+}
+
+TEST_F(StrAllocTest, extendStringAlwaysSetsTrailingNulGuard) {
+    malloc_str_t s = new_string(3, "test");
+    memcpy(s, "abc", 3);
+
+    s = extend_string(s, 9);
+    EXPECT_EQ(s[9], '\0');
+
+    s = extend_string(s, 2);
+    EXPECT_EQ(s[2], '\0');
 
     FREE_MSTR(s);
 }
