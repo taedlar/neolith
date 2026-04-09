@@ -14,11 +14,11 @@
 #ifndef ADDR_RESOLVER_H
 #define ADDR_RESOLVER_H
 
+#include <time.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <time.h>
 
 typedef struct object_s object_t;
 

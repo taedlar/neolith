@@ -1,11 +1,11 @@
 #pragma once
 
+#include "port/socket_comm.h"
+#include "lpc/functional.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "port/socket_comm.h"
-#include "lpc/functional.h"
 
 #define MAX_TEXT                   2048
 #define MAX_SOCKET_PACKET_SIZE     1024

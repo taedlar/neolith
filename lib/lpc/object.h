@@ -1,11 +1,11 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "types.h"
 #include "functional.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*
  * Definition of an object.
  * If the object is inherited, then it must not be destructed !

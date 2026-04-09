@@ -1,9 +1,10 @@
 #pragma once
 
+#include "lpc/types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "lpc/types.h"
 
 #ifdef _WIN32
   #define WIN32_LEAN_AND_MEAN

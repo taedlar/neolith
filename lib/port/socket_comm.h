@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef _WIN32
     /* Windows Sockets */
     #include <winsock2.h>
@@ -36,6 +32,10 @@ extern "C" {
 
 #ifdef HAVE_POLL
     #include <poll.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #ifndef HAVE_GETTIMEOFDAY

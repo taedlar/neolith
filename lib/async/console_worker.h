@@ -14,10 +14,6 @@
 #ifndef CONSOLE_WORKER_H
 #define CONSOLE_WORKER_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "async/async_queue.h"
 #include "async/async_runtime.h"
 #include "async/async_worker.h"
@@ -25,6 +21,10 @@ extern "C" {
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Console worker context

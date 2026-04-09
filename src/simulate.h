@@ -1,9 +1,10 @@
 #pragma once
 
+#include "lpc/types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "lpc/types.h"
 
 #define V_SHORT         1
 #define V_NOSPACE       2

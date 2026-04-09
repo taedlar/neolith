@@ -1,10 +1,11 @@
 #pragma once
 
+#include "src/comm.h"
+#include "regexp.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "src/comm.h"
-#include "regexp.h"
 
 /* define this if you don't like the ending dollar signs in ed, in n-mode */
 #undef NO_END_DOLLAR_SIGN

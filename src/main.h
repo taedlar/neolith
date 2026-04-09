@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef __linux__
 #include <linux/limits.h>
 #endif /* __linux__ */
@@ -11,6 +7,10 @@ extern "C" {
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #define PATH_MAX MAX_PATH
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 typedef struct main_options {

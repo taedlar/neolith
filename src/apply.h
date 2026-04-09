@@ -1,10 +1,10 @@
 #pragma once
 
+#include "lpc/types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "lpc/types.h"
 
 #define APPLY_CACHE_SIZE (1 << APPLY_CACHE_BITS)
 

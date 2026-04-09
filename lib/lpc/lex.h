@@ -1,10 +1,11 @@
 #pragma once
 
+#include "hash.h"
+#include "identifier.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "hash.h"
-#include "identifier.h"
 
 #define DEFMAX 10000
 #define MAXLINE 1024

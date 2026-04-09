@@ -1,12 +1,12 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "lpc/lex.h"
 #include "lpc/program.h"
 #include "lpc/program/parse_trees.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * 'inherit_file' is used as a flag. If it is set to a string

@@ -6,13 +6,13 @@
 #ifndef ASYNC_WORKER_H
 #define ASYNC_WORKER_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stddef.h>
 #include <stdbool.h>
 #include "port/sync.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct async_worker_s async_worker_t;
 

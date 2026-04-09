@@ -1,9 +1,10 @@
 #pragma once
 
+#include "program.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "program.h"
 
 void dealloc_class(array_t *);
 void free_class(array_t *);

@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <string.h>
 #ifdef	HAVE_STDINT_H
   /* ISO C99 header, get definition of uint32_t */
@@ -13,6 +9,10 @@ extern "C" {
   #include <sys/inttypes.h>
 #else
   typedef unsigned int	uint32_t
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 uint32_t compute_crc32(unsigned char *, size_t);

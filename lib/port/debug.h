@@ -1,11 +1,11 @@
 #pragma once
 
+#include <assert.h>
+#include "logger/logger.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <assert.h>
-#include "logger/logger.h"
 
 /* generic loggers */
 #define debug_fatal(fmt, ...)    debug_message_with_src("FATAL", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__)

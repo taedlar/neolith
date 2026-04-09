@@ -1,9 +1,10 @@
 #pragma once
 
+#include "lpc/types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "lpc/types.h"
 
 int parse(char *, svalue_t *, char *, svalue_t *, int);
 

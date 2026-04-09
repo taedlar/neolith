@@ -1,9 +1,10 @@
 #pragma once
 
+#include "lpc/types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "lpc/types.h"
 
 void call_out(void);
 int find_call_out_by_handle(int);

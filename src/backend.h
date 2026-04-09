@@ -1,12 +1,13 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "interpret.h"
 #include "async/async_runtime.h"
 #include "async/async_queue.h"
 #include "async/console_worker.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern time_t current_time;
 extern int heart_beat_flag;
