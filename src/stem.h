@@ -35,10 +35,12 @@ extern int init_stem(
 #define extend_string(x,sz) int_extend_string(x, sz)
 #define alloc_cstring(x,y) int_alloc_cstring(x, NULL)
 
-/* interfaces to the LPMud virtual machine */
+/* define this when included by something compiled before lib/lpc */
 #ifndef NO_OPCODES
 #include "efuns_opcode.h"
 #endif
+
+/* interfaces to the LPMud virtual machine */
 #include "lpc/types.h"
 #include "applies.h"
 #include "backend.h"
