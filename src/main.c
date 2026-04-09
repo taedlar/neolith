@@ -2,26 +2,29 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#ifdef	HAVE_ARGP_H
+#include <argp.h>
+#else
+  #ifdef _WIN32
+  #include "port/getopt.h"
+  #endif
+#endif /* ! HAVE_ARGP_H */
+
 #include <locale.h>
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 
-#ifdef	HAVE_ARGP_H
-#include <argp.h>
-#endif /* HAVE_ARGP_H */
-
-#ifdef _WIN32
-#include "port/getopt.h"
-#endif
+#ifdef	HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif	/* HAVE_SYS_WAIT_H */
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
 #include "rc.h"
 #include "comm.h"
 #include "simul_efun.h"
-#include "main.h"
 
 #ifdef HAVE_ARGP_H
 const char *argp_program_version = PACKAGE "-" VERSION;

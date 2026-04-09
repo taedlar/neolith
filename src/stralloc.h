@@ -1,5 +1,10 @@
 #pragma once
 
+/* for USHRT_MAX */
+#ifdef	HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif	/* HAVE_SYS_PARAM_H */
+
 #ifdef __cplusplus
 extern "C" {
 #endif

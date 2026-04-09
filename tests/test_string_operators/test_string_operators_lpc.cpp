@@ -10,7 +10,6 @@
 #include "lpc/operator.h"
 #include "lpc/program.h"
 #include "simulate.h"
-#include "stralloc.h"
 
 #include <gtest/gtest.h>
 #include <filesystem>

@@ -4,6 +4,10 @@
 
 #include "std.h"
 
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif /* HAVE_STDARG_H */
+
 void outbuf_zero (outbuffer_t * outbuf) {
   outbuf->real_size = 0;
   outbuf->buffer = 0;

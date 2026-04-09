@@ -19,9 +19,7 @@
 #include "async/async_queue.h"
 #include "async/async_worker.h"
 #include "async/async_runtime.h"
-#include "outbuf.h"
 #include "lpc/object.h"
-#include "stralloc.h"
 
 #include <cctype>
 #include <cstring>

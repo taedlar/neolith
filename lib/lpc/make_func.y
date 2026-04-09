@@ -3,18 +3,8 @@
 #include <config.h>
 #endif	/* HAVE_CONFIG_H */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#ifdef HAVE_STDINT_H
-  #include <stdint.h>
-#elif HAVE_INTTYPES_H
-  #include <inttypes.h>
-#endif
-#include <ctype.h>
-
-#define EDIT_SOURCE
-#define NO_OPCODES
+#define NO_STEM
+#include "src/std.h"
 #include "lpc/lex.h"
 #include "lpc/preprocess.h"
 

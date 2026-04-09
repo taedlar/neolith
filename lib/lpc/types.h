@@ -5,9 +5,7 @@ extern "C" {
 #endif
 
 #ifdef HAVE_STDINT_H
-    #include <stdint.h>
-#elif HAVE_INTTYPES_H
-    #include <inttypes.h>
+#include <stdint.h>
 #endif
 
 #include "src/stralloc.h"

@@ -39,7 +39,7 @@ this code, please leave my name (and Wirth's) in the comments.
 
 **************************************************************************/
 
-#define NO_OPCODES
+#define NO_STEM
 #include "src/std.h"
 #include "avltree.h"
 

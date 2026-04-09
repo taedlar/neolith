@@ -2,14 +2,11 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#define NO_OPCODES
 #include "std.h"
 
 char *reserved_area = NULL;		/* reserved for MALLOC() */
 
-char *
-xalloc (size_t size)
-{
+char* xalloc (size_t size) {
   char *p;
   static int going_to_exit = 0;
 

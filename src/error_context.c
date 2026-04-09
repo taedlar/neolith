@@ -12,6 +12,10 @@
 #include "lpc/program.h"
 #include "efuns/sprintf.h"
 
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif /* HAVE_STDARG_H */
+
 /* Used to throw an error to a catch */
 svalue_t catch_value = { .type = T_NUMBER };
 
