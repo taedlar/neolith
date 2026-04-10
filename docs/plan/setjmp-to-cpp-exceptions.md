@@ -23,6 +23,125 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 - Production `longjmp` sources are centralized in `src/error_context.c` (`throw_error()` and `error_handler()`).
 - Existing context invariants are implemented by `save_context()`, `restore_context()`, and `pop_context()` and must be matched by exception unwinding behavior.
 - Mixed-language build is already in use (`C` + `CXX`), enabling incremental `.c` to `.cpp` migration with C ABI entry points preserved where needed.
+- Phase 1 decision: replace manual context pairing with scoped guard objects as the canonical exception-boundary mechanism.
+- Exception contract has been simplified around boundary semantics (instead of manual stack choreography) and documented for reuse in later phases.
+- Immediate next implementation focus: materialize `error_boundary_guard` in catch and safe-apply boundaries first (`frame` then `apply`).
+
+## Exception Contracts (Phase 1 Output)
+
+The contracts below are derived from current `setjmp`/`longjmp` behavior and must be preserved unless explicitly marked as intentional change.
+
+Decision recorded for this plan: scoped guard objects will be used to replace manual `save_context()` / `pop_context()` lifecycle management in migrated boundaries.
+
+| ID | Contract | Current Behavior | Exception Transition Rule |
+|----|----------|------------------|---------------------------|
+| EC-01 | Context push failure | `save_context()` returns `0` at max call depth; callers convert to runtime error paths. | Preserve failure point and message semantics; do not silently continue when context cannot be established. |
+| EC-02 | Context stack discipline | Every successful `save_context()` requires exactly one `pop_context()`, and `pop_context()` clears error-state flags. | Replace with RAII guard that guarantees single pop/clear on all exits (normal + exceptional). |
+| EC-03 | VM restore after failure | `restore_context()` restores `command_giver`, unwinds control stack, and pops value stack to saved pointers. | Exception unwinding must produce identical VM state at each translated catch boundary. |
+| EC-04 | Throw requires catch frame | `throw_error()` jumps only when current frame is `FRAME_CATCH`; otherwise raises `*Throw with no catch.` | Preserve same observable LPC behavior and message text compatibility. |
+| EC-05 | Catch payload contract | In catch path, previous `catch_value` is freed, new error string is stored, then control transfers to catch boundary. | Preserve payload lifecycle and ownership; avoid leaks/double-free under nested catch. |
+| EC-06 | Non-catchable resource limits | `do_catch()` rethrows for `ES_MAX_EVAL_COST` and `ES_STACK_FULL` with canonical messages. | Preserve non-catchable classification; these must not become catchable by accident. |
+| EC-07 | Recursive error guard | `in_error` detects reentrant error generation and escalates directly via context/fatal fallback. | Keep recursion guard semantics; never recurse indefinitely while handling error reporting. |
+| EC-08 | Mudlib error handler invocation | `error_handler()` calls master `error_handler`, with catch/non-catch flag behavior and fallback trace logging if missing. | Preserve invocation order and fallback logging contract for operability. |
+| EC-09 | Heart-beat shutdown on runtime error | If `current_heart_beat` is active during error, driver disables heart-beat and logs this action. | Preserve this safety action in exception path. |
+| EC-10 | Safe apply suppression | `safe_apply()` returns `0` on error and restores VM state instead of propagating hard failure. | Preserve return-value contract for all existing callers. |
+| EC-11 | Backend recovery boundaries | Backend loop and object-sweep/preload guards recover from LPC errors and continue where designed. | Preserve continue-vs-abort policy per boundary; do not widen shutdown conditions unintentionally. |
+| EC-12 | Startup and fatal boundaries | Startup error exits with failure; fatal crash path attempts master crash callback, then exits/aborts by config. | Preserve startup/fatal terminal behavior and ordering guarantees. |
+| EC-13 | F_END_CATCH success contract | On successful catch block completion, `F_END_CATCH` frees `catch_value`, pops catch frame, pushes `0`. | Preserve stack/result semantics exactly to avoid LPC behavior regression. |
+
+### Exception Contract Gaps (Tier A LPC-visible Outcomes)
+
+| Area | Documentation Contract | Source Behavior | Gap | Priority |
+|------|-------------------------|-----------------|-----|----------|
+| `catch()` success/error return | `catch()` returns `0` on success; standard errors return `*`-prefixed string. | Success path pushes `0`; caught payload comes from `catch_value`. | Mostly aligned, but docs under-specify non-string throw payload behavior. | Medium |
+| `throw()` payload constraints | Docs state `throw()` can return any value except `0`. | `f_throw()` copies stack value into `catch_value` without explicit nonzero validation. | Ambiguity on `throw(0)` semantics; can collide with success sentinel `0`. | High |
+| `throw()` without active `catch()` | Docs recommend using with `catch()`. | Runtime error `*Throw with no catch.` is raised when no catch boundary exists. | Concrete outcome exists in source but is not explicitly documented. | Medium |
+| `error()` trace/log guarantee | Docs imply trace is recorded when `error()` halts thread. | Trace output can be replaced/suppressed by mudlib `error_handler()` return behavior. | Documentation implies stronger guarantee than implementation. | Medium |
+| master `error_handler()` caught flag | Docs describe `caught=1` when trapped by `catch()`. | Caught-path callback emission is conditional under `LOG_CATCHES`. | Docs present unconditional behavior, source is build-option dependent. | High |
+| master `crash()` applicability | Docs frame `crash()` as signal-crash callback (segfault/bus error). | `fatal()` path invokes `crash()` for broader fatal driver errors. | Documentation narrower than actual trigger conditions. | Medium |
+
+Tier A resolution rule for later phases:
+
+1. For each row, explicitly choose one of:
+  - preserve source behavior and update docs,
+  - adjust source to match docs,
+  - document intentional behavior change in changelog.
+2. Do not close Phase 7 until all High-priority rows are resolved.
+
+### Simplified Contract with Scoped Guards
+
+With scoped guards selected as the migration strategy, the contract shifts from manual stack choreography to boundary semantics:
+
+1. Replace EC-01 + EC-02 + EC-03 with one boundary-unwind contract:
+  - Entering a protected boundary creates a guard that captures VM restoration state.
+  - Leaving the boundary (normal return or exception) restores VM state exactly once.
+  - Error-state clearing is guard-owned and cannot be skipped.
+2. Keep EC-04, EC-05, EC-06, and EC-13 as explicit LPC-language behavior contracts.
+3. Keep EC-07, EC-08, and EC-09 as runtime safety and operability contracts.
+4. Keep EC-10, EC-11, and EC-12 as driver boundary outcome contracts (continue, suppress, or terminate behavior).
+
+This reduces the contract surface from 13 low-level mixed concerns to 4 grouped contract classes:
+
+- Boundary Unwind Contract: deterministic VM restoration and state cleanup via guard lifetime.
+- LPC Semantics Contract: catch/throw payload and non-catchable-limit behavior.
+- Runtime Safety Contract: reentry protection, mudlib error-handler behavior, heart-beat safety.
+- Driver Outcome Contract: safe_apply suppression, backend recovery policy, startup/fatal terminal policy.
+
+Guard-based design also removes one recurring failure mode from the contract set:
+- manual pop mismatch (missing or duplicate `pop_context()`), currently an implicit correctness requirement.
+
+### Scoped Guard API Sketch (Phase 1 Design Draft)
+
+Proposed initial guard types and responsibilities:
+
+1. `error_boundary_guard`
+  - captures boundary snapshot on construction (`command_giver`, `sp`, `csp`, and boundary metadata).
+  - restores VM state on exception path.
+  - clears error-state flags at scope exit.
+  - guarantees single exit cleanup (replaces manual `save_context()`/`pop_context()` pairing).
+2. `catch_value_guard`
+  - owns `catch_value` lifecycle transitions in catch paths.
+  - ensures previous value is released before replacement.
+  - provides explicit `commit_success()`/`commit_error()` semantics to mirror current behavior.
+3. `error_reentry_guard`
+  - scoped replacement for `in_error` and `in_mudlib_error_handler` toggling.
+  - guarantees flag restoration under nested exceptions.
+
+Proposed usage shape (conceptual):
+
+```cpp
+error_boundary_guard boundary{boundary_kind::catch_block};
+try {
+  // protected LPC execution path
+}
+catch (const catchable_runtime_error &e) {
+  boundary.restore();
+  // preserve catch payload behavior
+}
+```
+
+Initial rollout order for guard adoption:
+
+1. `src/frame.c` `do_catch()` boundary first (highest semantic leverage for catch contract).
+2. `src/apply.c` `safe_apply()` (small boundary, clear return-value contract).
+3. `src/backend.c` guard blocks (continue semantics under runtime faults).
+4. `src/main.c` startup guard and `src/simulate.c` fatal crash callback guard.
+5. `src/error_context.c` internal reentry state via `error_reentry_guard`.
+
+Phase 1 acceptance notes for guard API draft:
+
+- Guard destructors must be `noexcept` and must not throw.
+- Exceptions must not cross `extern "C"` boundaries; boundary wrappers translate before crossing.
+- Guard behavior must be validated with parity tests for EC-04/05/06/10/11/12/13.
+
+## Transition Improvement Opportunities
+
+1. Introduce a typed exception hierarchy (`catchable_runtime_error`, `noncatchable_runtime_limit`, `fatal_runtime_error`) to make current implicit error-state branching explicit.
+2. Replace manual `save_context`/`pop_context` pairing with scoped guard objects to eliminate mismatch risk and simplify review.
+3. Replace global `in_error` and `in_mudlib_error_handler` flag toggling with scoped reentry guards to reduce state-leak risk on nested failures.
+4. Preserve current LPC-visible error strings, but add optional structured internal fields (error code, source phase, boundary id) for better diagnostics.
+5. Centralize C ABI boundary translation wrappers so exceptions are always converted at one layer and never cross `extern "C"` boundaries.
+6. Add phase-specific parity tests for the contracts above, especially non-catchable limit behavior and backend continue semantics.
 
 ## Portability Review: GCC / MSVC / clang-cl
 
@@ -171,10 +290,12 @@ These rows are CI matrix requirements split by host OS/toolchain lanes (not expe
 - Update docs for error model and migration outcomes.
 - Add changelog entry if behavior or developer contract changes.
 - Capture any compiler-specific caveats discovered during rollout in permanent docs.
+- Finalize Tier A LPC-visible contract and publish it in manual documentation (`docs/manual/`) as the post-migration behavior contract.
 
 ### Exit Criteria
 - Migration deemed stable, documented, and ready for plan close.
 - Portability sign-off completed for GCC/MSVC/clang-cl.
+- Final LPC-visible contract has been promoted from plan notes into manual docs.
 
 ## Verification Matrix
 
