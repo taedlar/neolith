@@ -1,9 +1,9 @@
 #pragma once
 
 /* for USHRT_MAX */
-#ifdef	HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif	/* HAVE_SYS_PARAM_H */
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

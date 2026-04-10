@@ -9,6 +9,10 @@
 #define PATH_MAX MAX_PATH
 #endif
 
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
