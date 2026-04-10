@@ -16,7 +16,6 @@
 #include "src/error_context.h"
 #include "src/interpret.h"
 #include "src/simulate.h"
-#include "src/stralloc.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/functional.h"

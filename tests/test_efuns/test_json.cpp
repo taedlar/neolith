@@ -16,7 +16,6 @@
 
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
-#include "src/stralloc.h"
 #include "src/error_context.h"
 
 /* ------------------------------------------------------------------ */

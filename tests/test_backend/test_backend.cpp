@@ -6,6 +6,7 @@
 
 #include "std.h"
 #include "rc.h"
+#include "addr_resolver.h"
 #include "lpc/compiler.h"
 
 using namespace testing;

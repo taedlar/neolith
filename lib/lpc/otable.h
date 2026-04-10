@@ -1,10 +1,10 @@
 #pragma once
 
+#include "types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "types.h"
 
 int strip_name(const char* src, char* dest, size_t dest_size);
 char *add_slash(const char *);

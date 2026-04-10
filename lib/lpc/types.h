@@ -1,16 +1,18 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
 #endif
 
-#ifdef HAVE_STDINT_H
-    #include <stdint.h>
-#elif HAVE_INTTYPES_H
-    #include <inttypes.h>
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
 #endif
 
 #include "src/stralloc.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef unsigned short lpc_type_t; /* entry type in A_ARGUMENT_TYPES area */
 typedef unsigned short function_index_t; /* an integer type for LPC function index (runtime_function_u) */

@@ -9,10 +9,6 @@
 #ifndef HAVE_CURL_EFUNS_H
 #define HAVE_CURL_EFUNS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef PACKAGE_CURL
 
 #include <curl/curl.h>
@@ -20,6 +16,10 @@ extern "C" {
 #include "lpc/object.h"
 #include "lpc/array.h"
 #include "lpc/functional.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * @brief CURL transfer state machine.
@@ -178,10 +178,10 @@ void drain_curl_completions(void);
  */
 #define CURL_COMPLETION_KEY 0x43554C00u
 
-#endif /* PACKAGE_CURL */
-
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* PACKAGE_CURL */
 
 #endif /* HAVE_CURL_EFUNS_H */

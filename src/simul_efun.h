@@ -1,9 +1,10 @@
 #pragma once
 
+#include "lpc/compiler.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "lpc/compiler.h"
 
 /**
  * Information about a simul_efun function.

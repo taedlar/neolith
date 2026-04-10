@@ -10,14 +10,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <assert.h>
-#include <time.h>
-#ifdef HAVE_NETDB_H
-#include <netdb.h>
-#endif
-#include <sys/types.h>
-#include "port/socket_comm.h"
-
 #include "src/std.h"
 #include "src/comm.h"
 #include "src/addr_resolver.h"
@@ -26,14 +18,14 @@
 #include "lpc/functional.h"
 #include "lpc/buffer.h"
 #include "lpc/object.h"
-#include "src/interpret.h"
-#include "lpc/include/runtime_config.h"
-#include "lpc/include/origin.h"
+#include "lpc/operator.h"
 #include "rc.h"
+#include "port/socket_comm.h"
 #include "socket_efuns.h"
 #include "socket_err.h"
+#include "lpc/include/origin.h"
+#include "lpc/include/runtime_config.h"
 #include "lpc/include/socket_err.h"
-#include "lpc/operator.h"
 
 #define socket_perror(x,y)	debug_perror(x,y)
 

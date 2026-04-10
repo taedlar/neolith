@@ -1,5 +1,10 @@
 #pragma once
 
+/* for USHRT_MAX */
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

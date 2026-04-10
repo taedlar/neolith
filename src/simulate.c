@@ -32,8 +32,11 @@
 #include "efuns/file_utils.h"
 #include "efuns/replace_program.h"
 
-#include <assert.h>
 #include <sys/stat.h>
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif /* HAVE_STDARG_H */
 
 char *last_verb = 0;
 

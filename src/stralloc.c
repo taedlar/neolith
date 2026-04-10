@@ -5,7 +5,6 @@
 #include "std.h"
 #include "lpc/include/runtime_config.h"
 #include "interpret.h"
-#include "stralloc.h"
 #include "hash.h"
 
 #include <assert.h>

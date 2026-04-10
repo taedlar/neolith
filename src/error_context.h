@@ -1,10 +1,11 @@
 #pragma once
 
+#include "interpret.h"
+#include <setjmp.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "interpret.h"
-#include <setjmp.h>
 
 typedef struct error_context_s {
     jmp_buf context;

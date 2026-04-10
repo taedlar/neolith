@@ -6,6 +6,7 @@
 #include "lpc/object.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
+#include "lpc/include/origin.h"
 #include "comm.h"
 #include "command.h"
 #include "rc.h"
@@ -20,8 +21,6 @@
 #include "curl/curl_efuns.h"
 #endif
 
-#include "lpc/include/origin.h"
-
 #ifdef	HAVE_ARPA_TELNET_H
 #include <arpa/telnet.h>
 #else
@@ -29,12 +28,12 @@
 #include "port/telnet.h"
 #endif	/* HAVE_ARPA_TELNET_H */
 
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif /* HAVE_STDARG_H */
+
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
-#endif
-
-#ifdef HAVE_NETDB_H
-#include <netdb.h>
 #endif
 
 #ifdef WINSOCK

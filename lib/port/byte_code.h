@@ -1,13 +1,13 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef HAVE_STDINT_H
     #include <stdint.h>
 #elif HAVE_INTTYPES_H
     #include <inttypes.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /* portable wrappers for bytecode manipulation */

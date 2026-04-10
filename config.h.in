@@ -16,6 +16,7 @@
 #cmakedefine HAVE_INTTYPES_H
 #cmakedefine HAVE_LIMITS_H
 #cmakedefine HAVE_NETDB_H
+#cmakedefine HAVE_SIGNAL_H
 #cmakedefine HAVE_STDARG_H
 #cmakedefine HAVE_STDDEF_H
 #cmakedefine HAVE_STDINT_H

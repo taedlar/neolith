@@ -23,6 +23,7 @@
 #include "curl/curl_efuns.h"
 #endif
 
+#include <math.h>
 #include <sys/stat.h>
 
 #define too_deep_save_error() \

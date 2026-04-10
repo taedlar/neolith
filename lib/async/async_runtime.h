@@ -20,21 +20,17 @@
 #ifndef ASYNC_RUNTIME_H
 #define ASYNC_RUNTIME_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "port/socket_comm.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-typedef SOCKET socket_fd_t;
-#else
-typedef int socket_fd_t;
-#include <sys/time.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /* Event type flags */

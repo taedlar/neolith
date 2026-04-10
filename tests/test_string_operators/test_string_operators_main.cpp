@@ -2,7 +2,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include "std.h"
-#include "stralloc.h"
 #include <gtest/gtest.h>
 #include <cstring>
 #include <cstdint>

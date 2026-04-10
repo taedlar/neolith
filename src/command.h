@@ -1,11 +1,11 @@
 #pragma once
 
+#include "comm.h"
+#include "lpc/functional.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "comm.h"
-#include "lpc/functional.h"
 
 /* prompts & input redirection */
 void set_prompt (char *);

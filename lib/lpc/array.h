@@ -1,9 +1,10 @@
 #pragma once
 
+#include "types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "types.h"
 
 struct array_s {
     unsigned short ref;

@@ -4,6 +4,7 @@
 
 #include "std.h"
 #include "rc.h"
+#include "addr_resolver.h"
 
 main_options_t* g_main_options = NULL;
 

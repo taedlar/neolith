@@ -12,10 +12,6 @@ extern "C" {
  * across different platforms (POSIX librt and Windows waitable timers).
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
 /**
  * @brief Timer error codes
  */

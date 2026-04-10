@@ -2,12 +2,49 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <inttypes.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#ifdef	HAVE_FCNTL_H
+#include <fcntl.h>
+#endif	/* HAVE_FCNTL_H */
+
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif /* HAVE_INTTYPES_H */
+
+#ifdef HAVE_STDDEF_H
+#include <stddef.h>
+#endif /* HAVE_STDDEF_H */
+
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif /* HAVE_STDINT_H */
+
+#ifdef	HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif	/* HAVE_SYS_TYPES_H */
+
+#ifdef	HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif	/* HAVE_SYS_TIME_H */
+
+#ifdef	HAVE_UNISTD_H
+#include <unistd.h>
+#endif	/* HAVE_UNISTD_H */
+
+/* dynamic memory allocations */
+#include "malloc.h"
+#define ALLOCATE(type, tag, desc) ((type *)DXALLOC(sizeof(type), tag, desc))
+#define CALLOCATE(num, type, tag, desc) ((type *)DXALLOC(sizeof(type[1]) * (num), tag, desc))
+#define RESIZE(ptr, num, type, tag, desc) ((type *)DREALLOC((void *)ptr, sizeof(type) * (num), tag, desc))
+
+/* standard C library portability wrappers */
+#include "port/wrapper.h"
+
+#ifndef NO_STEM
 
 #ifdef _WIN32
     #define STDIN_FILENO _fileno(stdin)
@@ -29,44 +66,8 @@
     #define CHDIR       chdir
 #endif  /* !_WIN32 */
 
-#ifdef	HAVE_UNISTD_H
-#include <unistd.h>
-#endif	/* HAVE_UNISTD_H */
-
-#ifdef	HAVE_FCNTL_H
-#include <fcntl.h>
-#endif	/* HAVE_FCNTL_H */
-
-#ifdef HAVE_STDARG_H
-#include <stdarg.h>
-#endif /* HAVE_STDARG_H */
-
-#ifdef HAVE_STDDEF_H
-#include <stddef.h>
-#endif /* HAVE_STDDEF_H */
-
-#ifdef	HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif	/* HAVE_SYS_TYPES_H */
-
-#ifdef	HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif	/* HAVE_SYS_TIME_H */
-
-#ifdef	HAVE_SYS_WAIT_H
-#include <sys/wait.h>
-#endif	/* HAVE_SYS_WAIT_H */
-
-#ifdef	HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif	/* HAVE_SYS_PARAM_H */
-
-#include "port/wrapper.h"
 #include "port/byte_code.h"
 #include "port/debug.h"
-
-#ifndef NO_OPCODES
-#include "efuns_opcode.h"
-#endif
-
 #include "stem.h"
+
+#endif /* NO_STEM */

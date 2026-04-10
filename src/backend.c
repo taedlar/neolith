@@ -21,6 +21,8 @@
 #include "async/async_runtime.h"
 #include "async/console_mode.h"
 
+#include <math.h>
+
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
 #endif

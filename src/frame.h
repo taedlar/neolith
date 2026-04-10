@@ -1,12 +1,12 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "lpc/types.h"
 #include "lpc/array.h"
 #include "lpc/program.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 compiler_function_t *setup_new_frame(int runtime_index);
 compiler_function_t *setup_inherited_frame(int runtime_index);

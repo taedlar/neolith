@@ -3,7 +3,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #define SUPPRESS_COMPILER_INLINES
-#define NO_OPCODES
 #include "src/std.h"
 #include "scratchpad.h"
 

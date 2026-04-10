@@ -1,10 +1,10 @@
 #pragma once
 
+#include "types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "types.h"
-
 /*
  * A compiled program consists of several data blocks, all allocated
  * contiguously in memory to enhance the working set. During compilation,
