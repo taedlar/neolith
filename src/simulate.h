@@ -68,7 +68,7 @@ void shout_string(char *);
 void try_reset(object_t *);
 #endif
 
-void init_master(const char *);
+void init_master(const char *, const char *);
 void setup_simulate(void);
 void tear_down_simulate(void);
 

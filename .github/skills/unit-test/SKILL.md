@@ -71,6 +71,14 @@ EXPECT_STREQ(obj->name, "test_obj");
 destruct_object(obj);
 ```
 
+### Lessons Learned: Testing Master Applies with pre_text
+
+- For tests that need custom master callbacks (for example, `error_handler`), inject them through `init_master(master_file, pre_text)` instead of editing mudlib files.
+- Keep assertions contract-focused: verify the injected master function is present/compilable, then trigger the driver path that must route through that apply.
+- Prefer behavior checks over source-lock checks. Do not assert raw source snippets from repository files, since those tests are brittle and block refactoring.
+- Use `pre_text` instrumentation as test-only setup and keep production paths unchanged by passing `NULL` where no injection is needed.
+- For error-path coverage, assert routing outcomes (for example, error propagation through the master callback path) rather than relying on fragile side-effect counters.
+
 ### Calling LPC functions from tests
 1. Get the shared string for the function name using `findstring` (e.g., `findstring("create", NULL)`)
 2. Call `find_function()` to get the function index from the program and the `program_t` pointer if the function is inherited from a parent program. Note that `find_function` requires a `shared_str_t` returned from `findstring`. Pattern:

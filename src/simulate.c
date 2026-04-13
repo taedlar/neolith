@@ -935,12 +935,14 @@ static object_t* object_present2 (const char *str, object_t * ob) {
 }
 
 /**
- * @brief Initialize the master object.
- * 
- * If error occurs, print error messages to standard error and exit with failure.
- * @param master_file The path to the master object file.
+ * @brief Load and initialize the master object with optional pre-text.
+ * @param master_file Path to master file.
+ * @param pre_text Optional pre-text (extra code prepended before master source).
+ *
+ * If pre_text is provided, it is prepended to the master source code during compilation,
+ * allowing tests to inject custom code (e.g., instrumentation, mock applies) into the master.
  */
-void init_master (const char *master_file) {
+void init_master (const char *master_file, const char *pre_text) {
   char buf[PATH_MAX];
   object_t *new_ob;
 
@@ -963,7 +965,7 @@ void init_master (const char *master_file) {
   if (master_file[strlen (master_file) - 2] != '.')
     strncat (buf, ".c", sizeof(buf) - strlen(buf) - 1);
 
-  new_ob = load_object (buf, 0);
+  new_ob = load_object (buf, pre_text);
   if (new_ob == 0)
     {
       fprintf (stderr, "The master file %s was not loaded.\n", master_file);
