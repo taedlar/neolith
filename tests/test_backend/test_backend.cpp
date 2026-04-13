@@ -3,6 +3,8 @@
 #endif /* HAVE_CONFIG_H */
 #include <gtest/gtest.h>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 
 #include "std.h"
 #include "rc.h"
@@ -53,12 +55,44 @@ protected:
     }
 };
 
+namespace {
+
+std::string ReadRepoSource(const std::filesystem::path &relative_path) {
+    auto root = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path();
+    auto full_path = root / relative_path;
+    std::ifstream in(full_path);
+    if (!in.is_open()) {
+        return std::string();
+    }
+    std::ostringstream out;
+    out << in.rdbuf();
+    return out.str();
+}
+
+} // namespace
+
 TEST_F(BackendTest, preload) {
     ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
     init_master ("/master.c");
     // any error during preload_objects() will be caught.
     EXPECT_NO_THROW(preload_objects (0)) << "preload_objects() threw an exception";
     destruct_object(master_ob);
+}
+
+TEST_F(BackendTest, preloadRecoveryContinueContractSourceLocked) {
+    const std::string source = ReadRepoSource("src/backend.c");
+    ASSERT_FALSE(source.empty()) << "Unable to read src/backend.c";
+
+    EXPECT_NE(source.find("/* in case of an error, effectively do a 'continue' */"), std::string::npos)
+        << "Preload continue-on-error contract comment missing.";
+    EXPECT_NE(source.find("if (setjmp (econ.context))"), std::string::npos)
+        << "Preload error boundary missing setjmp guard.";
+    EXPECT_NE(source.find("opt_warn (1, \"Error preloading file %d/%d, continuing.\", ix + 1, prefiles->size);"), std::string::npos)
+        << "Preload warning/continue message changed unexpectedly.";
+    EXPECT_NE(source.find("ix++;"), std::string::npos)
+        << "Preload continue behavior requires index increment after caught error.";
+    EXPECT_NE(source.find("for (; ix < prefiles->size; ix++)"), std::string::npos)
+        << "Preload loop continuation contract changed unexpectedly.";
 }
 
 TEST_F(BackendTest, setHeartBeat) {

@@ -213,6 +213,17 @@ Before Phase 2 code migration, add/adjust targeted tests to lock behavior that m
 
 Gate rule: do not begin Phase 2 implementation until items 1-5 are present and green on Linux (`ut-linux`) with no new failures in existing suites.
 
+Status (2026-04-13): implemented and passing targeted Linux tests for items 1-5:
+- `EfunsTest.throwWithoutCatchContractTextAndRuntime`
+- `LPCInterpreterTest.nonCatchableEvalCostEscapesCatchBoundary`
+- `LPCInterpreterTest.nonCatchableStackFullEscapesCatchBoundary`
+- `LPCInterpreterTest.catchSuccessReturnsZeroContract`
+- `BackendTest.preloadRecoveryContinueContractSourceLocked`
+- `EfunsTest.errorHandlerMappingContractSourceLocked`
+
+Forward-looking item 6 added as non-gating disabled test:
+- `LPCInterpreterTest.DISABLED_throwZeroNormalizesToUnspecifiedError`
+
 ## Phase 2: Core Error Source Migration (`error_context`) + Typed Exception Hierarchy
 
 ### Goals

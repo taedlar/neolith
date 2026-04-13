@@ -17,6 +17,18 @@ void ExpectArrayItemNumber(const array_t *arr, int index, int64_t expected, cons
     EXPECT_EQ(view.number(), expected) << msg;
 }
 
+int RuntimeIndexFor(program_t *prog, const char *name) {
+    int index = 0;
+    int fio = 0;
+    int vio = 0;
+    program_t *found_prog = find_function(prog, findstring(name, NULL), &index, &fio, &vio);
+    EXPECT_EQ(found_prog, prog) << "find_function did not return the expected program for " << name;
+    if (found_prog != prog) {
+        return -1;
+    }
+    return found_prog->function_table[index].runtime_index + fio;
+}
+
 } // namespace
 
 TEST_F(LPCInterpreterTest, disassemble) {
@@ -131,6 +143,98 @@ TEST_F(LPCInterpreterTest, evalCostLimit) {
     pop_context (&econ);
     free_prog(prog, 1);
     FAIL() << "Expected too long evaluation error was not raised.";
+}
+
+TEST_F(LPCInterpreterTest, nonCatchableEvalCostEscapesCatchBoundary) {
+    program_t* prog = compile_file(-1, "noncatch_eval.c",
+        "void burn_eval() { int j; j = 0; while (j < 100000) { j = j + 1; } }\n"
+        "mixed trap_eval() { return catch(burn_eval()); }\n"
+    );
+    ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
+
+    int runtime_index = RuntimeIndexFor(prog, "trap_eval");
+    ASSERT_GE(runtime_index, 0);
+
+    error_context_t econ;
+    volatile int escaped_catch = 0;
+    save_context(&econ);
+    if (setjmp(econ.context)) {
+        escaped_catch = 1;
+        restore_context(&econ);
+    }
+    else {
+        eval_cost = 500;
+        call_function(prog, runtime_index, 0, nullptr);
+    }
+    pop_context(&econ);
+    free_prog(prog, 1);
+
+    EXPECT_EQ(escaped_catch, 1) << "eval-cost limit was unexpectedly trapped by LPC catch().";
+}
+
+TEST_F(LPCInterpreterTest, nonCatchableStackFullEscapesCatchBoundary) {
+    program_t* prog = compile_file(-1, "noncatch_stack.c",
+        "void dive_stack() { dive_stack(); }\n"
+        "mixed trap_stack() { return catch(dive_stack()); }\n"
+    );
+    ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
+
+    int runtime_index = RuntimeIndexFor(prog, "trap_stack");
+    ASSERT_GE(runtime_index, 0);
+
+    error_context_t econ;
+    volatile int escaped_catch = 0;
+    save_context(&econ);
+    if (setjmp(econ.context)) {
+        escaped_catch = 1;
+        restore_context(&econ);
+    }
+    else {
+        eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
+        call_function(prog, runtime_index, 0, nullptr);
+    }
+    pop_context(&econ);
+    free_prog(prog, 1);
+
+    EXPECT_EQ(escaped_catch, 1) << "stack-full recursion was unexpectedly trapped by LPC catch().";
+}
+
+TEST_F(LPCInterpreterTest, catchSuccessReturnsZeroContract) {
+    program_t* prog = compile_file(-1, "catch_success.c",
+        "mixed catch_success() { return catch(1 + 1); }\n"
+    );
+    ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
+
+    int runtime_index = RuntimeIndexFor(prog, "catch_success");
+    ASSERT_GE(runtime_index, 0);
+
+    svalue_t ret;
+    call_function(prog, runtime_index, 0, &ret);
+
+    auto ret_view = lpc::svalue_view::from(&ret);
+    EXPECT_TRUE(ret_view.is_number()) << "Expected catch-success return value to be number 0.";
+    EXPECT_EQ(ret_view.number(), 0) << "F_END_CATCH success contract regression: expected 0.";
+
+    free_prog(prog, 1);
+}
+
+TEST_F(LPCInterpreterTest, DISABLED_throwZeroNormalizesToUnspecifiedError) {
+    program_t* prog = compile_file(-1, "throw_zero.c",
+        "mixed throw_zero() { return catch(throw(0)); }\n"
+    );
+    ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
+
+    int runtime_index = RuntimeIndexFor(prog, "throw_zero");
+    ASSERT_GE(runtime_index, 0);
+
+    svalue_t ret;
+    call_function(prog, runtime_index, 0, &ret);
+
+    auto ret_view = lpc::svalue_view::from(&ret);
+    ASSERT_TRUE(ret_view.is_string()) << "Expected caught throw(0) to normalize to a string payload.";
+    EXPECT_STREQ(ret_view.c_str(), "*Unspecified error");
+    free_string_svalue(&ret);
+    free_prog(prog, 1);
 }
 
 TEST_F(LPCInterpreterTest, foreachUtf8String) {

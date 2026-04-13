@@ -4,7 +4,23 @@
 
 #include "fixtures.hpp"
 
+#include <fstream>
+#include <sstream>
+
 namespace {
+
+std::string ReadRepoSource(const std::filesystem::path &relative_path) {
+    auto root = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path();
+    auto full_path = root / relative_path;
+    std::ifstream in(full_path);
+    EXPECT_TRUE(in.is_open()) << "Unable to open source file: " << full_path;
+    if (!in.is_open()) {
+        return std::string();
+    }
+    std::ostringstream out;
+    out << in.rdbuf();
+    return out.str();
+}
 
 void ExpectArrayItemString(const array_t *arr, int index, const char *expected) {
     auto view = lpc::svalue_view::from(&arr->item[index]);
@@ -45,6 +61,45 @@ TEST_F(EfunsTest, throwError) {
         FAIL() << "Efun throw() did not throw an LPC error as expected.";
     }
     pop_context (&econ);
+}
+
+TEST_F(EfunsTest, throwWithoutCatchContractTextAndRuntime) {
+    const std::string source = ReadRepoSource("src/error_context.c");
+    ASSERT_FALSE(source.empty());
+    EXPECT_NE(source.find("error (\"*Throw with no catch.\");"), std::string::npos)
+        << "throw_error() no-catch text contract changed unexpectedly.";
+
+    error_context_t econ;
+    volatile int jumped = 0;
+    save_context(&econ);
+    if (setjmp(econ.context)) {
+        jumped = 1;
+        restore_context(&econ);
+    }
+    else {
+        push_constant_string("payload");
+        f_throw();
+    }
+    pop_context(&econ);
+
+    EXPECT_EQ(jumped, 1) << "throw() outside catch() must raise runtime error path.";
+}
+
+TEST_F(EfunsTest, errorHandlerMappingContractSourceLocked) {
+    const std::string source = ReadRepoSource("src/error_context.c");
+    ASSERT_FALSE(source.empty());
+
+    EXPECT_NE(source.find("add_mapping_string (m, \"error\", err);"), std::string::npos);
+    EXPECT_NE(source.find("add_mapping_string (m, \"program\", current_prog->name);"), std::string::npos);
+    EXPECT_NE(source.find("add_mapping_object (m, \"object\", current_object);"), std::string::npos);
+    EXPECT_NE(source.find("add_mapping_array (m, \"trace\", get_svalue_trace (0));"), std::string::npos);
+    EXPECT_NE(source.find("add_mapping_string (m, \"file\", file);"), std::string::npos);
+    EXPECT_NE(source.find("add_mapping_pair (m, \"line\", line);"), std::string::npos);
+
+    EXPECT_NE(source.find("mret = apply_master_ob (APPLY_ERROR_HANDLER, 2);"), std::string::npos)
+        << "Missing caught-path error_handler arity (2 args).";
+    EXPECT_NE(source.find("mret = apply_master_ob (APPLY_ERROR_HANDLER, 1);"), std::string::npos)
+        << "Missing uncaught-path error_handler arity (1 arg).";
 }
 
 TEST_F(EfunsTest, stringCaseConversion) {
