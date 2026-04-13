@@ -47,9 +47,9 @@ TEST_F(EfunsTest, throwError) {
     pop_context (&econ);
 }
 
-TEST_F(EfunsTest, throwWithoutCatchContractTextAndRuntime) {
+TEST_F(EfunsTest, throwWithoutCatchRaisesRuntimeError) {
     // Compile LPC code that throws without a catch boundary.
-    // This validates that throw() outside catch() raises an error at runtime.
+    // This validates only that throw() outside catch() raises the runtime error path.
     program_t* prog = compile_file(-1, "throw_no_catch.c",
         "void throw_without_catch() { throw(\"test payload\"); }\n"
     );

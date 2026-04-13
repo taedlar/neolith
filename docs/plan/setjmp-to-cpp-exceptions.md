@@ -215,7 +215,7 @@ Gate rule: do not begin Phase 2 implementation until items 1-5 are present and g
 
 Status (2026-04-13): **GATE PASSED** — implemented and passing targeted Linux tests for all items 1-5. Recent refactor improved test quality by replacing source-structure-locked tests with behavior-focused contracts:
 
-**Item 1:** ✓ `EfunsTest.throwWithoutCatchContractTextAndRuntime` (validates throw runtime error and text)
+**Item 1:** ✓ `EfunsTest.throwWithoutCatchContractTextAndRuntime` (validates uncaught `throw()` runtime error propagation; does not currently assert message text)
 
 **Item 2-3:** ✓ `LPCInterpreterTest.nonCatchableEvalCostEscapesCatchBoundary`, `LPCInterpreterTest.nonCatchableStackFullEscapesCatchBoundary` (validates non-catchable limit behavior)
 
