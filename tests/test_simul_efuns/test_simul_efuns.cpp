@@ -87,7 +87,7 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
-    init_master ("/master.c");
+    init_master ("/master.c", NULL);
     ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
 
     error_context_t econ;

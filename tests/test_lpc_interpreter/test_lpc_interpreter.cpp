@@ -81,7 +81,7 @@ TEST_F(LPCInterpreterTest, callFunction) {
 TEST_F(LPCInterpreterTest, callInheritedFunction) {
     init_simul_efun("/simul_efun.c"); // need simul efuns to load the inherited object
     ASSERT_NE(simul_efun_ob, nullptr) << "simul_efun_ob is null after init_simul_efun().";
-    init_master("/master.c");
+    init_master("/master.c", NULL);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
 
     object_t* obj = load_object("room/start_room.c", 0); // start_room inherits from base/room.c which defines query_exit()
@@ -290,7 +290,7 @@ TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
      * full LPC interpreter dispatch path, verifying end-to-end buffer→value. */
     init_simul_efun("/simul_efun.c");
     ASSERT_NE(simul_efun_ob, nullptr) << "simul_efun_ob is null";
-    init_master("/master.c");
+    init_master("/master.c", NULL);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null";
 
     program_t *prog = compile_file(-1, "json_buf_test.c",

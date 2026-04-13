@@ -141,7 +141,7 @@ int main (int argc, char **argv) {
       init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__)); /* could be NULL */
 
       debug_message ("{}\t----- loading master -----");
-      init_master (CONFIG_STR (__MASTER_FILE__));
+      init_master (CONFIG_STR (__MASTER_FILE__), NULL);
 
       debug_message ("{}\t----- epilogue -----");
       preload_objects (MAIN_OPTION(epilog_level)); /* do epilog() and preload() master applies */

@@ -21,7 +21,7 @@ TEST_F(LPCCompilerTest, compileFile) {
 
 TEST_F(LPCCompilerTest, loadMaster) {
     setup_simulate();
-    init_master (CONFIG_STR (__MASTER_FILE__));
+    init_master (CONFIG_STR (__MASTER_FILE__), NULL);
     ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
     // master_ob should have ref count 2: one from set_master, one from get_empty_object
     EXPECT_EQ(master_ob->ref, 2) << "master_ob reference count is not 2 after init_master().";
@@ -40,7 +40,7 @@ TEST_F(LPCCompilerTest, loadObject) {
     setup_simulate();
 
     // master_ob must be initialized before load_object can be used
-    init_master (CONFIG_STR (__MASTER_FILE__));
+    init_master (CONFIG_STR (__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
 
     // load a nonexistent object
@@ -69,7 +69,7 @@ TEST_F(LPCCompilerTest, programAlignment) {
     
     setup_simulate();
 
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
     
     // Compile a test object with various data to exercise different memory blocks
@@ -188,7 +188,7 @@ TEST_F(LPCCompilerTest, programAlignment) {
 TEST_F(LPCCompilerTest, dotCallCompilesToEfun) {
     setup_simulate();
 
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
 
     current_object = master_ob;
@@ -207,7 +207,7 @@ TEST_F(LPCCompilerTest, dotCallCompilesToEfun) {
 TEST_F(LPCCompilerTest, dotCallChainingCompiles) {
     setup_simulate();
 
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
 
     current_object = master_ob;
@@ -226,7 +226,7 @@ TEST_F(LPCCompilerTest, dotCallChainingCompiles) {
 TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
     setup_simulate();
 
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
 
     current_object = master_ob;
@@ -254,7 +254,7 @@ TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
 TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
     setup_simulate();
 
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
 
     current_object = master_ob;
@@ -282,7 +282,7 @@ TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
 TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
     setup_simulate();
 
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
 
     current_object = master_ob;
@@ -311,7 +311,7 @@ TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
 TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
     setup_simulate();
 
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
 
     current_object = master_ob;
@@ -339,7 +339,7 @@ TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
 
 TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
     setup_simulate();
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
 
     current_object = master_ob;
@@ -361,7 +361,7 @@ TEST_F(LPCCompilerTest, dotCallAndEfunOverrideFormsCompileTogether) {
 
 TEST_F(LPCCompilerTest, dotCallDisallowedEfunFailsCompile) {
     setup_simulate();
-    init_master(CONFIG_STR(__MASTER_FILE__));
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
     ASSERT_NE(master_ob, nullptr);
 
     current_object = master_ob;

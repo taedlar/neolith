@@ -49,7 +49,7 @@ protected:
         setup_simulate();
         saved_sp_ = sp;
 
-        init_master(CONFIG_STR(__MASTER_FILE__));
+        init_master(CONFIG_STR(__MASTER_FILE__), NULL);
         ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
     }
 
