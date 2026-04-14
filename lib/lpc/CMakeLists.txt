@@ -49,7 +49,7 @@ set(lpc_SOURCES
     buffer.c
     class.c
     compiler.c
-    functional.c
+    functional.cpp
     identifier.c
     lex.c
     mapping.c

@@ -20,7 +20,6 @@ int run_mudlib_startup_guarded(void) {
   try
     {
       neolith::error_boundary_guard boundary(&econ);
-      set_context_transport_mode(&econ, ERROR_CONTEXT_TRANSPORT_EXCEPTION);
 
       try
         {

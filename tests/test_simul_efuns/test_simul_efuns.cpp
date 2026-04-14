@@ -101,13 +101,8 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
 
     error_context_t econ;
     save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        debug_message("***** expected error: destruct simul_efun_ob while master object exists.");
-        pop_context (&econ);
-        return;
-    }
-    else {
+    
+    try {
         current_object = master_ob;
         destruct_object (simul_efun_ob); // should raise error
         /*
@@ -122,9 +117,13 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
          * Neolith allows destructing simul_efun_ob only when master_ob does not exist, which can only be triggered by
          * using the --pedantic option that enables subsystem teardown when the driver.
          */
+        pop_context (&econ);
+        FAIL() << "destruct_object(simul_efun_ob) did not raise error when master object exists.";
+    } catch (const neolith::driver_runtime_error &) {
+        restore_context (&econ);
+        debug_message("***** expected error: destruct simul_efun_ob while master object exists.");
+        pop_context (&econ);
     }
-    pop_context (&econ);
-    FAIL() << "destruct_object(simul_efun_ob) did not raise error when master object exists.";
 
     object_t* base_ob = find_object_by_name("api/unicode");
     EXPECT_TRUE(base_ob != nullptr);

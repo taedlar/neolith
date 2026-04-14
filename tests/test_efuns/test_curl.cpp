@@ -328,11 +328,7 @@ TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
   bool callback_error = false;
   error_context_t econ;
   save_context(&econ);
-  if (setjmp(econ.context)) {
-    restore_context(&econ);
-    callback_error = true;
-  }
-  else {
+  try {
     current_object = owner;
     st_num_arg = 2;
     push_number(42);
@@ -340,22 +336,26 @@ TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
     f_perform_to();
     FAIL() << "perform_to() should reject non-string/non-function callbacks.";
   }
+  catch (const neolith::driver_runtime_error &) {
+    restore_context(&econ);
+    callback_error = true;
+  }
   pop_context(&econ);
   EXPECT_TRUE(callback_error);
 
   bool flag_error = false;
   save_context(&econ);
-  if (setjmp(econ.context)) {
-    restore_context(&econ);
-    flag_error = true;
-  }
-  else {
+  try {
     current_object = owner;
     st_num_arg = 2;
     push_constant_string("curl_done");
     push_constant_string("bad");
     f_perform_to();
     FAIL() << "perform_to() should reject non-number flags.";
+  }
+  catch (const neolith::driver_runtime_error &) {
+    restore_context(&econ);
+    flag_error = true;
   }
   pop_context(&econ);
   EXPECT_TRUE(flag_error);

@@ -6,6 +6,9 @@
 #include "src/frame.h"
 #include "src/interpret.h"
 #include "src/simul_efun.h"
+#include "src/error_context.h"
+#include "src/error_guards.hpp"
+#include "src/exceptions.hpp"
 #include "array.h"
 #include "functional.h"
 #include "object.h"
@@ -14,8 +17,17 @@
 #include "include/function.h"
 #include "include/origin.h"
 
-program_t fake_prog = { .name = "<function>", .program_size = 0 };
+static char fake_prog_name[] = "<function>";
+program_t fake_prog = {};
 unsigned char fake_program = F_RETURN;
+
+static void init_fake_prog(void) {
+  if (!fake_prog.name)
+    {
+      fake_prog.name = fake_prog_name;
+      fake_prog.program_size = 0;
+    }
+}
 
 /*
  * Very similar to push_control_stack() [which see].  The purpose of this is
@@ -26,6 +38,8 @@ unsigned char fake_program = F_RETURN;
  * These frames are the ones that show up as <function> in error traces.
  */
 static void setup_fake_frame (funptr_t * fun) {
+
+  init_fake_prog();
 
   if (csp == &control_stack[CONFIG_INT (__MAX_CALL_DEPTH__) - 1])
     {
@@ -436,11 +450,12 @@ safe_call_function_pointer (funptr_t * funp, int num_arg)
   if (!save_context (&econ))
     return 0;
 
-  if (!setjmp (econ.context))
+
+  try
     {
       ret = call_function_pointer (funp, num_arg);
     }
-  else
+  catch (const neolith::driver_runtime_error &)
     {
       restore_context (&econ);
       /* condition was restored to where it was when we came in */

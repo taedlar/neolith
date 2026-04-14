@@ -8,7 +8,7 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 | 2 | Core error source migration (`error_context`) + typed exception hierarchy | complete |
 | 3 | LPC catch boundary migration (`frame` + interpreter contract) | complete |
 | 4 | Driver guard migration (`apply`, `backend`, `main`, `simulate`) | complete |
-| 5 | Legacy context-chain removal (`jmp_buf` retirement) | not started |
+| 5 | Legacy context-chain removal (`jmp_buf` retirement) | complete |
 | 6 | Test refactor and full validation | not started |
 | 7 | Hardening, perf checks, and documentation finalization | not started |
 
@@ -60,7 +60,69 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 **Remaining Phase 4 scope:**
 1. None.
 
-### Phase 3 Started (2026-04-14)
+### Phase 5 Completed (2026-04-14)
+
+**What was done:**
+- Removed `jmp_buf context` field from `error_context_t` struct in `src/error_context.h` (jmp_buf completely retired).
+- Removed `setjmp`/`longjmp` include (`#include <setjmp.h>`) from `src/error_context.h`.
+- Removed all longjmp fallback code paths from `src/error_context.cpp`:
+  - Deleted `current_context_uses_exceptions()` function (all contexts now use exceptions).
+  - Removed all `longjmp(econ.context, 1)` calls from `throw_error()` and `error_handler()`.
+  - Removed legacy longjmp fallback branches entirely.
+- Refactored `error_handler()` in `src/error_context.cpp` to use `error_reentry_guard` for managing `in_error` and `in_mudlib_error_handler` state:
+  - Split error handling into two helper functions: `handle_caught_error()` and `handle_uncaught_error()`.
+  - Replaced manual flag toggling with scoped `error_reentry_guard` objects.
+  - Preserved all error routing semantics (catchable, noncatchable, fatal) via typed exceptions.
+- Deleted legacy `src/error_context.c` file (Phase 2 migration was complete, C file no longer needed).
+- Migrated missed Phase 4 driver boundaries:
+  - **lib/efuns/call_out.c** → `lib/efuns/call_out.cpp`: Converted from setjmp-based error recovery to try/catch exception handling for call_out execution.
+  - **lib/lpc/functional.c** → `lib/lpc/functional.cpp`: Converted `safe_call_function_pointer()` from setjmp to exception-based error boundary (set `ERROR_CONTEXT_TRANSPORT_EXCEPTION` mode).
+  - Updated `lib/efuns/CMakeLists.txt` and `lib/lpc/CMakeLists.txt` to compile .cpp versions instead of .c versions.
+- Removed migration-only transport-mode API and constants now that exception transport is universal:
+  - Removed `transport_mode` from `error_context_t`.
+  - Removed `ERROR_CONTEXT_TRANSPORT_*` constants.
+  - Removed `set_context_transport_mode()` / `get_context_transport_mode()` declarations and implementations.
+  - Removed all callsites that set exception transport mode.
+- Completed test-side migration from `setjmp` to exception assertions in affected suites (`test_efuns`, `test_lpc_compiler`, `test_lpc_interpreter`, `test_simul_efuns`, plus JSON/CURL efun tests).
+
+**Validation completed:**
+- Build succeeds after transport-mode retirement and callsite cleanup.
+- Targeted regression tests for migrated boundaries and contracts pass:
+  - `BackendTest.preload`
+  - `BackendTimerTest.QueryHeartBeatIntegration`
+  - `EfunsTest.throwError`
+  - `EfunsTest.throwWithoutCatchRaisesRuntimeError`
+  - `EfunsTest.errorHandlerCallableContract`
+  - `LPCInterpreterTest.evalCostLimit`
+  - `LPCInterpreterTest.nonCatchableEvalCostEscapesCatchBoundary`
+  - `LPCInterpreterTest.nonCatchableStackFullEscapesCatchBoundary`
+  - `SimulEfunsTest.protectSimulEfun`
+- Full ctest sweep reports passing tests after migration updates.
+- Repository audit confirms no remaining `setjmp`/`longjmp` production usage.
+
+**Remaining Phase 5 scope:**
+1. None.
+
+**Phase 6 entry point:**
+1. Keep test refactor focused on maintainability (remove migration-specific comments and helpers that only served setjmp transition).
+2. Run full cross-toolchain matrix gates (GCC/MSVC/clang-cl lanes) per plan validation matrix.
+3. Capture any remaining behavior-parity gaps for documentation handoff in Phase 7.
+
+**Current State Handoff:**
+- **Production code status**: Phase 5 is complete; context-chain jump machinery and migration-only transport mode plumbing are retired.
+- **Test code status**: setjmp-based tests in migrated areas are converted and passing.
+- **Build status**: clean build and passing targeted/full validation run.
+- **Next action**: start Phase 6 polish + cross-toolchain validation matrix execution.
+
+### Phase 4 Remained Completed (updated summary)
+
+**Additional notes from Phase 5 audit:**
+- Two missed Phase 4 driver boundaries discovered during Phase 5: `call_out()` in lib/efuns and `safe_call_function_pointer()` in lib/lpc. Both have been migrated to exception-based approach with proper `ERROR_CONTEXT_TRANSPORT_EXCEPTION` mode setting.
+
+---
+
+### Phase 3 Completed (pre-Phase-5 state from earlier in session)
+
 
 **What was done:**
 - Added `src/frame_catch.cpp` and migrated the `do_catch()` boundary to `try`/`catch` using typed exceptions (`catchable_runtime_error`, `noncatchable_runtime_limit`).
@@ -83,7 +145,7 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
   - `LPCInterpreterTest.nonCatchableStackFullEscapesCatchBoundary`
   - `LPCInterpreterTest.catchSuccessReturnsZeroContract`
 - Post-refactor rerun of the same focused Phase 3 tests passed.
-- `LPCInterpreterTest.throwZeroNormalizesToUnspecifiedError` remains disabled in current suite (unchanged by this phase start).
+- `LPCInterpreterTest.throwZeroNormalizesToUnspecifiedError` is now enabled and passing with throw(0) normalization.
 - Source audit confirms LPC catch/throw transport no longer depends on `longjmp`:
   - `do_catch()` runs through C++ `try`/`catch` boundary (`src/frame_catch.cpp`).
   - `throw_error()` transports to catch via typed exception.
@@ -392,8 +454,8 @@ Status (2026-04-13): **GATE PASSED** — implemented and passing targeted Linux 
   - **Now**: Covered by existing `BackendTest.preload` behavioral test (validates preload_objects executes without throwing exception)
   - Note: detailed preload recovery loop behavior (continue-on-error with warnings) is implicitly tested by the main preload test succeeding despite LPC errors in example mudlib.
 
-**Item 6 (future behavior change):** ✓ Added as forward-looking disabled test:
-  - `LPCInterpreterTest.DISABLED_throwZeroNormalizesToUnspecifiedError`
+**Item 6 (future behavior change):** ✓ Implemented and enabled:
+  - `LPCInterpreterTest.throwZeroNormalizesToUnspecifiedError`
   - Will be enabled in Phase 2 when throw(0) normalization behavior is implemented.
 
 **Gate Assessment**: All required behavior-level contracts are locked and validated. Source-code-locking approach has been replaced with contract-focused tests that validate actual runtime behavior. This is a quality improvement for migration: exceptions-based Phase 2 can proceed without test brittleness from source structure dependencies.
@@ -542,6 +604,7 @@ Before converting inline startup/bootstrap termination sites into typed fatal ex
 - Update master apply documentation (`docs/applies/master/`) to resolve 6 identified Tier A doc/source alignment gaps:
   - error_handler argument count: clarify two-branch calling convention (1 arg non-caught; 2 args caught with LOG_CATCHES condition).
   - LOG_CATCHES conditionality: document that caught-path callback is build-option dependent.
+  - error string prefix semantics: document that `*`-prefixed caught error strings represent driver/runtime-generated error text (distinct from arbitrary mudlib-thrown payloads), and include brief historical context from `docs/history/` notes where applicable.
   - error mapping shape: document all present keys including 'file' and 'line'.
   - error mapping metadata: document new `kind` key (`catchable` / `limit` / `fatal`) added by typed exception migration.
   - return value semantics: document that non-empty string return value is used as error output.

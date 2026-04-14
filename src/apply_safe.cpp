@@ -22,7 +22,6 @@ svalue_t *safe_apply_cpp (const char *fun, object_t *ob, int num_arg, int where)
   try
     {
       neolith::error_boundary_guard boundary (&econ);
-      set_context_transport_mode (&econ, ERROR_CONTEXT_TRANSPORT_EXCEPTION);
 
       try
         {

@@ -8,10 +8,10 @@
  * defined (i.e. PACKAGE_JSON=ON at cmake configure time with Boost.JSON
  * available).
  *
- * longjmp safety
- * --------------
- * The LPC error() function uses longjmp(), which bypasses C++ destructors.
- * Two strategies are used to avoid leaking live C++ objects:
+ * error-boundary safety
+ * ---------------------
+ * LPC runtime errors are delivered through the driver's exception boundaries.
+ * Two strategies are used to avoid leaking live C++ objects across error paths:
  *
  *   f_to_json: validate_for_json() walks the entire LPC value tree and
  *     calls error() (if any mapping key is non-string) BEFORE any Boost.JSON
@@ -19,7 +19,7 @@
  *
  *   f_from_json: uses the error_code overload of boost::json::parse() to
  *     avoid exceptions.  If parse fails, the returned boost::json::value is
- *     a default null (no heap allocation), so longjmping over it is safe.
+ *     a default null (no heap allocation), so early error propagation is safe.
  *     OOM errors inside json_to_lpc() (allocate_array / allocate_mapping)
  *     are catastrophic-context events treated as unrecoverable.
  */

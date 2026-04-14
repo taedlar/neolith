@@ -34,15 +34,15 @@ void ExpectTopReal(double expected) {
 TEST_F(EfunsTest, throwError) {
     error_context_t econ;
     save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        debug_message("***** expected: caught error raised by efun throw()");
-    }
-    else {
+    try {
         // do efun throw() without catching it.
         push_constant_string("Error thrown by efun throw()");
         f_throw();
         FAIL() << "Efun throw() did not throw an LPC error as expected.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context (&econ);
+        debug_message("***** expected: caught error raised by efun throw()");
     }
     pop_context (&econ);
 }
@@ -61,20 +61,20 @@ TEST_F(EfunsTest, throwWithoutCatchRaisesRuntimeError) {
     int runtime_index = found_prog->function_table[index].runtime_index + fio;
 
     error_context_t econ;
-    volatile int jumped = 0;
+    volatile int raised = 0;
     save_context(&econ);
-    if (setjmp(econ.context)) {
-        jumped = 1;
-        restore_context(&econ);
-    }
-    else {
+    try {
         eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
         call_function(prog, runtime_index, 0, nullptr);
+    }
+    catch (const neolith::driver_runtime_error &) {
+        raised = 1;
+        restore_context(&econ);
     }
     pop_context(&econ);
     free_prog(prog, 1);
 
-    EXPECT_EQ(jumped, 1) << "throw() outside catch() must raise runtime error path.";
+    EXPECT_EQ(raised, 1) << "throw() outside catch() must raise runtime error path.";
 }
 
 TEST_F(EfunsTest, errorHandlerCallableContract) {
@@ -117,13 +117,13 @@ TEST_F(EfunsTest, errorHandlerCallableContract) {
     error_context_t econ;
     volatile int error_caught = 0;
     save_context(&econ);
-    if (setjmp(econ.context)) {
-        error_caught = 1;
-        restore_context(&econ);
-    }
-    else {
+    try {
         eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
         call_function(prog, runtime_index, 0, nullptr);
+    }
+    catch (const neolith::driver_runtime_error &) {
+        error_caught = 1;
+        restore_context(&econ);
     }
     pop_context(&econ);
     free_prog(prog, 1);

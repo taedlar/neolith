@@ -38,7 +38,6 @@ void look_for_objects_to_swap_guarded(void) {
           return;
         }
 
-      set_context_transport_mode(&econ, ERROR_CONTEXT_TRANSPORT_EXCEPTION);
 
       try
         {
@@ -109,7 +108,6 @@ void preload_objects_guarded(int eflag) {
   if (!save_context(&econ))
     return;
 
-  set_context_transport_mode(&econ, ERROR_CONTEXT_TRANSPORT_EXCEPTION);
 
   try
     {
@@ -146,7 +144,6 @@ void preload_objects_guarded(int eflag) {
           break;
         }
 
-      set_context_transport_mode(&preload_econ, ERROR_CONTEXT_TRANSPORT_EXCEPTION);
 
       try
         {
@@ -190,7 +187,6 @@ void backend_run_loop_guarded(void) {
       fatal("backend: failed to establish recovery context.\n");
     }
 
-  set_context_transport_mode(&econ, ERROR_CONTEXT_TRANSPORT_EXCEPTION);
 
   if (MAIN_OPTION(console_mode))
     init_console_user(0);

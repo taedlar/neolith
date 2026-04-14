@@ -45,7 +45,17 @@ void f_error (void) {
 #ifdef F_THROW
 void f_throw (void) {
   free_svalue (&catch_value, "f_throw");
-  catch_value = *sp--;
+  if (sp->type == T_NUMBER && sp->u.number == 0)
+    {
+      catch_value.type = T_STRING;
+      catch_value.subtype = STRING_MALLOC;
+      catch_value.u.string = string_copy ("*Unspecified error", "f_throw");
+      sp--;
+    }
+  else
+    {
+      catch_value = *sp--;
+    }
   throw_error ();		/* do the longjump, with extra checks... */
 }
 #endif

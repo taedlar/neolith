@@ -17,7 +17,6 @@ void invoke_master_crash_handler_guarded(const char *msg) {
   try
     {
       neolith::error_boundary_guard boundary(&econ);
-      set_context_transport_mode(&econ, ERROR_CONTEXT_TRANSPORT_EXCEPTION);
 
       try
         {

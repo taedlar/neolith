@@ -70,8 +70,9 @@ static void heartbeat_timer_callback(void) {
 
 /*
  * There are global variables that must be zeroed before any execution.
- * In case of errors, there will be a LONGJMP(), and the variables will
- * have to be cleared explicitely. They are normally maintained by the
+ * In case of runtime errors, boundary exception handling restores control,
+ * and these globals still need explicit reset at top-level boundaries.
+ * They are normally maintained by the
  * code that use them.
  *
  * This routine must only be called from top level, not from inside

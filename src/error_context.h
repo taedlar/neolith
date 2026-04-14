@@ -1,9 +1,8 @@
 #pragma once
 
 #include "interpret.h"
-#include <setjmp.h>
 
-// Phase 2: C++ exception classes for error handling (outside extern "C")
+// Phase 5: Exception-based error handling (jmp_buf retired)
 #ifdef __cplusplus
 #include "exceptions.hpp"
 #include "error_guards.hpp"
@@ -14,8 +13,6 @@ extern "C" {
 #endif
 
 typedef struct error_context_s {
-    jmp_buf context;
-    int transport_mode;
     control_stack_t *save_csp;
     object_t *save_command_giver; 
     svalue_t *save_sp;
@@ -27,15 +24,10 @@ typedef struct error_context_s {
 #define CATCH_ERROR_CONTEXT      2
 #define SAFE_APPLY_ERROR_CONTEXT 4
 
-#define ERROR_CONTEXT_TRANSPORT_LONGJMP   0
-#define ERROR_CONTEXT_TRANSPORT_EXCEPTION 1
-
-/* longjmp() contexts for native C error handling */
+/* Exception-based error handling context management */
 void pop_context(error_context_t *);
 void restore_context(error_context_t *);
 int save_context(error_context_t *);
-void set_context_transport_mode(error_context_t *, int);
-int get_context_transport_mode(const error_context_t *);
 
 /* LPC error handling */
 extern svalue_t catch_value;

@@ -25,11 +25,6 @@ svalue_t catch_value = { T_NUMBER, 0, { 0 } };
 
 static error_context_t *current_error_context = 0;
 
-static int current_context_uses_exceptions(void) {
-  return current_error_context &&
-         current_error_context->transport_mode == ERROR_CONTEXT_TRANSPORT_EXCEPTION;
-}
-
 /*
  * Return true if the currently active error context chain contains a catch
  * boundary established by do_catch(). This keeps the legacy save_csp+1
@@ -54,6 +49,7 @@ static int has_active_catch_boundary(void) {
   return 0;
 }
 
+
 /**
  * @brief Save the current virtual machine execution context as current error
  * handling context (after push previous error handling context onto the stack).
@@ -61,7 +57,6 @@ static int has_active_catch_boundary(void) {
  * Be careful. This assumes there will be a frame pushed right after this,
  * as we use econ->save_csp + 1 to restore.
  * 
- * This is also followed by a try block (or setjmp), so it must not be inlined.
  * Previous error context is pushed and MUST be restored by a pop_context() after
  * current error handling context has finished, no matter if exception is thrown or not.
  * 
@@ -89,7 +84,6 @@ int save_context (error_context_t * econ) {
   econ->save_command_giver = command_giver;
   econ->save_sp = sp;           /* stack pointer */
   econ->save_csp = csp;         /* control stack pointer */
-  econ->transport_mode = ERROR_CONTEXT_TRANSPORT_LONGJMP;
   econ->save_context = current_error_context;
 
   current_error_context = econ;
@@ -103,23 +97,10 @@ int save_context (error_context_t * econ) {
   return depth;
 }
 
-extern "C"
-void set_context_transport_mode (error_context_t *econ, int mode) {
-  if (!econ)
-    return;
-  econ->transport_mode = mode;
-}
-
-extern "C"
-int get_context_transport_mode (const error_context_t *econ) {
-  if (!econ)
-    return ERROR_CONTEXT_TRANSPORT_LONGJMP;
-  return econ->transport_mode;
-}
-
 /**
  * @brief Pop the current error handling context off the stack of error
  * handling contexts.
+
  * 
  * This function must be called after save_context() when the saved context
  * is no longer needed, to restore the previous error handling context.
@@ -177,24 +158,19 @@ void restore_context (error_context_t * econ) {
 }
 
 /**
- * @brief error() has been "fixed" so that users can catch and throw them.
- * To catch them nicely, we really have to provide decent error information.
- * Hence, all errors that are to be caught construct a string containing
- * the error message, which is returned as the thrown value.
+ * @brief Throw an error to an active catch boundary.
+ * 
+ * Phase 5: All error contexts now use C++ exception transport (no more longjmp fallback).
+ * To catch them nicely, we provide error information via typed exceptions.
  * Users can throw their own error values however they choose.
  * 
- * Phase 3: throw() to an active catch boundary is transported with a typed
- * exception. Outside catch boundaries, throw() raises a runtime error.
+ * This is transported with a typed exception. Outside catch boundaries, throw() raises a runtime error.
  */
 extern "C"
 void throw_error () {
   if (has_active_catch_boundary())
     {
-      if (current_context_uses_exceptions())
-        {
-          throw catchable_runtime_error ("*Thrown value");
-        }
-      longjmp (current_error_context->context, 1);
+      throw catchable_runtime_error ("*Thrown value");
     }
   error ("*Throw with no catch.");
 }
@@ -257,57 +233,51 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
     }
 }
 
-extern "C"
-void error_handler (const char *err) {
-  /* in case we're going to throw from load_object or destruct_object */
-  reset_destruct_object_limits();
-  reset_load_object_limits();
-
-  if (has_active_catch_boundary() && !in_fatal_error())
+/**
+ * @brief Handle a caught error at an active catch boundary.
+ *
+ * Phase 5: All error contexts now use C++ exception transport exclusively.
+ * This function is called from error_handler when we have an active catch boundary.
+ */
+[[noreturn]] static void handle_caught_error(const char *err) {
+  if (get_error_state (ES_MAX_EVAL_COST))
     {
-#ifdef LOG_CATCHES
-      if (in_mudlib_error_handler)
-        {
-          debug_message ("{}\t***** error in mudlib error handler (caught)");
-          debug_message_with_location (err);
-          dump_trace (g_trace_flag);
-          in_mudlib_error_handler = 0;
-        }
-      else
-        {
-          in_mudlib_error_handler = 1;
-          mudlib_error_handler (err, 1);
-          in_mudlib_error_handler = 0;
-        }
-#endif	/* LOG_CATCHES */
-
-      if (current_context_uses_exceptions())
-        {
-          if (get_error_state (ES_MAX_EVAL_COST))
-            {
-              throw noncatchable_runtime_limit ("*Can't catch eval cost too big error.");
-            }
-          if (get_error_state (ES_STACK_FULL))
-            {
-              throw noncatchable_runtime_limit ("*Can't catch too deep recursion error.");
-            }
-
-          catch_value_guard guard;
-          guard.set_caught_error (err);
-          guard.commit_success ();
-
-          throw catchable_runtime_error (err);
-        }
-
-      free_svalue (&catch_value, "caught error");
-      catch_value.type = T_STRING;
-      catch_value.subtype = STRING_MALLOC;
-      catch_value.u.string = string_copy (err, "caught error");
-
-      longjmp (current_error_context->context, 1);
+      throw noncatchable_runtime_limit ("*Can't catch eval cost too big error.");
+    }
+  if (get_error_state (ES_STACK_FULL))
+    {
+      throw noncatchable_runtime_limit ("*Can't catch too deep recursion error.");
     }
 
-  if (in_error)
+#ifdef LOG_CATCHES
+  if (in_mudlib_error_handler_already())
+    {
+      debug_message ("{}\t***** error in mudlib error handler (caught)");
+      debug_message_with_location (err);
+      dump_trace (g_trace_flag);
+    }
+  else
+    {
+      error_reentry_guard guard(error_reentry_guard::flag::IN_MUDLIB_ERROR_HANDLER);
+      mudlib_error_handler (err, 1);
+    }
+#endif	/* LOG_CATCHES */
+
+  catch_value_guard guard;
+  guard.set_caught_error (err);
+  guard.commit_success ();
+
+  throw catchable_runtime_error (err);
+}
+
+/**
+ * @brief Handle an error at a non-catch boundary.
+ *
+ * Phase 5: All error contexts now use C++ exception transport exclusively.
+ * This function is called from error_handler when there is no active catch.
+ */
+[[noreturn]] static void handle_uncaught_error(const char *err) {
+  if (in_error_handler_already())
     {
       debug_message ("{}\t***** New error occured while generating error trace!");
       debug_message_with_location (err);
@@ -315,31 +285,23 @@ void error_handler (const char *err) {
 
       if (current_error_context)
         {
-          if (current_context_uses_exceptions())
-            {
-              throw fatal_runtime_error (err);
-            }
-          longjmp (current_error_context->context, 1);
+          throw fatal_runtime_error (err);
         }
-      fatal ("failed longjmp() or no error context for error.");
+      fatal ("failed to propagate error from reentrant error handler.");
     }
 
-  in_error = 1;
+  error_reentry_guard guard(error_reentry_guard::flag::IN_ERROR);
 
-  if (in_mudlib_error_handler)
+  if (in_mudlib_error_handler_already())
     {
       debug_message ("{}\t***** error in mudlib error handler");
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
-      in_mudlib_error_handler = 0;
     }
   else
     {
-      in_mudlib_error_handler = 1;
-      in_error = 0;
+      error_reentry_guard mudlib_guard(error_reentry_guard::flag::IN_MUDLIB_ERROR_HANDLER);
       mudlib_error_handler (err, 0);
-      in_error = 1;
-      in_mudlib_error_handler = 0;
     }
 
   if (current_heart_beat)
@@ -353,18 +315,25 @@ void error_handler (const char *err) {
       current_heart_beat = 0;
     }
 
-  in_error = 0;
-
-  /* Legacy boundaries still use longjmp; migrated boundaries opt into exceptions. */
   if (current_error_context)
     {
-      if (current_context_uses_exceptions())
-        {
-          throw catchable_runtime_error (err);
-        }
-      longjmp (current_error_context->context, 1);
+      throw catchable_runtime_error (err);
     }
-  fatal ("failed longjmp() or no error context for error.");
+  fatal ("no error context for error.");
+}
+
+extern "C"
+void error_handler (const char *err) {
+  /* in case we're going to throw from load_object or destruct_object */
+  reset_destruct_object_limits();
+  reset_load_object_limits();
+
+  if (has_active_catch_boundary() && !in_fatal_error())
+    {
+      handle_caught_error(err);
+    }
+
+  handle_uncaught_error(err);
 }
 
 extern "C"

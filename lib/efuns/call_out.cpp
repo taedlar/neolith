@@ -4,6 +4,8 @@
 
 #include "src/std.h"
 #include "src/comm.h"
+#include "src/error_context.h"
+#include "src/exceptions.hpp"
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/include/origin.h"
@@ -200,11 +202,7 @@ call_out ()
                 opt_trace (TT_BACKEND|2, "executing call_out to %s \"%s\"",
                            cop->ob ? cop->ob->name : "(function)",
                            cop->ob ? cop->function.s : "");
-                if (setjmp (econ.context))
-                  {
-                    restore_context (&econ);
-                  }
-                else
+                try
                   {
                     object_t *ob = cop->ob;
                     command_giver = 0;
@@ -252,6 +250,10 @@ call_out ()
                       {
                         (void) call_function_pointer (cop->function.f, extra);
                       }
+                  }
+                catch (const neolith::driver_runtime_error &)
+                  {
+                    restore_context (&econ);
                   }
                 free_called_call (cop);
                 cop = 0;
@@ -497,7 +499,7 @@ remove_all_call_out (object_t * obj)
 
 
 #ifdef F_CALL_OUT
-void f_call_out (void) {
+extern "C" void f_call_out (void) {
   svalue_t *arg = sp - st_num_arg + 1;
   int num = st_num_arg - 2;
 #ifdef CALLOUT_HANDLES
@@ -537,7 +539,7 @@ void f_call_out (void) {
 
 
 #ifdef F_FIND_CALL_OUT
-void f_find_call_out (void) {
+extern "C" void f_find_call_out (void) {
   int i;
 #ifdef CALLOUT_HANDLES
   if (sp->type == T_NUMBER)
@@ -558,7 +560,7 @@ void f_find_call_out (void) {
 
 
 #ifdef F_REMOVE_CALL_OUT
-void f_remove_call_out (void) {
+extern "C" void f_remove_call_out (void) {
   int i;
 
   if (st_num_arg)
@@ -589,7 +591,7 @@ void f_remove_call_out (void) {
 
 
 #ifdef F_CALL_OUT_INFO
-void f_call_out_info (void) {
+extern "C" void f_call_out_info (void) {
   push_refed_array (get_all_call_outs ());
 }
 #endif
