@@ -10,6 +10,9 @@
 #include "lpc/program.h"
 #include "lpc/include/origin.h"
 
+/* C++ exception boundary wrapper implemented in apply_safe.cpp. */
+extern svalue_t *safe_apply_cpp (const char *fun, object_t *ob, int num_arg, int where);
+
 /*
  * Apply a fun 'fun' to the program in object 'ob', with
  * 'num_arg' arguments (already pushed on the stack).
@@ -432,34 +435,13 @@ svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
  * and not have to worry about causing serious bugs when errors occur in the
  * applied function and the driver depends on being able to do something
  * after the apply. (such as the ed exit function, and the net_dead function).
- * note: this function uses setjmp() and thus is fairly expensive when
- * compared to a normal apply().  Use sparingly.
+ * This function delegates to a C++ exception boundary wrapper while
+ * preserving the C ABI and return-value contract.
  */
 
 svalue_t *safe_apply (const char *fun, object_t * ob, int num_arg, int where)
 {
-  svalue_t *ret;
-  error_context_t econ;
-
-  if (!save_context (&econ))
-    return 0;
-
-  if (!setjmp (econ.context))
-    {
-      if (!(ob->flags & O_DESTRUCTED))
-        {
-          ret = apply (fun, ob, num_arg, where);
-        }
-      else
-        ret = 0;
-    }
-  else
-    {
-      restore_context (&econ);
-      ret = 0;
-    }
-  pop_context (&econ);
-  return ret;
+  return safe_apply_cpp (fun, ob, num_arg, where);
 }
 
 /**

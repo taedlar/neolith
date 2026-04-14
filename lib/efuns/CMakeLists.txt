@@ -3,7 +3,7 @@
 set(efuns_SOURCES
     bits.c
     call_other.c
-    call_out.c
+    call_out.cpp
     command.c
     datetime.c
     debug.c

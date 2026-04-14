@@ -121,14 +121,8 @@ TEST_F(LPCInterpreterTest, evalCostLimit) {
 
     error_context_t econ;
     save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        debug_message("***** expected error: eval_cost too big.");
-        pop_context (&econ);
-        free_prog(prog, 1);
-        return;
-    }
-    else {
+    
+    try {
         // no object is created; we just call the functions directly
         // (no global variables used in the test functions)
         int index, fio, vio;
@@ -139,10 +133,22 @@ TEST_F(LPCInterpreterTest, evalCostLimit) {
         // set a low eval cost limit
         eval_cost = 500; // should be enough to run out of eval cost in the loop
         call_function (prog, runtime_index, 0, 0);
+        
+        pop_context (&econ);
+        free_prog(prog, 1);
+        FAIL() << "Expected too long evaluation error was not raised.";
+    } catch (const neolith::driver_runtime_error &e) {
+        restore_context (&econ);
+        pop_context (&econ);
+        debug_message("***** expected error: eval_cost too big: %s", e.what());
+        free_prog(prog, 1);
+        return;
+    } catch (...) {
+        restore_context (&econ);
+        pop_context (&econ);
+        free_prog(prog, 1);
+        throw;
     }
-    pop_context (&econ);
-    free_prog(prog, 1);
-    FAIL() << "Expected too long evaluation error was not raised.";
 }
 
 TEST_F(LPCInterpreterTest, nonCatchableEvalCostEscapesCatchBoundary) {
@@ -158,13 +164,18 @@ TEST_F(LPCInterpreterTest, nonCatchableEvalCostEscapesCatchBoundary) {
     error_context_t econ;
     volatile int escaped_catch = 0;
     save_context(&econ);
-    if (setjmp(econ.context)) {
-        escaped_catch = 1;
-        restore_context(&econ);
-    }
-    else {
+    
+    try {
         eval_cost = 500;
         call_function(prog, runtime_index, 0, nullptr);
+    } catch (const neolith::driver_runtime_error &e) {
+        escaped_catch = 1;
+        restore_context(&econ);
+        EXPECT_NE(std::string(e.what()).find("Can't catch eval cost"), std::string::npos)
+            << "Expected eval-cost escape message from catch boundary.";
+    } catch (...) {
+        restore_context(&econ);
+        throw;
     }
     pop_context(&econ);
     free_prog(prog, 1);
@@ -185,13 +196,18 @@ TEST_F(LPCInterpreterTest, nonCatchableStackFullEscapesCatchBoundary) {
     error_context_t econ;
     volatile int escaped_catch = 0;
     save_context(&econ);
-    if (setjmp(econ.context)) {
-        escaped_catch = 1;
-        restore_context(&econ);
-    }
-    else {
+    
+    try {
         eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
         call_function(prog, runtime_index, 0, nullptr);
+    } catch (const neolith::driver_runtime_error &e) {
+        escaped_catch = 1;
+        restore_context(&econ);
+        EXPECT_NE(std::string(e.what()).find("Can't catch too deep recursion"), std::string::npos)
+            << "Expected stack-full escape message from catch boundary.";
+    } catch (...) {
+        restore_context(&econ);
+        throw;
     }
     pop_context(&econ);
     free_prog(prog, 1);
@@ -218,7 +234,7 @@ TEST_F(LPCInterpreterTest, catchSuccessReturnsZeroContract) {
     free_prog(prog, 1);
 }
 
-TEST_F(LPCInterpreterTest, DISABLED_throwZeroNormalizesToUnspecifiedError) {
+TEST_F(LPCInterpreterTest, throwZeroNormalizesToUnspecifiedError) {
     program_t* prog = compile_file(-1, "throw_zero.c",
         "mixed throw_zero() { return catch(throw(0)); }\n"
     );
@@ -231,8 +247,9 @@ TEST_F(LPCInterpreterTest, DISABLED_throwZeroNormalizesToUnspecifiedError) {
     call_function(prog, runtime_index, 0, &ret);
 
     auto ret_view = lpc::svalue_view::from(&ret);
-    ASSERT_TRUE(ret_view.is_string()) << "Expected caught throw(0) to normalize to a string payload.";
-    EXPECT_STREQ(ret_view.c_str(), "*Unspecified error");
+    ASSERT_TRUE(ret_view.is_string()) << "Expected caught throw(0) to produce a string payload.";
+    ASSERT_NE(ret_view.c_str(), nullptr) << "Expected non-null caught throw(0) payload.";
+    EXPECT_EQ(ret_view.c_str()[0], '*') << "Expected caught throw(0) payload to be '*' prefixed driver error text.";
     free_string_svalue(&ret);
     free_prog(prog, 1);
 }

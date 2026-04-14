@@ -8,10 +8,10 @@
  * defined (i.e. PACKAGE_JSON=ON at cmake configure time with Boost.JSON
  * available).
  *
- * longjmp safety
- * --------------
- * The LPC error() function uses longjmp(), which bypasses C++ destructors.
- * Two strategies are used to avoid leaking live C++ objects:
+ * error-boundary safety
+ * ---------------------
+ * LPC runtime errors are delivered through the driver's exception boundaries.
+ * Two strategies are used to avoid leaking live C++ objects across error paths:
  *
  *   f_to_json: validate_for_json() walks the entire LPC value tree and
  *     calls error() (if any mapping key is non-string) BEFORE any Boost.JSON
@@ -19,7 +19,7 @@
  *
  *   f_from_json: uses the error_code overload of boost::json::parse() to
  *     avoid exceptions.  If parse fails, the returned boost::json::value is
- *     a default null (no heap allocation), so longjmping over it is safe.
+ *     a default null (no heap allocation), so early error propagation is safe.
  *     OOM errors inside json_to_lpc() (allocate_array / allocate_mapping)
  *     are catastrophic-context events treated as unrecoverable.
  */
@@ -301,8 +301,8 @@ void f_from_json(void)
     sp->type = T_INVALID;
 
     if (ec) {
-      /* Build error message before any longjmp.  jv is a default null value
-      * when parse fails (no heap allocation), so longjmping over it is safe. */
+      /* Build the error message before raising the runtime error.
+       * jv is a default null value when parse fails (no heap allocation). */
       char errbuf[256];
       {
         std::string msg = ec.message();
@@ -314,9 +314,8 @@ void f_from_json(void)
       sp->u.number = 0;
       error("%s", errbuf);
     }
-    /* move parsed result to the heap.
-     * if we kept it on the stack, json_to_lpc() would have to longjmp over it on OOM,
-     * which would be unsafe. */
+    /* Move parsed result to the heap so ownership stays explicit if
+     * json_to_lpc() raises a runtime error (for example on OOM). */
     parsed = new boost::json::value(std::move(jv));
   }
 

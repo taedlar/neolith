@@ -25,6 +25,31 @@ svalue_t catch_value = { T_NUMBER, 0, { 0 } };
 
 static error_context_t *current_error_context = 0;
 
+/*
+ * Return true if the currently active error context chain contains a catch
+ * boundary established by do_catch(). This keeps the save_csp+1
+ * catch-frame convention encapsulated in one place.
+ */
+static int has_active_catch_boundary(void) {
+  error_context_t *ctx = current_error_context;
+
+  while (ctx)
+    {
+      control_stack_t *catch_frame = ctx->save_csp + 1;
+
+      if (catch_frame >= control_stack && catch_frame <= csp &&
+          ((catch_frame->framekind & FRAME_MASK) == FRAME_CATCH))
+        {
+          return 1;
+        }
+
+      ctx = ctx->save_context;
+    }
+
+  return 0;
+}
+
+
 /**
  * @brief Save the current virtual machine execution context as current error
  * handling context (after push previous error handling context onto the stack).
@@ -32,7 +57,6 @@ static error_context_t *current_error_context = 0;
  * Be careful. This assumes there will be a frame pushed right after this,
  * as we use econ->save_csp + 1 to restore.
  * 
- * This is also followed by a try block (or setjmp), so it must not be inlined.
  * Previous error context is pushed and MUST be restored by a pop_context() after
  * current error handling context has finished, no matter if exception is thrown or not.
  * 
@@ -76,6 +100,7 @@ int save_context (error_context_t * econ) {
 /**
  * @brief Pop the current error handling context off the stack of error
  * handling contexts.
+
  * 
  * This function must be called after save_context() when the saved context
  * is no longer needed, to restore the previous error handling context.
@@ -133,21 +158,18 @@ void restore_context (error_context_t * econ) {
 }
 
 /**
- * @brief error() has been "fixed" so that users can catch and throw them.
- * To catch them nicely, we really have to provide decent error information.
- * Hence, all errors that are to be caught construct a string containing
- * the error message, which is returned as the thrown value.
+ * @brief Throw an error to an active catch boundary.
+ * 
+ * To catch them nicely, we provide error information via typed exceptions.
  * Users can throw their own error values however they choose.
  * 
- * Phase 2: Still uses longjmp for transport. Exception-based transport will
- * be introduced in Phases 3-4 as boundaries are migrated.
+ * This is transported with a typed exception. Outside catch boundaries, throw() raises a runtime error.
  */
 extern "C"
 void throw_error () {
-  if (current_error_context && ((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH)
+  if (has_active_catch_boundary())
     {
-      /* error string in catch_value */
-      longjmp (current_error_context->context, 1);
+      throw catchable_runtime_error ("*Thrown value");
     }
   error ("*Throw with no catch.");
 }
@@ -210,73 +232,73 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
     }
 }
 
-extern "C"
-void error_handler (const char *err) {
-  /* in case we're going to throw from load_object or destruct_object */
-  reset_destruct_object_limits();
-  reset_load_object_limits();
-
-  if (current_error_context &&
-      ((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH &&
-      !in_fatal_error())
+/**
+ * @brief Handle a caught error at an active catch boundary.
+ *
+ * This function is called from error_handler when we have an active catch boundary.
+ */
+[[noreturn]] static void handle_caught_error(const char *err) {
+  if (get_error_state (ES_MAX_EVAL_COST))
     {
-#ifdef LOG_CATCHES
-      if (in_mudlib_error_handler)
-        {
-          debug_message ("{}\t***** error in mudlib error handler (caught)");
-          debug_message_with_location (err);
-          dump_trace (g_trace_flag);
-          in_mudlib_error_handler = 0;
-        }
-      else
-        {
-          in_mudlib_error_handler = 1;
-          mudlib_error_handler (err, 1);
-          in_mudlib_error_handler = 0;
-        }
-#endif	/* LOG_CATCHES */
-
-      /* free catch_value allocated in last catch if any */
-      free_svalue (&catch_value, "caught error");
-
-      /* allocate new catch_value */
-      catch_value.type = T_STRING;
-      catch_value.subtype = STRING_MALLOC;
-      catch_value.u.string = string_copy (err, "caught error");
-
-      /* Phase 2: Dispatch typed exception; do_catch boundary longjmps below (migration-only) */
-      /* Phase 3 will replace this with try-catch in do_catch, removing the longjmp here */
-      if (current_error_context)
-        longjmp (current_error_context->context, 1);
+      throw noncatchable_runtime_limit ("*Can't catch eval cost too big error.");
+    }
+  if (get_error_state (ES_STACK_FULL))
+    {
+      throw noncatchable_runtime_limit ("*Can't catch too deep recursion error.");
     }
 
-  if (in_error)
+#ifdef LOG_CATCHES
+  if (in_mudlib_error_handler_already())
+    {
+      debug_message ("{}\t***** error in mudlib error handler (caught)");
+      debug_message_with_location (err);
+      dump_trace (g_trace_flag);
+    }
+  else
+    {
+      error_reentry_guard guard(error_reentry_guard::flag::IN_MUDLIB_ERROR_HANDLER);
+      mudlib_error_handler (err, 1);
+    }
+#endif	/* LOG_CATCHES */
+
+  catch_value_guard guard;
+  guard.set_caught_error (err);
+  guard.commit_success ();
+
+  throw catchable_runtime_error (err);
+}
+
+/**
+ * @brief Handle an error at a non-catch boundary.
+ *
+ * This function is called from error_handler when there is no active catch.
+ */
+[[noreturn]] static void handle_uncaught_error(const char *err) {
+  if (in_error_handler_already())
     {
       debug_message ("{}\t***** New error occured while generating error trace!");
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
 
       if (current_error_context)
-        longjmp (current_error_context->context, 1);
-      fatal ("failed longjmp() or no error context for error.");
+        {
+          throw fatal_runtime_error (err);
+        }
+      fatal ("failed to propagate error from reentrant error handler.");
     }
 
-  in_error = 1;
+  error_reentry_guard guard(error_reentry_guard::flag::IN_ERROR);
 
-  if (in_mudlib_error_handler)
+  if (in_mudlib_error_handler_already())
     {
       debug_message ("{}\t***** error in mudlib error handler");
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
-      in_mudlib_error_handler = 0;
     }
   else
     {
-      in_mudlib_error_handler = 1;
-      in_error = 0;
+      error_reentry_guard mudlib_guard(error_reentry_guard::flag::IN_MUDLIB_ERROR_HANDLER);
       mudlib_error_handler (err, 0);
-      in_error = 1;
-      in_mudlib_error_handler = 0;
     }
 
   if (current_heart_beat)
@@ -290,13 +312,25 @@ void error_handler (const char *err) {
       current_heart_beat = 0;
     }
 
-  in_error = 0;
-
-  /* Phase 2: longjmp to any available error context (recovery boundary) */
-  /* Phase 4 will replace this with typed exception propagation at driver guard boundaries */
   if (current_error_context)
-    longjmp (current_error_context->context, 1);
-  fatal ("failed longjmp() or no error context for error.");
+    {
+      throw catchable_runtime_error (err);
+    }
+  fatal ("no error context for error.");
+}
+
+extern "C"
+void error_handler (const char *err) {
+  /* in case we're going to throw from load_object or destruct_object */
+  reset_destruct_object_limits();
+  reset_load_object_limits();
+
+  if (has_active_catch_boundary() && !in_fatal_error())
+    {
+      handle_caught_error(err);
+    }
+
+  handle_uncaught_error(err);
 }
 
 extern "C"
@@ -471,14 +505,6 @@ bool is_runtime_error(const std::exception *ex) noexcept {
     return (dynamic_cast<const neolith::catchable_runtime_error*>(ex) != nullptr ||
             dynamic_cast<const neolith::noncatchable_runtime_limit*>(ex) != nullptr ||
             dynamic_cast<const neolith::fatal_runtime_error*>(ex) != nullptr);
-}
-
-/**
- * @brief Phase 2: Unused - no longer needed as error_handler_cpp was removed.
- * This stub is kept for test compatibility until header is cleaned up.
- */
-void error_handler_cpp(const char *err) {
-    error_handler(err);
 }
 
 } // extern "C"

@@ -119,14 +119,14 @@ TEST_F(EfunsTest, toJsonNonStringKeyError) {
     bool error_raised = false;
     error_context_t econ;
     save_context(&econ); /* save before push so restore_context unwinds it */
-    if (setjmp(econ.context)) {
-        restore_context(&econ);
-        error_raised = true;
-    }
-    else {
+    try {
         push_refed_mapping(m);
         f_to_json();
         FAIL() << "to_json with non-string key should have raised an error.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context(&econ);
+        error_raised = true;
     }
     pop_context(&econ);
     EXPECT_TRUE(error_raised);
@@ -239,14 +239,14 @@ TEST_F(EfunsTest, fromJsonInvalidError) {
     bool error_raised = false;
     error_context_t econ;
     save_context(&econ);
-    if (setjmp(econ.context)) {
-        restore_context(&econ);
-        error_raised = true;
-    }
-    else {
+    try {
         copy_and_push_string("{ invalid");
         f_from_json();
         FAIL() << "from_json with invalid JSON should have raised an error.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context(&econ);
+        error_raised = true;
     }
     pop_context(&econ);
     EXPECT_TRUE(error_raised);
@@ -256,17 +256,17 @@ TEST_F(EfunsTest, fromJsonInvalidBufferError) {
     bool error_raised = false;
     error_context_t econ;
     save_context(&econ);
-    if (setjmp(econ.context)) {
-        restore_context(&econ);
-        error_raised = true;
-    }
-    else {
+    try {
         static const char payload[] = "{ invalid";
         buffer_t *buf = allocate_buffer(sizeof(payload) - 1);
         memcpy(buf->item, payload, sizeof(payload) - 1);
         push_refed_buffer(buf);
         f_from_json();
         FAIL() << "from_json with invalid JSON buffer should have raised an error.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context(&econ);
+        error_raised = true;
     }
     pop_context(&econ);
     EXPECT_TRUE(error_raised);

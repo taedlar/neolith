@@ -2518,7 +2518,7 @@ void eval_instruction (const char *p) {
           {
             free_svalue (&catch_value, "F_END_CATCH");
             catch_value = const0;
-            /* We come here when no longjmp() was executed */
+            /* We come here on normal catch block completion. */
             pop_control_stack ();
             push_number (0);
             return;		/* return to do_catch */

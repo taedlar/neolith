@@ -238,13 +238,13 @@ TEST_F(LPCCompilerTest, dotCallUnknownEfunFailsCompile) {
 
     error_context_t econ;
     save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        debug_message("***** expected error: dot-call not an efun.");
-    }
-    else {
+    try {
         object_t *obj = load_object("test_dot_call_unknown_fail.c", test_code);
         EXPECT_EQ(obj, nullptr) << "unknown efun dot-call unexpectedly compiled.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call not an efun.");
     }
 
     pop_context (&econ);
@@ -266,13 +266,13 @@ TEST_F(LPCCompilerTest, dotCallArityMismatchFailsCompile) {
 
     error_context_t econ;
     save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        debug_message("***** expected error: dot-call arity mismatch.");
-    }
-    else {
+    try {
         object_t *obj = load_object("test_dot_call_arity_fail.c", test_code);
         EXPECT_EQ(obj, nullptr) << "arity-mismatch dot-call unexpectedly compiled.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call arity mismatch.");
     }
 
     pop_context (&econ);
@@ -295,13 +295,13 @@ TEST_F(LPCCompilerTest, dotCallBadReceiverTypeFailsCompile) {
 
     error_context_t econ;
     save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        debug_message("***** expected error: dot-call bad receiver type.");
-    }
-    else {
+    try {
         object_t *obj = load_object("test_dot_call_bad_receiver_type_fail.c", test_code);
         EXPECT_EQ(obj, nullptr) << "bad receiver type in dot-call unexpectedly compiled.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call bad receiver type.");
     }
 
     pop_context (&econ);
@@ -324,13 +324,13 @@ TEST_F(LPCCompilerTest, dotCallBadTrailingArgumentTypeFailsCompile) {
 
     error_context_t econ;
     save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        debug_message("***** expected error: dot-call bad trailing argument type.");
-    }
-    else {
+    try {
         object_t *obj = load_object("test_dot_call_bad_arg2_type_fail.c", test_code);
         EXPECT_EQ(obj, nullptr) << "bad trailing argument type in dot-call unexpectedly compiled.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call bad trailing argument type.");
     }
 
     pop_context (&econ);
@@ -374,13 +374,13 @@ TEST_F(LPCCompilerTest, dotCallDisallowedEfunFailsCompile) {
 
     error_context_t econ;
     save_context (&econ);
-    if (setjmp(econ.context)) {
-        restore_context (&econ);
-        debug_message("***** expected error: dot-call on disallowed efun.");
-    }
-    else {
+    try {
         object_t *obj = load_object("test_dot_call_disallowed_fail.c", test_code);
         EXPECT_EQ(obj, nullptr) << "disallowed efun dot-call unexpectedly compiled.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context (&econ);
+        debug_message("***** expected error: dot-call on disallowed efun.");
     }
 
     pop_context (&econ);

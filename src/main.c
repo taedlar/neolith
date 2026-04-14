@@ -40,6 +40,7 @@ extern char* realpath(const char* path, char* resolved_path);
 static void parse_command_line (int, char **);
 static void init_debug_log();
 static void print_startup_info();
+extern int run_mudlib_startup_guarded(void);
 
 #ifndef _WIN32
 static RETSIGTYPE sig_fpe (int sig);
@@ -61,7 +62,6 @@ static RETSIGTYPE sig_bus (int sig);
 int main (int argc, char **argv) {
 
   char* locale = NULL;
-  error_context_t econ;
 
 #ifndef _WIN32
   /* Setup signal handlers */
@@ -123,30 +123,11 @@ int main (int argc, char **argv) {
    * 3. Run preload stage (before start listening for connections)
    * 4. Enter backend loop
    */
-  eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-  save_context (&econ);
-  if (setjmp (econ.context))
+  if (!run_mudlib_startup_guarded())
     {
-      /* returned from longjmp() */
-      restore_context (&econ);
-      pop_context (&econ);
       debug_message ("{}\t***** error occurs in mudlib startup, shutting down.");
       exit (EXIT_FAILURE);
     }
-  else
-    {
-      current_time = time (NULL); /* initialize current_time */
-
-      debug_message ("{}\t----- loading simul efuns -----");
-      init_simul_efun (CONFIG_STR (__SIMUL_EFUN_FILE__)); /* could be NULL */
-
-      debug_message ("{}\t----- loading master -----");
-      init_master (CONFIG_STR (__MASTER_FILE__), NULL);
-
-      debug_message ("{}\t----- epilogue -----");
-      preload_objects (MAIN_OPTION(epilog_level)); /* do epilog() and preload() master applies */
-    }
-  pop_context (&econ);
 
   if (g_proceeding_shutdown)
     {

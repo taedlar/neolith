@@ -52,6 +52,9 @@ async_queue_t *g_console_queue = NULL;
 
 static void look_for_objects_to_swap (void);
 static void call_heart_beat (void);
+extern void preload_objects_guarded(int eflag);
+extern void look_for_objects_to_swap_guarded(void);
+extern void backend_run_loop_guarded(void);
 
 /**
  * @brief Heart beat timer callback.
@@ -67,8 +70,9 @@ static void heartbeat_timer_callback(void) {
 
 /*
  * There are global variables that must be zeroed before any execution.
- * In case of errors, there will be a LONGJMP(), and the variables will
- * have to be cleared explicitely. They are normally maintained by the
+ * In case of runtime errors, boundary exception handling restores control,
+ * and these globals still need explicit reset at top-level boundaries.
+ * They are normally maintained by the
  * code that use them.
  *
  * This routine must only be called from top level, not from inside
@@ -207,11 +211,6 @@ void init_console_user(int reconnect) {
  */
 void backend () {
 
-  struct timeval timeout;
-  int nb;
-  int i;
-  error_context_t econ;
-
   opt_info (1, "Entering backend loop.");
 
 #ifdef WINSOCK
@@ -228,7 +227,6 @@ void backend () {
   init_user_conn ();		/* initialize user connection socket */
 
   clear_state ();
-  save_context (&econ);
 
 #ifdef HEARTBEAT_INTERVAL
   /* start timer if any of the timer flags are set */
@@ -262,102 +260,13 @@ void backend () {
   call_heart_beat ();
 #endif /* HEARTBEAT_INTERVAL */
 
-  if (setjmp (econ.context))
-    restore_context (&econ);
-
-  if (MAIN_OPTION(console_mode))
-    init_console_user(0);
-
-  while (1)
-    {
-      /* Has to be cleared if we jumped out of process_user_command() */
-      current_interactive = 0;
-      eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-
-      if (g_proceeding_shutdown)
-        {
-          break;
-        }
-
-      /* Performs housekeeping tasks and garbage collection */
-      remove_destructed_objects ();
-
-      if (slow_shutdown_to_do)
-        {
-          int tmp = slow_shutdown_to_do;
-          slow_shutdown_to_do = 0;
-          do_slow_shutdown (tmp);
-        }
-
-      /*
-       * Grant command processing turns to all connected users.
-       * Also count connected users and check for pending commands to optimize timeout.
-       */
-      int has_pending_commands = 0;
-      int connected_users = 0;
-      for (i = 0; i < max_users; i++)
-        {
-          if (all_users[i])
-            {
-              all_users[i]->iflags |= HAS_CMD_TURN;
-              connected_users++;
-
-              if (!has_pending_commands && (all_users[i]->iflags & CMD_IN_BUF))
-                {
-                  has_pending_commands = 1;
-                }
-            }
-        }
-
-      if (heart_beat_flag || has_pending_commands)
-        {
-          /* When heart beat is active or commands pending, do not wait in poll */
-          timeout.tv_sec = 0;
-          timeout.tv_usec = 0;
-        }
-      else
-        {
-          /* When heart beat is not active and no pending commands, wait up to 60 seconds */
-          timeout.tv_sec = 60;
-          timeout.tv_usec = 0;
-        }
-      nb = do_comm_polling (&timeout); /* blocks until timeout or event */
-      if (nb == -1)
-        {
-          debug_perror ("backend: do_comm_polling", 0);
-          fatal ("backend: do_comm_polling failed.\n");
-        }
-
-      /*
-       * Process any I/O events that have occurred.
-       * This includes new user connections, TELNET negotiation, and user input (buffering).
-       * flush_message() is called for each user to ensure outgoing messages are sent.
-       */
-      if (nb > 0)
-        process_io ();
-
-      /*
-       * Process user commands fairly (round-robin).
-       * Each user gets exactly one turn per cycle (via HAS_CMD_TURN flag).
-       * Loop bounded by connected_users for tighter safety limit.
-       */
-      for (i = 0; process_user_command () && i < connected_users; i++);
-
-      /*
-       * Despite the name, this routine takes care of several things.
-       * - Calls heart_beat() functions in all objects that enable it.
-       * - Calls reset() in objects that need it.
-       * - Calls clean_up() in objects that need it.
-       * - Handles call_out() functions.
-       * The heart_beat_flag is set in the heartbeat timer and cleared 
-       * when call_heart_beat() is called.
-       */
-      if (heart_beat_flag)
-        call_heart_beat ();
-    }
-  pop_context (&econ);
+  backend_run_loop_guarded();
 
   platform_timer_cleanup(&heartbeat_timer);
+}
+
+void backend_call_heart_beat (void) {
+  call_heart_beat ();
 }
 
 /**
@@ -375,88 +284,7 @@ void backend () {
  *      special care has to be taken of how the linked list is used.
  */
 static void look_for_objects_to_swap () {
-  static time_t next_time;
-  object_t* next_ob;
-  object_t *ob;
-  error_context_t econ;
-
-  if (current_time < next_time)	/* Not time to look yet */
-    return;
-  next_time = current_time + 15 * 60;	/* Next time is in 15 minutes */
-
-
-  save_context (&econ);
-  if (setjmp (econ.context))
-    restore_context (&econ); /* catch errors in reset() or clean_up() */
-
-  for (ob = obj_list; ob; ob = next_ob)
-    {
-      time_t ref_time;
-
-      /*
-       * Objects can be destructed, which means that next object to
-       * look at (saved in next_ob) may be removed from obj_list.
-       * In that case, the loop is simply restarted.
-       */
-      if (ob->flags & O_DESTRUCTED)
-        {
-          ob = obj_list;
-          if (!ob)
-            break;
-        }
-      next_ob = ob->next_all;
-      ref_time = ob->time_of_ref;
-      eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-
-      /*
-       * Check reference time before reset() is called.
-       */
-#ifndef LAZY_RESETS
-      /* Should this object have reset(1) called ? */
-      if ((ob->flags & O_WILL_RESET) && (ob->next_reset < current_time)
-          && !(ob->flags & O_RESET_STATE))
-        {
-          reset_object (ob);
-        }
-#endif
-
-      if (CONFIG_INT (__TIME_TO_CLEAN_UP__) > 0)
-        {
-          /*
-           * Has enough time passed, to give the object a chance to
-           * self-destruct ? Save the O_RESET_STATE, which will be cleared.
-           * 
-           * Only call clean_up in objects that has defined such a function.
-           * 
-           * Only if the clean_up returns a non-zero value, will it be called
-           * again.
-           */
-
-          if (current_time - ref_time > CONFIG_INT (__TIME_TO_CLEAN_UP__)
-              && (ob->flags & O_WILL_CLEAN_UP))
-            {
-              int save_reset_state = ob->flags & O_RESET_STATE;
-              svalue_t *svp;
-
-              /*
-               * Supply a flag to the object that says if this program is
-               * inherited by other objects. Cloned objects might as well
-               * believe they are not inherited. Swapped objects will not
-               * have a ref count > 1 (and will have an invalid ob->prog
-               * pointer).
-               */
-              push_number ((ob->flags & O_CLONE) ? 0 : ob->prog->ref);
-              svp = apply (APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
-              if (ob->flags & O_DESTRUCTED)
-                continue;
-              if (!svp || (svp->type == T_NUMBER && svp->u.number == 0))
-                ob->flags &= ~O_WILL_CLEAN_UP;
-              ob->flags |= save_reset_state;
-            }
-        }
-    }
-
-  pop_context (&econ);
+  look_for_objects_to_swap_guarded();
 }				/* look_for_objects_to_swap() */
 
 /* Call all heart_beat() functions in all objects.  Also call the next reset,
@@ -679,55 +507,7 @@ heart_beat_status (outbuffer_t * ob, int verbose)
   *     The master object is asked to do the actual loading.
   */
 void preload_objects (int eflag) {
-
-  array_t *prefiles;
-  svalue_t *ret;
-  volatile int ix;
-  error_context_t econ;
-
-  save_context (&econ);
-  if (setjmp (econ.context))
-    {
-      restore_context (&econ); /* catch errors in master apply epilog() */
-      pop_context (&econ);
-      return;
-    }
-
-  push_number (eflag);
-  ret = apply_master_ob (APPLY_EPILOG, 1);
-  pop_context (&econ);
-
-  if ((ret == 0) || (ret == (svalue_t *) - 1) || (ret->type != T_ARRAY))
-    return;
-  else
-    prefiles = ret->u.arr;
-  if ((prefiles == 0) || (prefiles->size < 1))
-    return;
-  opt_info (1, "Preloading %d objects", prefiles->size);
-
-  prefiles->ref++;
-  ix = 0;
-
-  /* in case of an error, effectively do a 'continue' */
-  save_context (&econ);
-  if (setjmp (econ.context))
-    {
-      restore_context (&econ); /* catch errors in master apply preload() */
-      opt_warn (1, "Error preloading file %d/%d, continuing.", ix + 1, prefiles->size);
-      ix++;
-    }
-  for (; ix < prefiles->size; ix++)
-    {
-      if (prefiles->item[ix].type != T_STRING)
-        continue;
-      eval_cost = CONFIG_INT (__MAX_EVAL_COST__);   /* prevents infinite loops */
-      push_svalue (prefiles->item + ix);
-      (void) apply_master_ob (APPLY_PRELOAD, 1);
-    }
-  free_array (prefiles);
-  pop_context (&econ);
-
-  opt_info (1, "Preloading complete");
+  preload_objects_guarded(eflag);
 }				/* preload_objects() */
 
 #define NUM_CONSTS 5

@@ -89,7 +89,7 @@ public:
  * Used in extern "C" contexts to determine if a caught exception is a
  * driver runtime error (C++ exception) that needs special handling.
  *
- * For use in migration wrappers that translate C++ exceptions to C driver
+ * Use this in C ABI wrappers that translate C++ exceptions to driver
  * error states before returning to C callers.
  */
 extern "C" {

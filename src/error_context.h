@@ -1,9 +1,8 @@
 #pragma once
 
 #include "interpret.h"
-#include <setjmp.h>
 
-// Phase 2: C++ exception classes for error handling (outside extern "C")
+// Exception-based error handling context definitions
 #ifdef __cplusplus
 #include "exceptions.hpp"
 #include "error_guards.hpp"
@@ -14,7 +13,6 @@ extern "C" {
 #endif
 
 typedef struct error_context_s {
-    jmp_buf context;
     control_stack_t *save_csp;
     object_t *save_command_giver; 
     svalue_t *save_sp;
@@ -26,27 +24,22 @@ typedef struct error_context_s {
 #define CATCH_ERROR_CONTEXT      2
 #define SAFE_APPLY_ERROR_CONTEXT 4
 
-/* longjmp() contexts for native C error handling */
+/* Exception-based error handling context management */
 void pop_context(error_context_t *);
 void restore_context(error_context_t *);
 int save_context(error_context_t *);
 
-/* LPC error handling */
+/* LPC error handling (non-returning via exception propagation). */
 extern svalue_t catch_value;
 
-void error_handler(const char *) NO_RETURN;
-void error(const char *, ...) NO_RETURN;
-void throw_error(void) NO_RETURN;
+void error_handler(const char *) NO_RETURN;   /* Throws runtime/fatal exception based on context. */
+void error(const char *, ...) NO_RETURN;      /* Formats then forwards to error_handler(). */
+void throw_error(void) NO_RETURN;             /* Throws catchable runtime exception or calls error(). */
 
-/* stock error throwing function */
+/* Stock argument/type error helpers (non-returning via error() exception path). */
 const char *type_name(int c);
 void bad_arg(int, int) NO_RETURN;
 void bad_argument(svalue_t *, int, int, int) NO_RETURN;
-
-/* Phase 2: C++ exception-based error dispatcher (defined in error_context.cpp)
- * This is called from error_handler() C wrapper to dispatch typed exceptions.
- * It throws one of: catchable_runtime_error, fatal_runtime_error */
-void error_handler_cpp(const char *err);
 
 #ifdef __cplusplus
 }

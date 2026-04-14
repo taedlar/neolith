@@ -955,7 +955,7 @@ void drain_curl_completions(void) {
     arg_count = 2 + (handle->callback_args ? handle->callback_args->size : 0);
 
     /* Pre-check response size before touching the stack: allocate_buffer()
-     * raises an error (longjmp) when the size exceeds max_buffer_size, which
+     * raises a runtime error when the size exceeds max_buffer_size, which
      * would skip cleanup and leave the handle in TRANSFERRING state forever. */
     int effective_success = completion.success;
     if (effective_success && handle->response_len > CONFIG_INT(__MAX_BUFFER_SIZE__)) {
