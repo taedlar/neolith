@@ -15,7 +15,6 @@
 #include "src/apply.h"
 #include "src/backend.h"
 #include "src/comm.h"
-#include "src/error_context.h"
 #include "src/simulate.h"
 #include "curl/curl_efuns.h"
 #include "lpc/buffer.h"
@@ -33,6 +32,14 @@ public:
   ~HttpTestServer() {
     stop_ = true;
     if (listener_fd_ != INVALID_SOCKET_FD) {
+      /* shutdown() interrupts any blocked select() before close.
+       * On Windows, closesocket() alone does not reliably wake a thread
+       * blocked in select(), which would cause join() to hang. */
+#ifdef WINSOCK
+      shutdown(listener_fd_, SD_BOTH);
+#else
+      shutdown(listener_fd_, SHUT_RDWR);
+#endif
       SOCKET_CLOSE(listener_fd_);
       listener_fd_ = INVALID_SOCKET_FD;
     }
@@ -325,40 +332,31 @@ TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
   ASSERT_TRUE(server.valid());
   ConfigureUrl(owner, server.url());
 
-  bool callback_error = false;
-  error_context_t econ;
-  save_context(&econ);
-  try {
-    current_object = owner;
-    st_num_arg = 2;
-    push_number(42);
-    push_number(0);
-    f_perform_to();
-    FAIL() << "perform_to() should reject non-string/non-function callbacks.";
-  }
-  catch (const neolith::driver_runtime_error &) {
-    restore_context(&econ);
-    callback_error = true;
-  }
-  pop_context(&econ);
-  EXPECT_TRUE(callback_error);
+  /* Use the LPC-level try_perform_to wrapper so the argument-validation error
+   * is caught by the LPC catch() boundary (do_catch_cpp) rather than requiring
+   * a C++ exception to propagate through the extern "C" efun boundary. */
 
-  bool flag_error = false;
-  save_context(&econ);
-  try {
-    current_object = owner;
-    st_num_arg = 2;
-    push_constant_string("curl_done");
-    push_constant_string("bad");
-    f_perform_to();
-    FAIL() << "perform_to() should reject non-number flags.";
+  /* Invalid callback type: number instead of string or function pointer. */
+  push_number(42);
+  push_number(0);
+  apply_low("try_perform_to", owner, 2);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    EXPECT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1) << "perform_to() should reject non-string/non-function callbacks.";
   }
-  catch (const neolith::driver_runtime_error &) {
-    restore_context(&econ);
-    flag_error = true;
+  pop_stack();
+
+  /* Invalid flags type: string instead of number. */
+  push_constant_string("curl_done");
+  push_constant_string("bad");
+  apply_low("try_perform_to", owner, 2);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    EXPECT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1) << "perform_to() should reject non-number flags.";
   }
-  pop_context(&econ);
-  EXPECT_TRUE(flag_error);
+  pop_stack();
 }
 
 TEST_F(CurlEfunsTest, InPerformAndOneActiveTransferEnforced) {

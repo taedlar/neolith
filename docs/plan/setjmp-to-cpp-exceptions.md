@@ -387,8 +387,8 @@ Phase 1 acceptance notes for guard API draft:
 ### Required Portability Decisions
 1. Define canonical exception policy per toolchain:
   - GCC: C++ exceptions enabled; avoid relying on implementation-defined propagation through legacy C units.
-  - MSVC: use `/EHsc` explicitly for migrated C++ translation units.
-  - clang-cl: match MSVC exception model expectations (`/EHsc`) to keep behavior aligned with VS toolchain.
+  - MSVC: use `/EHs` explicitly to allow throwing C++ exceptions from C++ code, including extern "C".
+  - clang-cl: match MSVC exception model expectations (`/EHs`) to keep behavior aligned with VS toolchain.
 2. Enforce boundary rule: no exception may escape a C ABI function (`extern "C"` entry points must translate to driver error state or rethrow only within C++ domain).
 3. Add per-phase multi-toolchain build/test gates so migration cannot proceed based on Linux-only validation.
 

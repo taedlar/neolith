@@ -31,10 +31,6 @@ set(stem_SOURCES
     stralloc.c
 )
 add_library(stem OBJECT ${stem_SOURCES})
-# MSVC and Clang-CL require /EHsc for synchronous exception handling
-if(MSVC)
-    target_compile_options(stem PRIVATE /EHsc)
-endif()
 target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket curl async)
 if(TARGET c-ares::cares)
     target_link_libraries(stem PUBLIC c-ares::cares)
