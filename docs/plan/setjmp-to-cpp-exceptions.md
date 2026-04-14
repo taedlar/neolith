@@ -6,13 +6,46 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 |-------|-------------|--------|
 | 1 | Baseline inventory and exception contract | complete |
 | 2 | Core error source migration (`error_context`) + typed exception hierarchy | complete |
-| 3 | LPC catch boundary migration (`frame` + interpreter contract) | not started |
+| 3 | LPC catch boundary migration (`frame` + interpreter contract) | complete |
 | 4 | Driver guard migration (`apply`, `backend`, `main`, `simulate`) | not started |
 | 5 | Legacy context-chain removal (`jmp_buf` retirement) | not started |
 | 6 | Test refactor and full validation | not started |
 | 7 | Hardening, perf checks, and documentation finalization | not started |
 
 ## Current State Handoff
+
+### Phase 3 Started (2026-04-14)
+
+**What was done:**
+- Added `src/frame_catch.cpp` and migrated the `do_catch()` boundary to `try`/`catch` using typed exceptions (`catchable_runtime_error`, `noncatchable_runtime_limit`).
+- Kept C ABI stable by routing `src/frame.c:do_catch()` through the new C++ implementation.
+- Updated `src/CMakeLists.txt` to compile `frame_catch.cpp` into `stem`.
+- Updated `src/error_context.cpp` catch-path behavior:
+  - `error_handler()` now throws `noncatchable_runtime_limit` for max-eval/stack-full states at catch boundaries.
+  - `error_handler()` now uses `catch_value_guard` and throws `catchable_runtime_error` instead of `longjmp` for catchable catch-boundary transport.
+  - `throw_error()` now throws `catchable_runtime_error` at active catch boundaries (no direct longjmp in this path).
+- Preserved catch payload semantics in `do_catch()` by moving `catch_value` to stack and resetting it to `const1` on catchable exception path.
+- Refactored `error_context.cpp` catch-boundary detection to a single helper (`has_active_catch_boundary()`), removing duplicated direct `FRAME_CATCH` checks and centralizing the legacy `save_csp + 1` convention.
+
+**Validation completed:**
+- Full build succeeded (`Build_CMakeTools`) on Linux.
+- Full suite run completed with all tests passing (250/250).
+- Focused Phase 3 behavior tests passed:
+  - `EfunsTest.throwError`
+  - `EfunsTest.throwWithoutCatchRaisesRuntimeError`
+  - `LPCInterpreterTest.nonCatchableEvalCostEscapesCatchBoundary`
+  - `LPCInterpreterTest.nonCatchableStackFullEscapesCatchBoundary`
+  - `LPCInterpreterTest.catchSuccessReturnsZeroContract`
+- Post-refactor rerun of the same focused Phase 3 tests passed.
+- `LPCInterpreterTest.throwZeroNormalizesToUnspecifiedError` remains disabled in current suite (unchanged by this phase start).
+- Source audit confirms LPC catch/throw transport no longer depends on `longjmp`:
+  - `do_catch()` runs through C++ `try`/`catch` boundary (`src/frame_catch.cpp`).
+  - `throw_error()` transports to catch via typed exception.
+  - `error_handler()` catch-path transport uses typed exceptions.
+  - Remaining `longjmp` paths are for non-catch outer recovery boundaries and are deferred to Phase 4.
+
+**Remaining Phase 3 scope:**
+1. None.
 
 ### Phase 2 Completed (2026-04-14)
 

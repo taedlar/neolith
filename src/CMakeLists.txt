@@ -16,6 +16,7 @@ set(stem_SOURCES
     command.c
     error_context.cpp
     frame.c
+    frame_catch.cpp
     interpret.c
     malloc.c
     outbuf.c

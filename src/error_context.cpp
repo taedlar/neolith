@@ -25,6 +25,30 @@ svalue_t catch_value = { T_NUMBER, 0, { 0 } };
 
 static error_context_t *current_error_context = 0;
 
+/*
+ * Return true if the currently active error context chain contains a catch
+ * boundary established by do_catch(). This keeps the legacy save_csp+1
+ * convention encapsulated in one place during Phase 3.
+ */
+static int has_active_catch_boundary(void) {
+  error_context_t *ctx = current_error_context;
+
+  while (ctx)
+    {
+      control_stack_t *catch_frame = ctx->save_csp + 1;
+
+      if (catch_frame >= control_stack && catch_frame <= csp &&
+          ((catch_frame->framekind & FRAME_MASK) == FRAME_CATCH))
+        {
+          return 1;
+        }
+
+      ctx = ctx->save_context;
+    }
+
+  return 0;
+}
+
 /**
  * @brief Save the current virtual machine execution context as current error
  * handling context (after push previous error handling context onto the stack).
@@ -139,15 +163,14 @@ void restore_context (error_context_t * econ) {
  * the error message, which is returned as the thrown value.
  * Users can throw their own error values however they choose.
  * 
- * Phase 2: Still uses longjmp for transport. Exception-based transport will
- * be introduced in Phases 3-4 as boundaries are migrated.
+ * Phase 3: throw() to an active catch boundary is transported with a typed
+ * exception. Outside catch boundaries, throw() raises a runtime error.
  */
 extern "C"
 void throw_error () {
-  if (current_error_context && ((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH)
+  if (has_active_catch_boundary())
     {
-      /* error string in catch_value */
-      longjmp (current_error_context->context, 1);
+      throw catchable_runtime_error("*Thrown value");
     }
   error ("*Throw with no catch.");
 }
@@ -216,9 +239,7 @@ void error_handler (const char *err) {
   reset_destruct_object_limits();
   reset_load_object_limits();
 
-  if (current_error_context &&
-      ((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH &&
-      !in_fatal_error())
+  if (has_active_catch_boundary() && !in_fatal_error())
     {
 #ifdef LOG_CATCHES
       if (in_mudlib_error_handler)
@@ -236,18 +257,20 @@ void error_handler (const char *err) {
         }
 #endif	/* LOG_CATCHES */
 
-      /* free catch_value allocated in last catch if any */
-      free_svalue (&catch_value, "caught error");
+      if (get_error_state (ES_MAX_EVAL_COST))
+        {
+          throw noncatchable_runtime_limit ("*Can't catch eval cost too big error.");
+        }
+      if (get_error_state (ES_STACK_FULL))
+        {
+          throw noncatchable_runtime_limit ("*Can't catch too deep recursion error.");
+        }
 
-      /* allocate new catch_value */
-      catch_value.type = T_STRING;
-      catch_value.subtype = STRING_MALLOC;
-      catch_value.u.string = string_copy (err, "caught error");
+      catch_value_guard guard;
+      guard.set_caught_error (err);
+      guard.commit_success ();
 
-      /* Phase 2: Dispatch typed exception; do_catch boundary longjmps below (migration-only) */
-      /* Phase 3 will replace this with try-catch in do_catch, removing the longjmp here */
-      if (current_error_context)
-        longjmp (current_error_context->context, 1);
+      throw catchable_runtime_error (err);
     }
 
   if (in_error)

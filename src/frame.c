@@ -16,6 +16,9 @@
 control_stack_t *control_stack = 0;
 control_stack_t *csp;   /* Points to last control frame pushed */
 
+/* Implemented in frame_catch.cpp to provide C++ exception-based catch boundary. */
+extern void do_catch_cpp(const char *p, unsigned short new_pc_offset);
+
 static int error_state = 0;
 
 void set_error_state (int flag) {
@@ -202,53 +205,7 @@ compiler_function_t* setup_inherited_frame (int index) {
  * @param new_pc_offset The pc offset to continue after the catch block.
  */
 void do_catch (const char *p, unsigned short new_pc_offset) {
-
-  error_context_t econ;
-  (void)new_pc_offset; /* unused, new program counter is restored by restore_context */
-
-  /*
-   * Save some global variables that must be restored separately after a
-   * longjmp. The stack will have to be manually popped all the way.
-   */
-  if (!save_context (&econ))
-    error ("*Can't catch too deep recursion error.");
-
-  push_control_stack (FRAME_CATCH);
-
-  if (setjmp (econ.context))
-    {
-      /*
-       * They did a throw() or error. That means that the control stack
-       * must be restored manually here.
-       */
-      restore_context (&econ);
-      sp++;
-      *sp = catch_value;
-      catch_value = const1;
-
-      /* if it's too deep or max eval, we can't let them catch it */
-      if (get_error_state (ES_MAX_EVAL_COST))
-        {
-          pop_context (&econ);
-          error ("*Can't catch eval cost too big error.");
-        }
-      if (get_error_state (ES_STACK_FULL))
-        {
-          pop_context (&econ);
-          error ("*Can't catch too deep recursion error.");
-        }
-    }
-  else
-    {
-      assign_svalue (&catch_value, &const1);
-      /* note, this will work, since csp->extern_call won't be used */
-      eval_instruction (p);
-
-      /* if no error, the program counter points to the end of catch block and
-       * we continue after it.
-       */
-    }
-  pop_context (&econ);
+  do_catch_cpp (p, new_pc_offset);
 }
 
 
