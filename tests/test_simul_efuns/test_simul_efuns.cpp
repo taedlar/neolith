@@ -44,6 +44,15 @@ protected:
         previous_cwd = fs::current_path();
         fs::current_path(mudlib_path); // change working directory to mudlib
 
+        // Clear the binary cache before each test to prevent cross-test contamination.
+        // Compiled binaries reference shared string indices that are specific to a string
+        // table state. When tests reinitialize the string table (deinit_strings/init_strings),
+        // cached binaries from prior tests become incompatible. Clearing the cache forces a
+        // fresh compile from source each time, ensuring correctness.
+        auto bin_path = mudlib_path / "bin";
+        if (fs::exists(bin_path))
+            fs::remove_all(bin_path);
+
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
         init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__), CONFIG_STR (__INCLUDE_DIRS__));
 

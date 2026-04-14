@@ -14,7 +14,7 @@ set(stem_SOURCES
     backend.c
     comm.c
     command.c
-    error_context.c
+    error_context.cpp
     frame.c
     interpret.c
     malloc.c
@@ -25,7 +25,13 @@ set(stem_SOURCES
     stem.c
     stralloc.c
 )
+# Phase 2: error_context migrated to C++ for exception-based error handling
 add_library(stem OBJECT ${stem_SOURCES})
+# Phase 2: Set C++ exception handling flags for error_context.cpp
+# MSVC and Clang-CL require /EHsc for synchronous exception handling
+if(MSVC)
+    target_compile_options(stem PRIVATE /EHsc)
+endif()
 target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket curl async)
 if(TARGET c-ares::cares)
     target_link_libraries(stem PUBLIC c-ares::cares)

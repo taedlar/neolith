@@ -1240,21 +1240,21 @@ array_t* mapping_values (mapping_t * m) {
 
 /* functions for building mappings */
 
-static svalue_t* insert_in_mapping (mapping_t * m, char *key) {
+static svalue_t* insert_in_mapping (mapping_t * m, const char *key) {
 
   svalue_t lv;
   svalue_t *ret;
 
   lv.type = T_STRING;
   lv.subtype = STRING_CONSTANT;
-  lv.u.string = key;
+  lv.u.string = (char*)key;  /* safe: key used for lookup only, converted to shared string */
   ret = find_for_insert (m, &lv, 1);
   /* lv.u.string will have been converted to a shared string */
   free_string (lv.u.string);
   return ret;
 }
 
-void add_mapping_pair (mapping_t * m, char *key, int value) {
+void add_mapping_pair (mapping_t * m, const char *key, int value) {
   svalue_t *s;
 
   s = insert_in_mapping (m, key);
@@ -1263,7 +1263,7 @@ void add_mapping_pair (mapping_t * m, char *key, int value) {
   s->u.number = value;
 }
 
-void add_mapping_string (mapping_t * m, char *key, const char *value) {
+void add_mapping_string (mapping_t * m, const char *key, const char *value) {
   svalue_t *s;
 
   s = insert_in_mapping (m, key);
@@ -1281,7 +1281,7 @@ void add_mapping_malloced_string (mapping_t * m, char *key, char *value) {
   s->u.string = value;
 }
 
-void add_mapping_object (mapping_t * m, char *key, object_t * value) {
+void add_mapping_object (mapping_t * m, const char *key, object_t * value) {
   svalue_t *s;
 
   s = insert_in_mapping (m, key);
@@ -1291,7 +1291,7 @@ void add_mapping_object (mapping_t * m, char *key, object_t * value) {
   add_ref (value, "add_mapping_object");
 }
 
-void add_mapping_array (mapping_t * m, char *key, array_t * value) {
+void add_mapping_array (mapping_t * m, const char *key, array_t * value) {
   svalue_t *s;
 
   s = insert_in_mapping (m, key);
