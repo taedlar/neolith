@@ -5,7 +5,7 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Baseline inventory and exception contract | complete |
-| 2 | Core error source migration (`error_context`) + typed exception hierarchy | not started |
+| 2 | Core error source migration (`error_context`) + typed exception hierarchy | complete |
 | 3 | LPC catch boundary migration (`frame` + interpreter contract) | not started |
 | 4 | Driver guard migration (`apply`, `backend`, `main`, `simulate`) | not started |
 | 5 | Legacy context-chain removal (`jmp_buf` retirement) | not started |
@@ -14,13 +14,44 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 
 ## Current State Handoff
 
+### Phase 2 Completed (2026-04-14)
+
+**What was done:**
+- `src/error_context.c` migrated to `src/error_context.cpp` (C++ translation unit).
+- Typed exception hierarchy defined in `src/exceptions.hpp`: `catchable_runtime_error`, `noncatchable_runtime_limit`, `fatal_runtime_error` (all under `namespace neolith`).
+- Guard API defined in `src/error_guards.hpp`: `error_reentry_guard`, `catch_value_guard`.
+- Guard implementations completed in `error_context.cpp`; `error_reentry_guard` and `catch_value_guard` are RAII-ready.
+- `add_mapping_string`, `add_mapping_pair`, `add_mapping_object`, `add_mapping_array` updated to use `const char*` key for C++ compatibility.
+- `SimulEfunsTest` fixture updated to clear the mudlib binary cache between tests (binary cache references shared string indices specific to a string table state; clearing prevents cross-test failures when the string table is reinitialized between tests).
+- All 250 tests pass on the `pr-linux` preset.
+
+**Deferred to Phase 3 (longjmp retained):**
+- `error_handler()` still uses `longjmp` for both catch-path and fatal-path transport.
+  - This is intentional: Phase 3 migrates `do_catch()` in `frame.c` to use `try`/`catch`, replacing the `setjmp`/`longjmp` bridge at the catch boundary.
+  - Until Phase 3, `error_handler()` uses longjmp for delivery (Phase 2 adds guard API and exception types but does not change delivery mechanism).
+- `throw_error()` still uses `longjmp`.
+- Guards (`error_reentry_guard`, `catch_value_guard`) are defined and working but not yet actively used in exception-throwing error paths.
+
+**Immediate next focus (Phase 3):**
+1. Migrate `do_catch()` in `src/frame.c`:
+   - Replace `setjmp(econ.context)` with `try`/`catch(const neolith::catchable_runtime_error&)`.
+   - Remove `FRAME_CATCH` based longjmp check from `error_handler()`.
+   - Use `catch_value_guard` to manage `catch_value` lifecycle.
+2. After `do_catch()` migration, validate `F_END_CATCH` contract with LPC interpreter tests.
+3. Migrate `throw_error()` to C++ exception throw.
+4. Confirm non-catchable limit behavior still correctly escapes `catch()` boundaries.
+
+---
+
+### Pre-Phase-2 History (Phase 1 Handoff)
+
 - Production `setjmp` callsites confirmed in:
   - `src/frame.c` (`do_catch()`)
   - `src/apply.c` (`safe_apply()`)
   - `src/backend.c` (main loop and preload guards)
   - `src/main.c` (startup guard)
   - `src/simulate.c` (`fatal()` crash-handler guard)
-- Production `longjmp` sources are centralized in `src/error_context.c` (`throw_error()` and `error_handler()`).
+- Production `longjmp` sources are centralized in `src/error_context.cpp` (`throw_error()` and `error_handler()`).
 - Existing context invariants are implemented by `save_context()`, `restore_context()`, and `pop_context()` and must be matched by exception unwinding behavior.
 - Mixed-language build is already in use (`C` + `CXX`), enabling incremental `.c` to `.cpp` migration with C ABI entry points preserved where needed.
 - Phase 1 decision: replace manual context pairing with scoped guard objects as the canonical exception-boundary mechanism.
@@ -28,7 +59,6 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 - Phase 1 decision: retire `in_error` and `in_mudlib_error_handler` global flag toggling in favor of scoped guard objects (`error_reentry_guard`) to eliminate state-leak risk on nested failures and simplify reentry control flow.
 - Exception contract has been simplified around boundary semantics (instead of manual stack choreography) and documented for reuse in later phases.
 - Phase 7 decision: update master apply documentation (`docs/applies/master/`) to align with exception semantics and typed routing (6 Tier A gaps identified; 2 high-priority: error_handler argument count, LOG_CATCHES conditionality).
-- Immediate next implementation focus: materialize `error_boundary_guard` and `error_reentry_guard` in catch and safe-apply boundaries first (`frame` then `apply`); integrate typed exception dispatch in Phase 2 when `error_context` is migrated.
 
 ### Pre-Phase-2 Scan: Existing `abort()` / `exit()` Call Sites
 

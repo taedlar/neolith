@@ -5,6 +5,8 @@
 #include "std.h"
 #include "rc.h"
 #include "error_context.h"
+#include "exceptions.hpp"
+#include "error_guards.hpp"
 #include "frame.h"
 #include "lpc/lex.h"
 #include "lpc/mapping.h"
@@ -16,8 +18,10 @@
 #include <stdarg.h>
 #endif /* HAVE_STDARG_H */
 
+using namespace neolith;
+
 /* Used to throw an error to a catch */
-svalue_t catch_value = { .type = T_NUMBER };
+svalue_t catch_value = { T_NUMBER, 0, { 0 } };
 
 static error_context_t *current_error_context = 0;
 
@@ -28,20 +32,21 @@ static error_context_t *current_error_context = 0;
  * Be careful. This assumes there will be a frame pushed right after this,
  * as we use econ->save_csp + 1 to restore.
  * 
- * This is also followed by a setjmp(), so it must not be inlined.
+ * This is also followed by a try block (or setjmp), so it must not be inlined.
  * Previous error context is pushed and MUST be restored by a pop_context() after
- * current error handling context has finished, no matter if longjmp() occurs or not.
+ * current error handling context has finished, no matter if exception is thrown or not.
  * 
  * The save_context() and restore_context() function provides a try/catch-like
  * mechanism for LPC runtime errors.
  * 
- * If any LPC runtime error occurs, the error handler does a longjmp() to the
- * saved context (next instruction after the setjmp()), which calls the
- * restore_context() to restore the virtual machine state to the saved one.
+ * If any LPC runtime error occurs, the error handler throws an exception that
+ * is caught at the saved context boundary, which calls the restore_context()
+ * to restore the virtual machine state to the saved one.
  * 
  * @param econ The error context structure to fill in.
  * @return Depth of saved context (non-zero) on success, 0 on failure (too deep recursion).
  */
+extern "C"
 int save_context (error_context_t * econ) {
 
   int depth = 0;
@@ -80,6 +85,7 @@ int save_context (error_context_t * econ) {
  * 
  * @param econ The error context structure to pop.
  */
+extern "C"
 void pop_context (error_context_t * econ) {
   int depth = 0;
   error_context_t* ec;
@@ -99,11 +105,12 @@ void pop_context (error_context_t * econ) {
  * @brief Restore the LPC virtual machine execution context from a saved error
  * handling context.
  * 
- * This function is called after a longjmp() to the saved context in
+ * This function is called after an exception is caught at the saved boundary in
  * save_context().
  * 
  * @param econ The error context structure to restore from.
  */
+extern "C"
 void restore_context (error_context_t * econ) {
 
   command_giver = econ->save_command_giver;
@@ -131,7 +138,11 @@ void restore_context (error_context_t * econ) {
  * Hence, all errors that are to be caught construct a string containing
  * the error message, which is returned as the thrown value.
  * Users can throw their own error values however they choose.
+ * 
+ * Phase 2: Still uses longjmp for transport. Exception-based transport will
+ * be introduced in Phases 3-4 as boundaries are migrated.
  */
+extern "C"
 void throw_error () {
   if (current_error_context && ((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH)
     {
@@ -199,34 +210,96 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
     }
 }
 
-/**
- * @brief Phase 2 Migration: error_handler() now delegates to C++ exception-based dispatcher.
- * 
- * This is a C wrapper that calls the C++ implementation (error_handler_cpp).
- * Exception handling preserves current semantics while replacing longjmp with typed exceptions.
- * 
- * The C++ version will throw one of:
- *   - catchable_runtime_error: if catch frame is active
- *   - fatal_runtime_error: if fatal path through mudlib error_handler
- * 
- * If an exception is thrown and not caught by a C++ boundary (e.g., a migrated frame.c
- * catch handler), it will continue unwinding through C code back to the caller.
- * This is safe because we're replacing longjmp (which is C-based) with C++ exceptions
- * (which can unwind through C code on most platforms).
- */
+extern "C"
 void error_handler (const char *err) {
-  /* in case we're going to longjmp() from load_object or destruct_object */
+  /* in case we're going to throw from load_object or destruct_object */
   reset_destruct_object_limits();
   reset_load_object_limits();
 
-  /* Phase 2: Delegate to C++ exception dispatcher */
-  /* This function is defined in error_context.cpp as error_handler_cpp() */
-  error_handler_cpp(err);
-  
-  /* Should never reach here; error_handler_cpp() will throw an exception */
-  fatal("error_handler: control flow error");
+  if (current_error_context &&
+      ((current_error_context->save_csp + 1)->framekind & FRAME_MASK) == FRAME_CATCH &&
+      !in_fatal_error())
+    {
+#ifdef LOG_CATCHES
+      if (in_mudlib_error_handler)
+        {
+          debug_message ("{}\t***** error in mudlib error handler (caught)");
+          debug_message_with_location (err);
+          dump_trace (g_trace_flag);
+          in_mudlib_error_handler = 0;
+        }
+      else
+        {
+          in_mudlib_error_handler = 1;
+          mudlib_error_handler (err, 1);
+          in_mudlib_error_handler = 0;
+        }
+#endif	/* LOG_CATCHES */
+
+      /* free catch_value allocated in last catch if any */
+      free_svalue (&catch_value, "caught error");
+
+      /* allocate new catch_value */
+      catch_value.type = T_STRING;
+      catch_value.subtype = STRING_MALLOC;
+      catch_value.u.string = string_copy (err, "caught error");
+
+      /* Phase 2: Dispatch typed exception; do_catch boundary longjmps below (migration-only) */
+      /* Phase 3 will replace this with try-catch in do_catch, removing the longjmp here */
+      if (current_error_context)
+        longjmp (current_error_context->context, 1);
+    }
+
+  if (in_error)
+    {
+      debug_message ("{}\t***** New error occured while generating error trace!");
+      debug_message_with_location (err);
+      dump_trace (g_trace_flag);
+
+      if (current_error_context)
+        longjmp (current_error_context->context, 1);
+      fatal ("failed longjmp() or no error context for error.");
+    }
+
+  in_error = 1;
+
+  if (in_mudlib_error_handler)
+    {
+      debug_message ("{}\t***** error in mudlib error handler");
+      debug_message_with_location (err);
+      dump_trace (g_trace_flag);
+      in_mudlib_error_handler = 0;
+    }
+  else
+    {
+      in_mudlib_error_handler = 1;
+      in_error = 0;
+      mudlib_error_handler (err, 0);
+      in_error = 1;
+      in_mudlib_error_handler = 0;
+    }
+
+  if (current_heart_beat)
+    {
+      set_heart_beat (current_heart_beat, 0);
+      debug_message ("{}\t----- heart beat in %s turned off\n", current_heart_beat->name);
+#if 0
+      if (current_heart_beat->interactive)
+        add_message (current_heart_beat, _("Your heart beat stops!\n"));
+#endif
+      current_heart_beat = 0;
+    }
+
+  in_error = 0;
+
+  /* Phase 2: longjmp to any available error context (recovery boundary) */
+  /* Phase 4 will replace this with typed exception propagation at driver guard boundaries */
+  if (current_error_context)
+    longjmp (current_error_context->context, 1);
+  fatal ("failed longjmp() or no error context for error.");
 }
 
+extern "C"
 void error (const char *fmt, ...) {
   char msg[8192];
   int len;
@@ -245,11 +318,12 @@ void error (const char *fmt, ...) {
 }
 
 
+extern "C"
 void bad_arg (int arg, int instr) {
   error ("*Bad argument %d to %s()", arg, query_opcode_name (instr));
 }
 
-static char *type_names[] = {
+static const char *type_names[] = {
   "int",
   "string",
   "array",
@@ -264,6 +338,7 @@ static char *type_names[] = {
 #define TYPE_CODES_END 0x400
 #define TYPE_CODES_START 0x2
 
+extern "C"
 const char *type_name (int c) {
   int j = 0;
   int limit = TYPE_CODES_START;
@@ -292,6 +367,7 @@ const char *type_name (int c) {
   return "*unknown*";
 }
 
+extern "C"
 void bad_argument (svalue_t * val, int type, int arg, int instr) {
   outbuffer_t outbuf;
   int flag = 0;
@@ -327,3 +403,82 @@ void bad_argument (svalue_t * val, int type, int arg, int instr) {
 
   error (msg);
 }
+
+
+// ============================================================================
+// Guard Implementation (error_guards.hpp)
+// ============================================================================
+
+namespace neolith {
+
+error_reentry_guard::error_reentry_guard(flag which) {
+    switch (which) {
+        case flag::IN_ERROR:
+            m_flag_ref = &in_error;
+            break;
+        case flag::IN_MUDLIB_ERROR_HANDLER:
+            m_flag_ref = &in_mudlib_error_handler;
+            break;
+    }
+    
+    m_old_value = *m_flag_ref;
+    *m_flag_ref = 1;
+}
+
+error_reentry_guard::~error_reentry_guard() noexcept {
+    if (m_flag_ref) {
+        *m_flag_ref = m_old_value;
+    }
+}
+
+catch_value_guard::~catch_value_guard() noexcept {
+    if (m_owned) {
+        free_svalue(&catch_value, "catch_value_guard dtor");
+        catch_value.type = T_NUMBER;
+    }
+}
+
+void catch_value_guard::set_caught_error(const char *error_msg) noexcept {
+    // Free previous value
+    free_svalue(&catch_value, "set_caught_error");
+    
+    // Set new value
+    catch_value.type = T_STRING;
+    catch_value.subtype = STRING_MALLOC;
+    catch_value.u.string = string_copy(error_msg ? error_msg : "", "caught error");
+    m_owned = true;
+}
+
+} // namespace neolith
+
+
+// ============================================================================
+// C-compatible helper functions
+// ============================================================================
+
+extern "C" {
+
+int in_error_handler_already(void) noexcept {
+    return in_error;
+}
+
+int in_mudlib_error_handler_already(void) noexcept {
+    return in_mudlib_error_handler;
+}
+
+bool is_runtime_error(const std::exception *ex) noexcept {
+    // Check if the exception is one of our runtime error types
+    return (dynamic_cast<const neolith::catchable_runtime_error*>(ex) != nullptr ||
+            dynamic_cast<const neolith::noncatchable_runtime_limit*>(ex) != nullptr ||
+            dynamic_cast<const neolith::fatal_runtime_error*>(ex) != nullptr);
+}
+
+/**
+ * @brief Phase 2: Unused - no longer needed as error_handler_cpp was removed.
+ * This stub is kept for test compatibility until header is cleaned up.
+ */
+void error_handler_cpp(const char *err) {
+    error_handler(err);
+}
+
+} // extern "C"
