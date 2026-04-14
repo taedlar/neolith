@@ -435,8 +435,8 @@ svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
  * and not have to worry about causing serious bugs when errors occur in the
  * applied function and the driver depends on being able to do something
  * after the apply. (such as the ed exit function, and the net_dead function).
- * Phase 4 migration: this function now delegates to a C++ exception boundary
- * wrapper while preserving the legacy C ABI and return-value contract.
+ * This function delegates to a C++ exception boundary wrapper while
+ * preserving the C ABI and return-value contract.
  */
 
 svalue_t *safe_apply (const char *fun, object_t * ob, int num_arg, int where)

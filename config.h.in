@@ -57,7 +57,7 @@
 #define RETSIGTYPE void
 #endif
 
-/* add NO_RETURN to error functions that does longjmp() */
+/* Mark non-returning functions (fatal paths, longjmp, or C++ exception throw). */
 #if __GNUC__
 #  define NO_RETURN __attribute__((noreturn))
 #else

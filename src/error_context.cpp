@@ -27,8 +27,8 @@ static error_context_t *current_error_context = 0;
 
 /*
  * Return true if the currently active error context chain contains a catch
- * boundary established by do_catch(). This keeps the legacy save_csp+1
- * convention encapsulated in one place during Phase 3.
+ * boundary established by do_catch(). This keeps the save_csp+1
+ * catch-frame convention encapsulated in one place.
  */
 static int has_active_catch_boundary(void) {
   error_context_t *ctx = current_error_context;
@@ -160,7 +160,6 @@ void restore_context (error_context_t * econ) {
 /**
  * @brief Throw an error to an active catch boundary.
  * 
- * Phase 5: All error contexts now use C++ exception transport (no more longjmp fallback).
  * To catch them nicely, we provide error information via typed exceptions.
  * Users can throw their own error values however they choose.
  * 
@@ -236,7 +235,6 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
 /**
  * @brief Handle a caught error at an active catch boundary.
  *
- * Phase 5: All error contexts now use C++ exception transport exclusively.
  * This function is called from error_handler when we have an active catch boundary.
  */
 [[noreturn]] static void handle_caught_error(const char *err) {
@@ -273,7 +271,6 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
 /**
  * @brief Handle an error at a non-catch boundary.
  *
- * Phase 5: All error contexts now use C++ exception transport exclusively.
  * This function is called from error_handler when there is no active catch.
  */
 [[noreturn]] static void handle_uncaught_error(const char *err) {
@@ -508,14 +505,6 @@ bool is_runtime_error(const std::exception *ex) noexcept {
     return (dynamic_cast<const neolith::catchable_runtime_error*>(ex) != nullptr ||
             dynamic_cast<const neolith::noncatchable_runtime_limit*>(ex) != nullptr ||
             dynamic_cast<const neolith::fatal_runtime_error*>(ex) != nullptr);
-}
-
-/**
- * @brief Phase 2: Unused - no longer needed as error_handler_cpp was removed.
- * This stub is kept for test compatibility until header is cleaned up.
- */
-void error_handler_cpp(const char *err) {
-    error_handler(err);
 }
 
 } // extern "C"

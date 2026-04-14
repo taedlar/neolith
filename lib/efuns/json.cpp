@@ -301,8 +301,8 @@ void f_from_json(void)
     sp->type = T_INVALID;
 
     if (ec) {
-      /* Build error message before any longjmp.  jv is a default null value
-      * when parse fails (no heap allocation), so longjmping over it is safe. */
+      /* Build the error message before raising the runtime error.
+       * jv is a default null value when parse fails (no heap allocation). */
       char errbuf[256];
       {
         std::string msg = ec.message();
@@ -314,9 +314,8 @@ void f_from_json(void)
       sp->u.number = 0;
       error("%s", errbuf);
     }
-    /* move parsed result to the heap.
-     * if we kept it on the stack, json_to_lpc() would have to longjmp over it on OOM,
-     * which would be unsafe. */
+    /* Move parsed result to the heap so ownership stays explicit if
+     * json_to_lpc() raises a runtime error (for example on OOM). */
     parsed = new boost::json::value(std::move(jv));
   }
 

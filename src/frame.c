@@ -197,10 +197,12 @@ compiler_function_t* setup_inherited_frame (int index) {
 
 /**
  * Execute a 'catch' block.
- * This effectively calls eval_instruction() with a setjmp/longjmp
- * error handling around it.
- * If error or throw is called during the evaluation, control
- * returns here, and the caught value is left on the stack.
+ * C entrypoint that preserves the C ABI while delegating catch-boundary
+ * exception transport to do_catch_cpp() in frame_catch.cpp.
+ *
+ * do_catch_cpp() executes eval_instruction() under a C++ try/catch boundary,
+ * restores VM state on caught runtime errors, and leaves the caught value on
+ * the stack according to the LPC catch() contract.
  * @param p The program code to execute.
  * @param new_pc_offset The pc offset to continue after the catch block.
  */

@@ -92,9 +92,6 @@ public:
      * Called by catch handlers to restore the VM to the saved state before
      * handling the caught exception. This is distinct from destructor cleanup
      * (pop_context), which manages the context stack.
-     *
-     * In migration phase 3/4, catch blocks will call this to restore before
-     * entering exception-handling code.
      */
     void restore() noexcept {
         if (m_context) {
@@ -230,7 +227,7 @@ public:
 
 } // namespace neolith
 
-// C-compatible wrappers for current code during transition
+// C-compatible wrappers used by C translation units.
 extern "C" {
 
 /**

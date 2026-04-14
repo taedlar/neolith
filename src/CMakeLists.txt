@@ -30,9 +30,7 @@ set(stem_SOURCES
     stem.c
     stralloc.c
 )
-# Phase 2: error_context migrated to C++ for exception-based error handling
 add_library(stem OBJECT ${stem_SOURCES})
-# Phase 2: Set C++ exception handling flags for error_context.cpp
 # MSVC and Clang-CL require /EHsc for synchronous exception handling
 if(MSVC)
     target_compile_options(stem PRIVATE /EHsc)
