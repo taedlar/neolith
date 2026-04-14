@@ -334,12 +334,7 @@ TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
 
   /* Use the LPC-level try_perform_to wrapper so the argument-validation error
    * is caught by the LPC catch() boundary (do_catch_cpp) rather than requiring
-   * a C++ exception to propagate through the extern "C" efun boundary.  MSVC
-   * with /EHsc assumes extern "C" functions never throw, so catching such an
-   * exception in a C++ try block is undefined behavior and may not fire,
-   * leaving the error context corrupted and causing subsequent operations to
-   * hang.  try_perform_to uses LPC catch() internally which works correctly on
-   * all platforms and returns 1 if a runtime error was raised, 0 otherwise. */
+   * a C++ exception to propagate through the extern "C" efun boundary. */
 
   /* Invalid callback type: number instead of string or function pointer. */
   push_number(42);
