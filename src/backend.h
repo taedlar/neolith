@@ -35,6 +35,7 @@ void update_compile_av(int);
 char *query_load_av(void);
 
 void init_console_user(int reconnect);
+void backend_call_heart_beat(void);
 
 #ifdef __cplusplus
 }

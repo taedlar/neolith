@@ -25,6 +25,11 @@ svalue_t catch_value = { T_NUMBER, 0, { 0 } };
 
 static error_context_t *current_error_context = 0;
 
+static int current_context_uses_exceptions(void) {
+  return current_error_context &&
+         current_error_context->transport_mode == ERROR_CONTEXT_TRANSPORT_EXCEPTION;
+}
+
 /*
  * Return true if the currently active error context chain contains a catch
  * boundary established by do_catch(). This keeps the legacy save_csp+1
@@ -84,6 +89,7 @@ int save_context (error_context_t * econ) {
   econ->save_command_giver = command_giver;
   econ->save_sp = sp;           /* stack pointer */
   econ->save_csp = csp;         /* control stack pointer */
+  econ->transport_mode = ERROR_CONTEXT_TRANSPORT_LONGJMP;
   econ->save_context = current_error_context;
 
   current_error_context = econ;
@@ -95,6 +101,20 @@ int save_context (error_context_t * econ) {
   opt_trace (TT_EVAL, "depth %d", depth);
 
   return depth;
+}
+
+extern "C"
+void set_context_transport_mode (error_context_t *econ, int mode) {
+  if (!econ)
+    return;
+  econ->transport_mode = mode;
+}
+
+extern "C"
+int get_context_transport_mode (const error_context_t *econ) {
+  if (!econ)
+    return ERROR_CONTEXT_TRANSPORT_LONGJMP;
+  return econ->transport_mode;
 }
 
 /**
@@ -170,7 +190,11 @@ extern "C"
 void throw_error () {
   if (has_active_catch_boundary())
     {
-      throw catchable_runtime_error("*Thrown value");
+      if (current_context_uses_exceptions())
+        {
+          throw catchable_runtime_error ("*Thrown value");
+        }
+      longjmp (current_error_context->context, 1);
     }
   error ("*Throw with no catch.");
 }
@@ -257,20 +281,30 @@ void error_handler (const char *err) {
         }
 #endif	/* LOG_CATCHES */
 
-      if (get_error_state (ES_MAX_EVAL_COST))
+      if (current_context_uses_exceptions())
         {
-          throw noncatchable_runtime_limit ("*Can't catch eval cost too big error.");
-        }
-      if (get_error_state (ES_STACK_FULL))
-        {
-          throw noncatchable_runtime_limit ("*Can't catch too deep recursion error.");
+          if (get_error_state (ES_MAX_EVAL_COST))
+            {
+              throw noncatchable_runtime_limit ("*Can't catch eval cost too big error.");
+            }
+          if (get_error_state (ES_STACK_FULL))
+            {
+              throw noncatchable_runtime_limit ("*Can't catch too deep recursion error.");
+            }
+
+          catch_value_guard guard;
+          guard.set_caught_error (err);
+          guard.commit_success ();
+
+          throw catchable_runtime_error (err);
         }
 
-      catch_value_guard guard;
-      guard.set_caught_error (err);
-      guard.commit_success ();
+      free_svalue (&catch_value, "caught error");
+      catch_value.type = T_STRING;
+      catch_value.subtype = STRING_MALLOC;
+      catch_value.u.string = string_copy (err, "caught error");
 
-      throw catchable_runtime_error (err);
+      longjmp (current_error_context->context, 1);
     }
 
   if (in_error)
@@ -280,7 +314,13 @@ void error_handler (const char *err) {
       dump_trace (g_trace_flag);
 
       if (current_error_context)
-        longjmp (current_error_context->context, 1);
+        {
+          if (current_context_uses_exceptions())
+            {
+              throw fatal_runtime_error (err);
+            }
+          longjmp (current_error_context->context, 1);
+        }
       fatal ("failed longjmp() or no error context for error.");
     }
 
@@ -315,10 +355,15 @@ void error_handler (const char *err) {
 
   in_error = 0;
 
-  /* Phase 2: longjmp to any available error context (recovery boundary) */
-  /* Phase 4 will replace this with typed exception propagation at driver guard boundaries */
+  /* Legacy boundaries still use longjmp; migrated boundaries opt into exceptions. */
   if (current_error_context)
-    longjmp (current_error_context->context, 1);
+    {
+      if (current_context_uses_exceptions())
+        {
+          throw catchable_runtime_error (err);
+        }
+      longjmp (current_error_context->context, 1);
+    }
   fatal ("failed longjmp() or no error context for error.");
 }
 

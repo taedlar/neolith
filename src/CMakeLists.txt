@@ -11,7 +11,9 @@
 set(stem_SOURCES
     addr_resolver.cpp
     apply.c
+    apply_safe.cpp
     backend.c
+    backend_guards.cpp
     comm.c
     command.c
     error_context.cpp
@@ -19,8 +21,10 @@ set(stem_SOURCES
     frame_catch.cpp
     interpret.c
     malloc.c
+    main_startup.cpp
     outbuf.c
     simul_efun.c
+    simulate_fatal_guard.cpp
     simulate.c
     stack.c
     stem.c

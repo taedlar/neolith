@@ -7,12 +7,58 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 | 1 | Baseline inventory and exception contract | complete |
 | 2 | Core error source migration (`error_context`) + typed exception hierarchy | complete |
 | 3 | LPC catch boundary migration (`frame` + interpreter contract) | complete |
-| 4 | Driver guard migration (`apply`, `backend`, `main`, `simulate`) | not started |
+| 4 | Driver guard migration (`apply`, `backend`, `main`, `simulate`) | complete |
 | 5 | Legacy context-chain removal (`jmp_buf` retirement) | not started |
 | 6 | Test refactor and full validation | not started |
 | 7 | Hardening, perf checks, and documentation finalization | not started |
 
 ## Current State Handoff
+
+### Phase 4 Started (2026-04-14)
+
+**What was done:**
+- Migrated `safe_apply()` driver guard from C `setjmp`/`longjmp` in `src/apply.c` to a C++ exception boundary wrapper in `src/apply_safe.cpp`.
+- Preserved C ABI by keeping `safe_apply()` as the public entrypoint and delegating internally to `safe_apply_cpp(...)`.
+- Added `src/apply_safe.cpp` to `stem` sources in `src/CMakeLists.txt`.
+- Implemented guard behavior with `neolith::error_boundary_guard` and explicit exception-to-`0` suppression to preserve `safe_apply()` contract.
+- Added explicit error-context transport mode (`longjmp` vs `exception`) in `error_context` so migrated and legacy boundaries can coexist safely during Phase 4.
+- Migrated startup guard from `src/main.c` to C++ wrapper `src/main_startup.cpp` (`run_mudlib_startup_guarded`) while preserving startup failure shutdown behavior.
+- Migrated fatal crash callback guard from `src/simulate.c:fatal()` to C++ wrapper `src/simulate_fatal_guard.cpp` (`invoke_master_crash_handler_guarded`) while preserving shutdown sequencing.
+- Migrated backend preload and object-swap guards from `src/backend.c` to C++ wrappers in `src/backend_guards.cpp`:
+  - `preload_objects()` now delegates to `preload_objects_guarded()`.
+  - `look_for_objects_to_swap()` now delegates to `look_for_objects_to_swap_guarded()`.
+- Migrated top-level backend loop guard from `src/backend.c:backend()` to C++ wrapper `backend_run_loop_guarded()` in `src/backend_guards.cpp`, preserving recover-and-continue behavior and console reinit after recovered runtime errors.
+
+**Validation completed:**
+- Build succeeded after migration.
+- Targeted Phase 4 boundary tests passed:
+  - `BackendTest.preload`
+  - `EfunsTest.errorHandlerCallableContract`
+  - `EfunsTest.throwError`
+  - `EfunsTest.throwWithoutCatchRaisesRuntimeError`
+  - `LPCInterpreterTest.catchSuccessReturnsZeroContract`
+- Additional startup/fatal-path regression checks passed after follow-on migrations:
+  - `BackendTest.setHeartBeat`
+  - `SimulEfunsTest.loadSimulEfun`
+  - `SimulEfunsTest.protectSimulEfun`
+  - `LPCInterpreterTest.nonCatchableEvalCostEscapesCatchBoundary`
+  - `LPCInterpreterTest.nonCatchableStackFullEscapesCatchBoundary`
+- Backend guard migration regression checks passed after adding `backend_guards.cpp`:
+  - `BackendTest.preload`
+  - `BackendTest.setHeartBeat`
+  - `EfunsTest.errorHandlerCallableContract`
+  - `LPCInterpreterTest.catchSuccessReturnsZeroContract`
+  - `LPCInterpreterTest.nonCatchableEvalCostEscapesCatchBoundary`
+  - `LPCInterpreterTest.nonCatchableStackFullEscapesCatchBoundary`
+  - `SimulEfunsTest.loadSimulEfun`
+- Final top-level backend-loop migration regression checks passed:
+  - `BackendTimerTest.HeartBeatFlagSetByTimer`
+  - `BackendTimerTest.QueryHeartBeatIntegration`
+  - `CommandFairnessTest.MultipleUsersFairness`
+  - `SimulEfunsTest.protectSimulEfun`
+
+**Remaining Phase 4 scope:**
+1. None.
 
 ### Phase 3 Started (2026-04-14)
 

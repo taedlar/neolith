@@ -18,6 +18,7 @@ void do_catch_cpp(const char *p, unsigned short new_pc_offset) {
   if (!save_context(&econ)) {
     error("*Can't catch too deep recursion error.");
   }
+  set_context_transport_mode(&econ, ERROR_CONTEXT_TRANSPORT_EXCEPTION);
 
   push_control_stack(FRAME_CATCH);
 

@@ -58,6 +58,7 @@ static svalue_t *load_virtual_object (const char *);
 static char *make_new_name (const char *);
 static void send_say (object_t *, char *, array_t *);
 static void remove_sent (object_t *, object_t *);
+extern void invoke_master_crash_handler_guarded(const char *msg);
 
 
 /*************************************************************************
@@ -2360,7 +2361,6 @@ void fatal (const char *fmt, ...) {
   else
     {
       char *ob_name;
-      error_context_t econ;
 
       proceeding_fatal_error = 1;
 
@@ -2373,35 +2373,7 @@ void fatal (const char *fmt, ...) {
       if ((ob_name = dump_trace (DUMP_WITH_ARGS | DUMP_WITH_LOCALVARS)))
         debug_message ("{}\t----- in heart beat of /%s", ob_name);
 
-      save_context (&econ);
-      if (setjmp (econ.context))
-        {
-          restore_context (&econ);
-          debug_message ("{}\t***** error in master::%s(), shutdown now.", APPLY_CRASH);
-        }
-      else
-        {
-          svalue_t* ret;
-
-          copy_and_push_string (msg);
-
-          if (command_giver)
-            push_object (command_giver);
-          else
-            push_undefined ();
-
-          if (current_object)
-            push_object (current_object);
-          else
-            push_undefined ();
-
-          ret = apply_master_ob (APPLY_CRASH, 3);
-          if (ret && ret != (svalue_t*)-1)
-            {
-              debug_message ("{}\t----- mudlib crash handler finished, shutdown now.");
-            }
-        }
-      pop_context (&econ);
+      invoke_master_crash_handler_guarded(msg);
     }
 
   free (msg);
