@@ -8,9 +8,22 @@ void crash (string crash_message, object command_giver, object current_object);
 ~~~
 
 ## DESCRIPTION
-The driver calls `crash()` in master in the event that the driver crashes (segmentation fault, bus error, etc).
-This function offers a way to shutdown the mudlib (safe players and other important data) before the driver crashes.
-It also lets you log various useful information such as what signal crashed the driver, what object was active, who the current player was etc.
+The driver calls `crash()` from the fatal-error shutdown path, not only for
+signal-origin crashes.
+
+This apply is invoked as:
+
+```c
+crash(crash_message, command_giver, current_object)
+```
+
+`command_giver` and `current_object` may be `undefined` when not available.
+
+This hook lets the mudlib persist critical state (for example, save players and
+other important data) and write diagnostics before process termination.
+
+If `master::crash()` itself errors, the driver logs that failure and proceeds
+with immediate shutdown.
 
 ## SEE ALSO
 [slow_shutdown()](slow_shutdown.md),

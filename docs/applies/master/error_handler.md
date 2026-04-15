@@ -4,24 +4,37 @@
 
 ## SYNOPSIS
 ~~~cxx
-void error_handler (mapping error, int caught);
+void error_handler(mapping error);
+void error_handler(mapping error, int caught);
 ~~~
 
 ## DESCRIPTION
-This function allows the mudlib to handle errors instead of the driver.
-The contents of the **error** mapping are:
+This function allows the mudlib to handle driver/runtime errors instead of
+using default driver-side trace output.
+
+The driver always calls `error_handler(error)` for uncaught runtime errors.
+
+For errors raised inside [catch()](../../efuns/catch.md), the two-argument
+form `error_handler(error, 1)` is only used when the driver is built with
+`LOG_CATCHES`. Without `LOG_CATCHES`, caught errors do not invoke this apply.
+
+The **error** mapping contains:
 
 ```c
 ([
-    "error"   : string,     // the error
-    "program" : string,     // the program
-    "object"  : object,     // the current object
+    "error"   : string,     // error text
+    "program" : string,     // current program (when available)
+    "object"  : object,     // current object (when available)
+    "file"    : string,     // source file for current pc
     "line"    : int,        // the line number
-    "trace"   : mapping*    // a trace back
+    "trace"   : mapping*    // traceback frames
 ])
 ```
 
-Each line of traceback is a mapping containing the following:
+`program` and `object` may be absent when no current program/object exists
+at the point the error is reported.
+
+Each traceback frame is a mapping containing:
 
 ```c
 ([
@@ -33,7 +46,17 @@ Each line of traceback is a mapping containing the following:
 ])
 ```
 
-The **caught** flag is 1 if the error was trapped by [catch()](../../efuns/catch.md).
+If this apply returns a non-empty string, that string is used as the emitted
+error output. Otherwise, the driver falls back to its default debug/trace output.
+
+## ERROR TEXT CONVENTION
+Historically, driver-generated runtime error strings returned through
+[catch()](../../efuns/catch.md) are `*`-prefixed (for example,
+`*Bad argument ...`). This prefix identifies driver/runtime-origin error text.
+
+Mudlib-thrown payloads are not restricted to this format, so caught values are
+not guaranteed to be `*`-prefixed unless the payload came from driver/runtime
+error generation.
 
 ## SEE ALSO
 [catch()](../../efuns/catch.md),

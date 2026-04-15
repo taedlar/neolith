@@ -10,7 +10,7 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 | 4 | Driver guard migration (`apply`, `backend`, `main`, `simulate`) | complete |
 | 5 | Legacy context-chain removal (`jmp_buf` retirement) | complete |
 | 6 | Test refactor and full validation | complete |
-| 7 | Hardening, perf checks, and documentation finalization | not started |
+| 7 | Hardening, perf checks, and documentation finalization | complete |
 
 ## Current State Handoff
 
@@ -132,6 +132,38 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 - **Test code status**: migrated test suites are stable; MSVC hang regression in curl test is fixed.
 - **Build/test status**: Linux + Windows x64 + Windows Win32 are green with `/EHs` fix applied.
 - **Next action**: proceed to Phase 7 hardening, perf checks, and documentation finalization.
+
+### Phase 7 Completed (2026-04-15)
+
+**What was done:**
+- Started documentation finalization for master error routing behavior.
+- Updated `docs/applies/master/error_handler.md` to align with source behavior in `src/error_context.cpp`:
+  - documented one-arg (`error_handler(error)`) uncaught path,
+  - documented two-arg (`error_handler(error, 1)`) caught path as `LOG_CATCHES`-conditional,
+  - clarified return semantics (non-empty string is used as emitted error text),
+  - clarified error mapping contents and optionality of `program`/`object`,
+  - added historical `*`-prefix convention note for driver/runtime-generated caught strings.
+- Completed Tier A efun/apply doc alignment sweep for exception-era behavior:
+  - `docs/efuns/catch.md`: updated `catch()` return contract, `throw(0)` normalization note, and no-catch throw outcome.
+  - `docs/efuns/throw.md`: updated semantics for active/no-active catch boundaries and fixed `error_handler` reference.
+  - `docs/efuns/error.md`: updated master `error_handler` routing/output semantics and fixed reference path.
+  - `docs/applies/master/crash.md`: expanded scope from signal-only wording to fatal-driver-error path and clarified arguments.
+
+**Remaining Phase 7 scope:**
+1. None.
+
+**Current State Handoff:**
+- **Doc status**: Tier A behavior docs for `catch`, `throw`, `error`, `error_handler`, and `crash` are aligned with current source semantics.
+- **Verification status**: portability matrix sign-off is complete for Linux/MSVC/clang-cl lanes.
+- **Hardening/perf status**: no additional caveats identified beyond documented `/EHs` toolchain requirement and resolved MSVC curl-test hang behavior.
+- **Next action**: plan closed; move to `docs/history/` and proceed with normal maintenance workflows.
+
+## Lessons Learned
+
+1. Exception transport across mixed C/C++ boundaries must be validated per toolchain: MSVC required explicit `/EHs` expectations to keep boundary behavior deterministic.
+2. Test reliability on Windows can depend on socket teardown details (`shutdown()` before close) even when Linux behavior appears stable.
+3. Source-of-truth verification in runtime code (`error_context.cpp`, `debug.c`, `simulate.c`) prevented documenting non-existent behavior (for example, no emitted `kind` mapping key).
+4. Tiered doc alignment (apply docs first, then efuns, then cross-links) reduced drift and made final consistency sweeps straightforward.
 
 ### Phase 4 Remained Completed (updated summary)
 
@@ -620,12 +652,12 @@ Before converting inline startup/bootstrap termination sites into typed fatal ex
 - Add changelog entry if behavior or developer contract changes.
 - Capture any compiler-specific caveats discovered during rollout in permanent docs.
 - Finalize Tier A LPC-visible contract and publish it in manual documentation (`docs/manual/`) as the post-migration behavior contract.
-- Update master apply documentation (`docs/applies/master/`) to resolve 6 identified Tier A doc/source alignment gaps:
+- Update master apply/efun documentation (`docs/applies/master/`, `docs/efuns/`) to resolve Tier A doc/source alignment gaps:
   - error_handler argument count: clarify two-branch calling convention (1 arg non-caught; 2 args caught with LOG_CATCHES condition).
   - LOG_CATCHES conditionality: document that caught-path callback is build-option dependent.
   - error string prefix semantics: document that `*`-prefixed caught error strings represent driver/runtime-generated error text (distinct from arbitrary mudlib-thrown payloads), and include brief historical context from `docs/history/` notes where applicable.
   - error mapping shape: document all present keys including 'file' and 'line'.
-  - error mapping metadata: document new `kind` key (`catchable` / `limit` / `fatal`) added by typed exception migration.
+  - error mapping metadata: document currently emitted keys only (no `kind` key is emitted by current source).
   - return value semantics: document that non-empty string return value is used as error output.
   - crash callback scope: expand from signal-crash-only to fatal-driver-error callback.
   - exception routing: document that typed exception hierarchy (catchable vs noncatchable vs fatal) maps to master apply dispatch routing.
@@ -646,4 +678,4 @@ Before converting inline startup/bootstrap termination sites into typed fatal ex
 7. GCC/MSVC/clang-cl all pass required build and unit-test presets.
 8. No exception escapes through `extern "C"` interfaces.
 9. Signal handlers contain only async-signal-safe operations; `fatal()` and all C++ runtime is deferred to the backend loop.
-10. Master `error_handler` mapping includes `kind` metadata matching typed exception class for representative catchable/limit/fatal error cases.
+10. Master `error_handler` mapping shape and callback semantics match current source behavior and published docs.
