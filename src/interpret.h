@@ -69,8 +69,8 @@ typedef struct {
                 malloc_str_t ess_res; size_t ess_len; size_t ess_r; \
                 const char *ess_src = (src_bytes); size_t ess_src_len = (src_len); \
                 ess_len = (ess_r = SVALUE_STRLEN(target_sv)) + ess_src_len; \
-                if ((target_sv)->subtype == STRING_MALLOC && MSTR_REF((target_sv)->u.string) == 1) { \
-                        ess_res = extend_string((target_sv)->u.string, ess_len); \
+                if ((target_sv)->subtype == STRING_MALLOC && MSTR_REF((target_sv)->u.malloc_string) == 1) { \
+                        ess_res = extend_string((target_sv)->u.malloc_string, ess_len); \
                         if (!ess_res) fatal("Out of memory!\n"); \
                         memcpy(ess_res + ess_r, ess_src, ess_src_len); \
                         ess_res[ess_len] = '\0'; \
@@ -113,8 +113,8 @@ typedef struct {
                 malloc_str_t ssj_res; size_t ssj_r; size_t ssj_len; \
                 ssj_r = SVALUE_STRLEN(left_sv); \
                 ssj_len = ssj_r + SVALUE_STRLEN(right_sv); \
-                if ((left_sv)->subtype == STRING_MALLOC && MSTR_REF((left_sv)->u.string) == 1) { \
-                        ssj_res = extend_string((left_sv)->u.string, ssj_len); \
+                if ((left_sv)->subtype == STRING_MALLOC && MSTR_REF((left_sv)->u.malloc_string) == 1) { \
+                        ssj_res = extend_string((left_sv)->u.malloc_string, ssj_len); \
                         if (!ssj_res) fatal("Out of memory!\n"); \
                         memcpy(ssj_res + ssj_r, (right_sv)->u.string, SVALUE_STRLEN(right_sv)); \
                         ssj_res[ssj_len] = '\0'; \

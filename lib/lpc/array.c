@@ -1906,10 +1906,15 @@ match_regexp (array_t * v, char *pattern, int flag)
           (--sv2)->type = T_STRING;
           sv1 = v->item + size;
           *sv2 = *sv1;
-          if (sv1->subtype & STRING_COUNTED)
+          if (sv1->subtype == STRING_MALLOC)
             {
-              INC_COUNTED_REF (sv1->u.string);
-              ADD_STRING (MSTR_SIZE (sv1->u.string));
+              INC_COUNTED_REF (sv1->u.malloc_string);
+              ADD_STRING (MSTR_SIZE (sv1->u.malloc_string));
+            }
+          else if (sv1->subtype == STRING_SHARED)
+            {
+              INC_COUNTED_REF (sv1->u.shared_string);
+              ADD_STRING (MSTR_SIZE (sv1->u.shared_string));
             }
           if (!--num_match)
             break;

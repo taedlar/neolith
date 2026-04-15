@@ -87,10 +87,15 @@ void assign_svalue_no_free (svalue_t * to, svalue_t * from) {
 
   if (from->type == T_STRING)
     {
-      if (from->subtype & STRING_COUNTED)
+      if (from->subtype == STRING_MALLOC)
         {
-          INC_COUNTED_REF (to->u.string);
-/*	    ADD_STRING(MSTR_SIZE(to->u.string)); */
+          INC_COUNTED_REF (to->u.malloc_string);
+/*      ADD_STRING(MSTR_SIZE(to->u.malloc_string)); */
+        }
+      else if (from->subtype == STRING_SHARED)
+        {
+          INC_COUNTED_REF (to->u.shared_string);
+/*      ADD_STRING(MSTR_SIZE(to->u.shared_string)); */
         }
     }
   else if (from->type & T_REFED)

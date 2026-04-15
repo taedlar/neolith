@@ -91,6 +91,13 @@ As of 2026-04-15:
   `sscanf`, `unsorted` query path, and debug memory-summary helper). A
   repository-wide `lib/**` scan for `u.string =` assignments now returns no
   matches.
+- Read-side intent tightening has started: subtype-known `STRING_MALLOC` fast
+  paths in `src/interpret.h` now read `u.malloc_string`, and subtype-specific
+  memory accounting in `lib/efuns/debug.c` now reads
+  `u.malloc_string`/`u.shared_string` directly. Current remaining
+  `u.string` counted-ref uses were in generic `STRING_COUNTED` helper-style
+  code paths (`lib/lpc/svalue.c`, `lib/lpc/array.c`). These are now tightened
+  to explicit `STRING_MALLOC`/`STRING_SHARED` read branches.
 
 ### Baseline and Out of Scope
 
