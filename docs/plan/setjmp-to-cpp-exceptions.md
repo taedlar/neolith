@@ -9,7 +9,7 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 | 3 | LPC catch boundary migration (`frame` + interpreter contract) | complete |
 | 4 | Driver guard migration (`apply`, `backend`, `main`, `simulate`) | complete |
 | 5 | Legacy context-chain removal (`jmp_buf` retirement) | complete |
-| 6 | Test refactor and full validation | not started |
+| 6 | Test refactor and full validation | complete |
 | 7 | Hardening, perf checks, and documentation finalization | not started |
 
 ## Current State Handoff
@@ -103,16 +103,35 @@ This plan migrates runtime error propagation from C `setjmp`/`longjmp` to C++ ex
 **Remaining Phase 5 scope:**
 1. None.
 
-**Phase 6 entry point:**
-1. Keep test refactor focused on maintainability (remove migration-specific comments and helpers that only served setjmp transition).
-2. Run full cross-toolchain matrix gates (GCC/MSVC/clang-cl lanes) per plan validation matrix.
-3. Capture any remaining behavior-parity gaps for documentation handoff in Phase 7.
+### Phase 6 Completed (2026-04-15)
+
+**What was done:**
+- Test-side migration cleanup has been audited; no remaining setjmp/longjmp transition helpers in active migrated test paths.
+- Linux validation gates completed successfully:
+  - Configure/build on `linux` + `ci-linux` build preset succeeded.
+  - Full test run via `ctest --preset ut-linux` passed (251/251).
+- Post-Phase-6 regression surfaced and fixed in curl tests for MSVC behavior:
+  - `CurlEfunsTest.PerformToRejectsInvalidCallbackAndFlagTypes` was updated to use LPC-level `try_perform_to` catch-boundary behavior instead of direct extern-C throw/catch assumptions.
+  - `HttpTestServer` teardown now uses `shutdown()` before `SOCKET_CLOSE` to avoid Windows `select()` wakeup/join hangs.
+  - Linux validation for curl suite remains passing after fix (7/7 curl tests).
+
+**Validation completed:**
+- Full Linux unit-test suite pass (251/251).
+- Focused curl regression suite pass after MSVC-oriented fix (7/7).
+- Full Windows/x64 validation confirmed by user after `/EHs` fix:
+  - `vs16-x64`: full tests passing.
+  - `clang-x64`: full tests passing.
+- Full Windows/Win32 validation confirmed by user:
+  - `vs16-win32`: full tests passing.
+
+**Remaining Phase 6 scope:**
+1. None.
 
 **Current State Handoff:**
-- **Production code status**: Phase 5 is complete; context-chain jump machinery and migration-only transport mode plumbing are retired.
-- **Test code status**: setjmp-based tests in migrated areas are converted and passing.
-- **Build status**: clean build and passing targeted/full validation run.
-- **Next action**: start Phase 6 polish + cross-toolchain validation matrix execution.
+- **Production code status**: Phase 5 remains complete; jump-context transport is retired in production paths.
+- **Test code status**: migrated test suites are stable; MSVC hang regression in curl test is fixed.
+- **Build/test status**: Linux + Windows x64 + Windows Win32 are green with `/EHs` fix applied.
+- **Next action**: proceed to Phase 7 hardening, perf checks, and documentation finalization.
 
 ### Phase 4 Remained Completed (updated summary)
 
