@@ -329,8 +329,8 @@ f_query_notify_fail (void)
           sp++;
           sp->type = T_STRING;
           sp->subtype = STRING_SHARED;
-          sp->u.string = p;
-          ref_string (p);
+          sp->u.shared_string = p;
+          ref_string (to_shared_str(p));
           return;
         }
     }

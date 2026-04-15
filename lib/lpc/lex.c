@@ -1300,7 +1300,7 @@ int yylex () {
               /* add the lines from this file, and readjust to be relative
                  to the file we're returning to */
               current_line_base += current_line - current_line_saved;
-              free_string (current_file);
+              free_string(to_shared_str(current_file));
               nexpands = 0;
               if (outptr >= cur_lbuf->buf_end)
                 {
@@ -2466,7 +2466,7 @@ void end_new_file () {
       p = inctop;
       close (yyin_desc);
       opt_trace (TT_COMPILE|3, "closed fd = %d (%s)\n", yyin_desc, current_file);
-      free_string (current_file);
+      free_string(to_shared_str(current_file));
       current_file = p->file;
       yyin_desc = p->yyin_desc;
       inctop = p->next;
@@ -3452,7 +3452,7 @@ void reset_inc_list (void) {
       for (i = 0; i < inc_list_size; i++)
         {
           if (inc_list[i])
-            free_string (inc_list[i]);
+            free_string(to_shared_str(inc_list[i]));
         }
       FREE (inc_list);
       inc_list = NULL;

@@ -137,7 +137,7 @@ void f_call_stack (void) {
 
               ret->item[i].subtype = STRING_SHARED;
               ret->item[i].u.string = cfp->name;
-              ref_string (cfp->name);
+              ref_string (to_shared_str(cfp->name));
             }
           else
             {

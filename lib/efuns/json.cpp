@@ -178,7 +178,7 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
     auto const& js = jv.get_string();
     out->type = T_STRING;
     out->subtype = STRING_MALLOC;
-    out->u.string = string_copy(js.c_str(), "json_to_lpc");
+    out->u.malloc_string = string_copy(js.c_str(), "json_to_lpc");
     break;
   }
 
@@ -220,7 +220,7 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
       k.at(kv.key().size()) = '\0';  /* ensure null-terminated for string_copy */
       key.u.string = const_cast<char *>(k.data());
       svalue_t *val = find_for_insert(m, &key, 1);
-      free_string(key.u.string);  /* release shared-string ref from find_for_insert */
+      free_string(to_shared_str(key.u.string));  /* release shared-string ref from find_for_insert */
       val->type = T_INVALID;
       json_to_lpc(kv.value(), val);
     }

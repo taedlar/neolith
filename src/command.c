@@ -119,7 +119,7 @@ void notify_no_command () {
       if (p.s)
         {
           tell_object (command_giver, p.s);
-          free_string (p.s);
+          free_string(to_shared_str(p.s));
           command_giver->interactive->default_err_message.s = 0;
         }
       else if (CONFIG_STR (__DEFAULT_FAIL_MESSAGE__))
@@ -144,7 +144,7 @@ void clear_notify (interactive_t * ip) {
       ip->iflags &= ~NOTIFY_FAIL_FUNC;
     }
   else if (dem.s)
-    free_string (dem.s);
+    free_string(to_shared_str(dem.s));
   ip->default_err_message.s = 0;
 }				/* clear_notify() */
 

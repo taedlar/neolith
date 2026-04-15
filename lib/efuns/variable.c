@@ -99,17 +99,17 @@ fv_recurse (array_t * arr, int *idx, program_t * prog, int type, uint64_t flag)
           subarr = arr->item[*idx + i].u.arr = allocate_empty_array (2); /* e.g. ({ "weight", "int"}) */
           subarr->item[0].type = T_STRING;
           subarr->item[0].subtype = STRING_SHARED;
-          subarr->item[0].u.string = ref_string (prog->variable_table[i]);
+          subarr->item[0].u.shared_string = ref_string(to_shared_str(prog->variable_table[i]));
           get_type_name (buf, end, prog->variable_types[i]);
           subarr->item[1].type = T_STRING;
           subarr->item[1].subtype = STRING_SHARED;
-          subarr->item[1].u.string = make_shared_string(buf, NULL);
+          subarr->item[1].u.shared_string = make_shared_string(buf, NULL);
         }
       else
         {
           arr->item[*idx + i].type = T_STRING;
           arr->item[*idx + i].subtype = STRING_SHARED;
-          arr->item[*idx + i].u.string = ref_string (prog->variable_table[i]);
+          arr->item[*idx + i].u.shared_string = ref_string(to_shared_str(prog->variable_table[i]));
         }
     }
   *idx += prog->num_variables_defined;

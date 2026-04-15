@@ -1858,13 +1858,13 @@ void free_sentence (sentence_t * p) {
   else
     {
       if (p->function.s)
-        free_string (p->function.s);
+        free_string(to_shared_str(p->function.s));
       p->function.s = 0;
     }
 
   if (p->verb)
     {
-      free_string (p->verb);
+      free_string(to_shared_str(p->verb));
       p->verb = 0;
     }
 
@@ -1924,7 +1924,7 @@ void dealloc_object (object_t * ob, const char *from) {
     }
 #ifdef PRIVS
   if (ob->privs)
-    free_string (ob->privs);
+    free_string(to_shared_str(ob->privs));
 #endif
   if (ob->name)
     {
@@ -2054,7 +2054,7 @@ void remove_living_name (object_t * ob) {
                 "remove_living_name: Object named %s no in hash list.\n",
                 ob->living_name);
   *hl = ob->next_hashed_living;
-  free_string (ob->living_name);
+  free_string(to_shared_str(ob->living_name));
   ob->next_hashed_living = 0;
   ob->living_name = 0;
 }

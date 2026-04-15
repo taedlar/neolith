@@ -312,7 +312,7 @@ int check_valid_socket (char *what, socket_fd_t fd, object_t * owner, char *addr
   assign_socket_owner (&info->item[1], owner);
   info->item[2].type = T_STRING;
   info->item[2].subtype = STRING_SHARED;
-  info->item[2].u.string = make_shared_string(addr, NULL);
+  info->item[2].u.shared_string = make_shared_string(addr, NULL);
   info->item[3].type = T_NUMBER;
   info->item[3].u.number = port;
 
@@ -599,7 +599,7 @@ void set_read_callback (int which, svalue_t * cb) {
       lpc_socks[which].flags &= ~S_READ_FP;
     }
   else if ((s = lpc_socks[which].read_callback.s))
-    free_string (s);
+    free_string(to_shared_str(s));
 
   if (cb)
     {
@@ -629,7 +629,7 @@ void set_write_callback (int which, svalue_t * cb) {
       lpc_socks[which].flags &= ~S_WRITE_FP;
     }
   else if ((s = lpc_socks[which].write_callback.s))
-    free_string (s);
+    free_string(to_shared_str(s));
 
   if (cb)
     {
@@ -659,7 +659,7 @@ void set_close_callback (int which, svalue_t * cb) {
       lpc_socks[which].flags &= ~S_CLOSE_FP;
     }
   else if ((s = lpc_socks[which].close_callback.s))
-    free_string (s);
+    free_string(to_shared_str(s));
 
   if (cb)
     {
@@ -688,7 +688,7 @@ static void copy_close_callback (int to, int from) {
       free_funp (lpc_socks[to].close_callback.f);
     }
   else if ((s = lpc_socks[to].close_callback.s))
-    free_string (s);
+    free_string(to_shared_str(s));
 
   if (lpc_socks[from].flags & S_CLOSE_FP)
     {
@@ -701,7 +701,7 @@ static void copy_close_callback (int to, int from) {
       lpc_socks[to].flags &= ~S_CLOSE_FP;
       s = lpc_socks[to].close_callback.s = lpc_socks[from].close_callback.s;
       if (s)
-        ref_string (s);
+        ref_string(to_shared_str(s));
     }
 }
 

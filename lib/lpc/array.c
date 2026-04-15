@@ -193,7 +193,7 @@ array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
             break;
           ret->item[j].type = T_STRING;
           ret->item[j].subtype = STRING_MALLOC;
-          ret->item[j].u.string = tmp = new_string (mb, "explode_string: tmp");
+          ret->item[j].u.malloc_string = tmp = new_string (mb, "explode_string: tmp");
           memcpy (tmp, str, mb);
           tmp[mb] = '\0';
           str += mb;
@@ -282,7 +282,7 @@ array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
 
           ret->item[num].type = T_STRING;
           ret->item[num].subtype = STRING_MALLOC;
-          ret->item[num].u.string = buff = new_string (p - beg, "explode_string: buff");
+          ret->item[num].u.malloc_string = buff = new_string (p - beg, "explode_string: buff");
 
           strncpy (buff, beg, p - beg);
           buff[p - beg] = '\0';
@@ -303,14 +303,14 @@ array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
 #ifdef REVERSIBLE_EXPLODE_STRING
   ret->item[num].type = T_STRING;
   ret->item[num].subtype = STRING_MALLOC;
-  ret->item[num].u.string =
+  ret->item[num].u.malloc_string =
     string_copy (beg, "explode_string: last, len != 1");
 #else
   if (*beg != '\0')
     {
       ret->item[num].type = T_STRING;
       ret->item[num].subtype = STRING_MALLOC;
-      ret->item[num].u.string =
+      ret->item[num].u.malloc_string =
         string_copy (beg, "explode_string: last, len != 1");
     }
 #endif
@@ -553,8 +553,8 @@ commands (object_t * ob)
       sv->type = T_ARRAY;
       (sv++)->u.arr = p = allocate_empty_array (4);
       p->item[0].type = T_STRING;
-      p->item[0].u.string = ref_string (s->verb);	/* the verb is shared */
       p->item[0].subtype = STRING_SHARED;
+      p->item[0].u.shared_string = ref_string(to_shared_str(s->verb));	/* the verb is shared */
       p->item[1].type = T_NUMBER;
       p->item[1].u.number = s->flags;
       p->item[2].type = T_OBJECT;
@@ -562,13 +562,13 @@ commands (object_t * ob)
       p->item[3].type = T_STRING;
       if (s->flags & V_FUNCTION)
         {
-          p->item[3].u.string = "<function>";
+          p->item[3].u.const_string = "<function>";
           p->item[3].subtype = STRING_CONSTANT;
         }
       else
         {
-          p->item[3].u.string = ref_string (s->function.s);
           p->item[3].subtype = STRING_SHARED;
+          p->item[3].u.shared_string = ref_string(to_shared_str(s->function.s));
         }
       add_ref (s->ob, "commands");
     }
@@ -1455,7 +1455,7 @@ static svalue_t* alist_sort (array_t * inlist) {
             }
           else if ((tmp->type == T_STRING) && !(tmp->subtype == STRING_SHARED))
             {
-              sv_tab[j].u.string = make_shared_string(tmp->u.string, NULL);
+              sv_tab[j].u.shared_string = make_shared_string(tmp->u.string, NULL);
               (tmp = sv_tab + j)->subtype = STRING_SHARED;
               tmp->type = T_STRING;
             }
@@ -1493,7 +1493,7 @@ static svalue_t* alist_sort (array_t * inlist) {
             {
               str = make_shared_string(tmp->u.string, NULL);
               free_string_svalue (tmp);
-              tmp->u.string = str;
+              tmp->u.shared_string = str;
               tmp->subtype = STRING_SHARED;
             }
 
@@ -1580,7 +1580,7 @@ array_t* subtract_array (array_t * minuend, array_t * subtrahend) {
         {
           svalue_t stmp = { .type = T_STRING, STRING_SHARED };
 
-          if (!(stmp.u.string = findstring(source->u.string, NULL)))
+          if (!(stmp.u.shared_string = findstring(source->u.string, NULL)))
             {
               assign_svalue_no_free (dest++, source);
               continue;
@@ -1683,7 +1683,7 @@ intersect_array (array_t * a1, array_t * a2)
           else if ((tmp->type == T_STRING)
                    && !(tmp->subtype == STRING_SHARED))
             {
-              sv_tab[j].u.string = make_shared_string(tmp->u.string, NULL);
+              sv_tab[j].u.shared_string = make_shared_string(tmp->u.string, NULL);
               (tmp = sv_tab + j)->subtype = STRING_SHARED;
               tmp->type = T_STRING;
             }
@@ -1725,7 +1725,7 @@ intersect_array (array_t * a1, array_t * a2)
             {
               str = make_shared_string(tmp->u.string, NULL);
               free_string_svalue (tmp);
-              tmp->u.string = str;
+              tmp->u.shared_string = str;
               tmp->subtype = STRING_SHARED;
             }
 
@@ -1952,7 +1952,7 @@ deep_inherit_list (object_t * ob)
       pr = plist[il + 1];
       ret->item[il].type = T_STRING;
       ret->item[il].subtype = STRING_MALLOC;
-      ret->item[il].u.string = add_slash (pr->name);
+      ret->item[il].u.malloc_string = add_slash (pr->name);
     }
   return ret;
 }
@@ -1986,7 +1986,7 @@ inherit_list (object_t * ob)
       pr = plist[il + 1];
       ret->item[il].type = T_STRING;
       ret->item[il].subtype = STRING_MALLOC;
-      ret->item[il].u.string = add_slash (pr->name);
+      ret->item[il].u.malloc_string = add_slash (pr->name);
     }
   return ret;
 }
@@ -2336,7 +2336,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
           length = rmp->begin - tmp;
           sv1->type = T_STRING;
           sv1->subtype = STRING_MALLOC;
-          svtmp = sv1->u.string = new_string (length, "reg_assoc : sv1");
+          svtmp = sv1->u.malloc_string = new_string (length, "reg_assoc : sv1");
           strncpy (svtmp, tmp, length);
           svtmp[length] = 0;
           sv1++;
@@ -2345,7 +2345,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
           length = rmp->end - rmp->begin;
           sv1->type = T_STRING;
           sv1->subtype = STRING_MALLOC;
-          svtmp = sv1->u.string = new_string (length, "reg_assoc : sv1");
+          svtmp = sv1->u.malloc_string = new_string (length, "reg_assoc : sv1");
           strncpy (svtmp, tmp, length);
           svtmp[length] = 0;
           sv1++;
@@ -2355,7 +2355,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
         }
       sv1->type = T_STRING;
       sv1->subtype = STRING_MALLOC;
-      sv1->u.string = string_copy (tmp, "reg_assoc");
+      sv1->u.malloc_string = string_copy (tmp, "reg_assoc");
       assign_svalue_no_free (sv2, def);
       for (i = 0; i < size; i++)
         FREE ((char *) rgpp[i]);
@@ -2377,7 +2377,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
       temp = (sv->u.arr = allocate_empty_array (1))->item;
       temp->subtype = STRING_MALLOC;
       temp->type = T_STRING;
-      temp->u.string = string_copy (str, "reg_assoc");
+      temp->u.malloc_string = string_copy (str, "reg_assoc");
       sv = &ret->item[1];
       sv->type = T_ARRAY;
       assign_svalue_no_free ((sv->u.arr = allocate_empty_array (1))->item, def);

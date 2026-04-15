@@ -479,7 +479,7 @@ void catch_value_guard::set_caught_error(const char *error_msg) noexcept {
     // Set new value
     catch_value.type = T_STRING;
     catch_value.subtype = STRING_MALLOC;
-    catch_value.u.string = string_copy(error_msg ? error_msg : "", "caught error");
+    catch_value.u.malloc_string = string_copy(error_msg ? error_msg : "", "caught error");
     m_owned = true;
 }
 

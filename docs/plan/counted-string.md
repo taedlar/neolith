@@ -34,7 +34,7 @@ early as possible (compile-time preferred, runtime as backstop).
 
 ### Near-Term Focus
 
-- Promote transparent aliases to abstract handles so boundary misuse fails at
+- Promote transparent boundary handles to abstract handles so boundary misuse fails at
   compile time.
 - Harden efun and JSON byte-span boundaries with explicit contract checks.
 - Expand regression coverage to lock in counted-string semantics across LPC,
@@ -46,7 +46,7 @@ early as possible (compile-time preferred, runtime as backstop).
 |---|---|
 | Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
 | Implementation: VM/operator NUL-removal and span API normalization | complete |
-| Implementation: abstract typed handles + runtime contract enforcement | not started |
+| Implementation: abstract typed handles + runtime contract enforcement | in progress |
 | Implementation: C++ RAII wrapper adoption on exception baseline | not started |
 | Implementation: efun byte-span readiness | not started |
 | Implementation: JSON boundary contract and tests | in progress |
@@ -69,6 +69,16 @@ As of 2026-04-15:
 - Planning scope is narrowed to one consolidated backlog with acceptance criteria.
 - Current implementation focus: typed-handle enforcement, C++ wrapper adoption
   on existing exception boundaries, and efun/JSON boundary hardening.
+- Safe transition is underway: boundary-handle enforcement is live in
+  `stralloc`, and subtype-known write sites are being migrated from generic
+  `u.string` assignments to typed `u.shared_string` / `u.malloc_string`
+  members without changing the C ABI.
+- Compile-time regression checks for typed boundary signatures and bridge
+  helpers are now in `tests/test_stralloc/test_stralloc_type_safety.cpp`.
+- `src` low-risk subtype-known writes are now clean in the latest sweep:
+  `src/stralloc.c`, `src/outbuf.c`, and `src/error_context.cpp` now use
+  typed members (`u.shared_string` / `u.malloc_string` / `u.const_string`)
+  at subtype-known assignment sites.
 
 ### Baseline and Out of Scope
 
@@ -114,8 +124,8 @@ Contract-bearing boundary functions:
 
 | Function | Contract |
 |---|---|
-| `ref_string(shared_str_t)` / `free_string(shared_str_t)` | requires shared payload |
-| `extend_string(malloc_str_t, size_t)` | requires malloc payload |
+| `ref_string(shared_str_handle_t)` / `free_string(shared_str_handle_t)` | requires shared payload |
+| `extend_string(malloc_str_handle_t, size_t)` | requires malloc payload |
 | `push_shared_string(shared_str_t)` / `push_malloced_string(malloc_str_t)` | subtype-specific storage boundaries |
 
 These boundary signatures are now type-specific end to end. Remaining hardening
@@ -132,27 +142,28 @@ currently only annotated, not enforced.
 
 ## Planned Abstract Handle Migration
 
-Target: when `STRING_TYPE_SAFETY` is enabled, switch from transparent aliases to
-abstract handle typedefs plus explicit bridge helpers — making cross-domain
-misuse a compile error rather than a runtime surprise.
+Target: when `STRING_TYPE_SAFETY` is enabled, switch boundary handles from
+transparent pointer aliases to abstract handle typedefs plus explicit bridge
+helpers — making cross-domain misuse a compile error rather than a runtime
+surprise.
 
 ```c
 #ifdef STRING_TYPE_SAFETY
-  typedef struct { char *raw; } shared_str_t;
-  typedef struct { char *raw; } malloc_str_t;
+  typedef struct { char *raw; } shared_str_handle_t;
+  typedef struct { char *raw; } malloc_str_handle_t;
   #define SHARED_STR_P(x) ((x).raw)
   #define MALLOC_STR_P(x) ((x).raw)
-  static inline shared_str_t to_shared_str(char *p) {
-    shared_str_t h = { p };
+  static inline shared_str_handle_t to_shared_str(char *p) {
+    shared_str_handle_t h = { p };
     return h;
   }
-  static inline malloc_str_t to_malloc_str(char *p) {
-    malloc_str_t h = { p };
+  static inline malloc_str_handle_t to_malloc_str(char *p) {
+    malloc_str_handle_t h = { p };
     return h;
   }
 #else
-  typedef char *shared_str_t;
-  typedef char *malloc_str_t;
+  typedef char *shared_str_handle_t;
+  typedef char *malloc_str_handle_t;
   #define SHARED_STR_P(x) (x)
   #define MALLOC_STR_P(x) (x)
   #define to_shared_str(x) (x)
@@ -174,7 +185,7 @@ Migration order:
 
 - Keep `svalue_t`/`svalue_u` as C-layout POD in C-visible headers.
 - Add C++ wrappers:
-- `BorrowedValue` (non-owning view over `svalue_t *`) and `OwnedValue` (RAII owner).
+- `lpc::svalue_view` (non-owning view over `svalue_t *`) and `lpc::svalue` (RAII owner).
 - Exception transport and `extern "C"` boundary translation are existing baseline
   behavior from the completed exception migration; this plan must not re-open
   or duplicate that work.
@@ -187,8 +198,8 @@ Migration order:
 |---|---|---|---|
 | P0 | Remove NUL-dependent VM/operator paths | [lib/lpc/operator.c](../../lib/lpc/operator.c), [src/interpret.h](../../src/interpret.h) | complete: touched concat/join paths now use explicit lengths and byte-copy semantics; equality/inequality and string range use counted-length compare/copy; behavior remains compatible for normal strings. |
 | P0 | Normalize internal helper APIs | string construction/lookup boundaries | New/updated helpers accept explicit lengths/spans; touched callers stop using sentinel termination as logical length; shared-string boundaries continue to route via `make_shared_string(s,end)` / `findstring(s,end)`. |
-| P0 | Enforce counted-string semantic boundaries | [src/stralloc.h](../../src/stralloc.h), [lib/lpc/types.h](../../lib/lpc/types.h), typed-string boundaries | Abstract handle mode enabled under `STRING_TYPE_SAFETY`; boundary APIs require explicit typed handles or bridge macros; runtime contract checks remain release-enabled; identifier-class shared strings remain NUL-terminated. |
-| P1 | C++ wrapper adoption on baseline boundaries | C++ wrappers around `svalue_t` | `BorrowedValue`/`OwnedValue` introduced without C ABI layout change; no duplicate exception-boundary rewrites are introduced; wrapper move/dtor are `noexcept`; targeted perf checks show no hot-path regression. |
+| P0 | Enforce counted-string semantic boundaries | [src/stralloc.h](../../src/stralloc.h), [lib/lpc/types.h](../../lib/lpc/types.h), typed-string boundaries | Boundary-handle mode enabled under `STRING_TYPE_SAFETY`; contract APIs require explicit typed handles or bridge helpers; runtime contract checks remain release-enabled; identifier-class shared strings remain NUL-terminated. |
+| P1 | C++ wrapper adoption on baseline boundaries | C++ wrappers around `svalue_t` | `lpc::svalue_view`/`lpc::svalue` introduced without C ABI layout change; no duplicate exception-boundary rewrites are introduced; wrapper move/dtor are `noexcept`; targeted perf checks show no hot-path regression. |
 | P1 | Efun byte-span readiness | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Touched binary-sensitive efun paths use explicit lengths; text-oriented paths explicitly document C-string assumptions; existing efun tests remain green. |
 | P1 | JSON boundary contract | JSON efuns/helpers (`from_json`, `to_json`) | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; `to_json` escaping policy documented and tested. |
 | P1 | Unicode and escape consistency | JSON encode/decode implementation | Encoder/decoder are symmetric for control escapes, `\\`, `\"`, `\uXXXX`, and surrogate pairs; non-BMP behavior documented and validated. |

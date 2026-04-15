@@ -154,11 +154,11 @@ void outbuf_push (outbuffer_t * outbuf) {
       outbuf->buffer = extend_string (outbuf->buffer, outbuf->real_size);
 
       sp->subtype = STRING_MALLOC;
-      sp->u.string = outbuf->buffer;
+      sp->u.malloc_string = outbuf->buffer;
     }
   else
     {
       sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      sp->u.const_string = "";
     }
 }

@@ -268,10 +268,10 @@ static void clear_lookup_request_entry(int index)
     return;
 
   if (lookup_request_table[index].call_back != nullptr)
-    free_string(lookup_request_table[index].call_back);
+    free_string(to_shared_str(lookup_request_table[index].call_back));
 
   if (lookup_request_table[index].name != nullptr)
-    free_string(lookup_request_table[index].name);
+    free_string(to_shared_str(lookup_request_table[index].name));
 
   if (lookup_request_table[index].ob_to_call != nullptr)
     free_object(lookup_request_table[index].ob_to_call,
@@ -1090,7 +1090,7 @@ addr_resolver_forward_cache_add(const char *hostname, uint32_t ip_address, int s
   /* Find first empty slot and add */
   i = s_forward_cache_cursor;
   if (s_forward_cache[i].hostname)
-    free_string(s_forward_cache[i].hostname);
+    free_string(to_shared_str(s_forward_cache[i].hostname));
 
   s_forward_cache[i].hostname = make_shared_string(hostname, NULL);
   s_forward_cache[i].ip_address = ip_address;
@@ -1143,7 +1143,7 @@ addr_resolver_reverse_cache_add(unsigned long addr_in_network_order, const char 
       if (s_reverse_cache[i].addr == addr_in_network_order)
         {
           if (s_reverse_cache[i].name)
-            free_string(s_reverse_cache[i].name);
+            free_string(to_shared_str(s_reverse_cache[i].name));
           s_reverse_cache[i].name = make_shared_string(hostname, NULL);
           s_reverse_cache[i].updated_at = time(NULL);
           return;
@@ -1154,7 +1154,7 @@ addr_resolver_reverse_cache_add(unsigned long addr_in_network_order, const char 
   i = s_reverse_cache_cursor;
   s_reverse_cache[i].addr = addr_in_network_order;
   if (s_reverse_cache[i].name)
-    free_string(s_reverse_cache[i].name);
+    free_string(to_shared_str(s_reverse_cache[i].name));
   s_reverse_cache[i].name = make_shared_string(hostname, NULL);
   s_reverse_cache[i].updated_at = time(NULL);
 
@@ -1171,7 +1171,7 @@ addr_resolver_cache_reset(void)
     {
       if (s_forward_cache[i].hostname)
         {
-          free_string(s_forward_cache[i].hostname);
+          free_string(to_shared_str(s_forward_cache[i].hostname));
           s_forward_cache[i].hostname = NULL;
         }
       s_forward_cache[i].ip_address = 0;
@@ -1185,7 +1185,7 @@ addr_resolver_cache_reset(void)
     {
       if (s_reverse_cache[i].name)
         {
-          free_string(s_reverse_cache[i].name);
+          free_string(to_shared_str(s_reverse_cache[i].name));
           s_reverse_cache[i].name = NULL;
         }
       s_reverse_cache[i].addr = 0;

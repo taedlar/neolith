@@ -109,14 +109,14 @@ void copy_and_push_string (const char *p) {
   CHECK_AND_PUSH(1);
   sp->type = T_STRING;
   sp->subtype = STRING_MALLOC;
-  sp->u.string = string_copy (p, "copy_and_push_string");
+  sp->u.malloc_string = string_copy (p, "copy_and_push_string");
 }
 
 void share_and_push_string (const char *p) {
   CHECK_AND_PUSH(1);
   sp->type = T_STRING;
   sp->subtype = STRING_SHARED;
-  sp->u.string = make_shared_string(p, NULL);
+  sp->u.shared_string = make_shared_string(p, NULL);
 }
 
 void push_some_svalues (svalue_t * v, int num) {
@@ -219,8 +219,8 @@ push_malloced_string (malloc_str_t p)
 {
   sp++;
   sp->type = T_STRING;
-  sp->u.string = p;
   sp->subtype = STRING_MALLOC;
+  sp->u.malloc_string = p;
 }
 
 /*
@@ -232,9 +232,9 @@ push_shared_string (shared_str_t p)
 {
   sp++;
   sp->type = T_STRING;
-  sp->u.string = p;
   sp->subtype = STRING_SHARED;
-  ref_string (p);
+  sp->u.shared_string = p;
+  ref_string(to_shared_str(p));
 }
 
 /*

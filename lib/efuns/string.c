@@ -508,7 +508,7 @@ void f_replace_string (void) {
           memcpy (dst2, src, slimit - src);
           dst2 += (slimit - src);
           *dst2 = 0;
-          arg->u.string = extend_string (dst1, dst2 - dst1);
+          arg->u.malloc_string = extend_string (dst1, dst2 - dst1);
         }
       else
         {
@@ -558,7 +558,7 @@ void f_replace_string (void) {
                               *dst2++ = *src++;
                             }
                           *dst2 = '\0';
-                          arg->u.string = extend_string (dst1, dst2 - dst1);
+                          arg->u.malloc_string = extend_string (dst1, dst2 - dst1);
                           break;
                         }
                     }

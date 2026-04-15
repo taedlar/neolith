@@ -616,7 +616,7 @@ program_t *load_binary (const char *name) {
         {
           opt_trace (TT_COMPILE|1, "inherited program name corrupted.");
           fclose (f);
-          free_string (p->name);
+          free_string(to_shared_str(p->name));
           FREE (p);
           FREE (buf);
           return OUT_OF_DATE;
@@ -636,7 +636,7 @@ program_t *load_binary (const char *name) {
         {			/* ok if -1 */
           opt_trace (TT_COMPILE|1, "out of date (inherited source is newer).");
           fclose (f);
-          free_string (p->name);
+          free_string(to_shared_str(p->name));
           FREE (p);
           FREE (buf);
           return OUT_OF_DATE;
@@ -647,7 +647,7 @@ program_t *load_binary (const char *name) {
         {
           opt_trace (TT_COMPILE|1, "saved binary inherits: /%s", buf);
           fclose (f);
-          free_string (p->name);
+          free_string(to_shared_str(p->name));
           FREE (p);
           inherit_file = buf;	/* freed elsewhere */
           return 0;
@@ -676,10 +676,10 @@ program_t *load_binary (const char *name) {
       opt_trace (TT_COMPILE|1, "string table corrupted.");
       while (i-- > 0)
         {
-          free_string (p->strings[i]);
+          free_string(to_shared_str(p->strings[i]));
         }
       fclose (f);
-      free_string (p->name);
+      free_string(to_shared_str(p->name));
       FREE (p);
       FREE (buf);
       return OUT_OF_DATE;
@@ -706,15 +706,15 @@ program_t *load_binary (const char *name) {
       opt_trace (TT_COMPILE|1, "variable table corrupted.");
       while (i-- > 0)
         {
-          free_string (p->variable_table[i]);
+          free_string(to_shared_str(p->variable_table[i]));
         }
       i = p->num_strings;
       while (i-- > 0)
         {
-          free_string (p->strings[i]);
+          free_string(to_shared_str(p->strings[i]));
         }
       fclose (f);
-      free_string (p->name);
+      free_string(to_shared_str(p->name));
       FREE (p);
       FREE (buf);
       return OUT_OF_DATE;
@@ -741,20 +741,20 @@ program_t *load_binary (const char *name) {
       opt_trace (TT_COMPILE|1, "function table corrupted.");
       while (i-- > 0)
         {
-          free_string (p->function_table[i].name);
+          free_string(to_shared_str(p->function_table[i].name));
         }
       i = p->num_variables_defined;
       while (i-- > 0)
         {
-          free_string (p->variable_table[i]);
+          free_string(to_shared_str(p->variable_table[i]));
         }
       i = p->num_strings;
       while (i-- > 0)
         {
-          free_string (p->strings[i]);
+          free_string(to_shared_str(p->strings[i]));
         }
       fclose (f);
-      free_string (p->name);
+      free_string(to_shared_str(p->name));
       FREE (p);
       FREE (buf);
       return OUT_OF_DATE;
@@ -780,20 +780,20 @@ program_t *load_binary (const char *name) {
           i = p->num_functions_defined;
           while (i-- > 0)
             {
-              free_string (p->function_table[i].name);
+              free_string(to_shared_str(p->function_table[i].name));
             }
           i = p->num_variables_defined;
           while (i-- > 0)
             {
-              free_string (p->variable_table[i]);
+              free_string(to_shared_str(p->variable_table[i]));
             }
           i = p->num_strings;
           while (i-- > 0)
             {
-              free_string (p->strings[i]);
+              free_string(to_shared_str(p->strings[i]));
             }
           fclose (f);
-          free_string (p->name);
+          free_string(to_shared_str(p->name));
           FREE (p->file_info);
           FREE (p);
           FREE (buf);

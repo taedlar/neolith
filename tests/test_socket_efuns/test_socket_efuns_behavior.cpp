@@ -217,8 +217,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_001_CreateStream_Success) {
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   // Cleanup
-  free_string(read_cb.u.shared_string);
-  free_string(close_cb.u.shared_string);
+  free_string(to_shared_str(read_cb.u.shared_string));
+  free_string(to_shared_str(close_cb.u.shared_string));
 }
 
 /**
@@ -568,7 +568,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_011_ConnectMalformedAddress_Rejected) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
-  free_string(bad_addr);
+  free_string(to_shared_str(bad_addr));
   free_string_svalue(&read_cb);
   free_string_svalue(&write_cb);
 }

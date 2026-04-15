@@ -790,7 +790,7 @@ f_set_privs (void)
 
   ob = (sp - 1)->u.ob;
   if (ob->privs != NULL)
-    free_string (ob->privs);
+    free_string(to_shared_str(ob->privs));
   if (!(sp->type == T_STRING))
     {
       ob->privs = NULL;
@@ -1307,7 +1307,7 @@ f_functions (void)
 
           subvec->item[0].type = T_STRING;
           subvec->item[0].subtype = STRING_SHARED;
-          subvec->item[0].u.string = ref_string (funp->name);
+          subvec->item[0].u.shared_string = ref_string(to_shared_str(funp->name));
 
           subvec->item[1].type = T_NUMBER;
           subvec->item[1].subtype = 0;
@@ -1316,7 +1316,7 @@ f_functions (void)
           get_type_name (buf, end, funp->type);
           subvec->item[2].type = T_STRING;
           subvec->item[2].subtype = STRING_SHARED;
-          subvec->item[2].u.string = make_shared_string(buf, NULL);
+          subvec->item[2].u.shared_string = make_shared_string(buf, NULL);
 
           for (j = 0; j < func_entry->def.num_arg; j++)
             {
@@ -1325,7 +1325,7 @@ f_functions (void)
                   get_type_name (buf, end, types[j]);
                   subvec->item[3 + j].type = T_STRING;
                   subvec->item[3 + j].subtype = STRING_SHARED;
-                  subvec->item[3 + j].u.string = make_shared_string(buf, NULL);
+                  subvec->item[3 + j].u.shared_string = make_shared_string(buf, NULL);
                 }
               else
                 {
@@ -1338,7 +1338,7 @@ f_functions (void)
         {
           vec->item[i].type = T_STRING;
           vec->item[i].subtype = STRING_SHARED;
-          vec->item[i].u.string = ref_string (funp->name);
+          vec->item[i].u.shared_string = ref_string(to_shared_str(funp->name));
         }
     }
 

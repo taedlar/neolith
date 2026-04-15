@@ -10,29 +10,53 @@ extern "C" {
 #endif
 
 /*
- * Typed aliases for contract-bearing char * parameters.
+ * Typed aliases for runtime string storage.
  *
  * shared_str_t: a char * known to be a STRING_SHARED payload (block_t header
  *               immediately precedes the pointer; managed by the shared string
- *               table).  Pass to ref_string() and free_string().
+ *               table).
  *
  * malloc_str_t: a char * known to be a STRING_MALLOC payload (malloc_block_t
- *               header immediately precedes the pointer).  Pass to
- *               extend_string(); returned by new_string() and
- *               string_copy().
+ *               header immediately precedes the pointer).
  *
- * In all build modes the typedefs are transparent (identical to char *), so no
- * existing call sites require changes and there is no runtime overhead.
- * When STRING_TYPE_SAFETY is defined (default ON), the boundary functions
- * additionally validate their pointer contract at runtime even in release builds.
- *
- * Path to full compile-time enforcement: change the typedefs to opaque struct
- * pointer types, update struct fields / variables that store typed strings, and
- * add SHARED_STR()/MALLOC_STR() cast macros at call sites where conversion is
- * needed.
+ * Contract-bearing APIs use explicit handle types (shared_str_handle_t /
+ * malloc_str_handle_t). Under STRING_TYPE_SAFETY these are abstract handles
+ * that require explicit bridge conversion. Otherwise they collapse to raw
+ * pointers for compatibility.
  */
-typedef char *shared_str_t;  /* STRING_SHARED payload pointer */
-typedef char *malloc_str_t;  /* STRING_MALLOC payload pointer */
+typedef char *shared_str_t;  /* STRING_SHARED payload pointer storage alias */
+typedef char *malloc_str_t;  /* STRING_MALLOC payload pointer storage alias */
+
+#ifdef STRING_TYPE_SAFETY
+typedef struct {
+        char *raw;
+} shared_str_handle_t;
+
+typedef struct {
+        char *raw;
+} malloc_str_handle_t;
+
+#define SHARED_STR_P(x) ((x).raw)
+#define MALLOC_STR_P(x) ((x).raw)
+
+static inline shared_str_handle_t to_shared_str(char *p) {
+        shared_str_handle_t h = { p };
+        return h;
+}
+
+static inline malloc_str_handle_t to_malloc_str(char *p) {
+        malloc_str_handle_t h = { p };
+        return h;
+}
+#else
+typedef char *shared_str_handle_t;
+typedef char *malloc_str_handle_t;
+
+#define SHARED_STR_P(x) (x)
+#define MALLOC_STR_P(x) (x)
+#define to_shared_str(x) (x)
+#define to_malloc_str(x) (x)
+#endif
 
 struct outbuffer_s;
 typedef struct outbuffer_s outbuffer_t;
@@ -76,7 +100,7 @@ typedef struct malloc_block_s {
     unsigned short ref;
 } malloc_block_t;
 
-#define MSTR_BLOCK(x) (((malloc_block_t *)(x)) - 1) 
+#define MSTR_BLOCK(x) (((malloc_block_t *)(x)) - 1)
 #define MSTR_REF(x) (MSTR_BLOCK(x)->ref)
 #define MSTR_SIZE(x) (MSTR_BLOCK(x)->size)
 #define MSTR_BLKEND(x) (MSTR_BLOCK(x)->blkend)
@@ -170,14 +194,14 @@ extern size_t add_string_status(outbuffer_t *, int);
 /* STRING_SHARED */
 extern shared_str_t findstring(const char *, const char *);
 extern shared_str_t make_shared_string(const char *, const char *);
-extern shared_str_t ref_string(shared_str_t);
-extern void free_string(shared_str_t);
+extern shared_str_t ref_string(shared_str_handle_t);
+extern void free_string(shared_str_handle_t);
 
 /* STRING_MALLOC */
 extern malloc_str_t int_new_string(size_t);
 extern malloc_str_t int_string_copy(const char *, const char *);
-extern malloc_str_t int_extend_string(malloc_str_t, size_t);
-extern malloc_str_t int_string_unlink (malloc_str_t);
+extern malloc_str_t int_extend_string(malloc_str_handle_t, size_t);
+extern malloc_str_t int_string_unlink (malloc_str_handle_t);
 extern char *int_alloc_cstring(const char *, const char *);
 
 #ifdef __cplusplus

@@ -308,7 +308,7 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
       if (!entry->progp && entry->id)
        */
       if (entry->id && entry->name)
-        free_string (entry->name);
+        free_string(to_shared_str(entry->name));
 #ifdef CACHE_STATS
       if (!entry->id)
         {
@@ -339,7 +339,7 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
               /* The searched function is found, add to APPLY_CACHE */
               entry->oprogp = ob->prog;
               entry->id = progp->id_number;
-              entry->name = ref_string (sfun);
+              entry->name = ref_string(to_shared_str(sfun));
               entry->index = index;
 
               csp->fr.table_index = index;
@@ -370,7 +370,7 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
       entry->oprogp = progp;
       if (sfun)
         {
-          ref_string (sfun);
+          ref_string(to_shared_str(sfun));
           entry->name = sfun;
         }
       else
@@ -395,7 +395,7 @@ void clear_apply_cache (void) {
     {
       if (cache[i].name)
         {
-          free_string (cache[i].name);
+          free_string(to_shared_str(cache[i].name));
         }
       cache[i].id = 0;
       cache[i].oprogp = NULL;

@@ -37,12 +37,12 @@ TEST_F(StrAllocTest, makeSharedString) {
     char* str2 = make_shared_string("hello world", NULL);
     EXPECT_EQ(str1, str2);
 
-    free_string(str1);
+    free_string(to_shared_str(str1));
     char* str3 = make_shared_string("hello world", NULL);
     EXPECT_EQ(str2, str3);
 
-    free_string(str2);
-    free_string(str3);
+    free_string(to_shared_str(str2));
+    free_string(to_shared_str(str3));
     EXPECT_EQ(num_distinct_strings, 0);
 }
 
@@ -51,20 +51,20 @@ TEST_F(StrAllocTest, findString) {
     shared_str_t found1 = findstring("test string", NULL); // no reference count increase
     EXPECT_EQ(str1, found1);
 
-    free_string(str1);
+    free_string(to_shared_str(str1));
     shared_str_t found2 = findstring("test string", NULL);
     EXPECT_EQ(found2, nullptr); // should not be found after free
 
     shared_str_t str2 = make_shared_string("test string", NULL);
     found1 = findstring("test string", NULL);
     EXPECT_EQ(str2, found1);
-    shared_str_t str3 = ref_string(found1); // increase reference count
+    shared_str_t str3 = ref_string(to_shared_str(found1)); // increase reference count
 
-    free_string(str2);
+    free_string(to_shared_str(str2));
     shared_str_t found3 = findstring("test string", NULL);
     EXPECT_EQ(str3, found3); // should still be found due to str3
 
-    free_string(str3);
+    free_string(to_shared_str(str3));
     found2 = findstring("test string", NULL);
     EXPECT_EQ(found2, nullptr); // should not be found after all frees
 }
@@ -83,8 +83,8 @@ TEST_F(StrAllocTest, sharedStringOversizeIsTruncatedAndDeduped) {
     EXPECT_EQ(findstring(input.c_str(), NULL), nullptr);
     EXPECT_EQ(findstring(truncated.c_str(), NULL), s1);
 
-    free_string(s1);
-    free_string(s2);
+    free_string(to_shared_str(s1));
+    free_string(to_shared_str(s2));
 }
 
 TEST_F(StrAllocTest, mallocLongStringTracksBlkendAndCountedLength) {
@@ -202,7 +202,7 @@ TEST_F(StrAllocTest, sharedStringAtUshortMaxIsTruncatedToUshortMaxMinusOne) {
     EXPECT_EQ(findstring(truncated.c_str(), NULL), s);
     EXPECT_EQ(findstring(input.c_str(), NULL), nullptr);
 
-    free_string(s);
+    free_string(to_shared_str(s));
 }
 
 TEST_F(StrAllocTest, sharedStringFromNonNullTerminatedSpanRoundTrips) {
@@ -218,7 +218,7 @@ TEST_F(StrAllocTest, sharedStringFromNonNullTerminatedSpanRoundTrips) {
     char* found_cstr = findstring("hello", NULL);
     EXPECT_EQ(found_cstr, s);
 
-    free_string(s);
+    free_string(to_shared_str(s));
 }
 
 TEST_F(StrAllocTest, sharedStringEmbeddedNulSpanIsDistinctFromPrefix) {
@@ -237,6 +237,6 @@ TEST_F(StrAllocTest, sharedStringEmbeddedNulSpanIsDistinctFromPrefix) {
     char* found_prefix = findstring("ab", NULL);
     EXPECT_EQ(found_prefix, nullptr);
 
-    free_string(s1);
-    free_string(s2);
+    free_string(to_shared_str(s1));
+    free_string(to_shared_str(s2));
 }

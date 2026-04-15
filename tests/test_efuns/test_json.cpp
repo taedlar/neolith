@@ -98,7 +98,7 @@ TEST_F(EfunsTest, toJsonMapping) {
     ASSERT_NE(val, nullptr);
     /* find_for_insert converts STRING_CONSTANT to STRING_SHARED via svalue_to_int;
      * key.u.shared_string now points to the shared string — release the extra ref. */
-    free_string(key_view.shared_string());
+    free_string(to_shared_str(key_view.shared_string()));
     lpc::svalue_view::from(val).set_number(99);
     push_refed_mapping(m); /* transfer ownership to stack */
     f_to_json();

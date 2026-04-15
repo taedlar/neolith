@@ -991,7 +991,7 @@ void f_switch () {
             {
               s = (intptr_t) sp->u.string;
               opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)s);
-              free_string (sp->u.string);
+              free_string(to_shared_str(sp->u.string));
               sp--;
             }
           else

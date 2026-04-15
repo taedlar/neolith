@@ -95,7 +95,7 @@ static void free_callback_state(curl_http_t *handle) {
     }
   }
   else if (handle->callback.s) {
-    free_string(handle->callback.s);
+    free_string(to_shared_str(handle->callback.s));
   }
 
   handle->callback.s = nullptr;

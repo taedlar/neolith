@@ -49,7 +49,7 @@ free_called_call (pending_call_t * cop)
   cop->next = call_list_free;
   if (cop->ob)
     {
-      free_string (cop->function.s);
+      free_string (to_shared_str(cop->function.s));
       free_object (cop->ob, "free_call");
     }
   else

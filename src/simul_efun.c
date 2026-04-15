@@ -104,7 +104,7 @@ static void remove_simuls () {
           ihe->token &= ~IHE_SIMUL;
           /* the simul efun could be overriding an efun, do not remove the permanent identifier here */
         }
-      free_string (simuls_sorted[i].name); /* reference added by find_or_add_simul_efun() */
+      free_string(to_shared_str(simuls_sorted[i].name)); /* reference added by find_or_add_simul_efun() */
     }
 }
 
@@ -268,7 +268,7 @@ static void find_or_add_simul_efun (program_t* prog, function_number_t index, fu
                 funp->name);
   ihe->sem_value++;
   ihe->dn.simul_num = (short)num_simuls++; /* new simul_efun */
-  ref_string (funp->name); /* will be freed in remove_simuls() */
+  ref_string(to_shared_str(funp->name)); /* will be freed in remove_simuls() */
 }
 
 void set_simul_efun (object_t* ob) {

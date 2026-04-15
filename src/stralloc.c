@@ -313,27 +313,28 @@ shared_str_t make_shared_string (const char *str, const char *end) {
     }
 
   /* Return a pointer to the string data. The block_t header is hidden from the caller. */
-  return (STRING (b));
+  return STRING (b);
 }
 
 /**
  * Increase the reference count of a shared string.
  * It is fatal to call this function on a string that isn't shared.
  */
-shared_str_t ref_string (shared_str_t str) {
+shared_str_t ref_string (shared_str_handle_t str) {
   block_t *b;
+  shared_str_t raw = SHARED_STR_P(str);
 
-  assert (str != NULL);
-  b = BLOCK (str);
-  assert (b == findblockn (str, SIZE (b))); /* ensure it's a shared string */
+  assert (raw != NULL);
+  b = BLOCK (raw);
+  assert (b == findblockn (raw, SIZE (b))); /* ensure it's a shared string */
 
   if (REFS (b)) /* if reference count overflown, let it stay zero ... */
     {
-      opt_trace (TT_MEMORY|3, "add ref (was %d): @%p", REFS (b), (void *)str);
+      opt_trace (TT_MEMORY|3, "add ref (was %d): @%p", REFS (b), (void *)raw);
       REFS (b)++;
     }
   ADD_STRING (SIZE (b));
-  return str;
+  return raw;
 }
 
 /**
@@ -344,34 +345,35 @@ shared_str_t ref_string (shared_str_t str) {
  * If the reference count goes to zero, the string is removed from the
  * hash table and the memory is freed.
  */
-void free_string (shared_str_t str) {
+void free_string (shared_str_handle_t str) {
   block_t **prev, *b;
   int h;
+  shared_str_t raw = SHARED_STR_P(str);
 
-  assert (str != NULL);
-  b = BLOCK (str);
-  assert (b == findblockn (str, SIZE (b))); /* ensure it's a shared string */
+  assert (raw != NULL);
+  b = BLOCK (raw);
+  assert (b == findblockn (raw, SIZE (b))); /* ensure it's a shared string */
 
   /*
    * if a string has been ref'd USHRT_MAX times then we assume that its used
    * often enough to justify never freeing it.
    */
   if (!REFS (b)) {
-    opt_warn (2, "string @%p has ref count 0, could be overflow", (void *)str);
+    opt_warn (2, "string @%p has ref count 0, could be overflow", (void *)raw);
     return;
   }
 
-  opt_trace (TT_MEMORY|3, "release ref (was %d): @%p", REFS (b), (void *)str);
+  opt_trace (TT_MEMORY|3, "release ref (was %d): @%p", REFS (b), (void *)raw);
   SUB_STRING (SIZE (b));
   if (--REFS (b) > 0)
     return;
 
   /* remove from hash table */
-  h = StrHashN (str, SIZE (b));
+  h = StrHashN (raw, SIZE (b));
   prev = base_table + h;
   while ((b = *prev))
     {
-      if (STRING (b) == str)
+      if (STRING (b) == raw)
         {
           *prev = NEXT (b);
           break;
@@ -381,7 +383,7 @@ void free_string (shared_str_t str) {
 
   /* free the shared string */
   SUB_NEW_STRING (SIZE (b), sizeof (block_t));
-  opt_trace (TT_MEMORY|2, "dealloc: @%p", (void *)str);
+  opt_trace (TT_MEMORY|2, "dealloc: @%p", (void *)raw);
   FREE (b);
 }
 
@@ -529,19 +531,19 @@ malloc_str_t int_string_copy (const char *str, const char *end) {
  *         Byte [len] is always set to '\0' for compatibility, but is not
  *         counted in the logical length.
  */
-malloc_str_t int_extend_string (malloc_str_t str, size_t len) {
+malloc_str_t int_extend_string (malloc_str_handle_t str, size_t len) {
   malloc_block_t *mbt;
 
-  if (!str)
+  if (!MALLOC_STR_P(str))
     fatal ("extend_string: null pointer passed as string argument");
 #ifdef STRING_TYPE_SAFETY
-  if (MSTR_REF (str) == 0)
+  if (MSTR_REF (MALLOC_STR_P(str)) == 0)
     fatal ("extend_string: contract violation: ref count is 0 (immortal STRING_SHARED or freed pointer)\n");
 #endif
 #ifdef STRING_STATS
-  int oldsize = MSTR_SIZE (str);
+  int oldsize = MSTR_SIZE (MALLOC_STR_P(str));
 #endif
-  mbt = (malloc_block_t *) DREALLOC (MSTR_BLOCK (str), len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "extend_string");
+  mbt = (malloc_block_t *) DREALLOC (MSTR_BLOCK (MALLOC_STR_P(str)), len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "extend_string");
   if (len < USHRT_MAX)
     {
       mbt->size = (unsigned short)len;
@@ -599,44 +601,44 @@ char *int_alloc_cstring (const char *str, const char *end) {
  * @param str The string to unlink. This must be a STRING_MALLOC string with reference count > 1.
  * @return A pointer to the newly allocated string.
  */
-malloc_str_t int_string_unlink (malloc_str_t str) {
+malloc_str_t int_string_unlink (malloc_str_handle_t str) {
   malloc_block_t *newmbt;
 
-  assert (str != NULL);
-  assert (MSTR_REF (str) > 1);
+  assert (MALLOC_STR_P(str) != NULL);
+  assert (MSTR_REF (MALLOC_STR_P(str)) > 1);
 #ifdef STRING_TYPE_SAFETY
-  if (MSTR_REF (str) <= 1) {
+  if (MSTR_REF (MALLOC_STR_P(str)) <= 1) {
     debug_fatal ("string_unlink: contract violation: ref count not > 1 (not a live STRING_MALLOC with multiple refs)\n");
     abort ();
   }
 #endif
-  MSTR_REF (str)--; /* decrement reference count */
+  MSTR_REF (MALLOC_STR_P(str))--; /* decrement reference count */
 
-  if (MSTR_SIZE (str) == USHRT_MAX)
+  if (MSTR_SIZE (MALLOC_STR_P(str)) == USHRT_MAX)
     {
       size_t len;
-      if (MSTR_BLKEND (str))
+      if (MSTR_BLKEND (MALLOC_STR_P(str)))
         {
-          len = (size_t)((char *)MSTR_BLKEND (str) - str);
+          len = (size_t)((char *)MSTR_BLKEND (MALLOC_STR_P(str)) - MALLOC_STR_P(str));
         }
       else
         {
-          len = strlen (str + USHRT_MAX) + USHRT_MAX;	/* fallback for old strings */
+          len = strlen (MALLOC_STR_P(str) + USHRT_MAX) + USHRT_MAX;	/* fallback for old strings */
         }
 
       newmbt = (malloc_block_t *) DXALLOC (len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "string_unlink");
-      memcpy (STRING(newmbt), str, len + 1);
+      memcpy (STRING(newmbt), MALLOC_STR_P(str), len + 1);
       newmbt->blkend = STRING(newmbt) + len;
       newmbt->size = USHRT_MAX;
       ADD_NEW_STRING (USHRT_MAX, sizeof (malloc_block_t)); /* FIXME: this is probably incorrect ... */
     }
   else
     {
-      newmbt = (malloc_block_t *) DXALLOC (MSTR_SIZE (str) + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "string_unlink");
-      memcpy (STRING(newmbt), str, MSTR_SIZE (str) + 1);
+      newmbt = (malloc_block_t *) DXALLOC (MSTR_SIZE (MALLOC_STR_P(str)) + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "string_unlink");
+      memcpy (STRING(newmbt), MALLOC_STR_P(str), MSTR_SIZE (MALLOC_STR_P(str)) + 1);
       newmbt->blkend = NULL;
-      newmbt->size = MSTR_SIZE (str);
-      ADD_NEW_STRING (MSTR_SIZE (str), sizeof (malloc_block_t));
+      newmbt->size = MSTR_SIZE (MALLOC_STR_P(str));
+      ADD_NEW_STRING (MSTR_SIZE (MALLOC_STR_P(str)), sizeof (malloc_block_t));
     }
   newmbt->ref = 1;
   return STRING(newmbt);
@@ -684,24 +686,24 @@ void unlink_string_svalue (svalue_t * s) {
   switch (s->subtype)
     {
     case STRING_MALLOC:
-      if (MSTR_REF (s->u.string) > 1)
-        s->u.string = string_unlink (s->u.string, "unlink_string_svalue");
+      if (MSTR_REF (s->u.malloc_string) > 1)
+        s->u.malloc_string = int_string_unlink (to_malloc_str(s->u.malloc_string));
       break;
     case STRING_SHARED:
       {
         shared_str_t shared;
-        size_t len = SHARED_STRLEN (s->u.string);
+        size_t len = SHARED_STRLEN (s->u.shared_string);
 
         str = new_string (len, "unlink_string_svalue");
-        strncpy (str, s->u.string, len + 1);
-        shared = s->u.string;
-        free_string (shared);
+        strncpy (str, s->u.shared_string, len + 1);
+        shared = s->u.shared_string;
+        free_string (to_shared_str(shared));
         s->subtype = STRING_MALLOC;
-        s->u.string = str;
+        s->u.malloc_string = str;
         break;
       }
     case STRING_CONSTANT:
-      s->u.string = string_copy (sp->u.string, "unlink_string_svalue");
+      s->u.malloc_string = string_copy (sp->u.const_string, "unlink_string_svalue");
       s->subtype = STRING_MALLOC;
       break;
     }

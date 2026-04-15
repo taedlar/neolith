@@ -82,7 +82,7 @@ typedef struct {
                         free_string_svalue(target_sv); \
                         (target_sv)->subtype = STRING_MALLOC; \
                 } \
-                (target_sv)->u.string = ess_res;\
+                (target_sv)->u.malloc_string = ess_res;\
         } while(0)
 
 /* Compatibility wrapper for NUL-terminated callers. */
@@ -100,8 +100,8 @@ typedef struct {
                 pss_res[pss_len] = '\0'; \
                 free_string_svalue(sp--); \
                 sp->type = T_STRING; \
-                sp->u.string = pss_res; \
                 sp->subtype = STRING_MALLOC; \
+                sp->u.malloc_string = pss_res; \
         } while(0)
 
 /* Compatibility wrapper for NUL-terminated callers. */
@@ -128,7 +128,7 @@ typedef struct {
                         free_string_svalue(left_sv); \
                         (left_sv)->subtype = STRING_MALLOC; \
                 } \
-                (left_sv)->u.string = ssj_res; \
+                (left_sv)->u.malloc_string = ssj_res; \
         } while(0)
 
 #define STACK_CHECK(n)		do {\
@@ -178,13 +178,13 @@ typedef struct {
 #define put_constant_string(x) do {\
         sp->type = T_STRING;\
         sp->subtype = STRING_SHARED;\
-        sp->u.string = make_shared_string(x, NULL);\
+        sp->u.shared_string = make_shared_string(x, NULL);\
         } while(0)
 
 #define put_malloced_string(x) do {\
         sp->type = T_STRING;\
         sp->subtype = STRING_MALLOC;\
-        sp->u.string = (x);\
+        sp->u.malloc_string = (x);\
         } while(0)
 
 #define put_array(x) do {\
@@ -195,7 +195,7 @@ typedef struct {
 #define put_shared_string(x) do {\
         sp->type = T_STRING;\
         sp->subtype = STRING_SHARED;\
-        sp->u.string = (x);\
+        sp->u.shared_string = (x);\
         } while(0)
 
 #ifdef __cplusplus

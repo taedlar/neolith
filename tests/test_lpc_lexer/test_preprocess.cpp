@@ -20,7 +20,7 @@ TEST_F(LPCLexerTest, handleInclude) {
     end_new_file ();
 
     FILE_CLOSE(fd);
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -38,7 +38,7 @@ TEST_F(LPCLexerTest, preprocessIf) {
     EXPECT_EQ(yylval.number, 42);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -60,7 +60,7 @@ TEST_F(LPCLexerTest, preprocessIfElifElse) {
     EXPECT_EQ(yylval.number, 2);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -85,7 +85,7 @@ TEST_F(LPCLexerTest, preprocessNestedIf) {
     EXPECT_EQ(yylval.number, 20);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -103,7 +103,7 @@ TEST_F(LPCLexerTest, preprocessIfWithIndentedDirectives) {
     EXPECT_EQ(yylval.number, 42);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -118,6 +118,6 @@ TEST_F(LPCLexerTest, preprocessPragmaWithIndentedDirective) {
     EXPECT_EQ(yylval.number, 42);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
