@@ -54,45 +54,65 @@ early as possible (compile-time preferred, runtime as backstop).
 
 ## Current State Handoff
 
-As of 2026-04-16:
+As of 2026-04-16 (updated):
 
-### Completed Scope
+### Milestone: `u.string` fully eliminated
 
-- Core counted/shared length representation changes are complete and tested.
-- P0 VM/operator NUL-removal and span migration is complete in
-  `src/interpret.h` and `lib/lpc/operator.c`.
-- Unit coverage for string operators is in `tests/test_string_operators`, with
-  discovery via `gtest_discover_tests()`.
+A workspace-wide scan of all `*.c`, `*.cpp`, `*.h`, `*.hpp` under `src/` and
+`lib/` returns **zero** remaining `u.string` accesses. All reads and writes now
+go through typed members (`u.shared_string`, `u.malloc_string`, `u.const_string`)
+or through `SVALUE_STRPTR(...)` at subtype-unknown sites.
 
-### Active Focus
+### What Changed Since Last Update
 
-- Planning scope is narrowed to one consolidated backlog with acceptance criteria.
-- Current implementation focus: finalizing typed-handle compile-time
-  enforcement and closing remaining JSON/efun boundary-contract gaps.
-- Safe transition write/read intent migration is complete for subtype-known
-  paths: workspace code scans show no remaining `u.string =` writes in
-  C/C++ sources and no subtype-known `STRING_*` branches reading `u.string`.
-- Generic counted-ref helper paths that previously used `u.string` in
-  `lib/lpc/svalue.c` and `lib/lpc/array.c` are now tightened to explicit
-  `STRING_MALLOC` / `STRING_SHARED` read branches.
-- Compile-time regression checks for typed boundary signatures and bridge
-  helpers are now in `tests/test_stralloc/test_stralloc_type_safety.cpp`.
-- `src` low-risk subtype-known writes are now clean in the latest sweep:
-  `src/stralloc.c`, `src/outbuf.c`, and `src/error_context.cpp` now use
-  typed members (`u.shared_string` / `u.malloc_string` / `u.const_string`)
-  at subtype-known assignment sites.
-- `lib/lpc` low-risk subtype-known writes in this pass are now updated in
-  `lib/lpc/operator.c`, `lib/lpc/array.c`, and `lib/lpc/object.c` to typed
-  members at explicit string-subtype assignment sites.
-- `lib/efuns` low-risk subtype-known writes are now migrated in a broad pass
-  (`string`, `unsorted`, `file`, `bits`, `file_utils`, `datetime`,
-  `call_out`, `parse`, `debug`, `sprintf`) to typed members at explicit
-  string-subtype assignment sites; focused efun/interpreter regression tests
-  remain green after the sweep.
-- Remaining `lib` subtype-known write stragglers are now completed (`json`,
-  `sscanf`, `unsorted` query path, and debug memory-summary helper). A
-  repository-wide `lib/**` scan for `u.string =` assignments now returns no
-  matches.
+Three additional hardening batches landed after the previous handoff:
+
+**Batch A — efun array constructors and core runtime sites:**
+- `lib/efuns/variable.c` — shared-string array item constructors → `SET_SVALUE_SHARED_STRING`
+- `lib/efuns/call_out.cpp` — callout function-name item constructors → `SET_SVALUE_SHARED_STRING`
+- `lib/efuns/file_utils.c` — `encode_stat` array/scalar and `check_valid_path` → `SET_SVALUE_MALLOC_STRING`
+- `lib/efuns/debug.c` — `f_throw`, `f_call_stack` (all 4 cases), `fms_recurse`, `f_memory_summary` → checked helpers
+
+**Batch B — curl and socket libs:**
+- `lib/curl/curl_efuns.cpp` — all 5 `u.string` reads in `T_STRING`-guarded paths → `SVALUE_STRPTR(...)`
+- `lib/socket/socket_efuns.c` — 1 write-side constructor → `SET_SVALUE_SHARED_STRING`; 6 read-side callback and message-send paths → `SVALUE_STRPTR(...)`
+
+**Batch C — operator, rc, efun fallbacks and function-info builders:**
+- `lib/lpc/operator.c` — `f_range` and `f_extract_range` empty-string returns → `SET_SVALUE_CONSTANT_STRING`
+- `lib/rc/rc.cpp` — `get_config_item` string fallback → `SET_SVALUE_CONSTANT_STRING`
+- `lib/efuns/command.c` — `f_query_notify_fail` shared push → `SET_SVALUE_SHARED_STRING`
+- `lib/efuns/json.cpp` — mapping key construction → `SET_SVALUE_CONSTANT_STRING`
+- `lib/efuns/string.c` — `f_repeat_string` zero-repeat fallback → `SET_SVALUE_CONSTANT_STRING`
+- `lib/efuns/unsorted.c` — `f_query_privs` out-of-order stamp and all shared stamps in `f_functions` → typed helpers
+
+All targeted regression tests remain green after each batch.
+
+### Remaining Open-Coded Stamping Sites (61 total)
+
+| File | Count | Notes |
+|---|---|---|
+| `lib/efuns/parse.c` | 6 | Multi-branch parse/command return flow; needs per-site analysis |
+| `lib/efuns/sprintf.c` | 4 | `do_clean_str`, `f_sprintf` multi-branch flow; deferred |
+| `lib/efuns/sscanf.c` | 1 | Inside `#define` macro body; requires macro restructuring |
+| `lib/efuns/unsorted.c` | 1 | `f_function_exists` subtype-only partial stamp |
+| `lib/lpc/array.c` | 18 | Sort/alist comparators, structured-init compound literal, implode/explode builders |
+| `lib/lpc/mapping.c` | 8 | Partial subtype-only stamps in serialize/restore paths |
+| `lib/lpc/object.c` | 4 | Partial subtype-only stamps in save/restore paths |
+| `src/stack.c` | 5 | **Intentional** — these are the typed push boundary helpers themselves |
+
+The `src/stack.c` sites are not candidates for replacement; they implement the
+checked boundary with runtime domain checks under `STRING_TYPE_SAFETY`.
+
+### Bug Fix: Zero-Length Shared-String Classifier
+
+The `STRING_TYPE_SAFETY` payload classifier `is_shared_string_payload()` in
+`src/stralloc.h` incorrectly rejected zero-length shared strings because
+`findstring(p, p + 0)` returns `NULL` for empty spans. Fixed by routing empty
+payloads through `findstring(p, NULL)` (NUL-terminated lookup). This closed a
+real runtime abort in `SimulEfunsTest.callSimulEfun` caused by LPC code
+assigning `result = ""`. A regression test was added in
+`tests/test_stack_machine` (`typedPushSharedStringAcceptsEmptySharedPayload`).
+
 - Read-side intent tightening has started: subtype-known `STRING_MALLOC` fast
   paths in `src/interpret.h` now read `u.malloc_string`, and subtype-specific
   memory accounting in `lib/efuns/debug.c` now reads
@@ -246,15 +266,21 @@ As of 2026-04-16:
 
 ### Next Focus
 
-- Continue the checked `SET_SVALUE_*` helper adoption in the remaining
-  macro-heavy efun sites, with `parse.c` and `sprintf.c` as the next likely
-  low-risk batch candidates.
-- Complete abstract-handle compile-time enforcement so shared/malloc domain
-  misuse is blocked at call sites under `STRING_TYPE_SAFETY`.
-- Expand JSON and efun boundary contract tests for negative/edge cases,
-  especially UTF-8 and text-vs-byte-span assumptions.
-- Run broader preset validation (`ut-linux`, `ut-vs16-x64`, `ut-clang-x64`)
-  once remaining boundary-contract items are implemented.
+- **`lib/efuns/unsorted.c` line 330** — `f_function_exists` subtype-only stamp
+  (missing `type = T_STRING`; check surrounding context before touching).
+- **`lib/efuns/parse.c`** — 6 sites across multi-branch return paths; harden
+  as a focused sub-pass after reading the full flow for each.
+- **`lib/efuns/sprintf.c`** — 4 sites in `do_clean_str` and `f_sprintf` return
+  path; similar approach.
+- **`lib/lpc/array.c`** — 18 sites in implode/explode builders and
+  sort/alist comparators; can be batched after context review.
+- **`lib/lpc/mapping.c`** and **`lib/lpc/object.c`** — 12 combined partial
+  subtype-only stamps; need careful context review for surrounding `type` sets.
+- **Abstract-handle compile-time enforcement** — promote opaque handle types
+  so shared/malloc domain misuse fails at call sites under `STRING_TYPE_SAFETY`
+  (still the longer-term target).
+- **Broader validation pass** — run `ut-linux`, `ut-vs16-x64`, `ut-clang-x64`
+  presets once remaining stamping sites are hardened.
 
 ### Baseline and Out of Scope
 
