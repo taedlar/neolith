@@ -477,9 +477,8 @@ void catch_value_guard::set_caught_error(const char *error_msg) noexcept {
     free_svalue(&catch_value, "set_caught_error");
     
     // Set new value
-    catch_value.type = T_STRING;
-    catch_value.subtype = STRING_MALLOC;
-    catch_value.u.malloc_string = string_copy(error_msg ? error_msg : "", "caught error");
+  SET_SVALUE_MALLOC_STRING(&catch_value,
+               string_copy(error_msg ? error_msg : "", "caught error"));
     m_owned = true;
 }
 

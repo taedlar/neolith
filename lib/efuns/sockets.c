@@ -138,24 +138,24 @@ f_socket_connect (void)
       int start = 0;
 
       addr[0] = '\0';
-      if ((s = strchr ((sp - 2)->u.string, ' ')))
+      if ((s = strchr (SVALUE_STRPTR(sp - 2), ' ')))
         {
           /*
            * use specified address and port
            */
-          i = (int)(s - (sp - 2)->u.string);
+          i = (int)(s - SVALUE_STRPTR(sp - 2));
           if (i > ADDR_BUF_SIZE - 1)
             {
               start = i - ADDR_BUF_SIZE - 1;
               i = ADDR_BUF_SIZE - 1;
             }
-          strncat (addr, (sp - 2)->u.string + start, i);
+          strncat (addr, SVALUE_STRPTR(sp - 2) + start, i);
           port = atoi (s + 1);
         }
     }
 
   (sp - 3)->u.number = VALID_SOCKET ("connect") ?
-    socket_connect (fd, (sp - 2)->u.string, sp - 1, sp) : EESECURITY;
+    socket_connect (fd, SVALUE_STRPTR(sp - 2), sp - 1, sp) : EESECURITY;
   pop_3_elems ();
 }
 #endif
@@ -180,7 +180,7 @@ f_socket_write (void)
   if (VALID_SOCKET ("write"))
     {
       i = socket_write (fd, &arg[1],
-                        (num_arg == 3) ? arg[2].u.string : (char *) NULL);
+                        (num_arg == 3) ? SVALUE_STRPTR(&arg[2]) : (char *) NULL);
       pop_n_elems (num_arg - 1);
       sp->u.number = i;
     }

@@ -66,3 +66,74 @@ TEST_F(StackMachineTest, pushValueAlloc) {
     pop_n_elems(3);
     ASSERT_EQ(sp, initial_sp); // back to initial position
 }
+
+TEST_F(StackMachineTest, typedPushHelpersPreserveSubtypeContracts) {
+    ASSERT_TRUE(sp != nullptr);
+    svalue_t *initial_sp = sp;
+
+    shared_str_t shared = make_shared_string("stack shared", NULL);
+    unsigned short shared_refs_before = COUNTED_REF(shared);
+
+    push_shared_string(shared);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_shared());
+    ASSERT_EQ(lpc::svalue_view::from(sp).shared_string(), shared);
+    EXPECT_EQ(COUNTED_REF(shared), static_cast<unsigned short>(shared_refs_before + 1));
+
+    pop_stack();
+    ASSERT_EQ(sp, initial_sp);
+    EXPECT_EQ(COUNTED_REF(shared), shared_refs_before);
+    free_string(to_shared_str(shared));
+
+    malloc_str_t malloced = new_string(5, "stack-test");
+    memcpy(malloced, "hello", 5);
+    malloced[5] = '\0';
+
+    push_malloced_string(malloced);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_malloc());
+    ASSERT_EQ(lpc::svalue_view::from(sp).malloc_string(), malloced);
+
+    pop_stack();
+    ASSERT_EQ(sp, initial_sp);
+}
+
+TEST_F(StackMachineTest, typedPutMacrosPreserveSubtypeContracts) {
+    ASSERT_TRUE(sp != nullptr);
+    svalue_t *initial_sp = sp;
+
+    push_undefined();
+    shared_str_t shared = make_shared_string("put shared", NULL);
+    put_shared_string(shared);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_shared());
+    EXPECT_EQ(lpc::svalue_view::from(sp).shared_string(), shared);
+    pop_stack();
+    ASSERT_EQ(sp, initial_sp);
+
+    push_undefined();
+    malloc_str_t malloced = new_string(3, "put-test");
+    memcpy(malloced, "abc", 3);
+    malloced[3] = '\0';
+    put_malloced_string(malloced);
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string() && lpc::svalue_view::from(sp).is_malloc());
+    EXPECT_EQ(lpc::svalue_view::from(sp).malloc_string(), malloced);
+    EXPECT_STREQ(lpc::svalue_view::from(sp).c_str(), "abc");
+    pop_stack();
+    ASSERT_EQ(sp, initial_sp);
+}
+
+TEST_F(StackMachineTest, typedPushSharedStringAcceptsEmptySharedPayload) {
+    ASSERT_TRUE(sp != nullptr);
+    svalue_t *initial_sp = sp;
+
+    shared_str_t empty = make_shared_string("", NULL);
+    ASSERT_NE(empty, nullptr);
+
+    push_shared_string(empty);
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string() && view.is_shared());
+    EXPECT_EQ(view.shared_string(), empty);
+    EXPECT_STREQ(view.c_str(), "");
+
+    pop_stack();
+    ASSERT_EQ(sp, initial_sp);
+    free_string(to_shared_str(empty));
+}

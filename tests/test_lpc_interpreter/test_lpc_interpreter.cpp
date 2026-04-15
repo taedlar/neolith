@@ -331,7 +331,7 @@ TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
     call_function(prog, runtime_index, 1, &ret);
 
     ASSERT_EQ(ret.type, T_MAPPING) << "Expected T_MAPPING from from_json buffer via LPC VM";
-    svalue_t *found_val = find_string_in_mapping(ret.u.map, (char *)"x");
+    svalue_t *found_val = find_string_in_mapping(ret.u.map, "x");
     ASSERT_NE(found_val, &const0u) << "key 'x' not found";
     auto found_view = lpc::svalue_view::from(found_val);
     ASSERT_TRUE(found_view.is_number());

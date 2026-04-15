@@ -559,7 +559,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_011_ConnectMalformedAddress_Rejected) {
   // Try to connect with malformed address
   svalue_t write_cb;
   lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
-  char *bad_addr = make_shared_string("bad_address_format", NULL);
+  shared_str_t bad_addr = make_shared_string("bad_address_format", NULL);
   int result = socket_connect(fd, bad_addr, &read_cb, &write_cb);
   
   EXPECT_EQ(result, EEBADADDR) 

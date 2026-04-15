@@ -61,7 +61,7 @@ size_t svalue_save_size (const svalue_t * v) {
     {
     case T_STRING:
       {
-        register char *cp = v->u.string;
+        register char *cp = SVALUE_STRPTR(v);
         char c;
         size_t size = 0;
 
@@ -158,7 +158,7 @@ void save_svalue (svalue_t * v, char **buf) {
     {
     case T_STRING:
       {
-        register char *cp = *buf, *str = v->u.string;
+        register char *cp = *buf, *str = SVALUE_STRPTR(v);
         char c;
 
         *cp++ = '"';
@@ -1403,9 +1403,9 @@ static int fgv_recurse (program_t * prog, int *idx, char *name, unsigned short *
   return 0;
 }
 
-int find_global_variable (program_t * prog, char *name, unsigned short *type) {
+int find_global_variable (program_t * prog, const char *name, unsigned short *type) {
   int idx = 0;
-  char *str = findstring(name, NULL);
+  shared_str_t str = findstring(name, NULL);
 
   if (str && fgv_recurse (prog, &idx, str, type))
     {

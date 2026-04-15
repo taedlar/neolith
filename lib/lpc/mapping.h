@@ -73,7 +73,7 @@ mapping_t *load_mapping_from_aggregate(svalue_t *, int);
 mapping_t *allocate_mapping(size_t);
 void free_mapping(mapping_t *);
 svalue_t *find_in_mapping(mapping_t *, svalue_t *);
-svalue_t *find_string_in_mapping(mapping_t *, char *);
+svalue_t *find_string_in_mapping(mapping_t *, const char *);
 svalue_t *find_for_insert(mapping_t *, svalue_t *, int);
 void absorb_mapping(mapping_t *, mapping_t *);
 void mapping_delete(mapping_t *, svalue_t *);

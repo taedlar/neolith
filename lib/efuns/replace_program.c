@@ -135,10 +135,10 @@ f_replace_program (int num_arg, int instruction)
   if (current_object->prog->func_ref)
     error ("cannot replace a program with function references.\n");
 
-  name_len = strlen (sp->u.string);
+  name_len = strlen (SVALUE_STRPTR(sp));
   name = (char *) DMALLOC (name_len + 3, TAG_TEMPORARY, "replace_program");
   xname = name;
-  strcpy (name, sp->u.string);
+  strcpy (name, SVALUE_STRPTR(sp));
   if (name[name_len - 2] != '.' || name[name_len - 1] != 'c')
     strcat (name, ".c");
   if (*name == '/')
@@ -182,7 +182,7 @@ f_replaceable (void)
       for (i = 0; i < numignore; i++)
         {
           if (sp->u.arr->item[i].type == T_STRING)
-            ignore[i] = findstring(sp->u.arr->item[i].u.string, NULL);
+            ignore[i] = findstring(SVALUE_STRPTR(&sp->u.arr->item[i]), NULL);
           else
             ignore[i] = 0;
         }

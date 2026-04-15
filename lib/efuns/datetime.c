@@ -85,15 +85,15 @@ void f_localtime (void) {
   vec->item[LT_YDAY].type = T_NUMBER;
   vec->item[LT_YDAY].u.number = tm->tm_yday;
   vec->item[LT_GMTOFF].type = T_NUMBER;
-  vec->item[LT_ZONE].type = T_STRING;
-  vec->item[LT_ZONE].subtype = STRING_MALLOC;
 
 #ifdef _WIN32
   vec->item[LT_GMTOFF].u.number = _timezone;
-  vec->item[LT_ZONE].u.malloc_string = string_copy (_tzname[_daylight ? 1 : 0], "f_localtime");
+  SET_SVALUE_MALLOC_STRING(&vec->item[LT_ZONE],
+                           string_copy (_tzname[_daylight ? 1 : 0], "f_localtime"));
 #else
   vec->item[LT_GMTOFF].u.number = tm->tm_gmtoff;
-  vec->item[LT_ZONE].u.malloc_string = string_copy (tm->tm_zone, "f_localtime");
+  SET_SVALUE_MALLOC_STRING(&vec->item[LT_ZONE],
+                           string_copy (tm->tm_zone, "f_localtime"));
 #endif
 
   put_array (vec);
@@ -112,7 +112,7 @@ f_is_daylight_savings_time (void)
 
   time_to_check = sp->u.number;
   pop_stack ();
-  timezone = sp->u.string;
+  timezone = SVALUE_STRPTR(sp);
   pop_stack ();
 
   old_tz = set_timezone (timezone);
@@ -195,7 +195,7 @@ f_zonetime (void)
 
   time_val = sp->u.number;
   pop_stack ();
-  timezone = sp->u.string;
+  timezone = SVALUE_STRPTR(sp);
   pop_stack ();
 
   old_tz = set_timezone (timezone);

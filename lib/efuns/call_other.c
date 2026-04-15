@@ -33,7 +33,7 @@ static array_t *call_all_other (array_t * v, const char *func, int numargs)
         }
       else if (vptr->type == T_STRING)
         {
-          ob = find_or_load_object (vptr->u.string);
+          ob = find_or_load_object (SVALUE_STRPTR(vptr));
           if (!ob || !object_visible (ob))
             continue;
         }
@@ -72,7 +72,7 @@ f_call_other (void)
 
   arg = sp - num_arg + 1;
   if (arg[1].type == T_STRING)
-    funcname = arg[1].u.string;
+    funcname = SVALUE_STRPTR(&arg[1]);
   else
     {				/* must be T_ARRAY then */
       array_t *v = arg[1].u.arr;
@@ -80,7 +80,7 @@ f_call_other (void)
       check_for_destr (v);
       if ((v->size < 1) || !(v->item->type == T_STRING))
         error ("call_other: 1st elem of array for arg 2 must be a string\n");
-      funcname = v->item->u.string;
+      funcname = SVALUE_STRPTR(v->item);
       num_arg = 2 + merge_arg_lists (num_arg - 2, v, 1);
     }
 
@@ -99,7 +99,7 @@ f_call_other (void)
   else
     {
       object_t *old_ob;
-      ob = find_or_load_object (arg[0].u.string);
+      ob = find_or_load_object (SVALUE_STRPTR(&arg[0]));
       if (!(old_ob = ob) || !object_visible (ob))
         error ("call_other() couldn't find object\n");
       ob = old_ob;

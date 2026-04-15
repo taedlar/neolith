@@ -148,17 +148,14 @@ void outbuf_fix (outbuffer_t * outbuf) {
 }
 
 void outbuf_push (outbuffer_t * outbuf) {
-  (++sp)->type = T_STRING;
+  ++sp;
   if (outbuf && outbuf->buffer)
     {
       outbuf->buffer = extend_string (outbuf->buffer, outbuf->real_size);
-
-      sp->subtype = STRING_MALLOC;
-      sp->u.malloc_string = outbuf->buffer;
+      SET_SVALUE_MALLOC_STRING(sp, outbuf->buffer);
     }
   else
     {
-      sp->subtype = STRING_CONSTANT;
-      sp->u.const_string = "";
+      SET_SVALUE_CONSTANT_STRING(sp, "");
     }
 }

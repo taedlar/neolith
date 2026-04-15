@@ -41,7 +41,7 @@ pstrcmp (const void *p1, const void *p2)
   svalue_t *x = (svalue_t *) p1;
   svalue_t *y = (svalue_t *) p2;
 
-  return strcmp (x->u.string, y->u.string);
+  return strcmp (SVALUE_STRPTR(x), SVALUE_STRPTR(y));
 }
 
 static int
@@ -50,7 +50,7 @@ parrcmp (const void *p1, const void *p2)
   svalue_t *x = (svalue_t *) p1;
   svalue_t *y = (svalue_t *) p2;
 
-  return strcmp (x->u.arr->item[0].u.string, y->u.arr->item[0].u.string);
+  return strcmp (SVALUE_STRPTR(&x->u.arr->item[0]), SVALUE_STRPTR(&y->u.arr->item[0]));
 }
 
 static void
@@ -791,7 +791,7 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
         return 0;
       if (v->type == T_STRING)
         {
-          ret_path = v->u.string;
+          ret_path = SVALUE_STRPTR(v);
         }
     }
 

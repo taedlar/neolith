@@ -11,7 +11,7 @@
 void
 f_tell_object (void)
 {
-  tell_object ((sp - 1)->u.ob, sp->u.string);
+  tell_object ((sp - 1)->u.ob, SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
   pop_stack ();
 }
@@ -43,7 +43,7 @@ f_tell_room (void)
     }
   else
     {				/* must be a string... */
-      ob = find_or_load_object (arg[0].u.string);
+      ob = find_or_load_object (SVALUE_STRPTR(&arg[0]));
       if (!ob || !object_visible (ob))
         error ("Bad argument 1 to tell_room()\n");
     }
@@ -102,7 +102,7 @@ f_say (void)
 void
 f_shout (void)
 {
-  shout_string (sp->u.string);
+  shout_string (SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
 }
 #endif
@@ -112,7 +112,7 @@ f_shout (void)
 void
 f_tail (void)
 {
-  if (tail (sp->u.string))
+  if (tail (SVALUE_STRPTR(sp)))
     {
       free_string_svalue (sp);
       *sp = const1;

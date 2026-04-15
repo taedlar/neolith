@@ -104,7 +104,7 @@ int new_call_out (object_t * ob, svalue_t * fun, time_t delay, int num_args, sva
 
   if (fun->type == T_STRING)
     {
-      cop->function.s = make_shared_string(fun->u.string, NULL);
+      cop->function.s = make_shared_string(SVALUE_STRPTR(fun), NULL);
       cop->ob = ob;
       add_ref (ob, "call_out");
     }
@@ -549,7 +549,7 @@ extern "C" void f_find_call_out (void) {
   else
     {				/* T_STRING */
 #endif
-      i = find_call_out (current_object, sp->u.string);
+      i = find_call_out (current_object, SVALUE_STRPTR(sp));
       free_string_svalue (sp);
 #ifdef CALLOUT_HANDLES
     }
@@ -569,7 +569,7 @@ extern "C" void f_remove_call_out (void) {
       if (sp->type == T_STRING)
         {
 #endif
-          i = remove_call_out (current_object, sp->u.string);
+          i = remove_call_out (current_object, SVALUE_STRPTR(sp));
           free_string_svalue (sp);
 #ifdef CALLOUT_HANDLES
         }

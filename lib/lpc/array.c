@@ -347,7 +347,7 @@ char* implode_string (array_t * arr, char *del, size_t del_len) {
               p += del_len;
             }
           size = SVALUE_STRLEN (&sv[i]);
-          strncpy (p, sv[i].u.string, size);
+          strncpy (p, SVALUE_STRPTR(&sv[i]), size);
           p += size;
           num++;
         }
@@ -677,7 +677,7 @@ sameval (svalue_t * arg1, svalue_t * arg2)
     case T_STRING:
       if (SVALUE_STRLEN_DIFFERS (arg1, arg2))
         return 0;
-      return !strcmp (arg1->u.string, arg2->u.string);
+      return !strcmp (SVALUE_STRPTR(arg1), SVALUE_STRPTR(arg2));
     case T_OBJECT:
       return arg1->u.ob == arg2->u.ob;
     case T_MAPPING:
@@ -756,7 +756,7 @@ f_unique_array (void)
       if ((sp - 1)->type == T_FUNCTION)
         funp = (sp - 1)->u.fp;
       else
-        func = (sp - 1)->u.string;
+        func = SVALUE_STRPTR(sp - 1);
     }
   else
     {
@@ -764,7 +764,7 @@ f_unique_array (void)
       if (sp->type == T_FUNCTION)
         funp = sp->u.fp;
       else
-        func = sp->u.string;
+        func = SVALUE_STRPTR(sp);
     }
 
   unlist = ALLOCATE (unique_list_t, TAG_TEMPORARY, "f_unique_array:1");
@@ -1047,7 +1047,7 @@ map_array (svalue_t * arg, int num_arg)
 void
 map_string (svalue_t * arg, int num_arg)
 {
-  char *arr = arg->u.string;
+  char *arr = SVALUE_STRPTR(arg);
   char *p;
   funptr_t *funp = 0;
   int numex = 0;
@@ -1061,7 +1061,7 @@ map_string (svalue_t * arg, int num_arg)
      error (note it is also in the right spot for the return value).
    */
   unlink_string_svalue (arg);
-  arr = arg->u.string;
+  arr = SVALUE_STRPTR(arg);
 
   if (arg[1].type == T_FUNCTION)
     {
@@ -1071,7 +1071,7 @@ map_string (svalue_t * arg, int num_arg)
     }
   else
     {
-      func = arg[1].u.string;
+      func = SVALUE_STRPTR(&arg[1]);
       if (num_arg < 3)
         ob = current_object;
       else
@@ -1080,7 +1080,7 @@ map_string (svalue_t * arg, int num_arg)
             ob = arg[2].u.ob;
           else if (arg[2].type == T_STRING)
             {
-              if ((ob = find_or_load_object (arg[2].u.string))
+              if ((ob = find_or_load_object (SVALUE_STRPTR(&arg[2])))
                   && !object_visible (ob))
                 ob = 0;
             }
@@ -1134,7 +1134,7 @@ static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
     {
     case T_STRING:
       {
-        return strcmp (p1->u.string, p2->u.string);
+        return strcmp (SVALUE_STRPTR(p1), SVALUE_STRPTR(p2));
       }
 
     case T_NUMBER:
@@ -1158,7 +1158,7 @@ static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
           {
           case T_STRING:
             {
-              return strcmp (v1->item->u.string, v2->item->u.string);
+              return strcmp (SVALUE_STRPTR(v1->item), SVALUE_STRPTR(v2->item));
             }
 
           case T_NUMBER:
@@ -1191,7 +1191,7 @@ static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
     {
     case T_STRING:
       {
-        return strcmp (p2->u.string, p1->u.string);
+        return strcmp (SVALUE_STRPTR(p2), SVALUE_STRPTR(p1));
       }
 
     case T_NUMBER:
@@ -1215,7 +1215,7 @@ static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
           {
           case T_STRING:
             {
-              return strcmp (v2->item->u.string, v1->item->u.string);
+              return strcmp (SVALUE_STRPTR(v2->item), SVALUE_STRPTR(v1->item));
             }
 
           case T_NUMBER:
@@ -1455,7 +1455,7 @@ static svalue_t* alist_sort (array_t * inlist) {
             }
           else if ((tmp->type == T_STRING) && !(tmp->subtype == STRING_SHARED))
             {
-              sv_tab[j].u.shared_string = make_shared_string(tmp->u.string, NULL);
+              sv_tab[j].u.shared_string = make_shared_string(SVALUE_STRPTR(tmp), NULL);
               (tmp = sv_tab + j)->subtype = STRING_SHARED;
               tmp->type = T_STRING;
             }
@@ -1491,7 +1491,7 @@ static svalue_t* alist_sort (array_t * inlist) {
             }
           else if ((tmp->type == T_STRING) && !(tmp->subtype == STRING_SHARED))
             {
-              str = make_shared_string(tmp->u.string, NULL);
+              str = make_shared_string(SVALUE_STRPTR(tmp), NULL);
               free_string_svalue (tmp);
               tmp->u.shared_string = str;
               tmp->subtype = STRING_SHARED;
@@ -1580,7 +1580,7 @@ array_t* subtract_array (array_t * minuend, array_t * subtrahend) {
         {
           svalue_t stmp = { .type = T_STRING, STRING_SHARED };
 
-          if (!(stmp.u.shared_string = findstring(source->u.string, NULL)))
+          if (!(stmp.u.shared_string = findstring(SVALUE_STRPTR(source), NULL)))
             {
               assign_svalue_no_free (dest++, source);
               continue;
@@ -1683,7 +1683,7 @@ intersect_array (array_t * a1, array_t * a2)
           else if ((tmp->type == T_STRING)
                    && !(tmp->subtype == STRING_SHARED))
             {
-              sv_tab[j].u.shared_string = make_shared_string(tmp->u.string, NULL);
+              sv_tab[j].u.shared_string = make_shared_string(SVALUE_STRPTR(tmp), NULL);
               (tmp = sv_tab + j)->subtype = STRING_SHARED;
               tmp->type = T_STRING;
             }
@@ -1723,7 +1723,7 @@ intersect_array (array_t * a1, array_t * a2)
           else if ((tmp->type == T_STRING)
                    && !(tmp->subtype == STRING_SHARED))
             {
-              str = make_shared_string(tmp->u.string, NULL);
+              str = make_shared_string(SVALUE_STRPTR(tmp), NULL);
               free_string_svalue (tmp);
               tmp->u.shared_string = str;
               tmp->subtype = STRING_SHARED;
@@ -1879,7 +1879,7 @@ match_regexp (array_t * v, char *pattern, int flag)
   while (size--)
     {
       if (!((--sv1)->type == T_STRING)
-          || (regexec (reg, sv1->u.string) != match))
+          || (regexec (reg, SVALUE_STRPTR(sv1)) != match))
         {
           res[size] = 0;
         }
@@ -2125,7 +2125,7 @@ f_objects (void)
   else if (sp->type == T_FUNCTION)
     f = sp->u.fp;
   else
-    func = sp->u.string;
+    func = SVALUE_STRPTR(sp);
 
   if (!(tmp = (object_t **) new_string ((t_sz = 1000) * sizeof (object_t *),
                                         "TMP: objects: tmp")))
@@ -2257,7 +2257,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
         {
           if (!
               (rgpp[i] =
-               regcomp ((unsigned char *) pat->item[i].u.string, 0)))
+               regcomp ((unsigned char *) SVALUE_STRPTR(&pat->item[i]), 0)))
             {
               while (i--)
                 FREE ((char *) rgpp[i]);

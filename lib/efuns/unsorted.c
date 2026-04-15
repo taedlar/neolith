@@ -61,7 +61,7 @@ f_children (void)
 {
   array_t *vec;
 
-  vec = children (sp->u.string);
+  vec = children (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   put_array (vec);
 }
@@ -74,7 +74,7 @@ f_clone_object (void)
 {
   svalue_t *arg = sp - st_num_arg + 1;
 
-  object_t *ob = clone_object (arg->u.string, st_num_arg - 1);
+  object_t *ob = clone_object (SVALUE_STRPTR(arg), st_num_arg - 1);
   free_string_svalue (sp);
   if (ob)
     {
@@ -128,13 +128,13 @@ f_ed (void)
   else if (st_num_arg == 1)
     {
       /* ed(fname) */
-      ed_start (sp->u.string, 0, 0, 0, 0);
+      ed_start (SVALUE_STRPTR(sp), 0, 0, 0, 0);
       pop_stack ();
     }
   else if (st_num_arg == 2)
     {
       /* ed(fname,exitfn) */
-      ed_start ((sp - 1)->u.string, 0, sp->u.string, 0, current_object);
+      ed_start (SVALUE_STRPTR(sp - 1), 0, SVALUE_STRPTR(sp), 0, current_object);
       pop_2_elems ();
     }
   else if (st_num_arg == 3)
@@ -142,11 +142,11 @@ f_ed (void)
       /* ed(fname,exitfn,restricted) / ed(fname,writefn,exitfn) */
       if (sp->type == T_NUMBER)
         {
-          ed_start ((sp - 2)->u.string, 0, (sp - 1)->u.string, (int)sp->u.number, current_object);
+          ed_start (SVALUE_STRPTR(sp - 2), 0, SVALUE_STRPTR(sp - 1), (int)sp->u.number, current_object);
         }
       else if (sp->type == T_STRING)
         {
-          ed_start ((sp - 2)->u.string, (sp - 1)->u.string, sp->u.string, 0, current_object);
+          ed_start (SVALUE_STRPTR(sp - 2), SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), 0, current_object);
         }
       else
         {
@@ -161,7 +161,7 @@ f_ed (void)
         bad_argument (sp - 1, T_STRING, 3, F_ED);
       if (!(sp->type == T_NUMBER))
         bad_argument (sp, T_NUMBER, 4, F_ED);
-      ed_start ((sp - 3)->u.string, (sp - 2)->u.string, (sp - 1)->u.string,
+      ed_start (SVALUE_STRPTR(sp - 3), SVALUE_STRPTR(sp - 2), SVALUE_STRPTR(sp - 1),
                 (int)sp->u.number, current_object);
       pop_n_elems (4);
     }
@@ -181,18 +181,16 @@ f_ed_cmd (void)
   if (!(current_object->flags & O_IN_EDIT))
     error ("ed_cmd() called with no ed session active.\n");
 
-  res = object_ed_cmd (current_object, sp->u.string);
+  res = object_ed_cmd (current_object, SVALUE_STRPTR(sp));
 
   free_string_svalue (sp);
   if (res)
     {
-      sp->subtype = STRING_MALLOC;
-      sp->u.malloc_string = res;
+      SET_SVALUE_MALLOC_STRING(sp, res);
     }
   else
     {
-      sp->subtype = STRING_CONSTANT;
-      sp->u.const_string = "";
+      SET_SVALUE_CONSTANT_STRING(sp, "");
     }
 }
 #endif
@@ -210,7 +208,7 @@ f_ed_start (void)
     restr = (sp--)->u.number;
 
   if (st_num_arg)
-    fname = sp->u.string;
+    fname = SVALUE_STRPTR(sp);
   else
     fname = 0;
 
@@ -229,13 +227,11 @@ f_ed_start (void)
 
   if (res)
     {
-      sp->subtype = STRING_MALLOC;
-      sp->u.malloc_string = res;
+      SET_SVALUE_MALLOC_STRING(sp, res);
     }
   else
     {
-      sp->subtype = STRING_CONSTANT;
-      sp->u.const_string = "";
+      SET_SVALUE_CONSTANT_STRING(sp, "");
     }
 }
 #endif
@@ -275,9 +271,9 @@ f_find_object (void)
 {
   object_t *ob;
   if ((sp--)->u.number)
-    ob = find_or_load_object (sp->u.string);
+    ob = find_or_load_object (SVALUE_STRPTR(sp));
   else
-    ob = find_object_by_name (sp->u.string);
+    ob = find_object_by_name (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   if (ob)
     {
@@ -322,7 +318,7 @@ void f_function_exists (void) {
       ob = current_object;
     }
 
-  str = function_exists (sp->u.string, ob, flag);
+  str = function_exists (SVALUE_STRPTR(sp), ob, flag);
   free_string_svalue (sp);
   if (str)
     {
@@ -374,7 +370,7 @@ f_inherits (void)
   int i;
 
   base = (sp--)->u.ob;
-  ob = find_object_by_name (sp->u.string);
+  ob = find_object_by_name (SVALUE_STRPTR(sp));
   if (!ob)
     {
       free_object (base, "f_inherits");
@@ -798,7 +794,7 @@ f_set_privs (void)
     }
   else
     {
-      ob->privs = make_shared_string(sp->u.string, NULL);
+      ob->privs = make_shared_string(SVALUE_STRPTR(sp), NULL);
       free_string_svalue (sp--);
     }
   free_object (ob, "f_set_privs");
@@ -968,7 +964,7 @@ f_to_float (void)
       sp->u.real = (double) sp->u.number;
       break;
     case T_STRING:
-      sscanf (sp->u.string, "%lf", &temp);
+      sscanf (SVALUE_STRPTR(sp), "%lf", &temp);
       free_string_svalue (sp);
       sp->type = T_REAL;
       sp->u.real = temp;
@@ -991,7 +987,7 @@ f_to_int (void)
       {
         int temp;
 
-        temp = atoi (sp->u.string);
+        temp = atoi (SVALUE_STRPTR(sp));
         free_string_svalue (sp);
         sp->u.number = temp;
         sp->type = T_NUMBER;

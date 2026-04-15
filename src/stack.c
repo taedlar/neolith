@@ -217,7 +217,13 @@ push_refed_class (array_t * v)
 void
 push_malloced_string (malloc_str_t p)
 {
-  sp++;
+#ifdef STRING_TYPE_SAFETY
+  if (!p)
+    fatal ("push_malloced_string: null pointer passed as string argument");
+  if (!is_malloc_string_payload (p))
+    fatal ("push_malloced_string: contract violation: shared string passed to malloc-string boundary\n");
+#endif
+  CHECK_AND_PUSH(1);
   sp->type = T_STRING;
   sp->subtype = STRING_MALLOC;
   sp->u.malloc_string = p;
@@ -230,7 +236,13 @@ push_malloced_string (malloc_str_t p)
 void
 push_shared_string (shared_str_t p)
 {
-  sp++;
+#ifdef STRING_TYPE_SAFETY
+  if (!p)
+    fatal ("push_shared_string: null pointer passed as string argument");
+  if (!is_shared_string_payload (p))
+    fatal ("push_shared_string: contract violation: non-shared string passed to shared-string boundary\n");
+#endif
+  CHECK_AND_PUSH(1);
   sp->type = T_STRING;
   sp->subtype = STRING_SHARED;
   sp->u.shared_string = p;

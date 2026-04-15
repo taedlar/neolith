@@ -133,6 +133,111 @@ As of 2026-04-16:
   string ownership explicitly (`reverse_cache_entry_t::name` and
   `forward_cache_entry_t::hostname` use `shared_str_t`), keeping bridge
   free paths (`free_string(to_shared_str(...))`) aligned with typed intent.
+- `lib/lpc/types.h` C++ view accessor `svalue_view::c_str()` now routes
+  through subtype-safe `SVALUE_STRPTR(...)` with a string-type guard rather
+  than reading `u.string` directly.
+- Additional `lib/lpc/operator.c` string-typed comparator/range/switch paths
+  now read via `SVALUE_STRPTR(...)` (equality/inequality memcmp branches,
+  relational string compares, range/extract source pointers, and non-shared
+  switch-label lookup/logging).
+- `lib/lpc/array.c` string-typed helper/comparator/callback and regexp paths
+  now consistently read via `SVALUE_STRPTR(...)` (implode/sameval,
+  `unique_array`/`objects` callback-name reads, `map_string` and object lookup,
+  sort/alist/intersect/subtract shared-string normalization, `match_regexp`,
+  and `reg_assoc` pattern compilation).
+- `lib/lpc/object.c` save-serialization string reads (`svalue_save_size`,
+  `save_svalue`) and `lib/lpc/mapping.c` string-key normalization in
+  `svalue_to_int()` now use `SVALUE_STRPTR(...)` in string-typed paths.
+- Initial `lib/efuns` read-side tightening is now in place for
+  `inventory.c` and `uids.c` (string arguments in `f_move_object()` and
+  `f_seteuid()` now route through `SVALUE_STRPTR(...)`).
+- Additional low-risk `lib/efuns` single-site string reads are now tightened
+  in `dump_prog.c` (`f_dump_prog` optional output path) and `maps.c`
+  (`f_match_path` source-path walker) via `SVALUE_STRPTR(...)`.
+- `lib/efuns/datetime.c` timezone argument reads in
+  `f_is_daylight_savings_time()` and `f_zonetime()` now use
+  `SVALUE_STRPTR(...)`.
+- `lib/efuns/dumpstat.c` now uses `SVALUE_STRPTR(...)` in string-size
+  accounting (`svalue_size`) and `f_dumpallobj()` argument forwarding.
+- `lib/efuns/sscanf.c` and `lib/efuns/ed.c` now route string-typed parse,
+  format, and returned-path reads through `SVALUE_STRPTR(...)`.
+- `lib/efuns/json.cpp` now uses `SVALUE_STRPTR(...)` for LPC string input,
+  mapping-key emission, and JSON string serialization paths.
+- `lib/efuns/interactive.c` and `lib/efuns/call_out.cpp` now route
+  string-typed message, resolver, and callout-name arguments through
+  `SVALUE_STRPTR(...)`.
+- `lib/efuns/replace_program.c` now uses `SVALUE_STRPTR(...)` for
+  replacement-program name handling and ignore-list string lookup.
+- `lib/efuns/call_other.c`, `lib/efuns/debug.c`, and
+  `lib/efuns/tell_object.c` now route string-typed object/function/message
+  arguments through `SVALUE_STRPTR(...)`.
+- `lib/efuns/sockets.c` now uses `SVALUE_STRPTR(...)` for string address
+  parsing and optional address forwarding in `socket_connect()` and
+  `socket_write()`.
+- `lib/efuns/variable.c` now uses `SVALUE_STRPTR(...)` for variable-name
+  lookup/error reporting and restore-variable input handling.
+- `lib/efuns/bits.c` now uses `SVALUE_STRPTR(...)` for bitfield string reads
+  and `u.malloc_string` after unlinking mutable bitfield strings.
+- `lib/efuns/command.c` now routes living-name lookup, add/remove action,
+  command dispatch, and notify-fail string arguments through
+  `SVALUE_STRPTR(...)`.
+- `lib/efuns/sprintf.c` now uses `SVALUE_STRPTR(...)` across string
+  serialization, column/table formatting, justification, and top-level
+  sprintf/printf format-string entry points.
+- `lib/efuns/unsorted.c` now routes string-typed paths through
+  `SVALUE_STRPTR(...)` for child/clone/object lookup, `ed*` entry points,
+  function existence lookup, privilege assignment, and string-to-number
+  conversion helpers.
+- `lib/efuns/file.c` now uses `SVALUE_STRPTR(...)` across file path
+  forwarding, directory/stat helpers, file byte/string I/O, and
+  save/restore object path arguments.
+- `lib/efuns/string.c` now uses `SVALUE_STRPTR(...)` across case conversion,
+  crypt/hash helpers, implode/explode/regexp helpers, replace-string logic,
+  trace logging, and string search/compare paths; mutable paths use
+  `u.malloc_string` after unlinking.
+- `lib/efuns/parse.c` now routes parse pattern, command word, id-list, and
+  adjective/preposition string reads through `SVALUE_STRPTR(...)`, including
+  parse-command entry, pluralization, numeral parsing, and object matching.
+- Additional low-risk typed-intent tightening is in place around lookup-only
+  helpers and typed-return APIs: `find_function_by_name2()` now keeps raw
+  C-string lookup separate from `shared_str_t` results, `find_string_in_mapping()`
+  and `find_global_variable()` now take `const char *`, and `f_to_json()` keeps
+  `string_copy()` results in `malloc_str_t` until the push boundary.
+- Test coverage is also tightened to preserve `shared_str_t` / `malloc_str_t`
+  through shared-string, malloc-string, and socket address setup paths rather
+  than immediately erasing typed returns back to plain `char *` in older tests.
+- The dedicated type-safety regression test now expresses bridge-helper return
+  expectations in terms of `shared_str_t` / `malloc_str_t` aliases rather than
+  raw `char *`, keeping the compile-time contract wording aligned with the
+  intended typed payload model.
+- The same regression test now also freezes typed signatures and/or result
+  types for shared-string lookup/allocation, malloc-string allocation/copy,
+  typed push helpers, and malloc-string resize/unlink macro wrappers.
+- `src/stack.c` now applies `STRING_TYPE_SAFETY` runtime contract checks at the
+  typed push boundaries as well: `push_shared_string()` rejects non-shared
+  payloads and `push_malloced_string()` rejects shared payloads before they are
+  stamped onto the eval stack. `tests/test_stack_machine` now covers the normal
+  shared-refcount and malloc-ownership behavior of these helper APIs.
+- Payload-domain checks are now centralized in `src/stralloc.h`
+  (`is_shared_string_payload()` / `is_malloc_string_payload()`) and reused by
+  both the stack push helpers and `lpc::svalue_view` typed string setters in
+  `lib/lpc/types.h`, keeping the C and C++ subtype-stamping boundaries aligned.
+- `src/interpret.h` return-value macros `put_shared_string()` and
+  `put_malloced_string()` now reuse the same centralized payload checks under
+  `STRING_TYPE_SAFETY`, and `tests/test_stack_machine` covers their normal
+  shared/malloc subtype stamping behavior.
+- Zero-length shared-string payloads are now handled correctly by the
+  centralized payload classifiers in `src/stralloc.h`; this closes a real
+  runtime bug exposed by `SimulEfunsTest.callSimulEfun`, where LPC code using
+  `""` hit the shared-string boundary check even though the payload was valid.
+- `lib/lpc/types.h` now provides checked `SET_SVALUE_SHARED_STRING()` /
+  `SET_SVALUE_MALLOC_STRING()` / `SET_SVALUE_CONSTANT_STRING()` helpers for
+  direct `svalue_t` stamping, and low-risk core sites in `src/outbuf.c`,
+  `src/error_context.cpp`, `src/stralloc.c`, and `lib/efuns/json.cpp` now use
+  them instead of open-coding `type/subtype/u.*` assignments.
+- Initial efun adoption of the checked svalue-stamping helpers is now in place
+  for straightforward return/value-construction paths in `file.c`, `string.c`,
+  `bits.c`, `unsorted.c`, and `datetime.c`.
 
 ### Next Focus
 

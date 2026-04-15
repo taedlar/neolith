@@ -181,10 +181,26 @@ typedef struct {
         sp->u.shared_string = make_shared_string(x, NULL);\
         } while(0)
 
+#ifdef STRING_TYPE_SAFETY
+#define CHECK_PUT_MALLOCED_STRING_VALUE(v) do { \
+        if ((v) && !is_malloc_string_payload(v)) \
+                fatal("put_malloced_string: contract violation: shared string passed to malloc-string boundary\n"); \
+        } while(0)
+#define CHECK_PUT_SHARED_STRING_VALUE(v) do { \
+        if ((v) && !is_shared_string_payload(v)) \
+                fatal("put_shared_string: contract violation: non-shared string passed to shared-string boundary\n"); \
+        } while(0)
+#else
+#define CHECK_PUT_MALLOCED_STRING_VALUE(v) do { (void)(v); } while(0)
+#define CHECK_PUT_SHARED_STRING_VALUE(v) do { (void)(v); } while(0)
+#endif
+
 #define put_malloced_string(x) do {\
+        malloc_str_t put_malloced_string_value = (x);\
+        CHECK_PUT_MALLOCED_STRING_VALUE(put_malloced_string_value);\
         sp->type = T_STRING;\
         sp->subtype = STRING_MALLOC;\
-        sp->u.malloc_string = (x);\
+        sp->u.malloc_string = put_malloced_string_value;\
         } while(0)
 
 #define put_array(x) do {\
@@ -193,9 +209,11 @@ typedef struct {
         } while(0)
 
 #define put_shared_string(x) do {\
+        shared_str_t put_shared_string_value = (x);\
+        CHECK_PUT_SHARED_STRING_VALUE(put_shared_string_value);\
         sp->type = T_STRING;\
         sp->subtype = STRING_SHARED;\
-        sp->u.shared_string = (x);\
+        sp->u.shared_string = put_shared_string_value;\
         } while(0)
 
 #ifdef __cplusplus

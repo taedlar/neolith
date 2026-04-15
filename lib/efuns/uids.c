@@ -116,7 +116,7 @@ f_seteuid (void)
       *sp = const0;
       return;
     }
-  current_object->euid = add_uid (sp->u.string);
+  current_object->euid = add_uid (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   *sp = const1;
 }

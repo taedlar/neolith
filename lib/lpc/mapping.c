@@ -341,7 +341,7 @@ int restore_hash_string (char **val, svalue_t * sv) {
 int svalue_to_int (svalue_t * v) {
   if (v->type == T_STRING && v->subtype != STRING_SHARED)
     {
-      shared_str_t p = make_shared_string(v->u.string, NULL);
+      shared_str_t p = make_shared_string(SVALUE_STRPTR(v), NULL);
       free_string_svalue (v);
       v->subtype = STRING_SHARED;
       v->u.shared_string = p;
@@ -786,8 +786,8 @@ svalue_t* find_in_mapping (mapping_t * m, svalue_t * lv) {
   return &const0u;
 }
 
-svalue_t* find_string_in_mapping (mapping_t * m, char *p) {
-  char *ss = findstring(p, NULL);
+svalue_t* find_string_in_mapping (mapping_t * m, const char *p) {
+  shared_str_t ss = findstring(p, NULL);
   int i;
   mapping_node_t *n;
 

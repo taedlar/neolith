@@ -844,7 +844,7 @@ getfn (int writeflg)
       ret = apply_master_ob (APPLY_MAKE_PATH_ABSOLUTE, 1);
       if ((ret == 0) || (ret == (svalue_t *) - 1) || ret->type != T_STRING)
         return NULL;
-      strncpy (file, ret->u.string, sizeof file - 1);
+      strncpy (file, SVALUE_STRPTR(ret), sizeof file - 1);
       file[MAXFNAME - 1] = '\0';
     }
 
@@ -2627,7 +2627,7 @@ save_ed_buffer (object_t * who)
     {
       if (stmp->type == T_STRING)
         {
-          fname = stmp->u.string;
+          fname = SVALUE_STRPTR(stmp);
           if (*fname == '/')
             fname++;
           dowrite (1, P_LASTLN, fname, 0);

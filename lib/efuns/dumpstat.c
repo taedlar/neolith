@@ -44,7 +44,7 @@ svalue_size (svalue_t * v)
     case T_NUMBER:
       return 0;
     case T_STRING:
-      return (int) (strlen (v->u.string) + 1);
+      return (int) (strlen (SVALUE_STRPTR(v)) + 1);
     case T_ARRAY:
     case T_CLASS:
       /* first svalue is stored inside the array struct */
@@ -166,7 +166,7 @@ f_dumpallobj (void)
 {
   if (st_num_arg)
     {
-      dumpstat (sp->u.string);
+      dumpstat (SVALUE_STRPTR(sp));
       free_string_svalue (sp--);
     }
   else

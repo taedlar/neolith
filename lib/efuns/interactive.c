@@ -134,8 +134,8 @@ f_receive (void)
 {
   if (current_object->interactive)
     {
-      check_legal_string (sp->u.string);
-      add_message (current_object, sp->u.string);
+      check_legal_string (SVALUE_STRPTR(sp));
+      add_message (current_object, SVALUE_STRPTR(sp));
     }
   free_string_svalue (sp--);
 }
@@ -263,7 +263,7 @@ f_resolve (void)
 {
   int i, query_addr_number (char *, char *);
 
-  i = query_addr_number ((sp - 1)->u.string, sp->u.string);
+  i = query_addr_number (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_number (i);

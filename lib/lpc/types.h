@@ -8,6 +8,8 @@
 #include <inttypes.h>
 #endif
 
+#include <stdlib.h>
+
 #include "src/stralloc.h"
 
 #ifdef __cplusplus
@@ -99,10 +101,52 @@ struct svalue_s {
 
 #define T_UNDEFINED     0x4     /* undefinedp() returns true */
 
+#ifdef STRING_TYPE_SAFETY
+#define SET_SVALUE_SHARED_STRING(sv, value) do { \
+    shared_str_t set_svalue_shared_string_value = (value); \
+    if (set_svalue_shared_string_value != NULL && !is_shared_string_payload(set_svalue_shared_string_value)) \
+        abort(); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_SHARED; \
+    (sv)->u.shared_string = set_svalue_shared_string_value; \
+} while (0)
+
+#define SET_SVALUE_MALLOC_STRING(sv, value) do { \
+    malloc_str_t set_svalue_malloc_string_value = (value); \
+    if (set_svalue_malloc_string_value != NULL && !is_malloc_string_payload(set_svalue_malloc_string_value)) \
+        abort(); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_MALLOC; \
+    (sv)->u.malloc_string = set_svalue_malloc_string_value; \
+} while (0)
+#else
+#define SET_SVALUE_SHARED_STRING(sv, value) do { \
+    shared_str_t set_svalue_shared_string_value = (value); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_SHARED; \
+    (sv)->u.shared_string = set_svalue_shared_string_value; \
+} while (0)
+
+#define SET_SVALUE_MALLOC_STRING(sv, value) do { \
+    malloc_str_t set_svalue_malloc_string_value = (value); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_MALLOC; \
+    (sv)->u.malloc_string = set_svalue_malloc_string_value; \
+} while (0)
+#endif
+
+#define SET_SVALUE_CONSTANT_STRING(sv, value) do { \
+    const char *set_svalue_constant_string_value = (value); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_CONSTANT; \
+    (sv)->u.const_string = set_svalue_constant_string_value; \
+} while (0)
+
 #ifdef __cplusplus
 } // extern "C"
 
 #include <cstddef>
+#include <cstdlib>
 #include <climits>
 #include <string>
 #include <type_traits>
@@ -201,7 +245,7 @@ public:
      * std::string::c_str(). Lifetime is tied to the underlying svalue_t.
      */
     [[nodiscard]] const char *c_str() const noexcept {
-        return sv_ ? sv_->u.string : nullptr;
+        return is_string() ? SVALUE_STRPTR(sv_) : nullptr;
     }
 
     /** Precondition: is_shared() — use to pass to ref_string() / free_string(). */
@@ -239,9 +283,7 @@ public:
         if (sv_ == nullptr) {
             return;
         }
-        sv_->type = T_STRING;
-        sv_->subtype = STRING_SHARED;
-        sv_->u.shared_string = s;
+        SET_SVALUE_SHARED_STRING(sv_, s);
     }
 
     /** Assign a STRING_MALLOC payload; stamps type=T_STRING, subtype=STRING_MALLOC. */
@@ -249,9 +291,7 @@ public:
         if (sv_ == nullptr) {
             return;
         }
-        sv_->type = T_STRING;
-        sv_->subtype = STRING_MALLOC;
-        sv_->u.malloc_string = s;
+        SET_SVALUE_MALLOC_STRING(sv_, s);
     }
 
     /** Assign a STRING_CONSTANT; stamps type=T_STRING, subtype=STRING_CONSTANT. */
@@ -259,9 +299,7 @@ public:
         if (sv_ == nullptr) {
             return;
         }
-        sv_->type = T_STRING;
-        sv_->subtype = STRING_CONSTANT;
-        sv_->u.const_string = s;
+        SET_SVALUE_CONSTANT_STRING(sv_, s);
     }
 
     /** Assign a number payload; stamps type=T_NUMBER. */

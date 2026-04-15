@@ -27,13 +27,13 @@ void f_error (void) {
   size_t len = SVALUE_STRLEN (sp);
   char err_buf[2048];
 
-  if (sp->u.string[len - 1] == '\n')
+  if (SVALUE_STRPTR(sp)[len - 1] == '\n')
     len--;
   if (len > 2045)
     len = 2045;
 
   err_buf[0] = '*';
-  strncpy (err_buf + 1, sp->u.string, len);
+  strncpy (err_buf + 1, SVALUE_STRPTR(sp), len);
   err_buf[len + 1] = '\n';
   err_buf[len + 2] = 0;
 
@@ -697,7 +697,7 @@ f_traceprefix (void)
       if (sp->type & T_STRING)
         {
           command_giver->interactive->trace_prefix =
-            make_shared_string(sp->u.string, NULL);
+            make_shared_string(SVALUE_STRPTR(sp), NULL);
           free_string_svalue (sp);
         }
       else
@@ -870,7 +870,7 @@ f_program_info (void)
 void
 f_debug_message (void)
 {
-  debug_message ("%s", sp->u.string);
+  debug_message ("%s", SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
 }
 #endif

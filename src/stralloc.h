@@ -5,6 +5,8 @@
 #include <limits.h>
 #endif
 
+#include <string.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -213,6 +215,26 @@ extern malloc_str_t int_string_copy(const char *, const char *);
 extern malloc_str_t int_extend_string(malloc_str_handle_t, size_t);
 extern malloc_str_t int_string_unlink (malloc_str_handle_t);
 extern char *int_alloc_cstring(const char *, const char *);
+
+#ifdef STRING_TYPE_SAFETY
+static inline int is_shared_string_payload(shared_str_t p) {
+        size_t len;
+
+        if (p == 0)
+                return 0;
+        len = SHARED_STRLEN(p);
+        return findstring(p, len ? p + len : NULL) == p;
+}
+
+static inline int is_malloc_string_payload(malloc_str_t p) {
+        size_t len;
+
+        if (p == 0)
+                return 0;
+        len = COUNTED_STRLEN(p);
+        return findstring(p, len ? p + len : NULL) != p;
+}
+#endif
 
 #ifdef __cplusplus
 }

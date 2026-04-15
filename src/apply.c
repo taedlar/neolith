@@ -167,12 +167,14 @@ program_t *find_function (program_t * prog, shared_str_t name, int *index, int *
   return 0;
 }
 
-static program_t *find_function_by_name2 (object_t * ob, shared_str_t *name, int *index, int *fio, int *vio) {
-  *name = findstring(*name, NULL); /* shared string */
+static program_t *find_function_by_name2 (object_t * ob, const char *name,
+                                          shared_str_t *shared_name,
+                                          int *index, int *fio, int *vio) {
+  *shared_name = findstring(name, NULL); /* shared string */
 
-  if (!*name)
+  if (!*shared_name)
     return 0;
-  return find_function (ob->prog, *name, index, fio, vio);
+  return find_function (ob->prog, *shared_name, index, fio, vio);
 }
 
 static int function_visible (int origin, int func_flags) {
@@ -319,8 +321,7 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
           apply_low_collisions++;
         }
 #endif
-      sfun = (shared_str_t) fun;
-      prog = find_function_by_name2 (ob, &sfun, &index, &fio, &vio);
+      prog = find_function_by_name2 (ob, fun, &sfun, &index, &fio, &vio);
 
       if (prog)
         {

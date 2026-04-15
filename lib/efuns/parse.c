@@ -389,7 +389,7 @@ load_lpc_info (int ix, object_t * ob)
                 {
                   if (sing->item[il].type == T_STRING)
                     {
-                      str = parse_to_plural (sing->item[il].u.string);
+                      str = parse_to_plural (SVALUE_STRPTR(&sing->item[il]));
                       tmp->item[il].type = T_STRING;
                       tmp->item[il].subtype = STRING_MALLOC;
                       tmp->item[il].u.malloc_string = str;
@@ -589,7 +589,7 @@ parse (char *cmd,		/* Command to parse */
 
   pval = apply_master_ob (QGET_ALLWORD, 0);
   if (pval && pval->type == T_STRING)
-    gAllword = alloc_cstring (pval->u.string, "parse");
+    gAllword = alloc_cstring (SVALUE_STRPTR(pval), "parse");
 
   /*
    * Loop through the pattern. Handle %s but not '/'
@@ -599,7 +599,7 @@ parse (char *cmd,		/* Command to parse */
       pval = 0;			/* The 'fill-in' value */
       fail = 0;			/* 1 if match failed */
 
-      if (EQ (parse_patarr->item[pix].u.string, "%s"))
+      if (EQ (SVALUE_STRPTR(&parse_patarr->item[pix]), "%s"))
         {
           /*
            * We are at end of pattern, scrap up the remaining words and put
@@ -668,7 +668,7 @@ parse (char *cmd,		/* Command to parse */
        * The pattern was not %s, parse the pattern if it is not '/', a '/'
        * here is skipped. If match, put in fill-in value.
        */
-      else if (!EQ (parse_patarr->item[pix].u.string, "/"))
+      else if (!EQ (SVALUE_STRPTR(&parse_patarr->item[pix]), "/"))
         {
           pval = sub_parse (obarr, parse_patarr, &pix,
                             parse_warr, &cix, &fail,
@@ -776,7 +776,7 @@ sub_parse (array_t * obarr, array_t * patarr, int *pix_in, array_t * warr,
   pix = *pix_in;
   subfail = 0;
 
-  pval = one_parse (obarr, patarr->item[pix].u.string,
+  pval = one_parse (obarr, SVALUE_STRPTR(&patarr->item[pix]),
                     warr, &cix, &subfail, args);
 
   while (subfail)
@@ -787,7 +787,7 @@ sub_parse (array_t * obarr, array_t * patarr, int *pix_in, array_t * warr,
       /*
        * Find the next alternative pattern, consecutive '/' are skipped
        */
-      while ((pix < patarr->size) && (EQ (patarr->item[pix].u.string, "/")))
+      while ((pix < patarr->size) && (EQ (SVALUE_STRPTR(&patarr->item[pix]), "/")))
         {
           subfail = 0;
           pix++;
@@ -795,7 +795,7 @@ sub_parse (array_t * obarr, array_t * patarr, int *pix_in, array_t * warr,
 
       if (!subfail && (pix < patarr->size))
         {
-          pval = one_parse (obarr, patarr->item[pix].u.string, warr, &cix,
+          pval = one_parse (obarr, SVALUE_STRPTR(&patarr->item[pix]), warr, &cix,
                             &subfail, args);
         }
       else
@@ -809,10 +809,10 @@ sub_parse (array_t * obarr, array_t * patarr, int *pix_in, array_t * warr,
   /*
    * If there is alternatives left after the mathing pattern, skip them
    */
-  if ((pix + 1 < patarr->size) && (EQ (patarr->item[pix + 1].u.string, "/")))
+  if ((pix + 1 < patarr->size) && (EQ (SVALUE_STRPTR(&patarr->item[pix + 1]), "/")))
     {
       while ((pix + 1 < patarr->size) &&
-             (EQ (patarr->item[pix + 1].u.string, "/")))
+             (EQ (SVALUE_STRPTR(&patarr->item[pix + 1]), "/")))
         {
           pix += 2;
         }
@@ -877,7 +877,7 @@ one_parse (array_t * obarr, char *pat, array_t * warr, int *cix_in, int *fail,
     case 'w':
       parse_ret.type = T_STRING;
       parse_ret.subtype = STRING_SHARED;
-      parse_ret.u.shared_string = make_shared_string(warr->item[*cix_in].u.string, NULL);
+      parse_ret.u.shared_string = make_shared_string(SVALUE_STRPTR(&warr->item[*cix_in]), NULL);
       pval = &parse_ret;
       (*cix_in)++;
       *fail = 0;
@@ -897,7 +897,7 @@ one_parse (array_t * obarr, char *pat, array_t * warr, int *cix_in, int *fail,
 
     case '\'':
       str1 = &pat[1];
-      str2 = warr->item[*cix_in].u.string;
+      str2 = SVALUE_STRPTR(&warr->item[*cix_in]);
       if ((strncmp (str1, str2, strlen (str1) - 1) == 0) &&
           (strlen (str1) == strlen (str2) + 1))
         {
@@ -910,7 +910,7 @@ one_parse (array_t * obarr, char *pat, array_t * warr, int *cix_in, int *fail,
 
     case '[':
       str1 = &pat[1];
-      str2 = warr->item[*cix_in].u.string;
+      str2 = SVALUE_STRPTR(&warr->item[*cix_in]);
       if ((strncmp (str1, str2, strlen (str1) - 1) == 0) &&
           (strlen (str1) == strlen (str2) + 1))
         {
@@ -984,7 +984,7 @@ number_parse (array_t * obarr, array_t * warr, int *cix_in, int *fail)
   cix = *cix_in;
   *fail = 0;
 
-  if (sscanf (warr->item[cix].u.string, "%d", &num) == 1)
+  if (sscanf (SVALUE_STRPTR(&warr->item[cix]), "%d", &num) == 1)
     {
       if (num >= 0)
         {
@@ -996,7 +996,7 @@ number_parse (array_t * obarr, array_t * warr, int *cix_in, int *fail)
       *fail = 1;
       return 0;			/* Only nonnegative numbers */
     }
-  if (gAllword && (strcmp (warr->item[cix].u.string, gAllword) == 0))
+  if (gAllword && (strcmp (SVALUE_STRPTR(&warr->item[cix]), gAllword) == 0))
     {
       (*cix_in)++;
       parse_ret.type = T_NUMBER;
@@ -1009,7 +1009,7 @@ number_parse (array_t * obarr, array_t * warr, int *cix_in, int *fail)
       {
         sprintf (buf, "%s%s", num10[ten],
                  (ten > 1) ? num1[ones] : num1[ten * 10 + ones]);
-        if (EQ (buf, warr->item[cix].u.string))
+        if (EQ (buf, SVALUE_STRPTR(&warr->item[cix])))
           {
             (*cix_in)++;
             parse_ret.type = T_NUMBER;
@@ -1024,7 +1024,7 @@ number_parse (array_t * obarr, array_t * warr, int *cix_in, int *fail)
       {
         sprintf (buf, "%s%s", (ones) ? ord10[ten] : sord10[ten],
                  (ten > 1) ? ord1[ones] : ord1[ten * 10 + ones]);
-        if (EQ (buf, warr->item[cix].u.string))
+        if (EQ (buf, SVALUE_STRPTR(&warr->item[cix])))
           {
             (*cix_in)++;
             parse_ret.type = T_NUMBER;
@@ -1180,12 +1180,12 @@ living_parse (array_t * obarr, array_t * warr, int *cix_in, int *fail)
   /*
    * find_player
    */
-  ob = find_living_object (warr->item[*cix_in].u.string, 1);
+  ob = find_living_object (SVALUE_STRPTR(&warr->item[*cix_in]), 1);
   if (!ob)
     /*
      * find_living
      */
-    ob = find_living_object (warr->item[*cix_in].u.string, 0);
+    ob = find_living_object (SVALUE_STRPTR(&warr->item[*cix_in]), 0);
 
   if (ob)
     {
@@ -1268,10 +1268,10 @@ prepos_parse (array_t * warr, int *cix_in, int *fail, svalue_t * prepos)
       if (parr->item[pix].type != T_STRING)
         continue;
 
-      tmp = parr->item[pix].u.string;
+      tmp = SVALUE_STRPTR(&parr->item[pix]);
       if (!strchr (tmp, ' '))
         {
-          if (EQ (tmp, warr->item[*cix_in].u.string))
+          if (EQ (tmp, SVALUE_STRPTR(&warr->item[*cix_in])))
             {
               (*cix_in)++;
               break;
@@ -1284,8 +1284,8 @@ prepos_parse (array_t * warr, int *cix_in, int *fail, svalue_t * prepos)
             {
               if ((*cix_in + tix >= warr->size) ||
                   (!EQ
-                   (warr->item[*cix_in + tix].u.string,
-                    tarr->item[tix].u.string)))
+                   (SVALUE_STRPTR(&warr->item[*cix_in + tix]),
+                  SVALUE_STRPTR(&tarr->item[tix]))))
                 break;
             }
           if ((tix = (tix == tarr->size) ? 1 : 0))
@@ -1314,7 +1314,7 @@ prepos_parse (array_t * warr, int *cix_in, int *fail, svalue_t * prepos)
     {
       parse_ret.type = T_STRING;
       parse_ret.subtype = STRING_MALLOC;
-      parse_ret.u.malloc_string = string_copy (parr->item[pix].u.string, "parse");
+      parse_ret.u.malloc_string = string_copy (SVALUE_STRPTR(&parr->item[pix]), "parse");
       *fail = 0;
     }
 
@@ -1378,7 +1378,7 @@ match_object (int obix, array_t * warr, int *cix_in, int *plur)
         {
           if (ids->item[il].type == T_STRING)
             {
-              str = ids->item[il].u.string;	/* A given id of the object */
+              str = SVALUE_STRPTR(&ids->item[il]);	/* A given id of the object */
               old_cix = *cix_in;
               if ((pos = find_string (str, warr, cix_in)) >= 0)
                 {
@@ -1420,7 +1420,7 @@ find_string (char *str, array_t * warr, int *cix_in)
 
   for (; *cix_in < warr->size; (*cix_in)++)
     {
-      p1 = warr->item[*cix_in].u.string;
+      p1 = SVALUE_STRPTR(&warr->item[*cix_in]);
       if (p1[0] != str[0])
         continue;
 
@@ -1452,8 +1452,8 @@ find_string (char *str, array_t * warr, int *cix_in)
       fpos = *cix_in;
       for (; (*cix_in - fpos) < split->size; (*cix_in)++)
         {
-          if (strcmp (split->item[*cix_in - fpos].u.string,
-                      warr->item[*cix_in].u.string))
+          if (strcmp (SVALUE_STRPTR(&split->item[*cix_in - fpos]),
+                      SVALUE_STRPTR(&warr->item[*cix_in])))
             break;
         }
       if ((*cix_in - fpos) == split->size)
@@ -1494,9 +1494,9 @@ check_adjectiv (int obix, array_t * warr, int from, int to)
 
   for (sum = 0, fail = 0, il = from; il <= to; il++)
     {
-      sum += (int)strlen (warr->item[il].u.string) + 1;
-      if ((member_string (warr->item[il].u.string, ids) < 0) &&
-          (member_string (warr->item[il].u.string, gAdjid_list_d) < 0))
+      sum += (int)strlen (SVALUE_STRPTR(&warr->item[il])) + 1;
+      if ((member_string (SVALUE_STRPTR(&warr->item[il]), ids) < 0) &&
+          (member_string (SVALUE_STRPTR(&warr->item[il]), gAdjid_list_d) < 0))
         {
           fail = 1;
         }
@@ -1538,7 +1538,7 @@ check_adjectiv (int obix, array_t * warr, int from, int to)
                                  * adj[back] */
               if (sum > il)
                 strcat (adstr, " ");
-              strcat (adstr, warr->item[sum].u.string);
+              strcat (adstr, SVALUE_STRPTR(&warr->item[sum]));
             }
           if ((member_string (adstr, ids) < 0) &&
               (member_string (adstr, gAdjid_list_d) < 0))
@@ -1580,7 +1580,7 @@ member_string (char *str, array_t * sarr)
       if (sarr->item[il].type != T_STRING)
         continue;
 
-      if (strcmp (sarr->item[il].u.string, str) == 0)
+      if (strcmp (SVALUE_STRPTR(&sarr->item[il]), str) == 0)
         return il;
     }
   return -1;
@@ -1608,10 +1608,10 @@ parse_to_plural (char *str)
 
   for (changed = 0, il = 1; il < words->size; il++)
     {
-      if ((EQ (words->item[il].u.string, "of")) || (il + 1 == words->size))
+      if ((EQ (SVALUE_STRPTR(&words->item[il]), "of")) || (il + 1 == words->size))
         {
-          sentence = parse_one_plural (words->item[il - 1].u.string);
-          if (sentence != words->item[il - 1].u.string)
+          sentence = parse_one_plural (SVALUE_STRPTR(&words->item[il - 1]));
+          if (sentence != SVALUE_STRPTR(&words->item[il - 1]))
             {
               free_svalue (&words->item[il - 1], "parse_to_plural");
               words->item[il - 1].type = T_STRING;
@@ -1759,7 +1759,7 @@ void f_parse_command () {
   /*
    * do it...
    */
-  i = parse (arg[0].u.string, &arg[1], arg[2].u.string, &ret[1], num_arg);
+  i = parse (SVALUE_STRPTR(&arg[0]), &arg[1], SVALUE_STRPTR(&arg[2]), &ret[1], num_arg);
 
   /*
    * remove mandatory parameters

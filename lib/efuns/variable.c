@@ -18,9 +18,9 @@ f_store_variable (void)
   svalue_t *sv;
   unsigned short type;
 
-  idx = find_global_variable (current_object->prog, (sp - 1)->u.string, &type);
+  idx = find_global_variable (current_object->prog, SVALUE_STRPTR(sp - 1), &type);
   if (idx == -1)
-    error ("No variable named '%s'!\n", (sp - 1)->u.string);
+    error ("No variable named '%s'!\n", SVALUE_STRPTR(sp - 1));
   sv = &current_object->variables[idx];
   free_svalue (sv, "f_store_variable");
   *sv = *sp--;
@@ -37,9 +37,9 @@ f_fetch_variable (void)
   svalue_t *sv;
   unsigned short type;
 
-  idx = find_global_variable (current_object->prog, sp->u.string, &type);
+  idx = find_global_variable (current_object->prog, SVALUE_STRPTR(sp), &type);
   if (idx == -1)
-    error ("No variable named '%s'!\n", sp->u.string);
+    error ("No variable named '%s'!\n", SVALUE_STRPTR(sp));
   sv = &current_object->variables[idx];
   free_string_svalue (sp--);
   push_svalue (sv);
@@ -56,8 +56,8 @@ f_restore_variable (void)
   unlink_string_svalue (sp);
   v.type = T_NUMBER;
 
-  restore_variable (&v, sp->u.string);
-  FREE_MSTR (sp->u.string);
+  restore_variable (&v, SVALUE_STRPTR(sp));
+  FREE_MSTR (sp->u.malloc_string);
   *sp = v;
 }
 #endif

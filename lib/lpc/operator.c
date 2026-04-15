@@ -186,7 +186,7 @@ void f_eq () {
         else
           {
             i = (lhs_len == 0)
-                || (memcmp ((sp - 1)->u.string, sp->u.string, lhs_len) == 0);
+                || (memcmp (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), lhs_len) == 0);
           }
         free_string_svalue (sp--);
         free_string_svalue (sp);
@@ -249,7 +249,7 @@ void f_ge () {
       sp->subtype = 0;
       break;
     case T_STRING:
-      i = strcmp (sp->u.string, (sp + 1)->u.string) >= 0;
+      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) >= 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       put_number (i);
@@ -294,7 +294,7 @@ void f_gt () {
       sp->subtype = 0;
       break;
     case T_STRING:
-      i = strcmp (sp->u.string, (sp + 1)->u.string) > 0;
+      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) > 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       put_number (i);
@@ -339,7 +339,7 @@ void f_le () {
       break;
 
     case T_STRING:
-      i = strcmp (sp->u.string, (sp + 1)->u.string) <= 0;
+      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) <= 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       sp->type = T_NUMBER;
@@ -386,7 +386,7 @@ void f_lt () {
         sp->u.number = sp->u.number < (sp + 1)->u.real;
       break;
     case T_STRING:
-      i = (strcmp (sp->u.string, (sp + 1)->u.string) < 0);
+      i = (strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) < 0);
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       sp->type = T_NUMBER;
@@ -571,7 +571,7 @@ void f_ne () {
         else
           {
             i = (lhs_len != 0)
-                && (memcmp ((sp - 1)->u.string, sp->u.string, lhs_len) != 0);
+                && (memcmp (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), lhs_len) != 0);
           }
         free_string_svalue (sp--);
         free_string_svalue (sp);
@@ -646,7 +646,7 @@ void f_range (int code) {
     {
     case T_STRING:
       {
-        char *res = sp->u.string;
+        char *res = SVALUE_STRPTR(sp);
 
         len = (int64_t)SVALUE_STRLEN (sp);
         to = (--sp)->u.number;
@@ -765,7 +765,7 @@ void f_extract_range (int code) {
     {
     case T_STRING:
       {
-        char *res = sp->u.string;
+        char *res = SVALUE_STRPTR(sp);
 
         len = (int64_t)SVALUE_STRLEN (sp);
         from = (--sp)->u.number;
@@ -996,8 +996,8 @@ void f_switch () {
             }
           else
             {
-              s = (intptr_t) findstring(sp->u.string, NULL);
-              opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)sp->u.string);
+              s = (intptr_t) findstring(SVALUE_STRPTR(sp), NULL);
+              opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", SVALUE_STRPTR(sp));
               free_string_svalue (sp--);
             }
           if (s == 0)
