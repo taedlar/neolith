@@ -355,9 +355,7 @@ extern "C" int get_config_item (svalue_t * res, svalue_t * arg)
     }
   else
     {
-      res->type = T_STRING;
-      res->subtype = STRING_CONSTANT; /* prevent deallocation */
-      res->u.const_string = config_str[num] ? config_str[num] : "";
+      SET_SVALUE_CONSTANT_STRING(res, config_str[num] ? config_str[num] : "");
     }
 
   return 1;

@@ -327,10 +327,7 @@ f_query_notify_fail (void)
       else if ((p = command_giver->interactive->default_err_message.s))
         {
           sp++;
-          sp->type = T_STRING;
-          sp->subtype = STRING_SHARED;
-          sp->u.shared_string = p;
-          ref_string (to_shared_str(p));
+          SET_SVALUE_SHARED_STRING(sp, ref_string(to_shared_str(p)));
           return;
         }
     }

@@ -433,18 +433,14 @@ array_t* get_all_call_outs () {
               vv->item[0].type = T_OBJECT;
               vv->item[0].u.ob = cop->ob;
               add_ref (cop->ob, "get_all_call_outs");
-              vv->item[1].type = T_STRING;
-              vv->item[1].subtype = STRING_SHARED;
-              vv->item[1].u.shared_string = make_shared_string(cop->function.s, NULL);
+              SET_SVALUE_SHARED_STRING(&vv->item[1], make_shared_string(cop->function.s, NULL));
             }
           else
             {
               vv->item[0].type = T_OBJECT;
               vv->item[0].u.ob = cop->function.f->hdr.owner;
               add_ref (cop->function.f->hdr.owner, "get_all_call_outs");
-              vv->item[1].type = T_STRING;
-              vv->item[1].subtype = STRING_SHARED;
-              vv->item[1].u.shared_string = make_shared_string("<function>", NULL);
+              SET_SVALUE_SHARED_STRING(&vv->item[1], make_shared_string("<function>", NULL));
             }
           vv->item[2].type = T_NUMBER;
           if (j > tm)

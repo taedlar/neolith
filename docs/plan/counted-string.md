@@ -237,10 +237,18 @@ As of 2026-04-16:
   them instead of open-coding `type/subtype/u.*` assignments.
 - Initial efun adoption of the checked svalue-stamping helpers is now in place
   for straightforward return/value-construction paths in `file.c`, `string.c`,
-  `bits.c`, `unsorted.c`, and `datetime.c`.
+  `bits.c`, `unsorted.c`, `datetime.c`, `variable.c`, `call_out.cpp`,
+  `file_utils.c`, and selected low-risk `debug.c` constructors.
+- Focused regression coverage remains green after this batch, including
+  `EfunsTest.throwError`, `EfunsTest.throwWithoutCatchRaisesRuntimeError`,
+  `LPCInterpreterTest.throwZeroNormalizesToUnspecifiedError`, and
+  `SimulEfunsTest.callSimulEfun`.
 
 ### Next Focus
 
+- Continue the checked `SET_SVALUE_*` helper adoption in the remaining
+  macro-heavy efun sites, with `parse.c` and `sprintf.c` as the next likely
+  low-risk batch candidates.
 - Complete abstract-handle compile-time enforcement so shared/malloc domain
   misuse is blocked at call sites under `STRING_TYPE_SAFETY`.
 - Expand JSON and efun boundary contract tests for negative/edge cases,

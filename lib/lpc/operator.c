@@ -669,9 +669,7 @@ void f_range (int code) {
         if (to < from || from >= len)
           {
             free_string_svalue (sp + 2);
-            sp->type = T_STRING;
-            sp->subtype = STRING_CONSTANT;
-            sp->u.const_string = "";
+            SET_SVALUE_CONSTANT_STRING(sp, "");
             return;
           }
 
@@ -783,9 +781,7 @@ void f_extract_range (int code) {
 #endif
         if (from >= len)
           {
-            sp->type = T_STRING;
-            sp->subtype = STRING_CONSTANT;
-            sp->u.const_string = "";
+            SET_SVALUE_CONSTANT_STRING(sp, "");
           }
         else
           put_malloced_string (string_copy (res + from, "f_extract_range"));

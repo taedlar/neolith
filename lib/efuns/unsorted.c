@@ -700,9 +700,7 @@ f_query_privs (void)
   if (ob->privs != NULL)
     {
       free_object (ob, "f_query_privs");
-      sp->type = T_STRING;
-      sp->u.shared_string = make_shared_string(ob->privs, NULL);
-      sp->subtype = STRING_SHARED;
+      SET_SVALUE_SHARED_STRING(sp, make_shared_string(ob->privs, NULL));
     }
   else
     {
@@ -1301,27 +1299,21 @@ f_functions (void)
           subvec = vec->item[i].u.arr =
             allocate_empty_array (3 + func_entry->def.num_arg);
 
-          subvec->item[0].type = T_STRING;
-          subvec->item[0].subtype = STRING_SHARED;
-          subvec->item[0].u.shared_string = ref_string(to_shared_str(funp->name));
+          SET_SVALUE_SHARED_STRING(&subvec->item[0], ref_string(to_shared_str(funp->name)));
 
           subvec->item[1].type = T_NUMBER;
           subvec->item[1].subtype = 0;
           subvec->item[1].u.number = func_entry->def.num_arg;
 
           get_type_name (buf, end, funp->type);
-          subvec->item[2].type = T_STRING;
-          subvec->item[2].subtype = STRING_SHARED;
-          subvec->item[2].u.shared_string = make_shared_string(buf, NULL);
+          SET_SVALUE_SHARED_STRING(&subvec->item[2], make_shared_string(buf, NULL));
 
           for (j = 0; j < func_entry->def.num_arg; j++)
             {
               if (types)
                 {
                   get_type_name (buf, end, types[j]);
-                  subvec->item[3 + j].type = T_STRING;
-                  subvec->item[3 + j].subtype = STRING_SHARED;
-                  subvec->item[3 + j].u.shared_string = make_shared_string(buf, NULL);
+                  SET_SVALUE_SHARED_STRING(&subvec->item[3 + j], make_shared_string(buf, NULL));
                 }
               else
                 {
@@ -1332,9 +1324,7 @@ f_functions (void)
         }
       else
         {
-          vec->item[i].type = T_STRING;
-          vec->item[i].subtype = STRING_SHARED;
-          vec->item[i].u.shared_string = ref_string(to_shared_str(funp->name));
+          SET_SVALUE_SHARED_STRING(&vec->item[i], ref_string(to_shared_str(funp->name)));
         }
     }
 

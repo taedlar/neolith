@@ -212,11 +212,9 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
       /* Use STRING_CONSTANT key: find_for_insert interns it as a shared
        * string and updates key.u.shared_string; we release our ref afterwards. */
       svalue_t key;
-      key.type = T_STRING;
-      key.subtype = STRING_CONSTANT;
       std::string k (kv.key().data(), kv.key().size() + 1);
       k.at(kv.key().size()) = '\0';  /* ensure null-terminated for string_copy */
-      key.u.const_string = k.c_str();
+      SET_SVALUE_CONSTANT_STRING(&key, k.c_str());
       svalue_t *val = find_for_insert(m, &key, 1);
       free_string(to_shared_str(key.u.shared_string));  /* release shared-string ref from find_for_insert */
       val->type = T_INVALID;

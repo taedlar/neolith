@@ -101,9 +101,7 @@ void f_repeat_string (void) {
   if (repeat <= 0)
     {
       free_string_svalue (sp);
-      sp->type = T_STRING;
-      sp->subtype = STRING_CONSTANT;
-      sp->u.const_string = "";
+      SET_SVALUE_CONSTANT_STRING(sp, "");
     }
   else if (repeat != 1)
     {
