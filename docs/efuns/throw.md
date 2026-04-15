@@ -4,25 +4,34 @@
 
 ## SYNOPSIS
 ~~~cxx
-void throw(mixed);
+void throw(mixed value);
 ~~~
 
 ## DESCRIPTION
-The throw() efun may be used to force an error to occur in
-an object.  When used in conjunction, throw() and catch()
-allow the programmer to choose what error message is
-displayed when a runtime error occurs.  When throw() is
-used, it should be used in conjunction with the [catch()](catch.md)
-efun.  Here is a typical usage:
+The `throw()` efun forces immediate transfer to the nearest active
+[catch()](catch.md) boundary.
 
+When an active `catch()` exists, `throw(value)` returns `value` from `catch()`.
+If `value` is `0`, the driver normalizes it to `"*Unspecified error"` so the
+thrown path does not collide with the `catch()` success result (`0`).
+
+Calling `throw()` without an active `catch()` raises the runtime error
+`"*Throw with no catch."`.
+
+Typical usage:
+
+~~~cxx
 string err;
 int rc;
 
 err = catch(rc = ob->move(dest));
 if (err) {
-throw("move.c: ob->move(dest): " + err + "\n");
-return;
+    throw("move.c: ob->move(dest): " + err + "\n");
+    return;
 }
+~~~
 
 ## SEE ALSO
-[catch()](catch.md), [error()](error.md), [error_handler()](error_handler.md)
+[catch()](catch.md),
+[error()](error.md),
+[error_handler()](../applies/master/error_handler.md)

@@ -8,11 +8,21 @@ mixed catch (mixed expr);
 ~~~
 
 ## DESCRIPTION
-Evaluate **expr**. If there is no error, 0 is returned.
-If there is a standard error, a string (with a leading '*') will be returned.
+Evaluate **expr**.
 
-The function `throw()` can also be used to immediately return any value, except 0.
-`catch()` is not really a function call, but a directive to the compiler.
+If evaluation completes successfully, `catch()` returns `0`.
+
+If a driver/runtime error occurs, `catch()` returns the caught value. For
+driver-generated runtime errors this is typically a `*`-prefixed string.
+
+The [throw()](throw.md) efun can also be used to return a custom value through
+`catch()`. `throw(0)` is normalized to `"*Unspecified error"` so `catch()` does
+not return the success sentinel `0` for a thrown error.
+
+Calling [throw()](throw.md) without an active `catch()` raises the runtime error
+`"*Throw with no catch."`.
+
+`catch()` is not a normal function call; it is a compiler directive.
 
 The `catch()` is somewhat costly, and should not be used just anywhere.
 Rather, use it at places where an error would destroy consistency.

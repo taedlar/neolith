@@ -15,4 +15,4 @@ returned.
 `set_eval_limit(-1)` returns the remaining evaluation cost.
 
 ## SEE ALSO
-[catch()](catch.md), [error()](error.md), [throw()](throw.md), [error_handler()](error_handler.md), [eval_cost()](eval_cost.md)
+[catch()](catch.md), [error()](error.md), [throw()](throw.md), [error_handler()](../applies/master/error_handler.md), [eval_cost()](eval_cost.md)

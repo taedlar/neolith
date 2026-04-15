@@ -32,6 +32,7 @@ Prefix the filenames with the library name, feature or subsystem name for easy i
 - [lpc-program.md](internals/lpc-program.md): Complete LPC compiler memory block system, binary save/load format, pointer serialization, inheritance resolution
 - [int64-design.md](internals/int64-design.md): Platform-agnostic 64-bit integer implementation - runtime types, bytecode encoding, binary compatibility
 - [async-library.md](internals/async-library.md): Async library design - queues, workers, runtime integration
+- [error-runtime-routing.md](internals/error-runtime-routing.md): Runtime error transport and routing internals - typed exceptions, catch/fatal boundaries, master apply dispatch
 
 When working on compiler features, consult these documents for:
 - **Type system rules**: lpc_type_t vs svalue_type_t domains, masking NAME_TYPE_MOD, array/class detection
