@@ -2,22 +2,43 @@
 
 ## Summary
 
-This plan tracks migration from implicit C-string behavior to explicit byte-span
-semantics for LPC runtime strings while preserving compatibility constraints.
+### Overview
 
-Completed foundation work:
+This plan moves LPC runtime strings from implicit C-string assumptions to
+explicit byte-span semantics while preserving LPC compatibility.
 
-- `malloc_block_t.unused` was replaced with `blkend`, enabling O(1)
-  `COUNTED_STRLEN` even when `size == USHRT_MAX`.
-- `STRING_SHARED` allocation is capped at `USHRT_MAX - 1`, so sentinel
-  `size == USHRT_MAX` remains exclusive to `STRING_MALLOC`.
-- Shared-string table lookup/insert is length-aware (`StrHashN`, `findblockn`,
-  `make_shared_string(s,end)`, `findstring(s,end)`), so intern/find no longer
-  depends on temporary NUL-terminated copies.
+### Foundation Completed
 
-Remaining work is implementation and validation focused on typed counted-string
-boundaries, efun byte-span hardening, JSON boundary behavior, and expanded
-regression coverage.
+- `blkend` now stores long-string end-of-span metadata, keeping logical length
+  O(1) at sentinel-size boundaries.
+- Shared strings are capped below `USHRT_MAX`, reserving sentinel
+  `size == USHRT_MAX` for malloc-string long-length handling.
+- Shared intern/find operations are span-based (`make_shared_string(s,end)`,
+  `findstring(s,end)`) and no longer require temporary NUL copies.
+- Allocation paths still append a trailing `'\0'` outside the logical span.
+  This preserves LPC string contract compatibility (strings are NUL-terminated;
+  non-terminated raw bytes belong to `buffer`) and protects efun/driver
+  boundaries such as `from_json` and `read_buffer` when downstream C code reads
+  payloads as C strings.
+
+### Safety Goal and Current Gap
+
+Goal: force explicit intent at typed string boundaries and block misuse as
+early as possible (compile-time preferred, runtime as backstop).
+
+| Mode | Compile-time | Runtime |
+|---|---|---|
+| `OFF` | ✗ shared/malloc domain mixups usually compile | ✗ no added boundary checks |
+| `ON` (current) | ⚠ intent visible in signatures, mixups still compile | ✓ contract violations fail fast in release builds |
+| `ON` (target) | ✓ mixups blocked at call site (explicit conversion required) | ✓ runtime checks remain secondary defense |
+
+### Near-Term Focus
+
+- Promote transparent aliases to abstract handles so boundary misuse fails at
+  compile time.
+- Harden efun and JSON byte-span boundaries with explicit contract checks.
+- Expand regression coverage to lock in counted-string semantics across LPC,
+  efuns, and JSON boundaries.
 
 ## Status
 
@@ -26,34 +47,61 @@ regression coverage.
 | Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
 | Implementation: VM/operator NUL-removal and span API normalization | complete |
 | Implementation: abstract typed handles + runtime contract enforcement | not started |
-| Implementation: C++ RAII wrapper + exception boundary migration | not started |
+| Implementation: C++ RAII wrapper adoption on exception baseline | not started |
 | Implementation: efun byte-span readiness | not started |
 | Implementation: JSON boundary contract and tests | in progress |
 | Validation: end-to-end LPC/JSON regression matrix | in progress |
 
 ## Current State Handoff
 
-As of 2026-04-05:
+As of 2026-04-15:
+
+### Completed Scope
 
 - Core counted/shared length representation changes are complete and tested.
-- Planning scope is now narrowed to one consolidated backlog with acceptance criteria.
 - P0 VM/operator NUL-removal and span migration is complete in
   `src/interpret.h` and `lib/lpc/operator.c`.
-- New unit coverage for string operators is in `tests/test_string_operators`,
-  and discovery now uses `gtest_discover_tests()`.
-- Current implementation focus should move to typed-handle enforcement and
-  efun/json boundary hardening.
+- Unit coverage for string operators is in `tests/test_string_operators`, with
+  discovery via `gtest_discover_tests()`.
+
+### Active Focus
+
+- Planning scope is narrowed to one consolidated backlog with acceptance criteria.
+- Current implementation focus: typed-handle enforcement, C++ wrapper adoption
+  on existing exception boundaries, and efun/JSON boundary hardening.
+
+### Baseline and Out of Scope
+
+- Exception migration (`setjmp`/`longjmp` retirement and C++ guard boundaries)
+  is completed baseline and not part of this plan's remaining implementation scope.
 - `alloc_cstring` remains intentionally outside counted-string semantics.
 
 ## Design Constraints (Canonical)
 
 - LPC runtime string semantics are byte-sequence semantics, not JSON text semantics.
 - JSON semantics are enforced only at JSON boundaries.
-- `from_json` validates UTF-8 at runtime before constructing LPC strings.
+- `from_json` validates UTF-8 at runtime before constructing LPC strings and
+  raises an LPC runtime error when input contains invalid UTF-8.
 - Identifier-class shared strings remain NUL-terminated by contract.
 - This includes function names, variable names, and predefines.
 - `u.string` remains available as a generic view; typed members supplement it.
 - When migrating functions or macros that process `svalue_t`, always validate all runtime string semantics: `STRING_MALLOC`, `STRING_SHARED`, `STRING_CONSTANT`.
+
+## UTF-8 Compatibility Contract
+
+- Counted-string storage is byte-oriented, not Unicode-scalar-oriented.
+  Driver-level and LPC-level length semantics count bytes, not UTF-8 characters.
+- Counted strings are not globally required to be valid UTF-8.
+  Invalid UTF-8 byte sequences may exist in LPC strings unless an operation
+  explicitly requires UTF-8 validity.
+- UTF-8 validity is enforced at API boundaries that require text semantics.
+  `from_json` rejects invalid UTF-8 and raises an LPC runtime error before
+  producing an LPC string. Other efuns with text/character semantics (for
+  example `explode`) may also reject invalid UTF-8 and raise runtime errors
+  for that operation.
+- UTF-8 character counting via `explode` is an operation-specific result and
+  must not be treated as LPC string length.
+  LPC string length and driver counted-string length remain byte counts.
 
 ## Counted-String Contract and Type Safety
 
@@ -70,52 +118,66 @@ Contract-bearing boundary functions:
 | `extend_string(malloc_str_t, size_t)` | requires malloc payload |
 | `push_shared_string(shared_str_t)` / `push_malloced_string(malloc_str_t)` | subtype-specific storage boundaries |
 
-These boundary signatures are now type-specific end to end; the remaining hardening
-work is abstract-handle mode and expanded typed-member write coverage.
+These boundary signatures are now type-specific end to end. Remaining hardening
+moves enforcement earlier: abstract-handle mode makes cross-domain misuse a
+compile error; expanded typed-member coverage closes gaps where intent is
+currently only annotated, not enforced.
 
-`STRING_TYPE_SAFETY` behavior:
+`STRING_TYPE_SAFETY` layers:
 
-- Layer 1: typed aliases in signatures (`shared_str_t`, `malloc_str_t`).
-- Layer 2: always-on runtime contract checks for `extend_string` and
-  `string_unlink` in release builds.
+- Layer 1: typed aliases signal intent at call sites — misuse is visible in
+  signatures but not yet blocked by the compiler.
+- Layer 2: runtime contract checks block misuse that survives compile time —
+  boundary violations are fatal in release builds.
 
 ## Planned Abstract Handle Migration
 
 Target: when `STRING_TYPE_SAFETY` is enabled, switch from transparent aliases to
-abstract handle typedefs plus explicit bridge macros.
+abstract handle typedefs plus explicit bridge helpers — making cross-domain
+misuse a compile error rather than a runtime surprise.
 
 ```c
 #ifdef STRING_TYPE_SAFETY
   typedef struct { char *raw; } shared_str_t;
   typedef struct { char *raw; } malloc_str_t;
-  #define SHARED_STR_P(x)  ((x).raw)
-  #define MALLOC_STR_P(x)  ((x).raw)
-  #define TO_SHARED_STR(x) ((shared_str_t){ .raw = (x) })
-  #define TO_MALLOC_STR(x) ((malloc_str_t){ .raw = (x) })
+  #define SHARED_STR_P(x) ((x).raw)
+  #define MALLOC_STR_P(x) ((x).raw)
+  static inline shared_str_t to_shared_str(char *p) {
+    shared_str_t h = { p };
+    return h;
+  }
+  static inline malloc_str_t to_malloc_str(char *p) {
+    malloc_str_t h = { p };
+    return h;
+  }
 #else
   typedef char *shared_str_t;
   typedef char *malloc_str_t;
-  #define SHARED_STR_P(x)  (x)
-  #define MALLOC_STR_P(x)  (x)
-  #define TO_SHARED_STR(x) (x)
-  #define TO_MALLOC_STR(x) (x)
+  #define SHARED_STR_P(x) (x)
+  #define MALLOC_STR_P(x) (x)
+  #define to_shared_str(x) (x)
+  #define to_malloc_str(x) (x)
 #endif
 ```
 
 Migration order:
 
-1. `stralloc.h`/`stralloc.c` handle typedef + macros.
+1. `stralloc.h`/`stralloc.c` handle typedefs + bridge helpers/macros.
 2. Add typed members in `svalue_u` alongside `u.string`.
 3. Convert subtype-specific storage boundaries first.
 4. Expand to efun write sites where subtype is known.
-5. Leave generic read-only paths on `u.string` until separate NUL-path migration.
+5. Add compile-time layout/offset checks for `svalue_t`/`svalue_u` where typed
+   members are introduced.
+6. Leave generic read-only paths on `u.string` until separate NUL-path migration.
 
-## C++ Wrapper and Exception Migration
+## C++ Wrapper Adoption on Exception Baseline
 
 - Keep `svalue_t`/`svalue_u` as C-layout POD in C-visible headers.
 - Add C++ wrappers:
 - `BorrowedValue` (non-owning view over `svalue_t *`) and `OwnedValue` (RAII owner).
-- No exception may cross `extern "C"` boundaries.
+- Exception transport and `extern "C"` boundary translation are existing baseline
+  behavior from the completed exception migration; this plan must not re-open
+  or duplicate that work.
 - Move/dtor paths for wrappers must be `noexcept`.
 - `BorrowedValue` must be allocation-free in hot interpreter paths.
 
@@ -126,11 +188,23 @@ Migration order:
 | P0 | Remove NUL-dependent VM/operator paths | [lib/lpc/operator.c](../../lib/lpc/operator.c), [src/interpret.h](../../src/interpret.h) | complete: touched concat/join paths now use explicit lengths and byte-copy semantics; equality/inequality and string range use counted-length compare/copy; behavior remains compatible for normal strings. |
 | P0 | Normalize internal helper APIs | string construction/lookup boundaries | New/updated helpers accept explicit lengths/spans; touched callers stop using sentinel termination as logical length; shared-string boundaries continue to route via `make_shared_string(s,end)` / `findstring(s,end)`. |
 | P0 | Enforce counted-string semantic boundaries | [src/stralloc.h](../../src/stralloc.h), [lib/lpc/types.h](../../lib/lpc/types.h), typed-string boundaries | Abstract handle mode enabled under `STRING_TYPE_SAFETY`; boundary APIs require explicit typed handles or bridge macros; runtime contract checks remain release-enabled; identifier-class shared strings remain NUL-terminated. |
-| P1 | C++ wrapper and exception boundaries | C++ boundaries around `svalue_t` | `BorrowedValue`/`OwnedValue` introduced without C ABI layout change; all `extern "C"` entry points catch/translate exceptions; wrapper move/dtor are `noexcept`; targeted perf checks show no hot-path regression. |
+| P1 | C++ wrapper adoption on baseline boundaries | C++ wrappers around `svalue_t` | `BorrowedValue`/`OwnedValue` introduced without C ABI layout change; no duplicate exception-boundary rewrites are introduced; wrapper move/dtor are `noexcept`; targeted perf checks show no hot-path regression. |
 | P1 | Efun byte-span readiness | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Touched binary-sensitive efun paths use explicit lengths; text-oriented paths explicitly document C-string assumptions; existing efun tests remain green. |
-| P1 | JSON boundary contract | JSON efuns/helpers (`from_json`, `to_json`) | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 consistently; `to_json` escaping policy documented and tested. |
+| P1 | JSON boundary contract | JSON efuns/helpers (`from_json`, `to_json`) | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; `to_json` escaping policy documented and tested. |
 | P1 | Unicode and escape consistency | JSON encode/decode implementation | Encoder/decoder are symmetric for control escapes, `\\`, `\"`, `\uXXXX`, and surrogate pairs; non-BMP behavior documented and validated. |
-| P2 | End-to-end regression matrix | LPC-level and efun/unit tests | in progress: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest); remaining coverage is LPC/JSON round-trip and negative matrix expansion. |
+| P2 | End-to-end regression matrix | LPC-level and efun/unit tests | in progress: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest); remaining coverage is LPC/JSON round-trip and negative matrix expansion. Any wrapper/ABI-adjacent change must pass `ut-linux`, `ut-vs16-x64`, and `ut-clang-x64` before stage completion. |
+
+## Hardening Gates for Remaining Work
+
+1. Exception migration remains a prerequisite baseline; counted-string work must
+  consume the established exception boundaries and avoid reopening boundary
+  transport changes.
+2. Any change that adds typed members or wrapper views around `svalue_t` must
+  include explicit layout/ABI checks and document compatibility impact.
+3. Any C++ wrapper adoption change touching mixed C/C++ boundaries must be
+  validated on Linux, MSVC x64, and clang-cl x64 test presets before closure.
+4. Regression additions should prioritize behavior contracts over source-shape
+  assertions to reduce brittleness during incremental refactors.
 
 ## Remaining NUL-Dependent Paths (Index)
 
@@ -153,5 +227,5 @@ Migration order:
 - `SVALUE_STRLEN_DIFFERS` using only `MSTR_SIZE` is conservative for sentinel
   long malloc strings (`size == USHRT_MAX`); exact long-string mismatch
   fast-paths should consult counted logical length (`COUNTED_STRLEN`).
-- Transparent aliases are a staging step; runtime checks are the effective
-  enforcement until abstract handles are enabled.
+- Transparent aliases are a staging step; runtime checks block misuse until
+  abstract handles make explicit intent mandatory at compile time.
