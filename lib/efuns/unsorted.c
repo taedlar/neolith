@@ -437,8 +437,8 @@ f_member_array (void)
       CHECK_TYPES (sp - 1, T_NUMBER, 1, F_MEMBER_ARRAY);
       if (i > (int)SVALUE_STRLEN (sp))
         error ("Index to start search from in member_array() is > string length.\n");
-      if ((res = strchr (sp->u.string + i, (char)(sp - 1)->u.number)))
-        i = (int)(res - sp->u.string);
+      if ((res = strchr (SVALUE_STRPTR(sp) + i, (char)(sp - 1)->u.number)))
+        i = (int)(res - SVALUE_STRPTR(sp));
       else
         i = -1;
       free_string_svalue (sp--);
@@ -456,7 +456,7 @@ f_member_array (void)
         {
           /* *not* COUNTED_STRLEN() which can do a (costly) strlen() call */
           if (find->subtype & STRING_COUNTED)
-            flen = MSTR_SIZE (find->u.string);
+            flen = MSTR_SIZE (SVALUE_STRPTR(find));
           else
             flen = 0;
         }
@@ -467,9 +467,9 @@ f_member_array (void)
             {
             case T_STRING:
               if (flen && (sv->subtype & STRING_COUNTED)
-                  && flen != MSTR_SIZE (sv->u.string))
+                  && flen != MSTR_SIZE (SVALUE_STRPTR(sv)))
                 continue;
-              if (strcmp (find->u.string, sv->u.string))
+              if (strcmp (SVALUE_STRPTR(find), SVALUE_STRPTR(sv)))
                 continue;
               break;
             case T_NUMBER:

@@ -652,11 +652,9 @@ malloc_str_t int_string_unlink (malloc_str_handle_t str) {
  * @param v Pointer to the string svalue to free.
  */
 void free_string_svalue (svalue_t * v) {
-
-  char *str = v->u.string;
-
   if (v->subtype & STRING_COUNTED) /* reference counted string? (STRING_MALLOC or STRING_SHARED) */
     {
+      char *str = (v->subtype & STRING_HASHED) ? v->u.shared_string : v->u.malloc_string;
       size_t size = MSTR_SIZE (str);
       if (DEC_COUNTED_REF (str))
         {

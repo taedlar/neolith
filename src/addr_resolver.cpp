@@ -1000,7 +1000,7 @@ addr_resolver_get_telemetry(resolver_telemetry_t *out)
 #define REVERSE_CACHE_SIZE 200
 typedef struct reverse_cache_entry_s {
   unsigned long addr;
-  char *name;
+  shared_str_t name;
   time_t updated_at;
 } reverse_cache_entry_t;
 
@@ -1013,7 +1013,7 @@ static int s_reverse_cache_cursor = 0;
  */
 #define FORWARD_CACHE_SIZE 200
 typedef struct forward_cache_entry_s {
-  char *hostname;
+  shared_str_t hostname;
   uint32_t ip_address;
   time_t updated_at;
   int success;

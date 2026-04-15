@@ -47,14 +47,14 @@ early as possible (compile-time preferred, runtime as backstop).
 | Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
 | Implementation: VM/operator NUL-removal and span API normalization | complete |
 | Implementation: abstract typed handles + runtime contract enforcement | in progress |
-| Implementation: C++ RAII wrapper adoption on exception baseline | not started |
-| Implementation: efun byte-span readiness | not started |
+| Implementation: C++ RAII wrapper adoption on exception baseline | in progress |
+| Implementation: efun byte-span readiness | in progress |
 | Implementation: JSON boundary contract and tests | in progress |
 | Validation: end-to-end LPC/JSON regression matrix | in progress |
 
 ## Current State Handoff
 
-As of 2026-04-15:
+As of 2026-04-16:
 
 ### Completed Scope
 
@@ -67,12 +67,14 @@ As of 2026-04-15:
 ### Active Focus
 
 - Planning scope is narrowed to one consolidated backlog with acceptance criteria.
-- Current implementation focus: typed-handle enforcement, C++ wrapper adoption
-  on existing exception boundaries, and efun/JSON boundary hardening.
-- Safe transition is underway: boundary-handle enforcement is live in
-  `stralloc`, and subtype-known write sites are being migrated from generic
-  `u.string` assignments to typed `u.shared_string` / `u.malloc_string`
-  members without changing the C ABI.
+- Current implementation focus: finalizing typed-handle compile-time
+  enforcement and closing remaining JSON/efun boundary-contract gaps.
+- Safe transition write/read intent migration is complete for subtype-known
+  paths: workspace code scans show no remaining `u.string =` writes in
+  C/C++ sources and no subtype-known `STRING_*` branches reading `u.string`.
+- Generic counted-ref helper paths that previously used `u.string` in
+  `lib/lpc/svalue.c` and `lib/lpc/array.c` are now tightened to explicit
+  `STRING_MALLOC` / `STRING_SHARED` read branches.
 - Compile-time regression checks for typed boundary signatures and bridge
   helpers are now in `tests/test_stralloc/test_stralloc_type_safety.cpp`.
 - `src` low-risk subtype-known writes are now clean in the latest sweep:
@@ -98,6 +100,48 @@ As of 2026-04-15:
   `u.string` counted-ref uses were in generic `STRING_COUNTED` helper-style
   code paths (`lib/lpc/svalue.c`, `lib/lpc/array.c`). These are now tightened
   to explicit `STRING_MALLOC`/`STRING_SHARED` read branches.
+- Core helper macros now also prefer typed reads: `SVALUE_STRLEN`/
+  `SVALUE_STRLEN_DIFFERS` in `src/stralloc.h` route counted strings through
+  typed members, and interpreter string composition macros in `src/interpret.h`
+  use `SVALUE_STRPTR(...)` for source reads.
+- Remaining subtype-known shared free path in `lib/lpc/operator.c` switch
+  handling now uses `u.shared_string` at the boundary conversion call site
+  (`free_string(to_shared_str(...))`), eliminating the last `to_shared_str`
+  call that consumed `u.string` directly.
+- `src/interpret.h` string append/join/prepend macros now read source payloads
+  through typed helpers (`SVALUE_STRPTR`), and the remaining direct
+  `u.string` source read in the append slow path has been removed.
+- Additional read-side tightening completed in `lib/efuns/unsorted.c`
+  (`member_array` string path and counted-string comparison fast-path) and
+  `src/stralloc.c` (`free_string_svalue` now selects typed payload members
+  directly for counted strings).
+- `src/interpret.c` string reads now consistently use typed string-pointer
+  helpers in callback dispatch setup, string range assignment paths,
+  string comparison in loop conditions, foreach string iterator setup,
+  string index/rindex operations, and string-return trace logging.
+- Additional `src` read-side cleanup landed in `src/error_context.cpp`,
+  `src/command.c`, and selected type-guarded `T_STRING` paths in
+  `src/simulate.c` (master-uid retrieval flow, add_action string branch,
+  scoped object lookup for `do_message`, first_inventory string lookup,
+  tell_room/print_svalue string branches, and input/get_char callback
+  function-name dispatch logging and lookup).
+- `src` now has no remaining `u.string` occurrences in C/C++ sources, and
+  bridge helper signatures in `src/stralloc.h` are tightened to typed payload
+  aliases (`to_shared_str(shared_str_t)`, `to_malloc_str(malloc_str_t)`) to
+  make boundary intent explicit at call sites.
+- Resolver cache bookkeeping in `src/addr_resolver.cpp` now marks shared
+  string ownership explicitly (`reverse_cache_entry_t::name` and
+  `forward_cache_entry_t::hostname` use `shared_str_t`), keeping bridge
+  free paths (`free_string(to_shared_str(...))`) aligned with typed intent.
+
+### Next Focus
+
+- Complete abstract-handle compile-time enforcement so shared/malloc domain
+  misuse is blocked at call sites under `STRING_TYPE_SAFETY`.
+- Expand JSON and efun boundary contract tests for negative/edge cases,
+  especially UTF-8 and text-vs-byte-span assumptions.
+- Run broader preset validation (`ut-linux`, `ut-vs16-x64`, `ut-clang-x64`)
+  once remaining boundary-contract items are implemented.
 
 ### Baseline and Out of Scope
 
@@ -172,11 +216,11 @@ surprise.
   typedef struct { char *raw; } malloc_str_handle_t;
   #define SHARED_STR_P(x) ((x).raw)
   #define MALLOC_STR_P(x) ((x).raw)
-  static inline shared_str_handle_t to_shared_str(char *p) {
+  static inline shared_str_handle_t to_shared_str(shared_str_t p) {
     shared_str_handle_t h = { p };
     return h;
   }
-  static inline malloc_str_handle_t to_malloc_str(char *p) {
+  static inline malloc_str_handle_t to_malloc_str(malloc_str_t p) {
     malloc_str_handle_t h = { p };
     return h;
   }

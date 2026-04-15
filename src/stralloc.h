@@ -39,12 +39,12 @@ typedef struct {
 #define SHARED_STR_P(x) ((x).raw)
 #define MALLOC_STR_P(x) ((x).raw)
 
-static inline shared_str_handle_t to_shared_str(char *p) {
+static inline shared_str_handle_t to_shared_str(shared_str_t p) {
         shared_str_handle_t h = { p };
         return h;
 }
 
-static inline malloc_str_handle_t to_malloc_str(char *p) {
+static inline malloc_str_handle_t to_malloc_str(malloc_str_t p) {
         malloc_str_handle_t h = { p };
         return h;
 }
@@ -166,9 +166,19 @@ typedef struct malloc_block_s {
 
 #define SHARED_STRLEN(x) COUNTED_STRLEN(x)
 
+#define SVALUE_COUNTED_STRLEN(x) (((x)->subtype == STRING_MALLOC) ? \
+                                  COUNTED_STRLEN((x)->u.malloc_string) : \
+                                  COUNTED_STRLEN((x)->u.shared_string))
+
+#define SVALUE_STRPTR(x) ((char *)(((x)->subtype == STRING_MALLOC) ? \
+                          (x)->u.malloc_string : \
+                          (((x)->subtype == STRING_SHARED) ? \
+                           (x)->u.shared_string : \
+                           (x)->u.const_string)))
+
 #define SVALUE_STRLEN(x) (((x)->subtype & STRING_COUNTED) ? \
-                          COUNTED_STRLEN((x)->u.string) : \
-                          strlen((x)->u.string))
+                          SVALUE_COUNTED_STRLEN(x) : \
+                          strlen((x)->u.const_string))
 
 /*
  * Compare two svalue string lengths.
@@ -176,7 +186,7 @@ typedef struct malloc_block_s {
  * - Any path involving STRING_CONSTANT falls back to SVALUE_STRLEN(), which uses strlen.
  */
 #define SVALUE_STRLEN_DIFFERS(x, y) ((((x)->subtype & STRING_COUNTED) && ((y)->subtype & STRING_COUNTED)) \
-        ? (COUNTED_STRLEN((x)->u.string) != COUNTED_STRLEN((y)->u.string)) \
+        ? (SVALUE_COUNTED_STRLEN(x) != SVALUE_COUNTED_STRLEN(y)) \
         : (SVALUE_STRLEN(x) != SVALUE_STRLEN(y)))
 
 extern void init_strings(size_t hash_size, size_t max_len);

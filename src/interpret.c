@@ -91,7 +91,7 @@ void process_efun_callback (int narg, function_to_call_t * ftc, int f) {
     }
   else
     {
-      ftc->f.str = arg->u.string;
+      ftc->f.str = SVALUE_STRPTR(arg);
       if (st_num_arg < narg + 2)
         {
           ftc->ob = current_object;
@@ -105,7 +105,7 @@ void process_efun_callback (int narg, function_to_call_t * ftc, int f) {
             }
           else if ((arg + 1)->type == T_STRING)
             {
-              if (!(ftc->ob = find_or_load_object ((arg + 1)->u.string)) ||
+              if (!(ftc->ob = find_or_load_object (SVALUE_STRPTR(arg + 1))) ||
                   !object_visible (ftc->ob))
                 bad_argument (arg + 1, T_STRING | T_OBJECT, 3, f);
             }
@@ -430,7 +430,7 @@ static void copy_lvalue_range (svalue_t * from) {
             /* since fsize >= 0, ind2 - ind1 <= strlen(orig string) */
             /* because both of them can only range from 0 to len */
 
-            strncpy (owner->u.malloc_string + ind1, from->u.string, fsize);
+            strncpy (owner->u.malloc_string + ind1, SVALUE_STRPTR(from), fsize);
           }
         else
           {
@@ -442,7 +442,7 @@ static void copy_lvalue_range (svalue_t * from) {
                 strncpy (tmp, dstr, ind1);
                 tmp += ind1;
               }
-            strcpy (tmp, from->u.string);
+            strcpy (tmp, SVALUE_STRPTR(from));
             tmp += fsize;
 
             size -= ind2;
@@ -560,7 +560,7 @@ static void assign_lvalue_range (svalue_t * from) {
             /* since fsize >= 0, ind2 - ind1 <= strlen(orig string) */
             /* because both of them can only range from 0 to len */
 
-            strncpy (owner->u.malloc_string + ind1, from->u.string, fsize);
+            strncpy (owner->u.malloc_string + ind1, SVALUE_STRPTR(from), fsize);
           }
         else
           {
@@ -573,7 +573,7 @@ static void assign_lvalue_range (svalue_t * from) {
                 strncpy (tmp, dstr, ind1);
                 tmp += ind1;
               }
-            strcpy (tmp, from->u.string);
+            strcpy (tmp, SVALUE_STRPTR(from));
             tmp += fsize;
 
             size -= ind2;
@@ -646,7 +646,7 @@ static void do_loop_cond_local () {
       i = s1->u.real < s2->u.real;
       break;
     case T_STRING:
-      i = (strcmp (s1->u.string, s2->u.string) < 0);
+      i = (strcmp (SVALUE_STRPTR(s1), SVALUE_STRPTR(s2)) < 0);
       break;
     case T_NUMBER | T_REAL:
       if (s1->type == T_NUMBER)
@@ -1276,7 +1276,7 @@ void eval_instruction (const char *p) {
               if (sp->type == T_STRING)
                 {
                   SVALUE_STRING_JOIN (lval, sp, "f_add_eq: 1");
-                  opt_trace (TT_EVAL|3, "f_add_eq: \"%s\"", sp->u.string);
+                  opt_trace (TT_EVAL|3, "f_add_eq: \"%s\"", SVALUE_STRPTR(lval));
                 }
               else if (sp->type == T_NUMBER)
                 {
@@ -1433,7 +1433,7 @@ void eval_instruction (const char *p) {
               {
                 /* push hidden iterator */
                 (++sp)->type = T_NUMBER;
-                sp->u.lvalue_byte = (unsigned char *) ((sp - 1)->u.string);
+                sp->u.lvalue_byte = (unsigned char *) SVALUE_STRPTR(sp - 1);
                 sp->subtype = (unsigned short)SVALUE_STRLEN (sp - 1);
               }
             else /* array */
@@ -2048,7 +2048,7 @@ void eval_instruction (const char *p) {
                 i = (int)(sp - 1)->u.number;
                 if ((i > (int)SVALUE_STRLEN (sp)) || (i < 0))
                   error ("*String index out of bounds.");
-                i = (unsigned char) sp->u.string[i];
+                i = (unsigned char) SVALUE_STRPTR(sp)[i];
                 free_string_svalue (sp);
                 (--sp)->u.number = i;
                 break;
@@ -2115,7 +2115,7 @@ void eval_instruction (const char *p) {
                 i = (int)(len - (sp - 1)->u.number);
                 if ((i > (int)len) || (i < 0))
                   error ("*String index out of bounds.");
-                i = (unsigned char) sp->u.string[i];
+                i = (unsigned char) SVALUE_STRPTR(sp)[i];
                 free_string_svalue (sp);
                 (--sp)->u.number = i;
                 break;
@@ -2408,7 +2408,7 @@ void eval_instruction (const char *p) {
                 DEBUG_CHECK (sp != fp, "Bad stack at F_RETURN\n");
                 *sp = sv;	/* This way, the same ref counts are maintained */
               }
-            opt_trace (TT_EVAL|2, "returning \"%s\"", sp->type == T_STRING ? sp->u.string : "(non-string)");
+            opt_trace (TT_EVAL|2, "returning \"%s\"", sp->type == T_STRING ? SVALUE_STRPTR(sp) : "(non-string)");
             pop_control_stack ();
             /* The control stack was popped just before */
             if (csp[1].framekind & FRAME_EXTERNAL)

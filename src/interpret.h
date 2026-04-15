@@ -76,7 +76,7 @@ typedef struct {
                         ess_res[ess_len] = '\0'; \
                 } else { \
                         ess_res = new_string(ess_len, alloc_tag); \
-                        memcpy(ess_res, (target_sv)->u.string, ess_r); \
+                        memcpy(ess_res, SVALUE_STRPTR(target_sv), ess_r); \
                         memcpy(ess_res + ess_r, ess_src, ess_src_len); \
                         ess_res[ess_len] = '\0'; \
                         free_string_svalue(target_sv); \
@@ -96,7 +96,7 @@ typedef struct {
                 pss_len = SVALUE_STRLEN(sp) + (pss_r = (prefix_len)); \
                 pss_res = new_string(pss_len, alloc_tag); \
                 memcpy(pss_res, pss_src, pss_r); \
-                memcpy(pss_res + pss_r, sp->u.string, SVALUE_STRLEN(sp)); \
+                memcpy(pss_res + pss_r, SVALUE_STRPTR(sp), SVALUE_STRLEN(sp)); \
                 pss_res[pss_len] = '\0'; \
                 free_string_svalue(sp--); \
                 sp->type = T_STRING; \
@@ -116,13 +116,13 @@ typedef struct {
                 if ((left_sv)->subtype == STRING_MALLOC && MSTR_REF((left_sv)->u.malloc_string) == 1) { \
                         ssj_res = extend_string((left_sv)->u.malloc_string, ssj_len); \
                         if (!ssj_res) fatal("Out of memory!\n"); \
-                        memcpy(ssj_res + ssj_r, (right_sv)->u.string, SVALUE_STRLEN(right_sv)); \
+                        memcpy(ssj_res + ssj_r, SVALUE_STRPTR(right_sv), SVALUE_STRLEN(right_sv)); \
                         ssj_res[ssj_len] = '\0'; \
                         free_string_svalue(right_sv); \
                 } else { \
                         ssj_res = new_string(ssj_len, alloc_tag); \
-                        memcpy(ssj_res, (left_sv)->u.string, ssj_r); \
-                        memcpy(ssj_res + ssj_r, (right_sv)->u.string, SVALUE_STRLEN(right_sv)); \
+                        memcpy(ssj_res, SVALUE_STRPTR(left_sv), ssj_r); \
+                        memcpy(ssj_res + ssj_r, SVALUE_STRPTR(right_sv), SVALUE_STRLEN(right_sv)); \
                         ssj_res[ssj_len] = '\0'; \
                         free_string_svalue(right_sv); \
                         free_string_svalue(left_sv); \

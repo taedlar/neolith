@@ -109,7 +109,7 @@ void notify_no_command () {
       if (command_giver && command_giver->interactive)
         {
           if (v && v->type == T_STRING)
-            tell_object (command_giver, v->u.string);
+            tell_object (command_giver, SVALUE_STRPTR(v));
           command_giver->interactive->iflags &= ~NOTIFY_FAIL_FUNC;
           command_giver->interactive->default_err_message.s = 0;
         }
@@ -713,7 +713,7 @@ int process_user_command () {
                     ip->iflags &= ~HAS_PROCESS_INPUT;
                   if (ret && ret->type == T_STRING)
                     {
-                      strncpy (buf, ret->u.string, MAX_TEXT - 1);
+                      strncpy (buf, SVALUE_STRPTR(ret), MAX_TEXT - 1);
                       process_command (buf, command_giver);
                     }
                   else if (!ret || ret->type != T_NUMBER || !ret->u.number)
@@ -751,7 +751,7 @@ int process_user_command () {
                 ip->iflags &= ~HAS_PROCESS_INPUT;
               if (ret && ret->type == T_STRING)
                 {
-                  strncpy (buf, ret->u.string, MAX_TEXT - 1);
+                  strncpy (buf, SVALUE_STRPTR(ret), MAX_TEXT - 1);
                   process_command (buf, command_giver);
                 }
               else if (!ret || ret->type != T_NUMBER || !ret->u.number)

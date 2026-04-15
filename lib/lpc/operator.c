@@ -989,9 +989,9 @@ void f_switch () {
         {
           if (sp->subtype == STRING_SHARED)
             {
-              s = (intptr_t) sp->u.string;
+              s = (intptr_t) sp->u.shared_string;
               opt_trace (TT_EVAL|1, "f_switch (string labels): search \"%s\"", (char*)s);
-              free_string(to_shared_str(sp->u.string));
+              free_string(to_shared_str(sp->u.shared_string));
               sp--;
             }
           else

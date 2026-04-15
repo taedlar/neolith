@@ -226,9 +226,9 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
     }
-  else if (mret->type == T_STRING && *mret->u.string)
+  else if (mret->type == T_STRING && *SVALUE_STRPTR(mret))
     {
-      debug_message ("%s", mret->u.string);
+      debug_message ("%s", SVALUE_STRPTR(mret));
     }
 }
 
