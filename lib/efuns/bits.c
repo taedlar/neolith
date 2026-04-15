@@ -174,7 +174,7 @@ f_set_bit (void)
         memset (str + old_len, ' ', len - old_len);
       free_string_svalue (sp);
       sp->subtype = STRING_MALLOC;
-      sp->u.string = str;
+      sp->u.malloc_string = str;
     }
 
   if (str[ind] > 0x3f + ' ' || str[ind] < ' ')

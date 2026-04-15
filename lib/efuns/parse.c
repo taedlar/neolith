@@ -392,7 +392,7 @@ load_lpc_info (int ix, object_t * ob)
                       str = parse_to_plural (sing->item[il].u.string);
                       tmp->item[il].type = T_STRING;
                       tmp->item[il].subtype = STRING_MALLOC;
-                      tmp->item[il].u.string = str;
+                      tmp->item[il].u.malloc_string = str;
                     }
                 }
               gPluid_list->item[ix].type = T_ARRAY;
@@ -739,7 +739,7 @@ store_words_slice (svalue_t * args, int pos, int num, array_t * warr, int from, 
       if (slice->size)
         {
           ret->subtype = STRING_MALLOC;
-          ret->u.string = implode_string (slice, " ", 1);
+          ret->u.malloc_string = implode_string (slice, " ", 1);
           free_array (slice);
           return;
         }
@@ -747,7 +747,7 @@ store_words_slice (svalue_t * args, int pos, int num, array_t * warr, int from, 
     }
 
   ret->subtype = STRING_CONSTANT;
-  ret->u.string = "";
+  ret->u.const_string = "";
 }
 
 /*
@@ -877,7 +877,7 @@ one_parse (array_t * obarr, char *pat, array_t * warr, int *cix_in, int *fail,
     case 'w':
       parse_ret.type = T_STRING;
       parse_ret.subtype = STRING_SHARED;
-      parse_ret.u.string = make_shared_string(warr->item[*cix_in].u.string, NULL);
+      parse_ret.u.shared_string = make_shared_string(warr->item[*cix_in].u.string, NULL);
       pval = &parse_ret;
       (*cix_in)++;
       *fail = 0;
@@ -1314,7 +1314,7 @@ prepos_parse (array_t * warr, int *cix_in, int *fail, svalue_t * prepos)
     {
       parse_ret.type = T_STRING;
       parse_ret.subtype = STRING_MALLOC;
-      parse_ret.u.string = string_copy (parr->item[pix].u.string, "parse");
+      parse_ret.u.malloc_string = string_copy (parr->item[pix].u.string, "parse");
       *fail = 0;
     }
 
@@ -1616,7 +1616,7 @@ parse_to_plural (char *str)
               free_svalue (&words->item[il - 1], "parse_to_plural");
               words->item[il - 1].type = T_STRING;
               words->item[il - 1].subtype = STRING_MALLOC;
-              words->item[il - 1].u.string = string_copy (sentence, "parse_to_plural");
+              words->item[il - 1].u.malloc_string = string_copy (sentence, "parse_to_plural");
               changed = 1;
             }
         }

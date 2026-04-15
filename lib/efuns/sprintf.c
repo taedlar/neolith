@@ -1123,7 +1123,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
 
                   clean.type = T_STRING;
                   clean.subtype = STRING_MALLOC;
-                  clean.u.string = outbuf.buffer;
+                  clean.u.malloc_string = outbuf.buffer;
                   carg = &clean;
                   finfo ^= INFO_T_LPC;
                   finfo |= INFO_T_STRING;
@@ -1144,7 +1144,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                     {
                       clean.type = T_STRING;
                       clean.subtype = STRING_MALLOC;
-                      clean.u.string = string_copy (NULL_MSG, "sprintf NULL");
+                      clean.u.malloc_string = string_copy (NULL_MSG, "sprintf NULL");
                       carg = &clean;
                     }
                   else if (carg->type != T_STRING)
@@ -1412,12 +1412,12 @@ void f_sprintf (void) {
   if (!s)
     {
       sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      sp->u.const_string = "";
     }
   else
     {
       sp->subtype = STRING_MALLOC;
-      sp->u.string = s;
+      sp->u.malloc_string = s;
     }
 }
 #endif

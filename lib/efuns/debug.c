@@ -49,7 +49,7 @@ void f_throw (void) {
     {
       catch_value.type = T_STRING;
       catch_value.subtype = STRING_MALLOC;
-      catch_value.u.string = string_copy ("*Unspecified error", "f_throw");
+      catch_value.u.malloc_string = string_copy ("*Unspecified error", "f_throw");
       sp--;
     }
   else
@@ -106,12 +106,12 @@ void f_call_stack (void) {
     case 0:
       ret->item[0].type = T_STRING;
       ret->item[0].subtype = STRING_MALLOC;
-      ret->item[0].u.string = add_slash (current_prog->name);
+      ret->item[0].u.malloc_string = add_slash (current_prog->name);
       for (i = 1; i < n; i++)
         {
           ret->item[i].type = T_STRING;
           ret->item[i].subtype = STRING_MALLOC;
-          ret->item[i].u.string = add_slash ((csp - i + 1)->prog->name);
+          ret->item[i].u.malloc_string = add_slash ((csp - i + 1)->prog->name);
         }
       break;
     case 1:
@@ -136,13 +136,13 @@ void f_call_stack (void) {
               compiler_function_t *cfp = &prog->function_table[index];
 
               ret->item[i].subtype = STRING_SHARED;
-              ret->item[i].u.string = cfp->name;
+              ret->item[i].u.shared_string = cfp->name;
               ref_string (to_shared_str(cfp->name));
             }
           else
             {
               ret->item[i].subtype = STRING_CONSTANT;
-              ret->item[i].u.string = (((csp - i)->framekind & FRAME_MASK) == FRAME_CATCH) ? "CATCH" : "<function>";
+              ret->item[i].u.const_string = (((csp - i)->framekind & FRAME_MASK) == FRAME_CATCH) ? "CATCH" : "<function>";
             }
         }
       break;
@@ -499,7 +499,7 @@ fms_recurse (mapping_t * map, object_t * ob, int *idx, program_t * prog)
     {
       size_t size = memory_share (ob->variables + *idx + i);
 
-      sv.u.string = prog->variable_table[i];
+      sv.u.shared_string = prog->variable_table[i];
       entry = find_for_insert (map, &sv, 0);
       entry->u.number += size;
     }
@@ -521,7 +521,7 @@ f_memory_summary (void)
     {
       svalue_t *entry;
 
-      sv.u.string = ob->prog->name;
+      sv.u.shared_string = ob->prog->name;
       entry = find_for_insert (result, &sv, 0);
       if (entry->type == T_NUMBER)
         {

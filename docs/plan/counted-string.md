@@ -79,6 +79,18 @@ As of 2026-04-15:
   `src/stralloc.c`, `src/outbuf.c`, and `src/error_context.cpp` now use
   typed members (`u.shared_string` / `u.malloc_string` / `u.const_string`)
   at subtype-known assignment sites.
+- `lib/lpc` low-risk subtype-known writes in this pass are now updated in
+  `lib/lpc/operator.c`, `lib/lpc/array.c`, and `lib/lpc/object.c` to typed
+  members at explicit string-subtype assignment sites.
+- `lib/efuns` low-risk subtype-known writes are now migrated in a broad pass
+  (`string`, `unsorted`, `file`, `bits`, `file_utils`, `datetime`,
+  `call_out`, `parse`, `debug`, `sprintf`) to typed members at explicit
+  string-subtype assignment sites; focused efun/interpreter regression tests
+  remain green after the sweep.
+- Remaining `lib` subtype-known write stragglers are now completed (`json`,
+  `sscanf`, `unsorted` query path, and debug memory-summary helper). A
+  repository-wide `lib/**` scan for `u.string =` assignments now returns no
+  matches.
 
 ### Baseline and Out of Scope
 

@@ -187,12 +187,12 @@ f_ed_cmd (void)
   if (res)
     {
       sp->subtype = STRING_MALLOC;
-      sp->u.string = res;
+      sp->u.malloc_string = res;
     }
   else
     {
       sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      sp->u.const_string = "";
     }
 }
 #endif
@@ -230,12 +230,12 @@ f_ed_start (void)
   if (res)
     {
       sp->subtype = STRING_MALLOC;
-      sp->u.string = res;
+      sp->u.malloc_string = res;
     }
   else
     {
       sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      sp->u.const_string = "";
     }
 }
 #endif
@@ -332,7 +332,7 @@ void f_function_exists (void) {
       strncpy (res + 1, str, len);
       res[len + 1] = 0;
       sp->subtype = STRING_MALLOC;
-      sp->u.string = res;
+      sp->u.malloc_string = res;
     }
   else
     *sp = const0;
@@ -705,7 +705,7 @@ f_query_privs (void)
     {
       free_object (ob, "f_query_privs");
       sp->type = T_STRING;
-      sp->u.string = make_shared_string(ob->privs, NULL);
+      sp->u.shared_string = make_shared_string(ob->privs, NULL);
       sp->subtype = STRING_SHARED;
     }
   else

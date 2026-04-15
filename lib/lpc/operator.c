@@ -671,7 +671,7 @@ void f_range (int code) {
             free_string_svalue (sp + 2);
             sp->type = T_STRING;
             sp->subtype = STRING_CONSTANT;
-            sp->u.string = "";
+            sp->u.const_string = "";
             return;
           }
 
@@ -785,7 +785,7 @@ void f_extract_range (int code) {
           {
             sp->type = T_STRING;
             sp->subtype = STRING_CONSTANT;
-            sp->u.string = "";
+            sp->u.const_string = "";
           }
         else
           put_malloced_string (string_copy (res + from, "f_extract_range"));

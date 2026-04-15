@@ -159,7 +159,7 @@ void f_read_file (void) {
   else
     {
       sp->subtype = STRING_MALLOC;
-      sp->u.string = str;
+      sp->u.malloc_string = str;
     }
 }
 #endif

@@ -14,7 +14,7 @@ double strtod (const char *, char **);
 
 #define SSCANF_ASSIGN_SVALUE_STRING(S) \
         arg->type = T_STRING; \
-        arg->u.string = S; \
+  arg->u.malloc_string = S; \
         arg->subtype = STRING_MALLOC; \
         arg--; \
         num_arg--

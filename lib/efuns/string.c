@@ -103,7 +103,7 @@ void f_repeat_string (void) {
       free_string_svalue (sp);
       sp->type = T_STRING;
       sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      sp->u.const_string = "";
     }
   else if (repeat != 1)
     {
@@ -122,7 +122,7 @@ void f_repeat_string (void) {
       free_string_svalue (sp);
       sp->type = T_STRING;
       sp->subtype = STRING_MALLOC;
-      sp->u.string = ret;
+      sp->u.malloc_string = ret;
     }
 }
 #endif
@@ -158,7 +158,7 @@ void f_crypt (void) {
   pop_stack ();
   free_string_svalue (sp);
   sp->subtype = STRING_MALLOC;
-  sp->u.string = res;
+  sp->u.malloc_string = res;
 }
 #endif
 
@@ -183,7 +183,7 @@ void f_oldcrypt (void) {
   res = string_copy (crypt (sp->u.string, salt), "f_crypt");
   free_string_svalue (sp);
   sp->subtype = STRING_MALLOC;
-  sp->u.string = res;
+  sp->u.malloc_string = res;
 }
 #endif
 

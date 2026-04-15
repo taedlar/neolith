@@ -2178,7 +2178,7 @@ f_objects (void)
                                              1000) * sizeof (object_t *))))
             fatal ("Out of memory!\n");
           else
-            sp->u.string = (char *) tmp;
+            sp->u.malloc_string = (char *) tmp;
         }
     }
   if (i > CONFIG_INT (__MAX_ARRAY_SIZE__))

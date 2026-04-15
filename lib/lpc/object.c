@@ -584,9 +584,9 @@ static int restore_interior_string (char **val, svalue_t * sv) {
                   return ROB_STRING_ERROR;
                 *newp = '\0';
                 *val = cp;
-                sv->u.string = new_string (len = (newp - start),
-                                           "restore_string");
-                strcpy (sv->u.string, start);
+                sv->u.malloc_string = new_string (len = (newp - start),
+                                                  "restore_string");
+                strcpy (sv->u.malloc_string, start);
                 sv->type = T_STRING;
                 sv->subtype = STRING_MALLOC;
                 return 0;
@@ -606,8 +606,8 @@ static int restore_interior_string (char **val, svalue_t * sv) {
   *val = cp;
   *--cp = '\0';
   len = (size_t)(cp - start);
-  sv->u.string = new_string (len, "restore_string");
-  strcpy (sv->u.string, start);
+  sv->u.malloc_string = new_string (len, "restore_string");
+  strcpy (sv->u.malloc_string, start);
   sv->type = T_STRING;
   sv->subtype = STRING_MALLOC;
   return 0;
@@ -1222,8 +1222,8 @@ int restore_string (char *val, svalue_t * sv) {
                 if ((c == '\0') || (*cp != '\0'))
                   return ROB_STRING_ERROR;
                 *newp = '\0';
-                sv->u.string = new_string (newp - start, "restore_string");
-                strcpy (sv->u.string, start);
+                sv->u.malloc_string = new_string (newp - start, "restore_string");
+                strcpy (sv->u.malloc_string, start);
                 sv->type = T_STRING;
                 sv->subtype = STRING_MALLOC;
                 return 0;
@@ -1244,8 +1244,8 @@ int restore_string (char *val, svalue_t * sv) {
     return ROB_STRING_ERROR;
   *cp = '\0';
   len = (size_t)(cp - start);
-  sv->u.string = new_string (len, "restore_string");
-  strcpy (sv->u.string, start);
+  sv->u.malloc_string = new_string (len, "restore_string");
+  strcpy (sv->u.malloc_string, start);
   sv->type = T_STRING;
   sv->subtype = STRING_MALLOC;
   return 0;

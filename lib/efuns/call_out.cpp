@@ -435,7 +435,7 @@ array_t* get_all_call_outs () {
               add_ref (cop->ob, "get_all_call_outs");
               vv->item[1].type = T_STRING;
               vv->item[1].subtype = STRING_SHARED;
-              vv->item[1].u.string = make_shared_string(cop->function.s, NULL);
+              vv->item[1].u.shared_string = make_shared_string(cop->function.s, NULL);
             }
           else
             {
@@ -444,7 +444,7 @@ array_t* get_all_call_outs () {
               add_ref (cop->function.f->hdr.owner, "get_all_call_outs");
               vv->item[1].type = T_STRING;
               vv->item[1].subtype = STRING_SHARED;
-              vv->item[1].u.string = make_shared_string("<function>", NULL);
+              vv->item[1].u.shared_string = make_shared_string("<function>", NULL);
             }
           vv->item[2].type = T_NUMBER;
           if (j > tm)

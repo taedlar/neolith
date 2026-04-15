@@ -62,7 +62,7 @@ encode_stat (svalue_t * vp, int flags, char *str, struct stat *st)
 
       v->item[0].type = T_STRING;
       v->item[0].subtype = STRING_MALLOC;
-      v->item[0].u.string = string_copy (str, "encode_stat");
+      v->item[0].u.malloc_string = string_copy (str, "encode_stat");
       v->item[1].type = T_NUMBER;
       v->item[1].u.number = ((st->st_mode & S_IFDIR) ? -2 : st->st_size);
       v->item[2].type = T_NUMBER;
@@ -74,7 +74,7 @@ encode_stat (svalue_t * vp, int flags, char *str, struct stat *st)
     {
       vp->type = T_STRING;
       vp->subtype = STRING_MALLOC;
-      vp->u.string = string_copy (str, "encode_stat");
+      vp->u.malloc_string = string_copy (str, "encode_stat");
     }
 }
 
@@ -800,7 +800,7 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
       free_svalue (&apply_ret_value, "check_valid_path");
       apply_ret_value.type = T_STRING;
       apply_ret_value.subtype = STRING_MALLOC;
-      ret_path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
+      ret_path = apply_ret_value.u.malloc_string = string_copy (path, "check_valid_path");
     }
 
   if (ret_path[0] == '/')

@@ -90,10 +90,10 @@ void f_localtime (void) {
 
 #ifdef _WIN32
   vec->item[LT_GMTOFF].u.number = _timezone;
-  vec->item[LT_ZONE].u.string = string_copy (_tzname[_daylight ? 1 : 0], "f_localtime");
+  vec->item[LT_ZONE].u.malloc_string = string_copy (_tzname[_daylight ? 1 : 0], "f_localtime");
 #else
   vec->item[LT_GMTOFF].u.number = tm->tm_gmtoff;
-  vec->item[LT_ZONE].u.string = string_copy (tm->tm_zone, "f_localtime");
+  vec->item[LT_ZONE].u.malloc_string = string_copy (tm->tm_zone, "f_localtime");
 #endif
 
   put_array (vec);
