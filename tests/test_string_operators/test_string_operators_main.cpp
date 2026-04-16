@@ -60,63 +60,58 @@ protected:
 
 TEST_F(StringOperatorsTest, ExtendViaLenAppendNormal) {
     // Test appending to a malloc string with explicit length
-    svalue_t target;
-    create_malloc_string(&target, "Hello", 5);
+    lpc::svalue target;
+    create_malloc_string(target.raw(), "Hello", 5);
 
     const char *suffix = " World";
     size_t suffix_len = 6;
 
-    EXTEND_SVALUE_STRING_LEN(&target, suffix, suffix_len, "test");
+    EXTEND_SVALUE_STRING_LEN(target.raw(), suffix, suffix_len, "test");
 
-    assert_string_content(&target, "Hello World", 11, STRING_MALLOC);
-    free_string_svalue(&target);
+    assert_string_content(target.raw(), "Hello World", 11, STRING_MALLOC);
 }
 
 TEST_F(StringOperatorsTest, ExtendViaLenAppendEmpty) {
     // Test appending empty string (no-op)
-    svalue_t target;
-    create_malloc_string(&target, "Test", 4);
+    lpc::svalue target;
+    create_malloc_string(target.raw(), "Test", 4);
 
-    EXTEND_SVALUE_STRING_LEN(&target, "", 0, "test");
+    EXTEND_SVALUE_STRING_LEN(target.raw(), "", 0, "test");
 
-    assert_string_content(&target, "Test", 4, STRING_MALLOC);
-    free_string_svalue(&target);
+    assert_string_content(target.raw(), "Test", 4, STRING_MALLOC);
 }
 
 TEST_F(StringOperatorsTest, ExtendViaLenAppendToEmpty) {
     // Test appending to empty string
-    svalue_t target;
-    create_malloc_string(&target, "", 0);
+    lpc::svalue target;
+    create_malloc_string(target.raw(), "", 0);
 
-    EXTEND_SVALUE_STRING_LEN(&target, "Data", 4, "test");
+    EXTEND_SVALUE_STRING_LEN(target.raw(), "Data", 4, "test");
 
-    assert_string_content(&target, "Data", 4, STRING_MALLOC);
-    free_string_svalue(&target);
+    assert_string_content(target.raw(), "Data", 4, STRING_MALLOC);
 }
 
 TEST_F(StringOperatorsTest, ExtendViaLenAppendWithEmbeddedNul) {
     // Test appending string with embedded NUL
-    svalue_t target;
-    create_malloc_string(&target, "Start", 5);
+    lpc::svalue target;
+    create_malloc_string(target.raw(), "Start", 5);
 
     const char suffix[] = "A\0B";  // 3 bytes: A, NUL, B
-    EXTEND_SVALUE_STRING_LEN(&target, suffix, 3, "test");
+    EXTEND_SVALUE_STRING_LEN(target.raw(), suffix, 3, "test");
 
     // Result should be "StartA\0B" (8 bytes)
-    assert_string_content(&target, "StartA\0B", 8, STRING_MALLOC);
-    free_string_svalue(&target);
+    assert_string_content(target.raw(), "StartA\0B", 8, STRING_MALLOC);
 }
 
 TEST_F(StringOperatorsTest, ExtendViaLenMallocSelfReuse) {
     // Test extending a malloc string with ref count 1 (in-place extension)
-    svalue_t target;
-    create_malloc_string(&target, "Hello", 5);
+    lpc::svalue target;
+    create_malloc_string(target.raw(), "Hello", 5);
 
     // Verify it can be extended in place
-    EXTEND_SVALUE_STRING_LEN(&target, " Again", 6, "test");
+    EXTEND_SVALUE_STRING_LEN(target.raw(), " Again", 6, "test");
 
-    assert_string_content(&target, "Hello Again", 11, STRING_MALLOC);
-    free_string_svalue(&target);
+    assert_string_content(target.raw(), "Hello Again", 11, STRING_MALLOC);
 }
 
 // === SVALUE_STRING_ADD_LEFT_LEN Tests ===
@@ -124,8 +119,8 @@ TEST_F(StringOperatorsTest, ExtendViaLenMallocSelfReuse) {
 TEST_F(StringOperatorsTest, AddLeftViaLenPrependNormal) {
     // Test prepending to stack-top string (simulated via direct macro)
     // Note: AddLeft macros use 'sp' global, so we test the underlying logic
-    svalue_t target;
-    create_malloc_string(&target, "World", 5);
+    lpc::svalue target;
+    create_malloc_string(target.raw(), "World", 5);
 
     const char *prefix = "Hello ";
     size_t prefix_len = 6;
@@ -134,15 +129,13 @@ TEST_F(StringOperatorsTest, AddLeftViaLenPrependNormal) {
     // since the macro depends on VM stack state
     malloc_str_t result = new_string(prefix_len + 5, "test");
     memcpy(result, prefix, prefix_len);
-    memcpy(result + prefix_len, lpc::svalue_view::from(&target).malloc_string(), 5);
+    memcpy(result + prefix_len, target.view().malloc_string(), 5);
     result[prefix_len + 5] = '\0';
 
-    svalue_t combined;
-    lpc::svalue_view::from(&combined).set_malloc_string(result);
+    lpc::svalue combined;
+    lpc::svalue_view::from(combined.raw()).set_malloc_string(result);
 
-    assert_string_content(&combined, "Hello World", 11, STRING_MALLOC);
-    free_string_svalue(&combined);
-    free_string_svalue(&target);
+    assert_string_content(combined.raw(), "Hello World", 11, STRING_MALLOC);
 }
 
 TEST_F(StringOperatorsTest, AddLeftViaLenWithEmbeddedNul) {
@@ -165,27 +158,27 @@ TEST_F(StringOperatorsTest, AddLeftViaLenWithEmbeddedNul) {
 
 TEST_F(StringOperatorsTest, JoinTwoMallocStrings) {
     // Test joining two malloc strings
-    svalue_t left, right;
-    create_malloc_string(&left, "Left", 4);
-    create_malloc_string(&right, "Right", 5);
+    lpc::svalue left;
+    lpc::svalue right;
+    create_malloc_string(left.raw(), "Left", 4);
+    create_malloc_string(right.raw(), "Right", 5);
 
-    SVALUE_STRING_JOIN(&left, &right, "test");
+    SVALUE_STRING_JOIN(left.raw(), right.raw(), "test");
 
-    assert_string_content(&left, "LeftRight", 9, STRING_MALLOC);
+    assert_string_content(left.raw(), "LeftRight", 9, STRING_MALLOC);
     // right is consumed by the macro; left still owns the joined result.
-    free_string_svalue(&left);
 }
 
 TEST_F(StringOperatorsTest, JoinEmptyStrings) {
     // Test joining two empty strings
-    svalue_t left, right;
-    create_malloc_string(&left, "", 0);
-    create_malloc_string(&right, "", 0);
+    lpc::svalue left;
+    lpc::svalue right;
+    create_malloc_string(left.raw(), "", 0);
+    create_malloc_string(right.raw(), "", 0);
 
-    SVALUE_STRING_JOIN(&left, &right, "test");
+    SVALUE_STRING_JOIN(left.raw(), right.raw(), "test");
 
-    assert_string_content(&left, "", 0, STRING_MALLOC);
-    free_string_svalue(&left);
+    assert_string_content(left.raw(), "", 0, STRING_MALLOC);
 }
 
 TEST_F(StringOperatorsTest, JoinWithEmbeddedNuls) {
@@ -193,60 +186,56 @@ TEST_F(StringOperatorsTest, JoinWithEmbeddedNuls) {
     const char left_content[] = "A\0B";
     const char right_content[] = "C\0D";
 
-    svalue_t left, right;
-    create_malloc_string(&left, left_content, 3);
-    create_malloc_string(&right, right_content, 3);
+    lpc::svalue left;
+    lpc::svalue right;
+    create_malloc_string(left.raw(), left_content, 3);
+    create_malloc_string(right.raw(), right_content, 3);
 
-    SVALUE_STRING_JOIN(&left, &right, "test");
+    SVALUE_STRING_JOIN(left.raw(), right.raw(), "test");
 
     // Result should be "A\0BC\0D" (6 bytes)
-    assert_string_content(&left, "A\0BC\0D", 6, STRING_MALLOC);
-    free_string_svalue(&left);
+    assert_string_content(left.raw(), "A\0BC\0D", 6, STRING_MALLOC);
 }
 
 TEST_F(StringOperatorsTest, JoinMallocSelfReuse) {
     // Test joining when left side has ref count 1 (in-place extension)
-    svalue_t left, right;
-    create_malloc_string(&left, "First", 5);
-    create_malloc_string(&right, "Second", 6);
+    lpc::svalue left;
+    lpc::svalue right;
+    create_malloc_string(left.raw(), "First", 5);
+    create_malloc_string(right.raw(), "Second", 6);
 
-    SVALUE_STRING_JOIN(&left, &right, "test");
+    SVALUE_STRING_JOIN(left.raw(), right.raw(), "test");
 
-    assert_string_content(&left, "FirstSecond", 11, STRING_MALLOC);
-    free_string_svalue(&left);
+    assert_string_content(left.raw(), "FirstSecond", 11, STRING_MALLOC);
 }
 
 // === String Equality Operator Tests (memcmp semantics) ===
 
 TEST_F(StringOperatorsTest, EqualityIdenticalStrings) {
     // Test equality of identical malloc strings
-    svalue_t left, right;
-    create_malloc_string(&left, "Same", 4);
-    create_malloc_string(&right, "Same", 4);
+    lpc::svalue left;
+    lpc::svalue right;
+    create_malloc_string(left.raw(), "Same", 4);
+    create_malloc_string(right.raw(), "Same", 4);
 
     // Simulate memcmp check used in operator
-    lpc::svalue_view left_view = lpc::svalue_view::from(&left);
-    lpc::svalue_view right_view = lpc::svalue_view::from(&right);
+    lpc::svalue_view left_view = left.view();
+    lpc::svalue_view right_view = right.view();
     int cmp_result = memcmp(left_view.malloc_string(), right_view.malloc_string(), left_view.length());
     ASSERT_EQ(cmp_result, 0);
     ASSERT_EQ(left_view.length(), right_view.length());
-
-    free_string_svalue(&left);
-    free_string_svalue(&right);
 }
 
 TEST_F(StringOperatorsTest, EqualityDifferentLengths) {
     // Test equality check with length difference detection
-    svalue_t left, right;
-    create_malloc_string(&left, "Short", 5);
-    create_malloc_string(&right, "Longer", 6);
+    lpc::svalue left;
+    lpc::svalue right;
+    create_malloc_string(left.raw(), "Short", 5);
+    create_malloc_string(right.raw(), "Longer", 6);
 
     // Using SVALUE_STRLEN_DIFFERS macro logic
-    bool differs = SVALUE_STRLEN(&left) != SVALUE_STRLEN(&right);
+    bool differs = SVALUE_STRLEN(left.raw()) != SVALUE_STRLEN(right.raw());
     ASSERT_TRUE(differs);
-
-    free_string_svalue(&left);
-    free_string_svalue(&right);
 }
 
 TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
@@ -255,21 +244,22 @@ TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
     const char content2[] = "A\0B";
     const char content3[] = "A\0C";
 
-    svalue_t s1, s2, s3;
-    create_malloc_string(&s1, content1, 3);
-    create_malloc_string(&s2, content2, 3);
-    create_malloc_string(&s3, content3, 3);
+    lpc::svalue s1;
+    lpc::svalue s2;
+    lpc::svalue s3;
+    create_malloc_string(s1.raw(), content1, 3);
+    create_malloc_string(s2.raw(), content2, 3);
+    create_malloc_string(s3.raw(), content3, 3);
+    auto s1_view = s1.view();
+    auto s2_view = s2.view();
+    auto s3_view = s3.view();
 
     // s1 == s2 via memcmp
-    ASSERT_EQ(memcmp(s1.u.malloc_string, s2.u.malloc_string, 3), 0);
-    ASSERT_EQ(SVALUE_STRLEN(&s1), SVALUE_STRLEN(&s2));
+    ASSERT_EQ(memcmp(s1_view.malloc_string(), s2_view.malloc_string(), 3), 0);
+    ASSERT_EQ(SVALUE_STRLEN(s1.raw()), SVALUE_STRLEN(s2.raw()));
 
     // s1 != s3 due to byte difference at position 2
-    ASSERT_NE(memcmp(s1.u.malloc_string, s3.u.malloc_string, 3), 0);
-
-    free_string_svalue(&s1);
-    free_string_svalue(&s2);
-    free_string_svalue(&s3);
+    ASSERT_NE(memcmp(s1_view.malloc_string(), s3_view.malloc_string(), 3), 0);
 }
 
 // === String Range Operator Tests ===
@@ -279,72 +269,73 @@ TEST_F(StringOperatorsTest, RangeFullString) {
     const char content[] = "Testing";
     size_t len = strlen(content);
 
-    svalue_t sv;
-    create_malloc_string(&sv, content, len);
+    lpc::svalue sv;
+    create_malloc_string(sv.raw(), content, len);
+    auto view = sv.view();
 
     // Simulate range extraction for [0..6] on "Testing"
     size_t from = 0, to = 6;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.malloc_string + from, out_len);
+    memcpy(result, view.malloc_string() + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_TRUE(memcmp(result, "Testing", out_len) == 0);
 
     FREE_MSTR(result);
-    free_string_svalue(&sv);
 }
 
 TEST_F(StringOperatorsTest, RangeMiddleSlice) {
     // Test range extraction of middle portion
     const char content[] = "0123456789";
-    svalue_t sv;
-    create_malloc_string(&sv, content, 10);
+    lpc::svalue sv;
+    create_malloc_string(sv.raw(), content, 10);
+    auto view = sv.view();
 
     // Extract [2..5]
     size_t from = 2, to = 5;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.malloc_string + from, out_len);
+    memcpy(result, view.malloc_string() + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_TRUE(memcmp(result, "2345", 4) == 0);
 
     FREE_MSTR(result);
-    free_string_svalue(&sv);
 }
 
 TEST_F(StringOperatorsTest, RangeSingleChar) {
     // Test range extraction of single character
     const char content[] = "ABCDE";
-    svalue_t sv;
-    create_malloc_string(&sv, content, 5);
+    lpc::svalue sv;
+    create_malloc_string(sv.raw(), content, 5);
+    auto view = sv.view();
 
     // Extract [2..2] (character 'C')
     size_t from = 2, to = 2;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.malloc_string + from, out_len);
+    memcpy(result, view.malloc_string() + from, out_len);
     result[out_len] = '\0';
 
     ASSERT_EQ(result[0], 'C');
     ASSERT_EQ(out_len, 1);
 
     FREE_MSTR(result);
-    free_string_svalue(&sv);
 }
 
 TEST_F(StringOperatorsTest, RangeWithEmbeddedNul) {
     // Test range extraction that includes embedded NUL
     const char content[] = "A\0B\0C";
-    svalue_t sv;
-    create_malloc_string(&sv, content, 5);
+    lpc::svalue sv;
+    create_malloc_string(sv.raw(), content, 5);
+    auto view = sv.view();
 
     // Extract [1..3] which includes NULs
     size_t from = 1, to = 3;
     size_t out_len = to - from + 1;
     malloc_str_t result = new_string(out_len, "range_test");
-    memcpy(result, sv.u.malloc_string + from, out_len);
+    memcpy(result, view.malloc_string() + from, out_len);
     result[out_len] = '\0';
 
     // Result should be "\0B\0" (3 bytes plus terminator)
@@ -353,57 +344,50 @@ TEST_F(StringOperatorsTest, RangeWithEmbeddedNul) {
     ASSERT_EQ(result[2], '\0');
 
     FREE_MSTR(result);
-    free_string_svalue(&sv);
 }
 
 // === Edge Cases and Boundary Conditions ===
 
 TEST_F(StringOperatorsTest, VeryLongStringExtend) {
     // Test extending a large string (tests blkend tracking for USHRT_MAX)
-    svalue_t target;
+    lpc::svalue target;
     size_t large_size = 100000;
     malloc_str_t large_str = new_string(large_size, "test");
     memset(large_str, 'A', large_size);
-    lpc::svalue_view::from(&target).set_malloc_string(large_str);
+    lpc::svalue_view::from(target.raw()).set_malloc_string(large_str);
 
     const char *suffix = "END";
-    EXTEND_SVALUE_STRING_LEN(&target, suffix, 3, "test");
+    EXTEND_SVALUE_STRING_LEN(target.raw(), suffix, 3, "test");
 
-    size_t final_len = SVALUE_STRLEN(&target);
+    size_t final_len = SVALUE_STRLEN(target.raw());
     ASSERT_EQ(final_len, large_size + 3);
-    ASSERT_EQ(lpc::svalue_view::from(&target).c_str()[large_size + 2], 'D');
-
-    free_string_svalue(&target);
+    ASSERT_EQ(target.view().c_str()[large_size + 2], 'D');
 }
 
 TEST_F(StringOperatorsTest, StringLengthConsistency) {
     // Verify SVALUE_STRLEN returns consistent length after operations
-    svalue_t sv;
-    create_malloc_string(&sv, "Initial", 7);
-    size_t len1 = SVALUE_STRLEN(&sv);
+    lpc::svalue sv;
+    create_malloc_string(sv.raw(), "Initial", 7);
+    size_t len1 = SVALUE_STRLEN(sv.raw());
 
-    EXTEND_SVALUE_STRING_LEN(&sv, " More", 5, "test");
-    size_t len2 = SVALUE_STRLEN(&sv);
+    EXTEND_SVALUE_STRING_LEN(sv.raw(), " More", 5, "test");
+    size_t len2 = SVALUE_STRLEN(sv.raw());
 
     ASSERT_EQ(len1, 7);
     ASSERT_EQ(len2, 12);
     ASSERT_EQ(len2 - len1, 5);
-
-    free_string_svalue(&sv);
 }
 
 TEST_F(StringOperatorsTest, MallocStringLengthConsistency) {
     // Verify malloc string length tracking after extension
-    svalue_t sv;
-    create_malloc_string(&sv, "Start", 5);
+    lpc::svalue sv;
+    create_malloc_string(sv.raw(), "Start", 5);
     
     // Verify initial length
-    ASSERT_EQ(SVALUE_STRLEN(&sv), 5);
+    ASSERT_EQ(SVALUE_STRLEN(sv.raw()), 5);
     
-    EXTEND_SVALUE_STRING_LEN(&sv, "End", 3, "test");
+    EXTEND_SVALUE_STRING_LEN(sv.raw(), "End", 3, "test");
     
     // Verify new length is correct  
-    ASSERT_EQ(SVALUE_STRLEN(&sv), 8);
-
-    free_string_svalue(&sv);
+    ASSERT_EQ(SVALUE_STRLEN(sv.raw()), 8);
 }

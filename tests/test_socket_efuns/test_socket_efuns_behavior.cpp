@@ -201,12 +201,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_001_CreateStream_Success) {
   ScopedObjectContext ctx(this, master_ob);
   
   // Create svalue callbacks for read and close
-  svalue_t read_cb, close_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&close_cb).set_shared_string(make_shared_string("close_callback", NULL));
+  lpc::svalue read_cb;
+  lpc::svalue close_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(close_cb.raw()).set_shared_string(make_shared_string("close_callback", NULL));
   
   // Create stream socket with callbacks
-  int fd = socket_create(STREAM, &read_cb, &close_cb);
+  int fd = socket_create(STREAM, read_cb.raw(), close_cb.raw());
   
   // Verify success: fd should be non-negative
   EXPECT_GE(fd, 0) << "socket_create(STREAM, ...) returned negative fd: " << fd;
@@ -215,10 +216,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_001_CreateStream_Success) {
   ExpectNoCallbacks();
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  
-  // Cleanup
-  free_string(to_shared_str(read_cb.u.shared_string));
-  free_string(to_shared_str(close_cb.u.shared_string));
 }
 
 /**
@@ -232,20 +229,18 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_002_CreateDatagram_CloseCallbackIgnored
   
   ScopedObjectContext ctx(this, master_ob);
   
-  svalue_t read_cb, close_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&close_cb).set_shared_string(make_shared_string("close_callback", NULL));
+  lpc::svalue read_cb;
+  lpc::svalue close_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(close_cb.raw()).set_shared_string(make_shared_string("close_callback", NULL));
   
   // Create datagram socket - close callback should be ignored
-  int fd = socket_create(DATAGRAM, &read_cb, &close_cb);
+  int fd = socket_create(DATAGRAM, read_cb.raw(), close_cb.raw());
   
   EXPECT_GE(fd, 0) << "socket_create(DATAGRAM, ...) returned negative fd: " << fd;
   ExpectNoCallbacks();
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&close_cb);
 }
 
 /**
@@ -259,18 +254,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_003_CreateInvalidMode_Rejected) {
   
   ScopedObjectContext ctx(this, master_ob);
   
-  svalue_t read_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue read_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
   
   // Try to create socket with invalid mode (999 is not a valid enum value)
-  int fd = socket_create((enum socket_mode)999, &read_cb, NULL);
+  int fd = socket_create((enum socket_mode)999, read_cb.raw(), NULL);
   
   // Mode validation should reject this
   // Note: actual behavior depends on implementation; commonly returns EEMODENOTSUPP or negative
   EXPECT_LT(fd, 1) << "socket_create with invalid mode should return error code";
   ExpectNoCallbacks();
-  
-  free_string_svalue(&read_cb);
 }
 
 /**
@@ -285,9 +278,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_004_BindUnbound_Success) {
   ScopedObjectContext ctx(this, master_ob);
   
   // Create stream socket
-  svalue_t read_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  int fd = socket_create(STREAM, &read_cb, NULL);
+  lpc::svalue read_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  int fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket for SOCK_BHV_004";
   
   // Bind to ephemeral port (port 0 lets OS choose)
@@ -298,7 +291,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_004_BindUnbound_Success) {
   ExpectNoCallbacks();
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string_svalue(&read_cb);
 }
 
 /**
@@ -313,9 +305,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_005_BindAlreadyBound_Rejected) {
   ScopedObjectContext ctx(this, master_ob);
   
   // Create and bind socket
-  svalue_t read_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  int fd = socket_create(STREAM, &read_cb, NULL);
+  lpc::svalue read_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  int fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket";
   
   int result1 = socket_bind(fd, 0);
@@ -329,8 +321,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_005_BindAlreadyBound_Rejected) {
   ExpectNoCallbacks();
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  
-  free_string_svalue(&read_cb);
 }
 
 /**
@@ -345,27 +335,24 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_006_ListenBoundStream_Success) {
   ScopedObjectContext ctx(this, master_ob);
   
   // Create and bind socket
-  svalue_t read_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  int fd = socket_create(STREAM, &read_cb, NULL);
+  lpc::svalue read_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  int fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket";
   
   int bind_result = socket_bind(fd, 0);
   ASSERT_EQ(bind_result, EESUCCESS) << "Bind should succeed";
   
   // Listen on bound socket
-  svalue_t listen_cb;
-  lpc::svalue_view::from(&listen_cb).set_shared_string(make_shared_string("listen_callback", NULL));
-  int result = socket_listen(fd, &listen_cb);
+  lpc::svalue listen_cb;
+  lpc::svalue_view::from(listen_cb.raw()).set_shared_string(make_shared_string("listen_callback", NULL));
+  int result = socket_listen(fd, listen_cb.raw());
   
   EXPECT_EQ(result, EESUCCESS) 
     << "socket_listen on bound stream should succeed, got: " << result;
   ExpectNoCallbacks();
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  
-  free_string_svalue(&read_cb);
-  free_string_svalue(&listen_cb);
 }
 
 /**
@@ -380,27 +367,24 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_007_ListenDatagram_Rejected) {
   ScopedObjectContext ctx(this, master_ob);
   
   // Create and bind datagram socket
-  svalue_t read_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  int fd = socket_create(DATAGRAM, &read_cb, NULL);
+  lpc::svalue read_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  int fd = socket_create(DATAGRAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create datagram socket";
   
   int bind_result = socket_bind(fd, 0);
   ASSERT_EQ(bind_result, EESUCCESS) << "Bind should succeed";
   
   // Try to listen on datagram - should fail
-  svalue_t listen_cb;
-  lpc::svalue_view::from(&listen_cb).set_shared_string(make_shared_string("listen_callback", NULL));
-  int result = socket_listen(fd, &listen_cb);
+  lpc::svalue listen_cb;
+  lpc::svalue_view::from(listen_cb.raw()).set_shared_string(make_shared_string("listen_callback", NULL));
+  int result = socket_listen(fd, listen_cb.raw());
   
   EXPECT_EQ(result, EEMODENOTSUPP) 
     << "socket_listen on datagram should fail with EEMODENOTSUPP, got: " << result;
   ExpectNoCallbacks();
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  
-  free_string_svalue(&read_cb);
-  free_string_svalue(&listen_cb);
 }
 
 /**
@@ -416,9 +400,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
 
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t listen_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue listen_cb;
+  lpc::svalue write_cb;
   socket_fd_t native_client_fd = INVALID_SOCKET_FD;
   int listen_fd;
   int accept_fd;
@@ -430,14 +414,14 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
     << "Failed to reserve loopback port";
   SOCKET_CLOSE(reserve_listener);
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&listen_cb).set_shared_string(make_shared_string("listen_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(listen_cb.raw()).set_shared_string(make_shared_string("listen_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  listen_fd = socket_create(STREAM, &read_cb, nullptr);
+  listen_fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(listen_fd, 0) << "Failed to create listening socket";
   ASSERT_EQ(socket_bind(listen_fd, reserve_port), EESUCCESS) << "Bind should succeed";
-  ASSERT_EQ(socket_listen(listen_fd, &listen_cb), EESUCCESS) << "Listen should succeed";
+  ASSERT_EQ(socket_listen(listen_fd, listen_cb.raw()), EESUCCESS) << "Listen should succeed";
 
   native_client_fd = socket(AF_INET, SOCK_STREAM, 0);
   ASSERT_NE(native_client_fd, INVALID_SOCKET_FD) << "Failed to create native client socket";
@@ -448,7 +432,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
   ASSERT_NE(connect(native_client_fd, (struct sockaddr *)&target, sizeof(target)), SOCKET_ERROR)
     << "Native client connect should succeed";
 
-  accept_fd = socket_accept(listen_fd, &read_cb, &write_cb);
+  accept_fd = socket_accept(listen_fd, read_cb.raw(), write_cb.raw());
   EXPECT_GE(accept_fd, 0) << "socket_accept should return accepted fd";
   ExpectNoCallbacks();
 
@@ -457,10 +441,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
   }
   EXPECT_EQ(socket_close(listen_fd, 1), EESUCCESS);
   SOCKET_CLOSE(native_client_fd);
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&listen_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -475,24 +455,21 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_009_AcceptNotListening_Rejected) {
   ScopedObjectContext ctx(this, master_ob);
   
   // Create unbound socket (not listening)
-  svalue_t read_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  int fd = socket_create(STREAM, &read_cb, NULL);
+  lpc::svalue read_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  int fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket";
   
   // Try to accept without listening
-  svalue_t write_cb;
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
-  int result = socket_accept(fd, &read_cb, &write_cb);
+  lpc::svalue write_cb;
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
+  int result = socket_accept(fd, read_cb.raw(), write_cb.raw());
   
   EXPECT_EQ(result, EENOTLISTN) 
     << "socket_accept on non-listening socket should return EENOTLISTN, got: " << result;
   ExpectNoCallbacks();
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -508,8 +485,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_010_ConnectNumericAddress_SuccessPath) 
 
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
@@ -517,16 +494,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_010_ConnectNumericAddress_SuccessPath) 
   int result;
   std::string endpoint;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, nullptr);
+  fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   endpoint = "127.0.0.1 " + std::to_string(listener_port);
-  result = socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
+  result = socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw());
   EXPECT_EQ(result, EESUCCESS) << "socket_connect should succeed on valid loopback endpoint";
 
   if (AcceptPendingConnection(listener_fd, &accepted_fd)) {
@@ -535,8 +512,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_010_ConnectNumericAddress_SuccessPath) 
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(listener_fd);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -551,16 +526,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_011_ConnectMalformedAddress_Rejected) {
   ScopedObjectContext ctx(this, master_ob);
   
   // Create stream socket
-  svalue_t read_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  int fd = socket_create(STREAM, &read_cb, NULL);
+  lpc::svalue read_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  int fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create socket";
   
   // Try to connect with malformed address
-  svalue_t write_cb;
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue write_cb;
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
   shared_str_t bad_addr = make_shared_string("bad_address_format", NULL);
-  int result = socket_connect(fd, bad_addr, &read_cb, &write_cb);
+  int result = socket_connect(fd, bad_addr, read_cb.raw(), write_cb.raw());
   
   EXPECT_EQ(result, EEBADADDR) 
     << "socket_connect with malformed address should return EEBADADDR, got: " << result;
@@ -569,8 +544,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_011_ConnectMalformedAddress_Rejected) {
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   
   free_string(to_shared_str(bad_addr));
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -588,9 +561,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_012_StreamWriteConnected_SuccessOrCallb
   ASSERT_NE(callback_owner, nullptr);
   ScopedObjectContext ctx(this, callback_owner);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
-  svalue_t payload;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
+  lpc::svalue payload;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
@@ -598,17 +571,17 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_012_StreamWriteConnected_SuccessOrCallb
   int result;
   std::string endpoint;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
-  lpc::svalue_view::from(&payload).set_shared_string(make_shared_string("payload", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(payload.raw()).set_shared_string(make_shared_string("payload", NULL));
 
-  fd = socket_create(STREAM, &read_cb, nullptr);
+  fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   endpoint = "127.0.0.1 " + std::to_string(listener_port);
-  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb), EESUCCESS)
+  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw()), EESUCCESS)
     << "Connect should succeed before write";
 
   ASSERT_TRUE(AcceptPendingConnection(listener_fd, &accepted_fd))
@@ -618,7 +591,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_012_StreamWriteConnected_SuccessOrCallb
   socket_write_select_handler(fd);
   ClearCallbackOwnerEvents(callback_owner);
 
-  result = socket_write(fd, &payload, nullptr);
+  result = socket_write(fd, payload.raw(), nullptr);
   EXPECT_TRUE(result == EESUCCESS || result == EECALLBACK)
     << "Expected socket_write to return EESUCCESS or EECALLBACK, got: " << result;
 
@@ -629,9 +602,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_012_StreamWriteConnected_SuccessOrCallb
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(accepted_fd);
   SOCKET_CLOSE(listener_fd);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
-  free_string_svalue(&payload);
 }
 
 /**
@@ -647,40 +617,37 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_013_StreamWriteBlocked_Rejected) {
 
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
-  svalue_t payload;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
+  lpc::svalue payload;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
   int fd;
   std::string endpoint;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
-  lpc::svalue_view::from(&payload).set_shared_string(make_shared_string("payload", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(payload.raw()).set_shared_string(make_shared_string("payload", NULL));
 
-  fd = socket_create(STREAM, &read_cb, nullptr);
+  fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   endpoint = "127.0.0.1 " + std::to_string(listener_port);
-  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb), EESUCCESS)
+  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw()), EESUCCESS)
     << "Connect should succeed";
 
   ASSERT_TRUE(AcceptPendingConnection(listener_fd, &accepted_fd))
     << "Expected pending native connection after socket_connect";
 
-  EXPECT_EQ(socket_write(fd, &payload, nullptr), EEALREADY)
+  EXPECT_EQ(socket_write(fd, payload.raw(), nullptr), EEALREADY)
     << "socket_write on blocked stream socket should return EEALREADY";
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(accepted_fd);
   SOCKET_CLOSE(listener_fd);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
-  free_string_svalue(&payload);
 }
 
 /**
@@ -696,23 +663,21 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_014_DatagramWriteNoAddress_Rejected) {
 
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t payload;
+  lpc::svalue read_cb;
+  lpc::svalue payload;
   int fd;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
 
-  fd = socket_create(DATAGRAM, &read_cb, nullptr);
+  fd = socket_create(DATAGRAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create datagram socket";
 
-  lpc::svalue_view::from(&payload).set_shared_string(make_shared_string("payload", NULL));
+  lpc::svalue_view::from(payload.raw()).set_shared_string(make_shared_string("payload", NULL));
 
-  EXPECT_EQ(socket_write(fd, &payload, nullptr), EENOADDR)
+  EXPECT_EQ(socket_write(fd, payload.raw(), nullptr), EENOADDR)
     << "Datagram write without address should return EENOADDR";
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string_svalue(&payload);
-  free_string_svalue(&read_cb);
 }
 
 /**
@@ -726,23 +691,21 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_015_DatagramWriteInvalidAddress_Rejecte
 
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t payload;
+  lpc::svalue read_cb;
+  lpc::svalue payload;
   int fd;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
 
-  fd = socket_create(DATAGRAM, &read_cb, nullptr);
+  fd = socket_create(DATAGRAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create datagram socket";
 
-  lpc::svalue_view::from(&payload).set_shared_string(make_shared_string("payload", NULL));
+  lpc::svalue_view::from(payload.raw()).set_shared_string(make_shared_string("payload", NULL));
 
-  EXPECT_EQ(socket_write(fd, &payload, (char *)"bad"), EEBADADDR)
+  EXPECT_EQ(socket_write(fd, payload.raw(), (char *)"bad"), EEBADADDR)
     << "Datagram write with malformed address should return EEBADADDR";
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string_svalue(&payload);
-  free_string_svalue(&read_cb);
 }
 
 /**
@@ -759,16 +722,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_016_CloseByOwner_Success) {
 
   ScopedObjectContext ctx(this, callback_owner);
 
-  svalue_t read_cb;
-  svalue_t close_cb;
+  lpc::svalue read_cb;
+  lpc::svalue close_cb;
   int fd;
   constexpr int kSocketCloseForce = 1;
   constexpr int kSocketCloseDoCallback = 2;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&close_cb).set_shared_string(make_shared_string("close_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(close_cb.raw()).set_shared_string(make_shared_string("close_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, &close_cb);
+  fd = socket_create(STREAM, read_cb.raw(), close_cb.raw());
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
   ClearCallbackOwnerEvents(callback_owner);
@@ -784,9 +747,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_016_CloseByOwner_Success) {
   EXPECT_EQ(record.type, CallbackRecord::CB_CLOSE);
   EXPECT_EQ(record.socket_fd, fd);
   ExpectNoCallbacks();
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&close_cb);
 }
 
 /**
@@ -805,13 +765,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_017_CloseByNonOwner_Rejected) {
   ASSERT_NE(owner_a, nullptr);
   ASSERT_NE(owner_b, nullptr);
 
-  svalue_t read_cb;
+  lpc::svalue read_cb;
   int fd;
 
   {
     ScopedObjectContext owner_ctx(this, owner_a);
-    lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-    fd = socket_create(STREAM, &read_cb, nullptr);
+    lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+    fd = socket_create(STREAM, read_cb.raw(), nullptr);
     ASSERT_GE(fd, 0) << "Failed to create stream socket owned by owner_a";
   }
 
@@ -825,8 +785,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_017_CloseByNonOwner_Rejected) {
     ScopedObjectContext owner_ctx(this, owner_a);
     EXPECT_EQ(socket_close(fd, 1), EESUCCESS) << "Owner cleanup close should succeed";
   }
-
-  free_string_svalue(&read_cb);
 }
 
 /**
@@ -853,37 +811,37 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_018_ReleaseThenAcquire_Success) {
   ASSERT_NE(owner_a, nullptr);
   ASSERT_NE(owner_b, nullptr);
 
-  svalue_t owner_a_read_cb;
-  svalue_t release_cb;
-  svalue_t read_cb;
-  svalue_t write_cb;
-  svalue_t close_cb;
+  lpc::svalue owner_a_read_cb;
+  lpc::svalue release_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
+  lpc::svalue close_cb;
   int fd;
   int release_result;
 
-  lpc::svalue_view::from(&owner_a_read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(owner_a_read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
 
   {
     ScopedObjectContext owner_a_ctx(this, owner_a);
-    fd = socket_create(STREAM, &owner_a_read_cb, nullptr);
+    fd = socket_create(STREAM, owner_a_read_cb.raw(), nullptr);
     ASSERT_GE(fd, 0) << "Failed to create stream socket for handoff";
   }
 
-  lpc::svalue_view::from(&release_cb).set_shared_string(make_shared_string("release_callback", NULL));
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
-  lpc::svalue_view::from(&close_cb).set_shared_string(make_shared_string("close_callback", NULL));
+  lpc::svalue_view::from(release_cb.raw()).set_shared_string(make_shared_string("release_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(close_cb.raw()).set_shared_string(make_shared_string("close_callback", NULL));
 
-  release_hook_read_cb = &read_cb;
-  release_hook_write_cb = &write_cb;
-  release_hook_close_cb = &close_cb;
+  release_hook_read_cb = read_cb.raw();
+  release_hook_write_cb = write_cb.raw();
+  release_hook_close_cb = close_cb.raw();
   release_hook_called = 0;
   release_hook_result = EEBADF;
   set_socket_release_test_hook(SocketReleaseAcquireHook);
 
   {
     ScopedObjectContext owner_a_ctx(this, owner_a);
-    release_result = socket_release(fd, owner_b, &release_cb);
+    release_result = socket_release(fd, owner_b, release_cb.raw());
   }
 
   set_socket_release_test_hook(nullptr);
@@ -902,12 +860,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_018_ReleaseThenAcquire_Success) {
     ScopedObjectContext owner_b_ctx(this, owner_b);
     EXPECT_EQ(socket_close(fd, 1), EESUCCESS) << "New owner should close acquired socket";
   }
-
-  free_string_svalue(&owner_a_read_cb);
-  free_string_svalue(&release_cb);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
-  free_string_svalue(&close_cb);
 }
 
 /**
@@ -924,26 +876,22 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_019_AcquireWithoutRelease_Rejected) {
 
   ScopedObjectContext ctx(this, owner);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
-  svalue_t close_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
+  lpc::svalue close_cb;
   int fd;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
-  lpc::svalue_view::from(&close_cb).set_shared_string(make_shared_string("close_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(close_cb.raw()).set_shared_string(make_shared_string("close_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, nullptr);
+  fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
-  EXPECT_EQ(socket_acquire(fd, &read_cb, &write_cb, &close_cb), EESOCKNOTRLSD)
+  EXPECT_EQ(socket_acquire(fd, read_cb.raw(), write_cb.raw(), close_cb.raw()), EESOCKNOTRLSD)
     << "socket_acquire without prior release should return EESOCKNOTRLSD";
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
-  free_string_svalue(&close_cb);
 }
 
 /**
@@ -961,8 +909,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_020_ReadCallbackOrdering_InboundData) {
   ASSERT_NE(callback_owner, nullptr);
   ScopedObjectContext ctx(this, callback_owner);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
@@ -970,16 +918,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_020_ReadCallbackOrdering_InboundData) {
   std::string endpoint;
   const char *payload = "ping";
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, nullptr);
+  fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   endpoint = "127.0.0.1 " + std::to_string(listener_port);
-  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb), EESUCCESS)
+  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw()), EESUCCESS)
     << "Connect should succeed";
 
   ASSERT_TRUE(AcceptPendingConnection(listener_fd, &accepted_fd))
@@ -1003,6 +951,4 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_020_ReadCallbackOrdering_InboundData) {
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(accepted_fd);
   SOCKET_CLOSE(listener_fd);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
