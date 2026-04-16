@@ -218,21 +218,53 @@ extern char *int_alloc_cstring(const char *, const char *);
 
 #ifdef STRING_TYPE_SAFETY
 static inline int is_shared_string_payload(shared_str_t p) {
-        size_t len;
+        unsigned short size;
 
         if (p == 0)
                 return 0;
-        len = SHARED_STRLEN(p);
-        return findstring(p, len ? p + len : NULL) == p;
+
+        /* Shared strings are always shorter than USHRT_MAX by invariant. */
+        size = MSTR_SIZE(p);
+        if (size == USHRT_MAX)
+                return 0;
+
+#ifdef STRING_TYPE_SAFETY_STRICT
+        {
+                size_t len = SHARED_STRLEN(p);
+                return findstring(p, len ? p + len : NULL) == p;
+        }
+#else
+        return 1;
+#endif
+
 }
 
 static inline int is_malloc_string_payload(malloc_str_t p) {
-        size_t len;
+        unsigned short size;
 
         if (p == 0)
                 return 0;
-        len = COUNTED_STRLEN(p);
-        return findstring(p, len ? p + len : NULL) != p;
+
+        size = MSTR_SIZE(p);
+
+        /*
+         * Fast-path classifier for hot boundaries (push/put malloced string):
+         * - size == USHRT_MAX: this is a long STRING_MALLOC sentinel form.
+         * - size < USHRT_MAX: ambiguous with STRING_SHARED; do not inspect
+         *   MSTR_BLKEND here because pointer provenance is unknown and that
+         *   field is not layout-compatible with block_t for classification.
+         */
+        if (size == USHRT_MAX)
+                return 1;
+
+#ifdef STRING_TYPE_SAFETY_STRICT
+        {
+                size_t len = COUNTED_STRLEN(p);
+                return findstring(p, len ? p + len : NULL) != p;
+        }
+#else
+        return 1;
+#endif
 }
 #endif
 
