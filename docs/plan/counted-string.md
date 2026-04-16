@@ -55,7 +55,7 @@ early as possible (compile-time preferred, runtime as backstop).
 
 ## Current State Handoff
 
-As of 2026-04-16 (updated):
+As of 2026-04-17 (updated):
 
 ### Milestone: `u.string` fully eliminated
 
@@ -373,6 +373,20 @@ assigning `result = ""`. A regression test was added in
   nulls are correctly escaped as `\u0000` in the JSON output. The test
   `roundTripEmbeddedNull` validates the full cycle: LPC string with embedded
   null → to_json (with escaped null) → from_json (reconstructs original).
+- JSON object-key embedded-null handling is now covered end to end: decode
+  (`fromJsonEmbeddedNullObjectKeyAccepted`) and encode
+  (`toJsonEmbeddedNullObjectKeyEscaped`) both preserve full key byte spans.
+  The encode path required a mapping canonicalization fix in
+  `lib/lpc/mapping.c` (`svalue_to_int()` now interns string keys with
+  `make_shared_string(start, end)` instead of NUL-terminated lookup).
+- Unicode/escape contract coverage is expanded and passing in
+  `tests/test_efuns/test_json.cpp`: control escapes
+  (`toJsonControlEscapes`, `fromJsonControlEscapes`), surrogate handling
+  (`fromJsonSurrogatePairAccepted`, `fromJsonLoneHighSurrogateError`), and
+  non-BMP round-trip behavior (`roundTripNonBmpCharacter`).
+- JSON contract docs are now aligned with implementation and tests in
+  `docs/efuns/from_json.md` and `docs/efuns/to_json.md`, including explicit
+  embedded-null, escape, and surrogate/non-BMP statements.
 
 ### Next Focus
 
@@ -381,10 +395,9 @@ assigning `result = ""`. A regression test was added in
   is complete for current counted-string targets; immediate next slice is
   additional production C++ efun/helper paths where manual free paths remain
   avoidable.
-- **JSON/CURL boundary hardening closure** — prioritize JSON string handling
-  for contents received via CURL efuns (`buffer -> JSON`) and finish contract/
-  doc/test follow-through for that boundary before revisiting broader LPC
-  string-efun byte-span hardening.
+- **JSON/CURL boundary follow-through** — keep existing JSON/CURL ingress
+  coverage stable as counted-string and efun refactors continue, and add
+  targeted regression tests only when new boundary behaviors are introduced.
 
 ### Baseline and Out of Scope
 
@@ -548,7 +561,7 @@ Migration order:
 | P1 | C++ wrapper adoption on baseline boundaries | C++ wrappers around `svalue_t` | `lpc::svalue_view`/`lpc::svalue` introduced without C ABI layout change; no duplicate exception-boundary rewrites are introduced; wrapper move/dtor are `noexcept`; unit-test-first ownership migration for counted-string targets is complete (no `free_string_svalue` / `free_svalue` in `tests/**/*.cpp`); remaining work is production C++ efun/helper adoption and any targeted perf checks for newly touched hot paths. |
 | P1 | Efun byte-span readiness (deferred broad LPC string paths) | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Scope is intentionally narrowed for this phase: no broad LPC-side behavioral expansion unless required by JSON/CURL boundary safety. Any touched path must preserve LPC compatibility and existing tests remain green. |
 | P1 | JSON boundary contract (priority: CURL buffer ingress) | JSON efuns/helpers (`from_json`, `to_json`) and CURL ingress paths | complete: contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; coverage includes explicit UTF-8 pass/fail tests (`fromJsonValidUtf8StringAccepted`, `fromJsonInvalidUtf8StringError`, `fromJsonInvalidUtf8BufferError`) plus buffer ingress success/error/size paths (`fromJsonBuffer`, `fromJsonInvalidBufferError`, `fromJsonLargeBuffer`) and a CURL callback payload integration test (`CurlBufferPayloadParsesViaFromJson`); JSON strings containing embedded null bytes are stored and copied byte-for-byte (full span), not truncated at C-string boundaries. |
-| P1 | Unicode and escape consistency | JSON encode/decode implementation | Encoder/decoder are symmetric for control escapes, `\\`, `\"`, `\uXXXX`, and surrogate pairs; non-BMP behavior documented and validated. |
+| P1 | Unicode and escape consistency | JSON encode/decode implementation | complete: encoder/decoder symmetry is now covered for control escapes, `\\`, `\"`, `\uXXXX`, surrogate pairs, and non-BMP round-trips via `toJsonControlEscapes`, `fromJsonControlEscapes`, `fromJsonSurrogatePairAccepted`, `fromJsonLoneHighSurrogateError`, and `roundTripNonBmpCharacter`; contract docs are aligned in `docs/efuns/from_json.md` and `docs/efuns/to_json.md`. |
 | P2 | End-to-end regression matrix | LPC-level and efun/unit tests | complete for current hardening scope: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest), and full matrix validation is passing on Linux, VS16 x64, VS16 win32, and clang x64. Future LPC/JSON round-trip and negative-matrix additions remain follow-on expansion work. |
 
 ## Hardening Gates for Remaining Work

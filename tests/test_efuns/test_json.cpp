@@ -66,6 +66,15 @@ TEST_F(EfunsTest, toJsonStringEscaping) {
     EXPECT_STREQ(view.c_str(), "\"say \\\"hi\\\"\"");
 }
 
+TEST_F(EfunsTest, toJsonControlEscapes) {
+    /* Verify JSON escaping of common control bytes. */
+    push_constant_string("line1\nline2\t\\\"\b\f\r");
+    f_to_json();
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_STREQ(view.c_str(), "\"line1\\nline2\\t\\\\\\\"\\b\\f\\r\"");
+}
+
 TEST_F(EfunsTest, toJsonUndefined) {
     /* undefined (subtype T_UNDEFINED) maps to JSON null */
     push_undefined();
@@ -169,6 +178,15 @@ TEST_F(EfunsTest, fromJsonString) {
     auto view = lpc::svalue_view::from(sp);
     ASSERT_TRUE(view.is_string());
     EXPECT_STREQ(view.c_str(), "hello");
+}
+
+TEST_F(EfunsTest, fromJsonControlEscapes) {
+    copy_and_push_string("\"line1\\nline2\\t\\\\\\\"\\b\\f\\r\"");
+    f_from_json();
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    ASSERT_EQ(view.length(), 17u);
+    EXPECT_TRUE(memcmp(view.c_str(), "line1\nline2\t\\\"\b\f\r", 17) == 0);
 }
 
 TEST_F(EfunsTest, fromJsonBuffer) {
@@ -287,6 +305,42 @@ TEST_F(EfunsTest, fromJsonValidUtf8StringAccepted) {
     ASSERT_TRUE(value.is_string());
     EXPECT_EQ(value.length(), 6u) << "UTF-8 byte length for '你好' should be 6";
     EXPECT_TRUE(memcmp(value.c_str(), "\xE4\xBD\xA0\xE5\xA5\xBD", 6) == 0);
+}
+
+TEST_F(EfunsTest, fromJsonSurrogatePairAccepted) {
+    /* U+1F600 GRINNING FACE encoded as JSON surrogate pair. */
+    static const char payload[] = "{\"emoji\":\"\\uD83D\\uDE00\"}";
+
+    copy_and_push_string(payload);
+    f_from_json();
+
+    ASSERT_EQ(sp->type, T_MAPPING);
+    svalue_t *found = find_string_in_mapping(sp->u.map, "emoji");
+    ASSERT_NE(found, &const0u) << "key 'emoji' not found in surrogate-pair JSON result mapping";
+
+    auto value = lpc::svalue_view::from(found);
+    ASSERT_TRUE(value.is_string());
+    EXPECT_EQ(value.length(), 4u);
+    EXPECT_TRUE(memcmp(value.c_str(), "\xF0\x9F\x98\x80", 4) == 0);
+}
+
+TEST_F(EfunsTest, fromJsonLoneHighSurrogateError) {
+    static const char payload[] = "\"\\uD83D\"";
+
+    bool error_raised = false;
+    error_context_t econ;
+    save_context(&econ);
+    try {
+        copy_and_push_string(payload);
+        f_from_json();
+        FAIL() << "from_json with lone high surrogate should have raised an error.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context(&econ);
+        error_raised = true;
+    }
+    pop_context(&econ);
+    EXPECT_TRUE(error_raised);
 }
 
 TEST_F(EfunsTest, fromJsonInvalidUtf8StringError) {
@@ -474,6 +528,26 @@ TEST_F(EfunsTest, roundTripEmbeddedNull) {
     EXPECT_EQ(result_view.length(), 11u);
     EXPECT_EQ(static_cast<unsigned char>(result_view.c_str()[5]), 0u);
     EXPECT_TRUE(memcmp(result_view.c_str(), "hello\0world", 11) == 0);
+
+    pop_stack();
+}
+
+TEST_F(EfunsTest, roundTripNonBmpCharacter) {
+    /* U+1F600 (grinning face) UTF-8 bytes: F0 9F 98 80 */
+    {
+        malloc_str_t str = int_new_string(4);
+        memcpy(str, "\xF0\x9F\x98\x80", 4);
+        push_malloced_string(str);
+    }
+
+    f_to_json();
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
+    f_from_json();
+
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_EQ(view.length(), 4u);
+    EXPECT_TRUE(memcmp(view.c_str(), "\xF0\x9F\x98\x80", 4) == 0);
 
     pop_stack();
 }

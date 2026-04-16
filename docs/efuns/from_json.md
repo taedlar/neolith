@@ -30,6 +30,17 @@ The conversion rules are:
 Because JSON object keys are always strings, the mapping returned by
 `from_json()` always uses string keys.
 
+`from_json()` applies JSON text rules at this boundary:
+
+- Input text must be valid JSON and valid UTF-8 where JSON requires it.
+- Invalid UTF-8 and invalid Unicode escape sequences (including invalid
+  surrogate usage) raise a runtime error.
+- JSON escapes are decoded (`\\`, `\"`, control escapes, and `\uXXXX`
+  sequences including surrogate pairs).
+- Embedded null (U+0000, encoded as `\u0000`) is preserved as a byte in the
+  resulting LPC string or mapping key; values are not truncated at C-string
+  boundaries.
+
 If `json` is not valid JSON text, `from_json()` raises a runtime error.
 
 ## SEE ALSO
