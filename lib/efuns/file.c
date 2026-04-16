@@ -18,7 +18,7 @@
 void f_cp (void) {
   int i;
 
-  i = copy_file (sp[-1].u.string, sp[0].u.string);
+  i = copy_file (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_number (i);
@@ -30,7 +30,7 @@ void f_cp (void) {
 void f_rename (void) {
   int i;
 
-  i = do_rename ((sp - 1)->u.string, sp->u.string, F_RENAME);
+  i = do_rename (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), F_RENAME);
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_number (i);
@@ -42,7 +42,7 @@ void f_rename (void) {
 void f_rm (void) {
   int i;
 
-  i = remove_file (sp->u.string);
+  i = remove_file (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   put_number (i);
 }
@@ -53,7 +53,7 @@ void f_rm (void) {
 void f_mkdir (void) {
   char *path;
 
-  path = check_valid_path (sp->u.string, current_object, "mkdir", 1);
+  path = check_valid_path (SVALUE_STRPTR(sp), current_object, "mkdir", 1);
   if (!path || mkdir (path, 0770) == -1)
     {
       free_string_svalue (sp);
@@ -72,7 +72,7 @@ void f_mkdir (void) {
 void f_rmdir (void) {
   char *path;
 
-  path = check_valid_path (sp->u.string, current_object, "rmdir", 1);
+  path = check_valid_path (SVALUE_STRPTR(sp), current_object, "rmdir", 1);
   if (!path || rmdir (path) == -1)
     {
       free_string_svalue (sp);
@@ -94,7 +94,7 @@ void f_stat (void) {
   array_t *v;
   object_t *ob;
 
-  path = check_valid_path ((--sp)->u.string, current_object, "stat", 0);
+  path = check_valid_path (SVALUE_STRPTR(--sp), current_object, "stat", 0);
   if (!path)
     {
       free_string_svalue (sp);
@@ -123,7 +123,7 @@ void f_stat (void) {
           return;
         }
     }
-  v = get_dir (sp->u.string, (int)(sp + 1)->u.number);
+  v = get_dir (SVALUE_STRPTR(sp), (int)(sp + 1)->u.number);
   free_string_svalue (sp);
   if (v)
     {
@@ -152,15 +152,12 @@ void f_read_file (void) {
   else
     start = 0;
 
-  str = read_file (sp->u.string, start, len);
+  str = read_file (SVALUE_STRPTR(sp), start, len);
   free_string_svalue (sp);
   if (!str)
     *sp = const0;
   else
-    {
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = str;
-    }
+    SET_SVALUE_MALLOC_STRING(sp, str);
 }
 #endif
 
@@ -173,7 +170,7 @@ void f_write_file (void) {
     {
       flags = (int)(sp--)->u.number;
     }
-  flags = write_file ((sp - 1)->u.string, sp->u.string, flags);
+  flags = write_file (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), flags);
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_number (flags);
@@ -182,7 +179,7 @@ void f_write_file (void) {
 
 #ifdef F_FILE_SIZE
 void f_file_size (void) {
-  int i = file_size (sp->u.string);
+  int i = file_size (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   put_number (i);
 }
@@ -244,7 +241,7 @@ int file_length (char *file) {
 void f_file_length (void) {
   int l;
 
-  l = file_length (sp->u.string);
+  l = file_length (SVALUE_STRPTR(sp));
   pop_stack ();
   push_number (l);
 }
@@ -255,7 +252,7 @@ void f_file_length (void) {
 void f_get_dir (void) {
   array_t *vec;
 
-  vec = get_dir ((sp - 1)->u.string, (int)(sp->u.number));
+  vec = get_dir (SVALUE_STRPTR(sp - 1), (int)(sp->u.number));
   free_string_svalue (--sp);
   if (vec)
     {
@@ -280,7 +277,7 @@ void f_link (void) {
       push_svalue (sp);
       ret = apply_master_ob (APPLY_VALID_LINK, 2);
       if (MASTER_APPROVED (ret))
-        i = do_rename ((sp - 1)->u.string, sp->u.string, F_LINK);
+        i = do_rename (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), F_LINK);
       else
         i = 0;
       (--sp)->type = T_NUMBER;
@@ -306,7 +303,7 @@ void f_read_bytes (void) {
     {
       len = (size_t)arg[2].u.number;
     }
-  str = read_bytes (arg[0].u.string, start, len, &rlen);
+  str = read_bytes (SVALUE_STRPTR(&arg[0]), start, len, &rlen);
   pop_n_elems (num_arg);
   if (str == 0)
     push_number (0);
@@ -338,7 +335,7 @@ void f_read_buffer (void) {
   if (arg[0].type == T_STRING)
     {
       from_file = 1;		/* new line */
-      str = read_bytes (arg[0].u.string, start, len, &rlen);
+      str = read_bytes (SVALUE_STRPTR(&arg[0]), start, len, &rlen);
     }
   else
     {				/* T_BUFFER */
@@ -382,17 +379,17 @@ void f_write_bytes (void) {
           bad_arg (3, F_WRITE_BYTES);
         netint = htonl ((unsigned long)sp->u.number);	/* convert to network byte-order */
         netbuf = (char *) &netint;
-        i = write_bytes ((sp - 2)->u.string, (long)(sp - 1)->u.number, netbuf, sizeof (int));
+        i = write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number, netbuf, sizeof (int));
         break;
       }
 
     case T_BUFFER:
-      i = write_bytes ((sp - 2)->u.string, (long)(sp - 1)->u.number,
+      i = write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number,
                        (char *) sp->u.buf->item, sp->u.buf->size);
       break;
     case T_STRING:
-      i = write_bytes ((sp - 2)->u.string, (long)(sp - 1)->u.number,
-                       sp->u.string, SVALUE_STRLEN (sp));
+      i = write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number,
+                       SVALUE_STRPTR(sp), SVALUE_STRLEN (sp));
       break;
     default:
       bad_argument (sp, T_BUFFER | T_STRING | T_NUMBER, 3, F_WRITE_BYTES);
@@ -432,7 +429,7 @@ void f_write_buffer (void) {
       break;
     case T_STRING:
       i = write_buffer ((sp - 2)->u.buf, (long)(sp - 1)->u.number,
-                        sp->u.string, SVALUE_STRLEN (sp));
+                        SVALUE_STRPTR(sp), SVALUE_STRLEN (sp));
       break;
     default:
       bad_argument (sp, T_BUFFER | T_STRING | T_NUMBER, 3, F_WRITE_BUFFER);
@@ -449,7 +446,7 @@ void f_restore_object (void) {
   int flag;
 
   flag = (st_num_arg > 1) ? (int)(sp--)->u.number : 0;
-  flag = restore_object (current_object, sp->u.string, flag);
+  flag = restore_object (current_object, SVALUE_STRPTR(sp), flag);
   free_string_svalue (sp);
   put_number (flag);
 }
@@ -461,7 +458,7 @@ void f_save_object (void) {
   int flag;
 
   flag = (st_num_arg == 2) && (sp--)->u.number;
-  flag = save_object (current_object, sp->u.string, flag);
+  flag = save_object (current_object, SVALUE_STRPTR(sp), flag);
   free_string_svalue (sp);
   put_number (flag);
 }

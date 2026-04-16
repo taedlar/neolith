@@ -41,7 +41,7 @@ pstrcmp (const void *p1, const void *p2)
   svalue_t *x = (svalue_t *) p1;
   svalue_t *y = (svalue_t *) p2;
 
-  return strcmp (x->u.string, y->u.string);
+  return strcmp (SVALUE_STRPTR(x), SVALUE_STRPTR(y));
 }
 
 static int
@@ -50,7 +50,7 @@ parrcmp (const void *p1, const void *p2)
   svalue_t *x = (svalue_t *) p1;
   svalue_t *y = (svalue_t *) p2;
 
-  return strcmp (x->u.arr->item[0].u.string, y->u.arr->item[0].u.string);
+  return strcmp (SVALUE_STRPTR(&x->u.arr->item[0]), SVALUE_STRPTR(&y->u.arr->item[0]));
 }
 
 static void
@@ -60,9 +60,7 @@ encode_stat (svalue_t * vp, int flags, char *str, struct stat *st)
     {
       array_t *v = allocate_empty_array (3);
 
-      v->item[0].type = T_STRING;
-      v->item[0].subtype = STRING_MALLOC;
-      v->item[0].u.string = string_copy (str, "encode_stat");
+      SET_SVALUE_MALLOC_STRING(&v->item[0], string_copy (str, "encode_stat"));
       v->item[1].type = T_NUMBER;
       v->item[1].u.number = ((st->st_mode & S_IFDIR) ? -2 : st->st_size);
       v->item[2].type = T_NUMBER;
@@ -72,9 +70,7 @@ encode_stat (svalue_t * vp, int flags, char *str, struct stat *st)
     }
   else
     {
-      vp->type = T_STRING;
-      vp->subtype = STRING_MALLOC;
-      vp->u.string = string_copy (str, "encode_stat");
+      SET_SVALUE_MALLOC_STRING(vp, string_copy (str, "encode_stat"));
     }
 }
 
@@ -791,16 +787,15 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
         return 0;
       if (v->type == T_STRING)
         {
-          ret_path = v->u.string;
+          ret_path = SVALUE_STRPTR(v);
         }
     }
 
   if (!ret_path)
     {
       free_svalue (&apply_ret_value, "check_valid_path");
-      apply_ret_value.type = T_STRING;
-      apply_ret_value.subtype = STRING_MALLOC;
-      ret_path = apply_ret_value.u.string = string_copy (path, "check_valid_path");
+      SET_SVALUE_MALLOC_STRING(&apply_ret_value, string_copy (path, "check_valid_path"));
+      ret_path = apply_ret_value.u.malloc_string;
     }
 
   if (ret_path[0] == '/')

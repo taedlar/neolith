@@ -399,7 +399,7 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     simulate_input("input");
     
     // Cleanup our local references
-    free_string(lpc::svalue_view::from(&args[0]).shared_string());
+    free_string(to_shared_str(lpc::svalue_view::from(&args[0]).shared_string()));
     free_array(args[1].u.arr);
 }
 

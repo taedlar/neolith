@@ -98,7 +98,7 @@ TEST_F(EfunsTest, toJsonMapping) {
     ASSERT_NE(val, nullptr);
     /* find_for_insert converts STRING_CONSTANT to STRING_SHARED via svalue_to_int;
      * key.u.shared_string now points to the shared string — release the extra ref. */
-    free_string(key_view.shared_string());
+    free_string(to_shared_str(key_view.shared_string()));
     lpc::svalue_view::from(val).set_number(99);
     push_refed_mapping(m); /* transfer ownership to stack */
     f_to_json();
@@ -180,7 +180,7 @@ TEST_F(EfunsTest, fromJsonBuffer) {
     f_from_json();
 
     ASSERT_EQ(sp->type, T_MAPPING);
-    svalue_t *found = find_string_in_mapping(sp->u.map, (char *)"a");
+    svalue_t *found = find_string_in_mapping(sp->u.map, "a");
     ASSERT_NE(found, &const0u) << "key 'a' not found in from_json buffer result mapping";
     auto view = lpc::svalue_view::from(found);
     ASSERT_TRUE(view.is_number());
@@ -228,7 +228,7 @@ TEST_F(EfunsTest, fromJsonObject) {
     f_from_json();
     ASSERT_EQ(sp->type, T_MAPPING);
     /* find_string_in_mapping returns &const0u for missing keys; check value type and number */
-    svalue_t *found = find_string_in_mapping(sp->u.map, (char *)"a");
+    svalue_t *found = find_string_in_mapping(sp->u.map, "a");
     ASSERT_NE(found, &const0u) << "key 'a' not found in from_json result mapping";
     auto view = lpc::svalue_view::from(found);
     ASSERT_TRUE(view.is_number());
@@ -311,7 +311,7 @@ TEST_F(EfunsTest, fromJsonLargeBuffer) {
 
     ASSERT_EQ(sp->type, T_MAPPING);
     /* Spot-check first and last key */
-    svalue_t *v0 = find_string_in_mapping(sp->u.map, (char *)"k000");
+    svalue_t *v0 = find_string_in_mapping(sp->u.map, "k000");
     ASSERT_NE(v0, &const0u) << "key 'k000' not found";
     ASSERT_TRUE(lpc::svalue_view::from(v0).is_string());
     ASSERT_EQ(lpc::svalue_view::from(v0).length(), VALUE_LEN) << "value length mismatch for key 'k000'";

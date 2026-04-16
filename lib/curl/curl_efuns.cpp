@@ -95,7 +95,7 @@ static void free_callback_state(curl_http_t *handle) {
     }
   }
   else if (handle->callback.s) {
-    free_string(handle->callback.s);
+    free_string(to_shared_str(handle->callback.s));
   }
 
   handle->callback.s = nullptr;
@@ -284,7 +284,7 @@ static void set_headers_from_array(curl_http_t *handle, array_t *headers) {
       error("perform_using(headers, value) requires a string or string array.\n");
     }
 
-    new_headers = curl_slist_append(new_headers, item->u.string);
+    new_headers = curl_slist_append(new_headers, SVALUE_STRPTR(item));
     if (!new_headers) {
       error("Out of memory while configuring CURL headers.\n");
     }
@@ -311,7 +311,7 @@ static void configure_option(curl_http_t *handle, const char *option, svalue_t *
     if (handle->url) {
       FREE(handle->url);
     }
-    handle->url = dup_bytes(value->u.string, SVALUE_STRLEN(value));
+    handle->url = dup_bytes(SVALUE_STRPTR(value), SVALUE_STRLEN(value));
     if (!handle->url) {
       error("Out of memory while configuring CURL url.\n");
     }
@@ -355,7 +355,7 @@ static void configure_option(curl_http_t *handle, const char *option, svalue_t *
 
     if (value->type == T_STRING) {
       size = SVALUE_STRLEN(value);
-      handle->post_data = dup_bytes(value->u.string, size);
+      handle->post_data = dup_bytes(SVALUE_STRPTR(value), size);
       handle->post_size = static_cast<int>(size);
     }
     else if (value->type == T_BUFFER) {
@@ -642,7 +642,7 @@ static void store_callback(curl_http_t *handle, svalue_t *callback_value) {
   }
 
   handle->callback_is_fp = 0;
-  handle->callback.s = make_shared_string(callback_value->u.string, NULL);
+  handle->callback.s = make_shared_string(SVALUE_STRPTR(callback_value), NULL);
 }
 
 }  // namespace
@@ -710,7 +710,7 @@ extern "C" void f_perform_using(void) {
     error("Failed to create CURL easy handle.\n");
   }
 
-  option = option_value->u.string;
+  option = SVALUE_STRPTR(option_value);
   configure_option(handle, option, setting_value);
   handle->state = CURL_STATE_CONFIGURED;
   pop_n_elems(2);

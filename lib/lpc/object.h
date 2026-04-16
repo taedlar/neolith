@@ -111,7 +111,7 @@ void remove_living_name(object_t *);
 void stat_living_objects(outbuffer_t *);
 void tell_npc(object_t *, char *);
 void tell_object(object_t *, char *);
-int find_global_variable(program_t *, char *, unsigned short *);
+int find_global_variable(program_t *, const char *, unsigned short *);
 void dealloc_object(object_t *, const char *);
 
 #ifdef __cplusplus

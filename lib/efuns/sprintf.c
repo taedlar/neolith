@@ -342,7 +342,7 @@ void svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent, char de
       {
         const char* str;
         outbuf_add (outbuf, "\"");
-        for (str = obj->u.string; *str; ++str)
+        for (str = SVALUE_STRPTR(obj); *str; ++str)
           {
             switch (*str)
               {
@@ -541,7 +541,7 @@ void svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent, char de
             if (temp && temp != (svalue_t *) - 1 && (temp->type == T_STRING))
               {
                 outbuf_add (outbuf, " (\"");
-                outbuf_add (outbuf, temp->u.string);
+                outbuf_add (outbuf, SVALUE_STRPTR(temp));
                 outbuf_add (outbuf, "\")");
               }
           }
@@ -1121,9 +1121,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                   svalue_to_string (carg, &outbuf, 0, 0, 0);
                   outbuf_fix (&outbuf);
 
-                  clean.type = T_STRING;
-                  clean.subtype = STRING_MALLOC;
-                  clean.u.string = outbuf.buffer;
+                  SET_SVALUE_MALLOC_STRING (&clean, outbuf.buffer);
                   carg = &clean;
                   finfo ^= INFO_T_LPC;
                   finfo |= INFO_T_STRING;
@@ -1142,9 +1140,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                    */
                   if (carg->type == T_NUMBER && carg->u.number == 0)
                     {
-                      clean.type = T_STRING;
-                      clean.subtype = STRING_MALLOC;
-                      clean.u.string = string_copy (NULL_MSG, "sprintf NULL");
+                      SET_SVALUE_MALLOC_STRING (&clean, string_copy (NULL_MSG, "sprintf NULL"));
                       carg = &clean;
                     }
                   else if (carg->type != T_STRING)
@@ -1170,7 +1166,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                           *temp =
                             ALLOCATE (cst, TAG_TEMPORARY, "string_print: 3");
                           (*temp)->next = 0;
-                          (*temp)->d.col = carg->u.string;
+                          (*temp)->d.col = SVALUE_STRPTR(carg);
                           (*temp)->pad = make_pad (&pad);
                           (*temp)->size = fs;
                           (*temp)->pres = (pres) ? pres : fs;
@@ -1191,7 +1187,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                           unsigned int n, len, max_len;
                           char *p1, *p2;
 
-#define TABLE carg->u.string
+#define TABLE SVALUE_STRPTR(carg)
 
                           (*temp) = ALLOCATE (cst, TAG_TEMPORARY, "string_print: 4");
                           (*temp)->d.tab = 0;
@@ -1294,11 +1290,11 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                     {		/* not column or table */
                       if (pres && pres < (int)slen)
                         slen = pres;
-                      add_justified (carg->u.string, slen, &pad, fs, finfo, (
+                      add_justified (SVALUE_STRPTR(carg), slen, &pad, fs, finfo, (
                         ((format_str[fpos] != '\n') && (format_str[fpos] != '\0')) ||
                         ((finfo & INFO_ARRAY) && (nelemno < (argv + cur_arg)->u.arr->size))
                         ) ||
-                        carg->u.string[slen - 1] != '\n'
+                        SVALUE_STRPTR(carg)[slen - 1] != '\n'
                       );
                     }
                 }
@@ -1404,20 +1400,18 @@ void f_sprintf (void) {
   char *s;
   int num_arg = st_num_arg;
 
-  s = string_print_formatted ((sp - num_arg + 1)->u.string,
+  s = string_print_formatted (SVALUE_STRPTR(sp - num_arg + 1),
                               num_arg - 1, sp - num_arg + 2);
   pop_n_elems (num_arg);
 
-  (++sp)->type = T_STRING;
+  ++sp;
   if (!s)
     {
-      sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      SET_SVALUE_CONSTANT_STRING (sp, "");
     }
   else
     {
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = s;
+      SET_SVALUE_MALLOC_STRING (sp, s);
     }
 }
 #endif
@@ -1430,7 +1424,7 @@ void f_printf (void) {
 
   if (command_giver)
     {
-      ret = string_print_formatted ((sp - num_arg + 1)->u.string,
+      ret = string_print_formatted (SVALUE_STRPTR(sp - num_arg + 1),
                                     num_arg - 1, sp - num_arg + 2);
       if (ret)
         {

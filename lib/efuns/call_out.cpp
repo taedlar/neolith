@@ -49,7 +49,7 @@ free_called_call (pending_call_t * cop)
   cop->next = call_list_free;
   if (cop->ob)
     {
-      free_string (cop->function.s);
+      free_string (to_shared_str(cop->function.s));
       free_object (cop->ob, "free_call");
     }
   else
@@ -104,7 +104,7 @@ int new_call_out (object_t * ob, svalue_t * fun, time_t delay, int num_args, sva
 
   if (fun->type == T_STRING)
     {
-      cop->function.s = make_shared_string(fun->u.string, NULL);
+      cop->function.s = make_shared_string(SVALUE_STRPTR(fun), NULL);
       cop->ob = ob;
       add_ref (ob, "call_out");
     }
@@ -433,18 +433,14 @@ array_t* get_all_call_outs () {
               vv->item[0].type = T_OBJECT;
               vv->item[0].u.ob = cop->ob;
               add_ref (cop->ob, "get_all_call_outs");
-              vv->item[1].type = T_STRING;
-              vv->item[1].subtype = STRING_SHARED;
-              vv->item[1].u.string = make_shared_string(cop->function.s, NULL);
+              SET_SVALUE_SHARED_STRING(&vv->item[1], make_shared_string(cop->function.s, NULL));
             }
           else
             {
               vv->item[0].type = T_OBJECT;
               vv->item[0].u.ob = cop->function.f->hdr.owner;
               add_ref (cop->function.f->hdr.owner, "get_all_call_outs");
-              vv->item[1].type = T_STRING;
-              vv->item[1].subtype = STRING_SHARED;
-              vv->item[1].u.string = make_shared_string("<function>", NULL);
+              SET_SVALUE_SHARED_STRING(&vv->item[1], make_shared_string("<function>", NULL));
             }
           vv->item[2].type = T_NUMBER;
           if (j > tm)
@@ -549,7 +545,7 @@ extern "C" void f_find_call_out (void) {
   else
     {				/* T_STRING */
 #endif
-      i = find_call_out (current_object, sp->u.string);
+      i = find_call_out (current_object, SVALUE_STRPTR(sp));
       free_string_svalue (sp);
 #ifdef CALLOUT_HANDLES
     }
@@ -569,7 +565,7 @@ extern "C" void f_remove_call_out (void) {
       if (sp->type == T_STRING)
         {
 #endif
-          i = remove_call_out (current_object, sp->u.string);
+          i = remove_call_out (current_object, SVALUE_STRPTR(sp));
           free_string_svalue (sp);
 #ifdef CALLOUT_HANDLES
         }

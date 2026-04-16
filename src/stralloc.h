@@ -5,34 +5,60 @@
 #include <limits.h>
 #endif
 
+#include <string.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /*
- * Typed aliases for contract-bearing char * parameters.
+ * Typed aliases for runtime string storage.
  *
  * shared_str_t: a char * known to be a STRING_SHARED payload (block_t header
  *               immediately precedes the pointer; managed by the shared string
- *               table).  Pass to ref_string() and free_string().
+ *               table).
  *
  * malloc_str_t: a char * known to be a STRING_MALLOC payload (malloc_block_t
- *               header immediately precedes the pointer).  Pass to
- *               extend_string(); returned by new_string() and
- *               string_copy().
+ *               header immediately precedes the pointer).
  *
- * In all build modes the typedefs are transparent (identical to char *), so no
- * existing call sites require changes and there is no runtime overhead.
- * When STRING_TYPE_SAFETY is defined (default ON), the boundary functions
- * additionally validate their pointer contract at runtime even in release builds.
- *
- * Path to full compile-time enforcement: change the typedefs to opaque struct
- * pointer types, update struct fields / variables that store typed strings, and
- * add SHARED_STR()/MALLOC_STR() cast macros at call sites where conversion is
- * needed.
+ * Contract-bearing APIs use explicit handle types (shared_str_handle_t /
+ * malloc_str_handle_t). Under STRING_TYPE_SAFETY these are abstract handles
+ * that require explicit bridge conversion. Otherwise they collapse to raw
+ * pointers for compatibility.
  */
-typedef char *shared_str_t;  /* STRING_SHARED payload pointer */
-typedef char *malloc_str_t;  /* STRING_MALLOC payload pointer */
+typedef char *shared_str_t;  /* STRING_SHARED payload pointer storage alias */
+typedef char *malloc_str_t;  /* STRING_MALLOC payload pointer storage alias */
+
+#ifdef STRING_TYPE_SAFETY
+typedef struct {
+        char *raw;
+} shared_str_handle_t;
+
+typedef struct {
+        char *raw;
+} malloc_str_handle_t;
+
+#define SHARED_STR_P(x) ((x).raw)
+#define MALLOC_STR_P(x) ((x).raw)
+
+static inline shared_str_handle_t to_shared_str(shared_str_t p) {
+        shared_str_handle_t h = { p };
+        return h;
+}
+
+static inline malloc_str_handle_t to_malloc_str(malloc_str_t p) {
+        malloc_str_handle_t h = { p };
+        return h;
+}
+#else
+typedef char *shared_str_handle_t;
+typedef char *malloc_str_handle_t;
+
+#define SHARED_STR_P(x) (x)
+#define MALLOC_STR_P(x) (x)
+#define to_shared_str(x) (x)
+#define to_malloc_str(x) (x)
+#endif
 
 struct outbuffer_s;
 typedef struct outbuffer_s outbuffer_t;
@@ -76,7 +102,7 @@ typedef struct malloc_block_s {
     unsigned short ref;
 } malloc_block_t;
 
-#define MSTR_BLOCK(x) (((malloc_block_t *)(x)) - 1) 
+#define MSTR_BLOCK(x) (((malloc_block_t *)(x)) - 1)
 #define MSTR_REF(x) (MSTR_BLOCK(x)->ref)
 #define MSTR_SIZE(x) (MSTR_BLOCK(x)->size)
 #define MSTR_BLKEND(x) (MSTR_BLOCK(x)->blkend)
@@ -142,9 +168,19 @@ typedef struct malloc_block_s {
 
 #define SHARED_STRLEN(x) COUNTED_STRLEN(x)
 
+#define SVALUE_COUNTED_STRLEN(x) (((x)->subtype == STRING_MALLOC) ? \
+                                  COUNTED_STRLEN((x)->u.malloc_string) : \
+                                  COUNTED_STRLEN((x)->u.shared_string))
+
+#define SVALUE_STRPTR(x) ((char *)(((x)->subtype == STRING_MALLOC) ? \
+                          (x)->u.malloc_string : \
+                          (((x)->subtype == STRING_SHARED) ? \
+                           (x)->u.shared_string : \
+                           (x)->u.const_string)))
+
 #define SVALUE_STRLEN(x) (((x)->subtype & STRING_COUNTED) ? \
-                          COUNTED_STRLEN((x)->u.string) : \
-                          strlen((x)->u.string))
+                          SVALUE_COUNTED_STRLEN(x) : \
+                          strlen((x)->u.const_string))
 
 /*
  * Compare two svalue string lengths.
@@ -152,7 +188,7 @@ typedef struct malloc_block_s {
  * - Any path involving STRING_CONSTANT falls back to SVALUE_STRLEN(), which uses strlen.
  */
 #define SVALUE_STRLEN_DIFFERS(x, y) ((((x)->subtype & STRING_COUNTED) && ((y)->subtype & STRING_COUNTED)) \
-        ? (COUNTED_STRLEN((x)->u.string) != COUNTED_STRLEN((y)->u.string)) \
+        ? (SVALUE_COUNTED_STRLEN(x) != SVALUE_COUNTED_STRLEN(y)) \
         : (SVALUE_STRLEN(x) != SVALUE_STRLEN(y)))
 
 extern void init_strings(size_t hash_size, size_t max_len);
@@ -170,15 +206,67 @@ extern size_t add_string_status(outbuffer_t *, int);
 /* STRING_SHARED */
 extern shared_str_t findstring(const char *, const char *);
 extern shared_str_t make_shared_string(const char *, const char *);
-extern shared_str_t ref_string(shared_str_t);
-extern void free_string(shared_str_t);
+extern shared_str_t ref_string(shared_str_handle_t);
+extern void free_string(shared_str_handle_t);
 
 /* STRING_MALLOC */
 extern malloc_str_t int_new_string(size_t);
 extern malloc_str_t int_string_copy(const char *, const char *);
-extern malloc_str_t int_extend_string(malloc_str_t, size_t);
-extern malloc_str_t int_string_unlink (malloc_str_t);
+extern malloc_str_t int_extend_string(malloc_str_handle_t, size_t);
+extern malloc_str_t int_string_unlink (malloc_str_handle_t);
 extern char *int_alloc_cstring(const char *, const char *);
+
+#ifdef STRING_TYPE_SAFETY
+static inline int is_shared_string_payload(shared_str_t p) {
+        unsigned short size;
+
+        if (p == 0)
+                return 0;
+
+        /* Shared strings are always shorter than USHRT_MAX by invariant. */
+        size = MSTR_SIZE(p);
+        if (size == USHRT_MAX)
+                return 0;
+
+#ifdef STRING_TYPE_SAFETY_STRICT
+        {
+                size_t len = SHARED_STRLEN(p);
+                return findstring(p, len ? p + len : NULL) == p;
+        }
+#else
+        return 1;
+#endif
+
+}
+
+static inline int is_malloc_string_payload(malloc_str_t p) {
+        unsigned short size;
+
+        if (p == 0)
+                return 0;
+
+        size = MSTR_SIZE(p);
+
+        /*
+         * Fast-path classifier for hot boundaries (push/put malloced string):
+         * - size == USHRT_MAX: this is a long STRING_MALLOC sentinel form.
+         * - size < USHRT_MAX: ambiguous with STRING_SHARED; do not inspect
+         *   MSTR_BLKEND here because pointer provenance is unknown and that
+         *   field is not layout-compatible with block_t for classification.
+         */
+        if (size == USHRT_MAX)
+                return 1;
+
+#ifdef STRING_TYPE_SAFETY_STRICT
+        {
+                size_t len = COUNTED_STRLEN(p);
+                return findstring(p, len ? p + len : NULL) != p;
+        }
+#else
+        return 1;
+#endif
+}
+#endif
 
 #ifdef __cplusplus
 }

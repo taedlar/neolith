@@ -310,9 +310,7 @@ int check_valid_socket (char *what, socket_fd_t fd, object_t * owner, char *addr
   info->item[0].type = T_NUMBER;
   info->item[0].u.number = fd;
   assign_socket_owner (&info->item[1], owner);
-  info->item[2].type = T_STRING;
-  info->item[2].subtype = STRING_SHARED;
-  info->item[2].u.string = make_shared_string(addr, NULL);
+  SET_SVALUE_SHARED_STRING(&info->item[2], make_shared_string(addr, NULL));
   info->item[3].type = T_NUMBER;
   info->item[3].u.number = port;
 
@@ -599,7 +597,7 @@ void set_read_callback (int which, svalue_t * cb) {
       lpc_socks[which].flags &= ~S_READ_FP;
     }
   else if ((s = lpc_socks[which].read_callback.s))
-    free_string (s);
+    free_string(to_shared_str(s));
 
   if (cb)
     {
@@ -612,7 +610,7 @@ void set_read_callback (int which, svalue_t * cb) {
       else
         {
           lpc_socks[which].read_callback.s =
-            make_shared_string(cb->u.string, NULL);
+            make_shared_string(SVALUE_STRPTR(cb), NULL);
         }
     }
   else
@@ -629,7 +627,7 @@ void set_write_callback (int which, svalue_t * cb) {
       lpc_socks[which].flags &= ~S_WRITE_FP;
     }
   else if ((s = lpc_socks[which].write_callback.s))
-    free_string (s);
+    free_string(to_shared_str(s));
 
   if (cb)
     {
@@ -642,7 +640,7 @@ void set_write_callback (int which, svalue_t * cb) {
       else
         {
           lpc_socks[which].write_callback.s =
-            make_shared_string(cb->u.string, NULL);
+            make_shared_string(SVALUE_STRPTR(cb), NULL);
         }
     }
   else
@@ -659,7 +657,7 @@ void set_close_callback (int which, svalue_t * cb) {
       lpc_socks[which].flags &= ~S_CLOSE_FP;
     }
   else if ((s = lpc_socks[which].close_callback.s))
-    free_string (s);
+    free_string(to_shared_str(s));
 
   if (cb)
     {
@@ -672,7 +670,7 @@ void set_close_callback (int which, svalue_t * cb) {
       else
         {
           lpc_socks[which].close_callback.s =
-            make_shared_string(cb->u.string, NULL);
+            make_shared_string(SVALUE_STRPTR(cb), NULL);
         }
     }
   else
@@ -688,7 +686,7 @@ static void copy_close_callback (int to, int from) {
       free_funp (lpc_socks[to].close_callback.f);
     }
   else if ((s = lpc_socks[to].close_callback.s))
-    free_string (s);
+    free_string(to_shared_str(s));
 
   if (lpc_socks[from].flags & S_CLOSE_FP)
     {
@@ -701,7 +699,7 @@ static void copy_close_callback (int to, int from) {
       lpc_socks[to].flags &= ~S_CLOSE_FP;
       s = lpc_socks[to].close_callback.s = lpc_socks[from].close_callback.s;
       if (s)
-        ref_string (s);
+        ref_string(to_shared_str(s));
     }
 }
 
@@ -1270,7 +1268,7 @@ int socket_write (int i, svalue_t * message, char *name) {
           buf = (char *) DMALLOC (len + 1, TAG_TEMPORARY, "socket_write: T_STRING");
           if (buf == NULL)
             fatal ("Out of memory");
-          strcpy (buf, message->u.string);
+          strcpy (buf, SVALUE_STRPTR (message));
           break;
         case T_ARRAY:
           {
@@ -1309,8 +1307,8 @@ int socket_write (int i, svalue_t * message, char *name) {
       switch (message->type)
         {
         case T_STRING:
-          if (sendto (lpc_socks[i].fd, (char *) message->u.string,
-                      (int)strlen (message->u.string) + 1, 0,
+          if (sendto (lpc_socks[i].fd, (char *) SVALUE_STRPTR (message),
+                      (int)strlen (SVALUE_STRPTR (message)) + 1, 0,
                       (struct sockaddr *) &sin, sizeof (sin)) == -1)
             {
               debug_error ("sendto() failed: %d", SOCKET_ERRNO);
@@ -1722,7 +1720,7 @@ int socket_release (int i, object_t * ob, svalue_t * callback) {
   if (callback->type == T_FUNCTION)
     safe_call_function_pointer (callback->u.fp, 2);
   else
-    safe_apply (callback->u.string, ob, 2, ORIGIN_DRIVER);
+    safe_apply (SVALUE_STRPTR (callback), ob, 2, ORIGIN_DRIVER);
 
   if (socket_release_test_hook && (lpc_socks[i].flags & S_RELEASE))
     socket_release_test_hook (i, ob);

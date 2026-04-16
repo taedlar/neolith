@@ -33,16 +33,16 @@ TEST_F(StrAllocTest, initialState) {
 
 TEST_F(StrAllocTest, makeSharedString) {
     // create shared string (reference counted)
-    char* str1 = make_shared_string("hello world", NULL);
-    char* str2 = make_shared_string("hello world", NULL);
+    shared_str_t str1 = make_shared_string("hello world", NULL);
+    shared_str_t str2 = make_shared_string("hello world", NULL);
     EXPECT_EQ(str1, str2);
 
-    free_string(str1);
-    char* str3 = make_shared_string("hello world", NULL);
+    free_string(to_shared_str(str1));
+    shared_str_t str3 = make_shared_string("hello world", NULL);
     EXPECT_EQ(str2, str3);
 
-    free_string(str2);
-    free_string(str3);
+    free_string(to_shared_str(str2));
+    free_string(to_shared_str(str3));
     EXPECT_EQ(num_distinct_strings, 0);
 }
 
@@ -51,20 +51,20 @@ TEST_F(StrAllocTest, findString) {
     shared_str_t found1 = findstring("test string", NULL); // no reference count increase
     EXPECT_EQ(str1, found1);
 
-    free_string(str1);
+    free_string(to_shared_str(str1));
     shared_str_t found2 = findstring("test string", NULL);
     EXPECT_EQ(found2, nullptr); // should not be found after free
 
     shared_str_t str2 = make_shared_string("test string", NULL);
     found1 = findstring("test string", NULL);
     EXPECT_EQ(str2, found1);
-    shared_str_t str3 = ref_string(found1); // increase reference count
+    shared_str_t str3 = ref_string(to_shared_str(found1)); // increase reference count
 
-    free_string(str2);
+    free_string(to_shared_str(str2));
     shared_str_t found3 = findstring("test string", NULL);
     EXPECT_EQ(str3, found3); // should still be found due to str3
 
-    free_string(str3);
+    free_string(to_shared_str(str3));
     found2 = findstring("test string", NULL);
     EXPECT_EQ(found2, nullptr); // should not be found after all frees
 }
@@ -74,8 +74,8 @@ TEST_F(StrAllocTest, sharedStringOversizeIsTruncatedAndDeduped) {
     std::string input(input_len, 'x');
     std::string truncated(static_cast<size_t>(USHRT_MAX) - 1, 'x');
 
-    char* s1 = make_shared_string(input.c_str(), NULL);
-    char* s2 = make_shared_string(input.c_str(), NULL);
+    shared_str_t s1 = make_shared_string(input.c_str(), NULL);
+    shared_str_t s2 = make_shared_string(input.c_str(), NULL);
 
     EXPECT_EQ(s1, s2);
     EXPECT_EQ(static_cast<size_t>(USHRT_MAX) - 1, strlen(s1));
@@ -83,13 +83,13 @@ TEST_F(StrAllocTest, sharedStringOversizeIsTruncatedAndDeduped) {
     EXPECT_EQ(findstring(input.c_str(), NULL), nullptr);
     EXPECT_EQ(findstring(truncated.c_str(), NULL), s1);
 
-    free_string(s1);
-    free_string(s2);
+    free_string(to_shared_str(s1));
+    free_string(to_shared_str(s2));
 }
 
 TEST_F(StrAllocTest, mallocLongStringTracksBlkendAndCountedLength) {
     const size_t len = static_cast<size_t>(USHRT_MAX) + 37;
-    char* s = new_string(len, "test");
+    malloc_str_t s = new_string(len, "test");
 
     memset(s, 'm', len);
     s[len] = '\0';
@@ -176,9 +176,34 @@ TEST_F(StrAllocTest, unlinkLongMallocStringPreservesBlkendLength) {
     FREE_MSTR(sv_view.malloc_string());
 }
 
+TEST_F(StrAllocTest, svalueViewTypedStringSettersPreserveSubtypeAndPayload) {
+    lpc::svalue shared_owner;
+    lpc::svalue malloc_owner;
+
+    shared_str_t shared = make_shared_string("wrapped shared", NULL);
+    EXPECT_EQ(COUNTED_REF(shared), 1);
+
+    auto shared_view = shared_owner.view();
+    shared_view.set_shared_string(shared);
+    ASSERT_TRUE(shared_view.is_string() && shared_view.is_shared());
+    EXPECT_EQ(shared_view.shared_string(), shared);
+    EXPECT_STREQ(shared_view.c_str(), "wrapped shared");
+    EXPECT_EQ(COUNTED_REF(shared), 1);
+
+    malloc_str_t malloced = new_string(5, "test");
+    memcpy(malloced, "hello", 5);
+    malloced[5] = '\0';
+
+    auto malloc_view = malloc_owner.view();
+    malloc_view.set_malloc_string(malloced);
+    ASSERT_TRUE(malloc_view.is_string() && malloc_view.is_malloc());
+    EXPECT_EQ(malloc_view.malloc_string(), malloced);
+    EXPECT_STREQ(malloc_view.c_str(), "hello");
+}
+
 TEST_F(StrAllocTest, longMallocStringFallbackWorksWhenBlkendMissing) {
     const size_t len = static_cast<size_t>(USHRT_MAX) + 29;
-    char* s = new_string(len, "test");
+    malloc_str_t s = new_string(len, "test");
     memset(s, 'f', len);
     s[len] = '\0';
 
@@ -195,48 +220,48 @@ TEST_F(StrAllocTest, sharedStringAtUshortMaxIsTruncatedToUshortMaxMinusOne) {
     std::string input(input_len, 'z');
     std::string truncated(static_cast<size_t>(USHRT_MAX) - 1, 'z');
 
-    char* s = make_shared_string(input.c_str(), NULL);
+    shared_str_t s = make_shared_string(input.c_str(), NULL);
 
     EXPECT_EQ(strlen(s), static_cast<size_t>(USHRT_MAX) - 1);
     EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX - 1));
     EXPECT_EQ(findstring(truncated.c_str(), NULL), s);
     EXPECT_EQ(findstring(input.c_str(), NULL), nullptr);
 
-    free_string(s);
+    free_string(to_shared_str(s));
 }
 
 TEST_F(StrAllocTest, sharedStringFromNonNullTerminatedSpanRoundTrips) {
     std::array<char, 5> bytes = {'h', 'e', 'l', 'l', 'o'};
 
-    char* s = make_shared_string(bytes.data(), bytes.data() + bytes.size());
+    shared_str_t s = make_shared_string(bytes.data(), bytes.data() + bytes.size());
     EXPECT_NE(s, nullptr);
     EXPECT_EQ(MSTR_SIZE(s), bytes.size());
 
-    char* found_span = findstring(bytes.data(), bytes.data() + bytes.size());
+    shared_str_t found_span = findstring(bytes.data(), bytes.data() + bytes.size());
     EXPECT_EQ(found_span, s);
 
-    char* found_cstr = findstring("hello", NULL);
+    shared_str_t found_cstr = findstring("hello", NULL);
     EXPECT_EQ(found_cstr, s);
 
-    free_string(s);
+    free_string(to_shared_str(s));
 }
 
 TEST_F(StrAllocTest, sharedStringEmbeddedNulSpanIsDistinctFromPrefix) {
     std::array<char, 5> bytes = {'a', 'b', '\0', 'c', 'd'};
 
-    char* s1 = make_shared_string(bytes.data(), bytes.data() + bytes.size());
-    char* s2 = make_shared_string(bytes.data(), bytes.data() + bytes.size());
+    shared_str_t s1 = make_shared_string(bytes.data(), bytes.data() + bytes.size());
+    shared_str_t s2 = make_shared_string(bytes.data(), bytes.data() + bytes.size());
 
     EXPECT_EQ(s1, s2);
     EXPECT_EQ(MSTR_SIZE(s1), bytes.size());
     EXPECT_EQ(memcmp(s1, bytes.data(), bytes.size()), 0);
 
-    char* found_span = findstring(bytes.data(), bytes.data() + bytes.size());
+    shared_str_t found_span = findstring(bytes.data(), bytes.data() + bytes.size());
     EXPECT_EQ(found_span, s1);
 
-    char* found_prefix = findstring("ab", NULL);
+    shared_str_t found_prefix = findstring("ab", NULL);
     EXPECT_EQ(found_prefix, nullptr);
 
-    free_string(s1);
-    free_string(s2);
+    free_string(to_shared_str(s1));
+    free_string(to_shared_str(s2));
 }

@@ -61,7 +61,7 @@ size_t svalue_save_size (const svalue_t * v) {
     {
     case T_STRING:
       {
-        register char *cp = v->u.string;
+        register char *cp = SVALUE_STRPTR(v);
         char c;
         size_t size = 0;
 
@@ -158,7 +158,7 @@ void save_svalue (svalue_t * v, char **buf) {
     {
     case T_STRING:
       {
-        register char *cp = *buf, *str = v->u.string;
+        register char *cp = *buf, *str = SVALUE_STRPTR(v);
         char c;
 
         *cp++ = '"';
@@ -584,11 +584,11 @@ static int restore_interior_string (char **val, svalue_t * sv) {
                   return ROB_STRING_ERROR;
                 *newp = '\0';
                 *val = cp;
-                sv->u.string = new_string (len = (newp - start),
-                                           "restore_string");
-                strcpy (sv->u.string, start);
-                sv->type = T_STRING;
-                sv->subtype = STRING_MALLOC;
+                {
+                  char *restored = new_string (len = (newp - start), "restore_string");
+                  strcpy (restored, start);
+                  SET_SVALUE_MALLOC_STRING (sv, restored);
+                }
                 return 0;
               }
             else
@@ -606,10 +606,11 @@ static int restore_interior_string (char **val, svalue_t * sv) {
   *val = cp;
   *--cp = '\0';
   len = (size_t)(cp - start);
-  sv->u.string = new_string (len, "restore_string");
-  strcpy (sv->u.string, start);
-  sv->type = T_STRING;
-  sv->subtype = STRING_MALLOC;
+  {
+    char *restored = new_string (len, "restore_string");
+    strcpy (restored, start);
+    SET_SVALUE_MALLOC_STRING (sv, restored);
+  }
   return 0;
 }
 
@@ -1222,10 +1223,11 @@ int restore_string (char *val, svalue_t * sv) {
                 if ((c == '\0') || (*cp != '\0'))
                   return ROB_STRING_ERROR;
                 *newp = '\0';
-                sv->u.string = new_string (newp - start, "restore_string");
-                strcpy (sv->u.string, start);
-                sv->type = T_STRING;
-                sv->subtype = STRING_MALLOC;
+                {
+                  char *restored = new_string (newp - start, "restore_string");
+                  strcpy (restored, start);
+                  SET_SVALUE_MALLOC_STRING (sv, restored);
+                }
                 return 0;
               }
             else
@@ -1244,10 +1246,11 @@ int restore_string (char *val, svalue_t * sv) {
     return ROB_STRING_ERROR;
   *cp = '\0';
   len = (size_t)(cp - start);
-  sv->u.string = new_string (len, "restore_string");
-  strcpy (sv->u.string, start);
-  sv->type = T_STRING;
-  sv->subtype = STRING_MALLOC;
+  {
+    char *restored = new_string (len, "restore_string");
+    strcpy (restored, start);
+    SET_SVALUE_MALLOC_STRING (sv, restored);
+  }
   return 0;
 }
 
@@ -1403,9 +1406,9 @@ static int fgv_recurse (program_t * prog, int *idx, char *name, unsigned short *
   return 0;
 }
 
-int find_global_variable (program_t * prog, char *name, unsigned short *type) {
+int find_global_variable (program_t * prog, const char *name, unsigned short *type) {
   int idx = 0;
-  char *str = findstring(name, NULL);
+  shared_str_t str = findstring(name, NULL);
 
   if (str && fgv_recurse (prog, &idx, str, type))
     {
@@ -1858,13 +1861,13 @@ void free_sentence (sentence_t * p) {
   else
     {
       if (p->function.s)
-        free_string (p->function.s);
+        free_string(to_shared_str(p->function.s));
       p->function.s = 0;
     }
 
   if (p->verb)
     {
-      free_string (p->verb);
+      free_string(to_shared_str(p->verb));
       p->verb = 0;
     }
 
@@ -1924,7 +1927,7 @@ void dealloc_object (object_t * ob, const char *from) {
     }
 #ifdef PRIVS
   if (ob->privs)
-    free_string (ob->privs);
+    free_string(to_shared_str(ob->privs));
 #endif
   if (ob->name)
     {
@@ -2054,7 +2057,7 @@ void remove_living_name (object_t * ob) {
                 "remove_living_name: Object named %s no in hash list.\n",
                 ob->living_name);
   *hl = ob->next_hashed_living;
-  free_string (ob->living_name);
+  free_string(to_shared_str(ob->living_name));
   ob->next_hashed_living = 0;
   ob->living_name = 0;
 }

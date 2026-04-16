@@ -1199,7 +1199,7 @@ short store_prog_string (const char *string_data) {
         {
           if (p[i] == str)
             {
-              free_string (str);	/* needed as string is only freed once. */
+              free_string(to_shared_str(str));	/* needed as string is only freed once. */
               ((short *) mem_block[A_STRING_REFS].block)[i]++;
               return i;
             }
@@ -1294,7 +1294,7 @@ void free_prog_string (int num) {
       next_tab[prv] = next_tab[i];
     }
 
-  free_string (str);		/* important */
+  free_string(to_shared_str(str));		/* important */
   p[i] = 0;
   if (i != top)
     {
@@ -1996,7 +1996,7 @@ copy_and_sort_function_table (program_t * prog, char **p)
     {
       compiler_function_t *funp = COMPILER_FUNC (temp[i]);
       if (funp->name)
-        free_string (funp->name);
+        free_string(to_shared_str(funp->name));
     }
 
   FREE (temp);
@@ -2118,7 +2118,7 @@ static program_t *epilog ()
         remove_overload_warnings (0);
       clean_parser ();
       end_new_file ();
-      free_string (current_file);
+      free_string(to_shared_str(current_file));
       current_file = 0;
       return 0;
     }
@@ -2371,17 +2371,17 @@ static void clean_parser ()
     {
       funp = COMPILER_FUNC (i);
       if (funp->name)
-        free_string (funp->name);
+        free_string(to_shared_str(funp->name));
     }
   n = (int)(mem_block[A_STRINGS].current_size / sizeof (char *));
   for (i = 0; i < n; i++)
     {
-      free_string (*((char **) mem_block[A_STRINGS].block + i));
+      free_string (to_shared_str(*((char **) mem_block[A_STRINGS].block + i)));
     }
   n = (int)(mem_block[A_VAR_NAME].current_size / sizeof (char *));
   for (i = 0; i < n; i++)
     {
-      free_string (*((char **) mem_block[A_VAR_NAME].block + i));
+      free_string (to_shared_str(*((char **) mem_block[A_VAR_NAME].block + i)));
     }
 
   for (i = 0; i < NUMAREAS; i++)

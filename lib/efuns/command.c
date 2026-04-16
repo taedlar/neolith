@@ -31,7 +31,7 @@ f_disable_commands (void)
 void
 f_set_living_name (void)
 {
-  set_living_name (current_object, sp->u.string);
+  set_living_name (current_object, SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
 }
 #endif
@@ -122,7 +122,7 @@ void
 f_find_player (void)
 {
   object_t *ob;
-  ob = find_living_object (sp->u.string, 1);
+  ob = find_living_object (SVALUE_STRPTR(sp), 1);
   free_string_svalue (sp);
   if (ob)
     {
@@ -171,7 +171,7 @@ f_wizardp (void)
 void
 f_find_living (void)
 {
-  object_t *ob = find_living_object (sp->u.string, 0);
+  object_t *ob = find_living_object (SVALUE_STRPTR(sp), 0);
   free_string_svalue (sp);
   /* safe b/c destructed objects have had their living names removed */
   if (ob)
@@ -222,7 +222,7 @@ f_add_action (void)
         {
           if (sv[i].type == T_STRING)
             {
-              add_action (sp - (st_num_arg - 1), sv[i].u.string,
+              add_action (sp - (st_num_arg - 1), SVALUE_STRPTR(&sv[i]),
                          flag & 3, num_carry, carry_args);
             }
         }
@@ -231,7 +231,7 @@ f_add_action (void)
     {
       /* Single verb */
       add_action ((sp - (st_num_arg - 1)),
-                 (sp - (st_num_arg - 2))->u.string,
+                 SVALUE_STRPTR(sp - (st_num_arg - 2)),
                  flag & 3, num_carry, carry_args);
     }
 
@@ -247,7 +247,7 @@ f_remove_action (void)
 {
   int success;
 
-  success = remove_action ((sp - 1)->u.string, sp->u.string);
+  success = remove_action (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_number (success);
@@ -275,7 +275,7 @@ f_command (void)
 {
   int64_t i;
 
-  i = command_for_object (sp->u.string);
+  i = command_for_object (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   put_number (i);
 }
@@ -297,7 +297,7 @@ f_notify_fail (void)
 {
   if (sp->type == T_STRING)
     {
-      set_notify_fail_message (sp->u.string);
+      set_notify_fail_message (SVALUE_STRPTR(sp));
       free_string_svalue (sp--);
     }
   else
@@ -327,10 +327,7 @@ f_query_notify_fail (void)
       else if ((p = command_giver->interactive->default_err_message.s))
         {
           sp++;
-          sp->type = T_STRING;
-          sp->subtype = STRING_SHARED;
-          sp->u.string = p;
-          ref_string (p);
+          SET_SVALUE_SHARED_STRING(sp, ref_string(to_shared_str(p)));
           return;
         }
     }

@@ -14,10 +14,10 @@
 
 #ifdef F_CAPITALIZE
 void f_capitalize (void) {
-  if (islower (sp->u.string[0]))
+  if (islower (SVALUE_STRPTR(sp)[0]))
     {
       unlink_string_svalue (sp);
-      sp->u.string[0] += 'A' - 'a';
+      sp->u.malloc_string[0] += 'A' - 'a';
     }
 }
 #endif
@@ -27,15 +27,15 @@ void f_capitalize (void) {
 void f_lower_case (void) {
   register char *str;
 
-  str = sp->u.string;
+  str = SVALUE_STRPTR(sp);
   /* find first upper case letter, if any */
   for (; *str; str++)
     {
       if (isupper (*str))
         {
-          size_t len = str - sp->u.string;
+          size_t len = str - SVALUE_STRPTR(sp);
           unlink_string_svalue (sp);
-          str = sp->u.string + len;
+          str = sp->u.malloc_string + len;
           *str += 'a' - 'A';
           for (str++; *str; str++)
             {
@@ -53,15 +53,15 @@ void f_lower_case (void) {
 void f_upper_case (void) {
   register char *str;
 
-  str = sp->u.string;
+  str = SVALUE_STRPTR(sp);
   /* find first upper case letter, if any */
   for (; *str; str++)
     {
       if (islower (*str))
         {
-          size_t len = str - sp->u.string;
+          size_t len = str - SVALUE_STRPTR(sp);
           unlink_string_svalue (sp);
-          str = sp->u.string + len;
+          str = sp->u.malloc_string + len;
           *str -= 'a' - 'A';
           for (str++; *str; str++)
             {
@@ -101,13 +101,11 @@ void f_repeat_string (void) {
   if (repeat <= 0)
     {
       free_string_svalue (sp);
-      sp->type = T_STRING;
-      sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      SET_SVALUE_CONSTANT_STRING(sp, "");
     }
   else if (repeat != 1)
     {
-      str = sp->u.string;
+      str = SVALUE_STRPTR(sp);
       len = SVALUE_STRLEN (sp);
       if (len * repeat > (size_t)CONFIG_INT (__MAX_STRING_LENGTH__))
         error ("repeat_string: String too large.\n");
@@ -120,9 +118,7 @@ void f_repeat_string (void) {
         }
       *p = 0;
       free_string_svalue (sp);
-      sp->type = T_STRING;
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = ret;
+      SET_SVALUE_MALLOC_STRING(sp, ret);
     }
 }
 #endif
@@ -141,7 +137,7 @@ void f_crypt (void) {
 
   if (sp->type == T_STRING && SVALUE_STRLEN (sp) >= 2)
     {
-      p = sp->u.string;
+      p = SVALUE_STRPTR(sp);
     }
   else
     {
@@ -154,11 +150,10 @@ void f_crypt (void) {
       p = salt;
     }
 
-  res = string_copy (crypt ((sp - 1)->u.string, p), "f_crypt");
+  res = string_copy (crypt (SVALUE_STRPTR(sp - 1), p), "f_crypt");
   pop_stack ();
   free_string_svalue (sp);
-  sp->subtype = STRING_MALLOC;
-  sp->u.string = res;
+  SET_SVALUE_MALLOC_STRING(sp, res);
 }
 #endif
 
@@ -169,8 +164,8 @@ void f_oldcrypt (void) {
 
   if (sp->type == T_STRING && SVALUE_STRLEN (sp) >= 2)
     {
-      salt[0] = sp->u.string[0];
-      salt[1] = sp->u.string[1];
+      salt[0] = SVALUE_STRPTR(sp)[0];
+      salt[1] = SVALUE_STRPTR(sp)[1];
       free_string_svalue (sp--);
     }
   else
@@ -180,10 +175,9 @@ void f_oldcrypt (void) {
       pop_stack ();
     }
   salt[2] = 0;
-  res = string_copy (crypt (sp->u.string, salt), "f_crypt");
+  res = string_copy (crypt (SVALUE_STRPTR(sp), salt), "f_crypt");
   free_string_svalue (sp);
-  sp->subtype = STRING_MALLOC;
-  sp->u.string = res;
+  SET_SVALUE_MALLOC_STRING(sp, res);
 }
 #endif
 
@@ -196,7 +190,7 @@ void f_crc32 (void) {
   if (sp->type == T_STRING)
     {
       len = SVALUE_STRLEN (sp);
-      buf = (unsigned char *) sp->u.string;
+      buf = (unsigned char *) SVALUE_STRPTR(sp);
     }
   else if (sp->type == T_BUFFER)
     {
@@ -242,7 +236,7 @@ void f_implode (void) {
       /* st_num_arg == 2 here */
       char *str;
 
-      str = implode_string (arr, sp->u.string, SVALUE_STRLEN (sp));
+      str = implode_string (arr, SVALUE_STRPTR(sp), SVALUE_STRLEN (sp));
       free_string_svalue (sp--);
       free_array (arr);
       put_malloced_string (str);
@@ -265,8 +259,8 @@ void f_implode (void) {
 void f_explode (void) {
   array_t *vec;
 
-  vec = explode_string ((sp - 1)->u.string, SVALUE_STRLEN (sp - 1),
-                        sp->u.string, SVALUE_STRLEN (sp));
+  vec = explode_string (SVALUE_STRPTR(sp - 1), SVALUE_STRLEN (sp - 1),
+                        SVALUE_STRPTR(sp), SVALUE_STRLEN (sp));
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_array (vec);
@@ -285,7 +279,7 @@ void f_reg_assoc (void) {
     error ("Bad argument 3 to reg_assoc()\n");
 
   vec =
-    reg_assoc (arg[0].u.string, arg[1].u.arr, arg[2].u.arr,
+    reg_assoc (SVALUE_STRPTR(&arg[0]), arg[1].u.arr, arg[2].u.arr,
                st_num_arg > 3 ? &arg[3] : &const0);
 
   if (st_num_arg == 4)
@@ -316,14 +310,14 @@ void f_regexp (void) {
     flag = 0;
   if (sp[-1].type == T_STRING)
     {
-      flag = match_single_regexp ((sp - 1)->u.string, sp->u.string);
+      flag = match_single_regexp (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
       free_string_svalue (sp--);
       free_string_svalue (sp);
       put_number (flag);
     }
   else
     {
-      v = match_regexp ((sp - 1)->u.arr, sp->u.string, flag);
+      v = match_regexp ((sp - 1)->u.arr, SVALUE_STRPTR(sp), flag);
       free_string_svalue (sp--);
       free_array (sp->u.arr);
       sp->u.arr = v;
@@ -399,7 +393,7 @@ void f_replace_string (void) {
       return;
     }
   arg = sp - st_num_arg + 1;
-  src = arg->u.string;
+  src = SVALUE_STRPTR(arg);
   opt_trace (TT_EVAL|3, "src ='%s'\n", src);
   first = 0;
   last = 0;
@@ -431,7 +425,7 @@ void f_replace_string (void) {
       return;
     }
 
-  pattern = (arg + 1)->u.string;
+  pattern = SVALUE_STRPTR(arg + 1);
   plen = SVALUE_STRLEN (arg + 1);
   opt_trace (TT_EVAL|3, "pattern ='%s' (%d)\n", pattern, plen);
   if (plen < 1)
@@ -440,7 +434,7 @@ void f_replace_string (void) {
       return;
     }
 
-  replace = (arg + 2)->u.string;
+  replace = SVALUE_STRPTR(arg + 2);
   rlen = SVALUE_STRLEN (arg + 2);
   opt_trace (TT_EVAL|3, "replace ='%s' (%d)\n", replace, rlen);
   dlen = 0;
@@ -449,7 +443,7 @@ void f_replace_string (void) {
   if (rlen <= plen)
     {
       unlink_string_svalue (arg);
-      src = arg->u.string;
+      src = arg->u.malloc_string;
     }
 
   if (plen > 1)
@@ -468,7 +462,7 @@ void f_replace_string (void) {
 
   if (rlen <= plen)
     {
-      dst2 = dst1 = arg->u.string;
+      dst2 = dst1 = arg->u.malloc_string;
 
       if (plen > 1)
         {
@@ -508,7 +502,7 @@ void f_replace_string (void) {
           memcpy (dst2, src, slimit - src);
           dst2 += (slimit - src);
           *dst2 = 0;
-          arg->u.string = extend_string (dst1, dst2 - dst1);
+          arg->u.malloc_string = extend_string (dst1, dst2 - dst1);
         }
       else
         {
@@ -558,7 +552,7 @@ void f_replace_string (void) {
                               *dst2++ = *src++;
                             }
                           *dst2 = '\0';
-                          arg->u.string = extend_string (dst1, dst2 - dst1);
+                          arg->u.malloc_string = extend_string (dst1, dst2 - dst1);
                           break;
                         }
                     }
@@ -686,7 +680,7 @@ void f_replace_string (void) {
        * shrink block or make a copy of exact size
        */
       push_malloced_string (extend_string (dst1, dst2 - dst1));
-      opt_trace (TT_EVAL|2, "returning \"%s\"", sp->type == T_STRING ? sp->u.string : "(non-string)");
+      opt_trace (TT_EVAL|2, "returning \"%s\"", sp->type == T_STRING ? SVALUE_STRPTR(sp) : "(non-string)");
     }
 }
 #endif
@@ -710,7 +704,7 @@ void f_strsrch (void) {
   size_t blen, llen;
 
   sp--;
-  big = (sp - 1)->u.string;
+  big = SVALUE_STRPTR(sp - 1);
   blen = SVALUE_STRLEN (sp - 1);
   if (sp->type == T_NUMBER)
     {
@@ -724,7 +718,7 @@ void f_strsrch (void) {
     }
   else
     {
-      little = sp->u.string;
+      little = SVALUE_STRPTR(sp);
       llen = SVALUE_STRLEN (sp);
     }
 
@@ -786,7 +780,7 @@ void f_strsrch (void) {
 void f_strcmp (void) {
   int i;
 
-  i = strcmp ((sp - 1)->u.string, sp->u.string);
+  i = strcmp (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_number (i);

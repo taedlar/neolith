@@ -8,6 +8,8 @@
 #include <inttypes.h>
 #endif
 
+#include <stdlib.h>
+
 #include "src/stralloc.h"
 
 #ifdef __cplusplus
@@ -99,13 +101,60 @@ struct svalue_s {
 
 #define T_UNDEFINED     0x4     /* undefinedp() returns true */
 
+#ifdef STRING_TYPE_SAFETY
+#define SET_SVALUE_SHARED_STRING(sv, value) do { \
+    shared_str_t set_svalue_shared_string_value = (value); \
+    if (set_svalue_shared_string_value != NULL && !is_shared_string_payload(set_svalue_shared_string_value)) \
+        abort(); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_SHARED; \
+    (sv)->u.shared_string = set_svalue_shared_string_value; \
+} while (0)
+
+#define SET_SVALUE_MALLOC_STRING(sv, value) do { \
+    malloc_str_t set_svalue_malloc_string_value = (value); \
+    if (set_svalue_malloc_string_value != NULL && !is_malloc_string_payload(set_svalue_malloc_string_value)) \
+        abort(); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_MALLOC; \
+    (sv)->u.malloc_string = set_svalue_malloc_string_value; \
+} while (0)
+#else
+#define SET_SVALUE_SHARED_STRING(sv, value) do { \
+    shared_str_t set_svalue_shared_string_value = (value); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_SHARED; \
+    (sv)->u.shared_string = set_svalue_shared_string_value; \
+} while (0)
+
+#define SET_SVALUE_MALLOC_STRING(sv, value) do { \
+    malloc_str_t set_svalue_malloc_string_value = (value); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_MALLOC; \
+    (sv)->u.malloc_string = set_svalue_malloc_string_value; \
+} while (0)
+#endif
+
+#define SET_SVALUE_CONSTANT_STRING(sv, value) do { \
+    const char *set_svalue_constant_string_value = (value); \
+    (sv)->type = T_STRING; \
+    (sv)->subtype = STRING_CONSTANT; \
+    (sv)->u.const_string = set_svalue_constant_string_value; \
+} while (0)
+
 #ifdef __cplusplus
 } // extern "C"
 
 #include <cstddef>
+#include <cstdlib>
 #include <climits>
 #include <string>
 #include <type_traits>
+
+extern "C" {
+void free_svalue(svalue_t *v, const char *caller);
+void assign_svalue_no_free(svalue_t *to, svalue_t *from);
+}
 
 namespace lpc {
 
@@ -121,9 +170,7 @@ namespace lpc {
  *     no generic set_string(char*). Each setter atomically stamps type, subtype,
  *     and the correct union member.
  *   - Typed read accessors (shared_string() / malloc_string() / const_string())
- *     communicate ownership intent to the caller. When shared_str_t / malloc_str_t
- *     are made into distinct types, these signatures become compile-time-enforced
- *     overloads with no call-site changes required.
+ *     communicate ownership intent to the caller.
  *   - c_str() follows std::string::c_str() semantics: returns a null-terminated
  *     const char* safe for any string subtype. Null termination is guaranteed
  *     for all subtypes (enforced by new_string() / extend_string() and literal
@@ -198,7 +245,7 @@ public:
      * std::string::c_str(). Lifetime is tied to the underlying svalue_t.
      */
     [[nodiscard]] const char *c_str() const noexcept {
-        return sv_ ? sv_->u.string : nullptr;
+        return is_string() ? SVALUE_STRPTR(sv_) : nullptr;
     }
 
     /** Precondition: is_shared() — use to pass to ref_string() / free_string(). */
@@ -236,9 +283,7 @@ public:
         if (sv_ == nullptr) {
             return;
         }
-        sv_->type = T_STRING;
-        sv_->subtype = STRING_SHARED;
-        sv_->u.shared_string = s;
+        SET_SVALUE_SHARED_STRING(sv_, s);
     }
 
     /** Assign a STRING_MALLOC payload; stamps type=T_STRING, subtype=STRING_MALLOC. */
@@ -246,9 +291,7 @@ public:
         if (sv_ == nullptr) {
             return;
         }
-        sv_->type = T_STRING;
-        sv_->subtype = STRING_MALLOC;
-        sv_->u.malloc_string = s;
+        SET_SVALUE_MALLOC_STRING(sv_, s);
     }
 
     /** Assign a STRING_CONSTANT; stamps type=T_STRING, subtype=STRING_CONSTANT. */
@@ -256,9 +299,7 @@ public:
         if (sv_ == nullptr) {
             return;
         }
-        sv_->type = T_STRING;
-        sv_->subtype = STRING_CONSTANT;
-        sv_->u.const_string = s;
+        SET_SVALUE_CONSTANT_STRING(sv_, s);
     }
 
     /** Assign a number payload; stamps type=T_NUMBER. */
@@ -319,6 +360,70 @@ private:
     raw_type *sv_;
 };
 
+/**
+ * @brief Owning RAII wrapper over svalue_t.
+ *
+ * This type owns one svalue_t instance and releases counted/referenced payloads
+ * in its destructor via free_svalue().
+ */
+class svalue {
+public:
+    using raw_type = ::svalue_t;
+
+    svalue() noexcept {
+        value_.type = T_NUMBER;
+        value_.subtype = 0;
+        value_.u.number = 0;
+    }
+
+    explicit svalue(const raw_type &src) noexcept : svalue() {
+        assign_svalue_no_free(&value_, const_cast<raw_type *>(&src));
+    }
+
+    svalue(const svalue &other) noexcept : svalue() {
+        assign_svalue_no_free(&value_, const_cast<raw_type *>(&other.value_));
+    }
+
+    svalue(svalue &&other) noexcept {
+        value_ = other.value_;
+        other.value_.type = T_NUMBER;
+        other.value_.subtype = 0;
+        other.value_.u.number = 0;
+    }
+
+    ~svalue() noexcept {
+        free_svalue(&value_, "lpc::svalue::~svalue");
+    }
+
+    svalue &operator=(const svalue &other) noexcept {
+        if (this != &other) {
+            free_svalue(&value_, "lpc::svalue::operator=(copy)");
+            assign_svalue_no_free(&value_, const_cast<raw_type *>(&other.value_));
+        }
+        return *this;
+    }
+
+    svalue &operator=(svalue &&other) noexcept {
+        if (this != &other) {
+            free_svalue(&value_, "lpc::svalue::operator=(move)");
+            value_ = other.value_;
+            other.value_.type = T_NUMBER;
+            other.value_.subtype = 0;
+            other.value_.u.number = 0;
+        }
+        return *this;
+    }
+
+    [[nodiscard]] raw_type *raw() noexcept { return &value_; }
+    [[nodiscard]] const raw_type *raw() const noexcept { return &value_; }
+
+    [[nodiscard]] svalue_view view() noexcept { return svalue_view::from(&value_); }
+    [[nodiscard]] svalue_view view() const noexcept { return svalue_view::from(&value_); }
+
+private:
+    raw_type value_;
+};
+
 template<typename StringT = std::string>
 [[nodiscard]] inline StringT str(svalue_view sv) {
     return sv.template str<StringT>();
@@ -334,5 +439,9 @@ static_assert(std::is_standard_layout<lpc::svalue_view>::value,
               "lpc::svalue_view must remain standard-layout");
 static_assert(std::is_trivially_copyable<lpc::svalue_view>::value,
               "lpc::svalue_view must remain trivially copyable");
+static_assert(sizeof(lpc::svalue) == sizeof(::svalue_t),
+              "lpc::svalue must remain svalue_t-sized");
+static_assert(alignof(lpc::svalue) == alignof(::svalue_t),
+              "lpc::svalue must remain svalue_t-aligned");
 
 #endif /* __cplusplus */

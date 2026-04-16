@@ -36,7 +36,7 @@ TEST_F(LPCLexerTest, startNewFile) {
     end_new_file ();
 
     FILE_CLOSE(fd);
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -60,7 +60,7 @@ TEST_F(LPCLexerTest, parseNumber) {
     EXPECT_DOUBLE_EQ(yylval.real, 400.0);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -76,7 +76,7 @@ TEST_F(LPCLexerTest, parseStringLiteral) {
     EXPECT_STREQ(yylval.string, "こんにちは"); // wide string literal (Neolith extension to LPC)
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -93,7 +93,7 @@ TEST_F(LPCLexerTest, parseCharLiteral) {
     EXPECT_EQ(yylex(), L_NUMBER);
     EXPECT_EQ(yylval.number, L'は'); // wide character literal (Neolith extension to LPC)
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -105,7 +105,7 @@ TEST_F(LPCLexerTest, skipComments) {
     EXPECT_STREQ(yylval.string, "Hello world");
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -120,7 +120,7 @@ TEST_F(LPCLexerTest, parseReservedWords) {
     EXPECT_EQ(yylex(), L_RETURN);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }
 
@@ -133,6 +133,6 @@ TEST_F(LPCLexerTest, parseEfuns) {
     EXPECT_EQ(yylex(), L_IDENTIFIER);
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
-    free_string(current_file);
+    free_string(to_shared_str(current_file));
     current_file = 0;
 }

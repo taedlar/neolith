@@ -226,9 +226,9 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
       debug_message_with_location (err);
       dump_trace (g_trace_flag);
     }
-  else if (mret->type == T_STRING && *mret->u.string)
+  else if (mret->type == T_STRING && *SVALUE_STRPTR(mret))
     {
-      debug_message ("%s", mret->u.string);
+      debug_message ("%s", SVALUE_STRPTR(mret));
     }
 }
 
@@ -477,9 +477,8 @@ void catch_value_guard::set_caught_error(const char *error_msg) noexcept {
     free_svalue(&catch_value, "set_caught_error");
     
     // Set new value
-    catch_value.type = T_STRING;
-    catch_value.subtype = STRING_MALLOC;
-    catch_value.u.string = string_copy(error_msg ? error_msg : "", "caught error");
+  SET_SVALUE_MALLOC_STRING(&catch_value,
+               string_copy(error_msg ? error_msg : "", "caught error"));
     m_owned = true;
 }
 

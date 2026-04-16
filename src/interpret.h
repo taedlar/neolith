@@ -69,20 +69,20 @@ typedef struct {
                 malloc_str_t ess_res; size_t ess_len; size_t ess_r; \
                 const char *ess_src = (src_bytes); size_t ess_src_len = (src_len); \
                 ess_len = (ess_r = SVALUE_STRLEN(target_sv)) + ess_src_len; \
-                if ((target_sv)->subtype == STRING_MALLOC && MSTR_REF((target_sv)->u.string) == 1) { \
-                        ess_res = extend_string((target_sv)->u.string, ess_len); \
+                if ((target_sv)->subtype == STRING_MALLOC && MSTR_REF((target_sv)->u.malloc_string) == 1) { \
+                        ess_res = extend_string((target_sv)->u.malloc_string, ess_len); \
                         if (!ess_res) fatal("Out of memory!\n"); \
                         memcpy(ess_res + ess_r, ess_src, ess_src_len); \
                         ess_res[ess_len] = '\0'; \
                 } else { \
                         ess_res = new_string(ess_len, alloc_tag); \
-                        memcpy(ess_res, (target_sv)->u.string, ess_r); \
+                        memcpy(ess_res, SVALUE_STRPTR(target_sv), ess_r); \
                         memcpy(ess_res + ess_r, ess_src, ess_src_len); \
                         ess_res[ess_len] = '\0'; \
                         free_string_svalue(target_sv); \
                         (target_sv)->subtype = STRING_MALLOC; \
                 } \
-                (target_sv)->u.string = ess_res;\
+                (target_sv)->u.malloc_string = ess_res;\
         } while(0)
 
 /* Compatibility wrapper for NUL-terminated callers. */
@@ -96,12 +96,12 @@ typedef struct {
                 pss_len = SVALUE_STRLEN(sp) + (pss_r = (prefix_len)); \
                 pss_res = new_string(pss_len, alloc_tag); \
                 memcpy(pss_res, pss_src, pss_r); \
-                memcpy(pss_res + pss_r, sp->u.string, SVALUE_STRLEN(sp)); \
+                memcpy(pss_res + pss_r, SVALUE_STRPTR(sp), SVALUE_STRLEN(sp)); \
                 pss_res[pss_len] = '\0'; \
                 free_string_svalue(sp--); \
                 sp->type = T_STRING; \
-                sp->u.string = pss_res; \
                 sp->subtype = STRING_MALLOC; \
+                sp->u.malloc_string = pss_res; \
         } while(0)
 
 /* Compatibility wrapper for NUL-terminated callers. */
@@ -113,22 +113,22 @@ typedef struct {
                 malloc_str_t ssj_res; size_t ssj_r; size_t ssj_len; \
                 ssj_r = SVALUE_STRLEN(left_sv); \
                 ssj_len = ssj_r + SVALUE_STRLEN(right_sv); \
-                if ((left_sv)->subtype == STRING_MALLOC && MSTR_REF((left_sv)->u.string) == 1) { \
-                        ssj_res = extend_string((left_sv)->u.string, ssj_len); \
+                if ((left_sv)->subtype == STRING_MALLOC && MSTR_REF((left_sv)->u.malloc_string) == 1) { \
+                        ssj_res = extend_string((left_sv)->u.malloc_string, ssj_len); \
                         if (!ssj_res) fatal("Out of memory!\n"); \
-                        memcpy(ssj_res + ssj_r, (right_sv)->u.string, SVALUE_STRLEN(right_sv)); \
+                        memcpy(ssj_res + ssj_r, SVALUE_STRPTR(right_sv), SVALUE_STRLEN(right_sv)); \
                         ssj_res[ssj_len] = '\0'; \
                         free_string_svalue(right_sv); \
                 } else { \
                         ssj_res = new_string(ssj_len, alloc_tag); \
-                        memcpy(ssj_res, (left_sv)->u.string, ssj_r); \
-                        memcpy(ssj_res + ssj_r, (right_sv)->u.string, SVALUE_STRLEN(right_sv)); \
+                        memcpy(ssj_res, SVALUE_STRPTR(left_sv), ssj_r); \
+                        memcpy(ssj_res + ssj_r, SVALUE_STRPTR(right_sv), SVALUE_STRLEN(right_sv)); \
                         ssj_res[ssj_len] = '\0'; \
                         free_string_svalue(right_sv); \
                         free_string_svalue(left_sv); \
                         (left_sv)->subtype = STRING_MALLOC; \
                 } \
-                (left_sv)->u.string = ssj_res; \
+                (left_sv)->u.malloc_string = ssj_res; \
         } while(0)
 
 #define STACK_CHECK(n)		do {\
@@ -178,13 +178,29 @@ typedef struct {
 #define put_constant_string(x) do {\
         sp->type = T_STRING;\
         sp->subtype = STRING_SHARED;\
-        sp->u.string = make_shared_string(x, NULL);\
+        sp->u.shared_string = make_shared_string(x, NULL);\
         } while(0)
 
+#ifdef STRING_TYPE_SAFETY
+#define CHECK_PUT_MALLOCED_STRING_VALUE(v) do { \
+        if ((v) && !is_malloc_string_payload(v)) \
+                fatal("put_malloced_string: contract violation: shared string passed to malloc-string boundary\n"); \
+        } while(0)
+#define CHECK_PUT_SHARED_STRING_VALUE(v) do { \
+        if ((v) && !is_shared_string_payload(v)) \
+                fatal("put_shared_string: contract violation: non-shared string passed to shared-string boundary\n"); \
+        } while(0)
+#else
+#define CHECK_PUT_MALLOCED_STRING_VALUE(v) do { (void)(v); } while(0)
+#define CHECK_PUT_SHARED_STRING_VALUE(v) do { (void)(v); } while(0)
+#endif
+
 #define put_malloced_string(x) do {\
+        malloc_str_t put_malloced_string_value = (x);\
+        CHECK_PUT_MALLOCED_STRING_VALUE(put_malloced_string_value);\
         sp->type = T_STRING;\
         sp->subtype = STRING_MALLOC;\
-        sp->u.string = (x);\
+        sp->u.malloc_string = put_malloced_string_value;\
         } while(0)
 
 #define put_array(x) do {\
@@ -193,9 +209,11 @@ typedef struct {
         } while(0)
 
 #define put_shared_string(x) do {\
+        shared_str_t put_shared_string_value = (x);\
+        CHECK_PUT_SHARED_STRING_VALUE(put_shared_string_value);\
         sp->type = T_STRING;\
         sp->subtype = STRING_SHARED;\
-        sp->u.string = (x);\
+        sp->u.shared_string = put_shared_string_value;\
         } while(0)
 
 #ifdef __cplusplus

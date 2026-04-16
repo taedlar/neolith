@@ -21,7 +21,7 @@ f_test_bit (void)
     }
   if (ind < 0)
     error ("Bad argument 2 (negative) to test_bit().\n");
-  if ((sp->u.string[ind / 6] - ' ') & (1 << (ind % 6)))
+  if ((SVALUE_STRPTR(sp)[ind / 6] - ' ') & (1 << (ind % 6)))
     {
       free_string_svalue (sp);
       *sp = const1;
@@ -55,20 +55,20 @@ f_next_bit (void)
       if (start % 6 == 5)
         {
           which = (start / 6) + 1;
-          value = sp->u.string[which] - ' ';
+          value = SVALUE_STRPTR(sp)[which] - ' ';
         }
       else
         {
           /* we have a partial byte to check */
           which = start / 6;
           bit = 0x3f - ((1 << ((start % 6) + 1)) - 1);
-          value = (sp->u.string[which] - ' ') & bit;
+          value = (SVALUE_STRPTR(sp)[which] - ' ') & bit;
         }
     }
   else
     {
       which = 0;
-      value = *sp->u.string - ' ';
+      value = *SVALUE_STRPTR(sp) - ' ';
     }
 
   while (1)
@@ -102,7 +102,7 @@ f_next_bit (void)
           bit = -1;
           break;
         }
-      value = sp->u.string[which] - ' ';
+      value = SVALUE_STRPTR(sp)[which] - ' ';
     }
 
   free_string_svalue (sp);
@@ -131,7 +131,7 @@ f_clear_bit (void)
   if (ind >= (int)len)
     return;			/* return first arg unmodified */
   unlink_string_svalue (sp);
-  str = sp->u.string;
+  str = sp->u.malloc_string;
 
   if (str[ind] > 0x3f + ' ' || str[ind] < ' ')
     error ("Illegal bit pattern in clear_bit character %d\n", ind);
@@ -162,19 +162,18 @@ f_set_bit (void)
   if (ind < (int)old_len)
     {
       unlink_string_svalue (sp);
-      str = sp->u.string;
+      str = sp->u.malloc_string;
     }
   else
     {
       str = new_string (len, "f_set_bit: str");
       str[len] = '\0';
       if (old_len)
-        memcpy (str, sp->u.string, old_len);
+        memcpy (str, SVALUE_STRPTR(sp), old_len);
       if (len > old_len)
         memset (str + old_len, ' ', len - old_len);
       free_string_svalue (sp);
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = str;
+      SET_SVALUE_MALLOC_STRING(sp, str);
     }
 
   if (str[ind] > 0x3f + ' ' || str[ind] < ' ')

@@ -173,7 +173,7 @@ static int give_uid_to_object (object_t * ob) {
     }
 
   if (ret && ret->type == T_STRING)
-    creator_name = ret->u.string;
+    creator_name = SVALUE_STRPTR(ret);
 
   if (!creator_name)
     creator_name = "NONAME";
@@ -275,7 +275,7 @@ void set_master (object_t * ob) {
 
   ret = apply_master_ob (APPLY_GET_ROOT_UID, 0);
   if (ret && (ret->type == T_STRING))
-    uid = ret->u.string;
+    uid = SVALUE_STRPTR(ret);
 
   if (first_load)
     {
@@ -295,7 +295,7 @@ void set_master (object_t * ob) {
        */
       ret = apply_master_ob (APPLY_GET_BACKBONE_UID, 0);
       if (ret && (ret->type == T_STRING))
-        set_backbone_uid (ret->u.string);
+        set_backbone_uid (SVALUE_STRPTR(ret));
     }
   else if (uid)
     {
@@ -852,7 +852,7 @@ object_t* object_present (svalue_t * v, object_t * ob) {
       return 0;
     }
 
-  ret_ob = object_present2 (v->u.string, ob->contains);
+  ret_ob = object_present2 (SVALUE_STRPTR(v), ob->contains);
 
   if (ret_ob)
     return ret_ob;
@@ -871,7 +871,7 @@ object_t* object_present (svalue_t * v, object_t * ob) {
       if (!IS_ZERO (ret))
         return ob->super;
 
-      return object_present2 (v->u.string, ob->super->contains);
+      return object_present2 (SVALUE_STRPTR(v), ob->super->contains);
     }
 
   return 0;
@@ -1451,8 +1451,8 @@ void say (svalue_t * v, array_t * avoid) {
   object_t *ob, *origin, *save_command_giver = command_giver;
   char *buff;
 
-  check_legal_string (v->u.string);
-  buff = v->u.string;
+  check_legal_string (SVALUE_STRPTR(v));
+  buff = SVALUE_STRPTR(v);
 
   if (current_object->flags & O_LISTENER || current_object->interactive)
     command_giver = current_object;
@@ -1506,8 +1506,8 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
   switch (v->type)
     {
     case T_STRING:
-      check_legal_string (v->u.string);
-      buff = v->u.string;
+      check_legal_string (SVALUE_STRPTR(v));
+      buff = SVALUE_STRPTR(v);
       break;
     case T_OBJECT:
       buff = v->u.ob->name;
@@ -1641,11 +1641,11 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
       svalue_t dummy;
       dummy.type = T_NUMBER;
       dummy.u.number = 0;
-      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", fun->u.string, current_object->name);
-      callback_funp = make_lfun_funp_by_name (fun->u.string, &dummy); /* ref = 1, by sentence->function.f */
+      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", SVALUE_STRPTR(fun), current_object->name);
+      callback_funp = make_lfun_funp_by_name (SVALUE_STRPTR(fun), &dummy); /* ref = 1, by sentence->function.f */
       if (!callback_funp)
         {
-          error ("Function '%s' not found in input_to", fun->u.string);
+          error ("Function '%s' not found in input_to", SVALUE_STRPTR(fun));
         }
     }
   else if (fun->type == T_FUNCTION)
@@ -1710,11 +1710,11 @@ int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
       svalue_t dummy;
       dummy.type = T_NUMBER;
       dummy.u.number = 0;
-      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", fun->u.string, current_object->name);
-      callback_funp = make_lfun_funp_by_name (fun->u.string, &dummy);
+      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", SVALUE_STRPTR(fun), current_object->name);
+      callback_funp = make_lfun_funp_by_name (SVALUE_STRPTR(fun), &dummy);
       if (!callback_funp)
         {
-          error ("Function '%s' not found in get_char", fun->u.string);
+          error ("Function '%s' not found in get_char", SVALUE_STRPTR(fun));
         }
     }
   else if (fun->type == T_FUNCTION)
@@ -1760,8 +1760,8 @@ void print_svalue (svalue_t * arg) {
     switch (arg->type)
       {
       case T_STRING:
-        check_legal_string (arg->u.string);
-        tell_object (command_giver, arg->u.string);
+        check_legal_string (SVALUE_STRPTR(arg));
+        tell_object (command_giver, SVALUE_STRPTR(arg));
         break;
       case T_OBJECT:
         sprintf (tbuf, "OBJ(/%s)", arg->u.ob->name);
@@ -2219,7 +2219,7 @@ void add_action (svalue_t * str, char *cmd, int flag, int num_carry, svalue_t *c
     }
   /* don't allow add_actions of a static function from a shadowing object */
   if ((ob != current_object) && str->type == T_STRING
-      && is_static (str->u.string, ob))
+      && is_static (SVALUE_STRPTR(str), ob))
     {
       return;
     }
@@ -2234,7 +2234,7 @@ void add_action (svalue_t * str, char *cmd, int flag, int num_carry, svalue_t *c
   p = alloc_sentence ();
   if (str->type == T_STRING)
     {
-      p->function.s = make_shared_string(str->u.string, NULL);
+      p->function.s = make_shared_string(SVALUE_STRPTR(str), NULL);
       p->flags = flag;
     }
   else
@@ -2503,7 +2503,7 @@ void do_message (svalue_t * msg_class, svalue_t * msg, array_t * scope, array_t 
       switch (scope->item[i].type)
         {
         case T_STRING:
-          ob = find_or_load_object (scope->item[i].u.string);
+          ob = find_or_load_object (SVALUE_STRPTR(&scope->item[i]));
           if (!ob || !object_visible (ob))
             continue;
           break;
@@ -2562,7 +2562,7 @@ object_t* first_inventory (svalue_t * arg) {
 
   if (arg->type == T_STRING)
     {
-      ob = find_or_load_object (arg->u.string);
+      ob = find_or_load_object (SVALUE_STRPTR(arg));
       if (ob && !object_visible (ob))
         ob = 0;
     }

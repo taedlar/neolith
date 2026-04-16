@@ -18,9 +18,9 @@ f_store_variable (void)
   svalue_t *sv;
   unsigned short type;
 
-  idx = find_global_variable (current_object->prog, (sp - 1)->u.string, &type);
+  idx = find_global_variable (current_object->prog, SVALUE_STRPTR(sp - 1), &type);
   if (idx == -1)
-    error ("No variable named '%s'!\n", (sp - 1)->u.string);
+    error ("No variable named '%s'!\n", SVALUE_STRPTR(sp - 1));
   sv = &current_object->variables[idx];
   free_svalue (sv, "f_store_variable");
   *sv = *sp--;
@@ -37,9 +37,9 @@ f_fetch_variable (void)
   svalue_t *sv;
   unsigned short type;
 
-  idx = find_global_variable (current_object->prog, sp->u.string, &type);
+  idx = find_global_variable (current_object->prog, SVALUE_STRPTR(sp), &type);
   if (idx == -1)
-    error ("No variable named '%s'!\n", sp->u.string);
+    error ("No variable named '%s'!\n", SVALUE_STRPTR(sp));
   sv = &current_object->variables[idx];
   free_string_svalue (sp--);
   push_svalue (sv);
@@ -56,8 +56,8 @@ f_restore_variable (void)
   unlink_string_svalue (sp);
   v.type = T_NUMBER;
 
-  restore_variable (&v, sp->u.string);
-  FREE_MSTR (sp->u.string);
+  restore_variable (&v, SVALUE_STRPTR(sp));
+  FREE_MSTR (sp->u.malloc_string);
   *sp = v;
 }
 #endif
@@ -97,19 +97,13 @@ fv_recurse (array_t * arr, int *idx, program_t * prog, int type, uint64_t flag)
         {
           arr->item[*idx + i].type = T_ARRAY;
           subarr = arr->item[*idx + i].u.arr = allocate_empty_array (2); /* e.g. ({ "weight", "int"}) */
-          subarr->item[0].type = T_STRING;
-          subarr->item[0].subtype = STRING_SHARED;
-          subarr->item[0].u.string = ref_string (prog->variable_table[i]);
+          SET_SVALUE_SHARED_STRING(&subarr->item[0], ref_string(to_shared_str(prog->variable_table[i])));
           get_type_name (buf, end, prog->variable_types[i]);
-          subarr->item[1].type = T_STRING;
-          subarr->item[1].subtype = STRING_SHARED;
-          subarr->item[1].u.string = make_shared_string(buf, NULL);
+          SET_SVALUE_SHARED_STRING(&subarr->item[1], make_shared_string(buf, NULL));
         }
       else
         {
-          arr->item[*idx + i].type = T_STRING;
-          arr->item[*idx + i].subtype = STRING_SHARED;
-          arr->item[*idx + i].u.string = ref_string (prog->variable_table[i]);
+          SET_SVALUE_SHARED_STRING(&arr->item[*idx + i], ref_string(to_shared_str(prog->variable_table[i])));
         }
     }
   *idx += prog->num_variables_defined;

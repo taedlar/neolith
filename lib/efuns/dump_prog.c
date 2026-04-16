@@ -35,7 +35,7 @@ f_dump_prog (void)
     {
       ob = sp[-2].u.ob;
       d = (int)sp[-1].u.number;
-      where = (sp->type == T_STRING) ? sp->u.string : 0;
+      where = (sp->type == T_STRING) ? SVALUE_STRPTR(sp) : 0;
     }
   else
     {

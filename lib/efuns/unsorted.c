@@ -61,7 +61,7 @@ f_children (void)
 {
   array_t *vec;
 
-  vec = children (sp->u.string);
+  vec = children (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   put_array (vec);
 }
@@ -74,7 +74,7 @@ f_clone_object (void)
 {
   svalue_t *arg = sp - st_num_arg + 1;
 
-  object_t *ob = clone_object (arg->u.string, st_num_arg - 1);
+  object_t *ob = clone_object (SVALUE_STRPTR(arg), st_num_arg - 1);
   free_string_svalue (sp);
   if (ob)
     {
@@ -128,13 +128,13 @@ f_ed (void)
   else if (st_num_arg == 1)
     {
       /* ed(fname) */
-      ed_start (sp->u.string, 0, 0, 0, 0);
+      ed_start (SVALUE_STRPTR(sp), 0, 0, 0, 0);
       pop_stack ();
     }
   else if (st_num_arg == 2)
     {
       /* ed(fname,exitfn) */
-      ed_start ((sp - 1)->u.string, 0, sp->u.string, 0, current_object);
+      ed_start (SVALUE_STRPTR(sp - 1), 0, SVALUE_STRPTR(sp), 0, current_object);
       pop_2_elems ();
     }
   else if (st_num_arg == 3)
@@ -142,11 +142,11 @@ f_ed (void)
       /* ed(fname,exitfn,restricted) / ed(fname,writefn,exitfn) */
       if (sp->type == T_NUMBER)
         {
-          ed_start ((sp - 2)->u.string, 0, (sp - 1)->u.string, (int)sp->u.number, current_object);
+          ed_start (SVALUE_STRPTR(sp - 2), 0, SVALUE_STRPTR(sp - 1), (int)sp->u.number, current_object);
         }
       else if (sp->type == T_STRING)
         {
-          ed_start ((sp - 2)->u.string, (sp - 1)->u.string, sp->u.string, 0, current_object);
+          ed_start (SVALUE_STRPTR(sp - 2), SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), 0, current_object);
         }
       else
         {
@@ -161,7 +161,7 @@ f_ed (void)
         bad_argument (sp - 1, T_STRING, 3, F_ED);
       if (!(sp->type == T_NUMBER))
         bad_argument (sp, T_NUMBER, 4, F_ED);
-      ed_start ((sp - 3)->u.string, (sp - 2)->u.string, (sp - 1)->u.string,
+      ed_start (SVALUE_STRPTR(sp - 3), SVALUE_STRPTR(sp - 2), SVALUE_STRPTR(sp - 1),
                 (int)sp->u.number, current_object);
       pop_n_elems (4);
     }
@@ -181,18 +181,16 @@ f_ed_cmd (void)
   if (!(current_object->flags & O_IN_EDIT))
     error ("ed_cmd() called with no ed session active.\n");
 
-  res = object_ed_cmd (current_object, sp->u.string);
+  res = object_ed_cmd (current_object, SVALUE_STRPTR(sp));
 
   free_string_svalue (sp);
   if (res)
     {
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = res;
+      SET_SVALUE_MALLOC_STRING(sp, res);
     }
   else
     {
-      sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      SET_SVALUE_CONSTANT_STRING(sp, "");
     }
 }
 #endif
@@ -210,7 +208,7 @@ f_ed_start (void)
     restr = (sp--)->u.number;
 
   if (st_num_arg)
-    fname = sp->u.string;
+    fname = SVALUE_STRPTR(sp);
   else
     fname = 0;
 
@@ -229,13 +227,11 @@ f_ed_start (void)
 
   if (res)
     {
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = res;
+      SET_SVALUE_MALLOC_STRING(sp, res);
     }
   else
     {
-      sp->subtype = STRING_CONSTANT;
-      sp->u.string = "";
+      SET_SVALUE_CONSTANT_STRING(sp, "");
     }
 }
 #endif
@@ -275,9 +271,9 @@ f_find_object (void)
 {
   object_t *ob;
   if ((sp--)->u.number)
-    ob = find_or_load_object (sp->u.string);
+    ob = find_or_load_object (SVALUE_STRPTR(sp));
   else
-    ob = find_object_by_name (sp->u.string);
+    ob = find_object_by_name (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   if (ob)
     {
@@ -322,7 +318,7 @@ void f_function_exists (void) {
       ob = current_object;
     }
 
-  str = function_exists (sp->u.string, ob, flag);
+  str = function_exists (SVALUE_STRPTR(sp), ob, flag);
   free_string_svalue (sp);
   if (str)
     {
@@ -331,8 +327,7 @@ void f_function_exists (void) {
       res[0] = '/';
       strncpy (res + 1, str, len);
       res[len + 1] = 0;
-      sp->subtype = STRING_MALLOC;
-      sp->u.string = res;
+      SET_SVALUE_MALLOC_STRING (sp, res);
     }
   else
     *sp = const0;
@@ -374,7 +369,7 @@ f_inherits (void)
   int i;
 
   base = (sp--)->u.ob;
-  ob = find_object_by_name (sp->u.string);
+  ob = find_object_by_name (SVALUE_STRPTR(sp));
   if (!ob)
     {
       free_object (base, "f_inherits");
@@ -437,8 +432,8 @@ f_member_array (void)
       CHECK_TYPES (sp - 1, T_NUMBER, 1, F_MEMBER_ARRAY);
       if (i > (int)SVALUE_STRLEN (sp))
         error ("Index to start search from in member_array() is > string length.\n");
-      if ((res = strchr (sp->u.string + i, (char)(sp - 1)->u.number)))
-        i = (int)(res - sp->u.string);
+      if ((res = strchr (SVALUE_STRPTR(sp) + i, (char)(sp - 1)->u.number)))
+        i = (int)(res - SVALUE_STRPTR(sp));
       else
         i = -1;
       free_string_svalue (sp--);
@@ -456,7 +451,7 @@ f_member_array (void)
         {
           /* *not* COUNTED_STRLEN() which can do a (costly) strlen() call */
           if (find->subtype & STRING_COUNTED)
-            flen = MSTR_SIZE (find->u.string);
+            flen = MSTR_SIZE (SVALUE_STRPTR(find));
           else
             flen = 0;
         }
@@ -467,9 +462,9 @@ f_member_array (void)
             {
             case T_STRING:
               if (flen && (sv->subtype & STRING_COUNTED)
-                  && flen != MSTR_SIZE (sv->u.string))
+                  && flen != MSTR_SIZE (SVALUE_STRPTR(sv)))
                 continue;
-              if (strcmp (find->u.string, sv->u.string))
+              if (strcmp (SVALUE_STRPTR(find), SVALUE_STRPTR(sv)))
                 continue;
               break;
             case T_NUMBER:
@@ -704,9 +699,7 @@ f_query_privs (void)
   if (ob->privs != NULL)
     {
       free_object (ob, "f_query_privs");
-      sp->type = T_STRING;
-      sp->u.string = make_shared_string(ob->privs, NULL);
-      sp->subtype = STRING_SHARED;
+      SET_SVALUE_SHARED_STRING(sp, make_shared_string(ob->privs, NULL));
     }
   else
     {
@@ -790,7 +783,7 @@ f_set_privs (void)
 
   ob = (sp - 1)->u.ob;
   if (ob->privs != NULL)
-    free_string (ob->privs);
+    free_string(to_shared_str(ob->privs));
   if (!(sp->type == T_STRING))
     {
       ob->privs = NULL;
@@ -798,7 +791,7 @@ f_set_privs (void)
     }
   else
     {
-      ob->privs = make_shared_string(sp->u.string, NULL);
+      ob->privs = make_shared_string(SVALUE_STRPTR(sp), NULL);
       free_string_svalue (sp--);
     }
   free_object (ob, "f_set_privs");
@@ -968,7 +961,7 @@ f_to_float (void)
       sp->u.real = (double) sp->u.number;
       break;
     case T_STRING:
-      sscanf (sp->u.string, "%lf", &temp);
+      sscanf (SVALUE_STRPTR(sp), "%lf", &temp);
       free_string_svalue (sp);
       sp->type = T_REAL;
       sp->u.real = temp;
@@ -991,7 +984,7 @@ f_to_int (void)
       {
         int temp;
 
-        temp = atoi (sp->u.string);
+        temp = atoi (SVALUE_STRPTR(sp));
         free_string_svalue (sp);
         sp->u.number = temp;
         sp->type = T_NUMBER;
@@ -1305,27 +1298,21 @@ f_functions (void)
           subvec = vec->item[i].u.arr =
             allocate_empty_array (3 + func_entry->def.num_arg);
 
-          subvec->item[0].type = T_STRING;
-          subvec->item[0].subtype = STRING_SHARED;
-          subvec->item[0].u.string = ref_string (funp->name);
+          SET_SVALUE_SHARED_STRING(&subvec->item[0], ref_string(to_shared_str(funp->name)));
 
           subvec->item[1].type = T_NUMBER;
           subvec->item[1].subtype = 0;
           subvec->item[1].u.number = func_entry->def.num_arg;
 
           get_type_name (buf, end, funp->type);
-          subvec->item[2].type = T_STRING;
-          subvec->item[2].subtype = STRING_SHARED;
-          subvec->item[2].u.string = make_shared_string(buf, NULL);
+          SET_SVALUE_SHARED_STRING(&subvec->item[2], make_shared_string(buf, NULL));
 
           for (j = 0; j < func_entry->def.num_arg; j++)
             {
               if (types)
                 {
                   get_type_name (buf, end, types[j]);
-                  subvec->item[3 + j].type = T_STRING;
-                  subvec->item[3 + j].subtype = STRING_SHARED;
-                  subvec->item[3 + j].u.string = make_shared_string(buf, NULL);
+                  SET_SVALUE_SHARED_STRING(&subvec->item[3 + j], make_shared_string(buf, NULL));
                 }
               else
                 {
@@ -1336,9 +1323,7 @@ f_functions (void)
         }
       else
         {
-          vec->item[i].type = T_STRING;
-          vec->item[i].subtype = STRING_SHARED;
-          vec->item[i].u.string = ref_string (funp->name);
+          SET_SVALUE_SHARED_STRING(&vec->item[i], ref_string(to_shared_str(funp->name)));
         }
     }
 

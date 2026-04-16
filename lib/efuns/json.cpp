@@ -114,7 +114,7 @@ static boost::json::value lpc_to_json(svalue_t *v)
     return v->u.real;
 
   case T_STRING:
-    return boost::json::string(v->u.string);
+    return boost::json::string(SVALUE_STRPTR(v));
 
   case T_ARRAY: {
     boost::json::array arr;
@@ -129,7 +129,7 @@ static boost::json::value lpc_to_json(svalue_t *v)
     m = v->u.map;
     for (i = 0; i <= (int)m->table_size; i++) {
       for (node = m->table[i]; node; node = node->next)
-        obj.emplace(node->values[0].u.string,
+        obj.emplace(SVALUE_STRPTR(&node->values[0]),
                     lpc_to_json(&node->values[1]));
     }
     return obj;
@@ -176,9 +176,7 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
 
   case boost::json::kind::string: {
     auto const& js = jv.get_string();
-    out->type = T_STRING;
-    out->subtype = STRING_MALLOC;
-    out->u.string = string_copy(js.c_str(), "json_to_lpc");
+    SET_SVALUE_MALLOC_STRING(out, string_copy(js.c_str(), "json_to_lpc"));
     break;
   }
 
@@ -212,15 +210,13 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
     mapping_t *m = allocate_mapping(jo.size());
     for (auto const& kv : jo) {
       /* Use STRING_CONSTANT key: find_for_insert interns it as a shared
-       * string and updates key.u.string; we release our ref afterwards. */
+       * string and updates key.u.shared_string; we release our ref afterwards. */
       svalue_t key;
-      key.type = T_STRING;
-      key.subtype = STRING_CONSTANT;
       std::string k (kv.key().data(), kv.key().size() + 1);
       k.at(kv.key().size()) = '\0';  /* ensure null-terminated for string_copy */
-      key.u.string = const_cast<char *>(k.data());
+      SET_SVALUE_CONSTANT_STRING(&key, k.c_str());
       svalue_t *val = find_for_insert(m, &key, 1);
-      free_string(key.u.string);  /* release shared-string ref from find_for_insert */
+      free_string(to_shared_str(key.u.shared_string));  /* release shared-string ref from find_for_insert */
       val->type = T_INVALID;
       json_to_lpc(kv.value(), val);
     }
@@ -254,7 +250,7 @@ void f_to_json(void)
   {
     boost::json::value jv = lpc_to_json(sp);
     std::string s = boost::json::serialize(jv);
-    char *result = string_copy(s.c_str(), "f_to_json");
+    malloc_str_t result = string_copy(s.c_str(), "f_to_json");
     /* jv and s are destroyed here at end of inner scope, before free_svalue */
     free_svalue(sp, "f_to_json");
     put_malloced_string(result);
@@ -278,7 +274,7 @@ void f_from_json(void)
   size_t input_len = 0;
 
   if (sp->type == T_STRING) {
-    input = sp->u.string;
+    input = SVALUE_STRPTR(sp);
     input_len = SVALUE_STRLEN(sp);
   }
   else if (sp->type == T_BUFFER) {

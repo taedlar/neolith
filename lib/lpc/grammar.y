@@ -314,7 +314,7 @@ def
             define_new_function($3, $6.num_arg, 0, $<number>$, $1 | $2);
             /* This is safe since it is guaranteed to be in the
                function table, so it can't be dangling */
-            free_string($3); 
+            free_string(to_shared_str($3)); 
             context = 0;
         }
         block_or_semi

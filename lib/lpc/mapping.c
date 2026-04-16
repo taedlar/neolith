@@ -313,9 +313,7 @@ int restore_hash_string (char **val, svalue_t * sv) {
                   return ROB_STRING_ERROR;
                 *newp = '\0';
                 *val = cp;
-                sv->u.string = make_shared_string(start, NULL);
-                sv->type = T_STRING;
-                sv->subtype = STRING_SHARED;
+                SET_SVALUE_SHARED_STRING (sv, make_shared_string (start, NULL));
                 return 0;
               }
             else
@@ -328,9 +326,7 @@ int restore_hash_string (char **val, svalue_t * sv) {
     }
   *val = cp;
   *--cp = '\0';
-  sv->u.string = make_shared_string(start, NULL);
-  sv->type = T_STRING;
-  sv->subtype = STRING_SHARED;
+  SET_SVALUE_SHARED_STRING (sv, make_shared_string (start, NULL));
   return 0;
 }
 
@@ -341,10 +337,9 @@ int restore_hash_string (char **val, svalue_t * sv) {
 int svalue_to_int (svalue_t * v) {
   if (v->type == T_STRING && v->subtype != STRING_SHARED)
     {
-      char *p = make_shared_string(v->u.string, NULL);
+      shared_str_t p = make_shared_string(SVALUE_STRPTR(v), NULL);
       free_string_svalue (v);
-      v->subtype = STRING_SHARED;
-      v->u.string = p;
+      SET_SVALUE_SHARED_STRING (v, p);
     }
   /* The bottom bits of pointers tend to be bad ... 
    * Note that this means close groups of numbers don't hash particularly
@@ -786,8 +781,8 @@ svalue_t* find_in_mapping (mapping_t * m, svalue_t * lv) {
   return &const0u;
 }
 
-svalue_t* find_string_in_mapping (mapping_t * m, char *p) {
-  char *ss = findstring(p, NULL);
+svalue_t* find_string_in_mapping (mapping_t * m, const char *p) {
+  shared_str_t ss = findstring(p, NULL);
   int i;
   mapping_node_t *n;
 
@@ -798,7 +793,7 @@ svalue_t* find_string_in_mapping (mapping_t * m, char *p) {
 
   while (n)
     {
-      if (n->values->type == T_STRING && n->values->u.string == ss)
+      if (n->values->type == T_STRING && n->values->u.shared_string == ss)
         return n->values + 1;
       n = n->next;
     }
@@ -1245,12 +1240,10 @@ static svalue_t* insert_in_mapping (mapping_t * m, const char *key) {
   svalue_t lv;
   svalue_t *ret;
 
-  lv.type = T_STRING;
-  lv.subtype = STRING_CONSTANT;
-  lv.u.string = (char*)key;  /* safe: key used for lookup only, converted to shared string */
+  SET_SVALUE_CONSTANT_STRING (&lv, key);  /* safe: key used for lookup only, converted to shared string */
   ret = find_for_insert (m, &lv, 1);
-  /* lv.u.string will have been converted to a shared string */
-  free_string (lv.u.string);
+  /* lv.u.shared_string will have been converted to a shared string */
+  free_string(to_shared_str(lv.u.shared_string));
   return ret;
 }
 
@@ -1267,18 +1260,14 @@ void add_mapping_string (mapping_t * m, const char *key, const char *value) {
   svalue_t *s;
 
   s = insert_in_mapping (m, key);
-  s->type = T_STRING;
-  s->subtype = STRING_SHARED;
-  s->u.string = make_shared_string(value, NULL);
+  SET_SVALUE_SHARED_STRING (s, make_shared_string (value, NULL));
 }
 
 void add_mapping_malloced_string (mapping_t * m, char *key, char *value) {
   svalue_t *s;
 
   s = insert_in_mapping (m, key);
-  s->type = T_STRING;
-  s->subtype = STRING_MALLOC;
-  s->u.string = value;
+  SET_SVALUE_MALLOC_STRING (s, value);
 }
 
 void add_mapping_object (mapping_t * m, const char *key, object_t * value) {
@@ -1305,7 +1294,5 @@ void add_mapping_shared_string (mapping_t * m, char *key, char *value) {
   svalue_t *s;
 
   s = insert_in_mapping (m, key);
-  s->type = T_STRING;
-  s->subtype = STRING_SHARED;
-  s->u.string = ref_string (value);
+  SET_SVALUE_SHARED_STRING (s, ref_string (to_shared_str (value)));
 }

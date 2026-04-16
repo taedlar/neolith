@@ -30,9 +30,9 @@ extern int init_stem(
 /* dynamic string allocations */
 #include "stralloc.h"
 #define string_copy(x,y) int_string_copy(x, NULL)
-#define string_unlink(x,y) int_string_unlink(x)
+#define string_unlink(x,y) int_string_unlink(to_malloc_str(x))
 #define new_string(x,y) int_new_string(x)
-#define extend_string(x,sz) int_extend_string(x, sz)
+#define extend_string(x,sz) int_extend_string(to_malloc_str(x), sz)
 #define alloc_cstring(x,y) int_alloc_cstring(x, NULL)
 
 /* define this when included by something compiled before lib/lpc */

@@ -13,9 +13,7 @@ double strtod (const char *, char **);
 #endif
 
 #define SSCANF_ASSIGN_SVALUE_STRING(S) \
-        arg->type = T_STRING; \
-        arg->u.string = S; \
-        arg->subtype = STRING_MALLOC; \
+  SET_SVALUE_MALLOC_STRING (arg, (S)); \
         arg--; \
         num_arg--
 
@@ -50,13 +48,13 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
    * First get the string to be parsed.
    */
   CHECK_TYPES (s0, T_STRING, 1, F_SSCANF);
-  in_string = s0->u.string;
+  in_string = SVALUE_STRPTR(s0);
 
   /*
    * Now get the format description.
    */
   CHECK_TYPES (s1, T_STRING, 2, F_SSCANF);
-  fmt = s1->u.string;
+  fmt = SVALUE_STRPTR(s1);
 
   /*
    * Loop for every % or substring in the format.

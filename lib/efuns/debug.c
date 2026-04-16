@@ -27,13 +27,13 @@ void f_error (void) {
   size_t len = SVALUE_STRLEN (sp);
   char err_buf[2048];
 
-  if (sp->u.string[len - 1] == '\n')
+  if (SVALUE_STRPTR(sp)[len - 1] == '\n')
     len--;
   if (len > 2045)
     len = 2045;
 
   err_buf[0] = '*';
-  strncpy (err_buf + 1, sp->u.string, len);
+  strncpy (err_buf + 1, SVALUE_STRPTR(sp), len);
   err_buf[len + 1] = '\n';
   err_buf[len + 2] = 0;
 
@@ -47,9 +47,7 @@ void f_throw (void) {
   free_svalue (&catch_value, "f_throw");
   if (sp->type == T_NUMBER && sp->u.number == 0)
     {
-      catch_value.type = T_STRING;
-      catch_value.subtype = STRING_MALLOC;
-      catch_value.u.string = string_copy ("*Unspecified error", "f_throw");
+      SET_SVALUE_MALLOC_STRING(&catch_value, string_copy ("*Unspecified error", "f_throw"));
       sp--;
     }
   else
@@ -104,14 +102,10 @@ void f_call_stack (void) {
   switch (sp->u.number)
     {
     case 0:
-      ret->item[0].type = T_STRING;
-      ret->item[0].subtype = STRING_MALLOC;
-      ret->item[0].u.string = add_slash (current_prog->name);
+      SET_SVALUE_MALLOC_STRING(&ret->item[0], add_slash (current_prog->name));
       for (i = 1; i < n; i++)
         {
-          ret->item[i].type = T_STRING;
-          ret->item[i].subtype = STRING_MALLOC;
-          ret->item[i].u.string = add_slash ((csp - i + 1)->prog->name);
+          SET_SVALUE_MALLOC_STRING(&ret->item[i], add_slash ((csp - i + 1)->prog->name));
         }
       break;
     case 1:
@@ -128,34 +122,26 @@ void f_call_stack (void) {
     case 2:
       for (i = 0; i < n; i++)
         {
-          ret->item[i].type = T_STRING;
           if (((csp - i)->framekind & FRAME_MASK) == FRAME_FUNCTION)
             {
               program_t *prog = (i ? (csp - i + 1)->prog : current_prog);
               int index = (csp - i)->fr.table_index;
               compiler_function_t *cfp = &prog->function_table[index];
 
-              ret->item[i].subtype = STRING_SHARED;
-              ret->item[i].u.string = cfp->name;
-              ref_string (cfp->name);
+              SET_SVALUE_SHARED_STRING(&ret->item[i], ref_string (to_shared_str(cfp->name)));
             }
           else
             {
-              ret->item[i].subtype = STRING_CONSTANT;
-              ret->item[i].u.string = (((csp - i)->framekind & FRAME_MASK) == FRAME_CATCH) ? "CATCH" : "<function>";
+              SET_SVALUE_CONSTANT_STRING(&ret->item[i], (((csp - i)->framekind & FRAME_MASK) == FRAME_CATCH) ? "CATCH" : "<function>");
             }
         }
       break;
     case 3:
-      ret->item[0].type = T_STRING;
-      ret->item[0].subtype = STRING_CONSTANT;
-      ret->item[0].u.const_string = origin_name (caller_type);
+      SET_SVALUE_CONSTANT_STRING(&ret->item[0], origin_name (caller_type));
 
       for (i = 1; i < n; i++)
         {
-          ret->item[i].type = T_STRING;
-          ret->item[i].subtype = STRING_CONSTANT;
-          ret->item[i].u.const_string = origin_name ((csp - i + 1)->caller_type);
+          SET_SVALUE_CONSTANT_STRING(&ret->item[i], origin_name ((csp - i + 1)->caller_type));
         }
       break;
     }
@@ -419,12 +405,12 @@ static size_t memory_share (svalue_t * sv) {
         {
         case STRING_MALLOC:
           return total +
-            (1 + COUNTED_STRLEN (sv->u.string) + sizeof (malloc_block_t)) /
-            (COUNTED_REF (sv->u.string));
+            (1 + COUNTED_STRLEN (sv->u.malloc_string) + sizeof (malloc_block_t)) /
+            (COUNTED_REF (sv->u.malloc_string));
         case STRING_SHARED:
           return total +
-            (1 + COUNTED_STRLEN (sv->u.string) + sizeof (block_t)) /
-            (COUNTED_REF (sv->u.string));
+            (1 + COUNTED_STRLEN (sv->u.shared_string) + sizeof (block_t)) /
+            (COUNTED_REF (sv->u.shared_string));
         }
       break;
     case T_ARRAY:
@@ -489,8 +475,7 @@ fms_recurse (mapping_t * map, object_t * ob, int *idx, program_t * prog)
   svalue_t *entry;
   svalue_t sv;
 
-  sv.type = T_STRING;
-  sv.subtype = STRING_SHARED;
+  SET_SVALUE_SHARED_STRING(&sv, NULL);
 
   for (i = 0; i < prog->num_inherited; i++)
     fms_recurse (map, ob, idx, prog->inherit[i].prog);
@@ -499,7 +484,7 @@ fms_recurse (mapping_t * map, object_t * ob, int *idx, program_t * prog)
     {
       size_t size = memory_share (ob->variables + *idx + i);
 
-      sv.u.string = prog->variable_table[i];
+      SET_SVALUE_SHARED_STRING(&sv, prog->variable_table[i]);
       entry = find_for_insert (map, &sv, 0);
       entry->u.number += size;
     }
@@ -514,14 +499,13 @@ f_memory_summary (void)
   int idx;
   svalue_t sv;
 
-  sv.type = T_STRING;
-  sv.subtype = STRING_SHARED;
+  SET_SVALUE_SHARED_STRING(&sv, NULL);
 
   for (ob = obj_list; ob; ob = ob->next_all)
     {
       svalue_t *entry;
 
-      sv.u.string = ob->prog->name;
+      sv.u.shared_string = ob->prog->name;
       entry = find_for_insert (result, &sv, 0);
       if (entry->type == T_NUMBER)
         {
@@ -697,7 +681,7 @@ f_traceprefix (void)
       if (sp->type & T_STRING)
         {
           command_giver->interactive->trace_prefix =
-            make_shared_string(sp->u.string, NULL);
+            make_shared_string(SVALUE_STRPTR(sp), NULL);
           free_string_svalue (sp);
         }
       else
@@ -870,7 +854,7 @@ f_program_info (void)
 void
 f_debug_message (void)
 {
-  debug_message ("%s", sp->u.string);
+  debug_message ("%s", SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
 }
 #endif

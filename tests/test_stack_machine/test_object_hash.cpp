@@ -27,7 +27,7 @@ TEST_F(StackMachineTest, objectHash) {
     EXPECT_EQ(lookup_object_hash("/test_object"), nullptr);
     EXPECT_EQ(test_ob.next_hash, nullptr);
 
-    free_string(test_ob.name);
+    free_string(to_shared_str(test_ob.name));
 
     // object hash has nothing to do with object lifecycle, an object can exist after removal
     // from the hash table.
