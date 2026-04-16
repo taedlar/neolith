@@ -148,6 +148,7 @@ void outbuf_fix (outbuffer_t * outbuf) {
 }
 
 void outbuf_push (outbuffer_t * outbuf) {
+  STACK_CHECK (1);
   ++sp;
   if (outbuf && outbuf->buffer)
     {
