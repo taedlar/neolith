@@ -19,6 +19,7 @@
 #include "curl/curl_efuns.h"
 #include "lpc/buffer.h"
 #include "lpc/functional.h"
+#include "lpc/mapping.h"
 
 namespace {
 
@@ -517,6 +518,51 @@ TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
   ExpectTopNumber(0);
   pop_stack();
 }
+
+#ifdef F_FROM_JSON
+
+TEST_F(CurlEfunsTest, CurlBufferPayloadParsesViaFromJson) {
+  object_t *owner = LoadInlineObject("/tests/efuns/curl_json_owner", kCallbackOwnerCode);
+  ASSERT_NE(owner, nullptr);
+
+  HttpTestServer server("{\"ok\":1,\"msg\":\"hi\"}");
+  ASSERT_TRUE(server.valid());
+  ConfigureUrl(owner, server.url());
+
+  StartTransfer(owner, "curl_done");
+  ASSERT_TRUE(PumpUntil([&]() { return QueryEventCount(owner) == 1; }))
+    << "Timed out waiting for curl JSON callback";
+
+  array_t *result = QueryLast(owner);
+  ASSERT_EQ(result->size, 4);
+  ASSERT_EQ(result->item[1].type, T_BUFFER);
+  ASSERT_NE(result->item[1].u.buf, nullptr);
+
+  /* Validate the exact boundary we care about: CURL response buffer -> from_json. */
+  buffer_t *src = result->item[1].u.buf;
+  buffer_t *buf = allocate_buffer(src->size);
+  memcpy(buf->item, src->item, src->size);
+  push_refed_buffer(buf);
+  f_from_json();
+
+  ASSERT_EQ(sp->type, T_MAPPING);
+  svalue_t *ok = find_string_in_mapping(sp->u.map, "ok");
+  ASSERT_NE(ok, &const0u) << "key 'ok' not found after parsing CURL JSON buffer";
+  auto ok_view = lpc::svalue_view::from(ok);
+  ASSERT_TRUE(ok_view.is_number());
+  EXPECT_EQ(ok_view.number(), 1);
+
+  svalue_t *msg = find_string_in_mapping(sp->u.map, "msg");
+  ASSERT_NE(msg, &const0u) << "key 'msg' not found after parsing CURL JSON buffer";
+  auto msg_view = lpc::svalue_view::from(msg);
+  ASSERT_TRUE(msg_view.is_string());
+  EXPECT_STREQ(msg_view.c_str(), "hi");
+
+  pop_stack();
+  pop_stack();
+}
+
+#endif /* F_FROM_JSON */
 
 // Verifies that destructing the owner while a transfer is actively in-flight triggers
 // the cancel path: close_curl_handles() enqueues CURL_TASK_CANCEL, the worker removes the

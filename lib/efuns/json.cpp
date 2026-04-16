@@ -115,7 +115,12 @@ static boost::json::value lpc_to_json(svalue_t *v)
     return v->u.real;
 
   case T_STRING:
-    return boost::json::string(SVALUE_STRPTR(v));
+    /* Use explicit byte-span to preserve embedded null bytes.
+     * SVALUE_STRPTR(v) alone would use C-string semantics (stop at null).
+     * Pass the full span [data, data+length) to Boost.JSON. */
+    return boost::json::string(
+      boost::json::string_view(SVALUE_STRPTR(v), SVALUE_STRLEN(v))
+    );
 
   case T_ARRAY: {
     boost::json::array arr;
@@ -130,8 +135,11 @@ static boost::json::value lpc_to_json(svalue_t *v)
     m = v->u.map;
     for (i = 0; i <= (int)m->table_size; i++) {
       for (node = m->table[i]; node; node = node->next)
-        obj.emplace(SVALUE_STRPTR(&node->values[0]),
-                    lpc_to_json(&node->values[1]));
+        obj.emplace(
+          boost::json::string_view(SVALUE_STRPTR(&node->values[0]),
+                                   SVALUE_STRLEN(&node->values[0])),
+          lpc_to_json(&node->values[1])
+        );
     }
     return obj;
   }
@@ -177,7 +185,10 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
 
   case boost::json::kind::string: {
     auto const& js = jv.get_string();
-    SET_SVALUE_MALLOC_STRING(out, string_copy(js.c_str(), "json_to_lpc"));
+    /* Use span-based int_string_copy to preserve embedded null bytes.
+     * js.c_str() would truncate at the first null; instead pass the actual
+     * byte range [data, data+size). */
+    SET_SVALUE_MALLOC_STRING(out, int_string_copy(js.data(), js.data() + js.size()));
     break;
   }
 
@@ -210,13 +221,13 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
     auto const& jo = jv.get_object();
     mapping_t *m = allocate_mapping(jo.size());
     for (auto const& kv : jo) {
-      /* Use STRING_CONSTANT key: find_for_insert interns it as a shared
-       * string. The RAII wrapper releases any temporary shared key ref if
-       * find_for_insert rewrites the slot. */
+      /* Build the temporary key from the exact Boost.JSON byte span so
+       * embedded null bytes are preserved. Using c_str()-based key setup
+       * would truncate keys at the first '\0'. */
       lpc::svalue key;
-      std::string k (kv.key().data(), kv.key().size() + 1);
-      k.at(kv.key().size()) = '\0';  /* ensure null-terminated for string_copy */
-      key.view().set_constant_string(k.c_str());
+      auto const& jk = kv.key();
+      SET_SVALUE_MALLOC_STRING(key.raw(),
+                               int_string_copy(jk.data(), jk.data() + jk.size()));
       svalue_t *val = find_for_insert(m, key.raw(), 1);
       val->type = T_INVALID;
       json_to_lpc(kv.value(), val);
