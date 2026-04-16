@@ -435,23 +435,19 @@ TEST_F(EfunsTest, roundTripString) {
 
 TEST_F(EfunsTest, roundTripEmbeddedNull) {
     /* Create an LPC string with embedded null: "hello\0world" (11 bytes) */
-    buffer_t *buf = allocate_buffer(11);
-    memcpy(buf->item, "hello\0world", 11);
-    /* We need to construct the string from the buffer manually.
-     * For this test, we'll create it by pushing as a malloc string. */
     {
         malloc_str_t str = int_new_string(11);
         memcpy(str, "hello\0world", 11);
         push_malloced_string(str);
     }
-    
+
     /* to_json should escape the embedded null as \u0000 */
     f_to_json();
     ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
     auto json_view = lpc::svalue_view::from(sp);
     /* The JSON output should contain the escaped form: "hello\u0000world" */
     EXPECT_STREQ(json_view.c_str(), "\"hello\\u0000world\"");
-    
+
     /* from_json should reconstruct the original string with embedded null */
     f_from_json();
     ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
@@ -459,7 +455,7 @@ TEST_F(EfunsTest, roundTripEmbeddedNull) {
     EXPECT_EQ(result_view.length(), 11u);
     EXPECT_EQ(static_cast<unsigned char>(result_view.c_str()[5]), 0u);
     EXPECT_TRUE(memcmp(result_view.c_str(), "hello\0world", 11) == 0);
-    
+
     pop_stack();
 }
 
