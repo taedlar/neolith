@@ -36,8 +36,7 @@ typedef struct {
 } refed_t;
 
 union svalue_u {
-    /* C-string semantics*/
-    char *string;
+    /* Explicit string-subtype semantics */
     const char *const_string;
     shared_str_t shared_string;
     malloc_str_t malloc_string;

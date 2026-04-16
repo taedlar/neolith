@@ -80,7 +80,7 @@ String callbacks are converted to `FP_LOCAL` function pointers at setup time:
 
 ```c
 if (fun->type == T_STRING) {
-    callback_funp = make_lfun_funp_by_name(fun->u.string, &dummy);
+    callback_funp = make_lfun_funp_by_name(SVALUE_STRPTR(fun), &dummy);
 } else if (fun->type == T_FUNCTION) {
     callback_funp = fun->u.fp;
     callback_funp->hdr.ref++;

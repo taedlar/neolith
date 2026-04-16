@@ -143,7 +143,7 @@ When adding or modifying a function, verify:
 
 // Efun wrapper adds convenience:
 void f_set_prompt(void) {
-    set_prompt(command_giver, sp->u.string);  // Explicit
+    set_prompt(command_giver, SVALUE_STRPTR(sp));  // Explicit
 }
 ```
 
@@ -224,12 +224,12 @@ void cache_write_prompt_apply(object_t *ob, int exists);
 ```c
 // Old efun implementation
 void f_set_prompt(void) {
-    set_prompt(sp->u.string);  // Implicit command_giver
+    set_prompt(SVALUE_STRPTR(sp));  // Implicit command_giver
 }
 
 // New efun implementation
 void f_set_prompt(void) {
-    set_prompt(command_giver, sp->u.string);  // Explicit
+    set_prompt(command_giver, SVALUE_STRPTR(sp));  // Explicit
 }
 ```
 
