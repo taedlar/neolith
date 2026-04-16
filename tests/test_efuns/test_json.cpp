@@ -355,6 +355,25 @@ TEST_F(EfunsTest, fromJsonEmbeddedNullCharacterAccepted) {
     pop_stack();
 }
 
+TEST_F(EfunsTest, fromJsonEmbeddedNullObjectKeyAccepted) {
+    /* JSON object key contains U+0000 encoded as \u0000. */
+    static const char payload[] = "{\"a\\u0000b\":7}";
+
+    copy_and_push_string(payload);
+    f_from_json();
+
+    ASSERT_EQ(sp->type, T_MAPPING);
+
+    lpc::svalue key;
+    key.view().set_malloc_string(int_string_copy("a\0b", "a\0b" + 3));
+    svalue_t *found = find_in_mapping(sp->u.map, key.raw());
+    ASSERT_NE(found, &const0u) << "embedded-null key not found in from_json result mapping";
+
+    auto value = lpc::svalue_view::from(found);
+    ASSERT_TRUE(value.is_number());
+    EXPECT_EQ(value.number(), 7);
+}
+
 TEST_F(EfunsTest, fromJsonLargeBuffer) {
     /* Build a JSON object with a small number of keys whose total serialized
      * length exceeds 65535 bytes (the old unsigned-short buffer-size limit).
@@ -457,6 +476,23 @@ TEST_F(EfunsTest, roundTripEmbeddedNull) {
     EXPECT_TRUE(memcmp(result_view.c_str(), "hello\0world", 11) == 0);
 
     pop_stack();
+}
+
+TEST_F(EfunsTest, toJsonEmbeddedNullObjectKeyEscaped) {
+    mapping_t *m = allocate_mapping(1);
+
+    lpc::svalue key;
+    key.view().set_malloc_string(int_string_copy("a\0b", "a\0b" + 3));
+    svalue_t *val = find_for_insert(m, key.raw(), 1);
+    ASSERT_NE(val, nullptr);
+    lpc::svalue_view::from(val).set_number(7);
+
+    push_refed_mapping(m);
+    f_to_json();
+
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_string());
+    EXPECT_STREQ(view.c_str(), "{\"a\\u0000b\":7}");
 }
 
 TEST_F(EfunsTest, roundTripNull) {

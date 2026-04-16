@@ -337,7 +337,9 @@ int restore_hash_string (char **val, svalue_t * sv) {
 int svalue_to_int (svalue_t * v) {
   if (v->type == T_STRING && v->subtype != STRING_SHARED)
     {
-      shared_str_t p = make_shared_string(SVALUE_STRPTR(v), NULL);
+      const char *start = SVALUE_STRPTR(v);
+      const char *end = start + SVALUE_STRLEN(v);
+      shared_str_t p = make_shared_string(start, end);
       free_string_svalue (v);
       SET_SVALUE_SHARED_STRING (v, p);
     }
