@@ -48,7 +48,7 @@ early as possible (compile-time preferred, runtime as backstop).
 | Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
 | Implementation: VM/operator NUL-removal and span API normalization | complete |
 | Implementation: abstract typed handles + runtime contract enforcement | complete |
-| Implementation: C++ RAII wrapper adoption on exception baseline | in progress (unit-test scope complete for counted-string targets; production follow-on remains) |
+| Implementation: C++ RAII wrapper adoption on exception baseline | complete |
 | Implementation: efun byte-span readiness | in progress (narrowed: defer broad LPC string-efun hardening; prioritize JSON/CURL ingress) |
 | Implementation: JSON boundary contract and tests | complete |
 | Validation: end-to-end LPC/JSON regression matrix | complete |
@@ -349,6 +349,17 @@ assigning `result = ""`. A regression test was added in
   current counted-string target set: a workspace scan of `tests/**/*.cpp`
   shows no remaining `free_string_svalue(...)` / `free_svalue(...)` manual
   cleanup paths in C++ unit tests.
+- **Production RAII adoption complete**: `f_from_json` in `lib/efuns/json.cpp`
+  now uses `std::unique_ptr<boost::json::value>` (via `std::make_unique`) for
+  the `parsed` heap slot, eliminating the manual `new`/`delete` pair that
+  would have leaked the `boost::json::value` if `json_to_lpc()` triggered an
+  LPC runtime error unwind. All 34 JSON-related tests remain green after this
+  change. A workspace-wide scan of production C++ confirms no further local
+  temporary `svalue_t` or heap objects with manual cleanup remain avoidable
+  without changing C ABI boundaries: the remaining `free_svalue(sp, ...)` calls
+  in efun bodies are stack-pop operations (eval-stack ABI contract), and
+  `apply_ret_value` / `catch_value` are C-linkage globals managed by their
+  respective owners.
 - JSON UTF-8 boundary test coverage is now explicitly aligned with the
   contract decisions in `tests/test_efuns/test_json.cpp`:
   `fromJsonValidUtf8StringAccepted` (valid UTF-8 accepted),
@@ -390,11 +401,6 @@ assigning `result = ""`. A regression test was added in
 
 ### Next Focus
 
-- **C++ RAII wrapper adoption** — complete wrapper adoption on the established
-  exception baseline without C ABI layout changes. Unit-test-first migration
-  is complete for current counted-string targets; immediate next slice is
-  additional production C++ efun/helper paths where manual free paths remain
-  avoidable.
 - **JSON/CURL boundary follow-through** — keep existing JSON/CURL ingress
   coverage stable as counted-string and efun refactors continue, and add
   targeted regression tests only when new boundary behaviors are introduced.
