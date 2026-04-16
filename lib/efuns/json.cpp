@@ -45,6 +45,7 @@
 #endif
 
 #ifdef HAVE_BOOST_JSON
+#include <memory>
 #ifdef BOOST_JSON_HEADER_ONLY
 #include <boost/json/src.hpp>  // Boost.JSON header-only implementation
 #else
@@ -281,7 +282,7 @@ void f_to_json(void)
  */
 void f_from_json(void)
 {
-  boost::json::value* parsed = nullptr;
+  std::unique_ptr<boost::json::value> parsed;
   const char *input = nullptr;
   size_t input_len = 0;
 
@@ -323,12 +324,13 @@ void f_from_json(void)
       error("%s", errbuf);
     }
     /* Move parsed result to the heap so ownership stays explicit if
-     * json_to_lpc() raises a runtime error (for example on OOM). */
-    parsed = new boost::json::value(std::move(jv));
+     * json_to_lpc() raises a runtime error (for example on OOM).
+     * unique_ptr guarantees the heap value is destroyed even if error()
+     * unwinds the C++ stack. */
+    parsed = std::make_unique<boost::json::value>(std::move(jv));
   }
 
   json_to_lpc(*parsed, sp);
-  delete parsed;
 }
 #endif /* F_FROM_JSON */
 
