@@ -1121,9 +1121,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                   svalue_to_string (carg, &outbuf, 0, 0, 0);
                   outbuf_fix (&outbuf);
 
-                  clean.type = T_STRING;
-                  clean.subtype = STRING_MALLOC;
-                  clean.u.malloc_string = outbuf.buffer;
+                  SET_SVALUE_MALLOC_STRING (&clean, outbuf.buffer);
                   carg = &clean;
                   finfo ^= INFO_T_LPC;
                   finfo |= INFO_T_STRING;
@@ -1142,9 +1140,7 @@ char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
                    */
                   if (carg->type == T_NUMBER && carg->u.number == 0)
                     {
-                      clean.type = T_STRING;
-                      clean.subtype = STRING_MALLOC;
-                      clean.u.malloc_string = string_copy (NULL_MSG, "sprintf NULL");
+                      SET_SVALUE_MALLOC_STRING (&clean, string_copy (NULL_MSG, "sprintf NULL"));
                       carg = &clean;
                     }
                   else if (carg->type != T_STRING)
@@ -1408,16 +1404,14 @@ void f_sprintf (void) {
                               num_arg - 1, sp - num_arg + 2);
   pop_n_elems (num_arg);
 
-  (++sp)->type = T_STRING;
+  ++sp;
   if (!s)
     {
-      sp->subtype = STRING_CONSTANT;
-      sp->u.const_string = "";
+      SET_SVALUE_CONSTANT_STRING (sp, "");
     }
   else
     {
-      sp->subtype = STRING_MALLOC;
-      sp->u.malloc_string = s;
+      SET_SVALUE_MALLOC_STRING (sp, s);
     }
 }
 #endif

@@ -390,9 +390,7 @@ load_lpc_info (int ix, object_t * ob)
                   if (sing->item[il].type == T_STRING)
                     {
                       str = parse_to_plural (SVALUE_STRPTR(&sing->item[il]));
-                      tmp->item[il].type = T_STRING;
-                      tmp->item[il].subtype = STRING_MALLOC;
-                      tmp->item[il].u.malloc_string = str;
+                      SET_SVALUE_MALLOC_STRING (&tmp->item[il], str);
                     }
                 }
               gPluid_list->item[ix].type = T_ARRAY;
@@ -729,7 +727,6 @@ store_words_slice (svalue_t * args, int pos, int num, array_t * warr, int from, 
     return;
 
   ret = args + num - pos - 1;
-  ret->type = T_STRING;
 
   if (from <= to)
     {
@@ -738,16 +735,14 @@ store_words_slice (svalue_t * args, int pos, int num, array_t * warr, int from, 
 
       if (slice->size)
         {
-          ret->subtype = STRING_MALLOC;
-          ret->u.malloc_string = implode_string (slice, " ", 1);
+          SET_SVALUE_MALLOC_STRING (ret, implode_string (slice, " ", 1));
           free_array (slice);
           return;
         }
       free_array (slice);
     }
 
-  ret->subtype = STRING_CONSTANT;
-  ret->u.const_string = "";
+  SET_SVALUE_CONSTANT_STRING (ret, "");
 }
 
 /*
@@ -875,9 +870,8 @@ one_parse (array_t * obarr, char *pat, array_t * warr, int *cix_in, int *fail,
       break;
 
     case 'w':
-      parse_ret.type = T_STRING;
-      parse_ret.subtype = STRING_SHARED;
-      parse_ret.u.shared_string = make_shared_string(SVALUE_STRPTR(&warr->item[*cix_in]), NULL);
+      SET_SVALUE_SHARED_STRING (&parse_ret,
+                                make_shared_string (SVALUE_STRPTR(&warr->item[*cix_in]), NULL));
       pval = &parse_ret;
       (*cix_in)++;
       *fail = 0;
@@ -1312,9 +1306,8 @@ prepos_parse (array_t * warr, int *cix_in, int *fail, svalue_t * prepos)
     }
   else
     {
-      parse_ret.type = T_STRING;
-      parse_ret.subtype = STRING_MALLOC;
-      parse_ret.u.malloc_string = string_copy (SVALUE_STRPTR(&parr->item[pix]), "parse");
+      SET_SVALUE_MALLOC_STRING (&parse_ret,
+                                string_copy (SVALUE_STRPTR(&parr->item[pix]), "parse"));
       *fail = 0;
     }
 
@@ -1614,9 +1607,8 @@ parse_to_plural (char *str)
           if (sentence != SVALUE_STRPTR(&words->item[il - 1]))
             {
               free_svalue (&words->item[il - 1], "parse_to_plural");
-              words->item[il - 1].type = T_STRING;
-              words->item[il - 1].subtype = STRING_MALLOC;
-              words->item[il - 1].u.malloc_string = string_copy (sentence, "parse_to_plural");
+              SET_SVALUE_MALLOC_STRING (&words->item[il - 1],
+                                        string_copy (sentence, "parse_to_plural"));
               changed = 1;
             }
         }

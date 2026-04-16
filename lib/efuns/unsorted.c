@@ -327,8 +327,7 @@ void f_function_exists (void) {
       res[0] = '/';
       strncpy (res + 1, str, len);
       res[len + 1] = 0;
-      sp->subtype = STRING_MALLOC;
-      sp->u.malloc_string = res;
+      SET_SVALUE_MALLOC_STRING (sp, res);
     }
   else
     *sp = const0;

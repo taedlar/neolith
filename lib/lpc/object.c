@@ -584,11 +584,11 @@ static int restore_interior_string (char **val, svalue_t * sv) {
                   return ROB_STRING_ERROR;
                 *newp = '\0';
                 *val = cp;
-                sv->u.malloc_string = new_string (len = (newp - start),
-                                                  "restore_string");
-                strcpy (sv->u.malloc_string, start);
-                sv->type = T_STRING;
-                sv->subtype = STRING_MALLOC;
+                {
+                  char *restored = new_string (len = (newp - start), "restore_string");
+                  strcpy (restored, start);
+                  SET_SVALUE_MALLOC_STRING (sv, restored);
+                }
                 return 0;
               }
             else
@@ -606,10 +606,11 @@ static int restore_interior_string (char **val, svalue_t * sv) {
   *val = cp;
   *--cp = '\0';
   len = (size_t)(cp - start);
-  sv->u.malloc_string = new_string (len, "restore_string");
-  strcpy (sv->u.malloc_string, start);
-  sv->type = T_STRING;
-  sv->subtype = STRING_MALLOC;
+  {
+    char *restored = new_string (len, "restore_string");
+    strcpy (restored, start);
+    SET_SVALUE_MALLOC_STRING (sv, restored);
+  }
   return 0;
 }
 
@@ -1222,10 +1223,11 @@ int restore_string (char *val, svalue_t * sv) {
                 if ((c == '\0') || (*cp != '\0'))
                   return ROB_STRING_ERROR;
                 *newp = '\0';
-                sv->u.malloc_string = new_string (newp - start, "restore_string");
-                strcpy (sv->u.malloc_string, start);
-                sv->type = T_STRING;
-                sv->subtype = STRING_MALLOC;
+                {
+                  char *restored = new_string (newp - start, "restore_string");
+                  strcpy (restored, start);
+                  SET_SVALUE_MALLOC_STRING (sv, restored);
+                }
                 return 0;
               }
             else
@@ -1244,10 +1246,11 @@ int restore_string (char *val, svalue_t * sv) {
     return ROB_STRING_ERROR;
   *cp = '\0';
   len = (size_t)(cp - start);
-  sv->u.malloc_string = new_string (len, "restore_string");
-  strcpy (sv->u.malloc_string, start);
-  sv->type = T_STRING;
-  sv->subtype = STRING_MALLOC;
+  {
+    char *restored = new_string (len, "restore_string");
+    strcpy (restored, start);
+    SET_SVALUE_MALLOC_STRING (sv, restored);
+  }
   return 0;
 }
 

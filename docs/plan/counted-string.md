@@ -65,7 +65,7 @@ or through `SVALUE_STRPTR(...)` at subtype-unknown sites.
 
 ### What Changed Since Last Update
 
-Three additional hardening batches landed after the previous handoff:
+Four additional hardening batches landed after the previous handoff:
 
 **Batch A — efun array constructors and core runtime sites:**
 - `lib/efuns/variable.c` — shared-string array item constructors → `SET_SVALUE_SHARED_STRING`
@@ -85,19 +85,21 @@ Three additional hardening batches landed after the previous handoff:
 - `lib/efuns/string.c` — `f_repeat_string` zero-repeat fallback → `SET_SVALUE_CONSTANT_STRING`
 - `lib/efuns/unsorted.c` — `f_query_privs` out-of-order stamp and all shared stamps in `f_functions` → typed helpers
 
+**Batch D — remaining open-coded stamping sweep:**
+- `lib/efuns/parse.c` — all 6 remaining multi-branch stamps → `SET_SVALUE_SHARED_STRING` / `SET_SVALUE_MALLOC_STRING` / `SET_SVALUE_CONSTANT_STRING`
+- `lib/efuns/sprintf.c` — all 4 remaining `clean`/return-path stamps → typed helpers
+- `lib/efuns/sscanf.c` — string assignment macro now routes through `SET_SVALUE_MALLOC_STRING`
+- `lib/efuns/unsorted.c` — `f_function_exists` result stamp now uses `SET_SVALUE_MALLOC_STRING` (also fixes missing explicit `type = T_STRING`)
+- `lib/lpc/array.c` — all 18 remaining explode/implode/comparator/reg_assoc stamps → typed helpers
+- `lib/lpc/mapping.c` — all remaining restore/insert/add_* mapping string stamps → typed helpers
+- `lib/lpc/object.c` — all remaining restore string stamps → typed helpers
+
 All targeted regression tests remain green after each batch.
 
-### Remaining Open-Coded Stamping Sites (61 total)
+### Remaining Open-Coded Stamping Sites (5 total)
 
 | File | Count | Notes |
 |---|---|---|
-| `lib/efuns/parse.c` | 6 | Multi-branch parse/command return flow; needs per-site analysis |
-| `lib/efuns/sprintf.c` | 4 | `do_clean_str`, `f_sprintf` multi-branch flow; deferred |
-| `lib/efuns/sscanf.c` | 1 | Inside `#define` macro body; requires macro restructuring |
-| `lib/efuns/unsorted.c` | 1 | `f_function_exists` subtype-only partial stamp |
-| `lib/lpc/array.c` | 18 | Sort/alist comparators, structured-init compound literal, implode/explode builders |
-| `lib/lpc/mapping.c` | 8 | Partial subtype-only stamps in serialize/restore paths |
-| `lib/lpc/object.c` | 4 | Partial subtype-only stamps in save/restore paths |
 | `src/stack.c` | 5 | **Intentional** — these are the typed push boundary helpers themselves |
 
 The `src/stack.c` sites are not candidates for replacement; they implement the
@@ -266,16 +268,6 @@ assigning `result = ""`. A regression test was added in
 
 ### Next Focus
 
-- **`lib/efuns/unsorted.c` line 330** — `f_function_exists` subtype-only stamp
-  (missing `type = T_STRING`; check surrounding context before touching).
-- **`lib/efuns/parse.c`** — 6 sites across multi-branch return paths; harden
-  as a focused sub-pass after reading the full flow for each.
-- **`lib/efuns/sprintf.c`** — 4 sites in `do_clean_str` and `f_sprintf` return
-  path; similar approach.
-- **`lib/lpc/array.c`** — 18 sites in implode/explode builders and
-  sort/alist comparators; can be batched after context review.
-- **`lib/lpc/mapping.c`** and **`lib/lpc/object.c`** — 12 combined partial
-  subtype-only stamps; need careful context review for surrounding `type` sets.
 - **Abstract-handle compile-time enforcement** — promote opaque handle types
   so shared/malloc domain misuse fails at call sites under `STRING_TYPE_SAFETY`
   (still the longer-term target).
