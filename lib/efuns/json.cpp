@@ -32,6 +32,7 @@
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
+#include "lpc/types.h"
 
 /* mapping.h defines max(x,y) for C compatibility; undefine before C++ headers
  * to avoid conflicts with std::max templates in Boost and the C++ standard
@@ -210,13 +211,13 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
     mapping_t *m = allocate_mapping(jo.size());
     for (auto const& kv : jo) {
       /* Use STRING_CONSTANT key: find_for_insert interns it as a shared
-       * string and updates key.u.shared_string; we release our ref afterwards. */
-      svalue_t key;
+       * string. The RAII wrapper releases any temporary shared key ref if
+       * find_for_insert rewrites the slot. */
+      lpc::svalue key;
       std::string k (kv.key().data(), kv.key().size() + 1);
       k.at(kv.key().size()) = '\0';  /* ensure null-terminated for string_copy */
-      SET_SVALUE_CONSTANT_STRING(&key, k.c_str());
-      svalue_t *val = find_for_insert(m, &key, 1);
-      free_string(to_shared_str(key.u.shared_string));  /* release shared-string ref from find_for_insert */
+      key.view().set_constant_string(k.c_str());
+      svalue_t *val = find_for_insert(m, key.raw(), 1);
       val->type = T_INVALID;
       json_to_lpc(kv.value(), val);
     }

@@ -63,16 +63,16 @@ TEST_F(LPCInterpreterTest, callFunction) {
     // no object is created; we just call the functions directly
     // (no global variables used in the test functions)
     int index, fio, vio;
-    svalue_t ret;
+    lpc::svalue ret;
     program_t* found_prog = find_function(prog, findstring("add", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program for add().";
     int runtime_index = found_prog->function_table[index].runtime_index + fio;
 
     push_number(1);
     push_number(2);
-    call_function (prog, runtime_index, 2, &ret);
+    call_function (prog, runtime_index, 2, ret.raw());
 
-    auto ret_view = lpc::svalue_view::from(&ret);
+    auto ret_view = ret.view();
     EXPECT_TRUE(ret_view.is_number()) << "Expected return type to be integer.";
     EXPECT_EQ(ret_view.number(), 3) << "Expected return value of add(1,2) to be 3.";
     free_prog(prog, 1);
@@ -91,7 +91,7 @@ TEST_F(LPCInterpreterTest, callInheritedFunction) {
     ASSERT_NE(method, nullptr) << "findstring returned null for `query_exit`.";
 
     int index, fio, vio;
-    svalue_t ret;
+    lpc::svalue ret;
     program_t* found_prog = find_function(obj->prog, method, &index, &fio, &vio);
     ASSERT_NE(found_prog, obj->prog) << "find_function did not return inherited program for query_exit().";
     int runtime_index = found_prog->function_table[index].runtime_index + fio;
@@ -99,11 +99,11 @@ TEST_F(LPCInterpreterTest, callInheritedFunction) {
     current_object = obj;
     variable_index_offset = vio;
     push_constant_string("north");
-    call_function (obj->prog, runtime_index, 1, &ret);
+    call_function (obj->prog, runtime_index, 1, ret.raw());
 
-    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_string()) << "Expected return value to be a string.";
-    EXPECT_STREQ(lpc::svalue_view::from(&ret).c_str(), "room/observatory.c") << "Expected return value of query_exit(\"north\") to be \"room/observatory.c\".";
-    free_string_svalue(&ret);
+    auto ret_view = ret.view();
+    EXPECT_TRUE(ret_view.is_string()) << "Expected return value to be a string.";
+    EXPECT_STREQ(ret_view.c_str(), "room/observatory.c") << "Expected return value of query_exit(\"north\") to be \"room/observatory.c\".";
     destruct_object(obj);
 
     obj = find_object_by_name("/base/room");
@@ -224,10 +224,10 @@ TEST_F(LPCInterpreterTest, catchSuccessReturnsZeroContract) {
     int runtime_index = RuntimeIndexFor(prog, "catch_success");
     ASSERT_GE(runtime_index, 0);
 
-    svalue_t ret;
-    call_function(prog, runtime_index, 0, &ret);
+    lpc::svalue ret;
+    call_function(prog, runtime_index, 0, ret.raw());
 
-    auto ret_view = lpc::svalue_view::from(&ret);
+    auto ret_view = ret.view();
     EXPECT_TRUE(ret_view.is_number()) << "Expected catch-success return value to be number 0.";
     EXPECT_EQ(ret_view.number(), 0) << "F_END_CATCH success contract regression: expected 0.";
 
@@ -243,14 +243,13 @@ TEST_F(LPCInterpreterTest, throwZeroNormalizesToUnspecifiedError) {
     int runtime_index = RuntimeIndexFor(prog, "throw_zero");
     ASSERT_GE(runtime_index, 0);
 
-    svalue_t ret;
-    call_function(prog, runtime_index, 0, &ret);
+    lpc::svalue ret;
+    call_function(prog, runtime_index, 0, ret.raw());
 
-    auto ret_view = lpc::svalue_view::from(&ret);
+    auto ret_view = ret.view();
     ASSERT_TRUE(ret_view.is_string()) << "Expected caught throw(0) to produce a string payload.";
     ASSERT_NE(ret_view.c_str(), nullptr) << "Expected non-null caught throw(0) payload.";
     EXPECT_EQ(ret_view.c_str()[0], '*') << "Expected caught throw(0) payload to be '*' prefixed driver error text.";
-    free_string_svalue(&ret);
     free_prog(prog, 1);
 }
 
@@ -274,30 +273,30 @@ TEST_F(LPCInterpreterTest, foreachUtf8String) {
 
     // Find and call the function
     int index, fio, vio;
-    svalue_t ret;
+    lpc::svalue ret;
     program_t* found_prog = find_function(prog, findstring("test_utf8_foreach", NULL), &index, &fio, &vio);
     ASSERT_EQ(found_prog, prog) << "find_function did not return the expected program.";
     int runtime_index = found_prog->function_table[index].runtime_index;
 
-    call_function(prog, runtime_index, 0, &ret);
+    call_function(prog, runtime_index, 0, ret.raw());
 
     // Verify the return value is an array
-    EXPECT_TRUE(lpc::svalue_view::from(&ret).is_array()) << "Expected return value to be an array.";
-    ASSERT_TRUE(ret.u.arr != nullptr) << "Expected non-null array.";
-    EXPECT_EQ(ret.u.arr->size, 7) << "Expected array size to be 7.";
+    auto ret_view = ret.view();
+    EXPECT_TRUE(ret_view.is_array()) << "Expected return value to be an array.";
+    ASSERT_TRUE(ret.raw()->u.arr != nullptr) << "Expected non-null array.";
+    EXPECT_EQ(ret.raw()->u.arr->size, 7) << "Expected array size to be 7.";
 
     // Verify the array contains the correct Unicode code points:
     // 'H' = 72, 'e' = 101, 'l' = 108, 'l' = 108, 'o' = 111
     // '世' = 0x4E16 (19990), '界' = 0x754C (30028)
-    ExpectArrayItemNumber(ret.u.arr, 0, 72, "Expected 'H' (72).");
-    ExpectArrayItemNumber(ret.u.arr, 1, 101, "Expected 'e' (101).");
-    ExpectArrayItemNumber(ret.u.arr, 2, 108, "Expected 'l' (108).");
-    ExpectArrayItemNumber(ret.u.arr, 3, 108, "Expected 'l' (108).");
-    ExpectArrayItemNumber(ret.u.arr, 4, 111, "Expected 'o' (111).");
-    ExpectArrayItemNumber(ret.u.arr, 5, 19990, "Expected '世' (0x4E16 = 19990).");
-    ExpectArrayItemNumber(ret.u.arr, 6, 30028, "Expected '界' (0x754C = 30028).");
+    ExpectArrayItemNumber(ret.raw()->u.arr, 0, 72, "Expected 'H' (72).");
+    ExpectArrayItemNumber(ret.raw()->u.arr, 1, 101, "Expected 'e' (101).");
+    ExpectArrayItemNumber(ret.raw()->u.arr, 2, 108, "Expected 'l' (108).");
+    ExpectArrayItemNumber(ret.raw()->u.arr, 3, 108, "Expected 'l' (108).");
+    ExpectArrayItemNumber(ret.raw()->u.arr, 4, 111, "Expected 'o' (111).");
+    ExpectArrayItemNumber(ret.raw()->u.arr, 5, 19990, "Expected '世' (0x4E16 = 19990).");
+    ExpectArrayItemNumber(ret.raw()->u.arr, 6, 30028, "Expected '界' (0x754C = 30028).");
 
-    free_svalue(&ret, "test");
     free_prog(prog, 1);
 }
 
@@ -316,7 +315,7 @@ TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null";
 
     int index, fio, vio;
-    svalue_t ret;
+    lpc::svalue ret;
     program_t *found = find_function(prog, findstring("test_from_json_buf", NULL), &index, &fio, &vio);
     ASSERT_EQ(found, prog);
     int runtime_index = found->function_table[index].runtime_index;
@@ -328,16 +327,16 @@ TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
     push_refed_buffer(buf);
 
     eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
-    call_function(prog, runtime_index, 1, &ret);
+    call_function(prog, runtime_index, 1, ret.raw());
 
-    ASSERT_EQ(ret.type, T_MAPPING) << "Expected T_MAPPING from from_json buffer via LPC VM";
-    svalue_t *found_val = find_string_in_mapping(ret.u.map, "x");
+    ASSERT_TRUE(ret.view().is_array() == false);
+    ASSERT_EQ(ret.raw()->type, T_MAPPING) << "Expected T_MAPPING from from_json buffer via LPC VM";
+    svalue_t *found_val = find_string_in_mapping(ret.raw()->u.map, "x");
     ASSERT_NE(found_val, &const0u) << "key 'x' not found";
     auto found_view = lpc::svalue_view::from(found_val);
     ASSERT_TRUE(found_view.is_number());
     EXPECT_EQ(found_view.number(), 7);
 
-    free_svalue(&ret, "fromJsonBufferViaLpcVm");
     free_prog(prog, 1);
 }
 #endif /* F_FROM_JSON */

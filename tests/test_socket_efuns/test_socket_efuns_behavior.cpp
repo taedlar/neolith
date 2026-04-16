@@ -145,7 +145,7 @@ int QueryObjectNumberMethod(object_t *obj, const char *method) {
   int saved_vio;
   object_t *saved_current;
   program_t *found_prog;
-  svalue_t ret;
+  lpc::svalue ret;
   int result = 0;
 
   found_prog = find_function(obj->prog, findstring(method, NULL), &index, &fio, &vio);
@@ -158,14 +158,14 @@ int QueryObjectNumberMethod(object_t *obj, const char *method) {
   saved_vio = variable_index_offset;
   current_object = obj;
   variable_index_offset = vio;
-  call_function(obj->prog, runtime_index, 0, &ret);
+  call_function(obj->prog, runtime_index, 0, ret.raw());
   current_object = saved_current;
   variable_index_offset = saved_vio;
 
-  if ( lpc::svalue_view::from(&ret).is_number()) {
-    result = (int)lpc::svalue_view::from(&ret).number();
+  auto ret_view = ret.view();
+  if (ret_view.is_number()) {
+    result = (int)ret_view.number();
   }
-  free_svalue(&ret, "QueryObjectNumberMethod");
   return result;
 }
 

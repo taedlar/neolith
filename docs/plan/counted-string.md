@@ -271,11 +271,32 @@ assigning `result = ""`. A regression test was added in
   `EfunsTest.throwError`, `EfunsTest.throwWithoutCatchRaisesRuntimeError`,
   `LPCInterpreterTest.throwZeroNormalizesToUnspecifiedError`, and
   `SimulEfunsTest.callSimulEfun`.
+- C++ RAII wrapper adoption has started in production code: `lib/efuns/json.cpp`
+  now uses `lpc::svalue` for temporary mapping-key construction in
+  `json_to_lpc()`, removing a manual `free_string(to_shared_str(...))`
+  ownership-release path while preserving the existing C ABI boundary.
+- `tests/test_stralloc` now freezes `lpc::svalue` copy and move semantics for
+  shared-string refcount retention and malloc-string ownership transfer,
+  including copy-assignment, move-assignment, and self-assignment no-op
+  coverage.
+- Unit-test-first C++ adoption is now underway: `tests/test_lpc_interpreter`
+  return-value paths and socket helper `QueryObjectNumberMethod()` sites in
+  `tests/test_socket_efuns` now use `lpc::svalue` ownership plus
+  `lpc::svalue_view` accessors instead of raw `svalue_t` temporaries with
+  manual `free_svalue()` / `free_string_svalue()` cleanup.
+- Additional helper-return test adoption is now in place for
+  `tests/test_string_operators/test_string_operators_lpc.cpp`
+  (`call_noarg() -> lpc::svalue`) and
+  `tests/test_lpc_interpreter/test_input_to_get_char.cpp`
+  (`make_function_name_svalue() -> lpc::svalue`), reducing repeated raw
+  callback-name/return-value construction in C++ test code.
 
 ### Next Focus
 
 - **C++ RAII wrapper adoption** — complete wrapper adoption on the established
-  exception baseline without C ABI layout changes.
+  exception baseline without C ABI layout changes. Immediate next slice:
+  continue replacing raw `svalue_t` owners in C++ unit tests first, then move
+  to additional C++ efun/helper code where manual free paths remain avoidable.
 - **Efun/JSON hardening closure** — finish remaining byte-span and
   JSON-boundary contract/doc/test follow-through for plan closure.
 
@@ -296,6 +317,10 @@ assigning `result = ""`. A regression test was added in
 - `u.string` has been removed; string access must use subtype-explicit
   members (`u.const_string`, `u.shared_string`, `u.malloc_string`) or
   `SVALUE_STRPTR(...)` where subtype is not statically known.
+- Enforcement mechanism varies by language:
+  - **C++ code:** compile-time enforcement via `lpc::svalue_view` / `lpc::svalue` wrappers
+  - **C code:** runtime enforcement via `STRING_TYPE_SAFETY` macros + discipline
+  - Both paths converge on typed-member-only semantics and explicit subtype intent
 - When migrating functions or macros that process `svalue_t`, always validate all runtime string semantics: `STRING_MALLOC`, `STRING_SHARED`, `STRING_CONSTANT`.
 
 ## UTF-8 Compatibility Contract
@@ -313,6 +338,33 @@ assigning `result = ""`. A regression test was added in
 - UTF-8 character counting via `explode` is an operation-specific result and
   must not be treated as LPC string length.
   LPC string length and driver counted-string length remain byte counts.
+
+## Compile-Time Safety Scope (C++ Only)
+
+**Decision:** Compile-time string type safety enforcement is scoped to C++ code
+only in this plan. The rationale:
+
+1. **C++ code** gets full compile-time safety via `lpc::svalue_view` (non-owning)
+   and `lpc::svalue` (owning RAII) wrappers:
+   - `set_shared_string()` / `set_malloc_string()` / `set_constant_string()` atomically
+     stamp type + subtype + union member (no partial state possible)
+   - Typed read accessors (`shared_string()`, `malloc_string()`, `const_string()`)
+     communicate ownership intent and preconditions
+   - Move/copy semantics + self-assignment guards prevent ownership bugs
+   - Unit tests establish conventions for broader future adoption
+
+2. **C code** relies on runtime validation via `STRING_TYPE_SAFETY` macros:
+   - `SET_SVALUE_SHARED_STRING()` / `SET_SVALUE_MALLOC_STRING()` / `SET_SVALUE_CONSTANT_STRING()`
+     validate payloads at assignment time in debug builds (abort on mismatch)
+   - Payload classifiers (`is_shared_string_payload()` / `is_malloc_string_payload()`)
+     centralized in `src/stralloc.h` catch sophisticated misuses
+   - C code discipline: must use typed helpers, never raw `sv->u.X` access
+   - `STRING_TYPE_SAFETY` enabled by default in development (enforced via `cmake/options.cmake`)
+
+Converting all legacy C code to use RAII would be a long-term effort (thousands
+of sites). This plan prioritizes establishing solid C++ conventions first via
+unit tests, which will then inform eventual C migration guidance. The runtime
+checks provide a secondary defense layer for C code until migration is feasible.
 
 ## Counted-String Contract and Type Safety
 

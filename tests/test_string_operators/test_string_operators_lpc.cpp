@@ -89,12 +89,11 @@ protected:
         return obj;
     }
 
-    svalue_t call_noarg(object_t *obj, const char *method) {
+    lpc::svalue call_noarg(object_t *obj, const char *method) {
         int index = 0;
         int fio = 0;
         int vio = 0;
-        svalue_t ret;
-        memset(&ret, 0, sizeof(ret));
+        lpc::svalue ret;
 
         program_t *found_prog = find_function(obj->prog, findstring(method, NULL), &index, &fio, &vio);
         EXPECT_NE(found_prog, nullptr) << "find_function failed for method: " << method;
@@ -105,7 +104,7 @@ protected:
             current_object = obj;
             int saved_variable_index_offset = variable_index_offset;
             variable_index_offset = vio;
-            call_function(obj->prog, runtime_index, 0, &ret);
+            call_function(obj->prog, runtime_index, 0, ret.raw());
             variable_index_offset = saved_variable_index_offset;
             current_object = saved_current_object;
         }
@@ -122,13 +121,12 @@ TEST_F(StringOperatorsLPCTest, LpcConcatReturnsExpectedString) {
     object_t *obj = load_inline_object("test_lpc_concat.c", code);
     ASSERT_NE(obj, nullptr);
 
-    svalue_t ret = call_noarg(obj, "run_test");
-    lpc::svalue_view ret_view = lpc::svalue_view::from(&ret);
+    lpc::svalue ret = call_noarg(obj, "run_test");
+    auto ret_view = ret.view();
     ASSERT_TRUE(ret_view.is_string());
     ASSERT_EQ(ret_view.length(), 11u);
     ASSERT_EQ(memcmp(ret_view.c_str(), "Hello World", 11), 0);
 
-    free_string_svalue(&ret);
     destruct_object(obj);
 }
 
@@ -144,13 +142,13 @@ TEST_F(StringOperatorsLPCTest, LpcEqNeOnConstantAndConcat) {
     object_t *obj = load_inline_object("test_lpc_eq_ne.c", code);
     ASSERT_NE(obj, nullptr);
 
-    svalue_t eq_ret = call_noarg(obj, "test_eq");
-    lpc::svalue_view eq_ret_view = lpc::svalue_view::from(&eq_ret);
+    lpc::svalue eq_ret = call_noarg(obj, "test_eq");
+    auto eq_ret_view = eq_ret.view();
     ASSERT_TRUE(eq_ret_view.is_number());
     ASSERT_EQ(eq_ret_view.number(), 1);
 
-    svalue_t ne_ret = call_noarg(obj, "test_ne");
-    lpc::svalue_view ne_ret_view = lpc::svalue_view::from(&ne_ret);
+    lpc::svalue ne_ret = call_noarg(obj, "test_ne");
+    auto ne_ret_view = ne_ret.view();
     ASSERT_TRUE(ne_ret_view.is_number());
     ASSERT_EQ(ne_ret_view.number(), 1);
 
@@ -167,13 +165,12 @@ TEST_F(StringOperatorsLPCTest, LpcRangeSlicesExpectedBytes) {
     object_t *obj = load_inline_object("test_lpc_range.c", code);
     ASSERT_NE(obj, nullptr);
 
-    svalue_t ret = call_noarg(obj, "run_test");
-    lpc::svalue_view ret_view = lpc::svalue_view::from(&ret);
+    lpc::svalue ret = call_noarg(obj, "run_test");
+    auto ret_view = ret.view();
     ASSERT_TRUE(ret_view.is_string());
     ASSERT_EQ(ret_view.length(), 4u);
     ASSERT_EQ(memcmp(ret_view.c_str(), "2345", 4), 0);
 
-    free_string_svalue(&ret);
     destruct_object(obj);
 }
 
