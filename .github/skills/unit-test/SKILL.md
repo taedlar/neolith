@@ -192,7 +192,7 @@ When asserting results on the eval stack or validating `svalue_t` values, use th
 *Before (unsafe, prone to type confusion):*
 ```cpp
 ASSERT_EQ(sp->type, T_STRING);
-EXPECT_STREQ(sp->u.string, "hello");
+EXPECT_STREQ(SVALUE_STRPTR(sp), "hello");
 ```
 
 *After (type-safe, clearer intent):*
@@ -231,7 +231,7 @@ view.set_number(42);
 
 **Key benefits:**
 - Eliminates raw `sp->u.X` access that bypasses type checks
-- Makes intended assertions clearer (read `.c_str()` not `->u.string`)
+- Makes intended assertions clearer (read `.c_str()` not raw union members)
 - Scales across string subtypes without duplicating test logic
 
 This wrapper pattern is now **the preferred form for all new test code that interacts with svalue_t structures**.

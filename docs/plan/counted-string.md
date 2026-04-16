@@ -29,8 +29,8 @@ early as possible (compile-time preferred, runtime as backstop).
 | Mode | Compile-time | Runtime |
 |---|---|---|
 | `OFF` | ✗ shared/malloc domain mixups usually compile | ✗ no added boundary checks |
-| `ON` (current) | ⚠ intent visible in signatures, mixups still compile | ✓ contract violations fail fast in release builds |
-| `ON` (target) | ✓ mixups blocked at call site (explicit conversion required) | ✓ runtime checks remain secondary defense |
+| `ON` (current) | ✓ contract-bearing shared/malloc boundaries require explicit bridge conversion | ✓ contract violations fail fast in release builds |
+| `ON` (target) | ✓ broaden compile-time boundary coverage beyond current contract APIs | ✓ runtime checks remain secondary defense |
 
 ### Near-Term Focus
 
@@ -46,7 +46,7 @@ early as possible (compile-time preferred, runtime as backstop).
 |---|---|
 | Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
 | Implementation: VM/operator NUL-removal and span API normalization | complete |
-| Implementation: abstract typed handles + runtime contract enforcement | in progress |
+| Implementation: abstract typed handles + runtime contract enforcement | complete |
 | Implementation: C++ RAII wrapper adoption on exception baseline | in progress |
 | Implementation: efun byte-span readiness | in progress |
 | Implementation: JSON boundary contract and tests | in progress |
@@ -99,6 +99,8 @@ Full Linux matrix validation (`ctest --preset ut-linux`) is now passing after
 the remaining open-coded stamping sweep.
 Full cross-platform validation is now also passing on `vs16-x64`,
 `vs16-win32`, and `clang-x64`.
+Post-enforcement validation is also green after removing `svalue_u.string`:
+`ctest --preset ut-linux` continues to pass.
 
 ### Remaining Open-Coded Stamping Sites (5 total)
 
@@ -272,9 +274,10 @@ assigning `result = ""`. A regression test was added in
 
 ### Next Focus
 
-- **Abstract-handle compile-time enforcement** — promote opaque handle types
-  so shared/malloc domain misuse fails at call sites under `STRING_TYPE_SAFETY`
-  (still the longer-term target).
+- **C++ RAII wrapper adoption** — complete wrapper adoption on the established
+  exception baseline without C ABI layout changes.
+- **Efun/JSON hardening closure** — finish remaining byte-span and
+  JSON-boundary contract/doc/test follow-through for plan closure.
 
 ### Baseline and Out of Scope
 
@@ -290,7 +293,9 @@ assigning `result = ""`. A regression test was added in
   raises an LPC runtime error when input contains invalid UTF-8.
 - Identifier-class shared strings remain NUL-terminated by contract.
 - This includes function names, variable names, and predefines.
-- `u.string` remains available as a generic view; typed members supplement it.
+- `u.string` has been removed; string access must use subtype-explicit
+  members (`u.const_string`, `u.shared_string`, `u.malloc_string`) or
+  `SVALUE_STRPTR(...)` where subtype is not statically known.
 - When migrating functions or macros that process `svalue_t`, always validate all runtime string semantics: `STRING_MALLOC`, `STRING_SHARED`, `STRING_CONSTANT`.
 
 ## UTF-8 Compatibility Contract
