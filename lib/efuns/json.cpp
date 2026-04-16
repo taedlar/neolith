@@ -115,7 +115,12 @@ static boost::json::value lpc_to_json(svalue_t *v)
     return v->u.real;
 
   case T_STRING:
-    return boost::json::string(SVALUE_STRPTR(v));
+    /* Use explicit byte-span to preserve embedded null bytes.
+     * SVALUE_STRPTR(v) alone would use C-string semantics (stop at null).
+     * Pass the full span [data, data+length) to Boost.JSON. */
+    return boost::json::string(
+      boost::json::string_view(SVALUE_STRPTR(v), SVALUE_STRLEN(v))
+    );
 
   case T_ARRAY: {
     boost::json::array arr;
@@ -177,7 +182,10 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
 
   case boost::json::kind::string: {
     auto const& js = jv.get_string();
-    SET_SVALUE_MALLOC_STRING(out, string_copy(js.c_str(), "json_to_lpc"));
+    /* Use span-based int_string_copy to preserve embedded null bytes.
+     * js.c_str() would truncate at the first null; instead pass the actual
+     * byte range [data, data+size). */
+    SET_SVALUE_MALLOC_STRING(out, int_string_copy(js.data(), js.data() + js.size()));
     break;
   }
 

@@ -272,6 +272,89 @@ TEST_F(EfunsTest, fromJsonInvalidBufferError) {
     EXPECT_TRUE(error_raised);
 }
 
+TEST_F(EfunsTest, fromJsonValidUtf8StringAccepted) {
+    /* U+4F60 U+597D encoded as UTF-8 bytes inside a JSON string value. */
+    static const char payload[] = "{\"msg\":\"\xE4\xBD\xA0\xE5\xA5\xBD\"}";
+
+    copy_and_push_string(payload);
+    f_from_json();
+
+    ASSERT_EQ(sp->type, T_MAPPING);
+    svalue_t *found = find_string_in_mapping(sp->u.map, "msg");
+    ASSERT_NE(found, &const0u) << "key 'msg' not found in valid UTF-8 JSON result mapping";
+
+    auto value = lpc::svalue_view::from(found);
+    ASSERT_TRUE(value.is_string());
+    EXPECT_EQ(value.length(), 6u) << "UTF-8 byte length for '你好' should be 6";
+    EXPECT_TRUE(memcmp(value.c_str(), "\xE4\xBD\xA0\xE5\xA5\xBD", 6) == 0);
+}
+
+TEST_F(EfunsTest, fromJsonInvalidUtf8StringError) {
+    /* Invalid UTF-8 sequence: 0xC3 0x28 in JSON string content. */
+    static const char payload[] = "\"\xC3\x28\"";
+
+    bool error_raised = false;
+    error_context_t econ;
+    save_context(&econ);
+    try {
+        copy_and_push_string(payload);
+        f_from_json();
+        FAIL() << "from_json with invalid UTF-8 string should have raised an error.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context(&econ);
+        error_raised = true;
+    }
+    pop_context(&econ);
+    EXPECT_TRUE(error_raised);
+}
+
+TEST_F(EfunsTest, fromJsonInvalidUtf8BufferError) {
+    /* Invalid UTF-8 sequence: 0xC3 0x28 in JSON string content. */
+    static const char payload[] = "\"\xC3\x28\"";
+
+    bool error_raised = false;
+    error_context_t econ;
+    save_context(&econ);
+    try {
+        buffer_t *buf = allocate_buffer(sizeof(payload) - 1);
+        memcpy(buf->item, payload, sizeof(payload) - 1);
+        push_refed_buffer(buf);
+        f_from_json();
+        FAIL() << "from_json with invalid UTF-8 buffer should have raised an error.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context(&econ);
+        error_raised = true;
+    }
+    pop_context(&econ);
+    EXPECT_TRUE(error_raised);
+}
+
+TEST_F(EfunsTest, fromJsonEmbeddedNullCharacterAccepted) {
+    /* JSON encodes the null character (U+0000) as \u0000.
+     * This parses to an LPC string containing an embedded null byte.
+     * Embedded nulls are valid UTF-8 and valid in our byte-oriented LPC strings. */
+    static const char payload[] = "{\"text\":\"hello\\u0000world\"}";
+
+    copy_and_push_string(payload);
+    f_from_json();
+
+    ASSERT_EQ(sp->type, T_MAPPING);
+    svalue_t *found = find_string_in_mapping(sp->u.map, "text");
+    ASSERT_NE(found, &const0u) << "key 'text' not found in embedded-null JSON result mapping";
+
+    auto value = lpc::svalue_view::from(found);
+    ASSERT_TRUE(value.is_string());
+    EXPECT_EQ(value.length(), 11u) << "byte length should be 11 (hello=5 + null=1 + world=5)";
+    /* Verify the embedded null is present at byte 5. */
+    EXPECT_EQ(static_cast<unsigned char>(value.c_str()[5]), 0u);
+    /* Verify the content before and after the null. */
+    EXPECT_TRUE(memcmp(value.c_str(), "hello\0world", 11) == 0);
+
+    pop_stack();
+}
+
 TEST_F(EfunsTest, fromJsonLargeBuffer) {
     /* Build a JSON object with a small number of keys whose total serialized
      * length exceeds 65535 bytes (the old unsigned-short buffer-size limit).
@@ -348,6 +431,36 @@ TEST_F(EfunsTest, roundTripString) {
     f_from_json();
     ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
     EXPECT_STREQ(lpc::svalue_view::from(sp).c_str(), "hello world");
+}
+
+TEST_F(EfunsTest, roundTripEmbeddedNull) {
+    /* Create an LPC string with embedded null: "hello\0world" (11 bytes) */
+    buffer_t *buf = allocate_buffer(11);
+    memcpy(buf->item, "hello\0world", 11);
+    /* We need to construct the string from the buffer manually.
+     * For this test, we'll create it by pushing as a malloc string. */
+    {
+        malloc_str_t str = int_new_string(11);
+        memcpy(str, "hello\0world", 11);
+        push_malloced_string(str);
+    }
+    
+    /* to_json should escape the embedded null as \u0000 */
+    f_to_json();
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
+    auto json_view = lpc::svalue_view::from(sp);
+    /* The JSON output should contain the escaped form: "hello\u0000world" */
+    EXPECT_STREQ(json_view.c_str(), "\"hello\\u0000world\"");
+    
+    /* from_json should reconstruct the original string with embedded null */
+    f_from_json();
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_string());
+    auto result_view = lpc::svalue_view::from(sp);
+    EXPECT_EQ(result_view.length(), 11u);
+    EXPECT_EQ(static_cast<unsigned char>(result_view.c_str()[5]), 0u);
+    EXPECT_TRUE(memcmp(result_view.c_str(), "hello\0world", 11) == 0);
+    
+    pop_stack();
 }
 
 TEST_F(EfunsTest, roundTripNull) {

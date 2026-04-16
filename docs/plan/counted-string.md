@@ -349,6 +349,30 @@ assigning `result = ""`. A regression test was added in
   current counted-string target set: a workspace scan of `tests/**/*.cpp`
   shows no remaining `free_string_svalue(...)` / `free_svalue(...)` manual
   cleanup paths in C++ unit tests.
+- JSON UTF-8 boundary test coverage is now explicitly aligned with the
+  contract decisions in `tests/test_efuns/test_json.cpp`:
+  `fromJsonValidUtf8StringAccepted` (valid UTF-8 accepted),
+  `fromJsonInvalidUtf8StringError` (invalid UTF-8 string rejected), and
+  `fromJsonInvalidUtf8BufferError` (invalid UTF-8 buffer rejected), in
+  addition to existing buffer-path coverage (`fromJsonBuffer`,
+  `fromJsonInvalidBufferError`, `fromJsonLargeBuffer`).
+- CURL ingress integration coverage now also validates the concrete
+  `buffer -> from_json` handoff from a real callback payload in
+  `tests/test_efuns/test_curl.cpp` via
+  `CurlBufferPayloadParsesViaFromJson`.
+- JSON embedded null-byte handling was corrected: `from_json` now preserves
+  the full byte-span when parsing JSON strings containing the null character
+  (encoded as `\u0000`). The fix changed `json_to_lpc()` to use span-based
+  `int_string_copy(data, data+size)` instead of C-string semantics
+  `string_copy(c_str())`, ensuring embedded nulls (U+0000) are not truncated.
+  Added test `fromJsonEmbeddedNullCharacterAccepted` confirms this behavior.
+- JSON round-trip symmetry: `to_json` was also corrected to preserve embedded
+  null bytes during serialization. The fix changed `lpc_to_json()` to pass the
+  full byte-span to `boost::json::string()` via `string_view(data, size)` instead
+  of C-string semantics `boost::json::string(c_str())`. This ensures embedded
+  nulls are correctly escaped as `\u0000` in the JSON output. The test
+  `roundTripEmbeddedNull` validates the full cycle: LPC string with embedded
+  null → to_json (with escaped null) → from_json (reconstructs original).
 
 ### Next Focus
 
@@ -392,11 +416,16 @@ assigning `result = ""`. A regression test was added in
 - Counted strings are not globally required to be valid UTF-8.
   Invalid UTF-8 byte sequences may exist in LPC strings unless an operation
   explicitly requires UTF-8 validity.
+- **Embedded null bytes (U+0000) are valid UTF-8 and allowed in LPC strings.**
+  In JSON, the null character is encoded as `\u0000` and parses to an LPC string
+  containing an embedded null byte (0x00). This is permitted because LPC strings
+  are byte-sequences, not C strings. `from_json` preserves the full byte-span,
+  including embedded nulls.
 - UTF-8 validity is enforced at API boundaries that require text semantics.
-  `from_json` rejects invalid UTF-8 and raises an LPC runtime error before
-  producing an LPC string. Other efuns with text/character semantics (for
-  example `explode`) may also reject invalid UTF-8 and raise runtime errors
-  for that operation.
+  `from_json` rejects invalid UTF-8 (malformed byte sequences like 0xC3 0x28)
+  and raises an LPC runtime error before producing an LPC string.
+  Other efuns with text/character semantics (for example `explode`) may also
+  reject invalid UTF-8 and raise runtime errors for that operation.
 - UTF-8 character counting via `explode` is an operation-specific result and
   must not be treated as LPC string length.
   LPC string length and driver counted-string length remain byte counts.
@@ -516,7 +545,7 @@ Migration order:
 | P0 | Enforce counted-string semantic boundaries | [src/stralloc.h](../../src/stralloc.h), [lib/lpc/types.h](../../lib/lpc/types.h), typed-string boundaries | Boundary-handle mode enabled under `STRING_TYPE_SAFETY`; contract APIs require explicit typed handles or bridge helpers; runtime contract checks remain release-enabled; identifier-class shared strings remain NUL-terminated. |
 | P1 | C++ wrapper adoption on baseline boundaries | C++ wrappers around `svalue_t` | `lpc::svalue_view`/`lpc::svalue` introduced without C ABI layout change; no duplicate exception-boundary rewrites are introduced; wrapper move/dtor are `noexcept`; unit-test-first ownership migration for counted-string targets is complete (no `free_string_svalue` / `free_svalue` in `tests/**/*.cpp`); remaining work is production C++ efun/helper adoption and any targeted perf checks for newly touched hot paths. |
 | P1 | Efun byte-span readiness (deferred broad LPC string paths) | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Scope is intentionally narrowed for this phase: no broad LPC-side behavioral expansion unless required by JSON/CURL boundary safety. Any touched path must preserve LPC compatibility and existing tests remain green. |
-| P1 | JSON boundary contract (priority: CURL buffer ingress) | JSON efuns/helpers (`from_json`, `to_json`) and CURL ingress paths | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; CURL-provided buffer payloads (`buffer -> JSON`) are validated with explicit success/error-path tests; `to_json` escaping policy documented and tested. |
+| P1 | JSON boundary contract (priority: CURL buffer ingress) | JSON efuns/helpers (`from_json`, `to_json`) and CURL ingress paths | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; coverage includes explicit UTF-8 pass/fail tests (`fromJsonValidUtf8StringAccepted`, `fromJsonInvalidUtf8StringError`, `fromJsonInvalidUtf8BufferError`) plus buffer ingress success/error/size paths (`fromJsonBuffer`, `fromJsonInvalidBufferError`, `fromJsonLargeBuffer`) and a CURL callback payload integration test (`CurlBufferPayloadParsesViaFromJson`); `to_json` escaping policy documented and tested. |
 | P1 | Unicode and escape consistency | JSON encode/decode implementation | Encoder/decoder are symmetric for control escapes, `\\`, `\"`, `\uXXXX`, and surrogate pairs; non-BMP behavior documented and validated. |
 | P2 | End-to-end regression matrix | LPC-level and efun/unit tests | complete for current hardening scope: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest), and full matrix validation is passing on Linux, VS16 x64, VS16 win32, and clang x64. Future LPC/JSON round-trip and negative-matrix additions remain follow-on expansion work. |
 
