@@ -1433,7 +1433,12 @@ void eval_instruction (const char *p) {
               {
                 /* push hidden iterator */
                 (++sp)->type = T_NUMBER;
-                sp->u.lvalue_byte = (unsigned char *) SVALUE_STRPTR(sp - 1);
+                if ((sp - 1)->subtype == STRING_MALLOC)
+                  sp->u.const_string = (sp - 1)->u.malloc_string;
+                else if ((sp - 1)->subtype == STRING_SHARED)
+                  sp->u.const_string = (sp - 1)->u.shared_string;
+                else
+                  sp->u.const_string = (sp - 1)->u.const_string;
                 sp->subtype = (unsigned short)SVALUE_STRLEN (sp - 1);
               }
             else /* array */
@@ -1480,7 +1485,7 @@ void eval_instruction (const char *p) {
             {
               /* string
                * sp - 2: string
-               * sp - 1: hidden iterator (u.lvalue_byte = next character, subtype = number of characters left)
+               * sp - 1: hidden iterator (u.const_string = next character, subtype = bytes remaining)
                * sp    : lvalue for character
                * 
                * [NEOLITH-EXTENSION] If next multibyte character is an UTF-8 character, return unicode code point as number
@@ -1490,7 +1495,7 @@ void eval_instruction (const char *p) {
               if ((sp - 1)->subtype != 0)
                 {
                   wchar_t wc;
-                  int char_len = mbtowc (&wc, (char *)(sp - 1)->u.lvalue_byte, (sp - 1)->subtype);
+                  int char_len = mbtowc (&wc, (sp - 1)->u.const_string, (sp - 1)->subtype);
                   if (char_len > 1)
                     {
                       /* Multibyte UTF-8 character - return the Unicode code point */
@@ -1498,11 +1503,11 @@ void eval_instruction (const char *p) {
                       sp->u.lvalue->type = T_NUMBER;
                       sp->u.lvalue->subtype = 0;
                       sp->u.lvalue->u.number = (int64_t)wc;
-                      (sp - 1)->u.lvalue_byte += char_len;
+                      (sp - 1)->u.const_string += char_len;
                     }
                   else /* if (char_len == 1) or any invalid utf-8 sequence */
                     {
-                      char c = *((sp - 1)->u.lvalue_byte)++;
+                      char c = *((sp - 1)->u.const_string)++;
                       free_svalue (sp->u.lvalue, "foreach-string");
                       sp->u.lvalue->type = T_NUMBER;
                       sp->u.lvalue->subtype = 0;
@@ -1531,7 +1536,7 @@ void eval_instruction (const char *p) {
                       free_svalue (sp->u.lvalue, "foreach-string");
                       sp->u.lvalue->type = T_NUMBER;
                       sp->u.lvalue->subtype = 0;
-                      sp->u.lvalue->u.number = *((sp - 1)->u.lvalue_byte)++;
+                      sp->u.lvalue->u.number = *((sp - 1)->u.const_string)++;
                     }
                   else
                     {
