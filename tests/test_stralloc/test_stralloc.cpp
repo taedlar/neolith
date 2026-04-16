@@ -201,6 +201,126 @@ TEST_F(StrAllocTest, svalueViewTypedStringSettersPreserveSubtypeAndPayload) {
     EXPECT_STREQ(malloc_view.c_str(), "hello");
 }
 
+TEST_F(StrAllocTest, svalueCopyRetainsSharedStringOwnership) {
+    shared_str_t shared = make_shared_string("copy-owned", NULL);
+
+    {
+        lpc::svalue owner;
+        owner.view().set_shared_string(shared);
+        EXPECT_EQ(COUNTED_REF(shared), 1);
+
+        lpc::svalue copy(owner);
+        EXPECT_EQ(COUNTED_REF(shared), 2);
+        ASSERT_TRUE(copy.view().is_string() && copy.view().is_shared());
+        EXPECT_EQ(copy.view().shared_string(), shared);
+        EXPECT_STREQ(copy.view().c_str(), "copy-owned");
+    }
+
+    EXPECT_EQ(findstring("copy-owned", NULL), nullptr);
+}
+
+TEST_F(StrAllocTest, svalueMoveTransfersMallocStringOwnership) {
+    malloc_str_t malloced = new_string(4, "test");
+    memcpy(malloced, "move", 4);
+    malloced[4] = '\0';
+
+    lpc::svalue source;
+    source.view().set_malloc_string(malloced);
+
+    lpc::svalue moved(std::move(source));
+
+    EXPECT_TRUE(source.view().is_number());
+    EXPECT_EQ(source.view().number(), 0);
+    ASSERT_TRUE(moved.view().is_string() && moved.view().is_malloc());
+    EXPECT_EQ(moved.view().malloc_string(), malloced);
+    EXPECT_STREQ(moved.view().c_str(), "move");
+}
+
+TEST_F(StrAllocTest, svalueCopyAssignmentRetainsSharedStringOwnership) {
+    shared_str_t shared = make_shared_string("copy-assigned", NULL);
+    shared_str_t previous = make_shared_string("old-shared", NULL);
+
+    {
+        lpc::svalue source;
+        lpc::svalue target;
+
+        source.view().set_shared_string(shared);
+        target.view().set_shared_string(previous);
+
+        EXPECT_EQ(COUNTED_REF(shared), 1);
+        EXPECT_EQ(COUNTED_REF(previous), 1);
+
+        target = source;
+
+        EXPECT_EQ(COUNTED_REF(shared), 2);
+        EXPECT_EQ(findstring("old-shared", NULL), nullptr);
+        ASSERT_TRUE(target.view().is_string() && target.view().is_shared());
+        EXPECT_EQ(target.view().shared_string(), shared);
+        EXPECT_STREQ(target.view().c_str(), "copy-assigned");
+    }
+
+    EXPECT_EQ(findstring("copy-assigned", NULL), nullptr);
+}
+
+TEST_F(StrAllocTest, svalueMoveAssignmentTransfersMallocStringOwnership) {
+    malloc_str_t malloced = new_string(6, "test");
+    memcpy(malloced, "assign", 6);
+    malloced[6] = '\0';
+
+    shared_str_t previous = make_shared_string("shared-target", NULL);
+
+    lpc::svalue source;
+    lpc::svalue target;
+
+    source.view().set_malloc_string(malloced);
+    target.view().set_shared_string(previous);
+
+    EXPECT_EQ(COUNTED_REF(previous), 1);
+
+    target = std::move(source);
+
+    EXPECT_EQ(findstring("shared-target", NULL), nullptr);
+    EXPECT_TRUE(source.view().is_number());
+    EXPECT_EQ(source.view().number(), 0);
+    ASSERT_TRUE(target.view().is_string() && target.view().is_malloc());
+    EXPECT_EQ(target.view().malloc_string(), malloced);
+    EXPECT_STREQ(target.view().c_str(), "assign");
+}
+
+TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
+    shared_str_t shared = make_shared_string("self-copy", NULL);
+    malloc_str_t malloced = new_string(4, "test");
+    memcpy(malloced, "self", 4);
+    malloced[4] = '\0';
+
+    {
+        lpc::svalue shared_owner;
+        shared_owner.view().set_shared_string(shared);
+
+        EXPECT_EQ(COUNTED_REF(shared), 1);
+
+        shared_owner = shared_owner;
+
+        EXPECT_EQ(COUNTED_REF(shared), 1);
+        ASSERT_TRUE(shared_owner.view().is_string() && shared_owner.view().is_shared());
+        EXPECT_EQ(shared_owner.view().shared_string(), shared);
+        EXPECT_STREQ(shared_owner.view().c_str(), "self-copy");
+    }
+
+    EXPECT_EQ(findstring("self-copy", NULL), nullptr);
+
+    {
+        lpc::svalue malloc_owner;
+        malloc_owner.view().set_malloc_string(malloced);
+
+        malloc_owner = std::move(malloc_owner);
+
+        ASSERT_TRUE(malloc_owner.view().is_string() && malloc_owner.view().is_malloc());
+        EXPECT_EQ(malloc_owner.view().malloc_string(), malloced);
+        EXPECT_STREQ(malloc_owner.view().c_str(), "self");
+    }
+}
+
 TEST_F(StrAllocTest, longMallocStringFallbackWorksWhenBlkendMissing) {
     const size_t len = static_cast<size_t>(USHRT_MAX) + 29;
     malloc_str_t s = new_string(len, "test");

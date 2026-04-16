@@ -71,7 +71,7 @@ int QueryObjectNumberMethod(object_t *obj, const char *method) {
   int saved_vio;
   object_t *saved_current;
   program_t *found_prog;
-  svalue_t ret;
+  lpc::svalue ret;
   int result = 0;
 
   found_prog = find_function(obj->prog, findstring(method, NULL), &index, &fio, &vio);
@@ -84,14 +84,14 @@ int QueryObjectNumberMethod(object_t *obj, const char *method) {
   saved_vio = variable_index_offset;
   current_object = obj;
   variable_index_offset = vio;
-  call_function(obj->prog, runtime_index, 0, &ret);
+  call_function(obj->prog, runtime_index, 0, ret.raw());
   current_object = saved_current;
   variable_index_offset = saved_vio;
 
-  if ( lpc::svalue_view::from(&ret).is_number()) {
-    result = (int)lpc::svalue_view::from(&ret).number();
+  auto ret_view = ret.view();
+  if (ret_view.is_number()) {
+    result = (int)ret_view.number();
   }
-  free_svalue(&ret, "QueryObjectNumberMethod");
   return result;
 }
 
@@ -166,8 +166,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_001_BasicSuccess_HostnameResolves) 
   ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   int fd;
   int connect_result;
   int in_flight_before = 0;
@@ -179,18 +179,18 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_001_BasicSuccess_HostnameResolves) 
   unsigned long timed_out_before = 0;
   unsigned long timed_out_after = 0;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   // Capture telemetry before
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight_before, &admitted_before, &dedup_before, &timed_out_before), EESUCCESS)
     << "Failed to get initial DNS telemetry";
 
-  fd = socket_create(STREAM, &read_cb, nullptr);
+  fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
   // Connect with localhost hostname (always resolvable)
-  connect_result = socket_connect(fd, (char *)"localhost 8892", &read_cb, &write_cb);
+  connect_result = socket_connect(fd, (char *)"localhost 8892", read_cb.raw(), write_cb.raw());
   EXPECT_EQ(connect_result, EESUCCESS)
     << "socket_connect with hostname should succeed (queue DNS work)";
 
@@ -213,9 +213,6 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_001_BasicSuccess_HostnameResolves) 
   // Socket should close cleanly
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS)
     << "Socket close should succeed after DNS resolution";
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -238,8 +235,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_002_CacheHit_DedupCoalesces) {
   ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   int fd_a;
   int fd_b;
   int in_flight = 0;
@@ -249,22 +246,22 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_002_CacheHit_DedupCoalesces) {
   unsigned long dedup_after = 0;
   unsigned long timed_out = 0;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted_before, &dedup_before, &timed_out), EESUCCESS);
 
   // Create two stream sockets
-  fd_a = socket_create(STREAM, &read_cb, nullptr);
+  fd_a = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd_a, 0) << "Failed to create first stream socket";
 
-  fd_b = socket_create(STREAM, &read_cb, nullptr);
+  fd_b = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd_b, 0) << "Failed to create second stream socket";
 
   // Connect both to same hostname
-  ASSERT_EQ(socket_connect(fd_a, (char *)"localhost 8893", &read_cb, &write_cb), EESUCCESS)
+  ASSERT_EQ(socket_connect(fd_a, (char *)"localhost 8893", read_cb.raw(), write_cb.raw()), EESUCCESS)
     << "First socket_connect should succeed";
-  ASSERT_EQ(socket_connect(fd_b, (char *)"localhost 8893", &read_cb, &write_cb), EESUCCESS)
+  ASSERT_EQ(socket_connect(fd_b, (char *)"localhost 8893", read_cb.raw(), write_cb.raw()), EESUCCESS)
     << "Second socket_connect to same hostname should succeed";
 
   // Wait for DNS completions
@@ -282,9 +279,6 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_002_CacheHit_DedupCoalesces) {
   // Both sockets should close cleanly
   EXPECT_EQ(socket_close(fd_a, 1), EESUCCESS);
   EXPECT_EQ(socket_close(fd_b, 1), EESUCCESS);
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -309,8 +303,8 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_003_TimeoutPath_DeterministicFailur
   ScopedObjectContext ctx(this, master_ob);
   ScopedDnsTimeoutHook timeout_hook;
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   int fd;
   int connect_result;
   int op_active = 0;
@@ -323,16 +317,16 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_003_TimeoutPath_DeterministicFailur
   unsigned long timed_out_before = 0;
   unsigned long timed_out_after = 0;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted, &dedup, &timed_out_before), EESUCCESS);
 
-  fd = socket_create(STREAM, &read_cb, nullptr);
+  fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
   // Connect with hostname that will be forced to timeout by hook
-  connect_result = socket_connect(fd, (char *)"force-timeout-fallback.invalid 8094", &read_cb, &write_cb);
+  connect_result = socket_connect(fd, (char *)"force-timeout-fallback.invalid 8094", read_cb.raw(), write_cb.raw());
   EXPECT_EQ(connect_result, EESUCCESS)
     << "Connect should queue DNS work (timeout happens in worker)";
 
@@ -350,9 +344,6 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_003_TimeoutPath_DeterministicFailur
     << "Socket operation should return to INIT after DNS timeout";
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -374,17 +365,17 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_004_AdmissionOverflow_RejectsWork) 
   ASSERT_TRUE(resolver_guard.IsReady()) << "resolver initialization is required for this test";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   std::vector<int> socket_fds;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   // Create several sockets and attempt DNS connects
   // Goal: exercise the resolver under load without hitting test infrastructure limits
   for (int i = 0; i < 5; i++) {
-    int fd = socket_create(STREAM, &read_cb, nullptr);
+    int fd = socket_create(STREAM, read_cb.raw(), nullptr);
     if (fd < 0) {
       continue;  // Skip if socket creation fails
     }
@@ -393,7 +384,7 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_004_AdmissionOverflow_RejectsWork) 
 
     // Attempt to connect to localhost (always resolvable)
     std::string hostname = "localhost";
-    socket_connect(fd, (char *)hostname.c_str(), &read_cb, &write_cb);
+    socket_connect(fd, (char *)hostname.c_str(), read_cb.raw(), write_cb.raw());
 
     // We expect success, EERESOLVERBUSY, or socket error - all are acceptable
     // The important thing is that the system doesn't crash and responds gracefully
@@ -407,9 +398,6 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_004_AdmissionOverflow_RejectsWork) 
   for (int fd : socket_fds) {
     socket_close(fd, 1);
   }
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -435,21 +423,21 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
   object_t* temp_owner = LoadCallbackOwner("resolver_test_owner_fallback.c");
   ASSERT_NE(temp_owner, nullptr) << "Failed to load callback owner";
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   int fd;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   {
     ScopedObjectContext ctx(this, temp_owner);
 
-    fd = socket_create(STREAM, &read_cb, nullptr);
+    fd = socket_create(STREAM, read_cb.raw(), nullptr);
     ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
     // Queue a DNS request
-    ASSERT_EQ(socket_connect(fd, (char *)"resolver-test-fallback.invalid 8095", &read_cb, &write_cb), EESUCCESS)
+    ASSERT_EQ(socket_connect(fd, (char *)"resolver-test-fallback.invalid 8095", read_cb.raw(), write_cb.raw()), EESUCCESS)
       << "socket_connect should queue DNS work";
   }
 
@@ -464,9 +452,6 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_FWD_005_OwnerDestruction_SafeCleanup) {
   // (Memory errors would be caught by pedantic mode)
 
   EXPECT_TRUE(true) << "Survived owner destruction during pending DNS";
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -1218,10 +1203,10 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWo
   inet_pton(AF_INET, "127.0.0.1", &cached_addr);
   addr_resolver_forward_cache_add("testcache.local", cached_addr.s_addr, 1);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   int in_flight = 0;
   unsigned long admitted_before = 0;
@@ -1232,11 +1217,11 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWo
   resolver_telemetry_t tel_before = {};
   addr_resolver_get_telemetry(&tel_before);
 
-  int fd = socket_create(STREAM, &read_cb, nullptr);
+  int fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
   /* Connect with a hostname that is in the forward cache */
-  int result = socket_connect(fd, (char *)"testcache.local 8899", &read_cb, &write_cb);
+  int result = socket_connect(fd, (char *)"testcache.local 8899", read_cb.raw(), write_cb.raw());
   /* Should not be in DNS_RESOLVING phase — cache hit goes straight to connect */
   EXPECT_NE(result, EERESOLVERBUSY)
     << "Cache hit path should not report resolver busy";
@@ -1254,6 +1239,4 @@ TEST_F(SocketEfunsBehaviorTest, RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWo
     << "fwd_cache_hit counter must increment on forward cache hit";
 
   socket_close(fd, 1);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }

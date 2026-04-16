@@ -143,9 +143,9 @@ protected:
     /**
      * Helper to create callback function-name arguments for input_to/get_char.
      */
-    svalue_t make_function_name_svalue(const char* name) {
-        svalue_t fun = {};
-        auto view = lpc::svalue_view::from(&fun);
+    lpc::svalue make_function_name_svalue(const char* name) {
+        lpc::svalue fun;
+        auto view = fun.view();
         view.set_constant_string(name);
         return fun;
     }
@@ -163,9 +163,9 @@ protected:
 
 TEST_F(InputToGetCharTest, InputToStringCallback) {
     // Test: input_to("callback", 0)
-    svalue_t fun = make_function_name_svalue("callback");
+    lpc::svalue fun = make_function_name_svalue("callback");
     
-    int result = input_to(&fun, 0, 0, nullptr);
+    int result = input_to(fun.raw(), 0, 0, nullptr);
     EXPECT_EQ(result, 1) << "input_to should succeed";
     ASSERT_NE(mock_ip->input_to, nullptr) << "input_to should create sentence";
     
@@ -186,13 +186,13 @@ TEST_F(InputToGetCharTest, InputToStringCallback) {
 
 TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
     // Test: input_to("callback_with_args", 0, 42, "extra")
-    svalue_t fun = make_function_name_svalue("callback_with_args");
+    lpc::svalue fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
     lpc::svalue_view::from(&args[0]).set_number(42);
     lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("extra", NULL));
     
-    int result = input_to(&fun, 0, 2, args);
+    int result = input_to(fun.raw(), 0, 2, args);
     EXPECT_EQ(result, 1) << "input_to with args should succeed";
     
     // Verify args stored in sentence
@@ -221,17 +221,17 @@ TEST_F(InputToGetCharTest, InputToWithCarryoverArgs) {
 
 TEST_F(InputToGetCharTest, InputToFunctionPointer) {
     // Create a function pointer for "callback"
-    svalue_t dummy = {};  // Zero-initialize
-    lpc::svalue_view::from(&dummy).set_number(0); // dummy svalue for function pointer creation
+    lpc::svalue dummy;
+    dummy.view().set_number(0); // dummy svalue for function pointer creation
     
-    funptr_t* funp = make_lfun_funp_by_name("callback", &dummy);
+    funptr_t* funp = make_lfun_funp_by_name("callback", dummy.raw());
     ASSERT_NE(funp, nullptr) << "Should create function pointer";
     
-    svalue_t fun = {};  // Zero-initialize
-    fun.type = T_FUNCTION;
-    fun.u.fp = funp;
+    lpc::svalue fun;
+    fun.raw()->type = T_FUNCTION;
+    fun.raw()->u.fp = funp;
     
-    int result = input_to(&fun, 0, 0, nullptr);
+    int result = input_to(fun.raw(), 0, 0, nullptr);
     EXPECT_EQ(result, 1) << "input_to with funptr should succeed";
     
     simulate_input("via funptr");
@@ -243,9 +243,9 @@ TEST_F(InputToGetCharTest, InputToFunctionPointer) {
 
 TEST_F(InputToGetCharTest, GetCharSingleCharMode) {
     // Test: get_char("callback", 0)
-    svalue_t fun = make_function_name_svalue("callback");
+    lpc::svalue fun = make_function_name_svalue("callback");
     
-    int result = get_char(&fun, 0, 0, nullptr);
+    int result = get_char(fun.raw(), 0, 0, nullptr);
     EXPECT_EQ(result, 1) << "get_char should succeed";
     
     // Verify SINGLE_CHAR flag set
@@ -261,13 +261,13 @@ TEST_F(InputToGetCharTest, GetCharSingleCharMode) {
 
 TEST_F(InputToGetCharTest, GetCharWithArgs) {
     // Test: get_char("callback_with_args", 0, 123, "context")
-    svalue_t fun = make_function_name_svalue("callback_with_args");
+    lpc::svalue fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
     lpc::svalue_view::from(&args[0]).set_number(123);
     lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("context", NULL));
     
-    int result = get_char(&fun, 0, 2, args);
+    int result = get_char(fun.raw(), 0, 2, args);
     EXPECT_EQ(result, 1);
     EXPECT_TRUE(mock_ip->iflags & SINGLE_CHAR);
     
@@ -289,9 +289,9 @@ TEST_F(InputToGetCharTest, InputToNoCommandGiver) {
     // Test error case: no command_giver
     command_giver = nullptr;
     
-    svalue_t fun = make_function_name_svalue("callback");
+    lpc::svalue fun = make_function_name_svalue("callback");
     
-    int result = input_to(&fun, 0, 0, nullptr);
+    int result = input_to(fun.raw(), 0, 0, nullptr);
     EXPECT_EQ(result, 0) << "input_to should fail gracefully without command_giver";
     EXPECT_EQ(mock_ip->input_to, nullptr) << "No sentence should be created";
 }
@@ -300,9 +300,9 @@ TEST_F(InputToGetCharTest, InputToDestructedObject) {
     // Mark object as destructed
     command_giver->flags |= O_DESTRUCTED;
     
-    svalue_t fun = make_function_name_svalue("callback");
+    lpc::svalue fun = make_function_name_svalue("callback");
     
-    int result = input_to(&fun, 0, 0, nullptr);
+    int result = input_to(fun.raw(), 0, 0, nullptr);
     EXPECT_EQ(result, 0) << "input_to should fail on destructed object";
     
     // Restore flag for cleanup
@@ -311,9 +311,9 @@ TEST_F(InputToGetCharTest, InputToDestructedObject) {
 
 TEST_F(InputToGetCharTest, NestedInputTo) {
     // Test calling input_to from within a callback
-    svalue_t fun = make_function_name_svalue("nested_callback");
+    lpc::svalue fun = make_function_name_svalue("nested_callback");
     
-    int result = input_to(&fun, 0, 0, nullptr);
+    int result = input_to(fun.raw(), 0, 0, nullptr);
     EXPECT_EQ(result, 1);
     
     // Simulate first input - this will call nested_callback which sets up another input_to
@@ -334,9 +334,9 @@ TEST_F(InputToGetCharTest, NestedInputTo) {
 
 TEST_F(InputToGetCharTest, InputToNoEchoFlag) {
     // Test I_NOECHO flag
-    svalue_t fun = make_function_name_svalue("callback");
+    lpc::svalue fun = make_function_name_svalue("callback");
     
-    int result = input_to(&fun, I_NOECHO, 0, nullptr);
+    int result = input_to(fun.raw(), I_NOECHO, 0, nullptr);
     EXPECT_EQ(result, 1);
     
     // Verify flag set (NOTE: actual NOECHO handling is in comm layer, we just verify setting)
@@ -348,9 +348,9 @@ TEST_F(InputToGetCharTest, InputToNoEchoFlag) {
 
 TEST_F(InputToGetCharTest, InputToNoEscFlag) {
     // Test I_NOESC flag
-    svalue_t fun = make_function_name_svalue("callback");
+    lpc::svalue fun = make_function_name_svalue("callback");
     
-    int result = input_to(&fun, I_NOESC, 0, nullptr);
+    int result = input_to(fun.raw(), I_NOESC, 0, nullptr);
     EXPECT_EQ(result, 1);
     
     simulate_input("!command");
@@ -359,16 +359,16 @@ TEST_F(InputToGetCharTest, InputToNoEscFlag) {
 
 TEST_F(InputToGetCharTest, MultipleInputToCallsOnlyFirstSucceeds) {
     // LPC spec: if input_to() is called multiple times, only first succeeds
-    svalue_t fun = make_function_name_svalue("callback");
+    lpc::svalue fun = make_function_name_svalue("callback");
     
-    int result1 = input_to(&fun, 0, 0, nullptr);
+    int result1 = input_to(fun.raw(), 0, 0, nullptr);
     EXPECT_EQ(result1, 1) << "First input_to should succeed";
     
     sentence_t* first_sent = mock_ip->input_to;
     ASSERT_NE(first_sent, nullptr);
     
     // Try to call input_to again (should fail)
-    int result2 = input_to(&fun, 0, 0, nullptr);
+    int result2 = input_to(fun.raw(), 0, 0, nullptr);
     EXPECT_EQ(result2, 0) << "Second input_to should fail";
     
     // Verify first sentence unchanged
@@ -380,7 +380,7 @@ TEST_F(InputToGetCharTest, MultipleInputToCallsOnlyFirstSucceeds) {
 
 TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     // Test that args array is properly freed
-    svalue_t fun = make_function_name_svalue("callback_with_args");
+    lpc::svalue fun = make_function_name_svalue("callback_with_args");
     
     // Create args with reference-counted types
     svalue_t args[2] = {};  // Zero-initialize
@@ -389,7 +389,7 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
     
     int initial_arr_ref = args[1].u.arr->ref;
     
-    int result = input_to(&fun, 0, 2, args);
+    int result = input_to(fun.raw(), 0, 2, args);
     EXPECT_EQ(result, 1);
     
     // Refs should be incremented (args array holds references)
@@ -405,13 +405,13 @@ TEST_F(InputToGetCharTest, ArgsMemoryCleanup) {
 
 TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     // Critical test: verify args come AFTER input, not before
-    svalue_t fun = make_function_name_svalue("callback_with_args");
+    lpc::svalue fun = make_function_name_svalue("callback_with_args");
     
     svalue_t args[2] = {};  // Zero-initialize
     lpc::svalue_view::from(&args[0]).set_number(111);
     lpc::svalue_view::from(&args[1]).set_shared_string(make_shared_string("arg2", NULL));
     
-    input_to(&fun, 0, 2, args);
+    input_to(fun.raw(), 0, 2, args);
     simulate_input("user_input");
     
     // Callback should receive: ("user_input", 111, "arg2")

@@ -163,8 +163,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_001_ConnectTracksOperationLifecycle) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
   int fd;
@@ -174,17 +174,17 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_001_ConnectTracksOperationLifecycle) {
   int op_id = 0;
   int op_phase = OP_INIT;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   std::string endpoint = "127.0.0.1 " + std::to_string(listener_port);
-  connect_result = socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
+  connect_result = socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw());
   EXPECT_EQ(connect_result, EESUCCESS)
     << "socket_connect should follow async success path";
 
@@ -198,9 +198,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_001_ConnectTracksOperationLifecycle) {
   if (listener_fd != INVALID_SOCKET_FD) {
     SOCKET_CLOSE(listener_fd);
   }
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -213,8 +210,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_002_BadAddressDoesNotStartOperation) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   int fd;
   int connect_result;
   int op_active = 0;
@@ -222,13 +219,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_002_BadAddressDoesNotStartOperation) {
   int op_id = 0;
   int op_phase = OP_CONNECTING;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
-  connect_result = socket_connect(fd, (char *)"bad_address_format", &read_cb, &write_cb);
+  connect_result = socket_connect(fd, (char *)"bad_address_format", read_cb.raw(), write_cb.raw());
   EXPECT_EQ(connect_result, EEBADADDR);
 
   EXPECT_EQ(get_socket_operation_info(fd, &op_active, &op_terminal, &op_id, &op_phase), EESUCCESS);
@@ -238,9 +235,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_002_BadAddressDoesNotStartOperation) {
   EXPECT_EQ(op_phase, OP_INIT);
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -253,8 +247,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_003_CloseClearsOperationAndDuplicateTerm
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
   int fd;
@@ -263,16 +257,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_003_CloseClearsOperationAndDuplicateTerm
   int op_id = -1;
   int op_phase = OP_CONNECTING;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   std::string endpoint = "127.0.0.1 " + std::to_string(listener_port);
-  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb), EESUCCESS);
+  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw()), EESUCCESS);
 
   ASSERT_EQ(socket_close(fd, 1), EESUCCESS);
   EXPECT_EQ(get_socket_operation_info(fd, &op_active, &op_terminal, &op_id, &op_phase), EESUCCESS);
@@ -289,8 +283,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_OP_003_CloseClearsOperationAndDuplicateTerm
   if (listener_fd != INVALID_SOCKET_FD) {
     SOCKET_CLOSE(listener_fd);
   }
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -303,8 +295,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_001_NumericConnectBaselineUnchanged) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
@@ -315,16 +307,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_001_NumericConnectBaselineUnchanged) {
   int op_id = 0;
   int op_phase = OP_INIT;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   std::string endpoint = "127.0.0.1 " + std::to_string(listener_port);
-  connect_result = socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
+  connect_result = socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw());
   EXPECT_EQ(connect_result, EESUCCESS)
     << "Numeric IPv4 connect should keep baseline success behavior";
 
@@ -340,8 +332,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_001_NumericConnectBaselineUnchanged) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(listener_fd);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -354,8 +344,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_MalformedHostnameEndpointRejected) 
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   int fd;
   int connect_result;
   int op_active = 0;
@@ -363,13 +353,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_MalformedHostnameEndpointRejected) 
   int op_id = 0;
   int op_phase = OP_CONNECTING;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
-  connect_result = socket_connect(fd, (char *)"localhost", &read_cb, &write_cb);
+  connect_result = socket_connect(fd, (char *)"localhost", read_cb.raw(), write_cb.raw());
   EXPECT_EQ(connect_result, EEBADADDR)
     << "Malformed hostname endpoint without port must fail fast with EEBADADDR";
 
@@ -380,8 +370,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_002_MalformedHostnameEndpointRejected) 
   EXPECT_EQ(op_phase, OP_INIT);
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -394,8 +382,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
@@ -406,16 +394,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
   int op_id = 0;
   int op_phase = OP_INIT;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   std::string endpoint = "localhost " + std::to_string(listener_port);
-  connect_result = socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
+  connect_result = socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw());
 
   // Wait for DNS resolution to complete (non-blocking DNS operation)
   ASSERT_TRUE(WaitForDNSCompletion(fd, 5000))
@@ -436,8 +424,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
   SOCKET_CLOSE(listener_fd);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -449,7 +435,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_003_HostnameConnectSucceeds) {
 TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolutions) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
 
-  svalue_t read_cb, write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   std::vector<int> fd_list;
   std::vector<object_t *> owners;
   int connect_result;
@@ -464,8 +451,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
     "void write_callback(int fd, mixed payload) { }\n"
     "void close_callback(int fd, mixed payload) { }\n";
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   for (int i = 0; i < OWNER_COUNT; i++) {
     std::string owner_name = "test_socket_dns_owner_" + std::to_string(i) + ".c";
@@ -477,13 +464,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
   for (int i = 0; i < TEST_LIMIT; i++) {
     object_t *owner = owners[i % OWNER_COUNT];
     ScopedObjectContext owner_ctx(this, owner);
-    int fd = socket_create(STREAM, &read_cb, NULL);
+    int fd = socket_create(STREAM, read_cb.raw(), NULL);
     if (fd < 0) break;  /* Ran out of sockets */
     fd_list.push_back(fd);
 
     {
       std::string endpoint = "localhost " + std::to_string(8080 + i);
-      connect_result = socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
+      connect_result = socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw());
     }
 
     if (connect_result == EESUCCESS) {
@@ -508,9 +495,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_004_GlobalCapEnforcesMaxInFlightResolut
   for (int fd : fd_list) {
     socket_close(fd, 1);
   }
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -523,25 +507,26 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb, write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   std::vector<int> fd_list;
   int connect_result;
   int success_count = 0;
   int resolver_busy_count = 0;
   const int TEST_LIMIT = 12;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   /* Create TEST_LIMIT sockets all owned by master_ob */
   for (int i = 0; i < TEST_LIMIT; i++) {
-    int fd = socket_create(STREAM, &read_cb, NULL);
+    int fd = socket_create(STREAM, read_cb.raw(), NULL);
     if (fd < 0) break;  /* Ran out of sockets */
     fd_list.push_back(fd);
 
     {
       std::string endpoint = "localhost " + std::to_string(9000 + i);
-      connect_result = socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
+      connect_result = socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw());
     }
 
     if (connect_result == EESUCCESS) {
@@ -562,9 +547,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_005_PerOwnerCapEnforcesMaxConcurrentDns
   for (int fd : fd_list) {
     socket_close(fd, 1);
   }
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -578,8 +560,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
   ScopedObjectContext ctx(this, master_ob);
   ScopedDnsTimeoutHook timeout_hook;
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   int fd;
   int connect_result;
   int op_active = 0;
@@ -592,15 +574,15 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
   unsigned long timed_out_before = 0;
   unsigned long timed_out_after = 0;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted, &dedup, &timed_out_before), EESUCCESS);
 
-  connect_result = socket_connect(fd, (char *)"force-timeout-neolith.invalid 8080", &read_cb, &write_cb);
+  connect_result = socket_connect(fd, (char *)"force-timeout-neolith.invalid 8080", read_cb.raw(), write_cb.raw());
   ASSERT_EQ(connect_result, EESUCCESS)
     << "Hostname connect should queue DNS work before timeout resolves";
 
@@ -618,8 +600,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_006_TimeoutMapsToTimedOutPhase) {
   EXPECT_EQ(op_phase, OP_INIT);
 
   EXPECT_EQ(socket_close(fd, 1), EESUCCESS);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -632,8 +612,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   int fd_a;
   int fd_b;
   int result_a;
@@ -644,18 +624,18 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
   unsigned long admitted_after = 0;
   unsigned long dedup_after = 0;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd_a = socket_create(STREAM, &read_cb, NULL);
-  fd_b = socket_create(STREAM, &read_cb, NULL);
+  fd_a = socket_create(STREAM, read_cb.raw(), NULL);
+  fd_b = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd_a, 0) << "Failed to create first stream socket";
   ASSERT_GE(fd_b, 0) << "Failed to create second stream socket";
 
   ASSERT_EQ(get_dns_telemetry_snapshot(&in_flight, &admitted_before, &dedup_before, nullptr), EESUCCESS);
 
-  result_a = socket_connect(fd_a, (char *)"localhost 8080", &read_cb, &write_cb);
-  result_b = socket_connect(fd_b, (char *)"localhost 8080", &read_cb, &write_cb);
+  result_a = socket_connect(fd_a, (char *)"localhost 8080", read_cb.raw(), write_cb.raw());
+  result_b = socket_connect(fd_b, (char *)"localhost 8080", read_cb.raw(), write_cb.raw());
 
   EXPECT_EQ(result_a, EESUCCESS);
   EXPECT_EQ(result_b, EESUCCESS);
@@ -668,8 +648,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_012_DuplicateHostnameConnectsCoalesceWo
 
   EXPECT_EQ(socket_close(fd_a, 1), EESUCCESS);
   EXPECT_EQ(socket_close(fd_b, 1), EESUCCESS);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -683,8 +661,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlockin
   ScopedObjectContext ctx(this, master_ob);
   ScopedResolverLookupHook resolver_hook(DelayLocalhostResolverHookExtensions);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   socket_fd_t slow_listener_fd = INVALID_SOCKET_FD;
   socket_fd_t fast_listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
@@ -699,11 +677,11 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlockin
   int slow_op_id = 0;
   int slow_phase = OP_INIT;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  slow_fd = socket_create(STREAM, &read_cb, NULL);
-  fast_fd = socket_create(STREAM, &read_cb, NULL);
+  slow_fd = socket_create(STREAM, read_cb.raw(), NULL);
+  fast_fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(slow_fd, 0) << "Failed to create slow stream socket";
   ASSERT_GE(fast_fd, 0) << "Failed to create fast stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&slow_listener_fd, &slow_listener_port))
@@ -715,8 +693,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlockin
     std::string slow_endpoint = "delay-localhost " + std::to_string(slow_listener_port);
     std::string fast_endpoint = "localhost " + std::to_string(fast_listener_port);
 
-    slow_result = socket_connect(slow_fd, (char *)slow_endpoint.c_str(), &read_cb, &write_cb);
-    fast_result = socket_connect(fast_fd, (char *)fast_endpoint.c_str(), &read_cb, &write_cb);
+    slow_result = socket_connect(slow_fd, (char *)slow_endpoint.c_str(), read_cb.raw(), write_cb.raw());
+    fast_result = socket_connect(fast_fd, (char *)fast_endpoint.c_str(), read_cb.raw(), write_cb.raw());
   }
 
   ASSERT_EQ(slow_result, EESUCCESS);
@@ -749,8 +727,6 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_013_FallbackPoolAvoidsHeadOfLineBlockin
   EXPECT_EQ(socket_close(fast_fd, 1), EESUCCESS);
   SOCKET_CLOSE(slow_listener_fd);
   SOCKET_CLOSE(fast_listener_fd);
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 /**
@@ -763,7 +739,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb, write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   std::vector<int> flood_fds;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
@@ -771,27 +748,27 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
   int probe_fd;
   int result;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
   for (int i = 0; i < 24; i++) {
-    int fd = socket_create(STREAM, &read_cb, NULL);
+    int fd = socket_create(STREAM, read_cb.raw(), NULL);
     if (fd < 0) {
       break;
     }
     flood_fds.push_back(fd);
-    (void)socket_connect(fd, (char *)"localhost 8080", &read_cb, &write_cb);
+    (void)socket_connect(fd, (char *)"localhost 8080", read_cb.raw(), write_cb.raw());
   }
 
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
-  probe_fd = socket_create(STREAM, &read_cb, NULL);
+  probe_fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(probe_fd, 0) << "Failed to create probe stream socket";
 
   {
     std::string endpoint = "127.0.0.1 " + std::to_string(listener_port);
-    result = socket_connect(probe_fd, (char *)endpoint.c_str(), &read_cb, &write_cb);
+    result = socket_connect(probe_fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw());
   }
 
   EXPECT_EQ(result, EESUCCESS)
@@ -808,16 +785,13 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_DNS_011_BackendRemainsResponsiveUnderDnsFlo
   for (int fd : flood_fds) {
     socket_close(fd, 1);
   }
-
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntimeEntry) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
+  lpc::svalue read_cb;
   int fd;
   int registered = 0;
   int events = 0;
@@ -826,9 +800,9 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
   socket_fd_t native_fd = INVALID_SOCKET_FD;
   void* runtime_context;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
 
   ASSERT_EQ(get_socket_runtime_info(fd, &registered, &events, &tracked_fd), EESUCCESS);
@@ -849,16 +823,14 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_001_CreateRegistersAndCloseRemovesRuntim
   EXPECT_EQ(events, 0);
   EXPECT_EQ(tracked_fd, INVALID_SOCKET_FD);
   EXPECT_EQ(resolve_lpc_socket_context(runtime_context, native_fd, &resolved_socket), 0);
-
-  free_string_svalue(&read_cb);
 }
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
-  svalue_t write_cb;
+  lpc::svalue read_cb;
+  lpc::svalue write_cb;
   socket_fd_t listener_fd = INVALID_SOCKET_FD;
   socket_fd_t accepted_fd = INVALID_SOCKET_FD;
   int listener_port = 0;
@@ -868,16 +840,16 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
   socket_fd_t tracked_fd = INVALID_SOCKET_FD;
   int attempts;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
-  lpc::svalue_view::from(&write_cb).set_shared_string(make_shared_string("write_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(write_cb.raw()).set_shared_string(make_shared_string("write_callback", NULL));
 
-  fd = socket_create(STREAM, &read_cb, NULL);
+  fd = socket_create(STREAM, read_cb.raw(), NULL);
   ASSERT_GE(fd, 0) << "Failed to create stream socket";
   ASSERT_TRUE(CreateLoopbackListener(&listener_fd, &listener_port))
     << "Failed to create loopback listener";
 
   std::string endpoint = "127.0.0.1 " + std::to_string(listener_port);
-  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), &read_cb, &write_cb), EESUCCESS);
+  ASSERT_EQ(socket_connect(fd, (char *)endpoint.c_str(), read_cb.raw(), write_cb.raw()), EESUCCESS);
 
   ASSERT_EQ(get_socket_runtime_info(fd, &registered, &events, &tracked_fd), EESUCCESS);
   EXPECT_EQ(registered, 1);
@@ -902,25 +874,23 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_002_BlockedStateTracksWriteInterest) {
   if (listener_fd != INVALID_SOCKET_FD) {
     SOCKET_CLOSE(listener_fd);
   }
-  free_string_svalue(&read_cb);
-  free_string_svalue(&write_cb);
 }
 
 TEST_F(SocketEfunsBehaviorTest, SOCK_RT_003_RuntimeRegistrationStress_NoLeaks) {
   ASSERT_TRUE(master_ob) << "Master object not initialized";
   ScopedObjectContext ctx(this, master_ob);
 
-  svalue_t read_cb;
+  lpc::svalue read_cb;
   int baseline_registrations;
   int iteration;
 
-  lpc::svalue_view::from(&read_cb).set_shared_string(make_shared_string("read_callback", NULL));
+  lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
 
   baseline_registrations = get_socket_runtime_registration_count();
   ASSERT_GE(baseline_registrations, 0);
 
   for (iteration = 0; iteration < 100; iteration++) {
-    int fd = socket_create(STREAM, &read_cb, NULL);
+    int fd = socket_create(STREAM, read_cb.raw(), NULL);
     ASSERT_GE(fd, 0) << "socket_create failed on iteration " << iteration;
     EXPECT_EQ(get_socket_runtime_registration_count(), baseline_registrations + 1)
       << "Registration count should increase by one for an open socket";
@@ -929,7 +899,5 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_RT_003_RuntimeRegistrationStress_NoLeaks) {
     EXPECT_EQ(get_socket_runtime_registration_count(), baseline_registrations)
       << "Registration count should return to baseline after close";
   }
-
-  free_string_svalue(&read_cb);
 }
 

@@ -36,7 +36,8 @@ early as possible (compile-time preferred, runtime as backstop).
 
 - Promote transparent boundary handles to abstract handles so boundary misuse fails at
   compile time.
-- Harden efun and JSON byte-span boundaries with explicit contract checks.
+- Harden JSON boundary contracts, with priority on CURL efun ingress
+  (`buffer -> from_json`) and explicit UTF-8/error handling behavior.
 - Expand regression coverage to lock in counted-string semantics across LPC,
   efuns, and JSON boundaries.
 
@@ -47,8 +48,8 @@ early as possible (compile-time preferred, runtime as backstop).
 | Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
 | Implementation: VM/operator NUL-removal and span API normalization | complete |
 | Implementation: abstract typed handles + runtime contract enforcement | complete |
-| Implementation: C++ RAII wrapper adoption on exception baseline | in progress |
-| Implementation: efun byte-span readiness | in progress |
+| Implementation: C++ RAII wrapper adoption on exception baseline | in progress (unit-test scope complete for counted-string targets; production follow-on remains) |
+| Implementation: efun byte-span readiness | in progress (narrowed: defer broad LPC string-efun hardening; prioritize JSON/CURL ingress) |
 | Implementation: JSON boundary contract and tests | in progress |
 | Validation: end-to-end LPC/JSON regression matrix | complete |
 
@@ -271,13 +272,95 @@ assigning `result = ""`. A regression test was added in
   `EfunsTest.throwError`, `EfunsTest.throwWithoutCatchRaisesRuntimeError`,
   `LPCInterpreterTest.throwZeroNormalizesToUnspecifiedError`, and
   `SimulEfunsTest.callSimulEfun`.
+- C++ RAII wrapper adoption has started in production code: `lib/efuns/json.cpp`
+  now uses `lpc::svalue` for temporary mapping-key construction in
+  `json_to_lpc()`, removing a manual `free_string(to_shared_str(...))`
+  ownership-release path while preserving the existing C ABI boundary.
+- `tests/test_stralloc` now freezes `lpc::svalue` copy and move semantics for
+  shared-string refcount retention and malloc-string ownership transfer,
+  including copy-assignment, move-assignment, and self-assignment no-op
+  coverage.
+- Unit-test-first C++ adoption is now underway: `tests/test_lpc_interpreter`
+  return-value paths and socket helper `QueryObjectNumberMethod()` sites in
+  `tests/test_socket_efuns` now use `lpc::svalue` ownership plus
+  `lpc::svalue_view` accessors instead of raw `svalue_t` temporaries with
+  manual `free_svalue()` / `free_string_svalue()` cleanup.
+- Additional helper-return test adoption is now in place for
+  `tests/test_string_operators/test_string_operators_lpc.cpp`
+  (`call_noarg() -> lpc::svalue`) and
+  `tests/test_lpc_interpreter/test_input_to_get_char.cpp`
+  (`make_function_name_svalue() -> lpc::svalue`), reducing repeated raw
+  callback-name/return-value construction in C++ test code.
+- Counted-string operator tests now adopt RAII ownership end-to-end in
+  `tests/test_string_operators/test_string_operators_main.cpp`: local
+  owner variables are `lpc::svalue`, macro call sites pass `.raw()`, and
+  manual `free_string_svalue()` cleanup in these tests has been removed in
+  favor of destructor-based cleanup.
+- Socket behavior matrix tests now have an additional RAII adoption slice in
+  `tests/test_socket_efuns/test_socket_efuns_behavior.cpp` for
+  `SOCK_BHV_001` through `SOCK_BHV_010`: callback locals now use
+  `lpc::svalue` ownership and pass `raw()` into C APIs, eliminating manual
+  callback `free_string_svalue()`/`free_string(...)` cleanup in this range.
+- Focused validation for the migrated socket behavior slice is green:
+  all ten tests (`SOCK_BHV_001` … `SOCK_BHV_010`) pass after RAII conversion.
+- Socket behavior RAII adoption is now extended in the same file for
+  `SOCK_BHV_011` through `SOCK_BHV_020`: callback and payload locals in this
+  range are now `lpc::svalue` owners passed via `raw()` to C APIs, with
+  manual callback/payload `free_string_svalue()` cleanup removed.
+- Focused validation for this second socket slice is also green:
+  all ten tests (`SOCK_BHV_011` … `SOCK_BHV_020`) pass after RAII conversion.
+- Resolver forward tests now have an initial RAII adoption slice in
+  `tests/test_socket_efuns/test_socket_efuns_resolver.cpp` for
+  `RESOLVER_FWD_001` through `RESOLVER_FWD_005`: callback locals now use
+  `lpc::svalue` ownership and pass `raw()` into C APIs, removing manual
+  callback `free_string_svalue()` cleanup in this range.
+- Focused validation for this resolver slice is green:
+  all five tests (`RESOLVER_FWD_001` … `RESOLVER_FWD_005`) pass after RAII conversion.
+- The remaining resolver callback-owner/manual-cleanup site in
+  `RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWorker` is now also
+  converted to `lpc::svalue` ownership (`raw()` passed to C APIs), removing
+  the last `free_string_svalue()` callback cleanup pattern in
+  `tests/test_socket_efuns/test_socket_efuns_resolver.cpp`.
+- Focused validation for `RESOLVER_CACHE_001_ForwardCacheHit_BypassesDNSWorker`
+  is green after conversion.
+- Socket extensions tests now have a new contiguous RAII adoption slice in
+  `tests/test_socket_efuns/test_socket_efuns_extensions.cpp` for
+  `SOCK_OP_001` through `SOCK_OP_003` and `SOCK_DNS_001` through
+  `SOCK_DNS_005`: callback locals are now `lpc::svalue` owners passed via
+  `raw()` to C APIs, with manual callback `free_string_svalue()` cleanup
+  removed in this block.
+- Focused validation for the extensions slice is green:
+  all eight migrated tests (`SOCK_OP_001` … `SOCK_OP_003`,
+  `SOCK_DNS_001` … `SOCK_DNS_005`) pass after RAII conversion.
+- Socket extensions DNS RAII adoption is now extended in the same file for
+  `SOCK_DNS_006`, `SOCK_DNS_011`, `SOCK_DNS_012`, and `SOCK_DNS_013`
+  (including the remaining raw-owner path in `SOCK_DNS_005`): callback locals
+  now use `lpc::svalue` owners passed via `raw()` into C APIs, with manual
+  callback `free_string_svalue()` cleanup removed for this migrated set.
+- Focused validation for this second extensions DNS slice is green:
+  `SOCK_DNS_005`, `SOCK_DNS_006`, `SOCK_DNS_011`, `SOCK_DNS_012`, and
+  `SOCK_DNS_013` all pass after RAII conversion.
+- Socket extensions runtime tests now have a final RAII cleanup slice for
+  `SOCK_RT_001` through `SOCK_RT_003`: callback locals use `lpc::svalue`
+  ownership and pass `raw()` into C APIs, removing remaining manual callback
+  `free_string_svalue()` cleanup in this runtime block.
+- Focused validation for `SOCK_RT_001` … `SOCK_RT_003` is green after conversion.
+- Unit-test-first RAII ownership migration milestone is now complete for the
+  current counted-string target set: a workspace scan of `tests/**/*.cpp`
+  shows no remaining `free_string_svalue(...)` / `free_svalue(...)` manual
+  cleanup paths in C++ unit tests.
 
 ### Next Focus
 
 - **C++ RAII wrapper adoption** — complete wrapper adoption on the established
-  exception baseline without C ABI layout changes.
-- **Efun/JSON hardening closure** — finish remaining byte-span and
-  JSON-boundary contract/doc/test follow-through for plan closure.
+  exception baseline without C ABI layout changes. Unit-test-first migration
+  is complete for current counted-string targets; immediate next slice is
+  additional production C++ efun/helper paths where manual free paths remain
+  avoidable.
+- **JSON/CURL boundary hardening closure** — prioritize JSON string handling
+  for contents received via CURL efuns (`buffer -> JSON`) and finish contract/
+  doc/test follow-through for that boundary before revisiting broader LPC
+  string-efun byte-span hardening.
 
 ### Baseline and Out of Scope
 
@@ -296,6 +379,10 @@ assigning `result = ""`. A regression test was added in
 - `u.string` has been removed; string access must use subtype-explicit
   members (`u.const_string`, `u.shared_string`, `u.malloc_string`) or
   `SVALUE_STRPTR(...)` where subtype is not statically known.
+- Enforcement mechanism varies by language:
+  - **C++ code:** compile-time enforcement via `lpc::svalue_view` / `lpc::svalue` wrappers
+  - **C code:** runtime enforcement via `STRING_TYPE_SAFETY` macros + discipline
+  - Both paths converge on typed-member-only semantics and explicit subtype intent
 - When migrating functions or macros that process `svalue_t`, always validate all runtime string semantics: `STRING_MALLOC`, `STRING_SHARED`, `STRING_CONSTANT`.
 
 ## UTF-8 Compatibility Contract
@@ -313,6 +400,33 @@ assigning `result = ""`. A regression test was added in
 - UTF-8 character counting via `explode` is an operation-specific result and
   must not be treated as LPC string length.
   LPC string length and driver counted-string length remain byte counts.
+
+## Compile-Time Safety Scope (C++ Only)
+
+**Decision:** Compile-time string type safety enforcement is scoped to C++ code
+only in this plan. The rationale:
+
+1. **C++ code** gets full compile-time safety via `lpc::svalue_view` (non-owning)
+   and `lpc::svalue` (owning RAII) wrappers:
+   - `set_shared_string()` / `set_malloc_string()` / `set_constant_string()` atomically
+     stamp type + subtype + union member (no partial state possible)
+   - Typed read accessors (`shared_string()`, `malloc_string()`, `const_string()`)
+     communicate ownership intent and preconditions
+   - Move/copy semantics + self-assignment guards prevent ownership bugs
+   - Unit tests establish conventions for broader future adoption
+
+2. **C code** relies on runtime validation via `STRING_TYPE_SAFETY` macros:
+   - `SET_SVALUE_SHARED_STRING()` / `SET_SVALUE_MALLOC_STRING()` / `SET_SVALUE_CONSTANT_STRING()`
+     validate payloads at assignment time in debug builds (abort on mismatch)
+   - Payload classifiers (`is_shared_string_payload()` / `is_malloc_string_payload()`)
+     centralized in `src/stralloc.h` catch sophisticated misuses
+   - C code discipline: must use typed helpers, never raw `sv->u.X` access
+   - `STRING_TYPE_SAFETY` enabled by default in development (enforced via `cmake/options.cmake`)
+
+Converting all legacy C code to use RAII would be a long-term effort (thousands
+of sites). This plan prioritizes establishing solid C++ conventions first via
+unit tests, which will then inform eventual C migration guidance. The runtime
+checks provide a secondary defense layer for C code until migration is feasible.
 
 ## Counted-String Contract and Type Safety
 
@@ -400,9 +514,9 @@ Migration order:
 | P0 | Remove NUL-dependent VM/operator paths | [lib/lpc/operator.c](../../lib/lpc/operator.c), [src/interpret.h](../../src/interpret.h) | complete: touched concat/join paths now use explicit lengths and byte-copy semantics; equality/inequality and string range use counted-length compare/copy; behavior remains compatible for normal strings. |
 | P0 | Normalize internal helper APIs | string construction/lookup boundaries | New/updated helpers accept explicit lengths/spans; touched callers stop using sentinel termination as logical length; shared-string boundaries continue to route via `make_shared_string(s,end)` / `findstring(s,end)`. |
 | P0 | Enforce counted-string semantic boundaries | [src/stralloc.h](../../src/stralloc.h), [lib/lpc/types.h](../../lib/lpc/types.h), typed-string boundaries | Boundary-handle mode enabled under `STRING_TYPE_SAFETY`; contract APIs require explicit typed handles or bridge helpers; runtime contract checks remain release-enabled; identifier-class shared strings remain NUL-terminated. |
-| P1 | C++ wrapper adoption on baseline boundaries | C++ wrappers around `svalue_t` | `lpc::svalue_view`/`lpc::svalue` introduced without C ABI layout change; no duplicate exception-boundary rewrites are introduced; wrapper move/dtor are `noexcept`; targeted perf checks show no hot-path regression. |
-| P1 | Efun byte-span readiness | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Touched binary-sensitive efun paths use explicit lengths; text-oriented paths explicitly document C-string assumptions; existing efun tests remain green. |
-| P1 | JSON boundary contract | JSON efuns/helpers (`from_json`, `to_json`) | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; `to_json` escaping policy documented and tested. |
+| P1 | C++ wrapper adoption on baseline boundaries | C++ wrappers around `svalue_t` | `lpc::svalue_view`/`lpc::svalue` introduced without C ABI layout change; no duplicate exception-boundary rewrites are introduced; wrapper move/dtor are `noexcept`; unit-test-first ownership migration for counted-string targets is complete (no `free_string_svalue` / `free_svalue` in `tests/**/*.cpp`); remaining work is production C++ efun/helper adoption and any targeted perf checks for newly touched hot paths. |
+| P1 | Efun byte-span readiness (deferred broad LPC string paths) | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Scope is intentionally narrowed for this phase: no broad LPC-side behavioral expansion unless required by JSON/CURL boundary safety. Any touched path must preserve LPC compatibility and existing tests remain green. |
+| P1 | JSON boundary contract (priority: CURL buffer ingress) | JSON efuns/helpers (`from_json`, `to_json`) and CURL ingress paths | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; CURL-provided buffer payloads (`buffer -> JSON`) are validated with explicit success/error-path tests; `to_json` escaping policy documented and tested. |
 | P1 | Unicode and escape consistency | JSON encode/decode implementation | Encoder/decoder are symmetric for control escapes, `\\`, `\"`, `\uXXXX`, and surrogate pairs; non-BMP behavior documented and validated. |
 | P2 | End-to-end regression matrix | LPC-level and efun/unit tests | complete for current hardening scope: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest), and full matrix validation is passing on Linux, VS16 x64, VS16 win32, and clang x64. Future LPC/JSON round-trip and negative-matrix additions remain follow-on expansion work. |
 
