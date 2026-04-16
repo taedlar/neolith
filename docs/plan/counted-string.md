@@ -50,7 +50,7 @@ early as possible (compile-time preferred, runtime as backstop).
 | Implementation: C++ RAII wrapper adoption on exception baseline | in progress |
 | Implementation: efun byte-span readiness | in progress |
 | Implementation: JSON boundary contract and tests | in progress |
-| Validation: end-to-end LPC/JSON regression matrix | in progress |
+| Validation: end-to-end LPC/JSON regression matrix | complete |
 
 ## Current State Handoff
 
@@ -95,6 +95,10 @@ Four additional hardening batches landed after the previous handoff:
 - `lib/lpc/object.c` — all remaining restore string stamps → typed helpers
 
 All targeted regression tests remain green after each batch.
+Full Linux matrix validation (`ctest --preset ut-linux`) is now passing after
+the remaining open-coded stamping sweep.
+Full cross-platform validation is now also passing on `vs16-x64`,
+`vs16-win32`, and `clang-x64`.
 
 ### Remaining Open-Coded Stamping Sites (5 total)
 
@@ -271,8 +275,6 @@ assigning `result = ""`. A regression test was added in
 - **Abstract-handle compile-time enforcement** — promote opaque handle types
   so shared/malloc domain misuse fails at call sites under `STRING_TYPE_SAFETY`
   (still the longer-term target).
-- **Broader validation pass** — run `ut-linux`, `ut-vs16-x64`, `ut-clang-x64`
-  presets once remaining stamping sites are hardened.
 
 ### Baseline and Out of Scope
 
@@ -397,7 +399,7 @@ Migration order:
 | P1 | Efun byte-span readiness | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Touched binary-sensitive efun paths use explicit lengths; text-oriented paths explicitly document C-string assumptions; existing efun tests remain green. |
 | P1 | JSON boundary contract | JSON efuns/helpers (`from_json`, `to_json`) | Contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; `to_json` escaping policy documented and tested. |
 | P1 | Unicode and escape consistency | JSON encode/decode implementation | Encoder/decoder are symmetric for control escapes, `\\`, `\"`, `\uXXXX`, and surrogate pairs; non-BMP behavior documented and validated. |
-| P2 | End-to-end regression matrix | LPC-level and efun/unit tests | in progress: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest); remaining coverage is LPC/JSON round-trip and negative matrix expansion. Any wrapper/ABI-adjacent change must pass `ut-linux`, `ut-vs16-x64`, and `ut-clang-x64` before stage completion. |
+| P2 | End-to-end regression matrix | LPC-level and efun/unit tests | complete for current hardening scope: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest), and full matrix validation is passing on Linux, VS16 x64, VS16 win32, and clang x64. Future LPC/JSON round-trip and negative-matrix additions remain follow-on expansion work. |
 
 ## Hardening Gates for Remaining Work
 
