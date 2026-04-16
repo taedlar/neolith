@@ -701,7 +701,7 @@ void unlink_string_svalue (svalue_t * s) {
       }
     case STRING_CONSTANT:
       SET_SVALUE_MALLOC_STRING(s,
-                               string_copy (sp->u.const_string, "unlink_string_svalue"));
+                               string_copy (s->u.const_string, "unlink_string_svalue"));
       break;
     }
 }
