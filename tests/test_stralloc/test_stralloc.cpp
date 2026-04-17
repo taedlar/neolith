@@ -313,9 +313,15 @@ TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
         lpc::svalue malloc_owner;
         malloc_owner.view().set_malloc_string(malloced);
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+// Suppress self-move warning for this test; we're intentionally testing that self-move is a no-op and doesn't free the malloc string.
 #pragma GCC diagnostic ignored "-Wself-move"
+#endif
         malloc_owner = std::move(malloc_owner);
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
         ASSERT_TRUE(malloc_owner.view().is_string() && malloc_owner.view().is_malloc());
         EXPECT_EQ(malloc_owner.view().malloc_string(), malloced);

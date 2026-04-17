@@ -194,6 +194,7 @@ TEST_F(StringOperatorsTest, JoinMallocSelfReuse) {
 // === String Equality Operator Tests ===
 
 TEST_F(StringOperatorsTest, EqualityIdenticalStrings) {
+    svalue_t* save_sp = sp;
     // Test equality of identical malloc strings via f_eq
     lpc::svalue left;
     lpc::svalue right;
@@ -211,6 +212,7 @@ TEST_F(StringOperatorsTest, EqualityIdenticalStrings) {
     ASSERT_EQ(sp, &stack[0]);
     ASSERT_TRUE(result_view.is_number());
     ASSERT_EQ(result_view.number(), 1);
+    sp = save_sp;
 }
 
 TEST_F(StringOperatorsTest, EqualityDifferentLengths) {
@@ -224,6 +226,7 @@ TEST_F(StringOperatorsTest, EqualityDifferentLengths) {
 }
 
 TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
+    svalue_t* save_sp = sp;
     // Test memcmp equality with embedded NULs
     lpc::svalue s1 ("A\0B"); // should be truncated to "A" (STRING_CONSTANT)
     lpc::svalue s2;
@@ -257,6 +260,7 @@ TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
 
     assert_f_eq(s1, s2, 0);
     assert_f_eq(s2, s3, 1);
+    sp = save_sp;
 }
 
 // === String Range Operator Tests ===

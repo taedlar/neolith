@@ -298,8 +298,8 @@ public:
             return;
         }
         const char *begin = data.data();
-        const char *end = begin + data.size();
-        set_shared_string(make_shared_string(begin, end));
+        const char *end = begin ? begin + data.size() : nullptr;
+        set_shared_string(make_shared_string(begin ? begin : "", end));
     }
 
     /** Assign a STRING_MALLOC payload; stamps type=T_STRING, subtype=STRING_MALLOC. */
