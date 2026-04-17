@@ -36,8 +36,7 @@ Passing `0` clears `"url"`, `"headers"`, or `"post_data"`/`"body"`.
 An error is raised when:
 - `opt` is not a string
 - `val` has the wrong type for the selected option
-- a string value for `"url"`, `"headers"`, or string `"post_data"`/`"body"`
-	contains embedded NUL bytes
+- a string value for `"url"`, `"headers"`, or string `"post_data"`/`"body"` contains embedded NUL bytes
 - the current object already has an active `perform_to()` transfer
 - the option name is unknown
 

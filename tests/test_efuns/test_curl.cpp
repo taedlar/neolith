@@ -306,22 +306,23 @@ protected:
     apply_low(method, owner, 1);
     auto view = lpc::svalue_view::from(sp);
     EXPECT_TRUE(view.is_number());
-    int result = static_cast<int>(view.number());
+    int result = view.is_number() ? static_cast<int>(view.number()) : -1;
     pop_stack();
     return result;
   }
 };
 
-static const char kCallbackOwnerCode[] =
-  "mixed *last = ({});\n"
-  "mixed *events = ({});\n"
-  "int event_count = 0;\n"
-  "void create() { last = ({}); events = ({}); event_count = 0; }\n"
-  "varargs void curl_done(int ok, string payload, mixed a, mixed b) { last = ({ ok, payload, a, b }); events += ({ copy(last) }); event_count++; }\n"
-  "varargs int try_perform_to(string callback, int flags, mixed a, mixed b) { return catch(perform_to(callback, flags, a, b)) ? 1 : 0; }\n"
-  "mixed *query_last() { return last; }\n"
-  "int query_event_count() { return event_count; }\n"
-  "void clear_events() { last = ({}); events = ({}); event_count = 0; }\n";
+static const char kCallbackOwnerCode[] = R"(
+  mixed *last = ({});
+  mixed *events = ({});
+  int event_count = 0;
+  void create() { last = ({}); events = ({}); event_count = 0; }
+  varargs void curl_done(int ok, string payload, mixed a, mixed b) { last = ({ ok, payload, a, b }); events += ({ copy(last) }); event_count++; }
+  varargs int try_perform_to(string callback, int flags, mixed a, mixed b) { return catch(perform_to(callback, flags, a, b)) ? 1 : 0; }
+  mixed *query_last() { return last; }
+  int query_event_count() { return event_count; }
+  void clear_events() { last = ({}); events = ({}); event_count = 0; }
+)";
 
 static const char kObserverCode[] =
   "mixed *events = ({});\n"
@@ -338,11 +339,12 @@ static const char kDestroyOwnerCode[] =
 static const char kConfigOwnerCode[] =
   "varargs int try_perform_using(mixed opt, mixed val) { return catch(perform_using(opt, val)) ? 1 : 0; }\n";
 
-static const char kConfigTransformOwnerCode[] =
-  "int try_set_url_from_json_raw(string j) { return catch(perform_using(\"url\", from_json(j))) ? 1 : 0; }\n"
-  "int try_set_url_from_json_cstr(string j) { return catch(perform_using(\"url\", c_str(from_json(j)))) ? 1 : 0; }\n"
-  "int try_set_body_from_json_raw(string j) { return catch(perform_using(\"body\", from_json(j))) ? 1 : 0; }\n"
-  "int try_set_body_from_json_to_json(string j) { return catch(perform_using(\"body\", to_json(from_json(j)))) ? 1 : 0; }\n";
+static const char kConfigTransformOwnerCode[] = R"(
+  int try_set_url_from_json_raw(string j) { return catch(perform_using("url", from_json(j))) ? 1 : 0; }
+  int try_set_url_from_json_cstr(string j) { return catch(perform_using("url", c_str(from_json(j)))) ? 1 : 0; }
+  int try_set_body_from_json_raw(string j) { return catch(perform_using("body", from_json(j))) ? 1 : 0; }
+  int try_set_body_from_json_to_json(string j) { return catch(perform_using("body", to_json(from_json(j)))) ? 1 : 0; }
+)";
 
 TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
   object_t *owner = LoadInlineObject("/tests/efuns/curl_invalid_owner", kCallbackOwnerCode);

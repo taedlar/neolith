@@ -412,7 +412,8 @@ static void configure_option(curl_http_t *handle, const char *option, svalue_t *
       error("perform_using(timeout_ms, value) requires a number.\n");
     }
 
-    handle->timeout_ms = value_view.number() > 0 ? static_cast<long>(value_view.number()) : 0L;
+    handle->timeout_ms = value_view.number() > 0 ?
+      std::min(LONG_MAX, value_view.number()) : 0L;
     return;
   }
 

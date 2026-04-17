@@ -14,6 +14,7 @@
 #include "otable.h"
 #include "program.h"
 #include "lpc/include/origin.h"
+#include "svalue.h"
 
 #ifdef ARRAY_STATS
 int num_arrays;
@@ -26,34 +27,6 @@ static int sort_array_cmp (svalue_t *, svalue_t *);
 static int deep_inventory_count (object_t *);
 static void deep_inventory_collect (object_t *, array_t *, int *);
 static int alist_cmp (svalue_t *, svalue_t *);
-
-static int
-svalue_string_lexcmp (const svalue_t *lhs, const svalue_t *rhs)
-{
-  size_t lhs_len = SVALUE_STRLEN (lhs);
-  size_t rhs_len = SVALUE_STRLEN (rhs);
-  size_t prefix_len = lhs_len < rhs_len ? lhs_len : rhs_len;
-  int cmp = 0;
-
-  if (prefix_len != 0)
-    {
-      cmp = memcmp (SVALUE_STRPTR(lhs), SVALUE_STRPTR(rhs), prefix_len);
-      if (cmp != 0)
-        {
-          return cmp;
-        }
-    }
-
-  if (lhs_len < rhs_len)
-    {
-      return -1;
-    }
-  if (lhs_len > rhs_len)
-    {
-      return 1;
-    }
-  return 0;
-}
 
 /*
  * Make an empty array for everyone to use, never to be deallocated.

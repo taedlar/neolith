@@ -17,38 +17,11 @@
 #include "functional.h"
 #include "lpc/include/function.h"
 #include "src/simul_efun.h"
+#include "svalue.h"
 
 #include "operator.h"
 #include "efuns/parse.h"
 #include "efuns/sscanf.h"
-
-static int
-svalue_string_lexcmp (const svalue_t *lhs, const svalue_t *rhs)
-{
-  size_t lhs_len = SVALUE_STRLEN (lhs);
-  size_t rhs_len = SVALUE_STRLEN (rhs);
-  size_t prefix_len = lhs_len < rhs_len ? lhs_len : rhs_len;
-  int cmp = 0;
-
-  if (prefix_len != 0)
-    {
-      cmp = memcmp (SVALUE_STRPTR(lhs), SVALUE_STRPTR(rhs), prefix_len);
-      if (cmp != 0)
-        {
-          return cmp;
-        }
-    }
-
-  if (lhs_len < rhs_len)
-    {
-      return -1;
-    }
-  if (lhs_len > rhs_len)
-    {
-      return 1;
-    }
-  return 0;
-}
 
 void dealloc_funp (funptr_t * funptr) {
   free_object (funptr->hdr.owner, "free_funp");
