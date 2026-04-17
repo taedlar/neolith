@@ -23,6 +23,31 @@ void f_capitalize (void) {
 #endif
 
 
+#ifdef F_C_STR
+void f_c_str (void) {
+  const char *src;
+  size_t span_len, c_len;
+  malloc_str_t result;
+
+  src = SVALUE_STRPTR(sp);
+  span_len = SVALUE_STRLEN(sp);
+  c_len = strlen(src);
+  if (c_len > span_len)
+    c_len = span_len;
+
+  result = new_string(c_len, "f_c_str");
+  if (c_len)
+    {
+      memcpy(result, src, c_len);
+    }
+  result[c_len] = '\0';
+
+  free_string_svalue(sp);
+  SET_SVALUE_MALLOC_STRING(sp, result);
+}
+#endif
+
+
 #ifdef F_LOWER_CASE
 void f_lower_case (void) {
   register char *str;

@@ -20,6 +20,7 @@
 - [call_out](/docs/efuns/call_out.md)
 - [call_out_info](/docs/efuns/call_out_info.md)
 - [capitalize](/docs/efuns/capitalize.md)
+- [c_str](/docs/efuns/c_str.md)
 - [catch](/docs/efuns/catch.md)
 - [ceil](/docs/efuns/ceil.md)
 - [children](/docs/efuns/children.md)

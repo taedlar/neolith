@@ -1,6 +1,7 @@
 # tests/test_efuns/CMakeLists.txt
 
 add_executable(test_efuns
+    test_c_str.cpp
     test_efuns.cpp
     test_curl.cpp
     test_file.cpp
