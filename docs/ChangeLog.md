@@ -9,6 +9,7 @@
 - feat: extend `from_json()` to accept `buffer` input for large JSON payloads
 - feat: add optional `PACKAGE_CURL` support with `perform_using()`, `perform_to()`, and `in_perform()` efuns
 - feat: add `c_str()` efun to make C-string truncation an explicit LPC contract
+- feat: harden counted-string comparison and JSON/CURL text-option boundaries to use byte-span semantics and explicit embedded-NUL rejection/conversion rules
 
 #### Documentation
 - doc: add efun docs for `to_json()` and `from_json()`

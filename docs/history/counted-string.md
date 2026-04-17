@@ -58,6 +58,17 @@ early as possible (compile-time preferred, runtime as backstop).
 | Implementation: JSON boundary contract and tests | complete |
 | Validation: end-to-end LPC/JSON regression matrix | complete |
 
+## Pre-Closing Handoff
+
+As of 2026-04-18, this plan is being closed for the current scoped milestone.
+
+Non-complete items intentionally deferred beyond this closure:
+
+- Broad LPC string-efun hardening outside the narrowed JSON/CURL ingress scope.
+- Future CURL option-surface follow-through, where new text options must preserve
+  the explicit `c_str()` / `to_json()` boundary contract and matching regression
+  coverage.
+
 ## Current State Handoff
 
 As of 2026-04-17 (updated):
