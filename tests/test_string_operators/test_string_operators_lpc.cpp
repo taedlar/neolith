@@ -5,6 +5,7 @@
 #include "std.h"
 #include "rc.h"
 #include "interpret.h"
+#include "lpc/array.h"
 #include "lpc/compiler.h"
 #include "lpc/object.h"
 #include "lpc/operator.h"
@@ -269,4 +270,84 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLengthDifferentBytes) {
     ASSERT_EQ(sp, &stack[0]);
     ASSERT_TRUE(result_view.is_number());
     ASSERT_EQ(result_view.number(), 1);
+}
+
+TEST_F(StringOperatorsLPCTest, LpcSortArrayOrdersEmbeddedNulByByteSpan) {
+    const char *code = R"(
+        mixed *run_test() {
+                    string b = from_json("\"A\\u0000\"");
+                    string c = from_json("\"A\\u0000A\"");
+                    string a = from_json("\"A\\u0000B\"");
+          return sort_array(({ a, b, c }), 1);
+        }
+    )";
+
+    object_t *obj = load_inline_object("test_lpc_sort_array_embedded_nul.c", code);
+    ASSERT_NE(obj, nullptr);
+
+    lpc::svalue ret = call_noarg(obj, "run_test");
+    auto ret_view = ret.view();
+    ASSERT_TRUE(ret_view.is_array());
+
+    array_t *arr = ret.raw()->u.arr;
+    ASSERT_NE(arr, nullptr);
+    ASSERT_EQ(arr->size, 3);
+
+    auto v0 = lpc::svalue_view::from(&arr->item[0]);
+    auto v1 = lpc::svalue_view::from(&arr->item[1]);
+    auto v2 = lpc::svalue_view::from(&arr->item[2]);
+
+    ASSERT_TRUE(v0.is_string());
+    ASSERT_TRUE(v1.is_string());
+    ASSERT_TRUE(v2.is_string());
+
+    ASSERT_EQ(v0.length(), 2u);
+    ASSERT_EQ(v1.length(), 3u);
+    ASSERT_EQ(v2.length(), 3u);
+
+    ASSERT_EQ(memcmp(v0.c_str(), "A\0", 2), 0);
+    ASSERT_EQ(memcmp(v1.c_str(), "A\0A", 3), 0);
+    ASSERT_EQ(memcmp(v2.c_str(), "A\0B", 3), 0);
+
+    destruct_object(obj);
+}
+
+TEST_F(StringOperatorsLPCTest, LpcSortArrayOrdersEmbeddedNulByByteSpanDescending) {
+    const char *code = R"(
+        mixed *run_test() {
+                    string b = from_json("\"A\\u0000\"");
+                    string c = from_json("\"A\\u0000A\"");
+                    string a = from_json("\"A\\u0000B\"");
+          return sort_array(({ a, b, c }), -1);
+        }
+    )";
+
+    object_t *obj = load_inline_object("test_lpc_sort_array_embedded_nul_desc.c", code);
+    ASSERT_NE(obj, nullptr);
+
+    lpc::svalue ret = call_noarg(obj, "run_test");
+    auto ret_view = ret.view();
+    ASSERT_TRUE(ret_view.is_array());
+
+    array_t *arr = ret.raw()->u.arr;
+    ASSERT_NE(arr, nullptr);
+    ASSERT_EQ(arr->size, 3);
+
+    auto v0 = lpc::svalue_view::from(&arr->item[0]);
+    auto v1 = lpc::svalue_view::from(&arr->item[1]);
+    auto v2 = lpc::svalue_view::from(&arr->item[2]);
+
+    ASSERT_TRUE(v0.is_string());
+    ASSERT_TRUE(v1.is_string());
+    ASSERT_TRUE(v2.is_string());
+
+    ASSERT_EQ(v0.length(), 3u);
+    ASSERT_EQ(v1.length(), 3u);
+    ASSERT_EQ(v2.length(), 2u);
+
+    ASSERT_EQ(memcmp(v0.c_str(), "A\0B", 3), 0);
+    ASSERT_EQ(memcmp(v1.c_str(), "A\0A", 3), 0);
+    ASSERT_EQ(memcmp(v2.c_str(), "A\0", 2), 0);
+
+    destruct_object(obj);
 }

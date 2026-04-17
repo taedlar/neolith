@@ -27,6 +27,34 @@ static int deep_inventory_count (object_t *);
 static void deep_inventory_collect (object_t *, array_t *, int *);
 static int alist_cmp (svalue_t *, svalue_t *);
 
+static int
+svalue_string_lexcmp (const svalue_t *lhs, const svalue_t *rhs)
+{
+  size_t lhs_len = SVALUE_STRLEN (lhs);
+  size_t rhs_len = SVALUE_STRLEN (rhs);
+  size_t prefix_len = lhs_len < rhs_len ? lhs_len : rhs_len;
+  int cmp = 0;
+
+  if (prefix_len != 0)
+    {
+      cmp = memcmp (SVALUE_STRPTR(lhs), SVALUE_STRPTR(rhs), prefix_len);
+      if (cmp != 0)
+        {
+          return cmp;
+        }
+    }
+
+  if (lhs_len < rhs_len)
+    {
+      return -1;
+    }
+  if (lhs_len > rhs_len)
+    {
+      return 1;
+    }
+  return 0;
+}
+
 /*
  * Make an empty array for everyone to use, never to be deallocated.
  * It is cheaper to reuse it, than to use MALLOC() and allocate.
@@ -664,7 +692,7 @@ sameval (svalue_t * arg1, svalue_t * arg2)
     case T_STRING:
       if (string_length_differs (arg1, arg2))
         return 0;
-      return !strcmp (SVALUE_STRPTR(arg1), SVALUE_STRPTR(arg2));
+      return svalue_string_lexcmp (arg1, arg2) == 0;
     case T_OBJECT:
       return arg1->u.ob == arg2->u.ob;
     case T_MAPPING:
@@ -1121,7 +1149,7 @@ static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
     {
     case T_STRING:
       {
-        return strcmp (SVALUE_STRPTR(p1), SVALUE_STRPTR(p2));
+        return svalue_string_lexcmp (p1, p2);
       }
 
     case T_NUMBER:
@@ -1145,7 +1173,7 @@ static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
           {
           case T_STRING:
             {
-              return strcmp (SVALUE_STRPTR(v1->item), SVALUE_STRPTR(v2->item));
+              return svalue_string_lexcmp (v1->item, v2->item);
             }
 
           case T_NUMBER:
@@ -1178,7 +1206,7 @@ static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
     {
     case T_STRING:
       {
-        return strcmp (SVALUE_STRPTR(p2), SVALUE_STRPTR(p1));
+        return svalue_string_lexcmp (p2, p1);
       }
 
     case T_NUMBER:
@@ -1202,7 +1230,7 @@ static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
           {
           case T_STRING:
             {
-              return strcmp (SVALUE_STRPTR(v2->item), SVALUE_STRPTR(v1->item));
+              return svalue_string_lexcmp (v2->item, v1->item);
             }
 
           case T_NUMBER:

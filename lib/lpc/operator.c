@@ -22,6 +22,34 @@
 #include "efuns/parse.h"
 #include "efuns/sscanf.h"
 
+static int
+svalue_string_lexcmp (const svalue_t *lhs, const svalue_t *rhs)
+{
+  size_t lhs_len = SVALUE_STRLEN (lhs);
+  size_t rhs_len = SVALUE_STRLEN (rhs);
+  size_t prefix_len = lhs_len < rhs_len ? lhs_len : rhs_len;
+  int cmp = 0;
+
+  if (prefix_len != 0)
+    {
+      cmp = memcmp (SVALUE_STRPTR(lhs), SVALUE_STRPTR(rhs), prefix_len);
+      if (cmp != 0)
+        {
+          return cmp;
+        }
+    }
+
+  if (lhs_len < rhs_len)
+    {
+      return -1;
+    }
+  if (lhs_len > rhs_len)
+    {
+      return 1;
+    }
+  return 0;
+}
+
 void dealloc_funp (funptr_t * funptr) {
   free_object (funptr->hdr.owner, "free_funp");
   if (funptr->hdr.args)
@@ -249,7 +277,7 @@ void f_ge () {
       sp->subtype = 0;
       break;
     case T_STRING:
-      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) >= 0;
+      i = svalue_string_lexcmp (sp, sp + 1) >= 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       put_number (i);
@@ -294,7 +322,7 @@ void f_gt () {
       sp->subtype = 0;
       break;
     case T_STRING:
-      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) > 0;
+      i = svalue_string_lexcmp (sp, sp + 1) > 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       put_number (i);
@@ -339,7 +367,7 @@ void f_le () {
       break;
 
     case T_STRING:
-      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) <= 0;
+      i = svalue_string_lexcmp (sp, sp + 1) <= 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       sp->type = T_NUMBER;
@@ -386,7 +414,7 @@ void f_lt () {
         sp->u.number = sp->u.number < (sp + 1)->u.real;
       break;
     case T_STRING:
-      i = (strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) < 0);
+      i = svalue_string_lexcmp (sp, sp + 1) < 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       sp->type = T_NUMBER;

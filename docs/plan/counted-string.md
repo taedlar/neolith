@@ -92,6 +92,23 @@ Completed milestones since the previous handoff:
 - Test strategy was tightened for this milestone: equality tests now execute
   real operator paths (`f_eq`/`f_ne`) on stack operands instead of simulating
   behavior with helper-level `memcmp` assertions.
+- Ordering comparison migration has started for the next milestone:
+  `f_lt`/`f_le`/`f_gt`/`f_ge` now use byte-span lexical comparison semantics
+  (embedded `\0` participates; length is tie-breaker after equal prefixes),
+  and array helper string comparison paths (`sameval`, builtin sort comparators)
+  now route through the same span-aware compare behavior.
+- Regression coverage now includes direct ordering-operator tests with embedded
+  null bytes (`OrderingOperatorsUseByteSpanForEmbeddedNul`,
+  `OrderingOperatorsUseLengthAfterEqualPrefix`) plus array helper equality
+  semantics (`SamevalUsesByteSpanForEmbeddedNulStrings`).
+- LPC-level ordering validation now includes `sort_array` with embedded-null
+  strings (`LpcSortArrayOrdersEmbeddedNulByByteSpan`), with inputs constructed
+  via `from_json("\"...\\u0000...\"")` to ensure full byte-span payloads are
+  exercised through real efun/operator/runtime paths.
+- Directional coverage for LPC sort ordering is now explicit: both ascending
+  and descending embedded-null cases are regression-tested
+  (`LpcSortArrayOrdersEmbeddedNulByByteSpan`,
+  `LpcSortArrayOrdersEmbeddedNulByByteSpanDescending`).
 
 Validation snapshot:
 
