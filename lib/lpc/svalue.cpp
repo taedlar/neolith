@@ -18,6 +18,49 @@ extern void dealloc_class (array_t *);
 extern void dealloc_funp (funptr_t *);
 }
 
+namespace {
+
+void retain_svalue_payload(svalue_t *sv) noexcept {
+  if (sv == nullptr)
+    {
+      return;
+    }
+
+  auto view = lpc::svalue_view::from(sv);
+  if (view.is_string())
+    {
+      if (view.is_malloc())
+        {
+          INC_COUNTED_REF(view.malloc_string());
+        }
+      else if (view.is_shared())
+        {
+          INC_COUNTED_REF(view.shared_string());
+        }
+      return;
+    }
+
+  if (sv->type & T_REFED)
+    {
+      sv->u.refed->ref++;
+    }
+}
+
+void release_retained_svalue(svalue_t *sv, const char *caller) noexcept {
+  if (sv == nullptr)
+    {
+      return;
+    }
+
+  auto view = lpc::svalue_view::from(sv);
+  if (view.is_string() || (sv->type & T_REFED))
+    {
+      free_svalue(sv, caller);
+    }
+}
+
+}  // namespace
+
 /* ========== C API IMPLEMENTATION ========== */
 
 /**
@@ -92,23 +135,7 @@ void assign_svalue_no_free (svalue_t * to, svalue_t * from) {
   DEBUG_CHECK (to == 0, "Attempt to assign_svalue() to a null ptr.\n");
   *to = *from;
 
-  if (from->type == T_STRING)
-    {
-      if (from->subtype == STRING_MALLOC)
-        {
-          INC_COUNTED_REF (to->u.malloc_string);
-/*      ADD_STRING(MSTR_SIZE(to->u.malloc_string)); */
-        }
-      else if (from->subtype == STRING_SHARED)
-        {
-          INC_COUNTED_REF (to->u.shared_string);
-/*      ADD_STRING(MSTR_SIZE(to->u.shared_string)); */
-        }
-    }
-  else if (from->type & T_REFED)
-    {
-      from->u.refed->ref++;
-    }
+  retain_svalue_payload (to);
 }
 
 /*
@@ -123,150 +150,10 @@ void copy_some_svalues (svalue_t * dest, svalue_t * v, int num) {
 /* ========== C++ RAII WRAPPER IMPLEMENTATION ========== */
 
 namespace lpc {
-
-// ========== svalue_guard ==========
-
-svalue_guard svalue_guard::allocate(const svalue_t *initial_value) noexcept {
-    auto *sv = static_cast<svalue_t *>(DMALLOC(sizeof(svalue_t), 0, "svalue_guard::allocate"));
-    if (!sv) return svalue_guard(nullptr);
-
-    sv->type = T_NUMBER;
-    sv->subtype = 0;
-    sv->u.number = 0;
-
-    if (initial_value) {
-        assign_svalue_no_free(sv, const_cast<svalue_t *>(initial_value));
-    }
-    return svalue_guard(sv);
-}
-
-svalue_guard svalue_guard::copy(const svalue_t &value) noexcept {
-    return allocate(&value);
-}
-
-svalue_guard::svalue_guard(svalue_guard &&other) noexcept : sv_(other.release()) {}
-
-svalue_guard &svalue_guard::operator=(svalue_guard &&other) noexcept {
-    reset(other.release());
-    return *this;
-}
-
-svalue_guard::~svalue_guard() noexcept {
-    reset();
-}
-
-svalue_t *svalue_guard::get() noexcept { return sv_; }
-const svalue_t *svalue_guard::get() const noexcept { return sv_; }
-
-svalue_t *svalue_guard::operator->() noexcept { return sv_; }
-const svalue_t *svalue_guard::operator->() const noexcept { return sv_; }
-
-svalue_t &svalue_guard::operator*() noexcept { return *sv_; }
-const svalue_t &svalue_guard::operator*() const noexcept { return *sv_; }
-
-svalue_guard::operator bool() const noexcept { return sv_ != nullptr; }
-
-svalue_t *svalue_guard::release() noexcept {
-    svalue_t *tmp = sv_;
-    sv_ = nullptr;
-    return tmp;
-}
-
-void svalue_guard::reset(svalue_t *new_sv) noexcept {
-    if (sv_) {
-        free_svalue(sv_, "svalue_guard::reset");
-        FREE(sv_);
-    }
-    sv_ = new_sv;
-}
-
-void svalue_guard::assign(const svalue_t &value) noexcept {
-    if (sv_) {
-        assign_svalue(sv_, const_cast<svalue_t *>(&value));
-    }
-}
-
-void svalue_guard::assign_no_free(const svalue_t &value) noexcept {
-    if (sv_) {
-        assign_svalue_no_free(sv_, const_cast<svalue_t *>(&value));
-    }
-}
-
-svalue_guard::svalue_guard(svalue_t *sv) noexcept : sv_(sv) {}
-
-// ========== svalue_array_guard ==========
-
-svalue_array_guard svalue_array_guard::allocate(int size) noexcept {
-    auto *arr = static_cast<svalue_t *>(DMALLOC(size * sizeof(svalue_t), 0, "svalue_array_guard::allocate"));
-    if (!arr) return svalue_array_guard(nullptr, 0);
-
-    // Initialize all to T_NUMBER 0
-    for (int i = 0; i < size; ++i) {
-        arr[i].type = T_NUMBER;
-        arr[i].subtype = 0;
-        arr[i].u.number = 0;
-    }
-    return svalue_array_guard(arr, size);
-}
-
-svalue_array_guard svalue_array_guard::copy(const svalue_t *src, int count) noexcept {
-    auto guard = allocate(count);
-    if (guard && src) {
-        copy_some_svalues(guard.get(), const_cast<svalue_t *>(src), count);
-    }
-    return guard;
-}
-
-svalue_array_guard::svalue_array_guard(svalue_array_guard &&other) noexcept
-    : arr_(other.release()), size_(other.size_) {
-    other.size_ = 0;
-}
-
-svalue_array_guard &svalue_array_guard::operator=(svalue_array_guard &&other) noexcept {
-    reset(other.release(), other.size_);
-    other.size_ = 0;
-    return *this;
-}
-
-svalue_array_guard::~svalue_array_guard() noexcept {
-    reset();
-}
-
-svalue_t *svalue_array_guard::get() noexcept { return arr_; }
-const svalue_t *svalue_array_guard::get() const noexcept { return arr_; }
-
-svalue_t &svalue_array_guard::operator[](int index) noexcept { return arr_[index]; }
-const svalue_t &svalue_array_guard::operator[](int index) const noexcept { return arr_[index]; }
-
-int svalue_array_guard::size() const noexcept { return size_; }
-
-svalue_array_guard::operator bool() const noexcept { return arr_ != nullptr; }
-
-svalue_t *svalue_array_guard::release() noexcept {
-    svalue_t *tmp = arr_;
-    arr_ = nullptr;
-    size_ = 0;
-    return tmp;
-}
-
-void svalue_array_guard::reset(svalue_t *new_arr, int new_size) noexcept {
-    if (arr_) {
-        free_some_svalues(arr_, size_);
-        // Note: free_some_svalues() calls FREE(v), so arr_ is deallocated
-    }
-    arr_ = new_arr;
-    size_ = new_size;
-}
-
-svalue_array_guard::svalue_array_guard(svalue_t *arr, int size) noexcept
-    : arr_(arr), size_(size) {}
-
 // ========== svalue_ref ==========
 
 svalue_ref::svalue_ref(svalue_t *sv) noexcept : sv_(sv) {
-    if (sv_ && (sv_->type & T_REFED)) {
-        sv_->u.refed->ref++;
-    }
+  retain_svalue_payload(sv_);
 }
 
 svalue_ref::svalue_ref(svalue_ref &&other) noexcept : sv_(other.release()) {}
@@ -277,17 +164,13 @@ svalue_ref &svalue_ref::operator=(svalue_ref &&other) noexcept {
 }
 
 svalue_ref::svalue_ref(const svalue_ref &other) noexcept : sv_(other.sv_) {
-    if (sv_ && (sv_->type & T_REFED)) {
-        sv_->u.refed->ref++;
-    }
+  retain_svalue_payload(sv_);
 }
 
 svalue_ref &svalue_ref::operator=(const svalue_ref &other) noexcept {
     if (this != &other) {
         reset(other.sv_);
-        if (sv_ && (sv_->type & T_REFED)) {
-            sv_->u.refed->ref++;
-        }
+    retain_svalue_payload(sv_);
     }
     return *this;
 }
@@ -296,8 +179,11 @@ svalue_ref::~svalue_ref() noexcept {
     reset();
 }
 
-svalue_t *svalue_ref::get() noexcept { return sv_; }
-const svalue_t *svalue_ref::get() const noexcept { return sv_; }
+svalue_view svalue_ref::view() noexcept { return svalue_view::from(sv_); }
+const_svalue_view svalue_ref::view() const noexcept { return const_svalue_view::from(sv_); }
+
+svalue_t *svalue_ref::get() noexcept { return view().raw(); }
+const svalue_t *svalue_ref::get() const noexcept { return view().raw(); }
 
 svalue_t *svalue_ref::operator->() noexcept { return sv_; }
 const svalue_t *svalue_ref::operator->() const noexcept { return sv_; }
@@ -314,12 +200,7 @@ svalue_t *svalue_ref::release() noexcept {
 }
 
 void svalue_ref::reset(svalue_t *new_sv) noexcept {
-    if (sv_ && (sv_->type & T_REFED)) {
-        if (!(--sv_->u.refed->ref)) {
-            // Refcount hit zero; data will be freed by the LPC runtime
-            // This guard just stops tracking it
-        }
-    }
+  release_retained_svalue(sv_, "svalue_ref::reset");
     sv_ = new_sv;
 }
 
