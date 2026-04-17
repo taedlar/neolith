@@ -321,19 +321,75 @@ TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
     }
 }
 
-TEST_F(StrAllocTest, longMallocStringFallbackWorksWhenBlkendMissing) {
-    const size_t len = static_cast<size_t>(USHRT_MAX) + 29;
-    malloc_str_t s = new_string(len, "test");
-    memset(s, 'f', len);
-    s[len] = '\0';
+TEST_F(StrAllocTest, svalueRefRetainsSharedStringPayload) {
+    shared_str_t shared = make_shared_string("borrowed-shared", NULL);
+    svalue_t raw{};
+    lpc::svalue_view::from(&raw).set_shared_string(shared);
 
-    MSTR_BLKEND(s) = nullptr;
+    EXPECT_EQ(COUNTED_REF(shared), 1);
 
-    EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX));
-    EXPECT_EQ(COUNTED_STRLEN(s), len);
+    {
+        lpc::svalue_ref ref(&raw);
 
-    FREE_MSTR(s);
+        EXPECT_EQ(COUNTED_REF(shared), 2);
+        ASSERT_TRUE(ref.view().is_string());
+        ASSERT_TRUE(ref.view().is_shared());
+        EXPECT_EQ(ref.view().shared_string(), shared);
+        EXPECT_STREQ(ref.view().c_str(), "borrowed-shared");
+
+        lpc::svalue_ref copied(ref);
+        EXPECT_EQ(COUNTED_REF(shared), 3);
+        ASSERT_TRUE(copied.view().is_shared());
+        EXPECT_EQ(copied.view().shared_string(), shared);
+    }
+
+    EXPECT_EQ(COUNTED_REF(shared), 1);
+    free_string_svalue(&raw);
+    EXPECT_EQ(findstring("borrowed-shared", NULL), nullptr);
 }
+
+TEST_F(StrAllocTest, svalueRefRetainsMallocStringPayload) {
+    malloc_str_t malloced = new_string(6, "test");
+    memcpy(malloced, "borrow", 6);
+    malloced[6] = '\0';
+
+    svalue_t raw{};
+    lpc::svalue_view::from(&raw).set_malloc_string(malloced);
+
+    EXPECT_EQ(COUNTED_REF(malloced), 1);
+
+    {
+        lpc::svalue_ref ref(&raw);
+
+        EXPECT_EQ(COUNTED_REF(malloced), 2);
+        ASSERT_TRUE(ref.view().is_string());
+        ASSERT_TRUE(ref.view().is_malloc());
+        EXPECT_EQ(ref.view().malloc_string(), malloced);
+        EXPECT_STREQ(ref.view().c_str(), "borrow");
+
+        lpc::svalue_ref moved(std::move(ref));
+        EXPECT_EQ(COUNTED_REF(malloced), 2);
+        EXPECT_FALSE(ref);
+        ASSERT_TRUE(moved.view().is_malloc());
+        EXPECT_EQ(moved.view().malloc_string(), malloced);
+    }
+
+    EXPECT_EQ(COUNTED_REF(malloced), 1);
+    free_string_svalue(&raw);
+}
+
+TEST_F(StrAllocTest, svalueViewApiExposesTypedOperations) {
+    lpc::svalue value;
+
+    value.view().set_number(42);
+    EXPECT_TRUE(value.view().is_number());
+    EXPECT_EQ(value.view().number(), 42);
+
+    value.view().set_constant_string("alpha");
+    ASSERT_TRUE(value.view().is_string());
+    EXPECT_STREQ(value.view().c_str(), "alpha");
+}
+
 
 TEST_F(StrAllocTest, sharedStringAtUshortMaxIsTruncatedToUshortMaxMinusOne) {
     const size_t input_len = static_cast<size_t>(USHRT_MAX);

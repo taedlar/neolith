@@ -129,8 +129,7 @@ assigning `result = ""`. A regression test was added in
   `u.string` counted-ref uses were in generic `STRING_COUNTED` helper-style
   code paths (`lib/lpc/svalue.c`, `lib/lpc/array.c`). These are now tightened
   to explicit `STRING_MALLOC`/`STRING_SHARED` read branches.
-- Core helper macros now also prefer typed reads: `SVALUE_STRLEN`/
-  `SVALUE_STRLEN_DIFFERS` in `src/stralloc.h` route counted strings through
+- Core helper macros now also prefer typed reads: `SVALUE_STRLEN` in `src/stralloc.h` route counted strings through
   typed members, and interpreter string composition macros in `src/interpret.h`
   use `SVALUE_STRPTR(...)` for source reads.
 - Remaining subtype-known shared free path in `lib/lpc/operator.c` switch
@@ -617,8 +616,5 @@ Migration order:
   binary-format bump.
 - `SVALUE_STRING_JOIN` consumes/frees the right operand but leaves the left
   operand owning the joined result; tests must explicitly free the left value.
-- `SVALUE_STRLEN_DIFFERS` using only `MSTR_SIZE` is conservative for sentinel
-  long malloc strings (`size == USHRT_MAX`); exact long-string mismatch
-  fast-paths should consult counted logical length (`COUNTED_STRLEN`).
 - Transparent aliases are a staging step; runtime checks block misuse until
   abstract handles make explicit intent mandatory at compile time.

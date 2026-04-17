@@ -233,9 +233,7 @@ TEST_F(StringOperatorsTest, EqualityDifferentLengths) {
     create_malloc_string(left.raw(), "Short", 5);
     create_malloc_string(right.raw(), "Longer", 6);
 
-    // Using SVALUE_STRLEN_DIFFERS macro logic
-    bool differs = SVALUE_STRLEN(left.raw()) != SVALUE_STRLEN(right.raw());
-    ASSERT_TRUE(differs);
+    ASSERT_TRUE(string_length_differs(left.raw(), right.raw()));
 }
 
 TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {

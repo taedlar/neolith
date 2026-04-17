@@ -56,7 +56,7 @@ set(lpc_SOURCES
     object.c
     operator.c
     otable.c
-    svalue.c
+    svalue.cpp
     program.c
     program/binaries.c
     program/disassemble.c

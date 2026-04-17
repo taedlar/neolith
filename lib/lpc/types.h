@@ -157,6 +157,8 @@ void assign_svalue_no_free(svalue_t *to, svalue_t *from);
 
 namespace lpc {
 
+class const_svalue_view;
+
 /**
  * @brief Non-owning C++ view over svalue_t.
  *
@@ -193,9 +195,12 @@ public:
         return svalue_view(sv);
     }
 
-    static constexpr svalue_view from(const raw_type *sv) noexcept {
-        return svalue_view(const_cast<raw_type *>(sv));
+    static constexpr svalue_view from(raw_type &sv) noexcept {
+        return svalue_view(&sv);
     }
+
+    static const_svalue_view from(const raw_type *sv) noexcept;
+    static const_svalue_view from(const raw_type &sv) noexcept;
 
     [[nodiscard]] constexpr raw_type *raw() noexcept { return sv_; }
     [[nodiscard]] constexpr const raw_type *raw() const noexcept { return sv_; }
@@ -360,6 +365,118 @@ private:
 };
 
 /**
+ * @brief Immutable non-owning C++ view over svalue_t.
+ *
+ * This view provides read-only typed access and cannot mutate the wrapped
+ * value. It is used to make const intent explicit at call-sites.
+ */
+class const_svalue_view {
+public:
+    using raw_type = const ::svalue_t;
+
+    explicit constexpr const_svalue_view(raw_type *sv) noexcept : sv_(sv) {}
+
+    static constexpr const_svalue_view from(const raw_type *sv) noexcept {
+        return const_svalue_view(sv);
+    }
+
+    static constexpr const_svalue_view from(const raw_type &sv) noexcept {
+        return const_svalue_view(&sv);
+    }
+
+    [[nodiscard]] constexpr raw_type *raw() const noexcept { return sv_; }
+
+    [[nodiscard]] constexpr bool is_valid() const noexcept { return sv_ != nullptr; }
+
+    [[nodiscard]] bool is_string() const noexcept {
+        return sv_ != nullptr && sv_->type == T_STRING;
+    }
+
+    [[nodiscard]] bool is_counted() const noexcept {
+        return sv_ != nullptr && (sv_->subtype & STRING_COUNTED) != 0;
+    }
+
+    [[nodiscard]] bool is_shared() const noexcept {
+        return sv_ != nullptr && sv_->subtype == STRING_SHARED;
+    }
+
+    [[nodiscard]] bool is_malloc() const noexcept {
+        return sv_ != nullptr && sv_->subtype == STRING_MALLOC;
+    }
+
+    [[nodiscard]] bool is_constant() const noexcept {
+        return sv_ != nullptr && sv_->subtype == STRING_CONSTANT;
+    }
+
+    [[nodiscard]] bool is_number() const noexcept {
+        return sv_ != nullptr && sv_->type == T_NUMBER;
+    }
+
+    [[nodiscard]] bool is_real() const noexcept {
+        return sv_ != nullptr && sv_->type == T_REAL;
+    }
+
+    [[nodiscard]] bool is_object() const noexcept {
+        return sv_ != nullptr && sv_->type == T_OBJECT;
+    }
+
+    [[nodiscard]] bool is_array() const noexcept {
+        return sv_ != nullptr && sv_->type == T_ARRAY;
+    }
+
+    [[nodiscard]] const char *c_str() const noexcept {
+        return is_string() ? SVALUE_STRPTR(sv_) : nullptr;
+    }
+
+    [[nodiscard]] shared_str_t shared_string() const noexcept {
+        return sv_ ? sv_->u.shared_string : nullptr;
+    }
+
+    [[nodiscard]] malloc_str_t malloc_string() const noexcept {
+        return sv_ ? sv_->u.malloc_string : nullptr;
+    }
+
+    [[nodiscard]] const char *const_string() const noexcept {
+        return sv_ ? sv_->u.const_string : nullptr;
+    }
+
+    [[nodiscard]] int64_t number() const noexcept {
+        return sv_ ? sv_->u.number : 0;
+    }
+
+    [[nodiscard]] double real() const noexcept {
+        return sv_ ? sv_->u.real : 0.0;
+    }
+
+    [[nodiscard]] const object_t *object() const noexcept {
+        return sv_ ? sv_->u.ob : nullptr;
+    }
+
+    [[nodiscard]] std::size_t length() const noexcept {
+        return sv_ ? SVALUE_STRLEN(sv_) : 0;
+    }
+
+    template<typename StringT = std::string>
+    [[nodiscard]] StringT str() const {
+        if (!is_string()) {
+            return StringT{};
+        }
+        return StringT(c_str(), length());
+    }
+
+private:
+    raw_type *sv_;
+};
+
+inline const_svalue_view svalue_view::from(const raw_type *sv) noexcept {
+    return const_svalue_view::from(sv);
+}
+
+inline const_svalue_view svalue_view::from(const raw_type &sv) noexcept {
+    return const_svalue_view::from(sv);
+}
+
+/**
  * @brief Owning RAII wrapper over svalue_t.
  *
  * This type owns one svalue_t instance and releases counted/referenced payloads
@@ -417,7 +534,7 @@ public:
     [[nodiscard]] const raw_type *raw() const noexcept { return &value_; }
 
     [[nodiscard]] svalue_view view() noexcept { return svalue_view::from(&value_); }
-    [[nodiscard]] svalue_view view() const noexcept { return svalue_view::from(&value_); }
+    [[nodiscard]] const_svalue_view view() const noexcept { return const_svalue_view::from(&value_); }
 
 private:
     raw_type value_;
@@ -425,6 +542,11 @@ private:
 
 template<typename StringT = std::string>
 [[nodiscard]] inline StringT str(svalue_view sv) {
+    return sv.template str<StringT>();
+}
+
+template<typename StringT = std::string>
+[[nodiscard]] inline StringT str(const_svalue_view sv) {
     return sv.template str<StringT>();
 }
 
@@ -438,6 +560,14 @@ static_assert(std::is_standard_layout<lpc::svalue_view>::value,
               "lpc::svalue_view must remain standard-layout");
 static_assert(std::is_trivially_copyable<lpc::svalue_view>::value,
               "lpc::svalue_view must remain trivially copyable");
+static_assert(sizeof(lpc::const_svalue_view) == sizeof(const ::svalue_t *),
+              "lpc::const_svalue_view must remain pointer-sized");
+static_assert(alignof(lpc::const_svalue_view) == alignof(const ::svalue_t *),
+              "lpc::const_svalue_view must remain pointer-aligned");
+static_assert(std::is_standard_layout<lpc::const_svalue_view>::value,
+              "lpc::const_svalue_view must remain standard-layout");
+static_assert(std::is_trivially_copyable<lpc::const_svalue_view>::value,
+              "lpc::const_svalue_view must remain trivially copyable");
 static_assert(sizeof(lpc::svalue) == sizeof(::svalue_t),
               "lpc::svalue must remain svalue_t-sized");
 static_assert(alignof(lpc::svalue) == alignof(::svalue_t),

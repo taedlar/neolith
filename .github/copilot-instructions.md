@@ -154,6 +154,20 @@ python testbot.py
 - Do not use `long` for LPC/runtime-sized values.
 - Use `int` for small counters/indices when size is clearly bounded.
 
+### C++ svalue Idioms (Preferred)
+- In C++ code, prefer `lpc::svalue_view` / `lpc::const_svalue_view` over direct `svalue_t` union access.
+- Use `lpc::svalue_view::from(...)` for concise borrow-only views:
+  - mutable source (`svalue_t *`, `svalue_t &`) => `svalue_view`
+  - immutable source (`const svalue_t *`, `const svalue_t &`) => `const_svalue_view`
+- Keep ownership and viewing separate:
+  - owning value: `lpc::svalue`
+  - non-owning retained reference: `lpc::svalue_ref`
+  - typed borrow access: `view()` or `from(...)`
+- In const contexts, prefer immutable views (`const_svalue_view`) and avoid `const_cast`-style patterns.
+- Prefer named typed setters/getters (`set_shared_string`, `set_malloc_string`, `set_constant_string`, `number`, `c_str`, `length`) instead of writing union members directly.
+- Treat `from(...)` as borrow-only API; do not use it for ownership transfer or adopt/release semantics.
+- In tests and helper code, assert via view APIs (`is_string`, `is_number`, `str`, etc.) instead of inspecting raw `u.*` fields directly unless unavoidable for legacy paths.
+
 ### Socket Descriptor Rules (Winsock Compatibility)
 - Distinguish LPC socket IDs from native OS socket descriptors:
   - LPC socket IDs (driver-level values returned by `socket_create()` and consumed by `socket_connect()` / `socket_close()` / `get_socket_operation_info()`) use `int`.
