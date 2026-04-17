@@ -300,18 +300,29 @@ protected:
     ASSERT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), expected);
   }
+
+  int CallIntMethodWithStringArg(object_t *owner, const char *method, const std::string &arg) {
+    copy_and_push_string(arg.c_str());
+    apply_low(method, owner, 1);
+    auto view = lpc::svalue_view::from(sp);
+    EXPECT_TRUE(view.is_number());
+    int result = view.is_number() ? static_cast<int>(view.number()) : -1;
+    pop_stack();
+    return result;
+  }
 };
 
-static const char kCallbackOwnerCode[] =
-  "mixed *last = ({});\n"
-  "mixed *events = ({});\n"
-  "int event_count = 0;\n"
-  "void create() { last = ({}); events = ({}); event_count = 0; }\n"
-  "varargs void curl_done(int ok, string payload, mixed a, mixed b) { last = ({ ok, payload, a, b }); events += ({ copy(last) }); event_count++; }\n"
-  "varargs int try_perform_to(string callback, int flags, mixed a, mixed b) { return catch(perform_to(callback, flags, a, b)) ? 1 : 0; }\n"
-  "mixed *query_last() { return last; }\n"
-  "int query_event_count() { return event_count; }\n"
-  "void clear_events() { last = ({}); events = ({}); event_count = 0; }\n";
+static const char kCallbackOwnerCode[] = R"(
+  mixed *last = ({});
+  mixed *events = ({});
+  int event_count = 0;
+  void create() { last = ({}); events = ({}); event_count = 0; }
+  varargs void curl_done(int ok, string payload, mixed a, mixed b) { last = ({ ok, payload, a, b }); events += ({ copy(last) }); event_count++; }
+  varargs int try_perform_to(string callback, int flags, mixed a, mixed b) { return catch(perform_to(callback, flags, a, b)) ? 1 : 0; }
+  mixed *query_last() { return last; }
+  int query_event_count() { return event_count; }
+  void clear_events() { last = ({}); events = ({}); event_count = 0; }
+)";
 
 static const char kObserverCode[] =
   "mixed *events = ({});\n"
@@ -324,6 +335,16 @@ static const char kDestroyOwnerCode[] =
   "object observer;\n"
   "void set_observer(object ob) { observer = ob; }\n"
   "void curl_done(int ok, string payload) { if (observer) observer->record(ok, payload); }\n";
+
+static const char kConfigOwnerCode[] =
+  "varargs int try_perform_using(mixed opt, mixed val) { return catch(perform_using(opt, val)) ? 1 : 0; }\n";
+
+static const char kConfigTransformOwnerCode[] = R"(
+  int try_set_url_from_json_raw(string j) { return catch(perform_using("url", from_json(j))) ? 1 : 0; }
+  int try_set_url_from_json_cstr(string j) { return catch(perform_using("url", c_str(from_json(j)))) ? 1 : 0; }
+  int try_set_body_from_json_raw(string j) { return catch(perform_using("body", from_json(j))) ? 1 : 0; }
+  int try_set_body_from_json_to_json(string j) { return catch(perform_using("body", to_json(from_json(j)))) ? 1 : 0; }
+)";
 
 TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
   object_t *owner = LoadInlineObject("/tests/efuns/curl_invalid_owner", kCallbackOwnerCode);
@@ -359,6 +380,119 @@ TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
   }
   pop_stack();
 }
+
+TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulStringForBodyAndUrl) {
+  object_t *owner = LoadInlineObject("/tests/efuns/curl_config_owner", kConfigOwnerCode);
+  ASSERT_NE(owner, nullptr);
+
+  lpc::svalue embedded;
+  embedded.set_malloc_string(std::string_view("x\0y", 3));
+
+  push_constant_string("body");
+  push_svalue(embedded.raw());
+  apply_low("try_perform_using", owner, 2);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1) << "perform_using(body, string) must reject embedded NUL bytes.";
+  }
+  pop_stack();
+
+  push_constant_string("url");
+  push_svalue(embedded.raw());
+  apply_low("try_perform_using", owner, 2);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1) << "perform_using(url, string) must reject embedded NUL bytes.";
+  }
+  pop_stack();
+}
+
+TEST_F(CurlEfunsTest, PerformUsingAllowsBinaryBodyViaBuffer) {
+  object_t *owner = LoadInlineObject("/tests/efuns/curl_config_owner_buffer", kConfigOwnerCode);
+  ASSERT_NE(owner, nullptr);
+
+  buffer_t *payload = allocate_buffer(3);
+  payload->item[0] = 'x';
+  payload->item[1] = '\0';
+  payload->item[2] = 'y';
+
+  push_constant_string("body");
+  push_refed_buffer(payload);
+  apply_low("try_perform_using", owner, 2);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 0) << "perform_using(body, buffer) should accept binary payloads.";
+  }
+  pop_stack();
+}
+
+TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulHeaderString) {
+  object_t *owner = LoadInlineObject("/tests/efuns/curl_config_owner_header", kConfigOwnerCode);
+  ASSERT_NE(owner, nullptr);
+
+  lpc::svalue embedded_header;
+  embedded_header.set_malloc_string(std::string_view("X-Test: a\0b", 11));
+
+  push_constant_string("headers");
+  push_svalue(embedded_header.raw());
+  apply_low("try_perform_using", owner, 2);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1) << "perform_using(headers, string) must reject embedded NUL bytes.";
+  }
+  pop_stack();
+}
+
+TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulHeaderArrayEntry) {
+  object_t *owner = LoadInlineObject("/tests/efuns/curl_config_owner_header_array", kConfigOwnerCode);
+  ASSERT_NE(owner, nullptr);
+
+  array_t *headers = allocate_empty_array(2);
+  lpc::svalue_view::from(&headers->item[0]).set_constant_string("X-Ok: good");
+  lpc::svalue_view::from(&headers->item[1]).set_malloc_string(std::string_view("X-Bad: a\0b", 10));
+
+  push_constant_string("headers");
+  push_refed_array(headers);
+  apply_low("try_perform_using", owner, 2);
+  {
+    auto view = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(view.is_number());
+    EXPECT_EQ(view.number(), 1) << "perform_using(headers, string*) must reject embedded NUL bytes in any entry.";
+  }
+  pop_stack();
+}
+
+#if defined(F_FROM_JSON) && defined(F_C_STR)
+TEST_F(CurlEfunsTest, PerformUsingUrlFromJsonRequiresExplicitCStringBoundary) {
+  object_t *owner = LoadInlineObject("/tests/efuns/curl_config_owner_url_transform", kConfigTransformOwnerCode);
+  ASSERT_NE(owner, nullptr);
+
+  const std::string json_url = "\"http://127.0.0.1/example\\u0000tail\"";
+
+  EXPECT_EQ(CallIntMethodWithStringArg(owner, "try_set_url_from_json_raw", json_url), 1)
+    << "perform_using(url, from_json(...)) must reject embedded NUL byte strings.";
+  EXPECT_EQ(CallIntMethodWithStringArg(owner, "try_set_url_from_json_cstr", json_url), 0)
+    << "perform_using(url, c_str(from_json(...))) should pass with explicit C-string boundary.";
+}
+#endif
+
+#if defined(F_FROM_JSON) && defined(F_TO_JSON)
+TEST_F(CurlEfunsTest, PerformUsingBodyFromJsonAcceptsToJsonBoundary) {
+  object_t *owner = LoadInlineObject("/tests/efuns/curl_config_owner_body_transform", kConfigTransformOwnerCode);
+  ASSERT_NE(owner, nullptr);
+
+  const std::string json_string = "\"A\\u0000B\"";
+
+  EXPECT_EQ(CallIntMethodWithStringArg(owner, "try_set_body_from_json_raw", json_string), 1)
+    << "perform_using(body, from_json(...)) must reject embedded NUL byte strings.";
+  EXPECT_EQ(CallIntMethodWithStringArg(owner, "try_set_body_from_json_to_json", json_string), 0)
+    << "perform_using(body, to_json(from_json(...))) should pass with JSON text boundary.";
+}
+#endif
 
 TEST_F(CurlEfunsTest, InPerformAndOneActiveTransferEnforced) {
   object_t *owner = LoadInlineObject("/tests/efuns/curl_active_owner", kCallbackOwnerCode);

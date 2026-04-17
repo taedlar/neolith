@@ -14,6 +14,7 @@
 #include "otable.h"
 #include "program.h"
 #include "lpc/include/origin.h"
+#include "svalue.h"
 
 #ifdef ARRAY_STATS
 int num_arrays;
@@ -664,7 +665,7 @@ sameval (svalue_t * arg1, svalue_t * arg2)
     case T_STRING:
       if (string_length_differs (arg1, arg2))
         return 0;
-      return !strcmp (SVALUE_STRPTR(arg1), SVALUE_STRPTR(arg2));
+      return svalue_string_lexcmp (arg1, arg2) == 0;
     case T_OBJECT:
       return arg1->u.ob == arg2->u.ob;
     case T_MAPPING:
@@ -1121,7 +1122,7 @@ static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
     {
     case T_STRING:
       {
-        return strcmp (SVALUE_STRPTR(p1), SVALUE_STRPTR(p2));
+        return svalue_string_lexcmp (p1, p2);
       }
 
     case T_NUMBER:
@@ -1145,7 +1146,7 @@ static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
           {
           case T_STRING:
             {
-              return strcmp (SVALUE_STRPTR(v1->item), SVALUE_STRPTR(v2->item));
+              return svalue_string_lexcmp (v1->item, v2->item);
             }
 
           case T_NUMBER:
@@ -1178,7 +1179,7 @@ static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
     {
     case T_STRING:
       {
-        return strcmp (SVALUE_STRPTR(p2), SVALUE_STRPTR(p1));
+        return svalue_string_lexcmp (p2, p1);
       }
 
     case T_NUMBER:
@@ -1202,7 +1203,7 @@ static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
           {
           case T_STRING:
             {
-              return strcmp (SVALUE_STRPTR(v2->item), SVALUE_STRPTR(v1->item));
+              return svalue_string_lexcmp (v2->item, v1->item);
             }
 
           case T_NUMBER:

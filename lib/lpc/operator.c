@@ -17,6 +17,7 @@
 #include "functional.h"
 #include "lpc/include/function.h"
 #include "src/simul_efun.h"
+#include "svalue.h"
 
 #include "operator.h"
 #include "efuns/parse.h"
@@ -249,7 +250,7 @@ void f_ge () {
       sp->subtype = 0;
       break;
     case T_STRING:
-      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) >= 0;
+      i = svalue_string_lexcmp (sp, sp + 1) >= 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       put_number (i);
@@ -294,7 +295,7 @@ void f_gt () {
       sp->subtype = 0;
       break;
     case T_STRING:
-      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) > 0;
+      i = svalue_string_lexcmp (sp, sp + 1) > 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       put_number (i);
@@ -339,7 +340,7 @@ void f_le () {
       break;
 
     case T_STRING:
-      i = strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) <= 0;
+      i = svalue_string_lexcmp (sp, sp + 1) <= 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       sp->type = T_NUMBER;
@@ -386,7 +387,7 @@ void f_lt () {
         sp->u.number = sp->u.number < (sp + 1)->u.real;
       break;
     case T_STRING:
-      i = (strcmp (SVALUE_STRPTR(sp), SVALUE_STRPTR(sp + 1)) < 0);
+      i = svalue_string_lexcmp (sp, sp + 1) < 0;
       free_string_svalue (sp + 1);
       free_string_svalue (sp);
       sp->type = T_NUMBER;

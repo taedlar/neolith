@@ -11,7 +11,10 @@ void assign_svalue(svalue_t *, svalue_t *);
 void assign_svalue_no_free(svalue_t *, const svalue_t *);
 void copy_some_svalues(svalue_t *, svalue_t *, int);
 
-int string_length_differs(const svalue_t *x, const svalue_t *y);
+static inline int string_length_differs(const svalue_t *x, const svalue_t *y) {
+    return SVALUE_STRLEN(x) != SVALUE_STRLEN(y);
+}
+int svalue_string_lexcmp(const svalue_t *lhs, const svalue_t *rhs);
 
 #ifdef __cplusplus
 } // extern "C"

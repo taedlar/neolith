@@ -147,11 +147,32 @@ void copy_some_svalues (svalue_t * dest, svalue_t * v, int num) {
     assign_svalue_no_free (dest + num, v + num);
 }
 
-int string_length_differs(const svalue_t *x, const svalue_t *y) {
-  auto xv = lpc::const_svalue_view::from(x);
-  auto yv = lpc::const_svalue_view::from(y);
+int svalue_string_lexcmp(const svalue_t *lhs, const svalue_t *rhs) {
+  auto lhs_view = lpc::const_svalue_view::from(lhs);
+  auto rhs_view = lpc::const_svalue_view::from(rhs);
+  size_t lhs_len = lhs_view.length();
+  size_t rhs_len = rhs_view.length();
+  size_t prefix_len = lhs_len < rhs_len ? lhs_len : rhs_len;
+  int cmp = 0;
 
-  return xv.length() != yv.length();
+  if (prefix_len != 0)
+    {
+      cmp = memcmp(lhs_view.c_str(), rhs_view.c_str(), prefix_len);
+      if (cmp != 0)
+        {
+          return cmp;
+        }
+    }
+
+  if (lhs_len < rhs_len)
+    {
+      return -1;
+    }
+  if (lhs_len > rhs_len)
+    {
+      return 1;
+    }
+  return 0;
 }
 
 /* ========== C++ RAII WRAPPER IMPLEMENTATION ========== */

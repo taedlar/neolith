@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cstdint>
 #include <algorithm>
+#include "lpc/array.h"
 #include "lpc/operator.h"
 
 // Test fixture providing VM and string allocation context
@@ -261,6 +262,90 @@ TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
     assert_f_eq(s1, s2, 0);
     assert_f_eq(s2, s3, 1);
     sp = save_sp;
+}
+
+// === String Ordering Operator Tests ===
+
+TEST_F(StringOperatorsTest, OrderingOperatorsUseByteSpanForEmbeddedNul) {
+    svalue_t *saved_sp = sp;
+    svalue_t stack[2] = {};
+
+    lpc::svalue left;
+    lpc::svalue right;
+    left.set_malloc_string(std::string_view("A\0B", 3));
+    right.set_malloc_string(std::string_view("A\0C", 3));
+
+    auto run_cmp = [&](void (*op)(), int64_t expected) {
+        free_svalue(&stack[0], "OrderingOperatorsUseByteSpanForEmbeddedNul");
+        assign_svalue_no_free(&stack[0], left.raw());
+        free_svalue(&stack[1], "OrderingOperatorsUseByteSpanForEmbeddedNul");
+        assign_svalue_no_free(&stack[1], right.raw());
+        sp = &stack[1];
+
+        op();
+
+        auto result_view = lpc::svalue_view::from(sp);
+        ASSERT_EQ(sp, &stack[0]);
+        ASSERT_TRUE(result_view.is_number());
+        ASSERT_EQ(result_view.number(), expected);
+    };
+
+    run_cmp(&f_lt, 1);
+    run_cmp(&f_le, 1);
+    run_cmp(&f_gt, 0);
+    run_cmp(&f_ge, 0);
+
+    sp = saved_sp;
+}
+
+TEST_F(StringOperatorsTest, OrderingOperatorsUseLengthAfterEqualPrefix) {
+    svalue_t *saved_sp = sp;
+    svalue_t stack[2] = {};
+
+    lpc::svalue shorter;
+    lpc::svalue longer;
+    shorter.set_malloc_string(std::string_view("A\0", 2));
+    longer.set_malloc_string(std::string_view("A\0B", 3));
+
+    auto run_cmp = [&](const lpc::svalue &lhs, const lpc::svalue &rhs, void (*op)(), int64_t expected) {
+        free_svalue(&stack[0], "OrderingOperatorsUseLengthAfterEqualPrefix");
+        assign_svalue_no_free(&stack[0], lhs.raw());
+        free_svalue(&stack[1], "OrderingOperatorsUseLengthAfterEqualPrefix");
+        assign_svalue_no_free(&stack[1], rhs.raw());
+        sp = &stack[1];
+
+        op();
+
+        auto result_view = lpc::svalue_view::from(sp);
+        ASSERT_EQ(sp, &stack[0]);
+        ASSERT_TRUE(result_view.is_number());
+        ASSERT_EQ(result_view.number(), expected);
+    };
+
+    run_cmp(shorter, longer, &f_lt, 1);
+    run_cmp(shorter, longer, &f_le, 1);
+    run_cmp(shorter, longer, &f_gt, 0);
+    run_cmp(shorter, longer, &f_ge, 0);
+
+    run_cmp(longer, shorter, &f_lt, 0);
+    run_cmp(longer, shorter, &f_le, 0);
+    run_cmp(longer, shorter, &f_gt, 1);
+    run_cmp(longer, shorter, &f_ge, 1);
+
+    sp = saved_sp;
+}
+
+TEST_F(StringOperatorsTest, SamevalUsesByteSpanForEmbeddedNulStrings) {
+    lpc::svalue left;
+    lpc::svalue right;
+    lpc::svalue equal_to_left;
+
+    left.set_malloc_string(std::string_view("A\0B", 3));
+    right.set_malloc_string(std::string_view("A\0C", 3));
+    equal_to_left.set_malloc_string(std::string_view("A\0B", 3));
+
+    ASSERT_EQ(sameval(left.raw(), right.raw()), 0);
+    ASSERT_EQ(sameval(left.raw(), equal_to_left.raw()), 1);
 }
 
 // === String Range Operator Tests ===

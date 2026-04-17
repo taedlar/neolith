@@ -299,13 +299,13 @@ TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
 
         EXPECT_EQ(COUNTED_REF(shared), 1);
 
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wself-assign-overloaded"
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-assign"
 #endif
         shared_owner = shared_owner;
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic pop
+#if defined(__clang__)
+#pragma clang diagnostic pop
 #endif
 
         EXPECT_EQ(COUNTED_REF(shared), 1);
