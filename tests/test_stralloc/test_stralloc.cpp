@@ -313,7 +313,9 @@ TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
         lpc::svalue malloc_owner;
         malloc_owner.view().set_malloc_string(malloced);
 
+#pragma GCC diagnostic ignored "-Wself-move"
         malloc_owner = std::move(malloc_owner);
+#pragma GCC diagnostic pop
 
         ASSERT_TRUE(malloc_owner.view().is_string() && malloc_owner.view().is_malloc());
         EXPECT_EQ(malloc_owner.view().malloc_string(), malloced);

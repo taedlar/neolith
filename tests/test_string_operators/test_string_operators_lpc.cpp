@@ -68,20 +68,6 @@ protected:
         deinit_config();
     }
 
-    void create_malloc_string(svalue_t *sv, const char *content, size_t len) {
-        ASSERT_TRUE(sv != nullptr);
-        lpc::svalue_view view = lpc::svalue_view::from(sv);
-        view.set_malloc_string(new_string(len, "test"));
-        ASSERT_TRUE(view.malloc_string() != nullptr);
-        memcpy(view.malloc_string(), content, len);
-        view.malloc_string()[len] = '\0';
-    }
-
-    void create_constant_string(svalue_t *sv, const char *content) {
-        ASSERT_TRUE(sv != nullptr);
-        lpc::svalue_view::from(sv).set_constant_string(content);
-    }
-
     object_t *load_inline_object(const char *name, const char *code) {
         current_object = master_ob;
         object_t *obj = load_object(name, code);
@@ -113,10 +99,11 @@ protected:
 };
 
 TEST_F(StringOperatorsLPCTest, LpcConcatReturnsExpectedString) {
-    const char *code =
-        "string run_test() {\n"
-        "  return \"Hello\" + \" \" + \"World\";\n"
-        "}\n";
+    const char *code = R"(
+        string run_test() {
+          return "Hello" + " " + "World";
+        }
+    )";
 
     object_t *obj = load_inline_object("test_lpc_concat.c", code);
     ASSERT_NE(obj, nullptr);
@@ -131,13 +118,14 @@ TEST_F(StringOperatorsLPCTest, LpcConcatReturnsExpectedString) {
 }
 
 TEST_F(StringOperatorsLPCTest, LpcEqNeOnConstantAndConcat) {
-    const char *code =
-        "int test_eq() {\n"
-        "  return (\"ab\" == (\"a\" + \"b\"));\n"
-        "}\n"
-        "int test_ne() {\n"
-        "  return (\"ab\" != \"abc\");\n"
-        "}\n";
+    const char *code = R"(
+        int test_eq() {
+          return ("ab" == ("a" + "b"));
+        }
+        int test_ne() {
+          return ("ab" != "abc");
+        }
+    )";
 
     object_t *obj = load_inline_object("test_lpc_eq_ne.c", code);
     ASSERT_NE(obj, nullptr);
@@ -156,11 +144,12 @@ TEST_F(StringOperatorsLPCTest, LpcEqNeOnConstantAndConcat) {
 }
 
 TEST_F(StringOperatorsLPCTest, LpcRangeSlicesExpectedBytes) {
-    const char *code =
-        "string run_test() {\n"
-        "  string s = \"0123456789\";\n"
-        "  return s[2..5];\n"
-        "}\n";
+    const char *code = R"(
+        string run_test() {
+          string s = "0123456789";
+          return s[2..5];
+        }
+    )";
 
     object_t *obj = load_inline_object("test_lpc_range.c", code);
     ASSERT_NE(obj, nullptr);
@@ -175,11 +164,16 @@ TEST_F(StringOperatorsLPCTest, LpcRangeSlicesExpectedBytes) {
 }
 
 TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocDifferentLengths) {
-    svalue_t stack[2];
+    svalue_t stack[2] = {};
+    auto setup_operands = [&]() {
+        free_svalue(&stack[0], "EqNeConstantVsMallocDifferentLengths");
+        lpc::svalue_view::from(&stack[0]).set_constant_string("ab");
+        free_svalue(&stack[1], "EqNeConstantVsMallocDifferentLengths");
+        lpc::svalue_view::from(&stack[1]).set_malloc_string("abc");
+        sp = &stack[1];
+    };
 
-    create_constant_string(&stack[0], "ab");
-    create_malloc_string(&stack[1], "abc", 3);
-    sp = &stack[1];
+    setup_operands();
 
     f_eq();
     lpc::svalue_view result_view = lpc::svalue_view::from(sp);
@@ -187,9 +181,7 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocDifferentLengths) {
     ASSERT_TRUE(result_view.is_number());
     ASSERT_EQ(result_view.number(), 0);
 
-    create_constant_string(&stack[0], "ab");
-    create_malloc_string(&stack[1], "abc", 3);
-    sp = &stack[1];
+    setup_operands();
 
     f_ne();
     result_view = lpc::svalue_view::from(sp);
@@ -199,11 +191,16 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocDifferentLengths) {
 }
 
 TEST_F(StringOperatorsLPCTest, EqNeMallocVsConstantDifferentLengths) {
-    svalue_t stack[2];
+    svalue_t stack[2] = {};
+    auto setup_operands = [&]() {
+        free_svalue(&stack[0], "EqNeMallocVsConstantDifferentLengths");
+        lpc::svalue_view::from(&stack[0]).set_malloc_string("abc");
+        free_svalue(&stack[1], "EqNeMallocVsConstantDifferentLengths");
+        lpc::svalue_view::from(&stack[1]).set_constant_string("ab");
+        sp = &stack[1];
+    };
 
-    create_malloc_string(&stack[0], "abc", 3);
-    create_constant_string(&stack[1], "ab");
-    sp = &stack[1];
+    setup_operands();
 
     f_eq();
     lpc::svalue_view result_view = lpc::svalue_view::from(sp);
@@ -211,9 +208,7 @@ TEST_F(StringOperatorsLPCTest, EqNeMallocVsConstantDifferentLengths) {
     ASSERT_TRUE(result_view.is_number());
     ASSERT_EQ(result_view.number(), 0);
 
-    create_malloc_string(&stack[0], "abc", 3);
-    create_constant_string(&stack[1], "ab");
-    sp = &stack[1];
+    setup_operands();
 
     f_ne();
     result_view = lpc::svalue_view::from(sp);
@@ -223,11 +218,16 @@ TEST_F(StringOperatorsLPCTest, EqNeMallocVsConstantDifferentLengths) {
 }
 
 TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLength) {
-    svalue_t stack[2];
+    svalue_t stack[2] = {};
+    auto setup_operands = [&]() {
+        free_svalue(&stack[0], "EqNeConstantVsMallocSameLength");
+        lpc::svalue_view::from(&stack[0]).set_constant_string("abc");
+        free_svalue(&stack[1], "EqNeConstantVsMallocSameLength");
+        lpc::svalue_view::from(&stack[1]).set_malloc_string("abc");
+        sp = &stack[1];
+    };
 
-    create_constant_string(&stack[0], "abc");
-    create_malloc_string(&stack[1], "abc", 3);
-    sp = &stack[1];
+    setup_operands();
 
     f_eq();
     lpc::svalue_view result_view = lpc::svalue_view::from(sp);
@@ -235,9 +235,7 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLength) {
     ASSERT_TRUE(result_view.is_number());
     ASSERT_EQ(result_view.number(), 1);
 
-    create_constant_string(&stack[0], "abc");
-    create_malloc_string(&stack[1], "abc", 3);
-    sp = &stack[1];
+    setup_operands();
 
     f_ne();
     result_view = lpc::svalue_view::from(sp);
@@ -247,11 +245,16 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLength) {
 }
 
 TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLengthDifferentBytes) {
-    svalue_t stack[2];
+    svalue_t stack[2] = {};
+    auto setup_operands = [&]() {
+        free_svalue(&stack[0], "EqNeConstantVsMallocSameLengthDifferentBytes");
+        lpc::svalue_view::from(&stack[0]).set_constant_string("abc");
+        free_svalue(&stack[1], "EqNeConstantVsMallocSameLengthDifferentBytes");
+        lpc::svalue_view::from(&stack[1]).set_malloc_string("abd");
+        sp = &stack[1];
+    };
 
-    create_constant_string(&stack[0], "abc");
-    create_malloc_string(&stack[1], "abd", 3);
-    sp = &stack[1];
+    setup_operands();
 
     f_eq();
     lpc::svalue_view result_view = lpc::svalue_view::from(sp);
@@ -259,9 +262,7 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLengthDifferentBytes) {
     ASSERT_TRUE(result_view.is_number());
     ASSERT_EQ(result_view.number(), 0);
 
-    create_constant_string(&stack[0], "abc");
-    create_malloc_string(&stack[1], "abd", 3);
-    sp = &stack[1];
+    setup_operands();
 
     f_ne();
     result_view = lpc::svalue_view::from(sp);
