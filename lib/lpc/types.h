@@ -147,12 +147,14 @@ struct svalue_s {
 #include <cstddef>
 #include <cstdlib>
 #include <climits>
+#include <cstring>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 extern "C" {
 void free_svalue(svalue_t *v, const char *caller);
-void assign_svalue_no_free(svalue_t *to, svalue_t *from);
+void assign_svalue_no_free(svalue_t *to, const svalue_t *from);
 }
 
 namespace lpc {
@@ -290,6 +292,16 @@ public:
         SET_SVALUE_SHARED_STRING(sv_, s);
     }
 
+    /** Assign a STRING_SHARED payload from a byte-span. */
+    void set_shared_string(std::string_view data) noexcept {
+        if (sv_ == nullptr) {
+            return;
+        }
+        const char *begin = data.data();
+        const char *end = begin ? begin + data.size() : nullptr;
+        set_shared_string(make_shared_string(begin ? begin : "", end));
+    }
+
     /** Assign a STRING_MALLOC payload; stamps type=T_STRING, subtype=STRING_MALLOC. */
     void set_malloc_string(malloc_str_t s) noexcept {
         if (sv_ == nullptr) {
@@ -298,12 +310,37 @@ public:
         SET_SVALUE_MALLOC_STRING(sv_, s);
     }
 
+    /** Assign a STRING_MALLOC payload from a byte-span. */
+    void set_malloc_string(std::string_view data) noexcept {
+        if (sv_ == nullptr) {
+            return;
+        }
+        malloc_str_t str = int_new_string(data.size());
+        if (data.size() > 0) {
+            memcpy(str, data.data(), data.size());
+        }
+        str[data.size()] = '\0';
+        set_malloc_string(str);
+    }
+
+    /** Assign a STRING_MALLOC payload from a NUL-terminated C string. */
+    void set_malloc_string(const char *s) noexcept {
+        set_malloc_string(std::string_view(s ? s : ""));
+    }
+
     /** Assign a STRING_CONSTANT; stamps type=T_STRING, subtype=STRING_CONSTANT. */
     void set_constant_string(const char *s) noexcept {
         if (sv_ == nullptr) {
             return;
         }
         SET_SVALUE_CONSTANT_STRING(sv_, s);
+    }
+
+    /** Assign a STRING_CONSTANT payload from a byte-span.
+     *  Precondition: data points to NUL-terminated constant storage.
+     */
+    void set_constant_string(std::string_view data) noexcept {
+        set_constant_string(data.data());
     }
 
     /** Assign a number payload; stamps type=T_NUMBER. */
@@ -492,12 +529,8 @@ public:
         value_.u.number = 0;
     }
 
-    explicit svalue(const raw_type &src) noexcept : svalue() {
-        assign_svalue_no_free(&value_, const_cast<raw_type *>(&src));
-    }
-
     svalue(const svalue &other) noexcept : svalue() {
-        assign_svalue_no_free(&value_, const_cast<raw_type *>(&other.value_));
+        assign_svalue_no_free(&value_, &other.value_);
     }
 
     svalue(svalue &&other) noexcept {
@@ -507,6 +540,18 @@ public:
         other.value_.u.number = 0;
     }
 
+    /** Constructor from string literal; creates STRING_CONSTANT svalue.
+     *  Only accepts compile-time string literals (const char (&)[N]), not pointers.
+     *  This enforces explicit intent and prevents accidental construction from char* variables.
+     */
+    template<size_t N>
+    svalue(const char (&literal)[N]) noexcept {
+        value_.type = T_NUMBER;
+        value_.subtype = 0;
+        value_.u.number = 0;
+        set_constant_string(std::string_view(literal, N - 1));  // N-1 excludes null terminator
+    }
+
     ~svalue() noexcept {
         free_svalue(&value_, "lpc::svalue::~svalue");
     }
@@ -514,7 +559,7 @@ public:
     svalue &operator=(const svalue &other) noexcept {
         if (this != &other) {
             free_svalue(&value_, "lpc::svalue::operator=(copy)");
-            assign_svalue_no_free(&value_, const_cast<raw_type *>(&other.value_));
+            assign_svalue_no_free(&value_, &other.value_);
         }
         return *this;
     }
@@ -535,6 +580,80 @@ public:
 
     [[nodiscard]] svalue_view view() noexcept { return svalue_view::from(&value_); }
     [[nodiscard]] const_svalue_view view() const noexcept { return const_svalue_view::from(&value_); }
+
+    // Owning setters: free old value, then set new value
+    // These are preferred for test code and cases where ownership is clear.
+
+    /** Assign a STRING_SHARED; frees old value first. */
+    void set_shared_string(shared_str_t s) noexcept {
+        free_svalue(&value_, "lpc::svalue::set_shared_string");
+        view().set_shared_string(s);
+    }
+
+    /** Assign a STRING_SHARED from byte-span; frees old value first. */
+    void set_shared_string(std::string_view data) noexcept {
+        free_svalue(&value_, "lpc::svalue::set_shared_string(span)");
+        view().set_shared_string(data);
+    }
+
+    /** Assign a STRING_MALLOC; frees old value first. */
+    void set_malloc_string(malloc_str_t s) noexcept {
+        free_svalue(&value_, "lpc::svalue::set_malloc_string");
+        view().set_malloc_string(s);
+    }
+
+    /** Assign a STRING_MALLOC from a NUL-terminated C string; frees old value first. */
+    void set_malloc_string(const char *s) noexcept {
+        set_malloc_string(std::string_view(s ? s : ""));
+    }
+
+    /** Assign a STRING_MALLOC from byte-span; allocates, copies data, frees old first. */
+    void set_malloc_string(std::string_view data) noexcept {
+        malloc_str_t str = int_new_string(data.size());
+        if (data.size() > 0) {
+            memcpy(str, data.data(), data.size());
+        }
+        str[data.size()] = '\0';
+        set_malloc_string(str);  // delegate to existing setter
+    }
+
+    /** Assign a STRING_CONSTANT; frees old value first. */
+    void set_constant_string(const char *s) noexcept {
+        free_svalue(&value_, "lpc::svalue::set_constant_string");
+        view().set_constant_string(s);
+    }
+
+    /** Assign a STRING_CONSTANT from byte-span; frees old first.
+     *  Precondition: data must point to constant memory (string literal or equivalent).
+     *  For stack/heap data with embedded NULs, use set_malloc_string(std::string_view) instead.
+     */
+    void set_constant_string(std::string_view data) noexcept {
+        set_constant_string(data.data());
+    }
+
+    /** Assign a number; frees old value first. */
+    void set_number(int64_t value) noexcept {
+        free_svalue(&value_, "lpc::svalue::set_number");
+        view().set_number(value);
+    }
+
+    /** Assign a real; frees old value first. */
+    void set_real(double value) noexcept {
+        free_svalue(&value_, "lpc::svalue::set_real");
+        view().set_real(value);
+    }
+
+    /** Assign an object; frees old value first. */
+    void set_object(object_t *ob) noexcept {
+        free_svalue(&value_, "lpc::svalue::set_object");
+        view().set_object(ob);
+    }
+
+    /** Assign an array; frees old value first. */
+    void set_array(array_t *arr) noexcept {
+        free_svalue(&value_, "lpc::svalue::set_array");
+        view().set_array(arr);
+    }
 
 private:
     raw_type value_;

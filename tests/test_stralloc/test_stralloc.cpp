@@ -299,7 +299,14 @@ TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
 
         EXPECT_EQ(COUNTED_REF(shared), 1);
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-assign-overloaded"
+#endif
         shared_owner = shared_owner;
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
         EXPECT_EQ(COUNTED_REF(shared), 1);
         ASSERT_TRUE(shared_owner.view().is_string() && shared_owner.view().is_shared());
@@ -313,7 +320,15 @@ TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
         lpc::svalue malloc_owner;
         malloc_owner.view().set_malloc_string(malloced);
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+// Suppress self-move warning for this test; we're intentionally testing that self-move is a no-op and doesn't free the malloc string.
+#pragma GCC diagnostic ignored "-Wself-move"
+#endif
         malloc_owner = std::move(malloc_owner);
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
         ASSERT_TRUE(malloc_owner.view().is_string() && malloc_owner.view().is_malloc());
         EXPECT_EQ(malloc_owner.view().malloc_string(), malloced);

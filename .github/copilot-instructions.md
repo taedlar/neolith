@@ -155,18 +155,39 @@ python testbot.py
 - Use `int` for small counters/indices when size is clearly bounded.
 
 ### C++ svalue Idioms (Preferred)
-- In C++ code, prefer `lpc::svalue_view` / `lpc::const_svalue_view` over direct `svalue_t` union access.
-- Use `lpc::svalue_view::from(...)` for concise borrow-only views:
-  - mutable source (`svalue_t *`, `svalue_t &`) => `svalue_view`
-  - immutable source (`const svalue_t *`, `const svalue_t &`) => `const_svalue_view`
-- Keep ownership and viewing separate:
-  - owning value: `lpc::svalue`
-  - non-owning retained reference: `lpc::svalue_ref`
-  - typed borrow access: `view()` or `from(...)`
-- In const contexts, prefer immutable views (`const_svalue_view`) and avoid `const_cast`-style patterns.
-- Prefer named typed setters/getters (`set_shared_string`, `set_malloc_string`, `set_constant_string`, `number`, `c_str`, `length`) instead of writing union members directly.
-- Treat `from(...)` as borrow-only API; do not use it for ownership transfer or adopt/release semantics.
-- In tests and helper code, assert via view APIs (`is_string`, `is_number`, `str`, etc.) instead of inspecting raw `u.*` fields directly unless unavoidable for legacy paths.
+- In C++ code, prefer `lpc::svalue` (owning), `lpc::svalue_view` / `lpc::const_svalue_view` (borrowing), and `lpc::svalue_ref` (retained-copy reference) over direct `svalue_t` union access.
+
+**Construction and ownership:**
+- `lpc::svalue sv;` — default: initializes to `T_NUMBER 0`
+- `lpc::svalue sv(other);` — copy: retained-copy (increments refcounts)
+- `lpc::svalue sv(std::move(other));` — move: ownership transfer
+- `lpc::svalue_ref ref(raw_sv_ptr);` — explicit retained-copy reference to borrowed `svalue_t`
+
+**Setting values (use owning setters on `lpc::svalue`):**
+- `sv.set_shared_string(s);` — frees old payload, adopts shared string
+- `sv.set_malloc_string(s);` — frees old payload, adopts malloc string
+- `sv.set_constant_string(s);` — frees old payload, sets constant string
+- `sv.set_number(n);`, `sv.set_real(d);`, `sv.set_object(ob);`, `sv.set_array(arr);` — frees old, sets new
+
+**Borrowing and viewing:**
+- `auto view = sv.view();` or `lpc::svalue_view::from(&raw_sv);` — mutable view over borrowed svalue
+- `auto view = sv.view() const` or `lpc::const_svalue_view::from(&raw_sv);` — immutable view
+- Prefer immutable views (`const_svalue_view`) in const contexts; avoid `const_cast` patterns
+- `view()` as zero-cost borrow-only access; never mutate across borrow boundaries
+
+**Accessing values (via views):**
+- Type checks: `view.is_string()`, `view.is_number()`, `view.is_array()`, etc.
+- String accessors: `view.c_str()`, `view.length()` (O(1) for counted strings)
+- Typed getters: `view.shared_string()`, `view.malloc_string()`, `view.const_string()`, `view.number()`, `view.object()`, etc.
+
+**In tests and helpers:**
+- Use owning setters: `target.set_malloc_string(str);` instead of `svalue_view::from(&target).set_malloc_string(str);` to avoid manual refcount management
+- Assert via view APIs: `auto v = sv.view(); EXPECT_TRUE(v.is_string()); EXPECT_STREQ(v.c_str(), "expected");`
+- Avoid direct union member access (`sv.raw()->u.string`, etc.) unless unavoidable for legacy C paths
+
+**Legacy C API interop:**
+- `assign_svalue_no_free(dest, src);` — shallow copy + retain payload (both source and dest must be writable C structs)
+- Source is now const: `const svalue_t *from` (no const_cast needed)
 
 ### Socket Descriptor Rules (Winsock Compatibility)
 - Distinguish LPC socket IDs from native OS socket descriptors:
@@ -266,6 +287,8 @@ Documentation files use lowercase names with dash (`-`) separators, prefixed wit
 5. **Line-of-code metrics**: Avoid unnecessary line wrapping; check LOC with `git ls-files | egrep -v '^(docs|examples)' | xargs wc -l`
 6. **Type system mixing**: Never mix compile-time TYPE_* with runtime T_* values—see [lpc-types.md](docs/internals/lpc-types.md)
 7. **Binary compatibility**: Always bump driver_id in [binaries.c](lib/lpc/program/binaries.c) when adding/removing/reordering opcodes or changing runtime struct sizes
+8. **svalue wrapper construction**: Do not assign raw `svalue_t` to `lpc::svalue`—use `lpc::svalue_ref` for explicit retained-copy semantics, or use `lpc::svalue::view()` for borrowing-only access. The raw constructor was removed to prevent ambiguity.
+9. **svalue borrowing**: Always use `lpc::svalue_view` or `lpc::const_svalue_view` for zero-cost borrow-only access to `svalue_t` fields. Prefer immutable views (`const_svalue_view`) when mutation is not needed.
 
 ## Agent Execution Priorities
 - Prioritize impact-first changes: fix code and tests first, then update only docs directly affected by the change.

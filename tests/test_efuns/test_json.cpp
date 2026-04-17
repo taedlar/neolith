@@ -411,15 +411,13 @@ TEST_F(EfunsTest, fromJsonEmbeddedNullCharacterAccepted) {
 
 TEST_F(EfunsTest, fromJsonEmbeddedNullObjectKeyAccepted) {
     /* JSON object key contains U+0000 encoded as \u0000. */
-    static const char payload[] = "{\"a\\u0000b\":7}";
-
-    copy_and_push_string(payload);
+    copy_and_push_string(R"({"a\u0000b":7})");
     f_from_json();
 
     ASSERT_EQ(sp->type, T_MAPPING);
 
     lpc::svalue key;
-    key.view().set_malloc_string(int_string_copy("a\0b", "a\0b" + 3));
+    key.set_malloc_string(std::string_view("a\0b", 3)); /* key with embedded null byte */
     svalue_t *found = find_in_mapping(sp->u.map, key.raw());
     ASSERT_NE(found, &const0u) << "embedded-null key not found in from_json result mapping";
 
@@ -556,7 +554,7 @@ TEST_F(EfunsTest, toJsonEmbeddedNullObjectKeyEscaped) {
     mapping_t *m = allocate_mapping(1);
 
     lpc::svalue key;
-    key.view().set_malloc_string(int_string_copy("a\0b", "a\0b" + 3));
+    key.set_malloc_string(std::string_view("a\0b", 3));
     svalue_t *val = find_for_insert(m, key.raw(), 1);
     ASSERT_NE(val, nullptr);
     lpc::svalue_view::from(val).set_number(7);

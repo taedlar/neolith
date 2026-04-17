@@ -130,7 +130,7 @@ void assign_svalue (svalue_t * dest, svalue_t * v) {
  * This is done either when element in array, or when to an identifier
  * (as all identifiers are kept in a array pointed to by the object).
  */
-void assign_svalue_no_free (svalue_t * to, svalue_t * from) {
+void assign_svalue_no_free (svalue_t * to, const svalue_t * from) {
   DEBUG_CHECK (from == 0, "Attempt to assign_svalue() from a null ptr.\n");
   DEBUG_CHECK (to == 0, "Attempt to assign_svalue() to a null ptr.\n");
   *to = *from;
