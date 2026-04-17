@@ -321,19 +321,6 @@ TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
     }
 }
 
-TEST_F(StrAllocTest, longMallocStringFallbackWorksWhenBlkendMissing) {
-    const size_t len = static_cast<size_t>(USHRT_MAX) + 29;
-    malloc_str_t s = new_string(len, "test");
-    memset(s, 'f', len);
-    s[len] = '\0';
-
-    MSTR_BLKEND(s) = nullptr;
-
-    EXPECT_EQ(MSTR_SIZE(s), static_cast<unsigned short>(USHRT_MAX));
-    EXPECT_EQ(COUNTED_STRLEN(s), len);
-
-    FREE_MSTR(s);
-}
 
 TEST_F(StrAllocTest, sharedStringAtUshortMaxIsTruncatedToUshortMaxMinusOne) {
     const size_t input_len = static_cast<size_t>(USHRT_MAX);

@@ -141,18 +141,18 @@ typedef struct malloc_block_s {
  * COUNTED_STRLEN(x) returns the logical length of a counted string (STRING_MALLOC
  * or STRING_SHARED) without scanning for a NUL byte for short strings.
  *
- * Three cases:
+ * Two cases:
  *   size < USHRT_MAX  => exact length, returned directly (O(1)).
- *   size == USHRT_MAX and blkend != NULL => long STRING_MALLOC; pointer-difference
- *                            gives length in O(1) without NUL scanning.
- *   size == USHRT_MAX and blkend == NULL => legacy/compatibility path; falls back
- *                            to strlen starting at offset USHRT_MAX.
+ *   size == USHRT_MAX => long STRING_MALLOC; blkend pointer-difference gives
+ *                        length in O(1) without NUL scanning.
  *
- * The two-pointer alignment between malloc_block_t and block_t is still required
- * so that MSTR_SIZE and MSTR_REF work uniformly on both string kinds.
+ * Invariant: size == USHRT_MAX with blkend == NULL is a bug — all allocation
+ * paths (int_new_string, int_extend_string) set blkend whenever size == USHRT_MAX.
+ * Hitting that state triggers fatal().
  */
 #define COUNTED_STRLEN(x) ((MSTR_SIZE(x) == USHRT_MAX) ? \
-        (MSTR_BLKEND(x) ? (size_t)((char *)MSTR_BLKEND(x) - (x)) : (strlen((x)+USHRT_MAX)+USHRT_MAX)) : \
+        (MSTR_BLKEND(x) ? (size_t)((char *)MSTR_BLKEND(x) - (x)) : \
+          (abort(), (size_t)0)) : \
         MSTR_SIZE(x))
 
 /* return the number of references to a STRING_MALLOC or STRING_SHARED 
@@ -168,28 +168,50 @@ typedef struct malloc_block_s {
 
 #define SHARED_STRLEN(x) COUNTED_STRLEN(x)
 
-#define SVALUE_COUNTED_STRLEN(x) (((x)->subtype == STRING_MALLOC) ? \
-                                  COUNTED_STRLEN((x)->u.malloc_string) : \
-                                  COUNTED_STRLEN((x)->u.shared_string))
-
+/*
+ * SVALUE_STRPTR(x) returns a const char* to the string data regardless of subtype.
+ * Handles STRING_MALLOC, STRING_SHARED, and STRING_CONSTANT.
+ * Defined here for use in types.h; exported via lib/lpc/svalue.h for public API.
+ */
 #define SVALUE_STRPTR(x) ((char *)(((x)->subtype == STRING_MALLOC) ? \
                           (x)->u.malloc_string : \
                           (((x)->subtype == STRING_SHARED) ? \
                            (x)->u.shared_string : \
                            (x)->u.const_string)))
 
+/*
+ * SVALUE_STRLEN(x) returns the logical byte length of any svalue string.
+ * STRING_MALLOC and STRING_SHARED: extract pointer and use COUNTED_STRLEN (O(1), span-safe).
+ * STRING_CONSTANT strings are C-string literals from driver code; they are
+ * never produced by LPC source and cannot contain embedded null bytes, so
+ * strlen() is correct and intentional for that case.
+ * Defined here for use in types.h; exported via lib/lpc/svalue.h for public API.
+ */
 #define SVALUE_STRLEN(x) (((x)->subtype & STRING_COUNTED) ? \
-                          SVALUE_COUNTED_STRLEN(x) : \
+                          COUNTED_STRLEN(((x)->subtype == STRING_MALLOC) ? (x)->u.malloc_string : (x)->u.shared_string) : \
                           strlen((x)->u.const_string))
 
 /*
  * Compare two svalue string lengths.
- * - Counted/counting pairs use counted logical lengths (handles blkend long strings).
- * - Any path involving STRING_CONSTANT falls back to SVALUE_STRLEN(), which uses strlen.
+ * Each string is dispatched independently: counted strings always use
+ * COUNTED_STRLEN (O(1), span-safe, embedded-null-correct); STRING_CONSTANT
+ * strings use strlen (intentional — they are C-string literals from driver code
+ * and cannot contain embedded null bytes).
+ *
+ * Note: This is a macro rather than a function to avoid including the full
+ * svalue_t definition, which would create circular header dependencies.
+ * It is only used in one non-hot-path location (sameval in array.c).
+ * Defined here for use by lib/lpc code; exported via lib/lpc/svalue.h for public API.
  */
-#define SVALUE_STRLEN_DIFFERS(x, y) ((((x)->subtype & STRING_COUNTED) && ((y)->subtype & STRING_COUNTED)) \
-        ? (SVALUE_COUNTED_STRLEN(x) != SVALUE_COUNTED_STRLEN(y)) \
-        : (SVALUE_STRLEN(x) != SVALUE_STRLEN(y)))
+#define SVALUE_STRLEN_DIFFERS(x, y) \
+    (((x)->subtype & STRING_COUNTED) \
+        ? (((y)->subtype & STRING_COUNTED) \
+            ? (COUNTED_STRLEN(((x)->subtype == STRING_MALLOC) ? (x)->u.malloc_string : (x)->u.shared_string) != \
+               COUNTED_STRLEN(((y)->subtype == STRING_MALLOC) ? (y)->u.malloc_string : (y)->u.shared_string)) \
+            : (COUNTED_STRLEN(((x)->subtype == STRING_MALLOC) ? (x)->u.malloc_string : (x)->u.shared_string) != strlen((y)->u.const_string))) \
+        : (((y)->subtype & STRING_COUNTED) \
+            ? (strlen((x)->u.const_string) != COUNTED_STRLEN(((y)->subtype == STRING_MALLOC) ? (y)->u.malloc_string : (y)->u.shared_string)) \
+            : (strlen((x)->u.const_string) != strlen((y)->u.const_string))))
 
 extern void init_strings(size_t hash_size, size_t max_len);
 extern void deinit_strings();
