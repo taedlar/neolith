@@ -147,6 +147,13 @@ void copy_some_svalues (svalue_t * dest, svalue_t * v, int num) {
     assign_svalue_no_free (dest + num, v + num);
 }
 
+int string_length_differs(const svalue_t *x, const svalue_t *y) {
+  auto xv = lpc::const_svalue_view::from(x);
+  auto yv = lpc::const_svalue_view::from(y);
+
+  return xv.length() != yv.length();
+}
+
 /* ========== C++ RAII WRAPPER IMPLEMENTATION ========== */
 
 namespace lpc {

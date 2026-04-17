@@ -662,7 +662,7 @@ sameval (svalue_t * arg1, svalue_t * arg2)
     case T_CLASS:
       return arg1->u.arr == arg2->u.arr;
     case T_STRING:
-      if (SVALUE_STRLEN_DIFFERS (arg1, arg2))
+      if (string_length_differs (arg1, arg2))
         return 0;
       return !strcmp (SVALUE_STRPTR(arg1), SVALUE_STRPTR(arg2));
     case T_OBJECT:

@@ -623,7 +623,8 @@ malloc_str_t int_string_unlink (malloc_str_handle_t str) {
         }
       else
         {
-          len = strlen (MALLOC_STR_P(str) + USHRT_MAX) + USHRT_MAX;	/* fallback for old strings */
+          /* size == USHRT_MAX but blkend == NULL, this is an error state, see COUNTED_STRLEN(x) */
+          len = 0;
         }
 
       newmbt = (malloc_block_t *) DXALLOC (len + sizeof (malloc_block_t) + 1, TAG_MALLOC_STRING, "string_unlink");

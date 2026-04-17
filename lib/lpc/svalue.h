@@ -11,6 +11,8 @@ void assign_svalue(svalue_t *, svalue_t *);
 void assign_svalue_no_free(svalue_t *, svalue_t *);
 void copy_some_svalues(svalue_t *, svalue_t *, int);
 
+int string_length_differs(const svalue_t *x, const svalue_t *y);
+
 #ifdef __cplusplus
 } // extern "C"
 

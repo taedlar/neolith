@@ -144,10 +144,6 @@ struct svalue_s {
 #ifdef __cplusplus
 } // extern "C"
 
-/* Include svalue operations (SVALUE_* macros) after svalue_t is defined.
-   svalue.h includes types.h, but #pragma once prevents re-inclusion. */
-#include "svalue.h"
-
 #include <cstddef>
 #include <cstdlib>
 #include <climits>

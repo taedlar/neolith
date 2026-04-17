@@ -2067,8 +2067,12 @@ case_string:
                           /* TODO: allow embedded null once L_STRING carries (ptr,len) and
                            * store_prog_string/grammar folding are byte-span ready. */
                           if (tmp == 0)
-                            yyerror ("Embedded null (\\0) in string literal is not yet supported");
-                          *to++ = (unsigned char)tmp;
+                            {
+                              yyerror ("Embedded null (\\0) in string literal is not yet supported");
+                              *to++ = ' ';
+                            }
+                          else
+                            *to++ = (unsigned char)tmp;
                           break;
                         }
                       case 'x':
@@ -2090,8 +2094,12 @@ case_string:
                               /* TODO: allow embedded null once L_STRING carries (ptr,len) and
                                * store_prog_string/grammar folding are byte-span ready. */
                               if (tmp == 0)
-                                yyerror ("Embedded null (\\x00) in string literal is not yet supported");
-                              *to++ = (unsigned char)tmp;
+                                {
+                                  yyerror ("Embedded null (\\x00) in string literal is not yet supported");
+                                  *to++ = ' ';
+                                }
+                              else
+                                *to++ = (unsigned char)tmp;
                             }
                           break;
                         }
