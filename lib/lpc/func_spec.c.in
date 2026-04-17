@@ -210,6 +210,7 @@ object *users();
 mixed *get_dir(string, int default: 0);
 #pragma allow_dot_call
 	int strcmp (string, string);
+	string c_str (string);
 	int strsrch (string, string | int, int default: 0);
 	string strwrap (string, int, int|void);
 #pragma no_dot_call

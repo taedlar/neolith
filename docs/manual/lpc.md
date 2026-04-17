@@ -205,6 +205,17 @@ str = "abcdefg";
 Wide character strings are supported in Neolith as an extension to original LPC.
 Unlinke in C, the `string` type in LPC is not a primitive character array, but a high level abstract data type more similar to modern C++'s `std::string`.
 
+LPC strings in Neolith are byte-sequence values with an associated length.
+They may contain embedded null bytes (`\0`), and language-level string
+operations such as slicing, concatenation, equality, and ordering operate on
+the full byte span rather than stopping at the first null byte.
+
+This is different from native C-string semantics. When LPC code needs to cross
+an API boundary that expects a null-terminated C string, that conversion must
+be explicit. Use `c_str()` to truncate an LPC string at the first null byte and
+produce the C-string prefix as a new LPC string. Likewise, `strcmp()` keeps its
+traditional C-library behavior and compares only up to the first null byte.
+
 Neolith allows LPC program to assign a wide character string literal using C++'s `wchar_t` syntax:
 ~~~cxx
 str = L"こんにちは";

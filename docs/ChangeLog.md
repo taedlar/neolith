@@ -8,11 +8,13 @@
 - feat: add optional `PACKAGE_JSON` support with `to_json()` and `from_json()` efuns
 - feat: extend `from_json()` to accept `buffer` input for large JSON payloads
 - feat: add optional `PACKAGE_CURL` support with `perform_using()`, `perform_to()`, and `in_perform()` efuns
+- feat: add `c_str()` efun to make C-string truncation an explicit LPC contract
 
 #### Documentation
 - doc: add efun docs for `to_json()` and `from_json()`
 - doc: add efun docs and unit tests for CURL efuns
 - doc: add guarded `curlget` PACKAGE_CURL example to the sample mudlib
+- doc: add `c_str()` efun docs and unit tests
 
 ### 1.0.0-alpha.8 — 2026-03-25
 

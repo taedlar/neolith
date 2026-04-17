@@ -17,5 +17,10 @@ two lexically precedes string one, then strcmp() returns a
 number greater than 0.  This efunction is particularly
 useful in the compare functions needed by [sort_array()](sort_array.md).
 
+`strcmp()` intentionally keeps C-string semantics. If either argument contains
+an embedded null byte, comparison stops at the first `\0`, just as it would in
+the C library. Use [c_str()](c_str.md) when you want to make that truncation
+explicit before passing LPC strings across a C-string boundary.
+
 ## SEE ALSO
-[sort_array()](sort_array.md)
+[c_str()](c_str.md), [sort_array()](sort_array.md)
