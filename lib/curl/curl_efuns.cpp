@@ -260,7 +260,8 @@ static int ensure_easy_handle(curl_http_t *handle) {
 }
 
 static int is_clear_value(const svalue_t *value) {
-  return value->type == T_NUMBER && value->u.number == 0;
+  auto view = lpc::const_svalue_view::from(value);
+  return view.is_number() && view.number() == 0;
 }
 
 static void clear_headers(curl_http_t *handle) {
@@ -270,21 +271,45 @@ static void clear_headers(curl_http_t *handle) {
   }
 }
 
+static int has_embedded_nul(const svalue_t *value) {
+  auto view = lpc::const_svalue_view::from(value);
+
+  if (!view.is_string()) {
+    return 0;
+  }
+
+  const char *data = view.c_str();
+  size_t len = view.length();
+  if (len == 0) {
+    return 0;
+  }
+
+  return std::memchr(data, '\0', len) != nullptr;
+}
+
 static void set_headers_from_array(curl_http_t *handle, array_t *headers) {
   struct curl_slist *new_headers = nullptr;
   int index;
 
   for (index = 0; index < headers->size; index++) {
     svalue_t *item = &headers->item[index];
+    auto item_view = lpc::const_svalue_view::from(item);
 
-    if (item->type != T_STRING) {
+    if (!item_view.is_string()) {
       if (new_headers) {
         curl_slist_free_all(new_headers);
       }
       error("perform_using(headers, value) requires a string or string array.\n");
     }
 
-    new_headers = curl_slist_append(new_headers, SVALUE_STRPTR(item));
+    if (has_embedded_nul(item)) {
+      if (new_headers) {
+        curl_slist_free_all(new_headers);
+      }
+      error("perform_using(headers, value) string entries must not contain embedded NUL bytes.\n");
+    }
+
+    new_headers = curl_slist_append(new_headers, item_view.c_str());
     if (!new_headers) {
       error("Out of memory while configuring CURL headers.\n");
     }
@@ -295,6 +320,8 @@ static void set_headers_from_array(curl_http_t *handle, array_t *headers) {
 }
 
 static void configure_option(curl_http_t *handle, const char *option, svalue_t *value) {
+  auto value_view = lpc::const_svalue_view::from(value);
+
   if (!std::strcmp(option, "url")) {
     if (is_clear_value(value)) {
       if (handle->url) {
@@ -304,14 +331,18 @@ static void configure_option(curl_http_t *handle, const char *option, svalue_t *
       return;
     }
 
-    if (value->type != T_STRING) {
+    if (!value_view.is_string()) {
       error("perform_using(url, value) requires a string.\n");
+    }
+
+    if (has_embedded_nul(value)) {
+      error("perform_using(url, value) string must not contain embedded NUL bytes.\n");
     }
 
     if (handle->url) {
       FREE(handle->url);
     }
-    handle->url = dup_bytes(SVALUE_STRPTR(value), SVALUE_STRLEN(value));
+    handle->url = dup_bytes(value_view.c_str(), value_view.length());
     if (!handle->url) {
       error("Out of memory while configuring CURL url.\n");
     }
@@ -324,7 +355,7 @@ static void configure_option(curl_http_t *handle, const char *option, svalue_t *
       return;
     }
 
-    if (value->type == T_STRING) {
+    if (value_view.is_string()) {
       array_t *single = allocate_empty_array(1);
       assign_svalue_no_free(&single->item[0], value);
       set_headers_from_array(handle, single);
@@ -332,7 +363,7 @@ static void configure_option(curl_http_t *handle, const char *option, svalue_t *
       return;
     }
 
-    if (value->type != T_ARRAY) {
+    if (!value_view.is_array()) {
       error("perform_using(headers, value) requires a string or string array.\n");
     }
 
@@ -353,9 +384,12 @@ static void configure_option(curl_http_t *handle, const char *option, svalue_t *
       return;
     }
 
-    if (value->type == T_STRING) {
-      size = SVALUE_STRLEN(value);
-      handle->post_data = dup_bytes(SVALUE_STRPTR(value), size);
+    if (value_view.is_string()) {
+      if (has_embedded_nul(value)) {
+        error("perform_using(post_data/body, value) string must not contain embedded NUL bytes; use a buffer for binary payloads.\n");
+      }
+      size = value_view.length();
+      handle->post_data = dup_bytes(value_view.c_str(), size);
       handle->post_size = static_cast<int>(size);
     }
     else if (value->type == T_BUFFER) {
@@ -374,20 +408,20 @@ static void configure_option(curl_http_t *handle, const char *option, svalue_t *
   }
 
   if (!std::strcmp(option, "timeout_ms")) {
-    if (value->type != T_NUMBER) {
+    if (!value_view.is_number()) {
       error("perform_using(timeout_ms, value) requires a number.\n");
     }
 
-    handle->timeout_ms = value->u.number > 0 ? static_cast<long>(value->u.number) : 0L;
+    handle->timeout_ms = value_view.number() > 0 ? static_cast<long>(value_view.number()) : 0L;
     return;
   }
 
   if (!std::strcmp(option, "follow_location")) {
-    if (value->type != T_NUMBER) {
+    if (!value_view.is_number()) {
       error("perform_using(follow_location, value) requires a number.\n");
     }
 
-    handle->follow_location = value->u.number != 0;
+    handle->follow_location = value_view.number() != 0;
     return;
   }
 
@@ -684,6 +718,7 @@ static size_t curl_response_write_callback(void *ptr, size_t size, size_t nmemb,
 extern "C" void f_perform_using(void) {
   svalue_t *option_value = sp - 1;
   svalue_t *setting_value = sp;
+  auto option_view = lpc::const_svalue_view::from(option_value);
   const char *option;
   int handle_id;
   curl_http_t *handle;
@@ -692,7 +727,7 @@ extern "C" void f_perform_using(void) {
     error("CURL subsystem is not available.\n");
   }
 
-  if (option_value->type != T_STRING) {
+  if (!option_view.is_string()) {
     error("perform_using() option must be a string.\n");
   }
 
@@ -710,7 +745,7 @@ extern "C" void f_perform_using(void) {
     error("Failed to create CURL easy handle.\n");
   }
 
-  option = SVALUE_STRPTR(option_value);
+  option = option_view.c_str();
   configure_option(handle, option, setting_value);
   handle->state = CURL_STATE_CONFIGURED;
   pop_n_elems(2);
@@ -734,7 +769,8 @@ extern "C" void f_perform_to(void) {
 
   callback_value = sp - argc + 1;
   flag_value = callback_value + 1;
-  if (flag_value->type != T_NUMBER) {
+  auto flags_view = lpc::const_svalue_view::from(flag_value);
+  if (!flags_view.is_number()) {
     error("perform_to() flags argument must be a number.\n");
   }
 

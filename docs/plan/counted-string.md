@@ -34,14 +34,16 @@ early as possible (compile-time preferred, runtime as backstop).
 
 ### Near-Term Focus
 
-- Prioritize byte-span readiness for comparison semantics in production paths
-  (equality/inequality complete; next grouping/ordering and related helpers).
+- Keep comparison byte-span coverage stable; production comparison paths are
+  complete for current scope (equality/inequality, ordering operators, shared
+  helper paths).
 - Promote transparent boundary handles to abstract handles so boundary misuse fails at
   compile time.
 - Keep JSON boundary contract coverage stable, including CURL ingress
-  (`buffer -> from_json`) and explicit UTF-8/error-handling behavior.
-- Expand regression coverage to lock in counted-string semantics across LPC,
-  efuns, and JSON boundaries.
+  (`buffer -> from_json`), `perform_using` C-string boundaries, and explicit
+  UTF-8/error-handling behavior.
+- Maintain regression coverage for JSON/CURL efun boundaries (`perform_using`,
+  `c_str()`, `to_json()`) as option surface evolves.
 
 ## Status
 
@@ -49,10 +51,10 @@ early as possible (compile-time preferred, runtime as backstop).
 |---|---|
 | Foundation: `blkend` model + shared-table non-NUL lookup + initial safety/tests | complete |
 | Implementation: VM/operator NUL-removal and span API normalization | complete |
-| Implementation: comparison byte-span readiness | in progress (equality/inequality complete; next grouping/ordering semantics) |
+| Implementation: comparison byte-span readiness | complete |
 | Implementation: abstract typed handles + runtime contract enforcement | complete |
 | Implementation: C++ RAII wrapper adoption on exception baseline | complete |
-| Implementation: efun byte-span readiness | in progress (narrowed: defer broad LPC string-efun hardening; prioritize JSON/CURL ingress) |
+| Implementation: efun byte-span readiness | complete for narrowed JSON/CURL ingress scope (broad LPC string-efun hardening remains deferred by plan) |
 | Implementation: JSON boundary contract and tests | complete |
 | Validation: end-to-end LPC/JSON regression matrix | complete |
 
@@ -92,8 +94,8 @@ Completed milestones since the previous handoff:
 - Test strategy was tightened for this milestone: equality tests now execute
   real operator paths (`f_eq`/`f_ne`) on stack operands instead of simulating
   behavior with helper-level `memcmp` assertions.
-- Ordering comparison migration has started for the next milestone:
-  `f_lt`/`f_le`/`f_gt`/`f_ge` now use byte-span lexical comparison semantics
+- Ordering comparison migration is complete for current scope:
+  `f_lt`/`f_le`/`f_gt`/`f_ge` use byte-span lexical comparison semantics
   (embedded `\0` participates; length is tie-breaker after equal prefixes),
   and array helper string comparison paths (`sameval`, builtin sort comparators)
   now route through the same span-aware compare behavior.
@@ -109,12 +111,35 @@ Completed milestones since the previous handoff:
   and descending embedded-null cases are regression-tested
   (`LpcSortArrayOrdersEmbeddedNulByByteSpan`,
   `LpcSortArrayOrdersEmbeddedNulByByteSpanDescending`).
+- JSON/CURL ingress hardening advanced at the `perform_using` boundary:
+  string values for `url`, `headers`, and string `post_data`/`body` now reject
+  embedded NUL bytes, while binary payload intent remains supported via
+  `buffer` for `post_data`/`body`.
+- C++ wrapper-style read access was expanded in `lib/curl/curl_efuns.cpp`
+  for `perform_using`/`perform_to` validation and string-boundary checks via
+  `lpc::const_svalue_view`, reducing direct raw `svalue_t` field access on
+  those paths.
+- `perform_using` embedded-NUL rejection matrix coverage is now complete for
+  current option scope: regression tests cover `url`, string `body`,
+  string `headers`, and string-array `headers` entry rejection paths, plus the
+  binary body `buffer` allow-path.
+- JSON-derived boundary routing coverage is now explicit for current CURL
+  text-option scope: `perform_using(url, from_json(...))` rejects embedded-NUL
+  strings, while `perform_using(url, c_str(from_json(...)))` succeeds via
+  explicit C-string boundary conversion; similarly,
+  `perform_using(body, to_json(from_json(...)))` succeeds where
+  `perform_using(body, from_json(...))` is rejected.
 
 Validation snapshot:
 
 - Linux validation is green (`ctest --preset ut-linux`).
 - Cross-platform validation for the counted-string hardening set remains green
   (`vs16-x64`, `vs16-win32`, `clang-x64`).
+- As of 2026-04-17, full test runs on `vs16-x64` and `clang-x64` are confirmed
+  green for this milestone.
+- As of 2026-04-17, post-hardening Linux CTest sweep is green after adding
+  `perform_using` header matrix and `c_str()`/`to_json()` boundary-routing
+  regressions.
 
 Still intentional / not candidates for replacement:
 
@@ -131,13 +156,13 @@ Notable bug fix retained for handoff context:
 
 ### Next Focus
 
-- **Comparison byte-span readiness (next milestone)** — finish migrating and
-  validating LPC string comparison semantics end to end under byte-span rules.
-  Equality/inequality production behavior and regression coverage are complete;
-  next target is grouping/ordering paths and shared comparison helpers.
 - **JSON/CURL boundary follow-through** — keep existing JSON/CURL ingress
   coverage stable as counted-string and efun refactors continue, and add
   targeted regression tests only when new boundary behaviors are introduced.
+- **Next high-priority efun hardening (JSON/CURL ingress)** — prioritize
+  keeping `c_str()` / `to_json()` boundary-path behavior stable as future
+  CURL option surface expands, so explicit C-string conversion remains the only
+  truncation boundary and is behaviorally locked.
 
 ### Baseline and Out of Scope
 
@@ -312,8 +337,8 @@ Migration order:
 | P0 | Normalize internal helper APIs | string construction/lookup boundaries | New/updated helpers accept explicit lengths/spans; touched callers stop using sentinel termination as logical length; shared-string boundaries continue to route via `make_shared_string(s,end)` / `findstring(s,end)`. |
 | P0 | Enforce counted-string semantic boundaries | [src/stralloc.h](../../src/stralloc.h), [lib/lpc/types.h](../../lib/lpc/types.h), typed-string boundaries | Boundary-handle mode enabled under `STRING_TYPE_SAFETY`; contract APIs require explicit typed handles or bridge helpers; runtime contract checks remain release-enabled; identifier-class shared strings remain NUL-terminated. |
 | P1 | C++ wrapper adoption on baseline boundaries | C++ wrappers around `svalue_t` | `lpc::svalue_view`/`lpc::svalue` introduced without C ABI layout change; no duplicate exception-boundary rewrites are introduced; wrapper move/dtor are `noexcept`; unit-test-first ownership migration for counted-string targets is complete (no `free_string_svalue` / `free_svalue` in `tests/**/*.cpp`); remaining work is production C++ efun/helper adoption and any targeted perf checks for newly touched hot paths. |
-| P1 | Efun byte-span readiness (deferred broad LPC string paths) | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c) | Scope is intentionally narrowed for this phase: no broad LPC-side behavioral expansion unless required by JSON/CURL boundary safety. Any touched path must preserve LPC compatibility and existing tests remain green. |
-| P1 | LPC operator semantics vs C-string efuns | [lib/lpc/operator.c](../../lib/lpc/operator.c), [lib/lpc/array.c](../../lib/lpc/array.c), [docs/efuns/strcmp.md](../../docs/efuns/strcmp.md) | Equality/inequality byte-span semantics are complete and regression-covered; remaining work migrates grouping/ordering helpers to full byte-span behavior (including embedded null participation) while `strcmp()` remains explicitly documented and tested as C-string-oriented behavior. |
+| P1 | Efun byte-span readiness (deferred broad LPC string paths) | [lib/efuns/string.c](../../lib/efuns/string.c), [lib/efuns/unsorted.c](../../lib/efuns/unsorted.c), [lib/efuns/sprintf.c](../../lib/efuns/sprintf.c), [lib/efuns/sscanf.c](../../lib/efuns/sscanf.c), [lib/curl/curl_efuns.cpp](../../lib/curl/curl_efuns.cpp) | complete for narrowed JSON/CURL ingress scope: `perform_using` rejects embedded-NUL string values for `url`/`headers`/string body, preserves binary payload path via `buffer`, and regression coverage includes header single/array rejection plus explicit `c_str()`/`to_json()` routing checks for JSON-derived string inputs in CURL text options. Broad LPC string-efun hardening remains deferred by plan. |
+| P1 | LPC operator semantics vs C-string efuns | [lib/lpc/operator.c](../../lib/lpc/operator.c), [lib/lpc/array.c](../../lib/lpc/array.c), [docs/efuns/strcmp.md](../../docs/efuns/strcmp.md) | complete for current scope: equality/inequality and grouping/ordering helper paths use full byte-span behavior (including embedded null participation); `strcmp()` remains explicitly documented and tested as C-string-oriented boundary behavior. |
 | P1 | JSON boundary contract (priority: CURL buffer ingress) | JSON efuns/helpers (`from_json`, `to_json`) and CURL ingress paths | complete: contract docs state LPC byte spans vs JSON text; `from_json` rejects invalid UTF-8 and raises LPC runtime error on invalid sequences; coverage includes explicit UTF-8 pass/fail tests (`fromJsonValidUtf8StringAccepted`, `fromJsonInvalidUtf8StringError`, `fromJsonInvalidUtf8BufferError`) plus buffer ingress success/error/size paths (`fromJsonBuffer`, `fromJsonInvalidBufferError`, `fromJsonLargeBuffer`) and a CURL callback payload integration test (`CurlBufferPayloadParsesViaFromJson`); JSON strings containing embedded null bytes are stored and copied byte-for-byte (full span), not truncated at C-string boundaries. |
 | P1 | Unicode and escape consistency | JSON encode/decode implementation | complete: encoder/decoder symmetry is now covered for control escapes, `\\`, `\"`, `\uXXXX`, surrogate pairs, and non-BMP round-trips via `toJsonControlEscapes`, `fromJsonControlEscapes`, `fromJsonSurrogatePairAccepted`, `fromJsonLoneHighSurrogateError`, and `roundTripNonBmpCharacter`; contract docs are aligned in `docs/efuns/from_json.md` and `docs/efuns/to_json.md`. |
 | P2 | End-to-end regression matrix | LPC-level and efun/unit tests | complete for current hardening scope: dedicated unit suite `tests/test_string_operators` added (21 cases, discovered via CTest), and full matrix validation is passing on Linux, VS16 x64, VS16 win32, and clang x64. Future LPC/JSON round-trip and negative-matrix additions remain follow-on expansion work. |
