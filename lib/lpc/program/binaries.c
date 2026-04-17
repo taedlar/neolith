@@ -28,7 +28,7 @@
 #include "hash.h"
 
 static char *magic_id = "NEOL";
-static uint32_t driver_id = 0x20260417; /* increment when driver changes */
+static uint32_t driver_id = 0x20260418; /* increment when driver changes */
 static uint64_t config_id = 0;
 
 static FILE *crdir_fopen(char *);

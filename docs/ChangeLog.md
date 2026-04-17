@@ -4,6 +4,10 @@
 
 ### Unreleased
 
+### 1.0.0-alpha.9 — 2026-04-18
+
+#### Changes since 1.0.0-alpha.8
+
 #### Features
 - feat: add optional `PACKAGE_JSON` support with `to_json()` and `from_json()` efuns
 - feat: extend `from_json()` to accept `buffer` input for large JSON payloads
