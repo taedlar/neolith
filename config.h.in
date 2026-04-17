@@ -58,7 +58,7 @@
 #endif
 
 /* Mark non-returning functions (fatal paths, longjmp, or C++ exception throw). */
-#if __GNUC__
+#if defined(__GNUC__) || defined(__clang__)
 #  define NO_RETURN __attribute__((noreturn))
 #else
 #  define NO_RETURN

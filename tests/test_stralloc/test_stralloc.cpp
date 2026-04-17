@@ -299,7 +299,14 @@ TEST_F(StrAllocTest, svalueSelfAssignmentIsNoOp) {
 
         EXPECT_EQ(COUNTED_REF(shared), 1);
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-assign-overloaded"
+#endif
         shared_owner = shared_owner;
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
         EXPECT_EQ(COUNTED_REF(shared), 1);
         ASSERT_TRUE(shared_owner.view().is_string() && shared_owner.view().is_shared());
