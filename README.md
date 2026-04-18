@@ -73,7 +73,7 @@ When built with `PACKAGE_JSON`, mudlib code gets `to_json()` and `from_json()` e
 When built with `PACKAGE_CURL`, mudlib objects can configure and launch non-blocking HTTP requests with `perform_using()`, `perform_to()`, and `in_perform()`. Request state is stored per object, transfers run without blocking the backend, and the driver draws a clear line between text options and binary request bodies so outbound integrations stay predictable.
 
 ### Upgraded LPC string, int, float
-Neolith upgrades the LPC runtime data model in ways that matter directly to mudlib code. Integers are consistently `int64_t` on every platform instead of depending on the host `long` size, LPC floats use native `double` precision, and that takes advantage of 64-bit platforms without increasing the storage cost of each LPC value because the payload already lives in a pointer-sized union. Strings are counted byte-span values rather than implicit C strings, and JSON/CURL boundaries preserve that model instead of silently truncating values at the first embedded null byte.
+Neolith upgrades the LPC runtime data model in ways that matter directly to mudlib code. LPC `int` is consistently 64-bits on every platform instead of depending on the host `long` size, LPC `float` now uses native `double` precision, taking advantage of 64-bits platform without increasing the storage cost of each LPC value because the payload already lives in a pointer-sized union. LPC `string` is a true counted byte-span value (similar to `std::string_view`) rather than implicit C strings, and string operators preserve that model instead of silently truncating values at the first embedded null byte.
 
 ## How To Build
 
