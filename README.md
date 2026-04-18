@@ -7,47 +7,73 @@ Neolith LPMud Driver
 Neolith is an open-source project of [LPMud](https://en.wikipedia.org/wiki/LPMud) driver forked from the **MudOS v22pre5** code base.
 Most of the efforts are to improve the code quality, code stytle consistency, portability, performance and other design issues.
 
-The priject goal is to provide LPMud builders a **minimalist code base** with concise design and easy-to-read coding style.
+The project goal is to provide mudlib developers and driver maintainers with a **minimalist code base** that keeps classic LPC workflows intact while making the driver easier to extend, port, and reason about.
 
-## Architecture
-A LPMud Driver can be illustrated as below architecture:
-~~~mermaid
-block
-    columns 6
-    Mudlib("Mudlib"):6
-    style Mudlib stroke-dasharray: 5 5
-    block:group1:2
-        SimulEfuns("Simul Efuns\n(Kernel)")
-        Master("Master\n(Policy)")
+## Features
+### Asynchronous Workers
+
+Neolith's event-driven architecture offloads blocking I/O such as DNS resolution and HTTP work to worker threads through a **unified event loop**, so mudlib code can keep using the normal single-threaded LPC model without freezing the backend. Key differentiators:
+
+- **Unified Event Loop**: Single `async_runtime_wait()` demultiplexes both I/O and worker completions
+- **Main Thread Single Blocking Site**: Non-blocking queue operations and timeouts guarantee responsiveness on LPMud backend (commands, heart beats, reset ... etc.)
+- **Zero Interpreter Coupling**: Workers never touch LPC state; results are self-contained
+- **Platform Portable**: Seamless IOCP (Winsock) / epoll (Linux sockets) / poll (fallback) backends
+
+```mermaid
+sequenceDiagram
+    participant Main as Main Thread<br/>(Backend Loop)
+    participant Runtime as async_runtime<br/>(Unified Event Loop)
+    participant Worker as Worker Thread<br/>(Blocking OK)
+    participant Queue as async_queue<br/>(Result Buffer)
+
+    Note over Main: 1. Event polling<br/>(timeout_ms=100)
+    Main->>Runtime: async_runtime_wait()<br/>
+    
+    par Worker Processing
+        Worker->>Worker: Blocking work<br/>(DNS, I/O, crypto)
+    and Main Waiting
+        Note over Main: BLOCKED HERE<br/>Waiting for events
+        Runtime-->>Main: (waiting...)
     end
-    Objects("LPC Objects\n(Programs)"):3
-    Backend["Backend\n(Clock & I/O)"]
-    block:group2:3
-        columns 1
-        LPCC["LPC Compiler"]
-        Lexer["LPC Lexer"]
-        Preprocessor
+
+    Note over Worker: 2. Work complete<br/>Prepare result
+    Worker->>Queue: async_queue_enqueue()<br/>(result data)
+    
+    Note over Worker: 3. Post completion<br/>to main loop
+    Worker->>Runtime: async_runtime_post_completion()<br/>(completion_key, data)
+    
+    Note over Runtime: Wakes main thread<br/>via platform primitive<br/>(eventfd/IOCP/pipe)
+    
+    Runtime-->>Main: Returns event<br/>with completion_key
+
+    Note over Main: 4. Main wakes<br/>(NEVER blocking)
+    Main->>Queue: async_queue_dequeue()<br/>(non-blocking)
+    
+    alt Result Ready
+        Queue-->>Main: result data
+        Note over Main: 5. Process result<br/>Update state<br/>No interpreter lock needed
     end
-    block:group3:3
-        columns 2
-        LPCI["LPC Interpreter"]
-        Efuns
-    end
-    block:group4
-        columns 1
-        stralloc
-        xalloc
-    end
-    Simulate["Stack Machine\nSimulator"]:5
-    style SimulEfuns fill:#474,color:#fff,stroke-dasharray:2
-    style Master fill:#291,color:#fff,stroke-dasharray:2
-    style Objects fill:#a21,color:#fff,stroke-dasharray:2
-    style Backend fill:#d92,color:#fff
-    style LPCC fill:#228,color:#fff
-    style LPCI fill:#228,color:#fff
-    style Efuns fill:#66f,color:#fff
-    style Simulate fill:#666,color:#fff
-~~~
+
+    Note over Main: 6. Return to loop<br/>(instantly, no blocking)
+    Main->>Runtime: async_runtime_wait()<br/>(continues event loop)
+```
+
+**Current Use Cases**: DNS resolution (no driver freeze), console input with testbot automation, CURL efuns, foundation for future async features (REST APIs, GUI clients).
+
+### Console Mode
+Console mode lets Neolith treat standard input and output as a connected interactive user, so mudlib code can run without a telnet client or socket frontend. That makes it useful not only for deterministic test automation and local debugging, but also for instrumented mudlibs and VM-like CLI applications that use the LPC object model, command loop, and input APIs as a standalone application platform.
+
+### UTF-8 Support
+Neolith stores LPC strings as counted multi-byte strings and is designed for UTF-8 locales. For mudlib code, that means Unicode text can be handled without dropping back to raw C-string rules: wide string literals are validated at compile time, `explode(str, "")` can split UTF-8 text into characters, and `strsrch()` accepts wide-character search input while still returning byte offsets that match LPC range operators.
+
+### JSON Support
+When built with `PACKAGE_JSON`, mudlib code gets `to_json()` and `from_json()` efuns for moving LPC arrays, mappings, strings, ints, floats, and `undefined` values across JSON boundaries. `from_json()` also accepts `buffer` input for large payloads, and the JSON boundary is explicit about UTF-8 validation, Unicode escape handling, and embedded `\0` behavior.
+
+### CURL Support
+When built with `PACKAGE_CURL`, mudlib objects can configure and launch non-blocking HTTP requests with `perform_using()`, `perform_to()`, and `in_perform()`. Request state is stored per object, transfers run without blocking the backend, and the driver draws a clear line between text options and binary request bodies so outbound integrations stay predictable.
+
+### Upgraded LPC string, int, float
+Neolith upgrades the LPC runtime data model in ways that matter directly to mudlib code. Integers are consistently `int64_t` on every platform instead of depending on the host `long` size, LPC floats use native `double` precision, and that takes advantage of 64-bit platforms without increasing the storage cost of each LPC value because the payload already lives in a pointer-sized union. Strings are counted byte-span values rather than implicit C strings, and JSON/CURL boundaries preserve that model instead of silently truncating values at the first embedded null byte.
 
 ## How To Build
 
