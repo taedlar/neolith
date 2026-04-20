@@ -69,12 +69,32 @@ TEST_F(LPCLexerTest, parseStringLiteral) {
     current_file_id = 0;
     start_new_file (-1, "\"Hello world\" \"你好\" L\"こんにちは\"\n");
     EXPECT_EQ(yylex(), L_STRING);
-    EXPECT_STREQ(yylval.string, "Hello world");
+    EXPECT_EQ(yylval.string_span.len, 11u);
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), "Hello world");
     EXPECT_EQ(yylex(), L_STRING);
-    EXPECT_STREQ(yylval.string, "你好");
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), "你好");
     EXPECT_EQ(yylex(), L_STRING);
-    EXPECT_STREQ(yylval.string, "こんにちは"); // wide string literal (Neolith extension to LPC)
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), "こんにちは"); // wide string literal (Neolith extension to LPC)
     EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(to_shared_str(current_file));
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseEmbeddedNullStringLiteral) {
+    current_file = make_shared_string("string_null_test", NULL);
+    current_file_id = 0;
+    start_new_file (-1, "\"ab\\0cd\" \"ab\\x00yz\"\n");
+
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_EQ(yylval.string_span.len, 5u);
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), std::string("ab\0cd", 5));
+
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_EQ(yylval.string_span.len, 5u);
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), std::string("ab\0yz", 5));
+
+    EXPECT_EQ(yylex(), -1);
     end_new_file ();
     free_string(to_shared_str(current_file));
     current_file = 0;
@@ -102,7 +122,7 @@ TEST_F(LPCLexerTest, skipComments) {
     current_file_id = 0;
     start_new_file (-1, "// cxx comments\n/* c comments\n still work */\n\"Hello world\"\n");
     EXPECT_EQ(yylex(), L_STRING);
-    EXPECT_STREQ(yylval.string, "Hello world");
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), "Hello world");
     EXPECT_EQ(yylex(), -1); // EOF
     end_new_file ();
     free_string(to_shared_str(current_file));

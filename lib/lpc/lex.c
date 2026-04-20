@@ -1953,7 +1953,8 @@ int yylex () {
                     /*
                      * make string token and clean up
                      */
-                    yylval.string = scratch_copy_string (outptr);
+                    yylval.string_span.str = scratch_copy_string (outptr);
+                    yylval.string_span.len = (unsigned int)strlen(yylval.string_span.str);
 
                     n = (int)strlen (outptr) + 1;
                     outptr += n;
@@ -1994,9 +1995,10 @@ case_string:
                     *to++ = 0;
                     scr_tail = to;
                     *to = (unsigned char)(to - scr_last);
-                    yylval.string = (char *) scr_last;
+                    yylval.string_span.str = (char *) scr_last;
+                    yylval.string_span.len = (unsigned int)((to - scr_last) - 1);
                     if (wide_char_literal)
-                      ensure_valid_wide_string (yylval.string);
+                      ensure_valid_wide_string (yylval.string_span.str);
                     return L_STRING;
 
                   case '\n':
@@ -2064,15 +2066,7 @@ case_string:
                               yywarn ("Illegal character constant in string.");
                               tmp = 'x';
                             }
-                          /* TODO: allow embedded null once L_STRING carries (ptr,len) and
-                           * store_prog_string/grammar folding are byte-span ready. */
-                          if (tmp == 0)
-                            {
-                              yyerror ("Embedded null (\\0) in string literal is not yet supported");
-                              *to++ = ' ';
-                            }
-                          else
-                            *to++ = (unsigned char)tmp;
+                          *to++ = (unsigned char)tmp;
                           break;
                         }
                       case 'x':
@@ -2091,15 +2085,7 @@ case_string:
                                   yywarn ("Illegal character constant.");
                                   tmp = 'x';
                                 }
-                              /* TODO: allow embedded null once L_STRING carries (ptr,len) and
-                               * store_prog_string/grammar folding are byte-span ready. */
-                              if (tmp == 0)
-                                {
-                                  yyerror ("Embedded null (\\x00) in string literal is not yet supported");
-                                  *to++ = ' ';
-                                }
-                              else
-                                *to++ = (unsigned char)tmp;
+                              *to++ = (unsigned char)tmp;
                             }
                           break;
                         }
@@ -2130,13 +2116,18 @@ case_string:
                   case '"':
                     {
                       char *res;
-                      *yyp++ = '\0';
-                      res = scratch_large_alloc ((yyp - yytext) + (to - scr_tail) - 1);
-                      strncpy (res, (char *) (scr_tail + 1), (to - scr_tail) - 1);
-                      strcpy (res + (to - scr_tail) - 1, yytext);
-                      yylval.string = res;
+                      size_t prefix_len = (size_t)((to - scr_tail) - 1);
+                      size_t suffix_len = (size_t)(yyp - yytext);
+                      size_t total_len = prefix_len + suffix_len;
+
+                      res = scratch_large_alloc (total_len + 1);
+                      memcpy (res, (char *) (scr_tail + 1), prefix_len);
+                      memcpy (res + prefix_len, yytext, suffix_len);
+                      res[total_len] = '\0';
+                      yylval.string_span.str = res;
+                      yylval.string_span.len = (unsigned int)total_len;
                       if (wide_char_literal)
-                        ensure_valid_wide_string (yylval.string);
+                        ensure_valid_wide_string (yylval.string_span.str);
                       return L_STRING;
                     }
 
@@ -2241,15 +2232,20 @@ case_string:
 
             /* Not even enough length, declare too long string error */
             lexerror ("String too long");
-            *yyp++ = '\0';
             {
               char *res;
-              res = scratch_large_alloc ((yyp - yytext) + (to - scr_tail) - 1);
-              strncpy (res, (char *) (scr_tail + 1), (to - scr_tail) - 1);
-              strcpy (res + (to - scr_tail) - 1, yytext);
-              yylval.string = res;
+              size_t prefix_len = (size_t)((to - scr_tail) - 1);
+              size_t suffix_len = (size_t)(yyp - yytext);
+              size_t total_len = prefix_len + suffix_len;
+
+              res = scratch_large_alloc (total_len + 1);
+              memcpy (res, (char *) (scr_tail + 1), prefix_len);
+              memcpy (res + prefix_len, yytext, suffix_len);
+              res[total_len] = '\0';
+              yylval.string_span.str = res;
+              yylval.string_span.len = (unsigned int)total_len;
               if (wide_char_literal)
-                ensure_valid_wide_string (yylval.string);
+                ensure_valid_wide_string (yylval.string_span.str);
               return L_STRING;
             }
           }

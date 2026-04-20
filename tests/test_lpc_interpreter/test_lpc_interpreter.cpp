@@ -253,6 +253,37 @@ TEST_F(LPCInterpreterTest, throwZeroNormalizesToUnspecifiedError) {
     free_prog(prog, 1);
 }
 
+TEST_F(LPCInterpreterTest, embeddedNullStringLiteralPaths) {
+    program_t* prog = compile_file(-1, "bytespan_interpreter.c",
+        "string direct() { return \"ab\\0cd\"; }\n"
+        "string hexv() { return \"ab\\x00yz\"; }\n"
+        "string adjacent() { return \"ab\\0\" \"cd\"; }\n"
+        "string plus_fold() { return \"ab\\0\" + \"cd\"; }\n"
+    );
+    ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
+
+    auto assert_string_result = [&](const char* fn_name, const char* expected, size_t expected_len) {
+        int runtime_index = RuntimeIndexFor(prog, fn_name);
+        ASSERT_GE(runtime_index, 0) << "Failed to resolve runtime index for " << fn_name;
+
+        lpc::svalue ret;
+        call_function(prog, runtime_index, 0, ret.raw());
+
+        auto ret_view = ret.view();
+        ASSERT_TRUE(ret_view.is_string()) << "Expected string return from " << fn_name;
+        EXPECT_EQ(ret_view.length(), expected_len) << "Unexpected byte length for " << fn_name;
+        EXPECT_EQ(std::string(ret_view.c_str(), ret_view.length()), std::string(expected, expected_len))
+            << "Unexpected byte payload for " << fn_name;
+    };
+
+    assert_string_result("direct", "ab\0cd", 5);
+    assert_string_result("hexv", "ab\0yz", 5);
+    assert_string_result("adjacent", "ab\0cd", 5);
+    assert_string_result("plus_fold", "ab\0cd", 5);
+
+    free_prog(prog, 1);
+}
+
 TEST_F(LPCInterpreterTest, foreachUtf8String) {
     // Test foreach loop iterating over UTF-8 characters in a string
     // The loop should iterate over each character correctly, handling multi-byte UTF-8 sequences

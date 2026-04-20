@@ -52,7 +52,7 @@ int yyparse(void);
 
 %token <number> L_NUMBER
 %token <real>   L_REAL
-%token <string> L_STRING
+%token <string_span> L_STRING
 %token <type> L_BASIC_TYPE L_TYPE_MODIFIER
 %token <ihe> L_DEFINED_NAME
 %token <string> L_IDENTIFIER L_EFUN
@@ -119,6 +119,10 @@ int yyparse(void);
     int64_t number;
     double real;
     char *string;
+    struct {
+        char *str;
+        unsigned int len;
+    } string_span;
     int type;
     struct { short num_arg; char flags; } argument;
     ident_hash_elem_t *ihe;
@@ -153,7 +157,7 @@ int yyparse(void);
 %type <pointer_int> constant
 
 /* holds a string constant */
-%type <string> string_con1 string_con2
+%type <string_span> string_con1 string_con2
 
 /* Holds the number of elements in a list and whether it must be a prototype */
 %type <argument> argument_list argument
@@ -217,13 +221,13 @@ inheritance
 
             if (var_defined)
                 yyerror("Invalid inherit clause after variables declarations.");
-            ob = find_object_by_name($3);
+            ob = find_object_by_name($3.str);
             if (ob == 0) {
-                inherit_file = alloc_cstring($3, "inherit");
+                inherit_file = alloc_cstring($3.str, "inherit");
                 /* Return back to load_object() */
                 YYACCEPT;
             }
-            scratch_free($3);
+            scratch_free($3.str);
 
             inherit.prog = ob->prog;
             inherit.function_index_offset = (function_index_t)(mem_block[A_RUNTIME_FUNCTIONS].current_size / sizeof (runtime_function_u));
@@ -383,7 +387,7 @@ type_decl
             ident_hash_elem_t *ihe;
 
             ihe = find_or_add_ident(
-                PROG_STRING($<number>$ = store_prog_string($3)),
+                PROG_STRING($<number>$ = store_prog_string_len($3, strlen($3))),
                 FOA_GLOBAL_SCOPE);
             if (ihe->dn.class_num == -1)
                 ihe->sem_value++;
@@ -414,7 +418,7 @@ type_decl
             sme = (class_member_entry_t *)allocate_in_mem_block(A_CLASS_MEMBER, sizeof(class_member_entry_t) * current_number_of_locals);
 
             while (i--) {
-                sme[i].name = store_prog_string(locals_ptr[i]->name);
+                sme[i].name = store_prog_string_len(locals_ptr[i]->name, strlen(locals_ptr[i]->name));
                 sme[i].type = type_of_locals_ptr[i];
             }
 
@@ -1031,8 +1035,8 @@ first_for_expr:
             {
                 int str;
                 
-                str = store_prog_string($1);
-                scratch_free($1);
+                str = store_prog_string_len($1.str, $1.len);
+                scratch_free($1.str);
                 if (context & SWITCH_NUMBERS)
                     yyerror("Mixed case label list not allowed");
                 context |= SWITCH_STRINGS;
@@ -1475,15 +1479,18 @@ add_error:
                         /* Combine strings */
                         int n1, n2;
                         char *s_new, *s1, *s2;
-                        size_t l;
+                        size_t l1, l2;
 
                         n1 = (int)$1->v.number;
                         n2 = (int)$3->v.number;
                         s1 = PROG_STRING(n1);
                         s2 = PROG_STRING(n2);
-                        s_new = (char *)DXALLOC( (l = strlen(s1))+strlen(s2)+1, TAG_COMPILER, "combine string" );
-                        strcpy(s_new, s1);
-                        strcat(s_new + l, s2);
+                        l1 = SHARED_STRLEN(s1);
+                        l2 = SHARED_STRLEN(s2);
+                        s_new = (char *)DXALLOC(l1 + l2 + 1, TAG_COMPILER, "combine string");
+                        memcpy(s_new, s1, l1);
+                        memcpy(s_new + l1, s2, l2);
+                        s_new[l1 + l2] = '\0';
                         /* free old strings (ordering may help shrink table) */
                         if (n1 > n2) {
                             free_prog_string(n1); free_prog_string(n2);
@@ -1491,7 +1498,7 @@ add_error:
                             free_prog_string(n2); free_prog_string(n1);
                         }
                         $$ = $1;
-                        $$->v.number = store_prog_string(s_new);
+                        $$->v.number = store_prog_string_len(s_new, l1 + l2);
                         FREE(s_new);
                         break;
                     }
@@ -2692,8 +2699,8 @@ lvalue_list:
 string:
         string_con2
             {
-                CREATE_STRING($$, $1);
-                scratch_free($1);
+                CREATE_STRING_LEN($$, $1.str, $1.len);
+                scratch_free($1.str);
             }
     ;
 
@@ -2705,7 +2712,16 @@ string_con1:
             }
     |   string_con1 '+' string_con1
             {
-                $$ = scratch_join($1, $3);
+                size_t total_len;
+
+                total_len = (size_t)$1.len + (size_t)$3.len;
+                $$.str = scratch_alloc(total_len + 1);
+                memcpy($$.str, $1.str, $1.len);
+                memcpy($$.str + $1.len, $3.str, $3.len);
+                $$.str[total_len] = '\0';
+                $$.len = (unsigned int)total_len;
+                scratch_free($1.str);
+                scratch_free($3.str);
             }
     ;
 
@@ -2713,7 +2729,16 @@ string_con2:
         L_STRING
     |   string_con2 L_STRING
             {
-                $$ = scratch_join($1, $2);
+                size_t total_len;
+
+                total_len = (size_t)$1.len + (size_t)$2.len;
+                $$.str = scratch_alloc(total_len + 1);
+                memcpy($$.str, $1.str, $1.len);
+                memcpy($$.str + $1.len, $2.str, $2.len);
+                $$.str[total_len] = '\0';
+                $$.len = (unsigned int)total_len;
+                scratch_free($1.str);
+                scratch_free($2.str);
             }
     ;
 

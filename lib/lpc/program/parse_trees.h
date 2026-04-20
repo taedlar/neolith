@@ -222,11 +222,15 @@ typedef struct parse_node_block_s {
 	(vn)->v.number = val;\
 	} while(0)
 
-#define CREATE_STRING(vn, val) do {\
+#define CREATE_STRING_LEN(vn, val, len) do {\
 	(vn) = new_node_no_line();\
 	(vn)->kind = NODE_STRING;\
 	(vn)->type = TYPE_STRING;\
-	(vn)->v.number = store_prog_string(val);\
+	(vn)->v.number = store_prog_string_len(val, len);\
+	} while(0)
+
+#define CREATE_STRING(vn, val) do {\
+	CREATE_STRING_LEN(vn, val, strlen(val));\
 	} while(0)
 
 #define CREATE_EXPR_LIST(vn, pn) do {\

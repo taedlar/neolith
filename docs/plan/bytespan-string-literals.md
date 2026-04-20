@@ -6,9 +6,28 @@ Allow LPC source strings to contain embedded null bytes (`\0`, `\x00`). Today th
 
 | Stage | Title | Status |
 |-------|-------|--------|
-| 1 | Lexer and compiler pipeline | not started |
-| 2 | `save_binary` / `load_binary` round-trip | not started |
-| 3 | Unit tests | not started |
+| 1 | Lexer and compiler pipeline | complete |
+| 2 | `save_binary` / `load_binary` round-trip | complete |
+| 3 | Unit tests | complete |
+
+## Current State Handoff
+
+- Date: 2026-04-20
+- Started implementation with the `load_binary` string-table fix in [lib/lpc/program/binaries.c](../../lib/lpc/program/binaries.c): `make_shared_string(buf, NULL)` changed to `make_shared_string(buf, buf + len)`.
+- This removes `strlen` truncation for embedded-null bytes during binary load.
+- Added `store_prog_string_len(const char *, size_t)` in [lib/lpc/compiler.c](../../lib/lpc/compiler.c) and switched binary string-switch patching to use explicit byte length (`SHARED_STRLEN`) in [lib/lpc/program/binaries.c](../../lib/lpc/program/binaries.c).
+- `L_STRING` now carries byte-span data (`str`, `len`) in [lib/lpc/grammar.y](../../lib/lpc/grammar.y) and [lib/lpc/lex.c](../../lib/lpc/lex.c).
+- Parser string concatenation rules now concatenate by explicit byte length (no `strlen`) in [lib/lpc/grammar.y](../../lib/lpc/grammar.y).
+- Added binary round-trip regression coverage with embedded-null literals in [tests/test_lpc_compiler/test_save_binary.cpp](../../tests/test_lpc_compiler/test_save_binary.cpp) plus LPC fixture [examples/m3_mudlib/api/bytespan.c](../../examples/m3_mudlib/api/bytespan.c).
+- Added lexer embedded-null coverage in [tests/test_lpc_lexer/test_lpc_lexer.cpp](../../tests/test_lpc_lexer/test_lpc_lexer.cpp).
+- No binary-format changes were introduced.
+- Remaining work focus: monitor follow-up refactors for generated parser/lexer artifacts and keep new byte-span tests in the default CI matrix.
+
+## Lessons Learned
+
+- The binary file format already stored string-table entries as length-prefixed bytes; the data-loss bug was solely in load-time reconstruction via `strlen`.
+- Converting parser string production rules to span-aware concatenation removed most hidden `strlen` dependencies without touching runtime `svalue_t` layout.
+- Hex escapes consume all subsequent hex digits by design (`strtol(..., 16)`), so tests should use non-hex suffix bytes when validating exact `\x00` behavior.
 
 ---
 
