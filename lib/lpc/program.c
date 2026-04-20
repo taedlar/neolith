@@ -7,7 +7,7 @@
 
 size_t total_num_prog_blocks, total_prog_block_size;
 
-void reference_prog (program_t * progp, char *from) {
+void reference_prog (program_t * progp, const char *from) {
   (void) from;		/* unused */
   progp->ref++;
 }

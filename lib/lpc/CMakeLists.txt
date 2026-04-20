@@ -58,7 +58,7 @@ set(lpc_SOURCES
     otable.c
     svalue.cpp
     program.c
-    program/binaries.c
+    program/binaries.cpp
     program/disassemble.c
     program/generate.c
     program/icode.c

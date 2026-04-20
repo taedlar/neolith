@@ -21,9 +21,9 @@ int num_arrays;
 size_t total_array_size;
 #endif
 
-static int builtin_sort_array_cmp_fwd (svalue_t *, svalue_t *);
-static int builtin_sort_array_cmp_rev (svalue_t *, svalue_t *);
-static int sort_array_cmp (svalue_t *, svalue_t *);
+static int builtin_sort_array_cmp_fwd (void *, void *);
+static int builtin_sort_array_cmp_rev (void *, void *);
+static int sort_array_cmp (void *, void *);
 static int deep_inventory_count (object_t *);
 static void deep_inventory_collect (object_t *, array_t *, int *);
 static int alist_cmp (svalue_t *, svalue_t *);
@@ -1116,7 +1116,9 @@ array_t* builtin_sort_array (array_t * inlist, int dir) {
   return inlist;
 }
 
-static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
+static int builtin_sort_array_cmp_fwd (void *left, void *right) {
+  svalue_t *p1 = (svalue_t *) left;
+  svalue_t *p2 = (svalue_t *) right;
 
   switch (p1->type | p2->type)
     {
@@ -1173,7 +1175,9 @@ static int builtin_sort_array_cmp_fwd (svalue_t * p1, svalue_t * p2) {
   return 0;
 }
 
-static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
+static int builtin_sort_array_cmp_rev (void *left, void *right) {
+  svalue_t *p1 = (svalue_t *) left;
+  svalue_t *p2 = (svalue_t *) right;
 
   switch (p1->type | p2->type)
     {
@@ -1230,7 +1234,9 @@ static int builtin_sort_array_cmp_rev (svalue_t * p1, svalue_t * p2) {
   return 0;
 }
 
-static int sort_array_cmp (svalue_t * p1, svalue_t * p2) {
+static int sort_array_cmp (void *left, void *right) {
+  svalue_t *p1 = (svalue_t *) left;
+  svalue_t *p2 = (svalue_t *) right;
 
   svalue_t *d;
 

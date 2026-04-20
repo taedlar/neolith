@@ -17,7 +17,7 @@
 #define MAX_LEN 1000
 
 static void doSwap (char *, char *, int);
-static void qSort (void *, int, int, int, int, int (*)());
+static void qSort (void *, int, int, int, int, int (*) (void *, void *));
 
 static void
 doSwap (register char *one, register char *two, int size)

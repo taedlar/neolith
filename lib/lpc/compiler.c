@@ -1852,8 +1852,10 @@ void copy_in (int which, char **start) {
 }
 
 static int
-compare_compiler_funcs (int *x, int *y)
+compare_compiler_funcs (void *left, void *right)
 {
+  int *x = (int *) left;
+  int *y = (int *) right;
   char *n1 = COMPILER_FUNC (*x)->name;
   char *n2 = COMPILER_FUNC (*y)->name;
   int sp1, sp2;
@@ -2417,7 +2419,10 @@ the_file_name (char *name)
   return tmp;
 }
 
-int case_compare (parse_node_t ** c1, parse_node_t ** c2) {
+int case_compare (void *left, void *right) {
+  parse_node_t **c1 = (parse_node_t **) left;
+  parse_node_t **c2 = (parse_node_t **) right;
+
   if ((*c1)->kind == NODE_DEFAULT)
     return -1;
   if ((*c2)->kind == NODE_DEFAULT)
@@ -2426,7 +2431,9 @@ int case_compare (parse_node_t ** c1, parse_node_t ** c2) {
   return (int)((*c1)->r.number - (*c2)->r.number);
 }
 
-int string_case_compare (parse_node_t ** c1, parse_node_t ** c2) {
+int string_case_compare (void *left, void *right) {
+  parse_node_t **c1 = (parse_node_t **) left;
+  parse_node_t **c2 = (parse_node_t **) right;
   int64_t i1, i2;
   char *p1, *p2;
 

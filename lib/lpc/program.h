@@ -247,7 +247,7 @@ typedef struct program_s
 
 extern size_t total_num_prog_blocks;
 extern size_t total_prog_block_size;
-void reference_prog(program_t *, char *);
+void reference_prog(program_t *, const char *);
 void free_prog(program_t *, int);
 void deallocate_program(program_t *);
 char *variable_name(program_t *, int);

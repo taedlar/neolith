@@ -27,14 +27,14 @@
 #include "qsort.h"
 #include "hash.h"
 
-static char *magic_id = "NEOL";
-static uint32_t driver_id = 0x20260418; /* increment when driver changes */
+static const char *magic_id = "NEOL";
+static const uint32_t driver_id = 0x20260418; /* increment when driver changes */
 static uint64_t config_id = 0;
 
 static FILE *crdir_fopen(char *);
 static void patch_out (program_t *, short *, size_t);
 static void patch_in (program_t *, short *, size_t);
-static int str_case_cmp (char *, char *);
+static int str_case_cmp (void *, void *);
 static int check_times (time_t, const char *);
 static int locate_in (program_t *);
 static int locate_out (program_t *);
@@ -45,7 +45,7 @@ static int locate_out (program_t *);
  * @param includes memory block containing the list of include files
  * @param patches memory block containing the patch information
  */
-void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches) {
+extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches) {
 
   char file_name_buf[200];
   char *file_name = file_name_buf;
@@ -260,9 +260,9 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
 
 static program_t *comp_prog;
 
-static int
-compare_compiler_funcs (int *x, int *y)
-{
+extern "C" int compare_compiler_funcs (void *left, void *right) {
+  int *x = static_cast<int *>(left);
+  int *y = static_cast<int *>(right);
   char *n1 = comp_prog->function_table[*x].name;
   char *n2 = comp_prog->function_table[*y].name;
 
@@ -411,7 +411,7 @@ sort_function_table (program_t * prog)
  * @param name the name of the program to load
  * @return the loaded program, or OUT_OF_DATE if the binary is out of date
  */
-program_t *load_binary (const char *name) {
+extern "C" program_t *load_binary (const char *name) {
 
   char file_name_buf[400];
   char *buf, *iname, *file_name = file_name_buf, *file_name_two = &file_name_buf[200];
@@ -840,7 +840,7 @@ program_t *load_binary (const char *name) {
   return prog;
 }
 
-void init_binaries () {
+extern "C" void init_binaries () {
 
   if (CONFIG_STR(__SAVE_BINARIES_DIR__))
     {
@@ -931,8 +931,10 @@ patch_out (program_t * prog, short *patches, size_t len)
 }				/* patch_out() */
 
 static int
-str_case_cmp (char *a, char *b)
+str_case_cmp (void *left, void *right)
 {
+  char *a = static_cast<char *>(left);
+  char *b = static_cast<char *>(right);
   char *s1, *s2;
 
   COPY_PTR (&s1, a);
