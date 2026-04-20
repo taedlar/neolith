@@ -1173,7 +1173,7 @@ char* get_type_name (char *where, char *end, int type) {
     var = (intptr_t)(str) ^ (intptr_t)(str) >> 16; \
     var = (var ^ var >> 8) & 0xff;
 
-short store_prog_string (const char *string_data) {
+short store_prog_string_len (const char *string_data, size_t length) {
 
   short i, next;
   short *next_tab, *idxp;
@@ -1181,7 +1181,7 @@ short store_prog_string (const char *string_data) {
   intptr_t hash;
   unsigned char mask, *tagp;
 
-  str = make_shared_string(string_data, NULL);
+  str = make_shared_string(string_data, string_data + length);
   STRING_HASH (hash, str);
   idxp = &string_idx[hash];
 
@@ -1244,6 +1244,10 @@ short store_prog_string (const char *string_data) {
   ((short *) mem_block[A_STRING_REFS].block)[i] = 1;
   *idxp = i;
   return i;
+}
+
+short store_prog_string (const char *string_data) {
+  return store_prog_string_len(string_data, strlen(string_data));
 }
 
 void free_prog_string (int num) {

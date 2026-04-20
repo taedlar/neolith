@@ -669,7 +669,7 @@ program_t *load_binary (const char *name) {
           if (fread (buf, sizeof (char), len, f) == len)
             {
               buf[len] = '\0';
-              p->strings[i] = make_shared_string(buf, NULL);
+              p->strings[i] = make_shared_string(buf, buf + len);
               continue;
             }
         }
@@ -922,7 +922,7 @@ patch_out (program_t * prog, short *patches, size_t len)
               if (s == 0)
                 s = (char *) (intptr_t) - 1;
               else
-                s = (char *) (intptr_t) store_prog_string (s);
+                s = (char *) (intptr_t) store_prog_string_len (s, SHARED_STRLEN(s));
               COPY_PTR (p + offset, &s);
               offset += SWITCH_CASE_SIZE;
             }

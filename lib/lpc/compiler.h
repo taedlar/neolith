@@ -216,6 +216,7 @@ void arrange_call_inherited(char *, parse_node_t *);
 function_number_t define_new_function(char *, int, int, uint64_t, int);
 int define_new_variable(char *, int);
 short store_prog_string(const char *);
+short store_prog_string_len(const char *, size_t);
 void free_prog_string(int);
 void prepare_cases(parse_node_t *, size_t);
 void push_func_block(void);

@@ -58,6 +58,76 @@ Unlike original MudOS, Neolith follows the modern C preprocessor rule: a directi
 
 This is particularly useful when LPC code is generated or embedded inside other text where directives may be indented.
 
+### Text blocks (`@`) and array blocks (`@@`)
+
+Neolith supports heredoc-style blocks in LPC source.
+
+Use `@TERMINATOR` to create one string value, or `@@TERMINATOR` to create an
+array of strings.
+
+- `@TERMINATOR`: returns a single string containing all lines up to (but not including) the terminator line.
+- `@@TERMINATOR`: returns an array where each input line becomes one string element.
+- The terminator must appear on its own line.
+
+Text blocks preserve byte-span string semantics. Content is captured as text,
+and normal LPC string escaping rules are applied consistently when the final
+string token is parsed. See also [string](#string) in [Basic types](#basic-types).
+
+Supported escape forms inside `@` text blocks follow normal string literal rules:
+
+| Form | Result |
+|------|--------|
+| `\\n` | newline (LF) |
+| `\\t` | tab |
+| `\\r` | carriage return |
+| `\\b` | backspace |
+| `\\a` | bell |
+| `\\e` | escape (0x1B) |
+| `\\"` | double quote |
+| `\\\\` | backslash |
+| `\\xHH...` | hex byte value |
+| `\\NNN` | octal byte value |
+| `\\` + newline | line continuation (no byte emitted) |
+| unknown escape (for example `\\q`) | preserved as `\\q` with a warning |
+
+Newline behavior for `@` text blocks:
+
+- Each non-terminator source line contributes one newline character (`\n`) to the resulting string.
+- The line immediately before the terminator also ends with `\n`.
+- An empty text block (terminator appears on the next line) produces `""` with no newline.
+
+```lpc
+string s;
+
+s = @END
+alpha
+beta
+END;
+
+// s == "alpha\nbeta\n"
+```
+
+```lpc
+string msg;
+
+msg = @END
+Hello adventurer,
+Welcome to Neolith.
+END;
+```
+
+```lpc
+string *lines;
+
+lines = @@END
+first line
+second line
+END;
+```
+
+These forms are useful for long prompts, templates, help text, and generated
+messages without heavy quote escaping.
+
 ### `#pragma` options
 
 | Pragma | Effect |
@@ -182,15 +252,17 @@ r = 3e+4d; // == 30000.0
 ~~~
 
 ### `string`
-An unlimited string of characters (no '\0' allowed tho). 
+A `string` in Neolith is a counted byte sequence with an associated length.
+Unlike C strings, LPC strings may contain embedded null bytes (`\0`) and all
+normal LPC string operations (concatenation, slicing, equality, ordering)
+operate on the full byte span.
 
-You can take a substring from a variable by using the substring operation (`str[n1..n2]`).
-Positive values are taken from the left and negative values from the right.
-If a value is greater than the length of the string it will be treated as being equal to the length of the string.
+You can take a substring with the range operator (`str[n1..n2]`). Positive
+indexes are from the left; negative indexes are from the right.
 
-If the two values are equal (`str[n1..n1]`) then the character at that position (n1) is returned.
-If both values point to positions beyond the same end of the string the null string (`""`) is returned.
-If the position pointed to by the first value is after the one pointed to by the second then the null string is also returned.
+If both indexes resolve beyond the same end of the string, the empty string is
+returned. If the first resolved position is after the second resolved position,
+the empty string is also returned.
 
 Examples:
 ~~~cxx
@@ -202,33 +274,19 @@ str = "abcdefg";
 - str[-7..6] == "abcdefg"
 - str[3..2] == ""
 
-Wide character strings are supported in Neolith as an extension to original LPC.
-Unlinke in C, the `string` type in LPC is not a primitive character array, but a high level abstract data type more similar to modern C++'s `std::string`.
-
-LPC strings in Neolith are byte-sequence values with an associated length.
-They may contain embedded null bytes (`\0`), and language-level string
-operations such as slicing, concatenation, equality, and ordering operate on
-the full byte span rather than stopping at the first null byte.
-
-This is different from native C-string semantics. When LPC code needs to cross
-an API boundary that expects a null-terminated C string, that conversion must
-be explicit. Use `c_str()` to truncate an LPC string at the first null byte and
-produce the C-string prefix as a new LPC string. Likewise, `strcmp()` keeps its
-traditional C-library behavior and compares only up to the first null byte.
-
-Neolith allows LPC program to assign a wide character string literal using C++'s `wchar_t` syntax:
+Neolith also supports wide string literals using `L"..."` syntax:
 ~~~cxx
 str = L"こんにちは";
 ~~~
-The `L` prefix requires the lexial parser to **verify** if the literl string is a valid wide character string in current locale at compile time.
-If the string contains any illegal multi-byte sequence, a compile time error is raised.
+For wide literals, the lexer validates that the resulting byte sequence is a
+valid multibyte string in the active locale (typically UTF-8). Invalid
+sequences raise a compile-time error.
 
-> [!IMPORTANT]
-> Neolith always store a LPC string in multi-byte encoding internally (i.e. UTF-8). The `L` prefix only affects compile time validation.
->
-> Neolith may work under some legacy multi-byte encoding (such as Big-5 Chinese).
-> But these encoding may conflict with the backslash escape sequence like `\n` in string literals and causes many problems.
-> It is strongly recommended to always set your locale to UTF-8 encoding to ensure best compatibility with LPC.
+When LPC code must cross a C-string boundary, conversion is explicit. Use
+`c_str()` when you intentionally need null-terminated C-string behavior.
+
+For multiline string construction syntax, see [Text blocks (`@`) and array
+blocks (`@@`)](#text-blocks--and-array-blocks-).
 
 ### `buffer`
 
