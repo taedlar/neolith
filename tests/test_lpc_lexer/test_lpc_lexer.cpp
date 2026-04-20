@@ -103,7 +103,7 @@ TEST_F(LPCLexerTest, parseEmbeddedNullStringLiteral) {
 TEST_F(LPCLexerTest, parseCharLiteral) {
     current_file = make_shared_string("char_test", NULL);
     current_file_id = 0;
-    start_new_file (-1, "'c' '\\n' '\\\\' L'は'\n");
+    start_new_file (-1, "'c' '\\n' '\\\\' L'は' L'界'\n");
     EXPECT_EQ(yylex(), L_NUMBER);
     EXPECT_EQ(yylval.number, 'c');
     EXPECT_EQ(yylex(), L_NUMBER);
@@ -112,6 +112,43 @@ TEST_F(LPCLexerTest, parseCharLiteral) {
     EXPECT_EQ(yylval.number, '\\');
     EXPECT_EQ(yylex(), L_NUMBER);
     EXPECT_EQ(yylval.number, L'は'); // wide character literal (Neolith extension to LPC)
+    EXPECT_EQ(yylex(), L_NUMBER);
+    EXPECT_EQ(yylval.number, L'界');
+    EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(to_shared_str(current_file));
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseWideStringLiteralWithEmbeddedNull) {
+    current_file = make_shared_string("wide_string_null_test", NULL);
+    current_file_id = 0;
+    start_new_file (-1, "L\"ab\\0cd\"\n");
+
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_EQ(yylval.string_span.len, 5u);
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), std::string("ab\0cd", 5));
+    EXPECT_EQ(yylex(), -1); // EOF
+
+    end_new_file ();
+    free_string(to_shared_str(current_file));
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseWideStringLiteralEmbeddedNullFollowedByUnicode) {
+    current_file = make_shared_string("wide_string_embedded_null_unicode_test", NULL);
+    current_file_id = 0;
+
+    start_new_file (-1, "L\"ok\\0界\" \"tail\"\n");
+
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_EQ(yylval.string_span.len, 6u);
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), std::string("ok\0界", 6));
+
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), "tail");
+    EXPECT_EQ(yylex(), -1);
+
     end_new_file ();
     free_string(to_shared_str(current_file));
     current_file = 0;
@@ -152,6 +189,44 @@ TEST_F(LPCLexerTest, parseEfuns) {
     EXPECT_EQ(yylval.ihe->token & IHE_EFUN, IHE_EFUN);
     EXPECT_EQ(yylex(), L_IDENTIFIER);
     EXPECT_EQ(yylex(), -1); // EOF
+    end_new_file ();
+    free_string(to_shared_str(current_file));
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseTextBlockPreservesBackslashSequences) {
+    current_file = make_shared_string("text_block_escape_test", NULL);
+    current_file_id = 0;
+
+    start_new_file (-1,
+        "@END\n"
+        "ab\\0cd\n"
+        "END\n");
+
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_EQ(yylval.string_span.len, 7u);
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), std::string("ab\\0cd\n", 7));
+    EXPECT_EQ(yylex(), -1);
+
+    end_new_file ();
+    free_string(to_shared_str(current_file));
+    current_file = 0;
+}
+
+TEST_F(LPCLexerTest, parseTextBlockPreservesQuoteAndBackslashBytes) {
+    current_file = make_shared_string("text_block_quote_backslash_test", NULL);
+    current_file_id = 0;
+
+    start_new_file (-1,
+        "@END\n"
+        "a\"b\\c\n"
+        "END\n");
+
+    EXPECT_EQ(yylex(), L_STRING);
+    EXPECT_EQ(yylval.string_span.len, 6u);
+    EXPECT_EQ(std::string(yylval.string_span.str, yylval.string_span.len), std::string("a\"b\\c\n", 6));
+    EXPECT_EQ(yylex(), -1);
+
     end_new_file ();
     free_string(to_shared_str(current_file));
     current_file = 0;

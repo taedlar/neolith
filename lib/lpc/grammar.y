@@ -221,6 +221,13 @@ inheritance
 
             if (var_defined)
                 yyerror("Invalid inherit clause after variables declarations.");
+
+            if (memchr($3.str, '\0', $3.len) != NULL) {
+                yyerror("Inherited file path must not contain embedded null bytes.");
+                scratch_free($3.str);
+                break;
+            }
+
             ob = find_object_by_name($3.str);
             if (ob == 0) {
                 inherit_file = alloc_cstring($3.str, "inherit");

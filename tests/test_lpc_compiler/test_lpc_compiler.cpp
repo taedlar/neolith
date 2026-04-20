@@ -386,3 +386,28 @@ TEST_F(LPCCompilerTest, dotCallDisallowedEfunFailsCompile) {
     pop_context (&econ);
     tear_down_simulate();
 }
+
+TEST_F(LPCCompilerTest, inheritPathWithEmbeddedNullFailsCompile) {
+    setup_simulate();
+    init_master(CONFIG_STR(__MASTER_FILE__), NULL);
+    ASSERT_NE(master_ob, nullptr);
+
+    current_object = master_ob;
+    const char *test_code =
+        "inherit \"std/object\\0evil\";\n"
+        "void create() {}\n";
+
+    error_context_t econ;
+    save_context (&econ);
+    try {
+        object_t *obj = load_object("test_inherit_embedded_null_fail.c", test_code);
+        EXPECT_EQ(obj, nullptr) << "inherit with embedded null path unexpectedly compiled.";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context (&econ);
+        debug_message("***** expected error: inherit path contains embedded null.");
+    }
+
+    pop_context (&econ);
+    tear_down_simulate();
+}

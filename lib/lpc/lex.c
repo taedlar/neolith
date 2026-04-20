@@ -2,6 +2,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <wchar.h>
+
 /* Revision:
  * 93-06-27 (Robocoder):
  *   Adjusted the meaning of the EXPECT_* flags;
@@ -822,7 +824,6 @@ static int get_text_block (char *term) {
           /*
            * insert text block into input stream
            */
-          *--outptr = '\0';
           *--outptr = '"';
 
           for (i = startchunk; i >= 0; i--)
@@ -1249,9 +1250,32 @@ static int old_func () {
   return L_FUNCTION_OPEN;
 }
 
-static void ensure_valid_wide_string(const char* mbs) {
-  if (mbstowcs(NULL, mbs, 0) == (size_t)-1)
-    lexerror("Invalid wide string literal.");
+static void ensure_valid_wide_string (const char *mbs, size_t len) {
+  mbstate_t state;
+  wchar_t wc;
+  size_t consumed;
+
+  memset (&state, 0, sizeof(state));
+
+  while (len > 0)
+    {
+      consumed = mbrtowc (&wc, mbs, len, &state);
+      if (consumed == (size_t)-1 || consumed == (size_t)-2)
+        {
+          lexerror ("Invalid wide string literal.");
+          return;
+        }
+
+      /* Embedded NUL is a valid code point and consumes one input byte. */
+      if (consumed == 0)
+        consumed = 1;
+
+      mbs += consumed;
+      len -= consumed;
+    }
+
+  if (!mbsinit (&state))
+    lexerror ("Invalid wide string literal.");
 }
 
 #define return_assign(opcode) { yylval.number = opcode; return L_ASSIGN; }
@@ -1948,18 +1972,13 @@ int yylex () {
 
                 if (rc > 0)
                   {
-                    int n;
-
                     /*
-                     * make string token and clean up
+                     * Re-lex the injected quoted text using the normal
+                     * string literal path so escape handling and byte-span
+                     * length accounting match regular LPC strings.
                      */
-                    yylval.string_span.str = scratch_copy_string (outptr);
-                    yylval.string_span.len = (unsigned int)strlen(yylval.string_span.str);
-
-                    n = (int)strlen (outptr) + 1;
-                    outptr += n;
-
-                    return L_STRING;
+                    wide_char_literal = 0;
+                    break;
                   }
                 else if (rc == -1)
                   {
@@ -1998,7 +2017,7 @@ case_string:
                     yylval.string_span.str = (char *) scr_last;
                     yylval.string_span.len = (unsigned int)((to - scr_last) - 1);
                     if (wide_char_literal)
-                      ensure_valid_wide_string (yylval.string_span.str);
+                      ensure_valid_wide_string (yylval.string_span.str, yylval.string_span.len);
                     return L_STRING;
 
                   case '\n':
@@ -2127,7 +2146,7 @@ case_string:
                       yylval.string_span.str = res;
                       yylval.string_span.len = (unsigned int)total_len;
                       if (wide_char_literal)
-                        ensure_valid_wide_string (yylval.string_span.str);
+                        ensure_valid_wide_string (yylval.string_span.str, yylval.string_span.len);
                       return L_STRING;
                     }
 
@@ -2245,7 +2264,7 @@ case_string:
               yylval.string_span.str = res;
               yylval.string_span.len = (unsigned int)total_len;
               if (wide_char_literal)
-                ensure_valid_wide_string (yylval.string_span.str);
+                ensure_valid_wide_string (yylval.string_span.str, yylval.string_span.len);
               return L_STRING;
             }
           }
