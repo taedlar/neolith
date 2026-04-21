@@ -70,16 +70,16 @@ void pop_stack(void);
  * after consuming the return value.
  */
 #define CALL_FUNCTION_POINTER_SLOT_CALL(funp, num_arg) \
-    (push_undefined(), call_function_pointer_mode((funp), (num_arg), 1))
+    (push_undefined(), call_function_pointer((funp), (num_arg), 1))
 #define SAFE_CALL_FUNCTION_POINTER_SLOT_CALL(funp, num_arg) \
-    (push_undefined(), safe_call_function_pointer_mode((funp), (num_arg), 1))
+    (push_undefined(), safe_call_function_pointer((funp), (num_arg), 1))
 #define CALL_FUNCTION_POINTER_SLOT_FINISH() pop_stack()
 
 /* Compatibility wrappers for existing non-slot call sites. */
 #define CALL_FUNCTION_POINTER_CALL(funp, num_arg) \
-    call_function_pointer_mode((funp), (num_arg), 0)
+    call_function_pointer((funp), (num_arg), 0)
 #define SAFE_CALL_FUNCTION_POINTER_CALL(funp, num_arg) \
-    safe_call_function_pointer_mode((funp), (num_arg), 0)
+    safe_call_function_pointer((funp), (num_arg), 0)
 
 /*
  * eoperators.c
@@ -88,12 +88,8 @@ void push_funp(funptr_t *);
 void free_funp(funptr_t *);
 
 int merge_arg_lists(int, array_t *, int);
-svalue_t *call_function_pointer_mode(funptr_t *, int, int);
-svalue_t *call_function_pointer(funptr_t *, int);
-svalue_t *call_function_pointer_with_slot(funptr_t *, int);
-svalue_t *safe_call_function_pointer_mode(funptr_t *, int, int);
-svalue_t *safe_call_function_pointer(funptr_t *, int);
-svalue_t *safe_call_function_pointer_with_slot(funptr_t *, int);
+svalue_t *call_function_pointer(funptr_t *, int, int);
+svalue_t *safe_call_function_pointer(funptr_t *, int, int);
 
 #ifdef __cplusplus
 }

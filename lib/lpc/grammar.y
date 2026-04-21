@@ -3030,6 +3030,7 @@ function_call:
 
 efun_override: L_EFUN L_COLON_COLON identifier {
         svalue_t *res;
+    int approved;
         ident_hash_elem_t *ihe;
 
         $$ = (ihe = lookup_ident($3)) ? ihe->dn.efun_num : -1;
@@ -3045,8 +3046,10 @@ efun_override: L_EFUN L_COLON_COLON identifier {
             push_malloced_string(the_file_name(current_file));
             share_and_push_string($3);
             push_malloced_string(add_slash(main_file_name()));
-            res = safe_apply_master_ob(APPLY_VALID_OVERRIDE, 3);
-            if (!MASTER_APPROVED(res)) {
+            res = APPLY_SLOT_SAFE_MASTER_CALL(APPLY_VALID_OVERRIDE, 3);
+            approved = MASTER_APPROVED(res);
+            APPLY_SLOT_FINISH_CALL();
+            if (!approved) {
                 yyerror("Invalid simulated efunction override");
                 $$ = -1;
             }
@@ -3056,13 +3059,16 @@ efun_override: L_EFUN L_COLON_COLON identifier {
     | L_EFUN L_COLON_COLON L_NEW {
         ident_hash_elem_t *ihe;
         svalue_t *res;
+        int approved;
         
         ihe = lookup_ident("clone_object");
         push_malloced_string(the_file_name(current_file));
         push_constant_string("clone_object");
         push_malloced_string(add_slash(main_file_name()));
-        res = safe_apply_master_ob(APPLY_VALID_OVERRIDE, 3);
-        if (!MASTER_APPROVED(res)) {
+        res = APPLY_SLOT_SAFE_MASTER_CALL(APPLY_VALID_OVERRIDE, 3);
+        approved = MASTER_APPROVED(res);
+        APPLY_SLOT_FINISH_CALL();
+        if (!approved) {
             yyerror("Invalid simulated efunction override");
             $$ = -1;
         } else $$ = ihe->dn.efun_num;

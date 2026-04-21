@@ -411,7 +411,7 @@ void clear_apply_cache (void) {
  * are deallocated.
  */
 
-svalue_t *apply_mode (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+svalue_t *apply_call (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
   IF_DEBUG (svalue_t *expected_sp);
   svalue_t *ret_slot = sp - num_arg;
 
@@ -423,19 +423,19 @@ svalue_t *apply_mode (const char *fun, object_t *ob, int num_arg, int where, int
 
   if (with_slot)
     {
-      free_svalue (ret_slot, "apply_with_slot");
+      free_svalue (ret_slot, "apply_call");
       *ret_slot = *sp--;
       DEBUG_CHECK (expected_sp != sp, "Corrupt stack pointer.\n");
       return ret_slot;
     }
 
-  free_svalue (sp, "apply:compat_discard");
+  free_svalue (sp, "apply_call");
   sp--;
   DEBUG_CHECK (expected_sp != sp, "Corrupt stack pointer.\n");
   return &const1;
 }
 
-svalue_t *safe_apply_mode (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
   svalue_t *ret = 0;
   error_context_t econ;
 
@@ -450,7 +450,7 @@ svalue_t *safe_apply_mode (const char *fun, object_t *ob, int num_arg, int where
 
       try
         {
-          ret = apply_mode (fun, ob, num_arg, where, with_slot);
+          ret = apply_call (fun, ob, num_arg, where, with_slot);
         }
       catch (const neolith::driver_runtime_error &)
         {
@@ -466,7 +466,7 @@ svalue_t *safe_apply_mode (const char *fun, object_t *ob, int num_arg, int where
   return ret;
 }
 
-svalue_t *apply_master_ob_mode (const char *fun, int num_arg, int with_slot) {
+svalue_t *apply_master_ob (const char *fun, int num_arg, int with_slot) {
   svalue_t *ret_slot = sp - num_arg;
 
   if (!master_ob)
@@ -482,76 +482,23 @@ svalue_t *apply_master_ob_mode (const char *fun, int num_arg, int with_slot) {
 
   if (with_slot)
     {
-      free_svalue (ret_slot, "apply_master_ob_with_slot");
+      free_svalue (ret_slot, "apply_master_ob");
       *ret_slot = *sp--;
       return ret_slot;
     }
 
-  free_svalue (sp, "apply_master_ob:compat_discard");
+  free_svalue (sp, "apply_master_ob");
   sp--;
   return &const1;
 }
 
-svalue_t *safe_apply_master_ob_mode (const char *fun, int num_arg, int with_slot) {
+svalue_t *safe_apply_master_ob (const char *fun, int num_arg, int with_slot) {
   if (!master_ob)
     {
       pop_n_elems (num_arg);
       return (svalue_t *) - 1;
     }
-  return safe_apply_mode (fun, master_ob, num_arg, ORIGIN_DRIVER, with_slot);
-}
-
-svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
-{
-  return apply_mode (fun, ob, num_arg, where, 0);
-}
-
-svalue_t *apply_with_slot (const char *fun, object_t * ob, int num_arg, int where) {
-  return apply_mode (fun, ob, num_arg, where, 1);
-}
-
-/**
- * @brief A "safe" version of apply.
- * This allows you to have dangerous driver mudlib dependencies
- * and not have to worry about causing serious bugs when errors occur in the
- * applied function and the driver depends on being able to do something
- * after the apply. (such as the ed exit function, and the net_dead function).
- *
- * @param fun The function name to apply.
- * @param ob The object to apply the function to.
- * @param num_arg The number of arguments already pushed on the stack.
- * @param where The origin context of the apply call.
- * @returns Pointer to the return value, or NULL if function not found or exception occurred.
- */
-svalue_t *safe_apply (const char *fun, object_t *ob, int num_arg, int where) {
-  return safe_apply_mode (fun, ob, num_arg, where, 0);
-}
-
-svalue_t *safe_apply_with_slot (const char *fun, object_t *ob, int num_arg, int where) {
-  return safe_apply_mode (fun, ob, num_arg, where, 1);
-}
-
-/**
- * Call master object applies.
- * If the master object can't be loaded, return `(svalue_t *)-1` to indicate such case.
- * This means that we haven't gotten to loading the master object yet in main.c. In
- * some cases, the check should succeed.
- */
-svalue_t *apply_master_ob (const char *fun, int num_arg) {
-  return apply_master_ob_mode (fun, num_arg, 0);
-}
-
-svalue_t *apply_master_ob_with_slot (const char *fun, int num_arg) {
-  return apply_master_ob_mode (fun, num_arg, 1);
-}
-
-svalue_t *safe_apply_master_ob (const char *fun, int num_arg)
-{
-  return safe_apply_master_ob_mode (fun, num_arg, 0);
-}
-
-svalue_t *safe_apply_master_ob_with_slot (const char *fun, int num_arg) {
-  return safe_apply_master_ob_mode (fun, num_arg, 1);
+  return safe_apply_call (fun, master_ob, num_arg, ORIGIN_DRIVER, with_slot);
 }
 
 /*

@@ -368,7 +368,7 @@ static svalue_t *call_function_pointer_internal (funptr_t * funp, int num_arg, s
 
           if (ret_slot)
             {
-              free_svalue (ret_slot, "call_function_pointer_with_slot");
+              free_svalue (ret_slot, "call_function_pointer");
               if (instrs[i].ret_type == TYPE_NOVALUE)
                 *ret_slot = const0;
               else
@@ -379,7 +379,7 @@ static svalue_t *call_function_pointer_internal (funptr_t * funp, int num_arg, s
 
           if (instrs[i].ret_type != TYPE_NOVALUE)
             {
-              free_svalue (sp, "call_function_pointer:compat_discard");
+              free_svalue (sp, "call_function_pointer");
               sp--;
             }
           remove_fake_frame ();
@@ -446,32 +446,24 @@ static svalue_t *call_function_pointer_internal (funptr_t * funp, int num_arg, s
     }
   if (ret_slot)
     {
-      free_svalue (ret_slot, "call_function_pointer_with_slot");
+      free_svalue (ret_slot, "call_function_pointer");
       *ret_slot = *sp--;
       remove_fake_frame ();
       return ret_slot;
     }
 
-  free_svalue (sp, "call_function_pointer:compat_discard");
+  free_svalue (sp, "call_function_pointer");
   sp--;
   remove_fake_frame ();
   return &const1;
 }
 
-svalue_t* call_function_pointer_mode (funptr_t *funp, int num_arg, int with_slot) {
+svalue_t* call_function_pointer (funptr_t *funp, int num_arg, int with_slot) {
   return call_function_pointer_internal (funp, num_arg, with_slot ? (sp - num_arg) : 0);
 }
 
-svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
-  return call_function_pointer_mode (funp, num_arg, 0);
-}
-
-svalue_t *call_function_pointer_with_slot (funptr_t *funp, int num_arg) {
-  return call_function_pointer_mode (funp, num_arg, 1);
-}
-
 svalue_t *
-safe_call_function_pointer_mode (funptr_t *funp, int num_arg, int with_slot)
+safe_call_function_pointer (funptr_t *funp, int num_arg, int with_slot)
 {
   error_context_t econ;
   svalue_t *ret;
@@ -482,7 +474,7 @@ safe_call_function_pointer_mode (funptr_t *funp, int num_arg, int with_slot)
 
   try
     {
-      ret = call_function_pointer_mode (funp, num_arg, with_slot);
+      ret = call_function_pointer (funp, num_arg, with_slot);
     }
   catch (const neolith::driver_runtime_error &)
     {
@@ -495,12 +487,3 @@ safe_call_function_pointer_mode (funptr_t *funp, int num_arg, int with_slot)
   return ret;
 }
 
-svalue_t *
-safe_call_function_pointer (funptr_t * funp, int num_arg)
-{
-  return safe_call_function_pointer_mode (funp, num_arg, 0);
-}
-
-svalue_t *safe_call_function_pointer_with_slot (funptr_t *funp, int num_arg) {
-  return safe_call_function_pointer_mode (funp, num_arg, 1);
-}
