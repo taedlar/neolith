@@ -109,13 +109,15 @@ f_seteuid (void)
   arg = sp;
   push_object (current_object);
   push_svalue (arg);
-  ret = apply_master_ob (APPLY_VALID_SETEUID, 2);
+  ret = APPLY_SLOT_MASTER_CALL (APPLY_VALID_SETEUID, 2);
   if (!MASTER_APPROVED (ret))
     {
+      APPLY_SLOT_FINISH_CALL();
       free_string_svalue (sp);
       *sp = const0;
       return;
     }
+  APPLY_SLOT_FINISH_CALL();
   current_object->euid = add_uid (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   *sp = const1;

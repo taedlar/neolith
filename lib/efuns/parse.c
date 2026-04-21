@@ -362,7 +362,7 @@ load_lpc_info (int ix, object_t * ob)
       gPluid_list->item[ix].type == T_NUMBER &&
       gPluid_list->item[ix].u.number == 0)
     {
-      ret = apply (QGET_PLURID, ob, 0, ORIGIN_DRIVER);
+      ret = APPLY_SLOT_CALL (QGET_PLURID, ob, 0, ORIGIN_DRIVER);
       if (ret && ret->type == T_ARRAY)
         assign_svalue_no_free (&gPluid_list->item[ix], ret);
       else
@@ -370,13 +370,14 @@ load_lpc_info (int ix, object_t * ob)
           make_plural = 1;
           gPluid_list->item[ix].u.number = 1;
         }
+      APPLY_SLOT_FINISH_CALL();
     }
   if (gId_list &&
       gId_list->size > ix &&
       gId_list->item[ix].type == T_NUMBER &&
       gId_list->item[ix].u.number == 0 && !(ob->flags & O_DESTRUCTED))
     {
-      ret = apply (QGET_ID, ob, 0, ORIGIN_DRIVER);
+      ret = APPLY_SLOT_CALL (QGET_ID, ob, 0, ORIGIN_DRIVER);
       if (ret && ret->type == T_ARRAY)
         {
           assign_svalue_no_free (&gId_list->item[ix], ret);
@@ -401,17 +402,19 @@ load_lpc_info (int ix, object_t * ob)
         {
           gId_list->item[ix].u.number = 1;
         }
+      APPLY_SLOT_FINISH_CALL();
     }
   if (gAdjid_list &&
       gAdjid_list->size > ix &&
       gAdjid_list->item[ix].type == T_NUMBER &&
       gAdjid_list->item[ix].u.number == 0 && !(ob->flags & O_DESTRUCTED))
     {
-      ret = apply (QGET_ADJID, ob, 0, ORIGIN_DRIVER);
+      ret = APPLY_SLOT_CALL (QGET_ADJID, ob, 0, ORIGIN_DRIVER);
       if (ret && ret->type == T_ARRAY)
         assign_svalue_no_free (&gAdjid_list->item[ix], ret);
       else
         gAdjid_list->item[ix].u.number = 1;
+      APPLY_SLOT_FINISH_CALL();
     }
 }
 
@@ -557,37 +560,42 @@ parse (char *cmd,		/* Command to parse */
   /*
    * Get the default ids of 'general references' from master object
    */
-  pval = apply_master_ob (QGET_ID, 0);
+  pval = APPLY_SLOT_MASTER_CALL (QGET_ID, 0);
   if (pval && pval->type == T_ARRAY)
     {
       gId_list_d = pval->u.arr;
       pval->u.arr->ref++;	/* Otherwise next sapply will free it */
     }
+  APPLY_SLOT_FINISH_CALL();
 
-  pval = apply_master_ob (QGET_PLURID, 0);
+  pval = APPLY_SLOT_MASTER_CALL (QGET_PLURID, 0);
   if (pval && pval->type == T_ARRAY)
     {
       gPluid_list_d = pval->u.arr;
       pval->u.arr->ref++;	/* Otherwise next sapply will free it */
     }
+  APPLY_SLOT_FINISH_CALL();
 
-  pval = apply_master_ob (QGET_ADJID, 0);
+  pval = APPLY_SLOT_MASTER_CALL (QGET_ADJID, 0);
   if (pval && pval->type == T_ARRAY)
     {
       gAdjid_list_d = pval->u.arr;
       pval->u.arr->ref++;	/* Otherwise next sapply will free it */
     }
+  APPLY_SLOT_FINISH_CALL();
 
-  pval = apply_master_ob (QGET_PREPOS, 0);
+  pval = APPLY_SLOT_MASTER_CALL (QGET_PREPOS, 0);
   if (pval && pval->type == T_ARRAY)
     {
       gPrepos_list = pval->u.arr;
       pval->u.arr->ref++;	/* Otherwise next sapply will free it */
     }
+  APPLY_SLOT_FINISH_CALL();
 
-  pval = apply_master_ob (QGET_ALLWORD, 0);
+  pval = APPLY_SLOT_MASTER_CALL (QGET_ALLWORD, 0);
   if (pval && pval->type == T_STRING)
     gAllword = alloc_cstring (SVALUE_STRPTR(pval), "parse");
+  APPLY_SLOT_FINISH_CALL();
 
   /*
    * Loop through the pattern. Handle %s but not '/'

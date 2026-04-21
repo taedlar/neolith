@@ -106,10 +106,11 @@ object_t* mudlib_connect(int port, const char* addr) {
    */
   add_ref (master_ob, "mudlib_connect");
   push_number (port);
-  ret = safe_apply_master_ob (APPLY_CONNECT, 1);
+  ret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_CONNECT, 1);
   /* master_ob->interactive can be zero if the master object self destructed in the above. */
   if (ret == 0 || ret == (svalue_t *) - 1 || ret->type != T_OBJECT || !master_ob->interactive)
     {
+      APPLY_SLOT_FINISH_CALL();
       debug_message ("connection from %s rejected by master\n", addr);
       return 0;
     }
@@ -118,6 +119,7 @@ object_t* mudlib_connect(int port, const char* addr) {
    * There was an object returned from connect(). Use this as the user object.
    */
   ob = ret->u.ob;
+  APPLY_SLOT_FINISH_CALL();
   if (ob->flags & O_HIDDEN)
     num_hidden++;
   ob->interactive = master_ob->interactive;
@@ -143,7 +145,7 @@ void
 mudlib_logon (object_t * ob)
 {
   /* current_object no longer set */
-  apply (APPLY_LOGON, ob, 0, ORIGIN_DRIVER);
+  APPLY_CALL (APPLY_LOGON, ob, 0, ORIGIN_DRIVER);
   /* function not existing is no longer fatal */
 }
 
@@ -501,7 +503,7 @@ heart_beat_status (outbuffer_t * ob, int verbose)
 /**
   * @brief New version used when not in -o mode. The epilog() in master.c is
   *     supposed to return an array of files (castles in 2.4.5) to load. The array
-  *     returned by apply() will be freed at next call of apply(), which means that
+  *     returned by APPLY_CALL () will be freed at next call of APPLY_CALL (), which means that
   *     the ref count has to be incremented to protect against deallocation.
   *
   *     The master object is asked to do the actual loading.

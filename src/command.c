@@ -67,7 +67,7 @@ static void print_prompt (interactive_t * ip) {
       else if (ip->ed_buffer)
         tell_object (ip->ob, ip->prompt);
 #endif
-      else if (!apply (APPLY_WRITE_PROMPT, ip->ob, 0, ORIGIN_DRIVER))
+      else if (!APPLY_CALL (APPLY_WRITE_PROMPT, ip->ob, 0, ORIGIN_DRIVER))
         {
           if (!IP_VALID (ip, ob))
             return;
@@ -103,7 +103,7 @@ void notify_no_command () {
   if (command_giver->interactive->iflags & NOTIFY_FAIL_FUNC)
     {
       save_command_giver (command_giver);
-      v = call_function_pointer (p.f, 0);
+      v = CALL_FUNCTION_POINTER_SLOT_CALL (p.f, 0);
       restore_command_giver ();
       free_funp (p.f);
       if (command_giver && command_giver->interactive)
@@ -113,6 +113,7 @@ void notify_no_command () {
           command_giver->interactive->iflags &= ~NOTIFY_FAIL_FUNC;
           command_giver->interactive->default_err_message.s = 0;
         }
+      CALL_FUNCTION_POINTER_SLOT_FINISH();
     }
   else
     {
@@ -363,7 +364,7 @@ int call_function_interactive (interactive_t * i, char *str) {
    * will result in a call to:
    *     foo(arg1, arg2, str, arg3, arg4) where str is the user input.
    */
-  call_function_pointer (funp, num_arg + 1);
+  CALL_FUNCTION_POINTER_CALL (funp, num_arg + 1);
   free_funp (funp); /* by local variable funp */
   funp = 0;
   return 1;
@@ -621,7 +622,7 @@ static void next_cmd_in_buf (interactive_t * ip) {
  * 
  *  This function calls \c get_user_command() to iterate over all connected users,
  *  assigining \c command_giver to each user in turn, and checking for pending commands.
- *  If a command is pending, it is processed by \c process_command() or \c apply() to the user
+ *  If a command is pending, it is processed by \c process_command() or \c APPLY_CALL () to the user
  *  object as appropriate.
  *  
  *  User commands are processed in sequence (round-robin) that one user command is processed
@@ -707,18 +708,24 @@ int process_user_command () {
               if (ip->iflags & HAS_PROCESS_INPUT)
                 {
                   copy_and_push_string (user_command + 1);
-                  ret = apply (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
+                  ret = APPLY_SLOT_CALL (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
                   VALIDATE_IP (ip, command_giver);
                   if (!ret)
                     ip->iflags &= ~HAS_PROCESS_INPUT;
                   if (ret && ret->type == T_STRING)
                     {
                       strncpy (buf, SVALUE_STRPTR(ret), MAX_TEXT - 1);
+                      APPLY_SLOT_FINISH_CALL();
                       process_command (buf, command_giver);
                     }
                   else if (!ret || ret->type != T_NUMBER || !ret->u.number)
                     {
+                      APPLY_SLOT_FINISH_CALL();
                       process_command (tbuf + 1, command_giver);
+                    }
+                  else
+                    {
+                      APPLY_SLOT_FINISH_CALL();
                     }
                 }
               else
@@ -745,18 +752,24 @@ int process_user_command () {
           if (ip->iflags & HAS_PROCESS_INPUT)
             {
               copy_and_push_string (user_command);
-              ret = apply (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
+              ret = APPLY_SLOT_CALL (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
               VALIDATE_IP (ip, command_giver);
               if (!ret)
                 ip->iflags &= ~HAS_PROCESS_INPUT;
               if (ret && ret->type == T_STRING)
                 {
                   strncpy (buf, SVALUE_STRPTR(ret), MAX_TEXT - 1);
+                  APPLY_SLOT_FINISH_CALL();
                   process_command (buf, command_giver);
                 }
               else if (!ret || ret->type != T_NUMBER || !ret->u.number)
                 {
+                  APPLY_SLOT_FINISH_CALL();
                   process_command (tbuf, command_giver);
+                }
+              else
+                {
+                  APPLY_SLOT_FINISH_CALL();
                 }
             }
           else

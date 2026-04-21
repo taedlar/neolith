@@ -131,12 +131,19 @@ svalue_t* call_efun_callback (function_to_call_t * ftc, int n) {
     {
       if (ftc->ob->flags & O_DESTRUCTED)
         error ("*Object destructed during efun callback.");
-      v = apply (ftc->f.str, ftc->ob, n + ftc->narg, ORIGIN_EFUN);
+      v = APPLY_SLOT_CALL (ftc->f.str, ftc->ob, n + ftc->narg, ORIGIN_EFUN);
     }
   else
-    v = call_function_pointer (ftc->f.fp, n + ftc->narg);
+    v = CALL_FUNCTION_POINTER_SLOT_CALL (ftc->f.fp, n + ftc->narg);
 
   return v;
+}
+
+void call_efun_callback_finish (function_to_call_t * ftc) {
+  if (ftc->ob)
+    APPLY_SLOT_FINISH_CALL();
+  else
+    CALL_FUNCTION_POINTER_SLOT_FINISH();
 }
 
 static svalue_t global_lvalue_byte = { .type = T_LVALUE_BYTE };

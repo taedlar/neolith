@@ -298,7 +298,7 @@ void push_funp (funptr_t * funptr) {
   funptr->hdr.ref++;
 }
 
-svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
+static svalue_t *call_function_pointer_internal (funptr_t * funp, int num_arg, svalue_t *ret_slot) {
 
   if (funp->hdr.owner->flags & O_DESTRUCTED)
     error ("*Owner (/%s) of function pointer is destructed.", funp->hdr.owner->name);
@@ -366,13 +366,24 @@ svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
             }
           call_efun (i); // (*efun_table[i - BASE]) ();
 
-          free_svalue (&apply_ret_value, "call_function_pointer");
-          if (instrs[i].ret_type == TYPE_NOVALUE)
-            apply_ret_value = const0;
-          else
-            apply_ret_value = *sp--;
+          if (ret_slot)
+            {
+              free_svalue (ret_slot, "call_function_pointer_with_slot");
+              if (instrs[i].ret_type == TYPE_NOVALUE)
+                *ret_slot = const0;
+              else
+                *ret_slot = *sp--;
+              remove_fake_frame ();
+              return ret_slot;
+            }
+
+          if (instrs[i].ret_type != TYPE_NOVALUE)
+            {
+              free_svalue (sp, "call_function_pointer:compat_discard");
+              sp--;
+            }
           remove_fake_frame ();
-          return &apply_ret_value;
+          return &const1;
         }
       }
     case FP_LOCAL | FP_NOT_BINDABLE:
@@ -433,14 +444,34 @@ svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
     default:
       error ("*Unsupported function pointer type.");
     }
-  free_svalue (&apply_ret_value, "call_function_pointer");
-  apply_ret_value = *sp--;
+  if (ret_slot)
+    {
+      free_svalue (ret_slot, "call_function_pointer_with_slot");
+      *ret_slot = *sp--;
+      remove_fake_frame ();
+      return ret_slot;
+    }
+
+  free_svalue (sp, "call_function_pointer:compat_discard");
+  sp--;
   remove_fake_frame ();
-  return &apply_ret_value;
+  return &const1;
+}
+
+svalue_t* call_function_pointer_mode (funptr_t *funp, int num_arg, int with_slot) {
+  return call_function_pointer_internal (funp, num_arg, with_slot ? (sp - num_arg) : 0);
+}
+
+svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
+  return call_function_pointer_mode (funp, num_arg, 0);
+}
+
+svalue_t *call_function_pointer_with_slot (funptr_t *funp, int num_arg) {
+  return call_function_pointer_mode (funp, num_arg, 1);
 }
 
 svalue_t *
-safe_call_function_pointer (funptr_t * funp, int num_arg)
+safe_call_function_pointer_mode (funptr_t *funp, int num_arg, int with_slot)
 {
   error_context_t econ;
   svalue_t *ret;
@@ -451,7 +482,7 @@ safe_call_function_pointer (funptr_t * funp, int num_arg)
 
   try
     {
-      ret = call_function_pointer (funp, num_arg);
+      ret = call_function_pointer_mode (funp, num_arg, with_slot);
     }
   catch (const neolith::driver_runtime_error &)
     {
@@ -462,4 +493,14 @@ safe_call_function_pointer (funptr_t * funp, int num_arg)
     }
   pop_context (&econ);
   return ret;
+}
+
+svalue_t *
+safe_call_function_pointer (funptr_t * funp, int num_arg)
+{
+  return safe_call_function_pointer_mode (funp, num_arg, 0);
+}
+
+svalue_t *safe_call_function_pointer_with_slot (funptr_t *funp, int num_arg) {
+  return safe_call_function_pointer_mode (funp, num_arg, 1);
 }

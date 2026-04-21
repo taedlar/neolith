@@ -275,11 +275,12 @@ void f_link (void) {
     {
       push_svalue (sp - 1);
       push_svalue (sp);
-      ret = apply_master_ob (APPLY_VALID_LINK, 2);
+      ret = APPLY_SLOT_MASTER_CALL (APPLY_VALID_LINK, 2);
       if (MASTER_APPROVED (ret))
         i = do_rename (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), F_LINK);
       else
         i = 0;
+      APPLY_SLOT_FINISH_CALL();
       (--sp)->type = T_NUMBER;
       sp->u.number = i;
       sp->subtype = 0;

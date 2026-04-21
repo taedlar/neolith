@@ -305,6 +305,7 @@ int check_valid_socket (char *what, socket_fd_t fd, object_t * owner, char *addr
 
   array_t *info;
   svalue_t *mret;
+  int approved;
 
   info = allocate_empty_array (4);
   info->item[0].type = T_NUMBER;
@@ -318,8 +319,10 @@ int check_valid_socket (char *what, socket_fd_t fd, object_t * owner, char *addr
   push_constant_string (what);
   push_refed_array (info);
 
-  mret = apply_master_ob (APPLY_VALID_SOCKET, 3);
-  return MASTER_APPROVED (mret);
+  mret = APPLY_SLOT_MASTER_CALL (APPLY_VALID_SOCKET, 3);
+  approved = MASTER_APPROVED (mret);
+  APPLY_SLOT_FINISH_CALL();
+  return approved;
 }
 
 /*
@@ -1396,13 +1399,13 @@ call_callback (int i, int what, int num_arg)
 
   if (lpc_socks[i].flags & what)
     {
-      safe_call_function_pointer (callback.f, num_arg);
+      SAFE_CALL_FUNCTION_POINTER_CALL (callback.f, num_arg);
     }
   else if (callback.s)
     {
       if (callback.s[0] == APPLY___INIT_SPECIAL_CHAR)
         error ("Illegal function name.\n");
-      safe_apply (callback.s, lpc_socks[i].owner_ob, num_arg, ORIGIN_DRIVER);
+      APPLY_SAFE_CALL (callback.s, lpc_socks[i].owner_ob, num_arg, ORIGIN_DRIVER);
     }
 }
 
@@ -1718,9 +1721,9 @@ int socket_release (int i, object_t * ob, svalue_t * callback) {
   push_object (ob);
 
   if (callback->type == T_FUNCTION)
-    safe_call_function_pointer (callback->u.fp, 2);
+    SAFE_CALL_FUNCTION_POINTER_CALL (callback->u.fp, 2);
   else
-    safe_apply (SVALUE_STRPTR (callback), ob, 2, ORIGIN_DRIVER);
+    APPLY_SAFE_CALL (SVALUE_STRPTR (callback), ob, 2, ORIGIN_DRIVER);
 
   if (socket_release_test_hook && (lpc_socks[i].flags & S_RELEASE))
     socket_release_test_hook (i, ob);

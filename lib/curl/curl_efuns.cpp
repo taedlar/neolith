@@ -1036,7 +1036,7 @@ void drain_curl_completions(void) {
       if (handle->callback.s[0] == APPLY___INIT_SPECIAL_CHAR) {
         error("Illegal function name.\n");
       }
-      safe_apply(handle->callback.s, owner, arg_count, ORIGIN_DRIVER);
+      APPLY_SAFE_CALL(handle->callback.s, owner, arg_count, ORIGIN_DRIVER);
     }
 
     free_callback_state(handle);

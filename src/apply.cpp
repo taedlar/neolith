@@ -38,16 +38,13 @@
  * Otherwise, return 1, and a pushed return value on the stack.
  *
  * Note that the object 'ob' can be destructed. This must be handled by
- * the caller of apply().
+ * the caller of APPLY_CALL ().
  *
  * If the function failed to be called, then arguments must be deallocated
  * manually !  (Look towards end of this function.)
  */
 
 int call_origin;
-
-/* used by routines that want to return a pointer to an svalue */
-svalue_t apply_ret_value = { T_NUMBER, 0, 0 };
 
 #ifdef CACHE_STATS
 unsigned int apply_low_call_others = 0;
@@ -386,7 +383,7 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
 }
 
 /**
- * @brief Clear the apply() cache.
+ * @brief Clear the APPLY_CALL () cache.
  */
 void clear_apply_cache (void) {
   int i;
@@ -408,25 +405,109 @@ void clear_apply_cache (void) {
  * Arguments are supposed to be
  * pushed (using push_string() etc) before the call. A pointer to a
  * 'svalue_t' will be returned. It will be a null pointer if the called
- * function was not found. Otherwise, it will be a pointer to a static
- * area in apply(), which will be overwritten by the next call to apply.
+ * function was not found. Otherwise, the return payload is discarded and a
+ * non-null sentinel is returned.
  * Reference counts will be updated for this value, to ensure that no pointers
  * are deallocated.
  */
 
-svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
-{
-  IF_DEBUG (svalue_t * expected_sp);
+svalue_t *apply_mode (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+  IF_DEBUG (svalue_t *expected_sp);
+  svalue_t *ret_slot = sp - num_arg;
 
   call_origin = where;
 
   IF_DEBUG (expected_sp = sp - num_arg);
   if (apply_low (fun, ob, num_arg) == 0)
     return 0;
-  free_svalue (&apply_ret_value, "apply");
-  apply_ret_value = *sp--;
+
+  if (with_slot)
+    {
+      free_svalue (ret_slot, "apply_with_slot");
+      *ret_slot = *sp--;
+      DEBUG_CHECK (expected_sp != sp, "Corrupt stack pointer.\n");
+      return ret_slot;
+    }
+
+  free_svalue (sp, "apply:compat_discard");
+  sp--;
   DEBUG_CHECK (expected_sp != sp, "Corrupt stack pointer.\n");
-  return &apply_ret_value;
+  return &const1;
+}
+
+svalue_t *safe_apply_mode (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+  svalue_t *ret = 0;
+  error_context_t econ;
+
+  if (!ob || (ob->flags & O_DESTRUCTED))
+    {
+      return 0;
+    }
+
+  try
+    {
+      neolith::error_boundary_guard boundary (&econ);
+
+      try
+        {
+          ret = apply_mode (fun, ob, num_arg, where, with_slot);
+        }
+      catch (const neolith::driver_runtime_error &)
+        {
+          boundary.restore ();
+          ret = 0;
+        }
+    }
+  catch (const neolith::driver_runtime_error &)
+    {
+      ret = 0;
+    }
+
+  return ret;
+}
+
+svalue_t *apply_master_ob_mode (const char *fun, int num_arg, int with_slot) {
+  svalue_t *ret_slot = sp - num_arg;
+
+  if (!master_ob)
+    {
+      opt_trace (TT_EVAL, "no master object: \"%s\"", fun);
+      pop_n_elems (num_arg);
+      return (svalue_t *) - 1;
+    }
+
+  call_origin = ORIGIN_DRIVER;
+  if (apply_low (fun, master_ob, num_arg) == 0)
+    return 0;
+
+  if (with_slot)
+    {
+      free_svalue (ret_slot, "apply_master_ob_with_slot");
+      *ret_slot = *sp--;
+      return ret_slot;
+    }
+
+  free_svalue (sp, "apply_master_ob:compat_discard");
+  sp--;
+  return &const1;
+}
+
+svalue_t *safe_apply_master_ob_mode (const char *fun, int num_arg, int with_slot) {
+  if (!master_ob)
+    {
+      pop_n_elems (num_arg);
+      return (svalue_t *) - 1;
+    }
+  return safe_apply_mode (fun, master_ob, num_arg, ORIGIN_DRIVER, with_slot);
+}
+
+svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
+{
+  return apply_mode (fun, ob, num_arg, where, 0);
+}
+
+svalue_t *apply_with_slot (const char *fun, object_t * ob, int num_arg, int where) {
+  return apply_mode (fun, ob, num_arg, where, 1);
 }
 
 /**
@@ -443,34 +524,11 @@ svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
  * @returns Pointer to the return value, or NULL if function not found or exception occurred.
  */
 svalue_t *safe_apply (const char *fun, object_t *ob, int num_arg, int where) {
-  svalue_t *ret = 0;
-  error_context_t econ;
+  return safe_apply_mode (fun, ob, num_arg, where, 0);
+}
 
-  if (!ob || (ob->flags & O_DESTRUCTED))
-    {
-      return 0;
-    }
-
-  try
-    {
-      neolith::error_boundary_guard boundary (&econ);
-
-      try
-        {
-          ret = apply (fun, ob, num_arg, where);
-        }
-      catch (const neolith::driver_runtime_error &)
-        {
-          boundary.restore ();
-          ret = 0;
-        }
-    }
-  catch (const neolith::driver_runtime_error &)
-    {
-      ret = 0;
-    }
-
-  return ret;
+svalue_t *safe_apply_with_slot (const char *fun, object_t *ob, int num_arg, int where) {
+  return safe_apply_mode (fun, ob, num_arg, where, 1);
 }
 
 /**
@@ -480,31 +538,20 @@ svalue_t *safe_apply (const char *fun, object_t *ob, int num_arg, int where) {
  * some cases, the check should succeed.
  */
 svalue_t *apply_master_ob (const char *fun, int num_arg) {
-  if (!master_ob)
-    {
-      opt_trace (TT_EVAL, "no master object: \"%s\"", fun);
-      pop_n_elems (num_arg);
-      return (svalue_t *) - 1;
-    }
+  return apply_master_ob_mode (fun, num_arg, 0);
+}
 
-  call_origin = ORIGIN_DRIVER;
-  if (apply_low (fun, master_ob, num_arg) == 0)
-    return 0;
-
-  free_svalue (&apply_ret_value, "apply_master_ob");
-  apply_ret_value = *sp--;
-
-  return &apply_ret_value;
+svalue_t *apply_master_ob_with_slot (const char *fun, int num_arg) {
+  return apply_master_ob_mode (fun, num_arg, 1);
 }
 
 svalue_t *safe_apply_master_ob (const char *fun, int num_arg)
 {
-  if (!master_ob)
-    {
-      pop_n_elems (num_arg);
-      return (svalue_t *) - 1;
-    }
-  return safe_apply (fun, master_ob, num_arg, ORIGIN_DRIVER);
+  return safe_apply_master_ob_mode (fun, num_arg, 0);
+}
+
+svalue_t *safe_apply_master_ob_with_slot (const char *fun, int num_arg) {
+  return safe_apply_master_ob_mode (fun, num_arg, 1);
 }
 
 /*
@@ -569,11 +616,11 @@ static program_t *find_function_by_name (object_t * ob, const char *name, int *i
 }
 
 /*
- * This function is similar to apply(), except that it will not
+ * This function is similar to APPLY_CALL (), except that it will not
  * call the function, only return object name if the function exists,
  * or 0 otherwise.  If flag is nonzero, then we admit static and private
  * functions exist.  Note that if you actually intend to call the function,
- * it's faster to just try to call it and check if apply() returns zero.
+ * it's faster to just try to call it and check if APPLY_CALL () returns zero.
  */
 shared_str_t
 function_exists (const char *fun, object_t * ob, int flag)

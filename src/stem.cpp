@@ -166,11 +166,15 @@ void look_for_objects_to_swap_guarded(void) {
                       svalue_t *svp;
 
                       push_number((ob->flags & O_CLONE) ? 0 : ob->prog->ref);
-                      svp = apply(APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
+                      svp = APPLY_SLOT_CALL(APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
                       if (ob->flags & O_DESTRUCTED)
-                        continue;
+                        {
+                          APPLY_SLOT_FINISH_CALL();
+                          continue;
+                        }
                       if (!svp || (svp->type == T_NUMBER && svp->u.number == 0))
                         ob->flags &= ~O_WILL_CLEAN_UP;
+                      APPLY_SLOT_FINISH_CALL();
                       ob->flags |= save_reset_state;
                     }
                 }
@@ -205,7 +209,7 @@ void preload_objects_guarded(int eflag) {
   try
     {
       push_number(eflag);
-      ret = apply_master_ob(APPLY_EPILOG, 1);
+      ret = APPLY_SLOT_MASTER_CALL(APPLY_EPILOG, 1);
     }
   catch (const neolith::driver_runtime_error &)
     {
@@ -217,10 +221,18 @@ void preload_objects_guarded(int eflag) {
   pop_context(&econ);
 
   if ((ret == 0) || (ret == (svalue_t *) -1) || (ret->type != T_ARRAY))
-    return;
+    {
+      APPLY_SLOT_FINISH_CALL();
+      return;
+    }
   prefiles = ret->u.arr;
   if ((prefiles == 0) || (prefiles->size < 1))
-    return;
+    {
+      APPLY_SLOT_FINISH_CALL();
+      return;
+    }
+
+  APPLY_SLOT_FINISH_CALL();
 
   opt_info(1, "Preloading %d objects", prefiles->size);
 
@@ -246,7 +258,7 @@ void preload_objects_guarded(int eflag) {
                 continue;
               eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
               push_svalue(prefiles->item + ix);
-              (void) apply_master_ob(APPLY_PRELOAD, 1);
+              (void) APPLY_MASTER_CALL (APPLY_PRELOAD, 1);
             }
         }
       catch (const neolith::driver_runtime_error &)
@@ -388,11 +400,12 @@ void invoke_master_crash_handler_guarded(const char *msg) {
           else
             push_undefined();
 
-          ret = apply_master_ob(APPLY_CRASH, 3);
+          ret = APPLY_SLOT_MASTER_CALL(APPLY_CRASH, 3);
           if (ret && ret != (svalue_t *)-1)
             {
               debug_message("{}\t----- mudlib crash handler finished, shutdown now.");
             }
+          APPLY_SLOT_FINISH_CALL();
         }
       catch (const neolith::driver_runtime_error &)
         {

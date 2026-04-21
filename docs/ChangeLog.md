@@ -3,6 +3,7 @@
 ## neolith-1.0.0-alpha (unreleased)
 
 ### Unreleased
+- refactor: resolve re-entrant return-value corruption risk in nested apply/function-pointer calls by replacing the shared legacy return buffer with caller-owned stack-slot placeholders, explicit slot call/finish wrappers, and no legacy fallback storage
 
 ### 1.0.0-alpha.9 — 2026-04-18
 
