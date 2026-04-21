@@ -529,7 +529,7 @@ Binary files use the `.b` extension (source files use `.c`). Structure:
 ```
 [Preamble]
   - Magic ID: "NEOL" (4 bytes)
-  - Driver ID: 0x20251029 (incremented when driver changes)
+  - Driver ID: 0x20260418 (incremented when driver changes)
   - Config ID: value captured in `program_t.config_id` at compile time (currently derived from simul_efun file mtime)
 
 [Include Files List]
@@ -588,7 +588,7 @@ The `program_t` structure contains many internal pointers that must be converted
 
 ### Save Process
 
-In [save_binary()](../../lib/lpc/program/binaries.cpp#L41):
+In [save_binary()](../../lib/lpc/program/binaries.cpp):
 
 1. **Validation**:
    - Check `__SAVE_BINARIES_DIR__` configured
@@ -597,7 +597,7 @@ In [save_binary()](../../lib/lpc/program/binaries.cpp#L41):
 
 2. **File Preparation**:
    - Convert `.c` extension to `.b`
-  - Create intermediate directories via [crdir_fopen()](../../lib/lpc/program/binaries.cpp#L832)
+  - Create intermediate directories via `std::filesystem::create_directories()` before opening with `fopen()`
 
 3. **Write Preamble**: Magic ID, driver ID, and `prog->config_id` (captured during compilation)
 
@@ -621,7 +621,7 @@ In [save_binary()](../../lib/lpc/program/binaries.cpp#L41):
 
 ### Load Process
 
-In [int_load_binary()](../../lib/lpc/program/binaries.cpp#L345):
+In [load_binary()](../../lib/lpc/program/binaries.cpp):
 
 1. **File Lookup**:
    - Check `__SAVE_BINARIES_DIR__` configured
@@ -630,7 +630,7 @@ In [int_load_binary()](../../lib/lpc/program/binaries.cpp#L345):
 
 2. **Validation**:
    - Read and verify magic ID, driver ID, config ID
-  - Compare binary config ID with the current value from `compute_binaries_config_id()`
+   - Compare binary config ID with the current value from `compute_opcode_config_id()`
    - Check source file modification time (binary must be newer)
    - Check all include file modification times
    - Check inherited binary modification times (if they exist)
@@ -680,7 +680,7 @@ Binary loading fails (returns `OUT_OF_DATE`) if:
 - Any inherited source file is newer than binary
 - Any inherited binary file is newer than current binary (indicates recompilation needed)
 - Driver ID mismatch
-- Config ID mismatch (`program_t.config_id` in binary vs current `compute_binaries_config_id()` result)
+- Config ID mismatch (`program_t.config_id` in binary vs current `compute_opcode_config_id()` result)
 
 This ensures binaries are **always consistent** with current source code state.
 

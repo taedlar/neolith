@@ -275,10 +275,10 @@ TEST_F(StringOperatorsLPCTest, EqNeConstantVsMallocSameLengthDifferentBytes) {
 TEST_F(StringOperatorsLPCTest, LpcSortArrayOrdersEmbeddedNulByByteSpan) {
     const char *code = R"(
         mixed *run_test() {
-                    string b = from_json("\"A\\u0000\"");
-                    string c = from_json("\"A\\u0000A\"");
-                    string a = from_json("\"A\\u0000B\"");
-          return sort_array(({ a, b, c }), 1);
+            string b = "A\000";
+            string c = "A\000A";
+            string a = "A\000B";
+            return sort_array(({ a, b, c }), 1);
         }
     )";
 
@@ -315,10 +315,10 @@ TEST_F(StringOperatorsLPCTest, LpcSortArrayOrdersEmbeddedNulByByteSpan) {
 TEST_F(StringOperatorsLPCTest, LpcSortArrayOrdersEmbeddedNulByByteSpanDescending) {
     const char *code = R"(
         mixed *run_test() {
-                    string b = from_json("\"A\\u0000\"");
-                    string c = from_json("\"A\\u0000A\"");
-                    string a = from_json("\"A\\u0000B\"");
-          return sort_array(({ a, b, c }), -1);
+            string b = "A\000";
+            string c = "A\000A";
+            string a = "A\000B";
+            return sort_array(({ a, b, c }), -1);
         }
     )";
 

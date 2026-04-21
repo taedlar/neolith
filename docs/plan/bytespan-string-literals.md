@@ -18,7 +18,7 @@ Allow LPC source strings to contain embedded null bytes (`\0`, `\x00`). Today th
 - Added `store_prog_string_len(const char *, size_t)` in [lib/lpc/compiler.c](../../lib/lpc/compiler.c) and switched binary string-switch patching to use explicit byte length (`SHARED_STRLEN`) in [lib/lpc/program/binaries.c](../../lib/lpc/program/binaries.c).
 - `L_STRING` now carries byte-span data (`str`, `len`) in [lib/lpc/grammar.y](../../lib/lpc/grammar.y) and [lib/lpc/lex.c](../../lib/lpc/lex.c).
 - Parser string concatenation rules now concatenate by explicit byte length (no `strlen`) in [lib/lpc/grammar.y](../../lib/lpc/grammar.y).
-- Added binary round-trip regression coverage with embedded-null literals in [tests/test_lpc_compiler/test_save_binary.cpp](../../tests/test_lpc_compiler/test_save_binary.cpp) plus LPC fixture [examples/m3_mudlib/api/bytespan.c](../../examples/m3_mudlib/api/bytespan.c).
+- Added binary round-trip regression coverage with embedded-null literals in [tests/test_lpc_compiler/test_save_binary.cpp](../../tests/test_lpc_compiler/test_save_binary.cpp)
 - Added lexer embedded-null coverage in [tests/test_lpc_lexer/test_lpc_lexer.cpp](../../tests/test_lpc_lexer/test_lpc_lexer.cpp).
 - No binary-format changes were introduced.
 - Remaining work focus: monitor follow-up refactors for generated parser/lexer artifacts and keep new byte-span tests in the default CI matrix.

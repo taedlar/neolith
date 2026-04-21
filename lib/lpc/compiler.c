@@ -12,6 +12,9 @@
 #include "lpc/include/runtime_config.h"
 #include "efuns/file_utils.h"
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 char *inherit_file;
 
 extern int yyparse (void); /* generated from grammar.y */
@@ -2221,7 +2224,7 @@ static program_t *epilog ()
   current_file = 0;
 
   prog->id_number = get_id_number ();
-  prog->config_id = compute_binaries_config_id();
+  prog->config_id = compute_opcode_config_id();
   total_prog_block_size += prog->total_size;
   total_num_prog_blocks++;
 
@@ -2555,6 +2558,37 @@ void prepare_cases (parse_node_t * pn, size_t start) {
     pn->kind = NODE_SWITCH_DIRECT;
   pn->v.expr = *(ce_start);
   mem_block[A_CASES].current_size = start;
+}
+
+static uint64_t config_id = 0;
+
+uint64_t compute_opcode_config_id() {
+  uint64_t new_config_id = 0;
+
+  if (CONFIG_STR(__SIMUL_EFUN_FILE__))
+    {
+      struct stat st;
+      const char *simul_path = CONFIG_STR(__SIMUL_EFUN_FILE__);
+      if (simul_path && simul_path[0])
+        {
+          /* Strip leading '/' for relative path handling */
+          const char *path_to_stat = simul_path;
+          if (path_to_stat[0] == '/')
+            {
+              path_to_stat++;
+            }
+          if (0 == stat(path_to_stat, &st))
+            {
+              new_config_id = (uint64_t)st.st_mtime;
+            }
+        }
+    }
+
+  return new_config_id;
+}
+
+void refresh_opcode_config_id () {
+  config_id = compute_opcode_config_id();
 }
 
 /**

@@ -1,5 +1,4 @@
 // unicode processing
-#pragma save_binary
 
 string textwrap (string str, int width) {
     string* mbch;

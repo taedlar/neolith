@@ -31,9 +31,8 @@
 #include "qsort.h"
 #include "hash.h"
 
-static const char *magic_id = "NEOL";
-static const uint32_t driver_id = 0x20260418; /* increment when driver changes */
-static uint64_t config_id = 0;
+static const char *magic_id = LPCBIN_MAGIC; /* magic id to identify valid binary files */
+static const uint32_t driver_id = LPCBIN_DRIVER_ID; /* increment when driver changes */
 
 static void patch_out (program_t *, short *, size_t);
 static void patch_in (program_t *, short *, size_t);
@@ -85,40 +84,17 @@ std::filesystem::path make_binary_path(const char *save_dir, const char *name) {
 
 }
 
-extern "C" uint64_t compute_binaries_config_id() {
-  uint64_t new_config_id = 0;
-
-  if (CONFIG_STR(__SIMUL_EFUN_FILE__))
-    {
-      struct stat st;
-      const char *simul_path = CONFIG_STR(__SIMUL_EFUN_FILE__);
-      if (simul_path && simul_path[0])
-        {
-          /* Strip leading '/' for relative path handling */
-          const char *path_to_stat = simul_path;
-          if (path_to_stat[0] == '/')
-            {
-              path_to_stat++;
-            }
-          if (0 == stat(path_to_stat, &st))
-            {
-              new_config_id = (uint64_t)st.st_mtime;
-            }
-        }
-    }
-
-  return new_config_id;
-}
-
-extern "C" void refresh_binaries_config_id () {
-  config_id = compute_binaries_config_id();
-}
-
 /**
- * Save the binary version of a program.
+ * Save the binary version of a program. The saved binary file name is derived from the program
+ * name and the __SAVE_BINARIES_DIR__ configuration variable.
+ * The binary file will be saved if the master object approves the save_binary call and the binary
+ * data is within size limits.
+ * 
  * @param prog the program to save
  * @param includes memory block containing the list of include files
  * @param patches memory block containing the patch information
+ * @return The function does not fail. If saving fails, it will log the error and return without
+ *  saving. If saving succeeds, it will write the binary file to disk.
  */
 extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches) {
 
@@ -197,9 +173,11 @@ extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block
   fwrite (includes->block, includes->current_size, 1, f.get());
 
   /*
-   * Make a copy and patch program
+   * Allocate a copy of program_t in a consequential memory block that can be patched as a image
+   * and written out as binary.
    */
-  std::unique_ptr<program_t, free_deleter> patched_prog(reinterpret_cast<program_t *>(DXALLOC(prog->total_size, TAG_TEMPORARY, "save_binary")));
+  std::unique_ptr<program_t, free_deleter> patched_prog(
+    reinterpret_cast<program_t *>(DXALLOC(prog->total_size, TAG_TEMPORARY, "save_binary")));
   if (!patched_prog)
     {
       opt_trace (TT_COMPILE|1, "failed to allocate temp program copy");
@@ -374,8 +352,7 @@ sort_function_table (program_t * prog)
   comp_prog = prog;
   quickSort (temp, num, sizeof (int), compare_compiler_funcs);
 
-  inverse =
-    CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
+  inverse = CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
   for (i = 0; i < num; i++)
     inverse[temp[i]] = i;
 
@@ -387,10 +364,8 @@ sort_function_table (program_t * prog)
    * know; I made this one up.  The basic idea is to do a swap, and then
    * figure out the correct permutation on the remaining n-1 elements.
    */
-  sorttmp =
-    CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
-  invtmp =
-    CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
+  sorttmp = CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
+  invtmp = CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
   for (i = 0; i < num; i++)
     {
       sorttmp[i] = temp[i];
@@ -478,11 +453,20 @@ sort_function_table (program_t * prog)
 #define OUT_OF_DATE 0
 
 /**
- * Load the binary version of a program.
+ * Attempt to load the binary version of a program if it exists and is up to date.
+ * 
+ * The binary file name is derived from the program name and the __SAVE_BINARIES_DIR__
+ * configuration variable.
+ * 
+ * The binary file will be loaded if it exists and is up to date with the source file and all
+ * included files.
+ * 
  * @param name the name of the program to load
- * @return the loaded program, or OUT_OF_DATE if the binary is out of date
+ * @return the loaded program (reference count = 1), or NULL (OUT_OF_DATE) if the
+ *  binary is out of date or inherits a file that is not yet loaded (setting inherit_file to
+ *  the first such file).
  */
-extern "C" program_t *load_binary (const char *name) {
+extern "C" program_t *load_binary (const char *name, unsigned long flags) {
 
   char *iname;
   int fd;
@@ -541,7 +525,7 @@ extern "C" program_t *load_binary (const char *name) {
   opt_trace (TT_COMPILE|3, "found saved binary: %s", binary_name.c_str());
 
   /* Check if the source file is newer. */
-  if (check_times (mtime, name) <= 0)
+  if (!(flags & BIN_IGNORE_SOURCE_FILE) && check_times (mtime, name) <= 0)
     {
       opt_trace (TT_COMPILE|3, "out of date (source file newer).");
       return OUT_OF_DATE;
@@ -587,7 +571,7 @@ extern "C" program_t *load_binary (const char *name) {
       return OUT_OF_DATE;
     }
   if ((fread ((char *) &bin_config_id, sizeof (bin_config_id), 1, f.get()) != 1) ||
-      (compute_binaries_config_id() != bin_config_id))
+      (compute_opcode_config_id() != bin_config_id))
     {
       opt_trace (TT_COMPILE|3, "out of date. (simul_efun file changed)\n");
       return OUT_OF_DATE;
@@ -730,7 +714,7 @@ extern "C" program_t *load_binary (const char *name) {
           opt_trace (TT_COMPILE|1, "saved binary inherits: /%s", buf.get());
           free_string(to_shared_str(p->name));
           inherit_file = buf.release();	/* freed elsewhere */
-          return 0;
+          return OUT_OF_DATE;
         }
       p->inherit[i].prog = ob->prog;
     }
@@ -982,11 +966,10 @@ extern "C" void init_binaries () {
        * the config_id to ensure that binaries are recompiled when the
        * simul_efun definitions change.
        */
-      refresh_binaries_config_id();
+      refresh_opcode_config_id();
       debug_message ("{}\tusing #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
       opt_trace (TT_COMPILE|1, "magic id: \"%s\" (len=%d)", magic_id, (int)strlen(magic_id));
       opt_trace (TT_COMPILE|1, "driver id: %u (len=%d)", driver_id, sizeof(driver_id));
-      opt_trace (TT_COMPILE|1, "config id: %lu (len=%d)", config_id, sizeof(config_id));
     }
   else
     {

@@ -365,7 +365,7 @@ void reset_load_object_limits() {
 object_t* load_object (const char *mudlib_filename, const char *pre_text) {
 
   int f;
-  program_t *prog;
+  program_t *prog = NULL;
   object_t *ob, *save_command_giver = command_giver;
   svalue_t *mret;
   struct stat c_st;
@@ -432,8 +432,15 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
       opt_trace (TT_COMPILE|2, "legal_path passed: \"%s\"", real_name);
     }
 
-  /* Get the program by loading from binary or compiling from the source */
-  if (!(prog = load_binary (real_name)) && !inherit_file)
+  /* Get the program by loading from binary or compiling from the source.
+   * Skip binary load if pre_text is provided, since the cached binary was compiled
+   * without the injected code.
+   */
+  if (!pre_text) {
+    prog = load_binary (real_name, 0);
+  }
+
+  if (!prog && !inherit_file)
     {
       opt_trace (TT_COMPILE|2, "no binary found, compiling: \"%s\"", real_name);
 
