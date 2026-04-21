@@ -462,6 +462,7 @@ sort_function_table (program_t * prog)
  * included files.
  * 
  * @param name the name of the program to load
+ * @param flags flags to control loading behavior (e.g. whether to ignore source file time)
  * @return the loaded program (reference count = 1), or NULL (OUT_OF_DATE) if the
  *  binary is out of date or inherits a file that is not yet loaded (setting inherit_file to
  *  the first such file).
@@ -597,12 +598,15 @@ extern "C" program_t *load_binary (const char *name, unsigned long flags) {
       opt_trace (TT_COMPILE|1, "failed reading include list.");
       return OUT_OF_DATE;
     }
-  for (iname = buf.get(); iname < buf.get() + len; iname += strlen (iname) + 1)
+  if (!(flags & BIN_IGNORE_INCLUDE_FILES))
     {
-      if (check_times (mtime, iname) <= 0)
+      for (iname = buf.get(); iname < buf.get() + len; iname += strlen (iname) + 1)
         {
-          opt_trace (TT_COMPILE|3, "out of date (include file is newer).");
-          return OUT_OF_DATE;
+          if (check_times (mtime, iname) <= 0)
+            {
+              opt_trace (TT_COMPILE|3, "out of date (include file is newer).");
+              return OUT_OF_DATE;
+            }
         }
     }
   opt_trace (TT_COMPILE|3, "include files (%d) modification check ok.", bin_count);
@@ -633,7 +637,8 @@ extern "C" program_t *load_binary (const char *name, unsigned long flags) {
       if (strcmp (name, buf.get()) != 0)
         {
           opt_trace (TT_COMPILE|1, "binary name [%zd]%s inconsistent with file (%s).", len, buf.get(), name);
-          return OUT_OF_DATE;
+          if (!(flags & BIN_IGNORE_SOURCE_FILE))
+            return OUT_OF_DATE;
         }
     }
 

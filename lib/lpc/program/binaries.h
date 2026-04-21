@@ -4,6 +4,7 @@
 #define LPCBIN_DRIVER_ID 0x20260418
 
 #define BIN_IGNORE_SOURCE_FILE 0x1 /* ignore source file when checking binary validity */
+#define BIN_IGNORE_INCLUDE_FILES 0x2 /* ignore included files when checking binary validity */
 
 #ifdef __cplusplus
 extern "C" {
