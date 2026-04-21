@@ -1,8 +1,10 @@
-#ifdef	HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
+#include "error_context.h"
+#include "frame.h"
 #include "interpret.h"
 #include "lpc/array.h"
 #include "lpc/functional.h"
@@ -15,9 +17,6 @@
 
 control_stack_t *control_stack = 0;
 control_stack_t *csp;   /* Points to last control frame pushed */
-
-/* Implemented in frame_catch.cpp to provide C++ exception-based catch boundary. */
-extern void do_catch_cpp(const char *p, unsigned short new_pc_offset);
 
 static int error_state = 0;
 
@@ -197,17 +196,51 @@ compiler_function_t* setup_inherited_frame (int index) {
 
 /**
  * Execute a 'catch' block.
- * C entrypoint that preserves the C ABI while delegating catch-boundary
- * exception transport to do_catch_cpp() in frame_catch.cpp.
  *
- * do_catch_cpp() executes eval_instruction() under a C++ try/catch boundary,
- * restores VM state on caught runtime errors, and leaves the caught value on
- * the stack according to the LPC catch() contract.
+ * Executes eval_instruction() under a C++ try/catch boundary, restores VM
+ * state on caught runtime errors, and leaves the caught value on the stack
+ * according to the LPC catch() contract.
  * @param p The program code to execute.
  * @param new_pc_offset The pc offset to continue after the catch block.
  */
 void do_catch (const char *p, unsigned short new_pc_offset) {
-  do_catch_cpp (p, new_pc_offset);
+  error_context_t econ;
+  const char *noncatchable_error = nullptr;
+
+  (void)new_pc_offset; /* program counter is restored by restore_context() */
+
+  if (!save_context(&econ)) {
+    error("*Can't catch too deep recursion error.");
+  }
+
+  push_control_stack(FRAME_CATCH);
+
+  try {
+    assign_svalue(&catch_value, &const1);
+    /* csp->extern_call is not used on this eval boundary */
+    eval_instruction(p);
+  } catch (const neolith::catchable_runtime_error &) {
+    restore_context(&econ);
+    sp++;
+    *sp = catch_value;
+    catch_value = const1;
+  } catch (const neolith::noncatchable_runtime_limit &e) {
+    restore_context(&econ);
+
+    if (get_error_state(ES_MAX_EVAL_COST)) {
+      noncatchable_error = "*Can't catch eval cost too big error.";
+    } else if (get_error_state(ES_STACK_FULL)) {
+      noncatchable_error = "*Can't catch too deep recursion error.";
+    } else {
+      noncatchable_error = e.what();
+    }
+  }
+
+  pop_context(&econ);
+
+  if (noncatchable_error) {
+    error("%s", noncatchable_error);
+  }
 }
 
 
@@ -621,4 +654,3 @@ char* dump_trace (int how) {
   fflush (current_log_file);
   return ret;
 }
-

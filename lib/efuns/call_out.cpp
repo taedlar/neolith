@@ -5,7 +5,6 @@
 #include "src/std.h"
 #include "src/comm.h"
 #include "src/error_context.h"
-#include "src/exceptions.hpp"
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/include/origin.h"
