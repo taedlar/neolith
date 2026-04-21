@@ -75,7 +75,7 @@ TEST_F(LPCCompilerTest, saveBinaryPreservesEmbeddedNullStringLiteral) {
         }
 
         string embedded_null_hex() {
-          return "ab\0yz";
+          return "ab\x00yz";
         }
     )");
     EXPECT_TRUE(prog != nullptr) << "compile_file returned null program.";
