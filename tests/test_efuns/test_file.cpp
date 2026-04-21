@@ -3,15 +3,18 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
+#include <system_error>
 
 TEST_F(EfunsTest, saveObject) {
+    std::error_code ec;
     namespace fs = std::filesystem;
     char save_file_path[] = "test_save_object.o";
-    object_t* obj = load_object("/tests/efuns/test_save_object",
-        "// object with variables\n"
-        "int x;\n"
-        "void create() { x = 42; }\n"
-    );
+    fs::remove(save_file_path, ec); // ensure no leftover file from previous runs
+    object_t* obj = load_object("/tests/efuns/test_save_object", R"(
+        // object with variables
+        int x;
+        void create() { x = 42; }
+    )");
     ASSERT_NE(obj, nullptr) << "Failed to load test object";
 
     // Save the object state to a file
@@ -29,11 +32,11 @@ TEST_F(EfunsTest, saveObject) {
     EXPECT_TRUE (fs::exists(save_file_path)) << "Save file was not created";
 
     // load a new object for restoring state
-    obj = load_object("/tests/efuns/test_save_object",
-        "// object with variables\n"
-        "int x = 0;\n"
-        "int get_number() { return x; }\n"
-    );
+    obj = load_object("/tests/efuns/test_save_object", R"(
+        // object with variables
+        int x = 0;
+        int get_number() { return x; }
+    )");
     ASSERT_NE(obj, nullptr) << "Failed to load test object for restore";
 
     // Restore the object state from the file
@@ -51,6 +54,4 @@ TEST_F(EfunsTest, saveObject) {
     ASSERT_TRUE(view.is_number());
     ASSERT_EQ(view.number(), 42) << "Restored variable value is incorrect";
     pop_stack();
-
-    destruct_object(obj);
 }
