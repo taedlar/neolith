@@ -134,7 +134,11 @@ svalue_t* call_efun_callback (function_to_call_t * ftc, int n) {
       v = APPLY_SLOT_CALL (ftc->f.str, ftc->ob, n + ftc->narg, ORIGIN_EFUN);
     }
   else
-    v = CALL_FUNCTION_POINTER_SLOT_CALL (ftc->f.fp, n + ftc->narg);
+    {
+      /* Keep funptr alive across callback execution. */
+      ftc->f.fp->hdr.ref++;
+      v = CALL_FUNCTION_POINTER_SLOT_CALL (ftc->f.fp, n + ftc->narg);
+    }
 
   return v;
 }
@@ -143,7 +147,10 @@ void call_efun_callback_finish (function_to_call_t * ftc) {
   if (ftc->ob)
     APPLY_SLOT_FINISH_CALL();
   else
-    CALL_FUNCTION_POINTER_SLOT_FINISH();
+    {
+      CALL_FUNCTION_POINTER_SLOT_FINISH();
+      free_funp (ftc->f.fp);
+    }
 }
 
 static svalue_t global_lvalue_byte = { .type = T_LVALUE_BYTE };

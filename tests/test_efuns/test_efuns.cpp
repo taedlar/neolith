@@ -3,6 +3,9 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "fixtures.hpp"
+#include "src/apply.h"
+#include "lpc/functional.h"
+#include "lpc/include/origin.h"
 
 namespace {
 
@@ -29,7 +32,148 @@ void ExpectTopReal(double expected) {
     ASSERT_DOUBLE_EQ(sp->u.real, expected);
 }
 
+void ExpectArrayItemNumber(const array_t *arr, int index, int64_t expected) {
+    auto view = lpc::svalue_view::from(&arr->item[index]);
+    ASSERT_TRUE(view.is_number());
+    ASSERT_EQ(view.number(), expected);
+}
+
 } // namespace
+
+TEST_F(EfunsTest, applySlotCallPreservesArgumentOrderAndStack) {
+    object_t* obj = load_object("/tests/efuns/test_apply_slot_call", R"(
+        mixed *capture(mixed a, mixed b) { return ({ a, b }); }
+    )");
+    ASSERT_NE(obj, nullptr) << "Failed to load apply slot test object";
+
+    svalue_t *sp_before = sp;
+    push_number(11);
+    push_number(22);
+
+    svalue_t *ret = APPLY_SLOT_CALL("capture", obj, 2, ORIGIN_DRIVER);
+    ASSERT_NE(ret, nullptr) << "APPLY_SLOT_CALL failed";
+    ASSERT_EQ(sp, sp_before + 1) << "Expected exactly one slot value on stack after APPLY_SLOT_CALL";
+
+    auto ret_view = lpc::svalue_view::from(ret);
+    ASSERT_TRUE(ret_view.is_array()) << "Expected capture() return to be an array";
+    ASSERT_NE(ret->u.arr, nullptr);
+    ASSERT_EQ(ret->u.arr->size, 2);
+    ExpectArrayItemNumber(ret->u.arr, 0, 11);
+    ExpectArrayItemNumber(ret->u.arr, 1, 22);
+
+    APPLY_SLOT_FINISH_CALL();
+    EXPECT_EQ(sp, sp_before) << "Stack should be restored after APPLY_SLOT_FINISH_CALL";
+
+    destruct_object(obj);
+}
+
+TEST_F(EfunsTest, applySlotCallMissingFunctionPreservesSlotContract) {
+    object_t* obj = load_object("/tests/efuns/test_apply_slot_missing", R"(
+        int sentinel() { return 1; }
+    )");
+    ASSERT_NE(obj, nullptr) << "Failed to load apply missing-function test object";
+
+    svalue_t *sp_before = sp;
+    push_number(42);
+
+    svalue_t *ret = APPLY_SLOT_CALL("does_not_exist", obj, 1, ORIGIN_DRIVER);
+    ASSERT_EQ(ret, nullptr) << "Expected null return for missing apply target";
+
+    /* apply_low() pops args on failure; slot placeholder must remain for finish. */
+    ASSERT_EQ(sp, sp_before + 1) << "Expected one slot placeholder after failed APPLY_SLOT_CALL";
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number())
+        << "Expected placeholder slot to remain as undefined/number zero";
+    ASSERT_EQ(lpc::svalue_view::from(sp).number(), 0);
+
+    APPLY_SLOT_FINISH_CALL();
+    EXPECT_EQ(sp, sp_before) << "Stack should be restored after APPLY_SLOT_FINISH_CALL on failure path";
+
+    destruct_object(obj);
+}
+
+TEST_F(EfunsTest, applySlotSafeCallMissingFunctionPreservesSlotContract) {
+    object_t* obj = load_object("/tests/efuns/test_apply_slot_safe_missing", R"(
+        int sentinel() { return 1; }
+    )");
+    ASSERT_NE(obj, nullptr) << "Failed to load apply safe-missing test object";
+
+    svalue_t *sp_before = sp;
+    push_number(7);
+
+    svalue_t *ret = APPLY_SLOT_SAFE_CALL("does_not_exist", obj, 1, ORIGIN_DRIVER);
+    ASSERT_EQ(ret, nullptr) << "Expected null return for missing safe apply target";
+
+    ASSERT_EQ(sp, sp_before + 1) << "Expected one slot placeholder after failed APPLY_SLOT_SAFE_CALL";
+    ASSERT_TRUE(lpc::svalue_view::from(sp).is_number())
+        << "Expected placeholder slot to remain as undefined/number zero";
+    ASSERT_EQ(lpc::svalue_view::from(sp).number(), 0);
+
+    APPLY_SLOT_FINISH_CALL();
+    EXPECT_EQ(sp, sp_before) << "Stack should be restored after APPLY_SLOT_FINISH_CALL on safe failure path";
+
+    destruct_object(obj);
+}
+
+TEST_F(EfunsTest, functionPointerSlotCallErrorPathKeepsRuntimeUsable) {
+    object_t* obj = load_object("/tests/efuns/test_funp_slot_call", R"(
+        mixed *capture(mixed a, mixed b) { return ({ a, b }); }
+        void explode() { error("funp explode"); }
+    )");
+    ASSERT_NE(obj, nullptr) << "Failed to load function pointer slot test object";
+
+    current_object = obj;
+    funptr_t *capture_funp = make_lfun_funp_by_name("capture", &const0);
+    funptr_t *explode_funp = make_lfun_funp_by_name("explode", &const0);
+    ASSERT_NE(capture_funp, nullptr);
+    ASSERT_NE(explode_funp, nullptr);
+
+    svalue_t *sp_before = sp;
+    push_number(3);
+    push_number(4);
+
+    svalue_t *ret = CALL_FUNCTION_POINTER_SLOT_CALL(capture_funp, 2);
+    ASSERT_NE(ret, nullptr);
+    ASSERT_EQ(sp, sp_before + 1) << "Expected one slot value after successful function pointer call";
+
+    auto ret_view = lpc::svalue_view::from(ret);
+    ASSERT_TRUE(ret_view.is_array());
+    ASSERT_EQ(ret->u.arr->size, 2);
+    ExpectArrayItemNumber(ret->u.arr, 0, 3);
+    ExpectArrayItemNumber(ret->u.arr, 1, 4);
+
+    CALL_FUNCTION_POINTER_SLOT_FINISH();
+    ASSERT_EQ(sp, sp_before) << "Stack should be restored after successful slot finish";
+
+    error_context_t econ;
+    volatile int caught = 0;
+    save_context(&econ);
+    try {
+        CALL_FUNCTION_POINTER_SLOT_CALL(explode_funp, 0);
+        FAIL() << "Expected explode() to raise a runtime error";
+    }
+    catch (const neolith::driver_runtime_error &) {
+        caught = 1;
+        restore_context(&econ);
+    }
+    pop_context(&econ);
+    ASSERT_EQ(caught, 1) << "Expected runtime error from function pointer call";
+    ASSERT_EQ(sp, sp_before) << "Stack should remain valid after function pointer error";
+
+    push_number(8);
+    push_number(9);
+    ret = CALL_FUNCTION_POINTER_SLOT_CALL(capture_funp, 2);
+    ASSERT_NE(ret, nullptr) << "Function pointer should still be callable after prior error";
+    ASSERT_TRUE(lpc::svalue_view::from(ret).is_array());
+    ASSERT_EQ(ret->u.arr->size, 2);
+    ExpectArrayItemNumber(ret->u.arr, 0, 8);
+    ExpectArrayItemNumber(ret->u.arr, 1, 9);
+    CALL_FUNCTION_POINTER_SLOT_FINISH();
+    EXPECT_EQ(sp, sp_before);
+
+    free_funp(capture_funp);
+    free_funp(explode_funp);
+    destruct_object(obj);
+}
 
 TEST_F(EfunsTest, throwError) {
     error_context_t econ;

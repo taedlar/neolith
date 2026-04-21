@@ -415,7 +415,27 @@ svalue_t *apply_call (const char *fun, object_t *ob, int num_arg, int where, int
   IF_DEBUG (svalue_t *expected_sp);
   svalue_t *ret_slot = sp - num_arg;
 
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in apply_call.", num_arg);
+
   call_origin = where;
+
+  if (with_slot)
+    {
+      int i;
+      svalue_t placeholder = *sp;
+
+      /*
+       * Slot wrappers push undefined after arguments.
+       * Rotate stack from [args..., slot] to [slot, args...]
+       * so apply_low() sees the correct argument list.
+       */
+      for (i = 0; i < num_arg; i++)
+        {
+          *(sp - i) = *(sp - i - 1);
+        }
+      *ret_slot = placeholder;
+    }
 
   IF_DEBUG (expected_sp = sp - num_arg);
   if (apply_low (fun, ob, num_arg) == 0)
@@ -468,6 +488,22 @@ svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where
 
 svalue_t *apply_master_ob (const char *fun, int num_arg, int with_slot) {
   svalue_t *ret_slot = sp - num_arg;
+
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in apply_master_ob.", num_arg);
+
+  if (with_slot)
+    {
+      int i;
+      svalue_t placeholder = *sp;
+
+      /* See apply_call(): rotate [args..., slot] to [slot, args...] */
+      for (i = 0; i < num_arg; i++)
+        {
+          *(sp - i) = *(sp - i - 1);
+        }
+      *ret_slot = placeholder;
+    }
 
   if (!master_ob)
     {

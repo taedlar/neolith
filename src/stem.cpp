@@ -213,6 +213,7 @@ void preload_objects_guarded(int eflag) {
     }
   catch (const neolith::driver_runtime_error &)
     {
+      APPLY_SLOT_FINISH_CALL();
       restore_context(&econ);
       pop_context(&econ);
       return;
@@ -232,11 +233,12 @@ void preload_objects_guarded(int eflag) {
       return;
     }
 
+  // Retain the array before finishing the slot
+  prefiles->ref++;
+
   APPLY_SLOT_FINISH_CALL();
 
   opt_info(1, "Preloading %d objects", prefiles->size);
-
-  prefiles->ref++;
   ix = 0;
 
   while (ix < prefiles->size)
