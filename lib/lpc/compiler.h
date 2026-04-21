@@ -292,6 +292,9 @@ extern size_t num_local_variables_allowed;
 extern void init_lpc_compiler(size_t max_locals, const char* include_dirs);
 extern void deinit_lpc_compiler(void);
 
+extern void refresh_opcode_config_id();
+extern uint64_t compute_opcode_config_id();
+
 #ifdef __cplusplus
 }
 #endif

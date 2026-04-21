@@ -327,7 +327,7 @@ These areas are **not** saved in the final program. They're freed in [epilog()](
 **Description**: List of included file names for binary save format.  
 **Usage**:
 - Populated by [add_program_file()](../../lib/lpc/compiler.c#L2585) via `#include`
-- Used by [save_binary()](../../lib/lpc/program/binaries.c) when saving compiled programs
+- Used by [save_binary()](../../lib/lpc/program/binaries.cpp) when saving compiled programs
 - Not saved in memory-resident program
 
 ---
@@ -529,8 +529,8 @@ Binary files use the `.b` extension (source files use `.c`). Structure:
 ```
 [Preamble]
   - Magic ID: "NEOL" (4 bytes)
-  - Driver ID: 0x20251029 (incremented when driver changes)
-  - Config ID: simul_efun file mtime (ensures consistency)
+  - Driver ID: 0x20260418 (incremented when driver changes)
+  - Config ID: value captured in `program_t.config_id` at compile time (currently derived from simul_efun file mtime)
 
 [Include Files List]
   - Length (short)
@@ -570,17 +570,17 @@ Binary files use the `.b` extension (source files use `.c`). Structure:
 
 The `program_t` structure contains many internal pointers that must be converted for disk storage:
 
-**Relative Pointers** ([locate_out()](../../lib/lpc/program/binaries.c#L878)):
+**Relative Pointers** ([locate_out()](../../lib/lpc/program/binaries.cpp#L878)):
 - Before saving, absolute pointers converted to offsets from `program_t` base
 - Calculation: `ptr_field = (char*)ptr_field - (char*)prog`
 - Applied to: `program`, `function_table`, `function_flags`, `function_offsets`, `function_compressed`, `strings`, `variable_table`, `variable_types`, `inherit`, `classes`, `class_members`, `argument_types`, `type_start`
 
-**Absolute Pointers** ([locate_in()](../../lib/lpc/program/binaries.c#L911)):
+**Absolute Pointers** ([locate_in()](../../lib/lpc/program/binaries.cpp#L911)):
 - After loading, offsets converted back to absolute pointers
 - Calculation: `ptr_field = (char*)prog + (intptr_t)ptr_field`
 - Same fields as `locate_out()`
 
-**Special Handling - Switch Tables** ([patch_out()](../../lib/lpc/program/binaries.c#L727)/[patch_in()](../../lib/lpc/program/binaries.c#L778)):
+**Special Handling - Switch Tables** ([patch_out()](../../lib/lpc/program/binaries.cpp#L727)/[patch_in()](../../lib/lpc/program/binaries.cpp#L778)):
 - String switch statements embed string pointers in bytecode
 - **Save**: Replace string pointers with string table indices (via `store_prog_string()`)
 - **Load**: Replace indices with actual string pointers, then re-sort for binary search
@@ -588,7 +588,7 @@ The `program_t` structure contains many internal pointers that must be converted
 
 ### Save Process
 
-In [save_binary()](../../lib/lpc/program/binaries.c#L41):
+In [save_binary()](../../lib/lpc/program/binaries.cpp):
 
 1. **Validation**:
    - Check `__SAVE_BINARIES_DIR__` configured
@@ -597,9 +597,9 @@ In [save_binary()](../../lib/lpc/program/binaries.c#L41):
 
 2. **File Preparation**:
    - Convert `.c` extension to `.b`
-   - Create intermediate directories via [crdir_fopen()](../../lib/lpc/program/binaries.c#L832)
+  - Create intermediate directories via `std::filesystem::create_directories()` before opening with `fopen()`
 
-3. **Write Preamble**: Magic ID, driver ID, config ID
+3. **Write Preamble**: Magic ID, driver ID, and `prog->config_id` (captured during compilation)
 
 4. **Write Include List**: From `A_INCLUDES` mem_block (for timestamp validation)
 
@@ -621,7 +621,7 @@ In [save_binary()](../../lib/lpc/program/binaries.c#L41):
 
 ### Load Process
 
-In [int_load_binary()](../../lib/lpc/program/binaries.c#L345):
+In [load_binary()](../../lib/lpc/program/binaries.cpp):
 
 1. **File Lookup**:
    - Check `__SAVE_BINARIES_DIR__` configured
@@ -630,6 +630,7 @@ In [int_load_binary()](../../lib/lpc/program/binaries.c#L345):
 
 2. **Validation**:
    - Read and verify magic ID, driver ID, config ID
+   - Compare binary config ID with the current value from `compute_opcode_config_id()`
    - Check source file modification time (binary must be newer)
    - Check all include file modification times
    - Check inherited binary modification times (if they exist)
@@ -653,7 +654,7 @@ In [int_load_binary()](../../lib/lpc/program/binaries.c#L345):
    - Read function names (as shared strings)
 
 6. **Function Table Sort**:
-   - Call [sort_function_table()](../../lib/lpc/program/binaries.c#L222) to restore alphabetical order
+  - Call [sort_function_table()](../../lib/lpc/program/binaries.cpp#L222) to restore alphabetical order
    - Updates `function_offsets[].def.f_index` references to match new order
    - Preserves `#`-prefixed functions at end
 
@@ -671,14 +672,15 @@ In [int_load_binary()](../../lib/lpc/program/binaries.c#L345):
    - Update global statistics (`total_prog_block_size`, `total_num_prog_blocks`)
    - Call `reference_prog()` to increment refcounts (program + all inherits)
 
-### Timestamp Validation
+### Timestamp and Config Validation
 
 Binary loading fails (returns `OUT_OF_DATE`) if:
 - Source file (`.c`) is newer than binary (`.b`)
 - Any `#include` file is newer than binary
 - Any inherited source file is newer than binary
 - Any inherited binary file is newer than current binary (indicates recompilation needed)
-- Driver ID or config ID mismatch (driver/simul_efun changed)
+- Driver ID mismatch
+- Config ID mismatch (`program_t.config_id` in binary vs current `compute_opcode_config_id()` result)
 
 This ensures binaries are **always consistent** with current source code state.
 
@@ -735,8 +737,8 @@ If binary loading fails for any reason (validation, corruption, version mismatch
 
 ### Implementation Files
 
-- **Save/Load**: [lib/lpc/program/binaries.c](../../lib/lpc/program/binaries.c)
-- **Initialization**: [init_binaries()](../../lib/lpc/program/binaries.c#L677) - called during driver startup
+- **Save/Load**: [lib/lpc/program/binaries.cpp](../../lib/lpc/program/binaries.cpp)
+- **Initialization**: [init_binaries()](../../lib/lpc/program/binaries.cpp#L677) - called during driver startup
 - **Interface**: [lib/lpc/program/binaries.h](../../lib/lpc/program/binaries.h)
 
 ---
@@ -746,6 +748,6 @@ If binary loading fails for any reason (validation, corruption, version mismatch
 - **Header**: [lib/lpc/compiler.h](../../lib/lpc/compiler.h)
 - **Main Implementation**: [lib/lpc/compiler.c](../../lib/lpc/compiler.c)
 - **Code Generation**: [lib/lpc/program/icode.c](../../lib/lpc/program/icode.c)
-- **Binary Serialization**: [lib/lpc/program/binaries.c](../../lib/lpc/program/binaries.c)
+- **Binary Serialization**: [lib/lpc/program/binaries.cpp](../../lib/lpc/program/binaries.cpp)
 - **Parse Trees**: [lib/lpc/program/parse_trees.h](../../lib/lpc/program/parse_trees.h)
 - **Program Structure**: [lib/lpc/program.h](../../lib/lpc/program.h)

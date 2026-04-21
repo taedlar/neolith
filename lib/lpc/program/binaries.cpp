@@ -7,12 +7,16 @@
     Code to save loaded LPC objects to binary files (in order to speed
     loading during subsequent runs of the driver).
 
-    This is mostly original code by Darin Johnson.  Ideas came from CD,
-    including crdir_fopen().  Feel free to use this code but please keep
+    This is mostly original code by Darin Johnson.  Ideas came from CD.
+    Feel free to use this code but please keep
     credits intact.
 */
 
 #include <assert.h>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <system_error>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -27,35 +31,76 @@
 #include "qsort.h"
 #include "hash.h"
 
-static char *magic_id = "NEOL";
-static uint32_t driver_id = 0x20260418; /* increment when driver changes */
-static uint64_t config_id = 0;
+static const char *magic_id = LPCBIN_MAGIC; /* magic id to identify valid binary files */
+static const uint32_t driver_id = LPCBIN_DRIVER_ID; /* increment when driver changes */
 
-static FILE *crdir_fopen(char *);
 static void patch_out (program_t *, short *, size_t);
 static void patch_in (program_t *, short *, size_t);
-static int str_case_cmp (char *, char *);
+static int str_case_cmp (void *, void *);
 static int check_times (time_t, const char *);
 static int locate_in (program_t *);
 static int locate_out (program_t *);
 
+namespace {
+
+struct file_closer {
+  void operator()(FILE *file) const {
+    if (file)
+      {
+        fclose(file);
+      }
+  }
+};
+
+struct free_deleter {
+  void operator()(void *ptr) const {
+    if (ptr)
+      {
+        FREE(ptr);
+      }
+  }
+};
+
+std::string strip_leading_slash(const char *value) {
+  if (!value)
+    {
+      return {};
+    }
+
+  std::string path(value);
+  while (!path.empty() && path[0] == '/')
+    {
+      path.erase(0, 1);
+    }
+  return path;
+}
+
+std::filesystem::path make_binary_path(const char *save_dir, const char *name) {
+  std::filesystem::path path(strip_leading_slash(save_dir));
+  path /= strip_leading_slash(name);
+  path.replace_extension(".b");
+  return path;
+}
+
+}
+
 /**
- * Save the binary version of a program.
+ * Save the binary version of a program. The saved binary file name is derived from the program
+ * name and the __SAVE_BINARIES_DIR__ configuration variable.
+ * The binary file will be saved if the master object approves the save_binary call and the binary
+ * data is within size limits.
+ * 
  * @param prog the program to save
  * @param includes memory block containing the list of include files
  * @param patches memory block containing the patch information
+ * @return The function does not fail. If saving fails, it will log the error and return without
+ *  saving. If saving succeeds, it will write the binary file to disk.
  */
-void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches) {
+extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patches) {
 
-  char file_name_buf[200];
-  char *file_name = file_name_buf;
-  FILE *f;
   int i;
   uint16_t bin_count;
   uint32_t bin_size;
-  size_t len;
-  program_t *p;
-  struct stat st;
 
   svalue_t *ret;
   char *nm;
@@ -80,23 +125,24 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
     /* assume all other sizes ok */
     return;
 
-  strcpy (file_name, CONFIG_STR (__SAVE_BINARIES_DIR__));
-  if (file_name[0] == '/')
-    file_name++;
-  if ((-1 == stat (file_name, &st)) && (ENOENT != errno))
+  const std::filesystem::path binary_path = make_binary_path(CONFIG_STR(__SAVE_BINARIES_DIR__), prog->name);
+  const std::string binary_name = binary_path.generic_string();
+  std::error_code ec;
+  if (!binary_path.parent_path().empty())
     {
-      debug_perror ("stat() failed on save binaries dir", file_name);
-      return;
+      std::filesystem::create_directories(binary_path.parent_path(), ec);
+      if (ec)
+        {
+          debug_perror("create_directories() failed", binary_name.c_str());
+          return;
+        }
     }
-  strcat (file_name, "/");
-  strcat (file_name, prog->name);
-  len = strlen (file_name);
-  file_name[len - 1] = 'b';	/* change .c ending to .b */
 
-  opt_trace (TT_COMPILE|1, "writing to: /%s", file_name);
-  if (!(f = crdir_fopen (file_name)))
+  opt_trace (TT_COMPILE|1, "writing to: /%s", binary_name.c_str());
+  std::unique_ptr<FILE, file_closer> f(fopen(binary_name.c_str(), "wb"));
+  if (!f)
     {
-      debug_perror ("crdir_fopen() failed", file_name);
+      debug_perror ("fopen() failed", binary_name.c_str());
       return;
     }
 
@@ -107,12 +153,11 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
    * - 4 bytes driver id
    * - 8 bytes config id
    */
-  if (fwrite (magic_id, strlen (magic_id), 1, f) != 1 ||
-      fwrite ((char *) &driver_id, sizeof (driver_id), 1, f) != 1 ||
-      fwrite ((char *) &config_id, sizeof (config_id), 1, f) != 1)
+  if (fwrite (magic_id, strlen (magic_id), 1, f.get()) != 1 ||
+      fwrite ((char *) &driver_id, sizeof (driver_id), 1, f.get()) != 1 ||
+      fwrite ((char *) &prog->config_id, sizeof (prog->config_id), 1, f.get()) != 1)
     {
-      debug_perror ("fwrite()", file_name);
-      fclose (f);
+      debug_perror ("fwrite()", binary_name.c_str());
       return;
     }
 
@@ -124,13 +169,21 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
    */
   assert (includes->current_size <= USHRT_MAX);
   bin_count = (uint16_t) includes->current_size;
-  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
-  fwrite (includes->block, includes->current_size, 1, f);
+  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+  fwrite (includes->block, includes->current_size, 1, f.get());
 
   /*
-   * Make a copy and patch program
+   * Allocate a copy of program_t in a consequential memory block that can be patched as a image
+   * and written out as binary.
    */
-  p = (program_t *) DXALLOC (prog->total_size, TAG_TEMPORARY, "save_binary");
+  std::unique_ptr<program_t, free_deleter> patched_prog(
+    reinterpret_cast<program_t *>(DXALLOC(prog->total_size, TAG_TEMPORARY, "save_binary")));
+  if (!patched_prog)
+    {
+      opt_trace (TT_COMPILE|1, "failed to allocate temp program copy");
+      return;
+    }
+  program_t *p = patched_prog.get();
   /* convert to relative pointers, copy, then convert back */
   locate_out (prog);
   memcpy (p, prog, prog->total_size);
@@ -149,8 +202,8 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
    * - program name
    */
   bin_count = (uint16_t)SHARED_STRLEN (p->name);
-  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
-  fwrite (p->name, sizeof (char), bin_count, f);
+  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+  fwrite (p->name, sizeof (char), bin_count, f.get());
 
   /*
    * [WRITE_PROGRAM_STRUCTURE]
@@ -159,9 +212,9 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
    * - program_t struct
    */
   bin_size = (uint32_t) p->total_size;
-  fwrite ((char *) &bin_size, sizeof (bin_size), 1, f);
-  fwrite ((char *) p, p->total_size, 1, f);
-  FREE (p);
+  fwrite ((char *) &bin_size, sizeof (bin_size), 1, f.get());
+  fwrite ((char *) p, p->total_size, 1, f.get());
+  patched_prog.reset();
   p = prog;
 
   /*
@@ -173,8 +226,8 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
   for (i = 0; i < (int) p->num_inherited; i++)
     {
       bin_count = (uint16_t)SHARED_STRLEN (p->inherit[i].prog->name);
-      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
-      fwrite (p->inherit[i].prog->name, sizeof (char), bin_count, f);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+      fwrite (p->inherit[i].prog->name, sizeof (char), bin_count, f.get());
     }
 
   /*
@@ -190,13 +243,13 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
       size_t length = SHARED_STRLEN (p->strings[i]);
       if (length >= USHRT_MAX)
         {
-          fclose (f);
           /* TODO: remove the incomplete binary file */
           error ("String too long for save_binary.\n");
+          return;
         }
       bin_count = (uint16_t)length;
-      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
-      fwrite (p->strings[i], sizeof (char), bin_count, f);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+      fwrite (p->strings[i], sizeof (char), bin_count, f.get());
     }
 
   /*
@@ -208,8 +261,8 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
   for (i = 0; i < (int) p->num_variables_defined; i++)
     {
       bin_count = (uint16_t)SHARED_STRLEN (p->variable_table[i]);
-      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
-      fwrite (p->variable_table[i], sizeof (char), bin_count, f);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+      fwrite (p->variable_table[i], sizeof (char), bin_count, f.get());
     }
 
   /*
@@ -221,8 +274,8 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
   for (i = 0; i < (int) p->num_functions_defined; i++)
     {
       bin_count = (uint16_t)SHARED_STRLEN (p->function_table[i].name);
-      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
-      fwrite (p->function_table[i].name, sizeof (char), bin_count, f);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+      fwrite (p->function_table[i].name, sizeof (char), bin_count, f.get());
     }
 
   /*
@@ -234,13 +287,13 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
   if (p->line_info)
     {
       bin_count = (uint16_t)p->file_info[0];
-      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
-      fwrite ((char *) p->file_info, bin_count, 1, f);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+      fwrite ((char *) p->file_info, bin_count, 1, f.get());
     }
   else
     {
       bin_count = 0;
-      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
+      fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
     }
 
   /*
@@ -251,18 +304,17 @@ void save_binary (program_t * prog, mem_block_t * includes, mem_block_t * patche
    */
   assert (patches->current_size <= USHRT_MAX);
   bin_count = (uint16_t)patches->current_size;
-  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f);
-  fwrite (patches->block, patches->current_size, 1, f);
+  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+  fwrite (patches->block, patches->current_size, 1, f.get());
 
-  fclose (f);
-  opt_trace (TT_COMPILE|1, "done: /%s", file_name);
+  opt_trace (TT_COMPILE|1, "done: /%s", binary_name.c_str());
 }				/* save_binary() */
 
 static program_t *comp_prog;
 
-static int
-compare_compiler_funcs (int *x, int *y)
-{
+extern "C" int compare_compiler_funcs (void *left, void *right) {
+  int *x = static_cast<int *>(left);
+  int *y = static_cast<int *>(right);
   char *n1 = comp_prog->function_table[*x].name;
   char *n2 = comp_prog->function_table[*y].name;
 
@@ -300,8 +352,7 @@ sort_function_table (program_t * prog)
   comp_prog = prog;
   quickSort (temp, num, sizeof (int), compare_compiler_funcs);
 
-  inverse =
-    CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
+  inverse = CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
   for (i = 0; i < num; i++)
     inverse[temp[i]] = i;
 
@@ -313,10 +364,8 @@ sort_function_table (program_t * prog)
    * know; I made this one up.  The basic idea is to do a swap, and then
    * figure out the correct permutation on the remaining n-1 elements.
    */
-  sorttmp =
-    CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
-  invtmp =
-    CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
+  sorttmp = CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
+  invtmp = CALLOCATE (num, int, TAG_TEMPORARY, "copy_and_sort_function_table");
   for (i = 0; i < num; i++)
     {
       sorttmp[i] = temp[i];
@@ -400,23 +449,28 @@ sort_function_table (program_t * prog)
   FREE (inverse);
 }
 
-#define ALLOC_BUF(size) \
-    if ((size) > buf_size) { FREE(buf); buf = DXALLOC(buf_size = size, TAG_TEMPORARY, "ALLOC_BUF"); }
-
 /* crude hack to check both .B and .b */
 #define OUT_OF_DATE 0
 
 /**
- * Load the binary version of a program.
+ * Attempt to load the binary version of a program if it exists and is up to date.
+ * 
+ * The binary file name is derived from the program name and the __SAVE_BINARIES_DIR__
+ * configuration variable.
+ * 
+ * The binary file will be loaded if it exists and is up to date with the source file and all
+ * included files.
+ * 
  * @param name the name of the program to load
- * @return the loaded program, or OUT_OF_DATE if the binary is out of date
+ * @param flags flags to control loading behavior (e.g. whether to ignore source file time)
+ * @return the loaded program (reference count = 1), or NULL (OUT_OF_DATE) if the
+ *  binary is out of date or inherits a file that is not yet loaded (setting inherit_file to
+ *  the first such file).
  */
-program_t *load_binary (const char *name) {
+extern "C" program_t *load_binary (const char *name, unsigned long flags) {
 
-  char file_name_buf[400];
-  char *buf, *iname, *file_name = file_name_buf, *file_name_two = &file_name_buf[200];
+  char *iname;
   int fd;
-  FILE *f;
   int i;
   uint32_t bin_driver_id; /* saved driver_id */
   uint64_t bin_config_id; /* saved config_id */
@@ -424,87 +478,103 @@ program_t *load_binary (const char *name) {
   uint16_t bin_count;
   uint32_t bin_size;
   size_t buf_size, len;
-  program_t *p, *prog;
+  program_t *prog;
   object_t *ob;
   struct stat st;
+  std::unique_ptr<FILE, file_closer> f;
+  std::unique_ptr<char, free_deleter> buf;
+  std::unique_ptr<program_t, free_deleter> loaded_prog;
+  program_t *p = nullptr;
+  const std::filesystem::path binary_path = make_binary_path(CONFIG_STR(__SAVE_BINARIES_DIR__), name);
+  const std::string binary_name = binary_path.generic_string();
 
   /* stuff from prolog() */
   num_parse_error = 0;
 
   if (!CONFIG_STR(__SAVE_BINARIES_DIR__))
     return OUT_OF_DATE;
-  sprintf (file_name, "%s/%s", CONFIG_STR (__SAVE_BINARIES_DIR__), name);
-  if (file_name[0] == '/')
-    file_name++;
-  len = strlen (file_name);
-  file_name[len - 1] = 'b';
   comp_flag = 1;
 
   /* Open the file and get file stat */
 #ifdef _WIN32
-  fd = FILE_OPEN (file_name, O_RDONLY | O_BINARY);
+  fd = FILE_OPEN (binary_name.c_str(), O_RDONLY | O_BINARY);
 #else
-  fd = FILE_OPEN (file_name, O_RDONLY);
+  fd = FILE_OPEN (binary_name.c_str(), O_RDONLY);
 #endif
   if (-1 == fd)
     {
-      opt_trace (TT_COMPILE|3, "unable to open expected binary: %s", file_name);
+      opt_trace (TT_COMPILE|3, "unable to open expected binary: %s", binary_name.c_str());
       return OUT_OF_DATE;
     }
   if (fstat (fd, &st) == -1)
     {
-      opt_trace (TT_COMPILE|3, "unable to stat expected binary: %s", file_name);
+      opt_trace (TT_COMPILE|3, "unable to stat expected binary: %s", binary_name.c_str());
       FILE_CLOSE (fd);
       return OUT_OF_DATE;
     }
   mtime = st.st_mtime;
 
   /* Open file stream */
-  if (!(f = FILE_FDOPEN (fd, "rb"))) {
-    opt_trace (TT_COMPILE|3, "unable to open expected binary: %s", file_name);
+  FILE *stream = FILE_FDOPEN(fd, "rb");
+  if (!stream) {
+    opt_trace (TT_COMPILE|3, "unable to open expected binary: %s", binary_name.c_str());
     FILE_CLOSE (fd);
     return OUT_OF_DATE;
   }
+  f.reset(stream);
 
-  opt_trace (TT_COMPILE|3, "found saved binary: %s", file_name);
+  opt_trace (TT_COMPILE|3, "found saved binary: %s", binary_name.c_str());
 
   /* Check if the source file is newer. */
-  if (check_times (mtime, name) <= 0)
+  if (!(flags & BIN_IGNORE_SOURCE_FILE) && check_times (mtime, name) <= 0)
     {
       opt_trace (TT_COMPILE|3, "out of date (source file newer).");
-      fclose (f);
       return OUT_OF_DATE;
     }
 
   buf_size = SMALL_STRING_SIZE;
-  buf = DXALLOC (buf_size, TAG_TEMPORARY, "ALLOC_BUF");
+  buf.reset(static_cast<char *>(DXALLOC(buf_size, TAG_TEMPORARY, "ALLOC_BUF")));
+  if (!buf)
+    {
+      opt_trace (TT_COMPILE|1, "failed to allocate binary load buffer.");
+      return OUT_OF_DATE;
+    }
+
+  auto ensure_buf = [&buf, &buf_size](size_t size) -> bool {
+    if (size <= buf_size)
+      {
+        return true;
+      }
+    char *new_buf = static_cast<char *>(DXALLOC(size, TAG_TEMPORARY, "ALLOC_BUF"));
+    if (!new_buf)
+      {
+        return false;
+      }
+    buf.reset(new_buf);
+    buf_size = size;
+    return true;
+  };
 
   /*
    * [READ_BINARY_PREAMBLE]
     * Check magic id, driver id and config id.
    */
-  if (fread (buf, strlen (magic_id), 1, f) != 1 ||
-      strncmp (buf, magic_id, strlen (magic_id)) != 0)
+  if (fread (buf.get(), strlen (magic_id), 1, f.get()) != 1 ||
+      strncmp (buf.get(), magic_id, strlen (magic_id)) != 0)
     {
       opt_trace (TT_COMPILE|3, "out of date. (bad magic number)\n");
-      fclose (f);
-      FREE (buf);
       return OUT_OF_DATE;
     }
-  if ((fread ((char *) &bin_driver_id, sizeof (bin_driver_id), 1, f) != 1) ||
+  if ((fread ((char *) &bin_driver_id, sizeof (bin_driver_id), 1, f.get()) != 1) ||
       (driver_id != bin_driver_id))
     {
       opt_trace (TT_COMPILE|3, "out of date. (driver changed)\n");
-      fclose (f);
-      FREE (buf);
       return OUT_OF_DATE;
     }
-  if ((fread ((char *) &bin_config_id, sizeof (bin_config_id), 1, f) != 1) ||
-      (config_id != bin_config_id))
+  if ((fread ((char *) &bin_config_id, sizeof (bin_config_id), 1, f.get()) != 1) ||
+      (compute_opcode_config_id() != bin_config_id))
     {
-      opt_trace (TT_COMPILE|3, "out of date. (config file changed)\n");
-      fclose (f);
-      FREE (buf);
+      opt_trace (TT_COMPILE|3, "out of date. (simul_efun file changed)\n");
       return OUT_OF_DATE;
     }
 
@@ -512,30 +582,31 @@ program_t *load_binary (const char *name) {
    * [READ_INCLUDE_LIST]
    * Check include file times. If any are newer, binary is out of date.
    */
-  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) != 1)
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) != 1)
     {
       opt_trace (TT_COMPILE|1, "failed reading include list size.");
-      fclose (f);
-      FREE (buf);
       return OUT_OF_DATE;
     }
   len = (size_t) bin_count;
-  ALLOC_BUF (len);
-  if (fread (buf, sizeof (char), len, f) != len)
+  if (!ensure_buf(len))
     {
-      opt_trace (TT_COMPILE|1, "failed reading include list.");
-      fclose (f);
-      FREE (buf);
+      opt_trace (TT_COMPILE|1, "failed to resize binary load buffer.");
       return OUT_OF_DATE;
     }
-  for (iname = buf; iname < buf + len; iname += strlen (iname) + 1)
+  if (fread (buf.get(), sizeof (char), len, f.get()) != len)
     {
-      if (check_times (mtime, iname) <= 0)
+      opt_trace (TT_COMPILE|1, "failed reading include list.");
+      return OUT_OF_DATE;
+    }
+  if (!(flags & BIN_IGNORE_INCLUDE_FILES))
+    {
+      for (iname = buf.get(); iname < buf.get() + len; iname += strlen (iname) + 1)
         {
-          opt_trace (TT_COMPILE|3, "out of date (include file is newer).");
-          fclose (f);
-          FREE (buf);
-          return OUT_OF_DATE;
+          if (check_times (mtime, iname) <= 0)
+            {
+              opt_trace (TT_COMPILE|3, "out of date (include file is newer).");
+              return OUT_OF_DATE;
+            }
         }
     }
   opt_trace (TT_COMPILE|3, "include files (%d) modification check ok.", bin_count);
@@ -544,31 +615,30 @@ program_t *load_binary (const char *name) {
    * [READ_PROGRAM_NAME]
    * Check program name. If it doesn't match, binary is probably moved or out of date.
    */
-  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) != 1)
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) != 1)
     {
       opt_trace (TT_COMPILE|1, "failed reading binary name length.");
-      fclose (f);
-      FREE (buf);
       return OUT_OF_DATE;
     }
   len = (size_t) bin_count;
   if (len > 0)
     {
-      ALLOC_BUF (len + 1);
-      if (fread (buf, sizeof (char), len, f) != len)
+      if (!ensure_buf(len + 1))
         {
-          opt_trace (TT_COMPILE|1, "failed reading binary name.");
-          fclose (f);
-          FREE (buf);
+          opt_trace (TT_COMPILE|1, "failed to resize binary load buffer.");
           return OUT_OF_DATE;
         }
-      buf[len] = '\0';
-      if (strcmp (name, buf) != 0)
+      if (fread (buf.get(), sizeof (char), len, f.get()) != len)
         {
-          opt_trace (TT_COMPILE|1, "binary name [%zd]%s inconsistent with file (%s).", len, buf, name);
-          fclose (f);
-          FREE (buf);
+          opt_trace (TT_COMPILE|1, "failed reading binary name.");
           return OUT_OF_DATE;
+        }
+      buf.get()[len] = '\0';
+      if (strcmp (name, buf.get()) != 0)
+        {
+          opt_trace (TT_COMPILE|1, "binary name [%zd]%s inconsistent with file (%s).", len, buf.get(), name);
+          if (!(flags & BIN_IGNORE_SOURCE_FILE))
+            return OUT_OF_DATE;
         }
     }
 
@@ -578,24 +648,27 @@ program_t *load_binary (const char *name) {
    * - 32-bit size of program_t struct
    * - program_t struct
    */
-  if (fread ((char *) &bin_size, sizeof (bin_size), 1, f) != 1)
+  if (fread ((char *) &bin_size, sizeof (bin_size), 1, f.get()) != 1)
     {
       opt_trace (TT_COMPILE|1, "failed reading program struct size");
-      fclose (f);
-      FREE (buf);
       return OUT_OF_DATE;
     }
   len = (size_t) bin_size;
-  p = (program_t *) DXALLOC (len, TAG_PROGRAM, "load_binary");
-  if (fread ((char *) p, len, 1, f) != 1)
+  loaded_prog.reset(reinterpret_cast<program_t *>(DXALLOC(len, TAG_PROGRAM, "load_binary")));
+  p = loaded_prog.get();
+  if (!p)
+    {
+      opt_trace (TT_COMPILE|1, "failed allocating program struct");
+      return OUT_OF_DATE;
+    }
+  if (fread ((char *) p, len, 1, f.get()) != 1)
     {
       opt_trace (TT_COMPILE|1, "failed reading program struct");
-      fclose (f);
-      FREE (buf);
       return OUT_OF_DATE;
     }
   locate_in (p);		/* from swap.c */
   p->name = make_shared_string(name, NULL);
+  /* config_id was already loaded as part of the program_t structure */
   opt_trace (TT_COMPILE|3, "loaded program structure ok. size = %zu bytes.", len);
 
   /*
@@ -604,21 +677,25 @@ program_t *load_binary (const char *name) {
    */
   for (i = 0; i < (int) p->num_inherited; i++)
     {
-      buf[0] = '\0';
-      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
+      buf.get()[0] = '\0';
+      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) == 1)
         {
           len = (size_t) bin_count;
-          ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == len)
-            buf[len] = '\0';
+          if (!ensure_buf(len + 1))
+            {
+              opt_trace (TT_COMPILE|1, "failed to resize binary load buffer.");
+              free_string(to_shared_str(p->name));
+              return OUT_OF_DATE;
+            }
+          if (fread (buf.get(), sizeof (char), len, f.get()) == len)
+            {
+              buf.get()[len] = '\0';
+            }
         }
-      if (!buf[0])
+      if (!buf.get()[0])
         {
           opt_trace (TT_COMPILE|1, "inherited program name corrupted.");
-          fclose (f);
           free_string(to_shared_str(p->name));
-          FREE (p);
-          FREE (buf);
           return OUT_OF_DATE;
         }
 
@@ -626,31 +703,23 @@ program_t *load_binary (const char *name) {
        * Check times against inherited source.  If saved binary of
        * inherited prog exists, check against it also.
        */
-      sprintf (file_name_two, "%s/%s", CONFIG_STR (__SAVE_BINARIES_DIR__), buf);
-      if (file_name_two[0] == '/')
-        file_name_two++;
-      len = strlen (file_name_two);
-      file_name_two[len - 1] = 'b';
-      if (check_times (mtime, buf) <= 0 ||
-          check_times (mtime, file_name_two) == 0)
+      const std::filesystem::path inherited_binary_path = make_binary_path(CONFIG_STR(__SAVE_BINARIES_DIR__), buf.get());
+      const std::string inherited_binary_name = inherited_binary_path.generic_string();
+      if (check_times (mtime, buf.get()) <= 0 ||
+          check_times (mtime, inherited_binary_name.c_str()) == 0)
         {			/* ok if -1 */
           opt_trace (TT_COMPILE|1, "out of date (inherited source is newer).");
-          fclose (f);
           free_string(to_shared_str(p->name));
-          FREE (p);
-          FREE (buf);
           return OUT_OF_DATE;
         }
       /* find inherited program (maybe load it here?) */
-      ob = find_object_by_name (buf);
+      ob = find_object_by_name (buf.get());
       if (!ob)
         {
-          opt_trace (TT_COMPILE|1, "saved binary inherits: /%s", buf);
-          fclose (f);
+          opt_trace (TT_COMPILE|1, "saved binary inherits: /%s", buf.get());
           free_string(to_shared_str(p->name));
-          FREE (p);
-          inherit_file = buf;	/* freed elsewhere */
-          return 0;
+          inherit_file = buf.release();	/* freed elsewhere */
+          return OUT_OF_DATE;
         }
       p->inherit[i].prog = ob->prog;
     }
@@ -662,14 +731,23 @@ program_t *load_binary (const char *name) {
    */
   for (i = 0; i < (int) p->num_strings; i++)
     {
-      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
+      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) == 1)
         {
           len = (size_t) bin_count;
-          ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == len)
+          if (!ensure_buf(len + 1))
             {
-              buf[len] = '\0';
-              p->strings[i] = make_shared_string(buf, buf + len);
+              opt_trace (TT_COMPILE|1, "failed to resize binary load buffer.");
+              while (i-- > 0)
+                {
+                  free_string(to_shared_str(p->strings[i]));
+                }
+              free_string(to_shared_str(p->name));
+              return OUT_OF_DATE;
+            }
+          if (fread (buf.get(), sizeof (char), len, f.get()) == len)
+            {
+              buf.get()[len] = '\0';
+              p->strings[i] = make_shared_string(buf.get(), buf.get() + len);
               continue;
             }
         }
@@ -678,10 +756,7 @@ program_t *load_binary (const char *name) {
         {
           free_string(to_shared_str(p->strings[i]));
         }
-      fclose (f);
       free_string(to_shared_str(p->name));
-      FREE (p);
-      FREE (buf);
       return OUT_OF_DATE;
     }
   opt_trace (TT_COMPILE|3, "loaded string table ok. num_strings = %d.", p->num_strings);
@@ -692,14 +767,28 @@ program_t *load_binary (const char *name) {
    */
   for (i = 0; i < (int) p->num_variables_defined; i++)
     {
-      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
+      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) == 1)
         {
           len = (size_t) bin_count;
-          ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == len)
+          if (!ensure_buf(len + 1))
             {
-              buf[len] = '\0';
-              p->variable_table[i] = make_shared_string(buf, NULL);
+              opt_trace (TT_COMPILE|1, "failed to resize binary load buffer.");
+              while (i-- > 0)
+                {
+                  free_string(to_shared_str(p->variable_table[i]));
+                }
+              i = p->num_strings;
+              while (i-- > 0)
+                {
+                  free_string(to_shared_str(p->strings[i]));
+                }
+              free_string(to_shared_str(p->name));
+              return OUT_OF_DATE;
+            }
+          if (fread (buf.get(), sizeof (char), len, f.get()) == len)
+            {
+              buf.get()[len] = '\0';
+              p->variable_table[i] = make_shared_string(buf.get(), NULL);
               continue;
             }
         }
@@ -713,10 +802,7 @@ program_t *load_binary (const char *name) {
         {
           free_string(to_shared_str(p->strings[i]));
         }
-      fclose (f);
       free_string(to_shared_str(p->name));
-      FREE (p);
-      FREE (buf);
       return OUT_OF_DATE;
     }
   opt_trace (TT_COMPILE|3, "loaded variable table ok. num_variables_defined = %d.", p->num_variables_defined);
@@ -727,14 +813,33 @@ program_t *load_binary (const char *name) {
    */
   for (i = 0; i < (int) p->num_functions_defined; i++)
     {
-      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
+      if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) == 1)
         {
           len = (size_t) bin_count;
-          ALLOC_BUF (len + 1);
-          if (fread (buf, sizeof (char), len, f) == len)
+          if (!ensure_buf(len + 1))
             {
-              buf[len] = '\0';
-              p->function_table[i].name = make_shared_string(buf, NULL);
+              opt_trace (TT_COMPILE|1, "failed to resize binary load buffer.");
+              while (i-- > 0)
+                {
+                  free_string(to_shared_str(p->function_table[i].name));
+                }
+              i = p->num_variables_defined;
+              while (i-- > 0)
+                {
+                  free_string(to_shared_str(p->variable_table[i]));
+                }
+              i = p->num_strings;
+              while (i-- > 0)
+                {
+                  free_string(to_shared_str(p->strings[i]));
+                }
+              free_string(to_shared_str(p->name));
+              return OUT_OF_DATE;
+            }
+          if (fread (buf.get(), sizeof (char), len, f.get()) == len)
+            {
+              buf.get()[len] = '\0';
+              p->function_table[i].name = make_shared_string(buf.get(), NULL);
               continue;
             }
         }
@@ -753,10 +858,7 @@ program_t *load_binary (const char *name) {
         {
           free_string(to_shared_str(p->strings[i]));
         }
-      fclose (f);
       free_string(to_shared_str(p->name));
-      FREE (p);
-      FREE (buf);
       return OUT_OF_DATE;
     }
   sort_function_table (p);
@@ -766,11 +868,11 @@ program_t *load_binary (const char *name) {
    * [READ_LINE_NUMBERS]
    * Read line numbers.
    */
-  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) == 1)
     {
       len = (size_t) bin_count;
       p->file_info = (unsigned short *) DXALLOC (len, TAG_LINENUMBERS, "load binary");
-      if (fread ((char *) p->file_info, len, 1, f) == 1)
+      if (fread ((char *) p->file_info, len, 1, f.get()) == 1)
         {
           p->line_info = (unsigned char *) &p->file_info[p->file_info[1]];
         }
@@ -792,11 +894,8 @@ program_t *load_binary (const char *name) {
             {
               free_string(to_shared_str(p->strings[i]));
             }
-          fclose (f);
           free_string(to_shared_str(p->name));
           FREE (p->file_info);
-          FREE (p);
-          FREE (buf);
           return OUT_OF_DATE;
         }
     }
@@ -806,25 +905,48 @@ program_t *load_binary (const char *name) {
    * [READ_PATCHES]
    * Read patch information and fix up program.
    */
-  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f) == 1)
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) == 1)
     {
       len = (size_t) bin_count;
-      ALLOC_BUF (len);
-      if (fread (buf, len, 1, f) == 1)
+      if (!ensure_buf(len))
+        {
+          opt_trace (TT_COMPILE|1, "failed to resize binary load buffer.");
+          i = p->num_functions_defined;
+          while (i-- > 0)
+            {
+              free_string(to_shared_str(p->function_table[i].name));
+            }
+          i = p->num_variables_defined;
+          while (i-- > 0)
+            {
+              free_string(to_shared_str(p->variable_table[i]));
+            }
+          i = p->num_strings;
+          while (i-- > 0)
+            {
+              free_string(to_shared_str(p->strings[i]));
+            }
+          free_string(to_shared_str(p->name));
+          if (p->file_info)
+            {
+              FREE(p->file_info);
+              p->file_info = nullptr;
+              p->line_info = nullptr;
+            }
+          return OUT_OF_DATE;
+        }
+      if (fread (buf.get(), len, 1, f.get()) == 1)
         {
           /* fix up some stuff */
-          patch_in (p, (short *) buf, len / sizeof (short));
+          patch_in (p, (short *) buf.get(), len / sizeof (short));
         }
     }
   opt_trace (TT_COMPILE|3, "applied patches ok.");
 
-  fclose (f);
-  FREE (buf);
-
   /*
    * Now finish everything up.  (stuff from epilog())
    */
-  prog = p;
+  prog = loaded_prog.release();
   prog->id_number = get_id_number ();
 
   total_prog_block_size += prog->total_size;
@@ -836,11 +958,11 @@ program_t *load_binary (const char *name) {
       reference_prog (prog->inherit[i].prog, "inheritance");
     }
 
-  opt_trace (TT_COMPILE|1, "loaded successfully: %s", file_name);
+  opt_trace (TT_COMPILE|1, "loaded successfully: %s", binary_name.c_str());
   return prog;
 }
 
-void init_binaries () {
+extern "C" void init_binaries () {
 
   if (CONFIG_STR(__SAVE_BINARIES_DIR__))
     {
@@ -849,18 +971,10 @@ void init_binaries () {
        * the config_id to ensure that binaries are recompiled when the
        * simul_efun definitions change.
        */
-      if (CONFIG_STR(__SIMUL_EFUN_FILE__))
-        {
-          struct stat st;
-          if (0 == stat (CONFIG_STR(__SIMUL_EFUN_FILE__), &st))
-            {
-              config_id = (uint64_t)st.st_mtime;
-            }
-        }
+      refresh_opcode_config_id();
       debug_message ("{}\tusing #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
       opt_trace (TT_COMPILE|1, "magic id: \"%s\" (len=%d)", magic_id, (int)strlen(magic_id));
       opt_trace (TT_COMPILE|1, "driver id: %u (len=%d)", driver_id, sizeof(driver_id));
-      opt_trace (TT_COMPILE|1, "config id: %lu (len=%d)", config_id, sizeof(config_id));
     }
   else
     {
@@ -931,8 +1045,10 @@ patch_out (program_t * prog, short *patches, size_t len)
 }				/* patch_out() */
 
 static int
-str_case_cmp (char *a, char *b)
+str_case_cmp (void *left, void *right)
 {
+  char *a = static_cast<char *>(left);
+  char *b = static_cast<char *>(right);
   char *s1, *s2;
 
   COPY_PTR (&s1, a);
@@ -980,45 +1096,6 @@ patch_in (program_t * prog, short *patches, size_t len)
         }
     }
 }				/* patch_in() */
-
-/*
- * open file for writing, creating intermediate directories if needed.
- */
-FILE *
-crdir_fopen (char *file_name)
-{
-  char *p;
-  struct stat st;
-  FILE *ret;
-
-  /*
-   * Beek - These directories probably exist most of the time, so let's
-   * optimize by trying the fopen first
-   */
-  if ((ret = fopen (file_name, "wb")) != NULL)
-    {
-      return ret;
-    }
-  p = file_name;
-
-  while (*p && (p = (char *) strchr (p, '/')))
-    {
-      *p = '\0';
-      if (stat (file_name, &st) == -1)
-        {
-          /* make this dir */
-          if (mkdir (file_name, 0770) == -1)
-            {
-              *p = '/';
-              return (FILE *) 0;
-            }
-        }
-      *p = '/';
-      p++;
-    }
-
-  return fopen (file_name, "wb");
-}
 
 /*
  * marion - adjust pointers for swap out and later relocate on swap in

@@ -12,6 +12,9 @@
 #include "lpc/include/runtime_config.h"
 #include "efuns/file_utils.h"
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 char *inherit_file;
 
 extern int yyparse (void); /* generated from grammar.y */
@@ -1852,8 +1855,10 @@ void copy_in (int which, char **start) {
 }
 
 static int
-compare_compiler_funcs (int *x, int *y)
+compare_compiler_funcs (void *left, void *right)
 {
+  int *x = (int *) left;
+  int *y = (int *) right;
   char *n1 = COMPILER_FUNC (*x)->name;
   char *n2 = COMPILER_FUNC (*y)->name;
   int sp1, sp2;
@@ -2219,6 +2224,7 @@ static program_t *epilog ()
   current_file = 0;
 
   prog->id_number = get_id_number ();
+  prog->config_id = compute_opcode_config_id();
   total_prog_block_size += prog->total_size;
   total_num_prog_blocks++;
 
@@ -2417,7 +2423,10 @@ the_file_name (char *name)
   return tmp;
 }
 
-int case_compare (parse_node_t ** c1, parse_node_t ** c2) {
+int case_compare (void *left, void *right) {
+  parse_node_t **c1 = (parse_node_t **) left;
+  parse_node_t **c2 = (parse_node_t **) right;
+
   if ((*c1)->kind == NODE_DEFAULT)
     return -1;
   if ((*c2)->kind == NODE_DEFAULT)
@@ -2426,7 +2435,9 @@ int case_compare (parse_node_t ** c1, parse_node_t ** c2) {
   return (int)((*c1)->r.number - (*c2)->r.number);
 }
 
-int string_case_compare (parse_node_t ** c1, parse_node_t ** c2) {
+int string_case_compare (void *left, void *right) {
+  parse_node_t **c1 = (parse_node_t **) left;
+  parse_node_t **c2 = (parse_node_t **) right;
   int64_t i1, i2;
   char *p1, *p2;
 
@@ -2547,6 +2558,37 @@ void prepare_cases (parse_node_t * pn, size_t start) {
     pn->kind = NODE_SWITCH_DIRECT;
   pn->v.expr = *(ce_start);
   mem_block[A_CASES].current_size = start;
+}
+
+static uint64_t config_id = 0;
+
+uint64_t compute_opcode_config_id() {
+  uint64_t new_config_id = 0;
+
+  if (CONFIG_STR(__SIMUL_EFUN_FILE__))
+    {
+      struct stat st;
+      const char *simul_path = CONFIG_STR(__SIMUL_EFUN_FILE__);
+      if (simul_path && simul_path[0])
+        {
+          /* Strip leading '/' for relative path handling */
+          const char *path_to_stat = simul_path;
+          if (path_to_stat[0] == '/')
+            {
+              path_to_stat++;
+            }
+          if (0 == stat(path_to_stat, &st))
+            {
+              new_config_id = (uint64_t)st.st_mtime;
+            }
+        }
+    }
+
+  return new_config_id;
+}
+
+void refresh_opcode_config_id () {
+  config_id = compute_opcode_config_id();
 }
 
 /**

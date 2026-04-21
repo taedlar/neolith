@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-void quickSort(void *, int, int, int (*) ());
+void quickSort(void *, int, int, int (*) (void*, void*));
 
 #ifdef __cplusplus
 }
