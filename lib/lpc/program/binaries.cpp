@@ -39,6 +39,35 @@ static int check_times (time_t, const char *);
 static int locate_in (program_t *);
 static int locate_out (program_t *);
 
+extern "C" uint64_t compute_binaries_config_id() {
+  uint64_t new_config_id = 0;
+
+  if (CONFIG_STR(__SIMUL_EFUN_FILE__))
+    {
+      struct stat st;
+      const char *simul_path = CONFIG_STR(__SIMUL_EFUN_FILE__);
+      if (simul_path && simul_path[0])
+        {
+          /* Strip leading '/' for relative path handling */
+          const char *path_to_stat = simul_path;
+          if (path_to_stat[0] == '/')
+            {
+              path_to_stat++;
+            }
+          if (0 == stat(path_to_stat, &st))
+            {
+              new_config_id = (uint64_t)st.st_mtime;
+            }
+        }
+    }
+
+  return new_config_id;
+}
+
+extern "C" void refresh_binaries_config_id () {
+  config_id = compute_binaries_config_id();
+}
+
 /**
  * Save the binary version of a program.
  * @param prog the program to save
@@ -94,6 +123,7 @@ extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block
   file_name[len - 1] = 'b';	/* change .c ending to .b */
 
   opt_trace (TT_COMPILE|1, "writing to: /%s", file_name);
+  f = nullptr;
   if (!(f = crdir_fopen (file_name)))
     {
       debug_perror ("crdir_fopen() failed", file_name);
@@ -109,7 +139,7 @@ extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block
    */
   if (fwrite (magic_id, strlen (magic_id), 1, f) != 1 ||
       fwrite ((char *) &driver_id, sizeof (driver_id), 1, f) != 1 ||
-      fwrite ((char *) &config_id, sizeof (config_id), 1, f) != 1)
+      fwrite ((char *) &prog->config_id, sizeof (prog->config_id), 1, f) != 1)
     {
       debug_perror ("fwrite()", file_name);
       fclose (f);
@@ -131,6 +161,12 @@ extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block
    * Make a copy and patch program
    */
   p = (program_t *) DXALLOC (prog->total_size, TAG_TEMPORARY, "save_binary");
+  if (!p)
+    {
+      fclose(f);
+      opt_trace (TT_COMPILE|1, "failed to allocate temp program copy");
+      return;
+    }
   /* convert to relative pointers, copy, then convert back */
   locate_out (prog);
   memcpy (p, prog, prog->total_size);
@@ -190,6 +226,7 @@ extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block
       size_t length = SHARED_STRLEN (p->strings[i]);
       if (length >= USHRT_MAX)
         {
+          FREE (p);
           fclose (f);
           /* TODO: remove the incomplete binary file */
           error ("String too long for save_binary.\n");
@@ -500,9 +537,9 @@ extern "C" program_t *load_binary (const char *name) {
       return OUT_OF_DATE;
     }
   if ((fread ((char *) &bin_config_id, sizeof (bin_config_id), 1, f) != 1) ||
-      (config_id != bin_config_id))
+      (compute_binaries_config_id() != bin_config_id))
     {
-      opt_trace (TT_COMPILE|3, "out of date. (config file changed)\n");
+      opt_trace (TT_COMPILE|3, "out of date. (simul_efun file changed)\n");
       fclose (f);
       FREE (buf);
       return OUT_OF_DATE;
@@ -596,6 +633,7 @@ extern "C" program_t *load_binary (const char *name) {
     }
   locate_in (p);		/* from swap.c */
   p->name = make_shared_string(name, NULL);
+  /* config_id was already loaded as part of the program_t structure */
   opt_trace (TT_COMPILE|3, "loaded program structure ok. size = %zu bytes.", len);
 
   /*
@@ -849,14 +887,7 @@ extern "C" void init_binaries () {
        * the config_id to ensure that binaries are recompiled when the
        * simul_efun definitions change.
        */
-      if (CONFIG_STR(__SIMUL_EFUN_FILE__))
-        {
-          struct stat st;
-          if (0 == stat (CONFIG_STR(__SIMUL_EFUN_FILE__), &st))
-            {
-              config_id = (uint64_t)st.st_mtime;
-            }
-        }
+      refresh_binaries_config_id();
       debug_message ("{}\tusing #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
       opt_trace (TT_COMPILE|1, "magic id: \"%s\" (len=%d)", magic_id, (int)strlen(magic_id));
       opt_trace (TT_COMPILE|1, "driver id: %u (len=%d)", driver_id, sizeof(driver_id));

@@ -203,6 +203,8 @@ typedef struct program_s
     int id_number;              /* used to associate information with this
                                  * prog block without needing to increase the
                                  * reference count     */
+    uint64_t config_id;         /* simul_efun mtime when this program was compiled;
+                                 * used to validate binary consistency */
     unsigned char *line_info;   /* Line number information (A_LINENUMBERS area) */
     unsigned short *file_info;  /* File information (A_FILE_INFO area)*/
     compiler_function_t *function_table; /* function definitions (A_COMPILER_FUNCTIONS area), indexed by function_number_t */

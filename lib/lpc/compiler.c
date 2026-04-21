@@ -2221,6 +2221,7 @@ static program_t *epilog ()
   current_file = 0;
 
   prog->id_number = get_id_number ();
+  prog->config_id = compute_binaries_config_id();
   total_prog_block_size += prog->total_size;
   total_num_prog_blocks++;
 
