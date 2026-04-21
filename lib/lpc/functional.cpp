@@ -7,8 +7,6 @@
 #include "src/interpret.h"
 #include "src/simul_efun.h"
 #include "src/error_context.h"
-#include "src/error_guards.hpp"
-#include "src/exceptions.hpp"
 #include "array.h"
 #include "functional.h"
 #include "object.h"

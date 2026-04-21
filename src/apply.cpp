@@ -6,12 +6,10 @@
 #include "rc.h"
 #include "apply.h"
 #include "frame.h"
+#include "error_context.h"
 #include "lpc/object.h"
 #include "lpc/program.h"
 #include "lpc/include/origin.h"
-
-/* C++ exception boundary wrapper implemented in apply_safe.cpp. */
-extern svalue_t *safe_apply_cpp (const char *fun, object_t *ob, int num_arg, int where);
 
 /*
  * Apply a fun 'fun' to the program in object 'ob', with
@@ -430,14 +428,57 @@ svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
   return &apply_ret_value;
 }
 
+/**
+ * @brief C++ exception boundary wrapper for safe apply.
+ * 
+ * This function delegates to a C++ exception boundary while preserving the C ABI
+ * and return-value contract. It allows driver-mudlib dependencies to be safely
+ * executed without causing serious bugs when errors occur in the applied function.
+ *
+ * @param fun The function name to apply.
+ * @param ob The object to apply the function to.
+ * @param num_arg The number of arguments already pushed on the stack.
+ * @param where The origin context of the apply call.
+ * @returns Pointer to the return value, or NULL if function not found or exception occurred.
+ */
+extern "C"
+svalue_t *safe_apply_cpp (const char *fun, object_t *ob, int num_arg, int where) {
+  svalue_t *ret = 0;
+  error_context_t econ;
+
+  if (!ob || (ob->flags & O_DESTRUCTED))
+    {
+      return 0;
+    }
+
+  try
+    {
+      neolith::error_boundary_guard boundary (&econ);
+
+      try
+        {
+          ret = apply (fun, ob, num_arg, where);
+        }
+      catch (const neolith::driver_runtime_error &)
+        {
+          boundary.restore ();
+          ret = 0;
+        }
+    }
+  catch (const neolith::driver_runtime_error &)
+    {
+      ret = 0;
+    }
+
+  return ret;
+}
+
 /*
  * this is a "safe" version of apply
  * this allows you to have dangerous driver mudlib dependencies
  * and not have to worry about causing serious bugs when errors occur in the
  * applied function and the driver depends on being able to do something
  * after the apply. (such as the ed exit function, and the net_dead function).
- * This function delegates to a C++ exception boundary wrapper while
- * preserving the C ABI and return-value contract.
  */
 
 svalue_t *safe_apply (const char *fun, object_t * ob, int num_arg, int where)

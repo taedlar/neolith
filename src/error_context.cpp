@@ -5,8 +5,6 @@
 #include "std.h"
 #include "rc.h"
 #include "error_context.h"
-#include "exceptions.hpp"
-#include "error_guards.hpp"
 #include "frame.h"
 #include "lpc/lex.h"
 #include "lpc/mapping.h"

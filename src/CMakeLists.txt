@@ -10,24 +10,19 @@
 
 set(stem_SOURCES
     addr_resolver.cpp
-    apply.c
-    apply_safe.cpp
+    apply.cpp
     backend.c
-    backend_guards.cpp
     comm.c
     command.c
     error_context.cpp
-    frame.c
-    frame_catch.cpp
+    frame.cpp
     interpret.c
     malloc.c
-    main_startup.cpp
     outbuf.c
     simul_efun.c
-    simulate_fatal_guard.cpp
     simulate.c
     stack.c
-    stem.c
+    stem.cpp
     stralloc.c
 )
 add_library(stem OBJECT ${stem_SOURCES})
