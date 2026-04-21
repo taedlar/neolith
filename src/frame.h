@@ -17,7 +17,7 @@ void push_control_stack(int);
 void do_catch (const char *, unsigned short);
 
 char* get_line_number (const char *p, const program_t * progp);
-void get_line_number_info (char **ret_file, int *ret_line);
+void get_line_number_info (const char **ret_file, int *ret_line);
 char *dump_trace (int);
 array_t *get_svalue_trace (int);
 

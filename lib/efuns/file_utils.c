@@ -1012,7 +1012,6 @@ int do_rename (char *fr, char *t, int flag) {
   size_t flen;
   static svalue_t from_sv = { .type = T_NUMBER };
   static svalue_t to_sv = { .type = T_NUMBER };
-  extern svalue_t apply_ret_value;
 
   /*
    * important that the same write access checks are done for link() as are
@@ -1076,9 +1075,7 @@ int do_rename (char *fr, char *t, int flag) {
 }
 #endif /* F_RENAME */
 
-int
-copy_file (char *from, char *to)
-{
+int copy_file (char *from, char *to) {
   struct stat st;
   char buf[32768];
   int from_fd, to_fd;
@@ -1086,7 +1083,6 @@ copy_file (char *from, char *to)
   char *write_ptr;
   static svalue_t from_sv = { .type = T_NUMBER };
   static svalue_t to_sv = { .type = T_NUMBER };
-  extern svalue_t apply_ret_value;
 
   from = check_valid_path (from, current_object, "cp", 0);
   if (from == 0)

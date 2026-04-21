@@ -44,10 +44,10 @@
  * manually !  (Look towards end of this function.)
  */
 
- int call_origin;
+int call_origin;
 
- /* used by routines that want to return a pointer to an svalue */
-svalue_t apply_ret_value = { .type = T_NUMBER };
+/* used by routines that want to return a pointer to an svalue */
+svalue_t apply_ret_value = { T_NUMBER, 0, 0 };
 
 #ifdef CACHE_STATS
 unsigned int apply_low_call_others = 0;
@@ -56,8 +56,7 @@ unsigned int apply_low_slots_used = 0;
 unsigned int apply_low_collisions = 0;
 #endif
 
-typedef struct cache_entry_s
-{
+typedef struct cache_entry_s {
   int id;
   program_t *oprogp;
   program_t *progp;
@@ -66,10 +65,12 @@ typedef struct cache_entry_s
   unsigned short num_arg, num_local;
   int function_index_offset;
   int variable_index_offset;
-}
-cache_entry_t;
 
-static cache_entry_t cache[APPLY_CACHE_SIZE] = {0};
+  cache_entry_s() : id(0), oprogp(nullptr), progp(nullptr), index(0), name(nullptr),
+                    num_arg(0), num_local(0), function_index_offset(0), variable_index_offset(0) {}
+} cache_entry_t;
+
+static cache_entry_t cache[APPLY_CACHE_SIZE];
 
 const char *origin_name (int orig) {
   switch (orig)
@@ -105,7 +106,7 @@ const char *origin_name (int orig) {
  *  @param[out] vio Output parameter for the variable index offset.
  *  @return The program_t where the function was found, or NULL if not found.
  */
-program_t *find_function (program_t * prog, shared_str_t name, int *index, int *fio, int *vio) {
+program_t *find_function (program_t* prog, shared_str_t name, int *index, int *fio, int *vio) {
   int high = prog->num_functions_defined - 1;
   int low = 0;
   int i;
@@ -422,18 +423,18 @@ svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
   IF_DEBUG (expected_sp = sp - num_arg);
   if (apply_low (fun, ob, num_arg) == 0)
     return 0;
-  free_svalue (&apply_ret_value, "sapply");
+  free_svalue (&apply_ret_value, "apply");
   apply_ret_value = *sp--;
   DEBUG_CHECK (expected_sp != sp, "Corrupt stack pointer.\n");
   return &apply_ret_value;
 }
 
 /**
- * @brief C++ exception boundary wrapper for safe apply.
- * 
- * This function delegates to a C++ exception boundary while preserving the C ABI
- * and return-value contract. It allows driver-mudlib dependencies to be safely
- * executed without causing serious bugs when errors occur in the applied function.
+ * @brief A "safe" version of apply.
+ * This allows you to have dangerous driver mudlib dependencies
+ * and not have to worry about causing serious bugs when errors occur in the
+ * applied function and the driver depends on being able to do something
+ * after the apply. (such as the ed exit function, and the net_dead function).
  *
  * @param fun The function name to apply.
  * @param ob The object to apply the function to.
@@ -441,8 +442,7 @@ svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
  * @param where The origin context of the apply call.
  * @returns Pointer to the return value, or NULL if function not found or exception occurred.
  */
-extern "C"
-svalue_t *safe_apply_cpp (const char *fun, object_t *ob, int num_arg, int where) {
+svalue_t *safe_apply (const char *fun, object_t *ob, int num_arg, int where) {
   svalue_t *ret = 0;
   error_context_t econ;
 
@@ -471,19 +471,6 @@ svalue_t *safe_apply_cpp (const char *fun, object_t *ob, int num_arg, int where)
     }
 
   return ret;
-}
-
-/*
- * this is a "safe" version of apply
- * this allows you to have dangerous driver mudlib dependencies
- * and not have to worry about causing serious bugs when errors occur in the
- * applied function and the driver depends on being able to do something
- * after the apply. (such as the ed exit function, and the net_dead function).
- */
-
-svalue_t *safe_apply (const char *fun, object_t * ob, int num_arg, int where)
-{
-  return safe_apply_cpp (fun, ob, num_arg, where);
 }
 
 /**

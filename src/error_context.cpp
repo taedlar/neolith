@@ -193,7 +193,7 @@ static void debug_message_with_location (const char *err) {
 
 static void mudlib_error_handler (const char *err, int catch_flag) {
   mapping_t *m;
-  char *file;
+  const char *file;
   int line;
   svalue_t *mret;
 
