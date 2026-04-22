@@ -114,6 +114,98 @@ TEST_F(EfunsTest, applySlotSafeCallMissingFunctionPreservesSlotContract) {
     destruct_object(obj);
 }
 
+TEST_F(EfunsTest, applySlotSafeCallNullObjectPreservesSlotContract) {
+    svalue_t *sp_before = sp;
+    push_number(13);
+
+    svalue_t *ret = APPLY_SLOT_SAFE_CALL("does_not_matter", nullptr, 1, ORIGIN_DRIVER);
+    ASSERT_EQ(ret, nullptr) << "Expected null return for safe apply on null object";
+
+    ASSERT_EQ(sp, sp_before + 1) << "Expected one slot placeholder after null-object safe apply";
+    auto top = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(top.is_number()) << "Expected placeholder slot to remain as undefined/number zero";
+    ASSERT_EQ(top.number(), 0);
+
+    APPLY_SLOT_FINISH_CALL();
+    EXPECT_EQ(sp, sp_before) << "Stack should be restored after APPLY_SLOT_FINISH_CALL on null-object path";
+}
+
+TEST_F(EfunsTest, applySlotSafeCallDestructedObjectPreservesSlotContract) {
+    object_t* obj = load_object("/tests/efuns/test_apply_slot_safe_destructed", R"(
+        int sentinel() { return 1; }
+    )");
+    ASSERT_NE(obj, nullptr) << "Failed to load destructed-object test object";
+
+    destruct_object(obj);
+
+    svalue_t *sp_before = sp;
+    push_number(21);
+
+    svalue_t *ret = APPLY_SLOT_SAFE_CALL("sentinel", obj, 1, ORIGIN_DRIVER);
+    ASSERT_EQ(ret, nullptr) << "Expected null return for safe apply on destructed object";
+
+    ASSERT_EQ(sp, sp_before + 1) << "Expected one slot placeholder after destructed-object safe apply";
+    auto top = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(top.is_number()) << "Expected placeholder slot to remain as undefined/number zero";
+    ASSERT_EQ(top.number(), 0);
+
+    APPLY_SLOT_FINISH_CALL();
+    EXPECT_EQ(sp, sp_before) << "Stack should be restored after APPLY_SLOT_FINISH_CALL on destructed-object path";
+}
+
+TEST_F(EfunsTest, applySlotSafeMasterCallMissingMasterPreservesSlotContract) {
+    object_t *saved_master = master_ob;
+
+    svalue_t *sp_before = sp;
+    push_number(34);
+
+    master_ob = nullptr;
+    svalue_t *ret = APPLY_SLOT_SAFE_MASTER_CALL("does_not_matter", 1);
+    master_ob = saved_master;
+
+    ASSERT_EQ(ret, (svalue_t *)-1) << "Expected safe master apply to return -1 when master object is missing";
+    ASSERT_EQ(sp, sp_before + 1) << "Expected one slot placeholder after missing-master safe apply";
+    auto top = lpc::svalue_view::from(sp);
+    ASSERT_TRUE(top.is_number()) << "Expected placeholder slot to remain as undefined/number zero";
+    ASSERT_EQ(top.number(), 0);
+
+    APPLY_SLOT_FINISH_CALL();
+    EXPECT_EQ(sp, sp_before) << "Stack should be restored after APPLY_SLOT_FINISH_CALL on missing-master path";
+}
+
+TEST_F(EfunsTest, safeFunctionPointerSlotCallSaveContextFailurePreservesSlotContract) {
+    object_t* obj = load_object("/tests/efuns/test_funp_slot_save_context", R"(
+        int sentinel(int value) { return value; }
+    )");
+    ASSERT_NE(obj, nullptr) << "Failed to load function pointer save_context test object";
+
+    object_t *saved_current_object = current_object;
+    current_object = obj;
+    funptr_t *funp = make_lfun_funp_by_name("sentinel", &const0);
+    ASSERT_NE(funp, nullptr) << "Failed to create local function pointer";
+
+    control_stack_t *saved_csp = csp;
+    svalue_t *sp_before = sp;
+    push_number(55);
+
+    csp = &control_stack[CONFIG_INT(__MAX_CALL_DEPTH__) - 1];
+    svalue_t *ret = SAFE_CALL_FUNCTION_POINTER_SLOT_CALL(funp, 1);
+    csp = saved_csp;
+
+    EXPECT_EQ(ret, nullptr) << "Expected safe function pointer call to return null when save_context fails";
+    EXPECT_EQ(sp, sp_before + 1) << "Expected one slot placeholder after save_context failure";
+    auto top = lpc::svalue_view::from(sp);
+    EXPECT_TRUE(top.is_number()) << "Expected placeholder slot to remain as undefined/number zero";
+    EXPECT_EQ(top.number(), 0);
+
+    CALL_FUNCTION_POINTER_SLOT_FINISH();
+    EXPECT_EQ(sp, sp_before) << "Stack should be restored after CALL_FUNCTION_POINTER_SLOT_FINISH on save_context failure";
+
+    free_funp(funp);
+    current_object = saved_current_object;
+    destruct_object(obj);
+}
+
 TEST_F(EfunsTest, functionPointerSlotCallErrorPathKeepsRuntimeUsable) {
     object_t* obj = load_object("/tests/efuns/test_funp_slot_call", R"(
         mixed *capture(mixed a, mixed b) { return ({ a, b }); }

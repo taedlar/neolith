@@ -465,6 +465,8 @@ svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where
   if (!ob || (ob->flags & O_DESTRUCTED))
     {
       pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
       return 0;
     }
 
@@ -480,12 +482,16 @@ svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where
         {
           boundary.restore ();
           pop_n_elems (num_arg + (with_slot ? 1 : 0));
+          if (with_slot)
+            push_undefined ();
           ret = 0;
         }
     }
   catch (const neolith::driver_runtime_error &)
     {
       pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
       ret = 0;
     }
 
@@ -540,9 +546,9 @@ svalue_t *safe_apply_master_ob (const char *fun, int num_arg, int with_slot) {
 
   if (!master_ob)
     {
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
       if (with_slot)
-        pop_stack ();
-      pop_n_elems (num_arg);
+        push_undefined ();
       return (svalue_t *) - 1;
     }
   return safe_apply_call (fun, master_ob, num_arg, ORIGIN_DRIVER, with_slot);

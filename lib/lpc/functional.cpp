@@ -537,6 +537,8 @@ safe_call_function_pointer (funptr_t *funp, int num_arg, int with_slot)
   if (!save_context (&econ))
     {
       pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
       return 0;
     }
 
@@ -550,6 +552,8 @@ safe_call_function_pointer (funptr_t *funp, int num_arg, int with_slot)
       restore_context (&econ);
       /* condition was restored to where it was when we came in */
       pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
       ret = 0;
     }
   pop_context (&econ);
