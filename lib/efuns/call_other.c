@@ -44,9 +44,9 @@ static array_t *call_all_other (array_t * v, const char *func, int numargs)
       i = numargs;
       while (i--)
         push_svalue (tmp - i);
-      call_origin = ORIGIN_CALL_OTHER;
-      if (apply_low (func, ob, numargs))
-        *rptr = *sp--;
+      APPLY_SLOT_CALL(func, ob, numargs, ORIGIN_CALL_OTHER);
+      *rptr = *sp;
+      APPLY_SLOT_FINISH_CALL();
     }
   sp--;
   pop_n_elems (numargs);
@@ -106,22 +106,25 @@ f_call_other (void)
     }
 
   /* Send the remaining arguments to the function. */
-  call_origin = ORIGIN_CALL_OTHER;
-  if (apply_low (funcname, ob, num_arg - 2) == 0)
-    {				/* Function not found */
-      pop_2_elems ();
-      push_undefined ();
-      return;
-    }
+  APPLY_SLOT_CALL(funcname, ob, num_arg - 2, ORIGIN_CALL_OTHER);
+  assign_svalue (sp - 2, sp); /* overwrites the object (as return value) */
+  APPLY_SLOT_FINISH_CALL(); /* remove slot */
+  pop_stack (); /* remove function name */
+  // call_origin = ORIGIN_CALL_OTHER;
+  // if (apply_low (funcname, ob, num_arg - 2) == 0)
+  //   {				/* Function not found */
+  //     pop_2_elems ();
+  //     push_undefined ();
+  //     return;
+  //   }
 
-  /*
-   * The result of the function call is on the stack.  So is the function
-   * name and object that was called, though. These have to be removed.
-   */
-  free_svalue (--sp, "f_call_other:1");
-  free_svalue (--sp, "f_call_other:2");
-  *sp = *(sp + 2);
-  return;
+  // /*
+  //  * The result of the function call is on the stack.  So is the function
+  //  * name and object that was called, though. These have to be removed.
+  //  */
+  // free_svalue (--sp, "f_call_other:1");
+  // free_svalue (--sp, "f_call_other:2");
+  // *sp = *(sp + 2);
 }
 #endif
 
