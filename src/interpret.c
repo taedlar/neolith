@@ -135,8 +135,7 @@ svalue_t* call_efun_callback (function_to_call_t * ftc, int n) {
     }
   else
     {
-      /* Keep funptr alive across callback execution. */
-      ftc->f.fp->hdr.ref++;
+      /* call_function_pointer() pins funptr lifetime for the call. */
       v = CALL_FUNCTION_POINTER_SLOT_CALL (ftc->f.fp, n + ftc->narg);
     }
 
@@ -147,10 +146,7 @@ void call_efun_callback_finish (function_to_call_t * ftc) {
   if (ftc->ob)
     APPLY_SLOT_FINISH_CALL();
   else
-    {
-      CALL_FUNCTION_POINTER_SLOT_FINISH();
-      free_funp (ftc->f.fp);
-    }
+    CALL_FUNCTION_POINTER_SLOT_FINISH();
 }
 
 static svalue_t global_lvalue_byte = { .type = T_LVALUE_BYTE };

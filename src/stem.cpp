@@ -202,87 +202,88 @@ void preload_objects_guarded(int eflag) {
   int ix;
   error_context_t econ;
 
-  if (!save_context(&econ))
-    return;
-
-
   try
     {
-      push_number(eflag);
-      ret = APPLY_SLOT_MASTER_CALL(APPLY_EPILOG, 1);
-    }
-  catch (const neolith::driver_runtime_error &)
-    {
-      APPLY_SLOT_FINISH_CALL();
-      restore_context(&econ);
-      pop_context(&econ);
-      return;
-    }
-
-  pop_context(&econ);
-
-  if ((ret == 0) || (ret == (svalue_t *) -1) || (ret->type != T_ARRAY))
-    {
-      APPLY_SLOT_FINISH_CALL();
-      return;
-    }
-  prefiles = ret->u.arr;
-  if ((prefiles == 0) || (prefiles->size < 1))
-    {
-      APPLY_SLOT_FINISH_CALL();
-      return;
-    }
-
-  // Retain the array before finishing the slot
-  prefiles->ref++;
-
-  APPLY_SLOT_FINISH_CALL();
-
-  opt_info(1, "Preloading %d objects", prefiles->size);
-  ix = 0;
-
-  while (ix < prefiles->size)
-    {
-      error_context_t preload_econ;
-      int had_error = 0;
-
-      if (!save_context(&preload_econ))
-        {
-          break;
-        }
-
+      neolith::error_boundary_guard boundary(&econ);
 
       try
         {
-          for (; ix < prefiles->size; ix++)
-            {
-              if (prefiles->item[ix].type != T_STRING)
-                continue;
-              eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
-              push_svalue(prefiles->item + ix);
-              (void) APPLY_MASTER_CALL (APPLY_PRELOAD, 1);
-            }
+          push_number(eflag);
+          ret = APPLY_SLOT_SAFE_MASTER_CALL(APPLY_EPILOG, 1);
         }
       catch (const neolith::driver_runtime_error &)
         {
-          restore_context(&preload_econ);
-          had_error = 1;
+          boundary.restore();
+          return;
         }
 
-      pop_context(&preload_econ);
-
-      if (had_error)
+      if ((ret == 0) || (ret == (svalue_t *) -1) || (ret->type != T_ARRAY))
         {
-          opt_warn(1, "Error preloading file %d/%d, continuing.", ix + 1, prefiles->size);
-          ix++;
-          continue;
+          APPLY_SLOT_FINISH_CALL();
+          return;
         }
-      break;
+      prefiles = ret->u.arr;
+      if ((prefiles == 0) || (prefiles->size < 1))
+        {
+          APPLY_SLOT_FINISH_CALL();
+          return;
+        }
+
+      // Retain the array before finishing the slot
+      prefiles->ref++;
+      APPLY_SLOT_FINISH_CALL();
+
+      opt_info(1, "Preloading %d objects", prefiles->size);
+      ix = 0;
+
+      while (ix < prefiles->size)
+        {
+          int had_error = 0;
+
+          try
+            {
+              error_context_t preload_econ;
+              neolith::error_boundary_guard preload_boundary(&preload_econ);
+
+              try
+                {
+                  for (; ix < prefiles->size; ix++)
+                    {
+                      if (prefiles->item[ix].type != T_STRING)
+                        continue;
+                      eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
+                      push_svalue(prefiles->item + ix);
+                      (void) APPLY_MASTER_CALL (APPLY_PRELOAD, 1);
+                    }
+                }
+              catch (const neolith::driver_runtime_error &)
+                {
+                  preload_boundary.restore();
+                  had_error = 1;
+                }
+            }
+          catch (const neolith::driver_runtime_error &)
+            {
+              break;
+            }
+
+          if (had_error)
+            {
+              opt_warn(1, "Error preloading file %d/%d, continuing.", ix + 1, prefiles->size);
+              ix++;
+              continue;
+            }
+          break;
+        }
+
+      free_array(prefiles);
+
+      opt_info(1, "Preloading complete");
     }
-
-  free_array(prefiles);
-
-  opt_info(1, "Preloading complete");
+  catch (const neolith::driver_runtime_error &)
+    {
+      return;
+    }
 }
 
 extern "C"
