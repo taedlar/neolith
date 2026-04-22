@@ -2093,6 +2093,23 @@ void reset_object (object_t * ob) {
   ob->flags |= O_RESET_STATE;
 }
 
+void clean_up_object (object_t* ob) {
+  int save_reset_state = ob->flags & O_RESET_STATE;
+  svalue_t *svp;
+
+  push_number((ob->flags & O_CLONE) ? 0 : ob->prog->ref);
+  svp = APPLY_SLOT_CALL(APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
+  if (ob->flags & O_DESTRUCTED)
+    {
+      APPLY_SLOT_FINISH_CALL();
+      return;
+    }
+  if (!svp || (svp->type == T_NUMBER && svp->u.number == 0))
+    ob->flags &= ~O_WILL_CLEAN_UP;
+  APPLY_SLOT_FINISH_CALL();
+  ob->flags |= save_reset_state;
+}
+
 /* Reason for the following 1. save cache space 2. speed :) */
 /* The following is to be called only from reset_object for */
 /* otherwise extra checks are needed - Sym                  */

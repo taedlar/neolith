@@ -40,7 +40,6 @@ extern char* realpath(const char* path, char* resolved_path);
 static void parse_command_line (int, char **);
 static void init_debug_log();
 static void print_startup_info();
-extern int run_mudlib_startup_guarded(void);
 
 #ifndef _WIN32
 static RETSIGTYPE sig_fpe (int sig);
@@ -123,7 +122,7 @@ int main (int argc, char **argv) {
    * 3. Run preload stage (before start listening for connections)
    * 4. Enter backend loop
    */
-  if (!run_mudlib_startup_guarded())
+  if (!stem_startup())
     {
       debug_message ("{}\t***** error occurs in mudlib startup, shutting down.");
       exit (EXIT_FAILURE);
@@ -140,7 +139,7 @@ int main (int argc, char **argv) {
 
   /* Run the infinite backend loop */
   debug_message ("{}\t----- entering MUD -----");
-  backend ();
+  stem_run ();
 
   /* NOTE: We do not do active tear down of the runtime environment when running as
    * a long-lived server process. It is not pratical to require the mudlib to destruct

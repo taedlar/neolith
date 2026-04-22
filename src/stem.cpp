@@ -13,6 +13,7 @@
 #include "lpc/object.h"
 #include "lpc/program.h"
 #include "lpc/include/origin.h"
+#include "port/timer.h"
 #include "rc.h"
 #include "simul_efun.h"
 #include "simulate.h"
@@ -73,7 +74,7 @@ void stem_get_addr_resolver_config(addr_resolver_config_t *config) {
 }
 
 extern "C"
-int run_mudlib_startup_guarded(void) {
+int stem_startup(void) {
   error_context_t econ;
 
   eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
@@ -109,10 +110,22 @@ int run_mudlib_startup_guarded(void) {
     }
 }
 
-extern "C" void backend_call_heart_beat(void);
-
+/**
+ *  @brief Despite the name, this routine takes care of several things.
+ *      It will loop through all objects once every 15 minutes.
+ *
+ *      If an object is found in a state of not having done reset, and the
+ *      delay to next reset has passed, then reset() will be done.
+ *
+ *      If the object has a existed more than the time limit given for swapping,
+ *      then 'clean_up' will first be called in the object, after which it will
+ *      be swapped out if it still exists.
+ *
+ *      There are some problems if the object self-destructs in clean_up, so
+ *      special care has to be taken of how the linked list is used.
+ */
 extern "C"
-void look_for_objects_to_swap_guarded(void) {
+void look_for_objects_to_swap(void) {
   static time_t next_time;
 
   if (current_time < next_time)
@@ -125,12 +138,7 @@ void look_for_objects_to_swap_guarded(void) {
       object_t *ob;
       error_context_t econ;
       int had_error = 0;
-
-      if (!save_context(&econ))
-        {
-          return;
-        }
-
+      neolith::error_boundary_guard boundary(&econ);
 
       try
         {
@@ -162,31 +170,16 @@ void look_for_objects_to_swap_guarded(void) {
                   if (current_time - ref_time > CONFIG_INT(__TIME_TO_CLEAN_UP__)
                       && (ob->flags & O_WILL_CLEAN_UP))
                     {
-                      int save_reset_state = ob->flags & O_RESET_STATE;
-                      svalue_t *svp;
-
-                      push_number((ob->flags & O_CLONE) ? 0 : ob->prog->ref);
-                      svp = APPLY_SLOT_CALL(APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
-                      if (ob->flags & O_DESTRUCTED)
-                        {
-                          APPLY_SLOT_FINISH_CALL();
-                          continue;
-                        }
-                      if (!svp || (svp->type == T_NUMBER && svp->u.number == 0))
-                        ob->flags &= ~O_WILL_CLEAN_UP;
-                      APPLY_SLOT_FINISH_CALL();
-                      ob->flags |= save_reset_state;
+                      clean_up_object(ob);
                     }
                 }
             }
         }
       catch (const neolith::driver_runtime_error &)
         {
-          restore_context(&econ);
+          boundary.restore();
           had_error = 1;
         }
-
-      pop_context(&econ);
 
       if (!had_error)
         {
@@ -195,8 +188,67 @@ void look_for_objects_to_swap_guarded(void) {
     }
 }
 
+/**
+ * @brief Heart beat timer callback.
+ * Sets the heart_beat_flag to trigger heart beat processing.
+ * Wakes up the async runtime blocking wait to run timer-related tasks.
+ */
+static void heartbeat_timer_callback(void) {
+  async_runtime_t *reactor = get_async_runtime();
+  heart_beat_flag = 1;
+  if (reactor)
+    async_runtime_wakeup(reactor);
+}
+
+static platform_timer_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
+
 extern "C"
-void preload_objects_guarded(int eflag) {
+void start_timers(void) {
+#ifdef HEARTBEAT_INTERVAL
+  /* start timer if any of the timer flags are set */
+  if (MAIN_OPTION(timer_flags) & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
+    {
+      timer_error_t timer_err;
+      timer_err = platform_timer_init(&heartbeat_timer);
+      if (timer_err != TIMER_OK)
+        {
+          opt_warn (0, "Timer initialization failed: %s. heart_beat(), call_out() and reset() disabled.",
+                    timer_error_string(timer_err));
+        }
+      else
+        {
+          timer_err = platform_timer_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
+          if (timer_err != TIMER_OK)
+            {
+              opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
+                        timer_error_string(timer_err));
+            }
+          debug_message ("timer started (timer flags = %d)\n", MAIN_OPTION(timer_flags));
+        }
+    }
+  else
+    {
+      debug_message ("timer not used (timer flags = %d)\n", MAIN_OPTION(timer_flags));
+    }
+  /* do initial timer tick (initialize current_time and allow LPC code to access time).
+   * This is always done even if no timer is started, so that current_time is valid.
+   */
+  call_heart_beat ();
+#endif /* HEARTBEAT_INTERVAL */
+}
+
+/**
+ * @brief Run startup preload sequence via the guarded C++ path.
+ *
+ * Calls master::epilog(eflag) through the slot-wrapper apply contract. If
+ * epilog returns an array, that array is retained before slot cleanup and
+ * each string element is passed to master::preload().
+ *
+ * Errors during epilog or an individual preload file are contained by the
+ * guarded path so startup can continue where possible.
+ */
+extern "C"
+void preload_objects(int eflag) {
   array_t *prefiles;
   svalue_t *ret;
   int ix;
@@ -286,15 +338,12 @@ void preload_objects_guarded(int eflag) {
     }
 }
 
-extern "C"
-void backend_run_loop_guarded(void) {
+/** @brief Main driver loop, handling user commands, heart beats,
+ *  and periodic tasks.
+ */
+void driver_loop(void) {
   error_context_t econ;
-
-  if (!save_context(&econ))
-    {
-      fatal("backend: failed to establish recovery context.\n");
-    }
-
+  neolith::error_boundary_guard boundary(&econ);
 
   if (MAIN_OPTION(console_mode))
     init_console_user(0);
@@ -316,7 +365,7 @@ void backend_run_loop_guarded(void) {
 
               if (g_proceeding_shutdown)
                 {
-                  pop_context(&econ);
+                  boundary.restore();
                   return;
                 }
 
@@ -367,12 +416,12 @@ void backend_run_loop_guarded(void) {
               for (i = 0; process_user_command() && i < connected_users; i++);
 
               if (heart_beat_flag)
-                backend_call_heart_beat();
+                call_heart_beat();
             }
         }
       catch (const neolith::driver_runtime_error &)
         {
-          restore_context(&econ);
+          boundary.restore();
           if (MAIN_OPTION(console_mode))
             init_console_user(0);
         }
@@ -380,7 +429,7 @@ void backend_run_loop_guarded(void) {
 }
 
 extern "C"
-void invoke_master_crash_handler_guarded(const char *msg) {
+void stem_crash_handler(const char *msg) {
   error_context_t econ;
 
   try
@@ -420,4 +469,30 @@ void invoke_master_crash_handler_guarded(const char *msg) {
     {
       debug_message("{}\t***** error in master::%s(), shutdown now.", APPLY_CRASH);
     }
+}
+
+/** @brief Run the MUD's main loop.
+ */
+void stem_run () {
+
+  opt_info (1, "Entering backend loop.");
+
+#ifdef WINSOCK
+  {
+    // Initialize Winsock
+    WSADATA wsaData;
+    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != 0) {
+        debug_fatal("WSAStartup() failed: %d\n", iResult);
+        exit(EXIT_FAILURE);
+    }
+  }
+#endif
+  init_user_conn();		/* initialize user connection socket */
+  init_backend();
+  start_timers();
+
+  driver_loop();
+
+  platform_timer_cleanup(&heartbeat_timer);
 }

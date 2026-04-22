@@ -100,6 +100,7 @@ int restore_object(object_t *, const char *, int);
 void restore_variable(svalue_t *, char *);
 object_t *get_empty_object(int);
 void reset_object(object_t *);
+void clean_up_object(object_t *);
 void call_create(object_t *, int);
 void reload_object(object_t *);
 void free_object(object_t *, const char *);

@@ -58,7 +58,6 @@ static object_t *load_virtual_object (const char *);
 static char *make_new_name (const char *);
 static void send_say (object_t *, char *, array_t *);
 static void remove_sent (object_t *, object_t *);
-extern void invoke_master_crash_handler_guarded(const char *msg);
 
 
 /*************************************************************************
@@ -2413,7 +2412,7 @@ void fatal (const char *fmt, ...) {
       if ((ob_name = dump_trace (DUMP_WITH_ARGS | DUMP_WITH_LOCALVARS)))
         debug_message ("{}\t----- in heart beat of /%s", ob_name);
 
-      invoke_master_crash_handler_guarded(msg);
+      stem_crash_handler(msg);
     }
 
   free (msg);
