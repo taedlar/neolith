@@ -459,8 +459,12 @@ svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where
   svalue_t *ret = 0;
   error_context_t econ;
 
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in safe_apply_call.", num_arg);
+
   if (!ob || (ob->flags & O_DESTRUCTED))
     {
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
       return 0;
     }
 
@@ -475,11 +479,13 @@ svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where
       catch (const neolith::driver_runtime_error &)
         {
           boundary.restore ();
+          pop_n_elems (num_arg + (with_slot ? 1 : 0));
           ret = 0;
         }
     }
   catch (const neolith::driver_runtime_error &)
     {
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
       ret = 0;
     }
 
@@ -529,8 +535,13 @@ svalue_t *apply_master_ob (const char *fun, int num_arg, int with_slot) {
 }
 
 svalue_t *safe_apply_master_ob (const char *fun, int num_arg, int with_slot) {
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in safe_apply_master_ob.", num_arg);
+
   if (!master_ob)
     {
+      if (with_slot)
+        pop_stack ();
       pop_n_elems (num_arg);
       return (svalue_t *) - 1;
     }

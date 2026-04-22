@@ -531,8 +531,14 @@ safe_call_function_pointer (funptr_t *funp, int num_arg, int with_slot)
   error_context_t econ;
   svalue_t *ret;
 
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in safe_call_function_pointer.", num_arg);
+
   if (!save_context (&econ))
-    return 0;
+    {
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      return 0;
+    }
 
 
   try
