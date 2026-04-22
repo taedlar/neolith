@@ -22,14 +22,14 @@ TEST_F(EfunsTest, saveObject) {
     st_num_arg = 2;
     push_constant_string(save_file_path);
     push_number(0); // flag to indicate saving variables
-    f_save_object();
+    f_save_object(); // FIXME: leaks one counted string
 
     auto view = lpc::svalue_view::from(sp);
     ASSERT_TRUE(view.is_number());
     ASSERT_EQ(view.number(), 1) << "Failed to save object state";
     destruct_object(obj);
 
-    EXPECT_TRUE (fs::exists(save_file_path)) << "Save file was not created";
+    EXPECT_TRUE (fs::exists(save_file_path, ec)) << "Save file was not created";
 
     // load a new object for restoring state
     obj = load_object("/tests/efuns/test_save_object", R"(
@@ -49,9 +49,9 @@ TEST_F(EfunsTest, saveObject) {
     ASSERT_EQ(view.number(), 1) << "Failed to restore object state";
 
     // Verify that the variable 'x' was restored correctly
-    apply_low("get_number", obj, 0);
+    EXPECT_NE(APPLY_SLOT_CALL("get_number", obj, 0, ORIGIN_DRIVER), nullptr) << "Failed to call get_number after restore";
     view = lpc::svalue_view::from(sp);
     ASSERT_TRUE(view.is_number());
     ASSERT_EQ(view.number(), 42) << "Restored variable value is incorrect";
-    pop_stack();
+    APPLY_SLOT_FINISH_CALL();
 }

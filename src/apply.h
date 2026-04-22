@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lpc/types.h"
+#include "lpc/include/origin.h"
 
 #ifdef __cplusplus
 extern "C" {

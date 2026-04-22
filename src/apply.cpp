@@ -9,7 +9,6 @@
 #include "error_context.h"
 #include "lpc/object.h"
 #include "lpc/program.h"
-#include "lpc/include/origin.h"
 
 /*
  * Apply a fun 'fun' to the program in object 'ob', with
@@ -46,6 +45,7 @@
 
 int call_origin;
 
+static int cache_mask = APPLY_CACHE_SIZE - 1;
 #ifdef CACHE_STATS
 unsigned int apply_low_call_others = 0;
 unsigned int apply_low_cache_hits = 0;
@@ -198,20 +198,47 @@ static int function_visible (int origin, int func_flags) {
 }
 
 /**
- *  @brief Low-level apply of a function to an object.
- *  @param fun The function name.
- *  @param ob The object to apply the function to.
- *  @param num_arg The number of arguments already pushed on the stack.
- *  @retval 0 if the applied function is not defined in the LPC object.
- *  @retval 1 if the applied function has been called successfully.
+ * @brief Low-level apply of a function to an object.
+ * 
+ * This is a hot path in a busy MUD, so it is optimized in several ways.  The main
+ * optimization is the apply cache, which caches the results of looking up a function
+ * in an object's program.  The cache is indexed by a hash of the program id, the function
+ * name pointer, and the function name pointer shifted to ignore low bits that are not
+ * significant for hashing).  This allows for very fast lookups in the common case where
+ * the same function is called repeatedly on the same object.
+ * 
+ * In most of the case, the function name pointer is a pointer to a shared string
+ * (LPC string literal or identifier), but it can also be a pointer to a regular C string
+ * that is not shared (C/C++ string literals, such as APPLY_* in applies.h). In that case,
+ * we are still good for using the string pointer for hashing purposes, but we need to convert
+ * it to a shared string for the entry->name (and add reference to it) to ensure the string
+ * pointer is valid for future comparisons.
+ * 
+ * @param fun A pointer to the function name. This can be a pointer to a shared string or
+ *    a pointer to a regular C string. The address is used for hashing in the apply cache,
+ *    so if it is a regular C string, it will be converted to a shared string and the address
+ *    of the shared string will be used for hashing and comparisons.
+ * @param ob The object to apply the function to.
+ * @param num_arg The number of arguments already pushed on the stack.
+ * @retval 0 if the applied function is not defined in the LPC object.
+ * @retval 1 if the applied function has been called successfully.
+ *    The return value from the applied function will be on the stack if 1 is returned.
  */
-int apply_low (const char *fun, object_t * ob, int num_arg) {
+int apply_low (const char *fun, object_t* ob, int num_arg) {
 
-  shared_str_t sfun;
-  cache_entry_t *entry;
-  program_t *progp, *prog;
-  int ix, fio, vio;
-  static int cache_mask = APPLY_CACHE_SIZE - 1;
+  if (!ob || (ob->flags & O_DESTRUCTED))
+    {
+      debug_error ("apply_low: object is destructed\n");
+      return 0;
+    }
+  if (num_arg < 0)
+    {
+      debug_error ("Negative number of arguments to apply_low: %d\n", num_arg);
+      return 0;
+    }
+
+  program_t *progp = ob->prog, *prog;
+  cache_entry_t *entry = &cache[(progp->id_number ^ (intptr_t) fun ^ ((intptr_t) fun >> APPLY_CACHE_BITS)) & cache_mask];
   int local_call_origin = call_origin;
 
   if (!local_call_origin)
@@ -234,17 +261,12 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
 #endif
   ob->flags &= ~O_RESET_STATE;
 
-  progp = ob->prog;
 #ifdef CACHE_STATS
   apply_low_call_others++;
 #endif
 
-  /* compute hash key in APPLY_CACHE */
-  ix = (progp->id_number ^ (intptr_t) fun ^ ((intptr_t) fun >> APPLY_CACHE_BITS)) & cache_mask;
-  entry = &cache[ix];
-
   if ((entry->id == progp->id_number) && (entry->oprogp == progp) &&
-      (strcmp (entry->name, fun) == 0))
+      (strcmp (entry->name, fun) == 0)) /* entry->name is a shared string, fun is only valid before return */
     {
       /* function entry is found in APPLY_CACHE */
       opt_trace (TT_EVAL, "APPLY_CACHE hit for \"%s\"", fun);
@@ -294,16 +316,15 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
     }
   else
     {
-      /* entry is not found in APPLY_CACHE  */
-      int index;
+      /* function entry is matched in APPLY_CACHE  */
+      shared_str_t sfun = nullptr;
+      int index, fio, vio;
 
       opt_trace (TT_EVAL, "APPLY_CACHE miss for \"%s\"", fun);
 
-      /* we have to search the function
-       * The old entry was for a nonexistent function and had to
-       * be allocated
-       *
-      if (!entry->progp && entry->id)
+      /* We are going to search the function in ob and overwrite the cache entry.
+       * If the entry->name is not empty, it points to a shared string and we need to release
+       * our reference to it before overwriting the entry.
        */
       if (entry->id && entry->name)
         free_string(to_shared_str(entry->name));
@@ -361,24 +382,19 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
                */
               return 1;
             }
-        }
+        } /* prog != NULL */
+
       /* We have to mark a function not to be in the object */
       entry->id = progp->id_number;
       entry->oprogp = progp;
-      if (sfun)
-        {
-          ref_string(to_shared_str(sfun));
-          entry->name = sfun;
-        }
-      else
-        entry->name = make_shared_string(fun, NULL);
+      entry->name = sfun ? ref_string(to_shared_str(sfun)) : make_shared_string(fun, NULL);
       entry->progp = (program_t *) 0;
     }
 
-  /* Failure. Deallocate stack. */
+  /* Not calling call_program(), pop arguments */
   pop_n_elems (num_arg);
 
-  opt_trace (TT_EVAL, "not defined or not visible to caller: \"%s\"", fun);
+  opt_trace (TT_EVAL|1, "not defined or not visible to caller: \"%s\"", fun);
   return 0;
 }
 
