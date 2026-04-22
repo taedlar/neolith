@@ -247,6 +247,7 @@ void call_function (program_t *progp, int runtime_index, int num_args, svalue_t 
 void call_efun(int);
 void process_efun_callback(int, function_to_call_t *, int);
 svalue_t *call_efun_callback(function_to_call_t *, int);
+void call_efun_callback_finish(function_to_call_t *);
 #ifndef NO_SHADOWS
 int is_static(const char *, object_t *);
 #endif

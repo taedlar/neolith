@@ -757,11 +757,12 @@ file_size (char *file)
  *  This is done by functions in the master object.
  *  The path is always treated as an absolute path, and is returned without a leading '/'.
  *  If the path was '/', then '.' is returned.
- *  Otherwise, the returned path is temporarily allocated by apply(), which means it will be deallocated at next apply().
+ *  The returned path is retained in static storage owned by this helper until the next call.
  */
 char *check_valid_path (const char *path, object_t * call_object, const char *call_fun, int writeflg) {
 
   static char current_dir[] = ".";
+  static svalue_t retained_path = { .type = T_NUMBER };
   svalue_t *v;
   char* ret_path = 0;
 
@@ -772,9 +773,9 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
   push_object (call_object);
   push_constant_string (call_fun);
   if (writeflg)
-    v = apply_master_ob (APPLY_VALID_WRITE, 3);
+    v = APPLY_SLOT_MASTER_CALL (APPLY_VALID_WRITE, 3);
   else
-    v = apply_master_ob (APPLY_VALID_READ, 3);
+    v = APPLY_SLOT_MASTER_CALL (APPLY_VALID_READ, 3);
 
   if (v == (svalue_t *) - 1)
     {
@@ -784,7 +785,10 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
   else if (v)
     {
       if (v->type == T_NUMBER && v->u.number == 0)
-        return 0;
+        {
+          APPLY_SLOT_FINISH_CALL();
+          return 0;
+        }
       if (v->type == T_STRING)
         {
           ret_path = SVALUE_STRPTR(v);
@@ -793,9 +797,7 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
 
   if (!ret_path)
     {
-      free_svalue (&apply_ret_value, "check_valid_path");
-      SET_SVALUE_MALLOC_STRING(&apply_ret_value, string_copy (path, "check_valid_path"));
-      ret_path = apply_ret_value.u.malloc_string;
+      ret_path = (char *)path;
     }
 
   if (ret_path[0] == '/')
@@ -804,9 +806,13 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
     ret_path = current_dir;
   if (legal_path (ret_path))
     {
+      free_svalue (&retained_path, "check_valid_path");
+      SET_SVALUE_MALLOC_STRING(&retained_path, string_copy (ret_path, "check_valid_path"));
+      APPLY_SLOT_FINISH_CALL();
       opt_trace(TT_EVAL, "legal path: %s (%s)", path, ret_path);
-      return ret_path;
+      return retained_path.u.malloc_string;
     }
+  APPLY_SLOT_FINISH_CALL();
   opt_trace(TT_EVAL, "not legal path: %s", path);
   return 0;
 }
@@ -1012,7 +1018,6 @@ int do_rename (char *fr, char *t, int flag) {
   size_t flen;
   static svalue_t from_sv = { .type = T_NUMBER };
   static svalue_t to_sv = { .type = T_NUMBER };
-  extern svalue_t apply_ret_value;
 
   /*
    * important that the same write access checks are done for link() as are
@@ -1026,13 +1031,17 @@ int do_rename (char *fr, char *t, int flag) {
   if (!from)
     return 1;
 
-  assign_svalue (&from_sv, &apply_ret_value);
+  free_svalue (&from_sv, "do_rename:from");
+  SET_SVALUE_MALLOC_STRING(&from_sv, string_copy (from, "do_rename:from"));
+  from = from_sv.u.malloc_string;
 
   to = check_valid_path (t, current_object, "rename", 1);
   if (!to)
     return 1;
 
-  assign_svalue (&to_sv, &apply_ret_value);
+  free_svalue (&to_sv, "do_rename:to");
+  SET_SVALUE_MALLOC_STRING(&to_sv, string_copy (to, "do_rename:to"));
+  to = to_sv.u.malloc_string;
   if (!strlen (to) && !strcmp (t, "/"))
     {
       to = tbuf;
@@ -1076,9 +1085,7 @@ int do_rename (char *fr, char *t, int flag) {
 }
 #endif /* F_RENAME */
 
-int
-copy_file (char *from, char *to)
-{
+int copy_file (char *from, char *to) {
   struct stat st;
   char buf[32768];
   int from_fd, to_fd;
@@ -1086,17 +1093,20 @@ copy_file (char *from, char *to)
   char *write_ptr;
   static svalue_t from_sv = { .type = T_NUMBER };
   static svalue_t to_sv = { .type = T_NUMBER };
-  extern svalue_t apply_ret_value;
 
   from = check_valid_path (from, current_object, "cp", 0);
   if (from == 0)
     return -1;
-  assign_svalue (&from_sv, &apply_ret_value);
+  free_svalue (&from_sv, "copy_file:from");
+  SET_SVALUE_MALLOC_STRING(&from_sv, string_copy (from, "copy_file:from"));
+  from = from_sv.u.malloc_string;
 
   to = check_valid_path (to, current_object, "cp", 1);
   if (to == 0)
     return -2;
-  assign_svalue (&to_sv, &apply_ret_value);
+  free_svalue (&to_sv, "copy_file:to");
+  SET_SVALUE_MALLOC_STRING(&to_sv, string_copy (to, "copy_file:to"));
+  to = to_sv.u.malloc_string;
 
   from_fd = open (from, O_RDONLY);
   if (from_fd < 0)

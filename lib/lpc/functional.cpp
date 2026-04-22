@@ -81,6 +81,34 @@ static void remove_fake_frame () {
   csp--;
 }
 
+/* Remove the fake frame only if it is still the top frame for this funptr. */
+static void remove_fake_frame_if_top(funptr_t *fun) {
+  if (csp < control_stack)
+    return;
+
+  if (((csp->framekind & FRAME_MASK) == FRAME_FAKE) && (csp->fr.funp == fun))
+    {
+      remove_fake_frame();
+    }
+}
+
+class funp_ref_guard {
+ public:
+  explicit funp_ref_guard(funptr_t *funp) : funp_(funp) {
+    funp_->hdr.ref++;
+  }
+
+  ~funp_ref_guard() {
+    free_funp(funp_);
+  }
+
+  funp_ref_guard(const funp_ref_guard &) = delete;
+  funp_ref_guard &operator=(const funp_ref_guard &) = delete;
+
+ private:
+  funptr_t *funp_;
+};
+
 /* num_arg args are on the stack, and the args from the array vec should be
  * put in front of them.  This is so that the order of arguments is logical.
  * 
@@ -298,14 +326,19 @@ void push_funp (funptr_t * funptr) {
   funptr->hdr.ref++;
 }
 
-svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
+static svalue_t *call_function_pointer_internal (funptr_t * funp, int num_arg, svalue_t *ret_slot) {
+  funp_ref_guard pinned_funp(funp);
+  int base_type = funp->hdr.type & FP_MASK;
 
   if (funp->hdr.owner->flags & O_DESTRUCTED)
     error ("*Owner (/%s) of function pointer is destructed.", funp->hdr.owner->name);
 
   setup_fake_frame (funp);
 
-  switch (funp->hdr.type)
+  try
+    {
+
+  switch (base_type)
     {
     case FP_SIMUL:
       if (funp->hdr.args)
@@ -366,16 +399,27 @@ svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
             }
           call_efun (i); // (*efun_table[i - BASE]) ();
 
-          free_svalue (&apply_ret_value, "call_function_pointer");
-          if (instrs[i].ret_type == TYPE_NOVALUE)
-            apply_ret_value = const0;
-          else
-            apply_ret_value = *sp--;
+          if (ret_slot)
+            {
+              free_svalue (ret_slot, "call_function_pointer");
+              if (instrs[i].ret_type == TYPE_NOVALUE)
+                *ret_slot = const0;
+              else
+                *ret_slot = *sp--;
+              remove_fake_frame ();
+              return ret_slot;
+            }
+
+          if (instrs[i].ret_type != TYPE_NOVALUE)
+            {
+              free_svalue (sp, "call_function_pointer");
+              sp--;
+            }
           remove_fake_frame ();
-          return &apply_ret_value;
+          return &const1;
         }
       }
-    case FP_LOCAL | FP_NOT_BINDABLE:
+    case FP_LOCAL:
       {
         compiler_function_t *func;
         fp = sp - num_arg + 1;
@@ -405,7 +449,6 @@ svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
         break;
       }
     case FP_FUNCTIONAL:
-    case FP_FUNCTIONAL | FP_NOT_BINDABLE:
       {
         fp = sp - num_arg + 1;
 
@@ -431,35 +474,103 @@ svalue_t* call_function_pointer (funptr_t * funp, int num_arg) {
         break;
       }
     default:
-      error ("*Unsupported function pointer type.");
+      error ("*Unsupported function pointer type (%d).", funp->hdr.type);
     }
-  free_svalue (&apply_ret_value, "call_function_pointer");
-  apply_ret_value = *sp--;
+  if (ret_slot)
+    {
+      free_svalue (ret_slot, "call_function_pointer");
+      *ret_slot = *sp--;
+      remove_fake_frame ();
+      return ret_slot;
+    }
+
+  free_svalue (sp, "call_function_pointer");
+  sp--;
   remove_fake_frame ();
-  return &apply_ret_value;
+  return &const1;
+
+    }
+  catch (const neolith::driver_runtime_error &)
+    {
+      remove_fake_frame_if_top(funp);
+      throw;
+    }
+}
+
+svalue_t* call_function_pointer (funptr_t *funp, int num_arg, int with_slot) {
+  /*
+   * Contract:
+   * - Caller has already pushed num_arg args (and optional slot placeholder).
+   * - Success returns either a slot pointer (with_slot) or &const1 (non-slot).
+   * - Runtime errors propagate; slot wrappers keep placeholder semantics for
+   *   the paired *_SLOT_FINISH() call sites.
+   */
+  svalue_t *ret_slot = 0;
+
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in call_function_pointer.", num_arg);
+
+  if (with_slot)
+    {
+      int i;
+      svalue_t placeholder = *sp;
+
+      ret_slot = sp - num_arg;
+
+      /*
+       * Slot wrappers push undefined after arguments.
+       * Rotate stack from [args..., slot] to [slot, args...]
+       * so call_function_pointer_internal() sees the correct argument list.
+       */
+      for (i = 0; i < num_arg; i++)
+        {
+          *(sp - i) = *(sp - i - 1);
+        }
+      *ret_slot = placeholder;
+    }
+
+  return call_function_pointer_internal (funp, num_arg, ret_slot);
 }
 
 svalue_t *
-safe_call_function_pointer (funptr_t * funp, int num_arg)
+safe_call_function_pointer (funptr_t *funp, int num_arg, int with_slot)
 {
+  /*
+   * Contract:
+   * - Mirrors call_function_pointer() return contract, but catches
+   *   driver_runtime_error and returns 0.
+   * - On early/error paths, cleans current call inputs and recreates slot
+   *   placeholder so CALL_FUNCTION_POINTER_SLOT_FINISH() remains valid.
+   */
   error_context_t econ;
   svalue_t *ret;
 
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in safe_call_function_pointer.", num_arg);
+
   if (!save_context (&econ))
-    return 0;
+    {
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
+      return 0;
+    }
 
 
   try
     {
-      ret = call_function_pointer (funp, num_arg);
+      ret = call_function_pointer (funp, num_arg, with_slot);
     }
   catch (const neolith::driver_runtime_error &)
     {
       restore_context (&econ);
       /* condition was restored to where it was when we came in */
-      pop_n_elems (num_arg);
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
       ret = 0;
     }
   pop_context (&econ);
   return ret;
 }
+

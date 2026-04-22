@@ -54,7 +54,7 @@ object_t *current_interactive;	/* The user who caused this execution */
 
 static int give_uid_to_object (object_t *);
 static int init_object (object_t *);
-static svalue_t *load_virtual_object (const char *);
+static object_t *load_virtual_object (const char *);
 static char *make_new_name (const char *);
 static void send_say (object_t *, char *, array_t *);
 static void remove_sent (object_t *, object_t *);
@@ -163,10 +163,11 @@ static int give_uid_to_object (object_t * ob) {
 
   /* ask master object who the creator of this object is */
   push_malloced_string (add_slash (ob->name));
-  ret = apply_master_ob (APPLY_CREATOR_FILE, 1);
+  ret = APPLY_SLOT_MASTER_CALL (APPLY_CREATOR_FILE, 1);
 
   if (ret == (svalue_t *) - 1)
     {
+      APPLY_SLOT_FINISH_CALL();
       destruct_object (ob);
       error ("*Can't load objects without a master object.");
       return 1;
@@ -179,8 +180,8 @@ static int give_uid_to_object (object_t * ob) {
     creator_name = "NONAME";
 
   /*
-   * Now we are sure that we have a creator name. Do not call apply()
-   * again, because creator_name will be lost !
+   * Now we are sure that we have a creator name. It is a stack slot that lives
+   * until APPLY_SLOT_FINISH_CALL() below, so it is safe to refer to it after the call.
    */
   if (current_object)
     {
@@ -191,6 +192,7 @@ static int give_uid_to_object (object_t * ob) {
           */
           ob->uid = current_object->uid;
           opt_info (2, "object /%s is granted uid \"%s\" by creator /%s.", ob->name, ob->uid->name, current_object->name);
+          APPLY_SLOT_FINISH_CALL();
           return 1;
         }
 
@@ -204,6 +206,7 @@ static int give_uid_to_object (object_t * ob) {
           ob->uid = current_object->euid;
           ob->euid = current_object->euid;
           opt_info (2, "object /%s is granted uid and euid \"%s\" by backbone.", ob->name, ob->uid->name);
+          APPLY_SLOT_FINISH_CALL();
           return 1;
         }
 #endif
@@ -223,6 +226,7 @@ static int give_uid_to_object (object_t * ob) {
   ob->euid = NULL;
 
   opt_info (2, "object /%s is granted uid \"%s\".", ob->name, ob->uid->name);
+  APPLY_SLOT_FINISH_CALL();
   return 1;
 }
 
@@ -232,16 +236,18 @@ static int init_object (object_t * ob) {
 }
 
 
-static svalue_t *load_virtual_object (const char *name) {
+static object_t *load_virtual_object (const char *name) {
   svalue_t *v;
+  object_t *result = 0;
 
   if (get_machine_state() < MS_MUDLIB_LIMBO)
     return 0;
   push_malloced_string (add_slash (name));
-  v = apply_master_ob (APPLY_COMPILE_OBJECT, 1);
-  if (!v || (v->type != T_OBJECT))
-    return 0;
-  return v;
+  v = APPLY_SLOT_MASTER_CALL (APPLY_COMPILE_OBJECT, 1);
+  if (v && (v->type == T_OBJECT))
+    result = v->u.ob;
+  APPLY_SLOT_FINISH_CALL();
+  return result;
 }
 
 /**
@@ -273,7 +279,7 @@ void set_master (object_t * ob) {
   add_ref (master_ob, "set_master");
   opt_trace (TT_EVAL|1, "master object ref = %d", master_ob->ref);
 
-  ret = apply_master_ob (APPLY_GET_ROOT_UID, 0);
+  ret = APPLY_SLOT_MASTER_CALL (APPLY_GET_ROOT_UID, 0);
   if (ret && (ret->type == T_STRING))
     uid = SVALUE_STRPTR(ret);
 
@@ -285,6 +291,8 @@ void set_master (object_t * ob) {
           master_ob->euid = master_ob->uid;
         }
 
+      APPLY_SLOT_FINISH_CALL();
+
       /* The backbone UID is set only when the master object is first loaded.
        * If the master object changes later, the backbone UID remains the same
        * because there could be already objects created with that UID.
@@ -293,14 +301,20 @@ void set_master (object_t * ob) {
        * backbone (as indicated by creator_file) to receive UID and EUID of
        * current_object.
        */
-      ret = apply_master_ob (APPLY_GET_BACKBONE_UID, 0);
+      ret = APPLY_SLOT_MASTER_CALL (APPLY_GET_BACKBONE_UID, 0);
       if (ret && (ret->type == T_STRING))
         set_backbone_uid (SVALUE_STRPTR(ret));
+      APPLY_SLOT_FINISH_CALL();
     }
   else if (uid)
     {
       master_ob->uid = add_uid (uid);
       master_ob->euid = master_ob->uid;
+      APPLY_SLOT_FINISH_CALL();
+    }
+  else
+    {
+      APPLY_SLOT_FINISH_CALL();
     }
 }
 
@@ -393,15 +407,12 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
   opt_trace(TT_COMPILE|1, "load_object: \"%s\"", real_name);
   if (stat (real_name, &c_st) == -1)
     {
-      svalue_t *v;
-
-      if ((v = load_virtual_object (name)))
+      if ((ob = load_virtual_object (name)))
         {
           /* A virtual object is returned by the master object.
           * We don't care about its actual filename, just the object.
           * Replace the object's name with the requested name and update it in the object hash table.
           */
-          ob = v->u.ob;
           remove_object_hash (ob);
           if (ob->name)
             FREE (ob->name);
@@ -551,12 +562,14 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
     {
       opt_trace (TT_COMPILE|3, "calling master apply: valid_object() for: \"%s\"", name);
       push_object (ob);
-      mret = apply_master_ob (APPLY_VALID_OBJECT, 1);
+      mret = APPLY_SLOT_MASTER_CALL (APPLY_VALID_OBJECT, 1);
       if (mret && !MASTER_APPROVED (mret))
         {
+          APPLY_SLOT_FINISH_CALL();
           destruct_object (ob);
           error ("*master::%s() denied permission to load '/%s'.", APPLY_VALID_OBJECT, name);
         }
+      APPLY_SLOT_FINISH_CALL();
     }
 
   if (init_object (ob))
@@ -622,10 +635,15 @@ void smart_log (const char *error_file, int line, const char *what, int flag) {
 
   share_and_push_string (error_file);
   copy_and_push_string (buff);
-  mret = safe_apply_master_ob (APPLY_LOG_ERROR, 2);
+  mret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_LOG_ERROR, 2);
   if (!mret || mret == (svalue_t *) - 1)
     {
+      APPLY_SLOT_FINISH_CALL();
       log_message (NULL, "\t%s", buff);
+    }
+  else
+    {
+      APPLY_SLOT_FINISH_CALL();
     }
   FREE (buff);
 }				/* smart_log() */
@@ -683,8 +701,6 @@ object_t *clone_object (const char *str1, int num_arg) {
            * well... it's a virtual object.  So now we're going to "clone"
            * it.
            */
-          svalue_t *v;
-
           pop_n_elems (num_arg);	/* possibly this should be smarter */
           /* but then, this whole section is a
              kludge and should be looked at.
@@ -707,9 +723,8 @@ object_t *clone_object (const char *str1, int num_arg) {
           else
             {
               /* can't reuse, so load another */
-              if (!(v = load_virtual_object (str1)))
+              if (!(new_ob = load_virtual_object (str1)))
                 return 0;
-              new_ob = v->u.ob;
             }
           remove_object_hash (new_ob);
           if (new_ob->name)
@@ -870,13 +885,21 @@ object_t* object_present (svalue_t * v, object_t * ob) {
   if (ob->super)
     {
       push_svalue (v);
-      ret = apply (APPLY_ID, ob->super, 1, ORIGIN_DRIVER);
+      ret = APPLY_SLOT_CALL (APPLY_ID, ob->super, 1, ORIGIN_DRIVER);
 
       if (ob->super->flags & O_DESTRUCTED)
-        return 0;
+        {
+          APPLY_SLOT_FINISH_CALL();
+          return 0;
+        }
 
       if (!IS_ZERO (ret))
-        return ob->super;
+        {
+          APPLY_SLOT_FINISH_CALL();
+          return ob->super;
+        }
+
+      APPLY_SLOT_FINISH_CALL();
 
       return object_present2 (SVALUE_STRPTR(v), ob->super->contains);
     }
@@ -925,13 +948,21 @@ static object_t* object_present2 (const char *str, object_t * ob) {
       name[length] = 0;
 
       push_malloced_string (name);
-      ret = apply (APPLY_ID, ob, 1, ORIGIN_DRIVER);
+      ret = APPLY_SLOT_CALL (APPLY_ID, ob, 1, ORIGIN_DRIVER);
 
       if (ob->flags & O_DESTRUCTED)
-        return 0;
+        {
+          APPLY_SLOT_FINISH_CALL();
+          return 0;
+        }
 
       if (IS_ZERO (ret))
-        continue;
+        {
+          APPLY_SLOT_FINISH_CALL();
+          continue;
+        }
+
+      APPLY_SLOT_FINISH_CALL();
 
       if (count-- > 0)
         continue;
@@ -1075,12 +1106,6 @@ void destruct_object (object_t * ob) {
    * at this object as a live target.
    */
   remove_object_from_stack (ob);
-  if (apply_ret_value.type == T_OBJECT && apply_ret_value.u.ob == ob)
-    {
-      /* clear apply_ret_value if it references the destructed object */
-      free_svalue (&apply_ret_value, "destruct_object");
-      apply_ret_value = const0;
-    }
 
   /*
    * Evict inventory before unlinking from world lists.
@@ -1110,7 +1135,7 @@ void destruct_object (object_t * ob) {
             push_number (0);
 
           restrict_destruct = ob->contains;
-          (void) apply (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
+          (void) APPLY_CALL (APPLY_MOVE, ob->contains, 1, ORIGIN_DRIVER);
           restrict_destruct = save_restrict_destruct;
 
           /* APPLY_MOVE may destruct us as a side effect; stop immediately if so. */
@@ -1943,7 +1968,7 @@ void move_object (object_t * item, object_t * dest) {
   if (item->flags & O_ENABLE_COMMANDS)
     {
       command_giver = item;
-      (void) apply (APPLY_INIT, dest, 0, ORIGIN_DRIVER);
+      (void) APPLY_CALL (APPLY_INIT, dest, 0, ORIGIN_DRIVER);
       if ((dest->flags & O_DESTRUCTED) || item->super != dest)
         {
           command_giver = save_cmd;	/* marion */
@@ -1967,7 +1992,7 @@ void move_object (object_t * item, object_t * dest) {
       if (ob->flags & O_ENABLE_COMMANDS)
         {
           command_giver = ob;
-          (void) apply (APPLY_INIT, item, 0, ORIGIN_DRIVER);
+          (void) APPLY_CALL (APPLY_INIT, item, 0, ORIGIN_DRIVER);
           if (dest != item->super)
             {
               command_giver = save_cmd;	/* marion */
@@ -1981,7 +2006,7 @@ void move_object (object_t * item, object_t * dest) {
       if (item->flags & O_ENABLE_COMMANDS)
         {
           command_giver = item;
-          (void) apply (APPLY_INIT, ob, 0, ORIGIN_DRIVER);
+          (void) APPLY_CALL (APPLY_INIT, ob, 0, ORIGIN_DRIVER);
           if (dest != item->super)
             {
               command_giver = save_cmd;	/* marion */
@@ -1996,7 +2021,7 @@ void move_object (object_t * item, object_t * dest) {
   if (dest->flags & O_ENABLE_COMMANDS)
     {
       command_giver = dest;
-      (void) apply (APPLY_INIT, item, 0, ORIGIN_DRIVER);
+      (void) APPLY_CALL (APPLY_INIT, item, 0, ORIGIN_DRIVER);
     }
 
   command_giver = save_cmd;
@@ -2076,6 +2101,8 @@ int user_parser (char *buff) {
   for (s = save_command_giver->sent; s; s = s->next)
     {
       svalue_t *ret;
+      int ret_is_nonzero;
+      int ret_is_missing;
 
       /* Skip sentences from destructed objects (ref counting keeps memory valid) */
       if (s->ob->flags & O_DESTRUCTED)
@@ -2139,14 +2166,20 @@ int user_parser (char *buff) {
 
       /* Call function with all args */
       if (s->flags & V_FUNCTION)
-        ret = call_function_pointer (s->function.f, num_args);
+        ret = CALL_FUNCTION_POINTER_SLOT_CALL (s->function.f, num_args);
       else
         {
           if (s->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
             error ("*Illegal function name.");
-          ret = apply (s->function.s, s->ob, num_args, where);
-//        ret = apply (s->function.s, s->ob, 1, ORIGIN_DRIVER);
+          ret = APPLY_SLOT_CALL (s->function.s, s->ob, num_args, where);
         }
+
+      ret_is_missing = (ret == 0);
+      ret_is_nonzero = (ret && (ret->type != T_NUMBER || ret->u.number != 0));
+      if (s->flags & V_FUNCTION)
+        CALL_FUNCTION_POINTER_SLOT_FINISH();
+      else
+        APPLY_SLOT_FINISH_CALL();
 
       /* s may be dangling at this point */
 
@@ -2155,7 +2188,7 @@ int user_parser (char *buff) {
       last_verb = 0;
 
       /* was this the right verb? */
-      if (ret == 0)
+      if (ret_is_missing)
         {
           /* is it still around?  Otherwise, ignore this ...
              it moved somewhere or dested itself */
@@ -2172,7 +2205,7 @@ int user_parser (char *buff) {
             }
         }
 
-      if (ret && (ret->type != T_NUMBER || ret->u.number != 0))
+      if (ret_is_nonzero)
         {
           if (!illegal_sentence_action)
             illegal_sentence_action = save_illegal_sentence_action;
@@ -2484,10 +2517,11 @@ void do_slow_shutdown (int minutes) {
   svalue_t *amo;
 
   push_number (minutes);
-  amo = apply_master_ob (APPLY_SLOW_SHUTDOWN, 1);
+  amo = APPLY_SLOT_MASTER_CALL (APPLY_SLOW_SHUTDOWN, 1);
   /* in this case, approved means the mudlib will handle it */
   if (!MASTER_APPROVED (amo))
     {
+      APPLY_SLOT_FINISH_CALL();
       object_t *save_current = current_object, *save_command = command_giver;
 
       command_giver = 0;
@@ -2498,6 +2532,7 @@ void do_slow_shutdown (int minutes) {
       g_proceeding_shutdown = 1;
       return;
     }
+  APPLY_SLOT_FINISH_CALL();
 }
 
 
@@ -2536,7 +2571,7 @@ void do_message (svalue_t * msg_class, svalue_t * msg, array_t * scope, array_t 
             {
               push_svalue (msg_class);
               push_svalue (msg);
-              apply (APPLY_RECEIVE_MESSAGE, ob, 2, ORIGIN_DRIVER);
+              APPLY_CALL (APPLY_RECEIVE_MESSAGE, ob, 2, ORIGIN_DRIVER);
             }
         }
       else if (recurse)

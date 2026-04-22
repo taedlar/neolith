@@ -392,20 +392,25 @@ void implode_array (funptr_t * funp, array_t * arr, svalue_t * dest, int first_o
   while (1)
     {
       push_svalue (&arr->item[i++]);
-      v = call_function_pointer (funp, 2);
+      v = CALL_FUNCTION_POINTER_SLOT_CALL (funp, 2);
 
       if (!v)
         {
+          CALL_FUNCTION_POINTER_SLOT_FINISH();
           *dest = const0;
           return;
         }
       if (i < n)
-        push_svalue (v);
+        {
+          push_svalue (v);
+          CALL_FUNCTION_POINTER_SLOT_FINISH();
+        }
       else
         break;
     }
 
   assign_svalue_no_free (dest, v);
+  CALL_FUNCTION_POINTER_SLOT_FINISH();
 }
 
 array_t* users () {
@@ -606,6 +611,7 @@ filter_array (svalue_t * arg, int num_arg)
             }
           else
             flags[cnt] = 0;
+          call_efun_callback_finish (&ftc);
         }
       r = allocate_empty_array (res);
       if (res)
@@ -769,11 +775,67 @@ f_unique_array (void)
       if (funp)
         {
           push_svalue (v->item + i);
-          sv = call_function_pointer (funp, 1);
+          sv = CALL_FUNCTION_POINTER_SLOT_CALL (funp, 1);
+          if (sv && !sameval (sv, skipval))
+            {
+              uptr = *head;
+              while (uptr)
+                {
+                  if (sameval (sv, &uptr->mark))
+                    {
+                      uptr->indices = RESIZE (uptr->indices, uptr->count + 1, int,
+                                              TAG_TEMPORARY, "f_unique_array:2");
+                      uptr->indices[uptr->count++] = i;
+                      break;
+                    }
+                  uptr = uptr->next;
+                }
+              if (!uptr)
+                {
+                  numkeys++;
+                  uptr = ALLOCATE (unique_t, TAG_TEMPORARY, "f_unique_array:3");
+                  uptr->indices = ALLOCATE (int, TAG_TEMPORARY, "f_unique_array:4");
+                  uptr->count = 1;
+                  uptr->indices[0] = i;
+                  uptr->next = *head;
+                  assign_svalue_no_free (&uptr->mark, sv);
+                  *head = uptr;
+                }
+            }
+          CALL_FUNCTION_POINTER_SLOT_FINISH();
+          continue;
         }
       else if ((v->item + i)->type == T_OBJECT)
         {
-          sv = apply (func, (v->item + i)->u.ob, 0, ORIGIN_EFUN);
+          sv = APPLY_SLOT_CALL (func, (v->item + i)->u.ob, 0, ORIGIN_EFUN);
+          if (sv && !sameval (sv, skipval))
+            {
+              uptr = *head;
+              while (uptr)
+                {
+                  if (sameval (sv, &uptr->mark))
+                    {
+                      uptr->indices = RESIZE (uptr->indices, uptr->count + 1, int,
+                                              TAG_TEMPORARY, "f_unique_array:2");
+                      uptr->indices[uptr->count++] = i;
+                      break;
+                    }
+                  uptr = uptr->next;
+                }
+              if (!uptr)
+                {
+                  numkeys++;
+                  uptr = ALLOCATE (unique_t, TAG_TEMPORARY, "f_unique_array:3");
+                  uptr->indices = ALLOCATE (int, TAG_TEMPORARY, "f_unique_array:4");
+                  uptr->count = 1;
+                  uptr->indices[0] = i;
+                  uptr->next = *head;
+                  assign_svalue_no_free (&uptr->mark, sv);
+                  *head = uptr;
+                }
+            }
+          APPLY_SLOT_FINISH_CALL();
+          continue;
         }
       else
         sv = 0;
@@ -1022,7 +1084,11 @@ map_array (svalue_t * arg, int num_arg)
           if (v)
             assign_svalue_no_free (&r->item[cnt], v);
           else
-            break;
+            {
+              call_efun_callback_finish (&ftc);
+              break;
+            }
+          call_efun_callback_finish (&ftc);
         }
       sp--;
     }
@@ -1081,10 +1147,21 @@ map_string (svalue_t * arg, int num_arg)
 
   for (p = arr; *p; p++)
     {
+      int used_funp;
+
       push_number ((unsigned char) *p);
       if (numex)
         push_some_svalues (extra, numex);
-      v = funp ? call_function_pointer (funp, numex + 1) : apply (func, ob, 1 + numex, ORIGIN_EFUN);
+      if (funp)
+        {
+          used_funp = 1;
+          v = CALL_FUNCTION_POINTER_SLOT_CALL (funp, numex + 1);
+        }
+      else
+        {
+          used_funp = 0;
+          v = APPLY_SLOT_CALL (func, ob, 1 + numex, ORIGIN_EFUN);
+        }
       /* no function or illegal return value is unaltered.
        * Anyone got a better idea?  A few idea:
        * (1) insert strings? - algorithm needs changing
@@ -1093,9 +1170,19 @@ map_string (svalue_t * arg, int num_arg)
        * (3) become ' ' or something
        */
       if (!v)
-        break;
+        {
+          if (used_funp)
+            CALL_FUNCTION_POINTER_SLOT_FINISH();
+          else
+            APPLY_SLOT_FINISH_CALL();
+          break;
+        }
       if (v->type == T_NUMBER && v->u.number != 0)
         *p = ((unsigned char) (v->u.number));
+      if (used_funp)
+        CALL_FUNCTION_POINTER_SLOT_FINISH();
+      else
+        APPLY_SLOT_FINISH_CALL();
     }
 
   pop_n_elems (num_arg - 1);
@@ -1239,20 +1326,17 @@ static int sort_array_cmp (void *left, void *right) {
   svalue_t *p2 = (svalue_t *) right;
 
   svalue_t *d;
+  int result = 0;
 
   push_svalue (p1);
   push_svalue (p2);
 
   d = call_efun_callback (sort_array_ftc, 2);
 
-  if (!d || d->type != T_NUMBER)
-    {
-      return 0;
-    }
-  else
-    {
-      return (int)d->u.number;
-    }
+  if (d && d->type == T_NUMBER)
+    result = (int)d->u.number;
+  call_efun_callback_finish (sort_array_ftc);
+  return result;
 }
 
 void
@@ -2131,9 +2215,10 @@ f_objects (void)
       if (f)
         {
           push_object (ob);
-          v = call_function_pointer (f, 1);
+          v = CALL_FUNCTION_POINTER_SLOT_CALL (f, 1);
           if (!v)
             {
+              CALL_FUNCTION_POINTER_SLOT_FINISH();
               FREE_MSTR ((char *) tmp);
               sp--;
               free_svalue (sp, "f_objects");
@@ -2141,14 +2226,19 @@ f_objects (void)
               return;
             }
           if (v->type == T_NUMBER && !v->u.number)
-            continue;
+            {
+              CALL_FUNCTION_POINTER_SLOT_FINISH();
+              continue;
+            }
+          CALL_FUNCTION_POINTER_SLOT_FINISH();
         }
       else if (func)
         {
           push_object (ob);
-          v = apply (func, current_object, 1, ORIGIN_EFUN);
+          v = APPLY_SLOT_CALL (func, current_object, 1, ORIGIN_EFUN);
           if (!v)
             {
+              APPLY_SLOT_FINISH_CALL();
               FREE_MSTR ((char *) tmp);
               sp--;
               free_svalue (sp, "f_objects");
@@ -2156,7 +2246,11 @@ f_objects (void)
               return;
             }
           if ((v->type == T_NUMBER) && !v->u.number)
-            continue;
+            {
+              APPLY_SLOT_FINISH_CALL();
+              continue;
+            }
+          APPLY_SLOT_FINISH_CALL();
         }
 
       tmp[i] = ob;

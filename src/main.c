@@ -346,7 +346,7 @@ sig_usr1 (int sig)
   push_constant_string ("Host machine shutting down");
   push_undefined ();
   push_undefined ();
-  apply_master_ob (APPLY_CRASH, 3);
+  APPLY_MASTER_CALL (APPLY_CRASH, 3);
   debug_message ("{}\t***** received SIGUSR1, calling exit(-1)");
   exit (EXIT_FAILURE);
 }

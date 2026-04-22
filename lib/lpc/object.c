@@ -38,14 +38,17 @@ int restore_hash_string (char **str, svalue_t *);
 
 int valid_hide (object_t * obj) {
   svalue_t *ret;
+  int is_visible;
 
   if (!obj)
     {
       return 0;
     }
   push_object (obj);
-  ret = apply_master_ob (APPLY_VALID_HIDE, 1);
-  return (!IS_ZERO (ret));
+  ret = APPLY_SLOT_MASTER_CALL (APPLY_VALID_HIDE, 1);
+  is_visible = !IS_ZERO (ret);
+  APPLY_SLOT_FINISH_CALL();
+  return is_visible;
 }
 
 
@@ -1784,7 +1787,7 @@ void restore_variable (svalue_t * var, char *str) {
 
 void tell_npc (object_t * ob, char *str) {
   copy_and_push_string (str);
-  apply (APPLY_CATCH_TELL, ob, 1, ORIGIN_DRIVER);
+  APPLY_CALL (APPLY_CATCH_TELL, ob, 1, ORIGIN_DRIVER);
 }
 
 /*
@@ -2081,7 +2084,7 @@ void reset_object (object_t * ob) {
 
   save_command_giver = command_giver;
   command_giver = (object_t *) 0;
-  if (!apply (APPLY_RESET, ob, 0, ORIGIN_DRIVER))
+  if (!APPLY_CALL (APPLY_RESET, ob, 0, ORIGIN_DRIVER))
     {
       /* no reset() in the object */
       ob->flags &= ~O_WILL_RESET;	/* don't call it next time */
@@ -2143,7 +2146,7 @@ void call_create (object_t * ob, int num_arg) {
       return;			/* sigh */
     }
 
-  apply (APPLY_CREATE, ob, num_arg, ORIGIN_DRIVER);
+  APPLY_CALL (APPLY_CREATE, ob, num_arg, ORIGIN_DRIVER);
 
   ob->flags |= O_RESET_STATE;
 }

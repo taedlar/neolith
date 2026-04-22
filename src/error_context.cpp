@@ -193,7 +193,7 @@ static void debug_message_with_location (const char *err) {
 
 static void mudlib_error_handler (const char *err, int catch_flag) {
   mapping_t *m;
-  char *file;
+  const char *file;
   int line;
   svalue_t *mret;
 
@@ -212,11 +212,11 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
   if (catch_flag)
     {
       push_number (1);
-      mret = apply_master_ob (APPLY_ERROR_HANDLER, 2);
+      mret = APPLY_SLOT_MASTER_CALL (APPLY_ERROR_HANDLER, 2);
     }
   else
     {
-      mret = apply_master_ob (APPLY_ERROR_HANDLER, 1);
+      mret = APPLY_SLOT_MASTER_CALL (APPLY_ERROR_HANDLER, 1);
     }
 
   if ((svalue_t *) - 1 == mret || NULL == mret)
@@ -228,6 +228,8 @@ static void mudlib_error_handler (const char *err, int catch_flag) {
     {
       debug_message ("%s", SVALUE_STRPTR(mret));
     }
+
+  APPLY_SLOT_FINISH_CALL();
 }
 
 /**

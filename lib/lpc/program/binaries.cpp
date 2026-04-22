@@ -113,12 +113,14 @@ extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block
     {
       nm = add_slash (prog->name);
       push_malloced_string (nm);
-      ret = safe_apply_master_ob (APPLY_VALID_SAVE_BINARY, 1);
+      ret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_VALID_SAVE_BINARY, 1);
       if (!MASTER_APPROVED (ret))
         {
+          APPLY_SLOT_FINISH_CALL();
           opt_trace (TT_COMPILE|1, "not approved");
           return;
         }
+      APPLY_SLOT_FINISH_CALL();
     }
   if (prog->total_size > (int) USHRT_MAX ||
       includes->current_size > (int) USHRT_MAX)

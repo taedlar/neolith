@@ -38,16 +38,13 @@
  * Otherwise, return 1, and a pushed return value on the stack.
  *
  * Note that the object 'ob' can be destructed. This must be handled by
- * the caller of apply().
+ * the caller of APPLY_CALL ().
  *
  * If the function failed to be called, then arguments must be deallocated
  * manually !  (Look towards end of this function.)
  */
 
- int call_origin;
-
- /* used by routines that want to return a pointer to an svalue */
-svalue_t apply_ret_value = { .type = T_NUMBER };
+int call_origin;
 
 #ifdef CACHE_STATS
 unsigned int apply_low_call_others = 0;
@@ -56,8 +53,7 @@ unsigned int apply_low_slots_used = 0;
 unsigned int apply_low_collisions = 0;
 #endif
 
-typedef struct cache_entry_s
-{
+typedef struct cache_entry_s {
   int id;
   program_t *oprogp;
   program_t *progp;
@@ -66,10 +62,12 @@ typedef struct cache_entry_s
   unsigned short num_arg, num_local;
   int function_index_offset;
   int variable_index_offset;
-}
-cache_entry_t;
 
-static cache_entry_t cache[APPLY_CACHE_SIZE] = {0};
+  cache_entry_s() : id(0), oprogp(nullptr), progp(nullptr), index(0), name(nullptr),
+                    num_arg(0), num_local(0), function_index_offset(0), variable_index_offset(0) {}
+} cache_entry_t;
+
+static cache_entry_t cache[APPLY_CACHE_SIZE];
 
 const char *origin_name (int orig) {
   switch (orig)
@@ -105,7 +103,7 @@ const char *origin_name (int orig) {
  *  @param[out] vio Output parameter for the variable index offset.
  *  @return The program_t where the function was found, or NULL if not found.
  */
-program_t *find_function (program_t * prog, shared_str_t name, int *index, int *fio, int *vio) {
+program_t *find_function (program_t* prog, shared_str_t name, int *index, int *fio, int *vio) {
   int high = prog->num_functions_defined - 1;
   int low = 0;
   int i;
@@ -385,7 +383,7 @@ int apply_low (const char *fun, object_t * ob, int num_arg) {
 }
 
 /**
- * @brief Clear the apply() cache.
+ * @brief Clear the APPLY_CALL () cache.
  */
 void clear_apply_cache (void) {
   int i;
@@ -407,47 +405,80 @@ void clear_apply_cache (void) {
  * Arguments are supposed to be
  * pushed (using push_string() etc) before the call. A pointer to a
  * 'svalue_t' will be returned. It will be a null pointer if the called
- * function was not found. Otherwise, it will be a pointer to a static
- * area in apply(), which will be overwritten by the next call to apply.
+ * function was not found. Otherwise, the return payload is discarded and a
+ * non-null sentinel is returned.
  * Reference counts will be updated for this value, to ensure that no pointers
  * are deallocated.
  */
 
-svalue_t *apply (const char *fun, object_t * ob, int num_arg, int where)
-{
-  IF_DEBUG (svalue_t * expected_sp);
+svalue_t *apply_call (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+  /*
+   * Contract:
+   * - Caller has already pushed num_arg args (and optional slot placeholder).
+   * - Success returns either a slot pointer (with_slot) or &const1 (non-slot).
+   * - Failure returns 0 and leaves slot placeholder intact for *_SLOT_FINISH_CALL().
+   */
+  IF_DEBUG (svalue_t *expected_sp);
+  svalue_t *ret_slot = sp - num_arg;
+
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in apply_call.", num_arg);
 
   call_origin = where;
+
+  if (with_slot)
+    {
+      int i;
+      svalue_t placeholder = *sp;
+
+      /*
+       * Slot wrappers push undefined after arguments.
+       * Rotate stack from [args..., slot] to [slot, args...]
+       * so apply_low() sees the correct argument list.
+       */
+      for (i = 0; i < num_arg; i++)
+        {
+          *(sp - i) = *(sp - i - 1);
+        }
+      *ret_slot = placeholder;
+    }
 
   IF_DEBUG (expected_sp = sp - num_arg);
   if (apply_low (fun, ob, num_arg) == 0)
     return 0;
-  free_svalue (&apply_ret_value, "sapply");
-  apply_ret_value = *sp--;
+
+  if (with_slot)
+    {
+      free_svalue (ret_slot, "apply_call");
+      *ret_slot = *sp--;
+      DEBUG_CHECK (expected_sp != sp, "Corrupt stack pointer.\n");
+      return ret_slot;
+    }
+
+  free_svalue (sp, "apply_call");
+  sp--;
   DEBUG_CHECK (expected_sp != sp, "Corrupt stack pointer.\n");
-  return &apply_ret_value;
+  return &const1;
 }
 
-/**
- * @brief C++ exception boundary wrapper for safe apply.
- * 
- * This function delegates to a C++ exception boundary while preserving the C ABI
- * and return-value contract. It allows driver-mudlib dependencies to be safely
- * executed without causing serious bugs when errors occur in the applied function.
- *
- * @param fun The function name to apply.
- * @param ob The object to apply the function to.
- * @param num_arg The number of arguments already pushed on the stack.
- * @param where The origin context of the apply call.
- * @returns Pointer to the return value, or NULL if function not found or exception occurred.
- */
-extern "C"
-svalue_t *safe_apply_cpp (const char *fun, object_t *ob, int num_arg, int where) {
+svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+  /*
+   * Contract:
+   * - Mirrors apply_call() return contract, but swallows driver_runtime_error.
+   * - On any early failure/error path, cleans call inputs and recreates slot
+   *   placeholder so *_SLOT_FINISH_CALL() remains valid.
+   */
   svalue_t *ret = 0;
   error_context_t econ;
 
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in safe_apply_call.", num_arg);
+
   if (!ob || (ob->flags & O_DESTRUCTED))
     {
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
       return 0;
     }
 
@@ -457,42 +488,52 @@ svalue_t *safe_apply_cpp (const char *fun, object_t *ob, int num_arg, int where)
 
       try
         {
-          ret = apply (fun, ob, num_arg, where);
+          ret = apply_call (fun, ob, num_arg, where, with_slot);
         }
       catch (const neolith::driver_runtime_error &)
         {
           boundary.restore ();
+          pop_n_elems (num_arg + (with_slot ? 1 : 0));
+          if (with_slot)
+            push_undefined ();
           ret = 0;
         }
     }
   catch (const neolith::driver_runtime_error &)
     {
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
       ret = 0;
     }
 
   return ret;
 }
 
-/*
- * this is a "safe" version of apply
- * this allows you to have dangerous driver mudlib dependencies
- * and not have to worry about causing serious bugs when errors occur in the
- * applied function and the driver depends on being able to do something
- * after the apply. (such as the ed exit function, and the net_dead function).
- */
+svalue_t *apply_master_ob (const char *fun, int num_arg, int with_slot) {
+  /*
+   * Contract:
+   * - Same stack/slot behavior as apply_call(), but targets master_ob.
+   * - Returns (svalue_t *)-1 when master_ob is unavailable.
+   */
+  svalue_t *ret_slot = sp - num_arg;
 
-svalue_t *safe_apply (const char *fun, object_t * ob, int num_arg, int where)
-{
-  return safe_apply_cpp (fun, ob, num_arg, where);
-}
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in apply_master_ob.", num_arg);
 
-/**
- * Call master object applies.
- * If the master object can't be loaded, return `(svalue_t *)-1` to indicate such case.
- * This means that we haven't gotten to loading the master object yet in main.c. In
- * some cases, the check should succeed.
- */
-svalue_t *apply_master_ob (const char *fun, int num_arg) {
+  if (with_slot)
+    {
+      int i;
+      svalue_t placeholder = *sp;
+
+      /* See apply_call(): rotate [args..., slot] to [slot, args...] */
+      for (i = 0; i < num_arg; i++)
+        {
+          *(sp - i) = *(sp - i - 1);
+        }
+      *ret_slot = placeholder;
+    }
+
   if (!master_ob)
     {
       opt_trace (TT_EVAL, "no master object: \"%s\"", fun);
@@ -504,20 +545,35 @@ svalue_t *apply_master_ob (const char *fun, int num_arg) {
   if (apply_low (fun, master_ob, num_arg) == 0)
     return 0;
 
-  free_svalue (&apply_ret_value, "apply_master_ob");
-  apply_ret_value = *sp--;
+  if (with_slot)
+    {
+      free_svalue (ret_slot, "apply_master_ob");
+      *ret_slot = *sp--;
+      return ret_slot;
+    }
 
-  return &apply_ret_value;
+  free_svalue (sp, "apply_master_ob");
+  sp--;
+  return &const1;
 }
 
-svalue_t *safe_apply_master_ob (const char *fun, int num_arg)
-{
+svalue_t *safe_apply_master_ob (const char *fun, int num_arg, int with_slot) {
+  /*
+   * Contract:
+   * - Same as safe_apply_call() for master applies.
+   * - Preserves slot-wrapper finish contract on missing-master/error paths.
+   */
+  if (num_arg < 0)
+    error ("*Bad argument count (%d) in safe_apply_master_ob.", num_arg);
+
   if (!master_ob)
     {
-      pop_n_elems (num_arg);
+      pop_n_elems (num_arg + (with_slot ? 1 : 0));
+      if (with_slot)
+        push_undefined ();
       return (svalue_t *) - 1;
     }
-  return safe_apply (fun, master_ob, num_arg, ORIGIN_DRIVER);
+  return safe_apply_call (fun, master_ob, num_arg, ORIGIN_DRIVER, with_slot);
 }
 
 /*
@@ -582,11 +638,11 @@ static program_t *find_function_by_name (object_t * ob, const char *name, int *i
 }
 
 /*
- * This function is similar to apply(), except that it will not
+ * This function is similar to APPLY_CALL (), except that it will not
  * call the function, only return object name if the function exists,
  * or 0 otherwise.  If flag is nonzero, then we admit static and private
  * functions exist.  Note that if you actually intend to call the function,
- * it's faster to just try to call it and check if apply() returns zero.
+ * it's faster to just try to call it and check if APPLY_CALL () returns zero.
  */
 shared_str_t
 function_exists (const char *fun, object_t * ob, int flag)

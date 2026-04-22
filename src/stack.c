@@ -40,9 +40,6 @@ void reset_interpreter (void) {
   const0u.subtype = T_UNDEFINED;
   const0u.u.number = 0;
 
-  free_svalue (&apply_ret_value, "reset_interpreter");
-  apply_ret_value = const0u;
-
   csp = control_stack - 1;
 
   if (!_init)

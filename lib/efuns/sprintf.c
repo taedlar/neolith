@@ -536,7 +536,7 @@ void svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent, char de
           {
             push_object (obj->u.ob);
             guard = 1;
-            temp = safe_apply_master_ob (APPLY_OBJECT_NAME, 1);
+            temp = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_OBJECT_NAME, 1);
             guard = 0;
             if (temp && temp != (svalue_t *) - 1 && (temp->type == T_STRING))
               {
@@ -544,6 +544,7 @@ void svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent, char de
                 outbuf_add (outbuf, SVALUE_STRPTR(temp));
                 outbuf_add (outbuf, "\")");
               }
+            APPLY_SLOT_FINISH_CALL();
           }
         break;
       }

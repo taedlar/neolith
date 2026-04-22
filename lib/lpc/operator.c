@@ -1269,9 +1269,10 @@ void f_evaluate (void) {
       push_undefined ();
       return;
     }
-  v = call_function_pointer (arg->u.fp, st_num_arg - 1);
-  free_funp (arg->u.fp);
-  assign_svalue_no_free (sp, v);
+  v = CALL_FUNCTION_POINTER_SLOT_CALL (arg->u.fp, st_num_arg - 1);
+  /* Preserve evaluate() contract: replace expression at arg with result. */
+  assign_svalue (arg, v);
+  CALL_FUNCTION_POINTER_SLOT_FINISH();
 }
 
 
@@ -1330,9 +1331,10 @@ void f_bind (void) {
   /* the new owner */
   push_object (ob);
 
-  res = apply_master_ob (APPLY_VALID_BIND, 3);
+  res = APPLY_SLOT_MASTER_CALL (APPLY_VALID_BIND, 3);
   if (!MASTER_APPROVED (res))
     error ("Permission of binding denied by master object.\n");
+  APPLY_SLOT_FINISH_CALL();
 
   new_fp = ALLOCATE (funptr_t, TAG_FUNP, "f_bind");
   *new_fp = *old_fp;

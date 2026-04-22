@@ -243,8 +243,7 @@ void do_catch (const char *p, unsigned short new_pc_offset) {
   }
 }
 
-
-static int find_line (const char *p, const program_t * progp, char **ret_file, int *ret_line) {
+static int find_line (const char *p, const program_t * progp, const char **ret_file, int *ret_line) {
   int offset;
   unsigned char *lns;
   short abs_line;
@@ -291,7 +290,7 @@ static int find_line (const char *p, const program_t * progp, char **ret_file, i
   return 4;
 }
 
-void get_line_number_info (char **ret_file, int *ret_line) {
+void get_line_number_info (const char **ret_file, int *ret_line) {
   find_line (pc, current_prog, ret_file, ret_line);
   if (!(*ret_file))
     *ret_file = current_prog->name;
@@ -300,7 +299,7 @@ void get_line_number_info (char **ret_file, int *ret_line) {
 char* get_line_number (const char *p, const program_t * progp) {
   static char buf[256];
   int i;
-  char *file = "???";
+  const char *file = "???";
   int line = -1;
 
   i = find_line (p, progp, &file, &line);
@@ -349,7 +348,7 @@ static void get_trace_details (const program_t* prog, int index, function_trace_
     }
 }
 
-static void get_explicit_line_number_info (const char *p, program_t * prog, char **ret_file, int *ret_line) {
+static void get_explicit_line_number_info (const char *p, program_t * prog, const char **ret_file, int *ret_line) {
   find_line (p, prog, ret_file, ret_line);
   if (!(*ret_file))
     *ret_file = prog->name;
@@ -359,7 +358,7 @@ array_t* get_svalue_trace (int how) {
   control_stack_t *p;
   array_t *v;
   mapping_t *m;
-  char *file;
+  const char *file;
   int line;
   int num_arg = 0, num_local = 0;
   svalue_t *ptr;

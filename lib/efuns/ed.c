@@ -535,7 +535,7 @@ free_ed_buffer (object_t * who)
   if (ED_BUFFER->exit_fn)
     {
       /* make this "safe" */
-      safe_apply (ED_BUFFER->exit_fn, ED_BUFFER->exit_ob, 0, ORIGIN_DRIVER);
+      APPLY_SAFE_CALL (ED_BUFFER->exit_fn, ED_BUFFER->exit_ob, 0, ORIGIN_DRIVER);
       FREE (ED_BUFFER->exit_fn);
       free_object (ED_BUFFER->exit_ob, "ed EOF");
       FREE ((char *) ED_BUFFER);
@@ -724,7 +724,7 @@ dowrite (int from, int to, char *fname, int apflg)
       share_and_push_string (fname);
       push_number (0);
       res =
-        safe_apply (ED_BUFFER->write_fn, ED_BUFFER->exit_ob, 2,
+        APPLY_SAFE_CALL (ED_BUFFER->write_fn, ED_BUFFER->exit_ob, 2,
                     ORIGIN_DRIVER);
       if (IS_ZERO (res))
         return (ERR);
@@ -766,7 +766,7 @@ dowrite (int from, int to, char *fname, int apflg)
     {
       share_and_push_string (fname);
       push_number (1);
-      safe_apply (ED_BUFFER->write_fn, ED_BUFFER->exit_ob, 2, ORIGIN_DRIVER);
+      APPLY_SAFE_CALL (ED_BUFFER->write_fn, ED_BUFFER->exit_ob, 2, ORIGIN_DRIVER);
     }
 #endif
 
@@ -841,11 +841,15 @@ getfn (int writeflg)
   if (file[0] != '/')
     {
       copy_and_push_string (file);
-      ret = apply_master_ob (APPLY_MAKE_PATH_ABSOLUTE, 1);
+      ret = APPLY_SLOT_MASTER_CALL (APPLY_MAKE_PATH_ABSOLUTE, 1);
       if ((ret == 0) || (ret == (svalue_t *) - 1) || ret->type != T_STRING)
-        return NULL;
+        {
+          APPLY_SLOT_FINISH_CALL();
+          return NULL;
+        }
       strncpy (file, SVALUE_STRPTR(ret), sizeof file - 1);
       file[MAXFNAME - 1] = '\0';
+      APPLY_SLOT_FINISH_CALL();
     }
 
   /* valid_read/valid_write done here */
@@ -1303,13 +1307,16 @@ set ()
   if (!strcmp (word, "save"))
     {
       svalue_t *ret;
+      int approved;
 
       if (P_RESTRICT)
         return (SET_FAIL);
       push_object (current_editor);
       push_number (P_SHIFTWIDTH | P_FLAGS);
-      ret = apply_master_ob (APPLY_SAVE_ED_SETUP, 2);
-      if (MASTER_APPROVED (ret))
+      ret = APPLY_SLOT_MASTER_CALL (APPLY_SAVE_ED_SETUP, 2);
+      approved = MASTER_APPROVED (ret);
+      APPLY_SLOT_FINISH_CALL();
+      if (approved)
         return 0;
     }
   if (!strcmp (word, "shiftwidth"))
@@ -2421,13 +2428,14 @@ ed_start (char *file_arg, char *write_fn, char *exit_fn, int restricted,
   ED_BUFFER->flags |= EIGHTBIT_MASK;
   ED_BUFFER->shiftwidth = 4;
   push_object (current_editor);
-  setup = apply_master_ob (APPLY_RETRIEVE_ED_SETUP, 1);
+  setup = APPLY_SLOT_MASTER_CALL (APPLY_RETRIEVE_ED_SETUP, 1);
   if (setup && setup != (svalue_t *) - 1 &&
       setup->type == T_NUMBER && setup->u.number)
     {
       ED_BUFFER->flags = setup->u.number & ALL_FLAGS_MASK;
       ED_BUFFER->shiftwidth = setup->u.number & SHIFTWIDTH_MASK;
     }
+  APPLY_SLOT_FINISH_CALL();
   ED_BUFFER->CurPtr = &ED_BUFFER->Line0;
 
 #if defined(RESTRICTED_ED) && !defined(NO_WIZARDS)
@@ -2622,7 +2630,7 @@ save_ed_buffer (object_t * who)
   copy_and_push_string (P_FNAME);
   push_object (who);
   /* must be safe; we get called by remove_interactive() */
-  stmp = safe_apply_master_ob (APPLY_GET_ED_BUFFER_SAVE_FILE_NAME, 2);
+  stmp = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_GET_ED_BUFFER_SAVE_FILE_NAME, 2);
   if (stmp && stmp != (svalue_t *) - 1)
     {
       if (stmp->type == T_STRING)
@@ -2633,6 +2641,7 @@ save_ed_buffer (object_t * who)
           dowrite (1, P_LASTLN, fname, 0);
         }
     }
+  APPLY_SLOT_FINISH_CALL();
   free_ed_buffer (who);
 }
 #endif

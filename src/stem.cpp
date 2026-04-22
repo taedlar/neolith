@@ -166,11 +166,15 @@ void look_for_objects_to_swap_guarded(void) {
                       svalue_t *svp;
 
                       push_number((ob->flags & O_CLONE) ? 0 : ob->prog->ref);
-                      svp = apply(APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
+                      svp = APPLY_SLOT_CALL(APPLY_CLEAN_UP, ob, 1, ORIGIN_DRIVER);
                       if (ob->flags & O_DESTRUCTED)
-                        continue;
+                        {
+                          APPLY_SLOT_FINISH_CALL();
+                          continue;
+                        }
                       if (!svp || (svp->type == T_NUMBER && svp->u.number == 0))
                         ob->flags &= ~O_WILL_CLEAN_UP;
+                      APPLY_SLOT_FINISH_CALL();
                       ob->flags |= save_reset_state;
                     }
                 }
@@ -198,77 +202,88 @@ void preload_objects_guarded(int eflag) {
   int ix;
   error_context_t econ;
 
-  if (!save_context(&econ))
-    return;
-
-
   try
     {
-      push_number(eflag);
-      ret = apply_master_ob(APPLY_EPILOG, 1);
-    }
-  catch (const neolith::driver_runtime_error &)
-    {
-      restore_context(&econ);
-      pop_context(&econ);
-      return;
-    }
-
-  pop_context(&econ);
-
-  if ((ret == 0) || (ret == (svalue_t *) -1) || (ret->type != T_ARRAY))
-    return;
-  prefiles = ret->u.arr;
-  if ((prefiles == 0) || (prefiles->size < 1))
-    return;
-
-  opt_info(1, "Preloading %d objects", prefiles->size);
-
-  prefiles->ref++;
-  ix = 0;
-
-  while (ix < prefiles->size)
-    {
-      error_context_t preload_econ;
-      int had_error = 0;
-
-      if (!save_context(&preload_econ))
-        {
-          break;
-        }
-
+      neolith::error_boundary_guard boundary(&econ);
 
       try
         {
-          for (; ix < prefiles->size; ix++)
-            {
-              if (prefiles->item[ix].type != T_STRING)
-                continue;
-              eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
-              push_svalue(prefiles->item + ix);
-              (void) apply_master_ob(APPLY_PRELOAD, 1);
-            }
+          push_number(eflag);
+          ret = APPLY_SLOT_SAFE_MASTER_CALL(APPLY_EPILOG, 1);
         }
       catch (const neolith::driver_runtime_error &)
         {
-          restore_context(&preload_econ);
-          had_error = 1;
+          boundary.restore();
+          return;
         }
 
-      pop_context(&preload_econ);
-
-      if (had_error)
+      if ((ret == 0) || (ret == (svalue_t *) -1) || (ret->type != T_ARRAY))
         {
-          opt_warn(1, "Error preloading file %d/%d, continuing.", ix + 1, prefiles->size);
-          ix++;
-          continue;
+          APPLY_SLOT_FINISH_CALL();
+          return;
         }
-      break;
+      prefiles = ret->u.arr;
+      if ((prefiles == 0) || (prefiles->size < 1))
+        {
+          APPLY_SLOT_FINISH_CALL();
+          return;
+        }
+
+      // Retain the array before finishing the slot
+      prefiles->ref++;
+      APPLY_SLOT_FINISH_CALL();
+
+      opt_info(1, "Preloading %d objects", prefiles->size);
+      ix = 0;
+
+      while (ix < prefiles->size)
+        {
+          int had_error = 0;
+
+          try
+            {
+              error_context_t preload_econ;
+              neolith::error_boundary_guard preload_boundary(&preload_econ);
+
+              try
+                {
+                  for (; ix < prefiles->size; ix++)
+                    {
+                      if (prefiles->item[ix].type != T_STRING)
+                        continue;
+                      eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
+                      push_svalue(prefiles->item + ix);
+                      (void) APPLY_MASTER_CALL (APPLY_PRELOAD, 1);
+                    }
+                }
+              catch (const neolith::driver_runtime_error &)
+                {
+                  preload_boundary.restore();
+                  had_error = 1;
+                }
+            }
+          catch (const neolith::driver_runtime_error &)
+            {
+              break;
+            }
+
+          if (had_error)
+            {
+              opt_warn(1, "Error preloading file %d/%d, continuing.", ix + 1, prefiles->size);
+              ix++;
+              continue;
+            }
+          break;
+        }
+
+      free_array(prefiles);
+
+      opt_info(1, "Preloading complete");
     }
-
-  free_array(prefiles);
-
-  opt_info(1, "Preloading complete");
+  catch (const neolith::driver_runtime_error &)
+    {
+      return;
+    }
 }
 
 extern "C"
@@ -388,11 +403,12 @@ void invoke_master_crash_handler_guarded(const char *msg) {
           else
             push_undefined();
 
-          ret = apply_master_ob(APPLY_CRASH, 3);
+          ret = APPLY_SLOT_MASTER_CALL(APPLY_CRASH, 3);
           if (ret && ret != (svalue_t *)-1)
             {
               debug_message("{}\t----- mudlib crash handler finished, shutdown now.");
             }
+          APPLY_SLOT_FINISH_CALL();
         }
       catch (const neolith::driver_runtime_error &)
         {

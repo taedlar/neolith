@@ -243,11 +243,11 @@ call_out ()
                       {
                         if (cop->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
                           error ("Illegal function name\n");
-                        (void) apply (cop->function.s, cop->ob, extra, ORIGIN_CALL_OUT);
+                        (void) APPLY_CALL (cop->function.s, cop->ob, extra, ORIGIN_CALL_OUT);
                       }
                     else
                       {
-                        (void) call_function_pointer (cop->function.f, extra);
+                        (void) CALL_FUNCTION_POINTER_CALL (cop->function.f, extra);
                       }
                   }
                 catch (const neolith::driver_runtime_error &)

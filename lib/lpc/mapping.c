@@ -602,6 +602,7 @@ void f_unique_mapping (void) {
           table[i] = uptr;
           numkeys++;
         }
+      call_efun_callback_finish (&ftc);
     }
 
   m = allocate_mapping (nmask = numkeys << 1);
@@ -1026,7 +1027,11 @@ void map_mapping (svalue_t * arg, int num_arg) {
           if (ret)
             assign_svalue (elt->values + 1, ret);
           else
-            break;
+            {
+              call_efun_callback_finish (&ftc);
+              break;
+            }
+          call_efun_callback_finish (&ftc);
         }
     }
   while (j--);
@@ -1078,7 +1083,10 @@ void filter_mapping (svalue_t * arg, int num_arg) {
           push_svalue (elt->values + 1);
           ret = call_efun_callback (&ftc, 2);
           if (!ret)
-            break;
+            {
+              call_efun_callback_finish (&ftc);
+              break;
+            }
           else if (ret->type != T_NUMBER || ret->u.number)
             {
               tb_index = (unsigned short)(node_hash (elt) & size);
@@ -1113,6 +1121,7 @@ void filter_mapping (svalue_t * arg, int num_arg) {
               assign_svalue_no_free (newnode->values + 1, elt->values + 1);
               (*b = newnode)->next = n;
             }
+          call_efun_callback_finish (&ftc);
         }
     }
   while (j--);

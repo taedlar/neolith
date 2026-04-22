@@ -125,7 +125,7 @@ static void receive_snoop (char *buf, object_t * snooper) {
 
   /* command giver no longer set to snooper */
   copy_and_push_string (buf);
-  apply (APPLY_RECEIVE_SNOOP, snooper, 1, ORIGIN_DRIVER);
+  APPLY_CALL (APPLY_RECEIVE_SNOOP, snooper, 1, ORIGIN_DRIVER);
 }
 
 /**
@@ -662,7 +662,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
                     if (ip->sb_buf[1] != TELQUAL_IS)
                       break;
                     copy_and_push_string ((char*)ip->sb_buf + 2);
-                    apply (APPLY_TERMINAL_TYPE, ip->ob, 1, ORIGIN_DRIVER);
+                    APPLY_CALL (APPLY_TERMINAL_TYPE, ip->ob, 1, ORIGIN_DRIVER);
                     break;
                   }
                 case TELOPT_NAWS:
@@ -673,7 +673,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
                     h = ((UCHAR) ip->sb_buf[3]) * 256 + ((UCHAR) ip->sb_buf[4]);
                     push_number (w);
                     push_number (h);
-                    apply (APPLY_WINDOW_SIZE, ip->ob, 2, ORIGIN_DRIVER);
+                    APPLY_CALL (APPLY_WINDOW_SIZE, ip->ob, 2, ORIGIN_DRIVER);
                     break;
                   }
                 case TELOPT_LINEMODE:
@@ -767,7 +767,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
                      * or something. --- Annihilator@ES2 [2002-05-07]
                      */
                     copy_and_push_string ((char*)ip->sb_buf);
-                    apply (APPLY_TELNET_SUBOPTION, ip->ob, 1, ORIGIN_DRIVER);
+                    APPLY_CALL (APPLY_TELNET_SUBOPTION, ip->ob, 1, ORIGIN_DRIVER);
                     break;
                   }
                 }
@@ -1783,7 +1783,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
                 if (!(ip->ob->flags & O_DESTRUCTED))
                   {
                     push_malloced_string (str);
-                    apply (APPLY_PROCESS_INPUT, ip->ob, 1, ORIGIN_DRIVER);
+                    APPLY_CALL (APPLY_PROCESS_INPUT, ip->ob, 1, ORIGIN_DRIVER);
                   }
                 if (ip->text_start == ip->text_end)
                   {
@@ -1805,7 +1805,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
             buffer = allocate_buffer (num_bytes);
             memcpy (buffer->item, buf, num_bytes);
             push_refed_buffer (buffer);
-            apply (APPLY_PROCESS_INPUT, ip->ob, 1, ORIGIN_DRIVER);
+            APPLY_CALL (APPLY_PROCESS_INPUT, ip->ob, 1, ORIGIN_DRIVER);
             break;
           }
         }
@@ -1820,7 +1820,7 @@ void remove_interactive (object_t * ob, int dested) {
   int idx;
   /* don't have to worry about this dangling, since this is the routine
    * that causes this to dangle elsewhere, and we are protected from
-   * getting called recursively by CLOSING.  safe_apply() should be
+   * getting called recursively by CLOSING.  APPLY_SAFE_CALL () should be
    * used here, since once we start this process we can't back out,
    * so jumping out with an error would be bad.
    */
@@ -1851,7 +1851,7 @@ void remove_interactive (object_t * ob, int dested) {
       /*
        * auto-notification of net death
        */
-      safe_apply (APPLY_NET_DEAD, ob, 0, ORIGIN_DRIVER);
+      APPLY_SAFE_CALL (APPLY_NET_DEAD, ob, 0, ORIGIN_DRIVER);
     }
 
   if (ip->snoop_by)
@@ -1976,7 +1976,7 @@ int query_addr_number (char *name, char *call_back) {
     {
       share_and_push_string (name);
       push_undefined ();
-      apply (call_back, current_object, 2, ORIGIN_DRIVER);
+      APPLY_CALL (call_back, current_object, 2, ORIGIN_DRIVER);
       return 0;
     }
 
@@ -1993,7 +1993,7 @@ int query_addr_number (char *name, char *call_back) {
           opt_trace (TT_COMM|3, "query_addr_number: fwd cache hit hostname=%s ip=%s", name, ip_str);
           share_and_push_string (name);
           share_and_push_string (ip_str);
-          apply (call_back, current_object, 2, ORIGIN_DRIVER);
+          APPLY_CALL (call_back, current_object, 2, ORIGIN_DRIVER);
           return 0;
         }
       opt_trace (TT_COMM|3, "query_addr_number: fwd cache miss hostname=%s, enqueue lookup", name);
@@ -2004,7 +2004,7 @@ int query_addr_number (char *name, char *call_back) {
     {
       share_and_push_string (name);
       push_undefined ();
-      apply (call_back, current_object, 2, ORIGIN_DRIVER);
+      APPLY_CALL (call_back, current_object, 2, ORIGIN_DRIVER);
       return 0;
     }
 
@@ -2013,7 +2013,7 @@ int query_addr_number (char *name, char *call_back) {
       addr_resolver_release_lookup_request (request_id);
       share_and_push_string (name);
       push_undefined ();
-      apply (call_back, current_object, 2, ORIGIN_DRIVER);
+      APPLY_CALL (call_back, current_object, 2, ORIGIN_DRIVER);
       return 0;
     }
 
@@ -2112,7 +2112,7 @@ process_addr_resolver_completions (void)
             }
 
           push_number (result.request_id);
-          safe_apply (request->call_back,
+          APPLY_SAFE_CALL (request->call_back,
                       request->ob_to_call,
                       3,
                       ORIGIN_DRIVER);
