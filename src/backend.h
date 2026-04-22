@@ -18,24 +18,24 @@ extern async_runtime_t *g_runtime;
 extern console_worker_context_t *g_console_worker;
 extern async_queue_t *g_console_queue;
 
-void preload_objects(int);
-void backend (void);
+void init_backend();
 
+/* User reception functions */
+void init_console_user(int reconnect);
 object_t* mudlib_connect(int, const char*);
 void mudlib_logon(object_t *);
 
+/* Heart beat related functions */
 int set_heart_beat(object_t *, int);
 int query_heart_beat(object_t *);
 int heart_beat_status(outbuffer_t *, int);
 array_t *get_heart_beats(void);
+void call_heart_beat(void);
 
 void init_precomputed_tables(void);
 void update_load_av(void);
 void update_compile_av(int);
 char *query_load_av(void);
-
-void init_console_user(int reconnect);
-void backend_call_heart_beat(void);
 
 #ifdef __cplusplus
 }

@@ -20,6 +20,16 @@ extern int init_stem(
     const char* config_file
 );
 
+/* resource management */
+extern void preload_objects(int eflag);
+extern void look_for_objects_to_swap (void);
+extern void start_timers(void);
+
+/* stem workflows */
+extern int stem_startup(void);
+extern void stem_run(void);
+extern void stem_crash_handler(const char *msg);
+
 #ifdef __cplusplus
 }
 #endif

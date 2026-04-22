@@ -17,7 +17,6 @@
 #include "command.h"
 #include "simul_efun.h"
 #include "efuns/call_out.h"
-#include "port/timer.h"
 #include "async/async_runtime.h"
 #include "async/console_mode.h"
 
@@ -34,8 +33,6 @@ int heart_beat_flag = 0;
 
 object_t *current_heart_beat;
 
-static platform_timer_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
-
 int64_t eval_cost = 0;
 
 /*
@@ -50,24 +47,6 @@ async_runtime_t *g_runtime = NULL;
 console_worker_context_t *g_console_worker = NULL;
 async_queue_t *g_console_queue = NULL;
 
-static void look_for_objects_to_swap (void);
-static void call_heart_beat (void);
-extern void preload_objects_guarded(int eflag);
-extern void look_for_objects_to_swap_guarded(void);
-extern void backend_run_loop_guarded(void);
-
-/**
- * @brief Heart beat timer callback.
- * Sets the heart_beat_flag to trigger heart beat processing.
- * Wakes up the async runtime blocking wait to run timer-related tasks.
- */
-static void heartbeat_timer_callback(void) {
-  async_runtime_t *reactor = get_async_runtime();
-  heart_beat_flag = 1;
-  if (reactor)
-    async_runtime_wakeup(reactor);
-}
-
 /*
  * There are global variables that must be zeroed before any execution.
  * In case of runtime errors, boundary exception handling restores control,
@@ -78,7 +57,7 @@ static void heartbeat_timer_callback(void) {
  * This routine must only be called from top level, not from inside
  * stack machine execution (as stack will be cleared).
  */
-static void clear_state () {
+void init_backend () {
   current_object = 0;
   command_giver = 0;
   current_interactive = 0;
@@ -209,86 +188,6 @@ void init_console_user(int reconnect) {
   mudlib_logon(ob);
 }
 
-/** @brief The main backend loop.
- */
-void backend () {
-
-  opt_info (1, "Entering backend loop.");
-
-#ifdef WINSOCK
-  {
-    // Initialize Winsock
-    WSADATA wsaData;
-    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (iResult != 0) {
-        debug_fatal("WSAStartup() failed: %d\n", iResult);
-        exit(EXIT_FAILURE);
-    }
-  }
-#endif
-  init_user_conn ();		/* initialize user connection socket */
-
-  clear_state ();
-
-#ifdef HEARTBEAT_INTERVAL
-  /* start timer if any of the timer flags are set */
-  if (MAIN_OPTION(timer_flags) & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
-    {
-      timer_error_t timer_err;
-      timer_err = platform_timer_init(&heartbeat_timer);
-      if (timer_err != TIMER_OK)
-        {
-          opt_warn (0, "Timer initialization failed: %s. heart_beat(), call_out() and reset() disabled.",
-                    timer_error_string(timer_err));
-        }
-      else
-        {
-          timer_err = platform_timer_start(&heartbeat_timer, HEARTBEAT_INTERVAL, heartbeat_timer_callback);
-          if (timer_err != TIMER_OK)
-            {
-              opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
-                        timer_error_string(timer_err));
-            }
-          debug_message ("timer started (timer flags = %d)\n", MAIN_OPTION(timer_flags));
-        }
-    }
-  else
-    {
-      debug_message ("timer not used (timer flags = %d)\n", MAIN_OPTION(timer_flags));
-    }
-  /* do initial timer tick (initialize current_time and allow LPC code to access time).
-   * This is always done even if no timer is started, so that current_time is valid.
-   */
-  call_heart_beat ();
-#endif /* HEARTBEAT_INTERVAL */
-
-  backend_run_loop_guarded();
-
-  platform_timer_cleanup(&heartbeat_timer);
-}
-
-void backend_call_heart_beat (void) {
-  call_heart_beat ();
-}
-
-/**
- *  @brief Despite the name, this routine takes care of several things.
- *      It will loop through all objects once every 15 minutes.
- *
- *      If an object is found in a state of not having done reset, and the
- *      delay to next reset has passed, then reset() will be done.
- *
- *      If the object has a existed more than the time limit given for swapping,
- *      then 'clean_up' will first be called in the object, after which it will
- *      be swapped out if it still exists.
- *
- *      There are some problems if the object self-destructs in clean_up, so
- *      special care has to be taken of how the linked list is used.
- */
-static void look_for_objects_to_swap () {
-  look_for_objects_to_swap_guarded();
-}				/* look_for_objects_to_swap() */
-
 /* Call all heart_beat() functions in all objects.  Also call the next reset,
  * and the call out.
  * We do heart beats by moving each object done to the end of the heart beat
@@ -321,7 +220,7 @@ static float perc_hb_probes = 100.0;	/* decaying avge of how many complete */
  * @brief Call all heart_beat() functions in all objects.
  * Also process invocation of LPC reset() and LPC call_out().
  */
-static void call_heart_beat () {
+void call_heart_beat () {
 
   object_t *ob;
   heart_beat_flag = 0;
@@ -499,20 +398,6 @@ heart_beat_status (outbuffer_t * ob, int verbose)
     }
   return (0);
 }				/* heart_beat_status() */
-
-/**
- * @brief Run startup preload sequence via the guarded C++ path.
- *
- * Calls master::epilog(eflag) through the slot-wrapper apply contract. If
- * epilog returns an array, that array is retained before slot cleanup and
- * each string element is passed to master::preload().
- *
- * Errors during epilog or an individual preload file are contained by the
- * guarded path so startup can continue where possible.
- */
-void preload_objects (int eflag) {
-  preload_objects_guarded(eflag);
-}				/* preload_objects() */
 
 #define NUM_CONSTS 5
 static double consts[NUM_CONSTS];
