@@ -1270,7 +1270,8 @@ void f_evaluate (void) {
       return;
     }
   v = CALL_FUNCTION_POINTER_SLOT_CALL (arg->u.fp, st_num_arg - 1);
-  assign_svalue_no_free (sp, v);
+  /* Preserve evaluate() contract: replace expression at arg with result. */
+  assign_svalue (arg, v);
   CALL_FUNCTION_POINTER_SLOT_FINISH();
 }
 

@@ -498,6 +498,13 @@ static svalue_t *call_function_pointer_internal (funptr_t * funp, int num_arg, s
 }
 
 svalue_t* call_function_pointer (funptr_t *funp, int num_arg, int with_slot) {
+  /*
+   * Contract:
+   * - Caller has already pushed num_arg args (and optional slot placeholder).
+   * - Success returns either a slot pointer (with_slot) or &const1 (non-slot).
+   * - Runtime errors propagate; slot wrappers keep placeholder semantics for
+   *   the paired *_SLOT_FINISH() call sites.
+   */
   svalue_t *ret_slot = 0;
 
   if (num_arg < 0)
@@ -528,6 +535,13 @@ svalue_t* call_function_pointer (funptr_t *funp, int num_arg, int with_slot) {
 svalue_t *
 safe_call_function_pointer (funptr_t *funp, int num_arg, int with_slot)
 {
+  /*
+   * Contract:
+   * - Mirrors call_function_pointer() return contract, but catches
+   *   driver_runtime_error and returns 0.
+   * - On early/error paths, cleans current call inputs and recreates slot
+   *   placeholder so CALL_FUNCTION_POINTER_SLOT_FINISH() remains valid.
+   */
   error_context_t econ;
   svalue_t *ret;
 

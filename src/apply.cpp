@@ -412,6 +412,12 @@ void clear_apply_cache (void) {
  */
 
 svalue_t *apply_call (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+  /*
+   * Contract:
+   * - Caller has already pushed num_arg args (and optional slot placeholder).
+   * - Success returns either a slot pointer (with_slot) or &const1 (non-slot).
+   * - Failure returns 0 and leaves slot placeholder intact for *_SLOT_FINISH_CALL().
+   */
   IF_DEBUG (svalue_t *expected_sp);
   svalue_t *ret_slot = sp - num_arg;
 
@@ -456,6 +462,12 @@ svalue_t *apply_call (const char *fun, object_t *ob, int num_arg, int where, int
 }
 
 svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+  /*
+   * Contract:
+   * - Mirrors apply_call() return contract, but swallows driver_runtime_error.
+   * - On any early failure/error path, cleans call inputs and recreates slot
+   *   placeholder so *_SLOT_FINISH_CALL() remains valid.
+   */
   svalue_t *ret = 0;
   error_context_t econ;
 
@@ -499,6 +511,11 @@ svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where
 }
 
 svalue_t *apply_master_ob (const char *fun, int num_arg, int with_slot) {
+  /*
+   * Contract:
+   * - Same stack/slot behavior as apply_call(), but targets master_ob.
+   * - Returns (svalue_t *)-1 when master_ob is unavailable.
+   */
   svalue_t *ret_slot = sp - num_arg;
 
   if (num_arg < 0)
@@ -541,6 +558,11 @@ svalue_t *apply_master_ob (const char *fun, int num_arg, int with_slot) {
 }
 
 svalue_t *safe_apply_master_ob (const char *fun, int num_arg, int with_slot) {
+  /*
+   * Contract:
+   * - Same as safe_apply_call() for master applies.
+   * - Preserves slot-wrapper finish contract on missing-master/error paths.
+   */
   if (num_arg < 0)
     error ("*Bad argument count (%d) in safe_apply_master_ob.", num_arg);
 

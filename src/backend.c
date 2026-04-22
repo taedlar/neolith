@@ -501,13 +501,15 @@ heart_beat_status (outbuffer_t * ob, int verbose)
 }				/* heart_beat_status() */
 
 /**
-  * @brief New version used when not in -o mode. The epilog() in master.c is
-  *     supposed to return an array of files (castles in 2.4.5) to load. The array
-  *     returned by APPLY_CALL () will be freed at next call of APPLY_CALL (), which means that
-  *     the ref count has to be incremented to protect against deallocation.
-  *
-  *     The master object is asked to do the actual loading.
-  */
+ * @brief Run startup preload sequence via the guarded C++ path.
+ *
+ * Calls master::epilog(eflag) through the slot-wrapper apply contract. If
+ * epilog returns an array, that array is retained before slot cleanup and
+ * each string element is passed to master::preload().
+ *
+ * Errors during epilog or an individual preload file are contained by the
+ * guarded path so startup can continue where possible.
+ */
 void preload_objects (int eflag) {
   preload_objects_guarded(eflag);
 }				/* preload_objects() */

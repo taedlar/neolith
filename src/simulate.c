@@ -180,8 +180,8 @@ static int give_uid_to_object (object_t * ob) {
     creator_name = "NONAME";
 
   /*
-   * Now we are sure that we have a creator name. Do not call APPLY_CALL ()
-   * again, because creator_name will be lost !
+   * Now we are sure that we have a creator name. It is a stack slot that lives
+   * until APPLY_SLOT_FINISH_CALL() below, so it is safe to refer to it after the call.
    */
   if (current_object)
     {

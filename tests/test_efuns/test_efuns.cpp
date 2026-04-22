@@ -206,6 +206,28 @@ TEST_F(EfunsTest, safeFunctionPointerSlotCallSaveContextFailurePreservesSlotCont
     destruct_object(obj);
 }
 
+TEST_F(EfunsTest, evaluateEfunReturnsExpressionValue) {
+    object_t* obj = load_object("/tests/efuns/test_evaluate_contract", R"(
+        int plus1(int x) { return x + 1; }
+        int run_eval() { return evaluate((: plus1 :), 41); }
+    )");
+    ASSERT_NE(obj, nullptr) << "Failed to load evaluate() contract test object";
+
+    svalue_t *sp_before = sp;
+    svalue_t *ret = APPLY_SLOT_CALL("run_eval", obj, 0, ORIGIN_DRIVER);
+    ASSERT_NE(ret, nullptr) << "run_eval apply failed";
+    ASSERT_EQ(sp, sp_before + 1) << "Expected one slot value after run_eval";
+
+    auto view = lpc::svalue_view::from(ret);
+    ASSERT_TRUE(view.is_number()) << "evaluate() should return the expression value";
+    ASSERT_EQ(view.number(), 42);
+
+    APPLY_SLOT_FINISH_CALL();
+    EXPECT_EQ(sp, sp_before) << "Stack should be restored after APPLY_SLOT_FINISH_CALL";
+
+    destruct_object(obj);
+}
+
 TEST_F(EfunsTest, functionPointerSlotCallErrorPathKeepsRuntimeUsable) {
     object_t* obj = load_object("/tests/efuns/test_funp_slot_call", R"(
         mixed *capture(mixed a, mixed b) { return ({ a, b }); }
