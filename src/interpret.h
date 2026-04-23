@@ -64,72 +64,115 @@ typedef struct {
 #define CHECK_TYPES(val, t, arg, inst) \
   if (!((val)->type & (t))) bad_argument(val, t, arg, inst);
 
+/* Forward declarations required by static inline string helpers below. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+void fatal(const char *fmt, ...);
+void free_string_svalue(svalue_t *);
+#ifdef __cplusplus
+}
+#endif
+
 /* Append a byte span to an svalue string using explicit source length. */
-#define EXTEND_SVALUE_STRING_LEN(target_sv, src_bytes, src_len, alloc_tag) do {\
-                malloc_str_t ess_res; size_t ess_len; size_t ess_r; \
-                const char *ess_src = (src_bytes); size_t ess_src_len = (src_len); \
-                ess_len = (ess_r = SVALUE_STRLEN(target_sv)) + ess_src_len; \
-                if ((target_sv)->subtype == STRING_MALLOC && MSTR_REF((target_sv)->u.malloc_string) == 1) { \
-                        ess_res = extend_string((target_sv)->u.malloc_string, ess_len); \
-                        if (!ess_res) fatal("Out of memory!\n"); \
-                        memcpy(ess_res + ess_r, ess_src, ess_src_len); \
-                        ess_res[ess_len] = '\0'; \
-                } else { \
-                        ess_res = new_string(ess_len, alloc_tag); \
-                        memcpy(ess_res, SVALUE_STRPTR(target_sv), ess_r); \
-                        memcpy(ess_res + ess_r, ess_src, ess_src_len); \
-                        ess_res[ess_len] = '\0'; \
-                        free_string_svalue(target_sv); \
-                        (target_sv)->subtype = STRING_MALLOC; \
-                } \
-                (target_sv)->u.malloc_string = ess_res;\
-        } while(0)
+static inline void extend_svalue_string_len_impl(svalue_t *target_sv,
+                                                 const char *src_bytes,
+                                                 size_t src_len,
+                                                 const char *alloc_tag) {
+        malloc_str_t ess_res;
+        size_t ess_len;
+        size_t ess_r;
+
+        (void)alloc_tag; /* Allocation tag kept for API compatibility. */
+        ess_len = (ess_r = SVALUE_STRLEN(target_sv)) + src_len;
+
+        if (target_sv->subtype == STRING_MALLOC && MSTR_REF(target_sv->u.malloc_string) == 1) {
+                ess_res = int_extend_string(to_malloc_str(target_sv->u.malloc_string), ess_len);
+                if (!ess_res) {
+                        fatal("Out of memory!\n");
+                }
+                memcpy(ess_res + ess_r, src_bytes, src_len);
+                ess_res[ess_len] = '\0';
+        } else {
+                ess_res = int_new_string(ess_len);
+                memcpy(ess_res, SVALUE_STRPTR(target_sv), ess_r);
+                memcpy(ess_res + ess_r, src_bytes, src_len);
+                ess_res[ess_len] = '\0';
+                free_string_svalue(target_sv);
+                target_sv->subtype = STRING_MALLOC;
+        }
+        target_sv->u.malloc_string = ess_res;
+}
+
+#define EXTEND_SVALUE_STRING_LEN(target_sv, src_bytes, src_len, alloc_tag) \
+        extend_svalue_string_len_impl((target_sv), (src_bytes), (src_len), (alloc_tag))
 
 /* Compatibility wrapper for NUL-terminated callers. */
 #define EXTEND_SVALUE_STRING(target_sv, cstr_src, alloc_tag) \
         EXTEND_SVALUE_STRING_LEN((target_sv), (cstr_src), strlen(cstr_src), (alloc_tag))
 
 /* Prepend a byte span to the stack-top string value using explicit length. */
-#define SVALUE_STRING_ADD_LEFT_LEN(prefix_bytes, prefix_len, alloc_tag) do {\
-                malloc_str_t pss_res; size_t pss_r; size_t pss_len; \
-                const char *pss_src = (prefix_bytes); \
-                pss_len = SVALUE_STRLEN(sp) + (pss_r = (prefix_len)); \
-                pss_res = new_string(pss_len, alloc_tag); \
-                memcpy(pss_res, pss_src, pss_r); \
-                memcpy(pss_res + pss_r, SVALUE_STRPTR(sp), SVALUE_STRLEN(sp)); \
-                pss_res[pss_len] = '\0'; \
-                free_string_svalue(sp--); \
-                sp->type = T_STRING; \
-                sp->subtype = STRING_MALLOC; \
-                sp->u.malloc_string = pss_res; \
-        } while(0)
+static inline void svalue_string_add_left_len_impl(svalue_t **sp_ref,
+                                                   const char *prefix_bytes,
+                                                   size_t prefix_len,
+                                                   const char *alloc_tag) {
+        malloc_str_t pss_res;
+        size_t pss_len;
+
+        (void)alloc_tag; /* Allocation tag kept for API compatibility. */
+        pss_len = SVALUE_STRLEN(*sp_ref) + prefix_len;
+        pss_res = int_new_string(pss_len);
+        memcpy(pss_res, prefix_bytes, prefix_len);
+        memcpy(pss_res + prefix_len, SVALUE_STRPTR(*sp_ref), SVALUE_STRLEN(*sp_ref));
+        pss_res[pss_len] = '\0';
+
+        free_string_svalue((*sp_ref)--);
+        (*sp_ref)->type = T_STRING;
+        (*sp_ref)->subtype = STRING_MALLOC;
+        (*sp_ref)->u.malloc_string = pss_res;
+}
+
+#define SVALUE_STRING_ADD_LEFT_LEN(prefix_bytes, prefix_len, alloc_tag) \
+        svalue_string_add_left_len_impl((&sp), (prefix_bytes), (prefix_len), (alloc_tag))
 
 /* Compatibility wrapper for NUL-terminated callers. */
 #define SVALUE_STRING_ADD_LEFT(prefix_cstr, alloc_tag) \
         SVALUE_STRING_ADD_LEFT_LEN((prefix_cstr), strlen(prefix_cstr), (alloc_tag))
 
 /* Join two svalue strings via counted lengths instead of C-string scans. */
-#define SVALUE_STRING_JOIN(left_sv, right_sv, alloc_tag) do {\
-                malloc_str_t ssj_res; size_t ssj_r; size_t ssj_len; \
-                ssj_r = SVALUE_STRLEN(left_sv); \
-                ssj_len = ssj_r + SVALUE_STRLEN(right_sv); \
-                if ((left_sv)->subtype == STRING_MALLOC && MSTR_REF((left_sv)->u.malloc_string) == 1) { \
-                        ssj_res = extend_string((left_sv)->u.malloc_string, ssj_len); \
-                        if (!ssj_res) fatal("Out of memory!\n"); \
-                        memcpy(ssj_res + ssj_r, SVALUE_STRPTR(right_sv), SVALUE_STRLEN(right_sv)); \
-                        ssj_res[ssj_len] = '\0'; \
-                        free_string_svalue(right_sv); \
-                } else { \
-                        ssj_res = new_string(ssj_len, alloc_tag); \
-                        memcpy(ssj_res, SVALUE_STRPTR(left_sv), ssj_r); \
-                        memcpy(ssj_res + ssj_r, SVALUE_STRPTR(right_sv), SVALUE_STRLEN(right_sv)); \
-                        ssj_res[ssj_len] = '\0'; \
-                        free_string_svalue(right_sv); \
-                        free_string_svalue(left_sv); \
-                        (left_sv)->subtype = STRING_MALLOC; \
-                } \
-                (left_sv)->u.malloc_string = ssj_res; \
-        } while(0)
+static inline void svalue_string_join_impl(svalue_t *left_sv,
+                                           svalue_t *right_sv,
+                                           const char *alloc_tag) {
+        malloc_str_t ssj_res;
+        size_t ssj_r;
+        size_t ssj_len;
+
+        (void)alloc_tag; /* Allocation tag kept for API compatibility. */
+        ssj_r = SVALUE_STRLEN(left_sv);
+        ssj_len = ssj_r + SVALUE_STRLEN(right_sv);
+
+        if (left_sv->subtype == STRING_MALLOC && MSTR_REF(left_sv->u.malloc_string) == 1) {
+                ssj_res = int_extend_string(to_malloc_str(left_sv->u.malloc_string), ssj_len);
+                if (!ssj_res) {
+                        fatal("Out of memory!\n");
+                }
+                memcpy(ssj_res + ssj_r, SVALUE_STRPTR(right_sv), SVALUE_STRLEN(right_sv));
+                ssj_res[ssj_len] = '\0';
+                free_string_svalue(right_sv);
+        } else {
+                ssj_res = int_new_string(ssj_len);
+                memcpy(ssj_res, SVALUE_STRPTR(left_sv), ssj_r);
+                memcpy(ssj_res + ssj_r, SVALUE_STRPTR(right_sv), SVALUE_STRLEN(right_sv));
+                ssj_res[ssj_len] = '\0';
+                free_string_svalue(right_sv);
+                free_string_svalue(left_sv);
+                left_sv->subtype = STRING_MALLOC;
+        }
+        left_sv->u.malloc_string = ssj_res;
+}
+
+#define SVALUE_STRING_JOIN(left_sv, right_sv, alloc_tag) \
+        svalue_string_join_impl((left_sv), (right_sv), (alloc_tag))
 
 #define STACK_CHECK(n)		do {\
         if (sp + n >= end_of_stack) \
@@ -139,23 +182,38 @@ typedef struct {
 /* macro calls */
 #define call_program(prog, offset) eval_instruction ((prog)->program + (offset))
 
-#define push_svalue(x) do{++sp;assign_svalue_no_free(sp, (x));}while(0)
+static inline void push_svalue_impl(svalue_t **sp_ref, const svalue_t *value) {
+        ++(*sp_ref);
+        assign_svalue_no_free(*sp_ref, value);
+}
 
-#define put_number(x) do {\
-        sp->type = T_NUMBER;\
-        sp->subtype = 0;\
-        sp->u.number = (x);\
-        } while(0)
+#define push_svalue(x) \
+        push_svalue_impl((&sp), (x))
 
-#define put_buffer(x) do {\
-        sp->type = T_BUFFER;\
-        sp->u.buf = (x);\
-        } while(0)
+static inline void put_number_impl(svalue_t *target_sp, int64_t value) {
+        target_sp->type = T_NUMBER;
+        target_sp->subtype = 0;
+        target_sp->u.number = value;
+}
 
-#define put_undested_object(x) do {\
-        sp->type = T_OBJECT;\
-        sp->u.ob = (x);\
-        } while(0)
+#define put_number(x) \
+        put_number_impl(sp, (x))
+
+static inline void put_buffer_impl(svalue_t *target_sp, buffer_t *value) {
+        target_sp->type = T_BUFFER;
+        target_sp->u.buf = value;
+}
+
+#define put_buffer(x) \
+        put_buffer_impl(sp, (x))
+
+static inline void put_undested_object_impl(svalue_t *target_sp, object_t *ob) {
+        target_sp->type = T_OBJECT;
+        target_sp->u.ob = ob;
+}
+
+#define put_undested_object(x) \
+        put_undested_object_impl(sp, (x))
 
 #define put_object(x) do {\
         if ((x)->flags & O_DESTRUCTED) put_number(0); \
@@ -175,46 +233,64 @@ typedef struct {
         } while(0)
 
 /* see comments on push_constant_string */
-#define put_constant_string(x) do {\
-        sp->type = T_STRING;\
-        sp->subtype = STRING_SHARED;\
-        sp->u.shared_string = make_shared_string(x, NULL);\
-        } while(0)
+static inline void put_constant_string_impl(svalue_t *target_sp, const char *value) {
+        target_sp->type = T_STRING;
+        target_sp->subtype = STRING_SHARED;
+        target_sp->u.shared_string = make_shared_string(value, NULL);
+}
+
+#define put_constant_string(x) \
+        put_constant_string_impl(sp, (x))
 
 #ifdef STRING_TYPE_SAFETY
-#define CHECK_PUT_MALLOCED_STRING_VALUE(v) do { \
-        if ((v) && !is_malloc_string_payload(v)) \
-                fatal("put_malloced_string: contract violation: shared string passed to malloc-string boundary\n"); \
-        } while(0)
-#define CHECK_PUT_SHARED_STRING_VALUE(v) do { \
-        if ((v) && !is_shared_string_payload(v)) \
-                fatal("put_shared_string: contract violation: non-shared string passed to shared-string boundary\n"); \
-        } while(0)
+static inline void check_put_malloced_string_value_impl(malloc_str_t value) {
+        if (value && !is_malloc_string_payload(value)) {
+                fatal("put_malloced_string: contract violation: shared string passed to malloc-string boundary\n");
+        }
+}
+
+static inline void check_put_shared_string_value_impl(shared_str_t value) {
+        if (value && !is_shared_string_payload(value)) {
+                fatal("put_shared_string: contract violation: non-shared string passed to shared-string boundary\n");
+        }
+}
+
+#define CHECK_PUT_MALLOCED_STRING_VALUE(v) \
+        check_put_malloced_string_value_impl((v))
+#define CHECK_PUT_SHARED_STRING_VALUE(v) \
+        check_put_shared_string_value_impl((v))
 #else
 #define CHECK_PUT_MALLOCED_STRING_VALUE(v) do { (void)(v); } while(0)
 #define CHECK_PUT_SHARED_STRING_VALUE(v) do { (void)(v); } while(0)
 #endif
 
-#define put_malloced_string(x) do {\
-        malloc_str_t put_malloced_string_value = (x);\
-        CHECK_PUT_MALLOCED_STRING_VALUE(put_malloced_string_value);\
-        sp->type = T_STRING;\
-        sp->subtype = STRING_MALLOC;\
-        sp->u.malloc_string = put_malloced_string_value;\
-        } while(0)
+static inline void put_malloced_string_impl(svalue_t *target_sp, malloc_str_t value) {
+        CHECK_PUT_MALLOCED_STRING_VALUE(value);
+        target_sp->type = T_STRING;
+        target_sp->subtype = STRING_MALLOC;
+        target_sp->u.malloc_string = value;
+}
 
-#define put_array(x) do {\
-        sp->type = T_ARRAY;\
-        sp->u.arr = (x);\
-        } while(0)
+#define put_malloced_string(x) \
+        put_malloced_string_impl(sp, (x))
 
-#define put_shared_string(x) do {\
-        shared_str_t put_shared_string_value = (x);\
-        CHECK_PUT_SHARED_STRING_VALUE(put_shared_string_value);\
-        sp->type = T_STRING;\
-        sp->subtype = STRING_SHARED;\
-        sp->u.shared_string = put_shared_string_value;\
-        } while(0)
+static inline void put_array_impl(svalue_t *target_sp, array_t *value) {
+        target_sp->type = T_ARRAY;
+        target_sp->u.arr = value;
+}
+
+#define put_array(x) \
+        put_array_impl(sp, (x))
+
+static inline void put_shared_string_impl(svalue_t *target_sp, shared_str_t value) {
+        CHECK_PUT_SHARED_STRING_VALUE(value);
+        target_sp->type = T_STRING;
+        target_sp->subtype = STRING_SHARED;
+        target_sp->u.shared_string = value;
+}
+
+#define put_shared_string(x) \
+        put_shared_string_impl(sp, (x))
 
 #ifdef __cplusplus
 extern "C" {

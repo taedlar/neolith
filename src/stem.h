@@ -39,11 +39,30 @@ extern void stem_crash_handler(const char *msg);
 
 /* dynamic string allocations */
 #include "stralloc.h"
-#define string_copy(x,y) int_string_copy(x, NULL)
-#define string_unlink(x,y) int_string_unlink(to_malloc_str(x))
-#define new_string(x,y) int_new_string(x)
-#define extend_string(x,sz) int_extend_string(to_malloc_str(x), sz)
-#define alloc_cstring(x,y) int_alloc_cstring(x, NULL)
+
+static inline malloc_str_t new_string(size_t size, const char *caller) {
+  (void)caller; /* currently unused, but may be helpful for future debugging */
+  return int_new_string(size);
+}
+
+static inline malloc_str_t extend_string(malloc_str_t s, size_t size) {
+  return int_extend_string(to_malloc_str(s), size);
+}
+
+static inline malloc_str_t string_copy(const char *cstr, const char *caller) {
+  (void)caller; /* currently unused, but may be helpful for future debugging */
+  return int_string_copy(cstr, NULL);
+}
+
+static inline malloc_str_t string_unlink(malloc_str_t s, const char *caller) {
+  (void)caller; /* currently unused, but may be helpful for future debugging */
+  return int_string_unlink(to_malloc_str(s));
+}
+
+static inline char* alloc_cstring(const char* cstr, const char* caller) {
+  (void)caller; /* currently unused, but may be helpful for future debugging */
+  return int_alloc_cstring(cstr, NULL);
+}
 
 /* define this when included by something compiled before lib/lpc */
 #ifndef NO_OPCODES
