@@ -461,10 +461,9 @@ f_member_array (void)
           switch (find->type | (sv = v->item + i)->type)
             {
             case T_STRING:
-              if (flen && (sv->subtype & STRING_COUNTED)
-                  && flen != MSTR_SIZE (SVALUE_STRPTR(sv)))
+              if (string_length_differs(find, sv))
                 continue;
-              if (strcmp (SVALUE_STRPTR(find), SVALUE_STRPTR(sv)))
+              if (memcmp (SVALUE_STRPTR(find), SVALUE_STRPTR(sv), flen))
                 continue;
               break;
             case T_NUMBER:

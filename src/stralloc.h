@@ -189,31 +189,6 @@ static inline size_t counted_strlen(const char *x) {
    should be deallocated */
 #define DEC_COUNTED_REF(x) (!(MSTR_REF(x) == 0 || --MSTR_REF(x) > 0))
 
-#define SHARED_STRLEN(x) COUNTED_STRLEN(x)
-
-/*
- * SVALUE_STRPTR(x) returns a char* to the string data regardless of subtype.
- * Handles STRING_MALLOC, STRING_SHARED, and STRING_CONSTANT.
- * Defined here for use in types.h; exported via lib/lpc/svalue.h for public API.
- */
-#define SVALUE_STRPTR(x) ((char *)(((x)->subtype == STRING_MALLOC) ? \
-                          (x)->u.malloc_string : \
-                          (((x)->subtype == STRING_SHARED) ? \
-                           (x)->u.shared_string : \
-                           (x)->u.const_string)))
-
-/*
- * SVALUE_STRLEN(x) returns the logical byte length of any svalue string.
- * STRING_MALLOC and STRING_SHARED: extract pointer and use COUNTED_STRLEN (O(1), span-safe).
- * STRING_CONSTANT strings are C-string literals from driver code; they are
- * never produced by LPC source and cannot contain embedded null bytes, so
- * strlen() is correct and intentional for that case.
- * Defined here for use in types.h; exported via lib/lpc/svalue.h for public API.
- */
-#define SVALUE_STRLEN(x) (((x)->subtype & STRING_COUNTED) ? \
-                          COUNTED_STRLEN(((x)->subtype == STRING_MALLOC) ? (x)->u.malloc_string : (x)->u.shared_string) : \
-                          strlen((x)->u.const_string))
-
 extern void init_strings(size_t hash_size, size_t max_len);
 extern void deinit_strings();
 
@@ -244,7 +219,7 @@ static inline int is_shared_string_payload(shared_str_t p) {
 
 #ifdef STRING_TYPE_SAFETY_STRICT
   {
-    size_t len = SHARED_STRLEN(p);
+    size_t len = COUNTED_STRLEN(p);
     return findstring(p, len ? p + len : NULL) == p;
   }
 #else

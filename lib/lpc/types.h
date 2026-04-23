@@ -100,6 +100,50 @@ struct svalue_s {
 
 #define T_UNDEFINED     0x4     /* undefinedp() returns true */
 
+#define SHARED_STRLEN(x) COUNTED_STRLEN(x)
+
+/*
+ * SVALUE_STRPTR(x) returns a char* to the string data according to subtype.
+ * Handles STRING_MALLOC, STRING_SHARED, and STRING_CONSTANT.
+ *
+ * lpc::svalue_view::c_str() provides a C++ wrapper around this macro with the const char* semantics (safe).
+ */
+#define SVALUE_STRPTR(sv) svalue_strptr_impl(sv)
+static inline char *svalue_strptr_impl(const svalue_t *sv) {
+    if (sv->type != T_STRING)
+        return NULL;
+    if (sv->subtype == STRING_MALLOC) {
+        return sv->u.malloc_string;
+    } else if (sv->subtype == STRING_SHARED) {
+        return sv->u.shared_string;
+    } else {
+        /* FIXME: this is not safe */
+        return (char*)sv->u.const_string;
+    }
+}
+
+/*
+ * SVALUE_STRLEN(x) returns the logical byte length of any svalue string.
+ * STRING_MALLOC and STRING_SHARED: extract pointer and use COUNTED_STRLEN (O(1), span-safe).
+ * STRING_CONSTANT strings are C-string literals from driver code; they are
+ * never produced by LPC source and cannot contain embedded null bytes, so
+ * strlen() is correct and intentional for that case.
+ * 
+ * lpc::svalue_view::length() provides a C++ wrapper around this macro with the same semantics.
+ */
+#define SVALUE_STRLEN(x) svalue_strlen_impl(x)
+static inline size_t svalue_strlen_impl(const svalue_t *sv) {
+    if (sv->type != T_STRING)
+        return 0;
+    if (sv->subtype & STRING_COUNTED) {
+        const char *str = (sv->subtype == STRING_MALLOC) ? sv->u.malloc_string : sv->u.shared_string;
+        return COUNTED_STRLEN(str);
+    } else {
+        /* STRING_CONSTANT only supports C-string literals, no embedded null bytes */
+        return strlen(sv->u.const_string);
+    }
+}
+
 #ifdef STRING_TYPE_SAFETY
 #define SET_SVALUE_SHARED_STRING(sv, value) do { \
     shared_str_t set_svalue_shared_string_value = (value); \
