@@ -632,8 +632,19 @@ void f_or_eq () {
 }
 
 
-/**
- * Array, String, or Buffer range operator [from .. to]
+/** @brief LPC operator range: [from .. to]
+ * 
+ * Stack layout:
+ * sp - 2: from (T_NUMBER)
+ * sp - 1: to (T_NUMBER)
+ * sp: Array, String, or Buffer range operator [from .. to]
+ * 
+ * On return:
+ * sp: Range of the original array, string, or buffer from 'from' to 'to' (inclusive)
+ * 
+ * @param code Bitfield flags to control range behavior:
+ *   - 0x01: If set, 'to' is interpreted as an offset from the end of the string/buffer/array rather than the beginning.
+ *   - 0x10: If set, 'from' is interpreted as an offset from the end of the string/buffer/array rather than the beginning.
  */
 void f_range (int code) {
   int64_t from, to, len; /* to support longest string possible */

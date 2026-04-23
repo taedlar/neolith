@@ -443,28 +443,21 @@ f_member_array (void)
       int size = (v = sp->u.arr)->size;
       svalue_t *sv;
       svalue_t *find;
-      int flen = 0;
+      size_t flen = 0;
 
       find = (sp - 1);
       /* optimize a bit */
       if (find->type == T_STRING)
-        {
-          /* *not* COUNTED_STRLEN() which can do a (costly) strlen() call */
-          if (find->subtype & STRING_COUNTED)
-            flen = MSTR_SIZE (SVALUE_STRPTR(find));
-          else
-            flen = 0;
-        }
+        flen = SVALUE_STRLEN (find);
 
       for (; i < size; i++)
         {
           switch (find->type | (sv = v->item + i)->type)
             {
             case T_STRING:
-              if (flen && (sv->subtype & STRING_COUNTED)
-                  && flen != MSTR_SIZE (SVALUE_STRPTR(sv)))
+              if (string_length_differs(find, sv))
                 continue;
-              if (strcmp (SVALUE_STRPTR(find), SVALUE_STRPTR(sv)))
+              if (memcmp (SVALUE_STRPTR(find), SVALUE_STRPTR(sv), flen))
                 continue;
               break;
             case T_NUMBER:

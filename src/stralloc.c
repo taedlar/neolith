@@ -509,13 +509,13 @@ malloc_str_t int_string_copy (const char *str, const char *end) {
   if (len > max_string_length)
     {
       len = max_string_length;
-      p = new_string (len, desc);
+      p = new_string (len, "string_copy");
       memcpy (p, str, len); /* truncate */
       p[len] = '\0';
     }
   else
     {
-      p = new_string (len, desc);
+      p = new_string (len, "string_copy");
       memcpy (p, str, len);
       p[len] = '\0';
     }
