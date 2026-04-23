@@ -2,6 +2,7 @@
 
 #include "lpc/svalue.h"
 #include "apply.h"
+#include "simulate.h"
 
 #define PUSH_STRING    (0 << 6)
 #define PUSH_NUMBER    (1 << 6)
@@ -57,22 +58,91 @@ typedef struct {
     svalue_t *args;
 } function_to_call_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern svalue_t *start_of_stack;
+extern svalue_t *end_of_stack;
+extern control_stack_t* control_stack;
+
+extern program_t *current_prog;
+extern int caller_type;
+extern const char *pc;
+extern svalue_t *sp;
+extern svalue_t *fp;
+extern control_stack_t *csp;
+extern int function_index_offset;
+extern int variable_index_offset;
+extern int st_num_arg;
+
+extern svalue_t const0;
+extern svalue_t const1;
+extern svalue_t const0u;
+extern int num_varargs;
+
+/* LPC interpreter */
+void eval_instruction(const char *p);
+
+void call_function (program_t *progp, int runtime_index, int num_args, svalue_t *ret_value);
+
+void call_efun(int);
+void process_efun_callback(int, function_to_call_t *, int);
+svalue_t *call_efun_callback(function_to_call_t *, int);
+void call_efun_callback_finish(function_to_call_t *);
+#ifndef NO_SHADOWS
+int is_static(const char *, object_t *);
+#endif
+
+#define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
+#define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */
+int get_error_state (int mask);
+void set_error_state (int flag);
+void clear_error_state ();
+
+void reset_interpreter (void);
+
+/* stack manipulation */
+void transfer_push_some_svalues(svalue_t *, int);
+void push_some_svalues(svalue_t *, int);
+void push_object(object_t *);
+void push_number(int64_t);
+void push_real(double);
+void push_undefined(void);
+void push_undefineds (int num);
+void copy_and_push_string(const char *);
+void share_and_push_string(const char *);
+void push_array(array_t *);
+void push_refed_array(array_t *);
+void push_buffer(buffer_t *);
+void push_refed_buffer(buffer_t *);
+void push_mapping(mapping_t *);
+void push_refed_mapping(mapping_t *);
+void push_class(array_t *);
+void push_refed_class(array_t *);
+void push_malloced_string(malloc_str_t);
+void push_shared_string(shared_str_t);
+void push_constant_string(const char *);
+void pop_stack(void);
+void pop_n_elems(size_t);
+void pop_2_elems(void);
+void pop_3_elems(void);
+
+void remove_object_from_stack(object_t *);
+
+void free_string_svalue(svalue_t *);
+void unlink_string_svalue(svalue_t *);
+
+#ifdef __cplusplus
+}
+#endif
+
 #define IS_ZERO(x) (!(x) || (((x)->type == T_NUMBER) && ((x)->u.number == 0)))
 #define IS_UNDEFINED(x) (!(x) || (((x)->type == T_NUMBER) && \
         ((x)->subtype == T_UNDEFINED) && ((x)->u.number == 0)))
 
 #define CHECK_TYPES(val, t, arg, inst) \
   if (!((val)->type & (t))) bad_argument(val, t, arg, inst);
-
-/* Forward declarations required by static inline string helpers below. */
-#ifdef __cplusplus
-extern "C" {
-#endif
-void fatal(const char *fmt, ...);
-void free_string_svalue(svalue_t *);
-#ifdef __cplusplus
-}
-#endif
 
 /* Append a byte span to an svalue string using explicit source length. */
 static inline void extend_svalue_string_len_impl(svalue_t *target_sv,
@@ -291,82 +361,3 @@ static inline void put_shared_string_impl(svalue_t *target_sp, shared_str_t valu
 
 #define put_shared_string(x) \
         put_shared_string_impl(sp, (x))
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern svalue_t *start_of_stack;
-extern svalue_t *end_of_stack;
-extern control_stack_t* control_stack;
-
-extern program_t *current_prog;
-extern int caller_type;
-extern const char *pc;
-extern svalue_t *sp;
-extern svalue_t *fp;
-extern control_stack_t *csp;
-extern int function_index_offset;
-extern int variable_index_offset;
-extern int st_num_arg;
-
-extern svalue_t const0;
-extern svalue_t const1;
-extern svalue_t const0u;
-extern int num_varargs;
-
-/* LPC interpreter */
-void eval_instruction(const char *p);
-
-void call_function (program_t *progp, int runtime_index, int num_args, svalue_t *ret_value);
-
-void call_efun(int);
-void process_efun_callback(int, function_to_call_t *, int);
-svalue_t *call_efun_callback(function_to_call_t *, int);
-void call_efun_callback_finish(function_to_call_t *);
-#ifndef NO_SHADOWS
-int is_static(const char *, object_t *);
-#endif
-
-#define	ES_STACK_FULL		(1 << 0)	/* svalue stack or control stack is full */
-#define ES_MAX_EVAL_COST	(1 << 1)	/* eval cost exceeded */
-int get_error_state (int mask);
-void set_error_state (int flag);
-void clear_error_state ();
-
-void reset_interpreter (void);
-
-/* stack manipulation */
-void transfer_push_some_svalues(svalue_t *, int);
-void push_some_svalues(svalue_t *, int);
-void push_object(object_t *);
-void push_number(int64_t);
-void push_real(double);
-void push_undefined(void);
-void push_undefineds (int num);
-void copy_and_push_string(const char *);
-void share_and_push_string(const char *);
-void push_array(array_t *);
-void push_refed_array(array_t *);
-void push_buffer(buffer_t *);
-void push_refed_buffer(buffer_t *);
-void push_mapping(mapping_t *);
-void push_refed_mapping(mapping_t *);
-void push_class(array_t *);
-void push_refed_class(array_t *);
-void push_malloced_string(malloc_str_t);
-void push_shared_string(shared_str_t);
-void push_constant_string(const char *);
-void pop_stack(void);
-void pop_n_elems(size_t);
-void pop_2_elems(void);
-void pop_3_elems(void);
-
-void remove_object_from_stack(object_t *);
-
-void free_string_svalue(svalue_t *);
-void unlink_string_svalue(svalue_t *);
-
-#ifdef __cplusplus
-}
-#endif
