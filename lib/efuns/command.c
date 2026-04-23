@@ -255,20 +255,6 @@ f_remove_action (void)
 #endif
 
 
-#ifdef F_QUERY_VERB
-void
-f_query_verb (void)
-{
-  if (!last_verb)
-    {
-      push_number (0);
-      return;
-    }
-  share_and_push_string (last_verb);
-}
-#endif
-
-
 #ifdef F_COMMAND
 void
 f_command (void)

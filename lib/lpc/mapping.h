@@ -98,7 +98,7 @@ void add_mapping_array(mapping_t *, const char *, array_t *);
 void add_mapping_shared_string(mapping_t *, char *, char *);
 
 int growMap (mapping_t * m);
-int restore_hash_string (char **val, svalue_t * sv);
+
 
 #ifdef __cplusplus
 }

@@ -276,59 +276,6 @@ mapping_t* copyMapping (mapping_t * m) {
   return newmap;
 }
 
-int restore_hash_string (char **val, svalue_t * sv) {
-  register char *cp = *val;
-  char c, *start = cp;
-
-  while ((c = *cp++) != '"')
-    {
-      switch (c)
-        {
-        case '\r':
-          *(cp - 1) = '\n';
-          break;
-
-        case '\\':
-          {
-            char *newp = cp - 1;
-
-            if ((c = *newp++ = *cp++))
-              {
-                while ((c = *cp++) != '"')
-                  {
-                    if (c == '\\')
-                      {
-                        if (!(c = *newp++ = *cp++))
-                          return ROB_STRING_ERROR;
-                      }
-                    else
-                      {
-                        if (c == '\r')
-                          c = *newp++ = '\n';
-                        else
-                          *newp++ = c;
-                      }
-                  }
-                if (!c)
-                  return ROB_STRING_ERROR;
-                *newp = '\0';
-                *val = cp;
-                SET_SVALUE_SHARED_STRING (sv, make_shared_string (start, NULL));
-                return 0;
-              }
-            else
-              return ROB_STRING_ERROR;
-          }
-
-        case '\0':
-          return ROB_STRING_ERROR;
-        }
-    }
-  *val = cp;
-  *--cp = '\0';
-  SET_SVALUE_SHARED_STRING (sv, make_shared_string (start, NULL));
-  return 0;
-}
 
 /*
  * svalue_t_to_int: Converts an svalue into an integer index.

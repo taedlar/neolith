@@ -38,8 +38,6 @@
 #include <stdarg.h>
 #endif /* HAVE_STDARG_H */
 
-char *last_verb = 0;
-
 int illegal_sentence_action;
 
 /* -1 indicates that we have never had a master object.  This is so the
@@ -59,6 +57,7 @@ static char *make_new_name (const char *);
 static void send_say (object_t *, char *, array_t *);
 static void remove_sent (object_t *, object_t *);
 
+static int user_parser (char * buff);
 
 /*************************************************************************
  *  command_giver_stack
@@ -96,7 +95,7 @@ void restore_command_giver () {
  * If the string is too long, an error is raised.
  * @param s The string to check.
  */
-void check_legal_string (const char *s) {
+static void check_legal_string (const char *s) {
   if (strlen (s) >= LARGEST_PRINTABLE_STRING)
     {
       error ("*Printable strings limited to length of %d.\n",
@@ -587,66 +586,6 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
   return ob;
 }
 
-/*
- * smart_log() - compiler error logging function.
- *
- * There is an error in a specific file. Ask the master object to log the
- * message somewhere.
- */
-void smart_log (const char *error_file, int line, const char *what, int flag) {
-
-  char *buff;
-  svalue_t *mret;
-  extern int pragmas;
-
-  buff = (char *) DMALLOC (strlen (error_file) + strlen (what) +
-             ((pragmas & PRAGMA_ERROR_CONTEXT) ? 100 : 40), TAG_TEMPORARY,
-             "smart_log: 1");
-
-  if (flag)
-    sprintf (buff, "%s line %d: Warning: %s", error_file, line, what);
-  else
-    sprintf (buff, "%s line %d: %s", error_file, line, what);
-
-  if (pragmas & PRAGMA_ERROR_CONTEXT)
-    {
-      char *ls = strrchr (buff, '\n');
-      char *tmp;
-      if (ls)
-        {
-          tmp = ls + 1;
-          while (*tmp && isspace (*tmp))
-            tmp++;
-          if (!*tmp)
-            *ls = 0;
-        }
-      strcat (buff, show_error_context ());
-    }
-  else
-    strcat (buff, "\n");
-
-  if (flag)
-    sprintf (buff, "%s line %d: Warning: %s%s", error_file, line, what,
-             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
-  else
-    sprintf (buff, "%s line %d: %s%s", error_file, line, what,
-             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
-
-  share_and_push_string (error_file);
-  copy_and_push_string (buff);
-  mret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_LOG_ERROR, 2);
-  if (!mret || mret == (svalue_t *) - 1)
-    {
-      APPLY_SLOT_FINISH_CALL();
-      log_message (NULL, "\t%s", buff);
-    }
-  else
-    {
-      APPLY_SLOT_FINISH_CALL();
-    }
-  FREE (buff);
-}				/* smart_log() */
-
 /**
  * @brief Create a new name for a cloned object by appending #number to the original name.
  * 
@@ -785,7 +724,7 @@ object_t* environment (svalue_t * arg) {
  * The command can also come from a NPC.
  * Beware that 'str' can be modified and extended !
  */
-int process_command (char *str, object_t * ob) {
+int process_command (char *buff, object_t * ob) {
   object_t *save = command_giver;
   int res;
 
@@ -802,7 +741,7 @@ int process_command (char *str, object_t * ob) {
     }
 #endif
   command_giver = ob;
-  res = user_parser (str);
+  res = user_parser (buff);
   command_giver = save;
   return (res);
 }				/* process_command() */
@@ -810,13 +749,13 @@ int process_command (char *str, object_t * ob) {
 /**
  * Execute a command for an object.
  * Copy the command into a new buffer, because 'process_command()' can modify the command.
- * If the object is not current object, static functions will not * be executed.
+ * If the object is not current object, static functions will not be executed.
  * This will prevent forcing users to do illegal things.
  *
  * Return cost of the command executed if success (> 0).
  * When failure, return 0.
  */
-int64_t command_for_object (char *str) {
+int64_t command_for_object (const char *str) {
 
   char buff[1000];
   int64_t save_eval_cost = eval_cost;
@@ -1381,7 +1320,7 @@ void destruct_object (object_t * ob) {
  * - release object-owned runtime values safely
  * - then drop the final object reference via free_object()
  */
-void destruct2 (object_t * ob) {
+static void destruct2 (object_t * ob) {
   /*
    * We must deallocate variables here, not in 'free_object()'. That is
    * because one of the local variables may point to this object, and
@@ -1593,7 +1532,7 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
 }
 #endif
 
-void shout_string (char *str) {
+void shout_string (const char *str) {
   object_t *ob;
 
   check_legal_string (str);
@@ -1608,17 +1547,15 @@ void shout_string (char *str) {
 
 /**
  *  @brief This will enable an object to use commands normally only
- *      accessible by interactive users.
- *      Also check if the user is a wizard. Wizards must not affect the
- *      value of the wizlist ranking.
- *  @param num If non-zero, enable commands, else disable commands.
+ *    accessible by interactive users. The \p command_giver will be set to the
+ *    object when commands are enabled, and set back to 0 when disabled.
+ *  @param enable If non-zero, enable commands, else disable commands.
  */
-
-void enable_commands (int num) {
+void enable_commands (int enable) {
   if (current_object->flags & O_DESTRUCTED)
     return;
 
-  if (num)
+  if (enable)
     {
       current_object->flags |= O_ENABLE_COMMANDS;
       command_giver = current_object;
@@ -1627,7 +1564,6 @@ void enable_commands (int num) {
 
   if (!(current_object->flags & O_ENABLE_COMMANDS))
     return;
-
   current_object->flags &= ~O_ENABLE_COMMANDS;
   command_giver = 0;
 }
@@ -1780,7 +1716,7 @@ int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   return 1;
 }
 
-void print_svalue (svalue_t * arg) {
+static void print_svalue (svalue_t * arg) {
   char tbuf[2048];
 
   if (arg == 0)
@@ -1834,6 +1770,20 @@ void do_write (svalue_t * arg) {
   print_svalue (arg);
   command_giver = save_command_giver;
 }
+
+#ifdef F_RECEIVE
+void
+f_receive (void)
+{
+  if (current_object->interactive)
+    {
+      check_legal_string (SVALUE_STRPTR(sp));
+      add_message (current_object, SVALUE_STRPTR(sp));
+    }
+  free_string_svalue (sp--);
+}
+#endif
+
 
 /**
  *  @brief Find an object. If not loaded, load it !
@@ -2034,6 +1984,12 @@ void move_object (object_t * item, object_t * dest) {
 
 #define MAX_VERB_BUFF 100
 
+static char *last_verb = 0;
+
+/**
+ * @brief Parse user input and execute the corresponding command function if
+ *    a matching sentence is found.
+ */
 int user_parser (char *buff) {
   char verb_buff[MAX_VERB_BUFF];
   sentence_t *s;
@@ -2229,6 +2185,19 @@ int user_parser (char *buff) {
   return 0;
 }
 
+#ifdef F_QUERY_VERB
+void
+f_query_verb (void)
+{
+  if (!last_verb)
+    {
+      push_number (0);
+      return;
+    }
+  share_and_push_string (last_verb);
+}
+#endif
+
 /*
  * Associate a command with function in this object.
  *
@@ -2244,7 +2213,7 @@ int user_parser (char *buff) {
  * If the call is from a shadow, make it look like it is really from
  * the shadowed object.
  */
-void add_action (svalue_t * str, char *cmd, int flag, int num_carry, svalue_t *carry_args) {
+void add_action (svalue_t * str, const char *cmd, int flag, int num_carry, svalue_t *carry_args) {
   sentence_t *p;
   object_t *ob;
 
@@ -2310,7 +2279,7 @@ void add_action (svalue_t * str, char *cmd, int flag, int num_carry, svalue_t *c
  * if success.  If command_giver, remove his action, otherwise
  * remove current_object's action.
  */
-int remove_action (char *act, char *verb) {
+int remove_action (const char *act, const char *verb) {
   object_t *ob;
   sentence_t **s;
 
@@ -2368,10 +2337,6 @@ static void remove_sent (object_t * ob, object_t * user) {
  * Prints error message to debug log and exit program.
  * */
 static int proceeding_fatal_error = 0;
-
-int in_fatal_error() {
-  return (proceeding_fatal_error != 0);
-}
 
 void fatal (const char *fmt, ...) {
   char *msg = "(error message buffer cannot be allocated)";
@@ -2632,6 +2597,8 @@ object_t* first_inventory (svalue_t * arg) {
 int get_machine_state() {
   if (!start_of_stack || !control_stack)
     return -1; /* stack machine not yet initialized */
+  if (proceeding_fatal_error)
+    return MS_FATAL_ERROR;
   if (!master_ob)
     return MS_PRE_MUDLIB;
   if (current_time == 0)
@@ -2647,7 +2614,7 @@ void setup_simulate() {
   init_precomputed_tables ();   /* backend.c */
   init_binaries ();             /* lib/lpc/program/binaries.c */
   init_uids();                  /* uids.c */
-  reset_interpreter ();             /* interpret.c */
+  init_backend ();              /* backend.c */
   current_time = time (NULL);
 }
 
