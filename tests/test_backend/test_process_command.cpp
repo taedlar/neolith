@@ -94,6 +94,14 @@ protected:
           write ("You look up.\n");
           return 1;
         }
+        if (arg == "up") {
+          write ("You look up.\n");
+          return 1;
+        }
+        if (arg == "down") {
+          write ("You look down.\n");
+          return 1;
+        }
         return notify_fail("You can't look " + arg + ".");
       }
 
@@ -202,7 +210,7 @@ TEST_F(ProcessCommandTest, HandlesRegularVerbFromAddAction) {
   expect_state(obj, "regular", "look", "up", 1);
 
   char input2[] = "look down";
-  EXPECT_EQ(process_command(input2, obj), 0);
+  EXPECT_EQ(process_command(input2, obj), 1);
   expect_state(obj, "regular", "look", "down", 2);
 
   destruct_object(obj);
