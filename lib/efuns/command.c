@@ -268,12 +268,11 @@ f_command (void)
         ob = sp->u.ob;
       else
         error ("*Bad type for command second argument.");
-      sp--;
     }
 
   i = command_for_object (SVALUE_STRPTR(sp), ob);
-  free_string_svalue (sp);
-  put_number (i);
+  pop_n_elems (st_num_arg);
+  push_number (i);
 }
 #endif
 
