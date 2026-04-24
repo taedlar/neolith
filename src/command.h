@@ -21,7 +21,7 @@ int call_function_interactive (interactive_t *, char *);
 #define V_NOSPACE       2   /* No space allowed in the command */
 #define V_FUNCTION      4   /* Command is a function */
 void add_action(svalue_t *action, const char *cmd, int flags, int num_carry, svalue_t *carry_args);
-int remove_action(const char *cmd, const char *pattern);
+int remove_action(const char *cmd, const char *verb);
 void remove_sent (object_t *, object_t *);
 
 /* command fail handling */

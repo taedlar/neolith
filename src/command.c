@@ -901,7 +901,7 @@ int process_command (char *buff, object_t * ob) {
  * 
  * For non-interactive objects, the command will be executed regardless of whether it is
  * the current object or not. Mudlib may want to protect the \p command() efun with a
- * simul_efun and protects this fron non-privileged users forcing NPC to execute commands
+ * simul_efun and protects this from non-privileged users forcing NPC to execute commands
  * for interactive objects.
  *
  * @return Returns the cost of the command executed if successful (> 0).
