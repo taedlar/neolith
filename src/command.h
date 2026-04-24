@@ -33,12 +33,12 @@ int new_set_snoop (object_t *, object_t *);
 object_t *query_snoop (object_t *);
 object_t *query_snooping (object_t *);
 
-/* command turn handling */
+/* user command handling */
 int cmd_in_buf (interactive_t *);
 int process_user_command (void);
 
-/* NPC command handling */
-int command_for_object (const char *cmd, object_t *ob);
+/* object command handling */
+int64_t command_for_object (const char *cmd, object_t *ob);
 
 #ifdef __cplusplus
 }

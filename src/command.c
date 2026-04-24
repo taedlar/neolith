@@ -880,28 +880,39 @@ int process_command (char *buff, object_t * ob) {
 }				/* process_command() */
 
 /**
- * Execute a command for an object.
- * Copy the command into a new buffer, because 'process_command()' can modify the command.
- * If the object is not current object, static functions will not be executed.
- * This will prevent forcing users to do illegal things.
+ * @brief Execute a command for an object.
+ * 
+ * Copy the command into a mutable buffer, because \p process_command() need to
+ * modify the command in-place.
  *
- * Return cost of the command executed if success (> 0).
- * When failure, return 0.
+ * If the object is interactive but not current object, the command will not be executed
+ * and an error will be raised, because this can lead to confusing situations where
+ * commands are executed for an interactive object that is not the one issuing the
+ * command.
+ * 
+ * For non-interactive objects, the command will be executed regardless of whether it is
+ * the current object or not. Mudlib may want to protect the \p command() efun with a
+ * simul_efun and protects this fron non-privileged users forcing NPC to execute commands
+ * for interactive objects.
+ *
+ * @return Returns the cost of the command executed if successful (> 0).
  */
-int command_for_object (const char *str, object_t *ob) {
+int64_t command_for_object (const char *str, object_t *ob) {
 
-  char buff[1000];
-  int save_eval_cost = eval_cost;
+  char buff[MAX_TEXT];
+  int64_t save_eval_cost = eval_cost;
   object_t *target_ob = ob ? ob : current_object;
 
   if (strlen (str) > sizeof (buff) - 1)
     error ("*Too long command.");
+  else if (target_ob->interactive && target_ob != current_object)
+    error ("*Cannot execute command for interactive object other than current object.");
   else if (target_ob->flags & O_DESTRUCTED)
     return 0;
-  strncpy (buff, str, sizeof buff);
-  buff[sizeof buff - 1] = '\0';
+
+  strput (buff, buff + MAX_TEXT, str);
   if (process_command (buff, target_ob))
-    return (int)(save_eval_cost - eval_cost);
+    return save_eval_cost - eval_cost;
   else
     return 0;
 }
