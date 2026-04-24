@@ -46,7 +46,7 @@ static char *get_user_command (void);
 static char *first_cmd_in_buf (interactive_t *);
 static void next_cmd_in_buf (interactive_t *);
 static void print_prompt (interactive_t *);
-static int user_parser (char * buff);
+static int user_parser (const char * buff);
 
 void set_prompt (char *str) {
   if (command_giver && command_giver->interactive)
@@ -635,23 +635,37 @@ void f_query_verb (void) {
 #define MAX_VERB_BUFF 100
 
 /**
- * @brief Parse user input and execute the corresponding command function if
- *    a matching sentence is found.
+ * @brief Parse a raw command and call matching sentence functions registered by add_action() efun.
  *
- * This function could be re-entrant if a sentence function called by this function calls
- * command() again. 
+ * This function iterates through the sentences registered to the current command_giver object and
+ * tries to find a match for the user input command. If a match is found, it calls the corresponding
+ * function with the appropriate arguments.
  * 
- * @see add_action() efun for short verb, xverb, and function pointer command registration.
+ * The function also handles sentence flags such as V_NOSPACE and V_SHORT to determine how to match
+ * the verb and what part of the input to pass as arguments.
+ * 
+ * FIXME: This function can be re-entrant if a sentence function called by this function calls
+ * command() again.
+ * FIXME: There are dangling problem if the sentence function called by this function destructs
+ * or moves the command_giver object. We currently rely on reference counting to keep the memory
+ * valid, but this can lead to unexpected behavior if the sentence function modifies the command_giver
+ * object in certain ways.
+ * FIXME: The last_verb could be dangling if a runtime error occurs in the sentence function, since
+ * we free it after the call. We should probably use a local variable to store the last_verb and only
+ * update the global last_verb after the call finishes successfully.
+ * 
  * @param buff The user input command string (null-terminated) to parse and execute.
+ * @return 1 if a command was successfully parsed and executed, otherwise returns 0.
+ * @see add_action() efun for short verb, xverb, and function pointer command registration.
  */
-static int user_parser (char *buff) {
+static int user_parser (const char *buff) {
   char verb_buff[MAX_VERB_BUFF];
   char *save_last_verb = last_verb;
   sentence_t *s;
-  char *p, *space;
+  const char *space;
   ptrdiff_t length;
   object_t *save_command_giver = command_giver; /* save command giver on entry */
-  char *user_verb = 0;
+  const char *user_verb = 0;
   int where;
   int save_illegal_sentence_action;
 
@@ -659,17 +673,8 @@ static int user_parser (char *buff) {
   if (!(command_giver->flags & O_ENABLE_COMMANDS))
     return 0;
 
-  /* trim trailing whitespace (in-place) and skip empty lines */
-  p = buff + strlen (buff);
-  while (p > buff && isspace (*(p - 1)))
-    p--;
-  *p = '\0';
-  if (*buff == '\0')
-    return 0;
-  assert (p > buff);
-
   /* find the "verb" (using space separator) in the command */
-  length = p - buff + 1;
+  length = strlen (buff);
   if ((space = strchr (buff, ' ')))
     {
       user_verb = findstring (buff, space);
@@ -677,7 +682,7 @@ static int user_parser (char *buff) {
     }
   else
     {
-      user_verb = findstring (buff, p);
+      user_verb = findstring (buff, buff + length);
     }
   if (!user_verb)
     {
@@ -685,6 +690,8 @@ static int user_parser (char *buff) {
       user_verb = buff;
     }
   strput (verb_buff, verb_buff + MAX_VERB_BUFF, user_verb); /* always null-terminated */
+  if (space && (space - buff) < MAX_VERB_BUFF)
+    verb_buff[space - buff] = '\0';
   assert (user_verb != NULL);
   assert (strlen(user_verb) == length);
 
@@ -756,7 +763,7 @@ static int user_parser (char *buff) {
       where = (current_object ? ORIGIN_EFUN : ORIGIN_DRIVER);
 
       /* Push command args FIRST (correct LPC order) */
-      if (s->flags & V_NOSPACE)
+      if (s->flags & (V_NOSPACE | V_SHORT))
         copy_and_push_string (&buff[strlen (s->verb)]);
       else if (strchr(s->verb, ' '))
         {
@@ -859,6 +866,7 @@ static int user_parser (char *buff) {
  */
 int process_command (char *buff, object_t * ob) {
   object_t *save = command_giver;
+  char *p;
   int res;
 
   /* disallow users to issue commands containing ansi escape codes */
@@ -873,6 +881,15 @@ int process_command (char *buff, object_t * ob) {
         }
     }
 #endif
+
+  /* trim trailing whitespace (in-place) and skip empty lines */
+  p = buff + strlen (buff);
+  while (p > buff && isspace (*(p - 1)))
+    p--;
+  *p = '\0';
+  if (*buff == '\0')
+    return 0;
+
   command_giver = ob;
   res = user_parser (buff);
   command_giver = save;

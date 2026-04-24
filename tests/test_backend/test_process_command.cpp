@@ -32,7 +32,9 @@ protected:
 
     init_config(MAIN_OPTION(config_file));
 
+    debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
     ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
+
     namespace fs = std::filesystem;
     auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
     if (mudlib_path.is_relative()) {
@@ -75,9 +77,23 @@ protected:
       int call_count;
 
       void register_actions() {
-        add_action("act_multi", "look at", 0);
-        add_action("act_short", "say", 1);
+        add_action("act_regular", "look");
+        add_action("act_multi", "look at");
+        add_action("act_short", "say");
+        add_action("act_short", "'", 1);
         add_action("act_xverb", "pre", 2);
+      }
+      
+      int act_regular(string arg) {
+        last_handler = "regular";
+        last_verb_seen = query_verb();
+        last_arg_seen = arg;
+        call_count++;
+        if (arg == "up") {
+          write ("You look up.\n");
+          return 1;
+        }
+        return notify_fail("You can't look " + arg + ".");
       }
 
       int act_multi(string arg) {
@@ -167,6 +183,22 @@ protected:
   }
 };
 
+TEST_F(ProcessCommandTest, HandlesRegularVerbFromAddAction) {
+  object_t *obj = load_command_object("/tests/backend/test_process_command_regular");
+  ASSERT_NE(obj, nullptr);
+  register_actions(obj);
+
+  char input1[] = "look up";
+  EXPECT_EQ(process_command(input1, obj), 1);
+  expect_state(obj, "regular", "look", "up", 1);
+
+  char input2[] = "look down";
+  EXPECT_EQ(process_command(input2, obj), 0);
+  expect_state(obj, "regular", "look", "down", 2);
+
+  destruct_object(obj);
+}
+
 TEST_F(ProcessCommandTest, HandlesMultiWordVerbFromAddAction) {
   object_t *obj = load_command_object("/tests/backend/test_process_command_multi");
   ASSERT_NE(obj, nullptr);
@@ -184,9 +216,13 @@ TEST_F(ProcessCommandTest, HandlesShortVerbVariant) {
   ASSERT_NE(obj, nullptr);
   register_actions(obj);
 
-  char input[] = "say hello world";
-  EXPECT_EQ(process_command(input, obj), 1);
+  char input1[] = "say hello world";
+  EXPECT_EQ(process_command(input1, obj), 1);
   expect_state(obj, "short", "say", "hello world", 1);
+
+  char input2[] = "'hello again";
+  EXPECT_EQ(process_command(input2, obj), 1);
+  expect_state(obj, "short", "'hello", "hello again", 2);
 
   destruct_object(obj);
 }
