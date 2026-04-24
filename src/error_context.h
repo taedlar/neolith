@@ -16,6 +16,7 @@ typedef struct error_context_s {
     control_stack_t *save_csp;
     object_t *save_command_giver; 
     svalue_t *save_sp;
+    const char* save_last_verb;
     struct error_context_s *save_context;
 } error_context_t;
 

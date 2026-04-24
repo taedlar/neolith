@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+extern const char *last_verb;
+
 int process_command(char *buff, object_t *);
 
 /* prompts & input redirection */

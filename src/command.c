@@ -619,7 +619,7 @@ static void next_cmd_in_buf (interactive_t * ip) {
     }
 }				/* next_cmd_in_buf() */
 
-static char *last_verb = 0;
+const char *last_verb = 0;
 
 #ifdef F_QUERY_VERB
 void f_query_verb (void) {
@@ -632,8 +632,6 @@ void f_query_verb (void) {
 }
 #endif
 
-#define MAX_VERB_BUFF 100
-
 /**
  * @brief Parse a raw command and call matching sentence functions registered by add_action() efun.
  *
@@ -644,23 +642,18 @@ void f_query_verb (void) {
  * The function also handles sentence flags such as V_NOSPACE and V_SHORT to determine how to match
  * the verb and what part of the input to pass as arguments.
  * 
- * FIXME: This function can be re-entrant if a sentence function called by this function calls
- * command() again.
  * FIXME: There are dangling problem if the sentence function called by this function destructs
  * or moves the command_giver object. We currently rely on reference counting to keep the memory
  * valid, but this can lead to unexpected behavior if the sentence function modifies the command_giver
  * object in certain ways.
- * FIXME: The last_verb could be dangling if a runtime error occurs in the sentence function, since
- * we free it after the call. We should probably use a local variable to store the last_verb and only
- * update the global last_verb after the call finishes successfully.
  * 
  * @param buff The user input command string (null-terminated) to parse and execute.
  * @return 1 if a command was successfully parsed and executed, otherwise returns 0.
  * @see add_action() efun for short verb, xverb, and function pointer command registration.
  */
 static int user_parser (const char *buff) {
-  char verb_buff[MAX_VERB_BUFF];
-  char *save_last_verb = last_verb;
+  char verb_buff[MAX_TEXT];
+  const char *save_last_verb = last_verb;
   sentence_t *s;
   const char *space;
   ptrdiff_t length;
@@ -689,8 +682,8 @@ static int user_parser (const char *buff) {
       /* either an xverb (V_NOSPACE) or a verb without a previous add_action() */
       user_verb = buff;
     }
-  strput (verb_buff, verb_buff + MAX_VERB_BUFF, user_verb); /* always null-terminated */
-  if (space && (space - buff) < MAX_VERB_BUFF)
+  strput (verb_buff, verb_buff + MAX_TEXT, user_verb); /* always null-terminated */
+  if (space && (space - buff) < MAX_TEXT)
     verb_buff[space - buff] = '\0';
   assert (user_verb != NULL);
   assert (strlen(user_verb) == length);
@@ -752,7 +745,7 @@ static int user_parser (const char *buff) {
           if (!*s->verb || (s->flags & V_SHORT))
             last_verb = verb_buff;
           else
-            last_verb = ref_string(to_shared_str(s->verb));
+            last_verb = s->verb;
         }
 
       /*
@@ -809,9 +802,6 @@ static int user_parser (const char *buff) {
       /* s may be dangling at this point */
 
       command_giver = save_command_giver;
-
-      if (last_verb != verb_buff && *last_verb)
-        free_string(to_shared_str(last_verb));
       last_verb = 0;
 
       /* was this the right verb? */

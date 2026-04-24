@@ -4,6 +4,7 @@
 
 #include "std.h"
 #include "rc.h"
+#include "command.h"
 #include "error_context.h"
 #include "frame.h"
 #include "lpc/lex.h"
@@ -82,6 +83,7 @@ int save_context (error_context_t * econ) {
   econ->save_command_giver = command_giver;
   econ->save_sp = sp;           /* stack pointer */
   econ->save_csp = csp;         /* control stack pointer */
+  econ->save_last_verb = last_verb; /* last verb for error reporting */
   econ->save_context = current_error_context;
 
   current_error_context = econ;
@@ -137,6 +139,7 @@ extern "C"
 void restore_context (error_context_t * econ) {
 
   command_giver = econ->save_command_giver;
+  last_verb = econ->save_last_verb;
   DEBUG_CHECK (csp < econ->save_csp, "csp is below econ->csp before unwinding.\n");
   if (csp > econ->save_csp)
     {
