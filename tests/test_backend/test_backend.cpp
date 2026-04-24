@@ -54,7 +54,7 @@ protected:
 };
 
 TEST_F(BackendTest, preload) {
-    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
     init_master ("/master.c", NULL);
     // any error during preload_objects() will be caught.
     EXPECT_NO_THROW(preload_objects (0)) << "preload_objects() threw an exception";
@@ -62,7 +62,7 @@ TEST_F(BackendTest, preload) {
 }
 
 TEST_F(BackendTest, setHeartBeat) {
-    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
     init_master ("/master.c", NULL);
 
     object_t* ob = master_ob;

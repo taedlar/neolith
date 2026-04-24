@@ -134,7 +134,7 @@ python testbot.py
 ### Architecture and Modularity
 - Keep subsystems in their libraries under [lib/](lib/) (`async`, `lpc`, `efuns`, etc.); driver glue lives in [src/](src/) and links through `stem`.
 - Prefer `static` file-local state over new globals.
-- Preserve init/deinit symmetry (`init_*()` with matching `deinit_*()`), coordinated by `get_machine_state()`.
+- Preserve init/deinit symmetry (`init_*()` with matching `deinit_*()`), coordinated by `mud_state()`.
 
 ### Includes and Headers
 - In `.c` files, include `config.h` first.

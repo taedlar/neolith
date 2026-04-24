@@ -325,7 +325,7 @@ void error_handler (const char *err) {
   reset_destruct_object_limits();
   reset_load_object_limits();
 
-  if (has_active_catch_boundary() && get_machine_state() != MS_FATAL_ERROR)
+  if (has_active_catch_boundary() && mud_state() != MS_FATAL_ERROR)
     {
       handle_caught_error(err);
     }

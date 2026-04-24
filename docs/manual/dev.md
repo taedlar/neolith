@@ -45,7 +45,7 @@ In Neolith, we take another bottom-up approach:
   - Clarify dependencies of each static libraries.
   - Re-organize C code to create small modules with clear boundaries and exposes just-enough interfaces.
 - Fortify the **architecture** of driver by cascading `init_*()`/`deinit_*()` sequence.
-  - Introduce of `get_machine_state()` to indicate availability of essential modules.
+  - Introduce of `mud_state()` to indicate availability of essential modules.
   - Add **tear down** code for essential modules and verify graceful tear down with trace logs.
 - Add C++ unit-testing code using Googletest framework.
   - Test modularity by creating "stem" (minimal runtime setup for testee) as **test fixtures**.

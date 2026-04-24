@@ -10,7 +10,7 @@ TEST_F(StackMachineTest, initialState) {
     // =================================================
     // stack machine initial state: see reset_interpreter()
     // =================================================
-    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
     ASSERT_EQ(obj_list, nullptr); // no objects loaded yet
     ASSERT_EQ(obj_list_destruct, nullptr); // no objects to destruct
     EXPECT_TRUE(csp == control_stack - 1); // control stack pointer at the bottom

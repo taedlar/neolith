@@ -24,7 +24,7 @@ Test patterns:
 ### Unit Test Fixtures
 
 - When adding unit tests, reuse existing fixture classes defined in `fixtures.hpp` when possible. These provide common setup/teardown for subsystems like simulate, async runtime, etc.
-- Use `get_machine_state()` to check subsystem initialization state and avoid redundant setup. For example, if testing a feature that requires simulate, check if it's already initialized before calling `setup_simulate()`.
+- Use `mud_state()` to check subsystem initialization state and avoid redundant setup. For example, if testing a feature that requires simulate, check if it's already initialized before calling `setup_simulate()`.
 - The `SetUp()` method in the test fixture should follow the same order as in `src/main.c`: configurations, then resource pools, LPC compiler, followed by world simulation and mudlib vital objects and epilogue. This ensures that all dependencies are properly initialized for the tests.
 - The `TearDown()` method should clean up resources in the reverse order of setup to ensure proper teardown without leaving dangling pointers or unfreed memory. See `do_shutdown()` in `src/simulate.c` for reference.
 - Use the `Test` suffix for fixture classes (e.g. `LPCCompilerTest`) to follow GoogleTest conventions.

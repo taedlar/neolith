@@ -152,7 +152,7 @@ static int give_uid_to_object (object_t * ob) {
   char *creator_name = NULL;
 
   /* before master object is loaded */
-  if (get_machine_state() < MS_MUDLIB_LIMBO)
+  if (mud_state() < MS_MUDLIB_LIMBO)
     {
       ob->uid = add_uid ("NONAME");
       ob->euid = NULL;
@@ -238,7 +238,7 @@ static object_t *load_virtual_object (const char *name) {
   svalue_t *v;
   object_t *result = 0;
 
-  if (get_machine_state() < MS_MUDLIB_LIMBO)
+  if (mud_state() < MS_MUDLIB_LIMBO)
     return 0;
   push_malloced_string (add_slash (name));
   v = APPLY_SLOT_MASTER_CALL (APPLY_COMPILE_OBJECT, 1);
@@ -389,7 +389,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
   if (!strip_name (mudlib_filename, name, sizeof (name)))
     error ("*Filenames with consecutive /'s in them aren't allowed (%s).", mudlib_filename);
 
-  if (get_machine_state() >= MS_MUDLIB_LIMBO)
+  if (mud_state() >= MS_MUDLIB_LIMBO)
     {
       if (current_object && current_object!=master_ob && current_object->euid == NULL)
         error ("*Can't load objects when no effective user.");
@@ -556,7 +556,7 @@ object_t* load_object (const char *mudlib_filename, const char *pre_text) {
   opt_trace (TT_COMPILE|2, "adding to otable: \"%s\"", real_name);
   enter_object_hash (ob);	/* add name to fast object lookup table */
 
-  if (get_machine_state() >= MS_MUDLIB_LIMBO)
+  if (mud_state() >= MS_MUDLIB_LIMBO)
     {
       opt_trace (TT_COMPILE|3, "calling master apply: valid_object() for: \"%s\"", name);
       push_object (ob);
@@ -2594,15 +2594,19 @@ object_t* first_inventory (svalue_t * arg) {
 }
 #endif
 
-int get_machine_state() {
-  if (!start_of_stack || !control_stack)
-    return -1; /* stack machine not yet initialized */
+int mud_state() {
   if (proceeding_fatal_error)
-    return MS_FATAL_ERROR;
+    return MS_FATAL_ERROR; /* fatal error occurred, driver is shutting down */
+
+  if (!start_of_stack || !control_stack)
+    return MS_PRE_INIT; /* stack machine not yet initialized */
+
   if (!master_ob)
-    return MS_PRE_MUDLIB;
+    return MS_PRE_MUDLIB; /* mudlib not yet initialized */
+
   if (current_time == 0)
-    return MS_MUDLIB_LIMBO;
+    return MS_MUDLIB_LIMBO; /* `current_time` not yet initialized (waiting for mudlib to setup the world)*/
+
   return MS_MUDLIB_INTERACTIVE;
 }
 
