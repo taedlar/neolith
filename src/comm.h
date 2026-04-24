@@ -105,7 +105,7 @@ int do_comm_polling (struct timeval* timeout);
 int is_console_user (void *context);
 
 void add_vmessage (object_t *, char *, ...);
-void add_message (object_t *, char *);
+void add_message (object_t *, const char *);
 
 void init_user_conn (void);
 void ipc_remove (void);

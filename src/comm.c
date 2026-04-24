@@ -76,7 +76,7 @@ static void process_addr_resolver_completions (void);
 static void add_ip_entry (unsigned long, const char *);
 static void setup_accepted_connection (port_def_t *, socket_fd_t, struct sockaddr_in *);
 static void new_user_handler (port_def_t *);
-static void receive_snoop (char *, object_t * ob);
+static void receive_snoop (const char *, object_t * ob);
 
 /* global variables */
 
@@ -121,7 +121,7 @@ int is_console_user (void *context) {
   return context && all_users && ((object_t*)context)->interactive == all_users[0];
 }
 
-static void receive_snoop (char *buf, object_t * snooper) {
+static void receive_snoop (const char *buf, object_t * snooper) {
 
   /* command giver no longer set to snooper */
   copy_and_push_string (buf);
@@ -322,10 +322,10 @@ int do_comm_polling (struct timeval *timeout) {
 /*
  * Send a message to an interactive object.
  */
-void add_message (object_t * who, char *data) {
+void add_message (object_t * who, const char *data) {
 
   interactive_t *ip;
-  char *cp;
+  const char *cp;
 
   /* check destination of message */
   if (!who || (who->flags & O_DESTRUCTED) || !who->interactive ||

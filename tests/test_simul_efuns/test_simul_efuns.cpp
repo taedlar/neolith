@@ -73,7 +73,7 @@ protected:
 
 TEST_F(SimulEfunsTest, loadSimulEfun)
 {
-    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
     init_simul_efun ("/simul_efun.c");
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
@@ -90,7 +90,7 @@ TEST_F(SimulEfunsTest, loadSimulEfun)
 
 TEST_F(SimulEfunsTest, protectSimulEfun)
 {
-    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
     init_simul_efun ("/simul_efun.c");
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
@@ -132,7 +132,7 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
 
 TEST_F(SimulEfunsTest, findSimulEfun)
 {
-    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
     init_simul_efun ("/simul_efun.c");
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
@@ -157,7 +157,7 @@ TEST_F(SimulEfunsTest, findSimulEfun)
 
 TEST_F(SimulEfunsTest, callSimulEfun)
 {
-    ASSERT_EQ(get_machine_state(), MS_PRE_MUDLIB);
+    ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
     init_simul_efun ("/simul_efun.c");
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object

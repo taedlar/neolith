@@ -32,9 +32,156 @@
 size_t tot_alloc_object = 0, tot_alloc_object_size = 0;
 
 char *save_mapping (mapping_t * m);
-static int restore_array (char **str, svalue_t *);
-static int restore_class (char **str, svalue_t *);
-int restore_hash_string (char **str, svalue_t *);
+static int restore_array (const char **str, svalue_t *);
+static int restore_class (const char **str, svalue_t *);
+static int restore_interior_string (const char **val, svalue_t * sv);
+static int restore_hash_string (const char **val, svalue_t * sv);
+static int unquote_and_unescape_string (const char *in, const char **endp, svalue_t *sv);
+static int parse_numeric (const char **cpp, char c, svalue_t * dest);
+static void add_map_stats (mapping_t * m, int count);
+
+static int restore_hash_string (const char **val, svalue_t * sv) {
+    const char *endp;
+    svalue_t temp_sv;
+    shared_str_t shared;
+    int err = unquote_and_unescape_string (*val, &endp, &temp_sv);
+
+    if (err)
+      {
+        return err;
+      }
+
+    *val = endp;
+
+    shared = make_shared_string (SVALUE_STRPTR(&temp_sv), NULL);
+    free_svalue (&temp_sv, "restore_hash_string");
+    SET_SVALUE_SHARED_STRING (sv, shared);
+
+    return 0;
+}
+
+static int restore_interior_string (const char **val, svalue_t * sv) {
+    const char *endp;
+    int err = unquote_and_unescape_string(*val, &endp, sv);
+    if (err == 0) {
+        *val = endp;
+    }
+    return err;
+}
+
+static int parse_numeric (const char **cpp, char c, svalue_t * dest) {
+  const char *cp = *cpp;
+  int res, neg;
+
+  if (c == '-')
+    {
+      neg = 1;
+      res = 0;
+      c = *cp++;
+      if (!isdigit (c))
+        return 0;
+    }
+  else
+    neg = 0;
+  res = c - '0';
+
+  while ((c = *cp++) && isdigit (c))
+    {
+      res *= 10;
+      res += c - '0';
+    }
+  if (c == '.')
+    {
+      double f1 = 0.0, f2 = 10.0;
+
+      c = *cp++;
+      if (!isdigit (c))
+        return 0;
+
+      do
+        {
+          f1 += (c - '0') / f2;
+          f2 *= 10;
+        }
+      while ((c = *cp++) && isdigit (c));
+
+      f1 += res;
+      if (c == 'e')
+        {
+          int expo = 0;
+
+          if ((c = *cp++) == '+')
+            {
+              while ((c = *cp++) && isdigit (c))
+                {
+                  expo *= 10;
+                  expo += (c - '0');
+                }
+              f1 *= pow (10.0, expo);
+            }
+          else if (c == '-')
+            {
+              while ((c = *cp++) && isdigit (c))
+                {
+                  expo *= 10;
+                  expo += (c - '0');
+                }
+              f1 *= pow (10.0, -expo);
+            }
+          else
+            return 0;
+        }
+
+      dest->type = T_REAL;
+      dest->u.real = (neg ? -f1 : f1);
+      *cpp = cp;
+      return 1;
+    }
+  else if (c == 'e')
+    {
+      int expo = 0;
+      double f1;
+
+      if ((c = *cp++) == '+')
+        {
+          while ((c = *cp++) && isdigit (c))
+            {
+              expo *= 10;
+              expo += (c - '0');
+            }
+          f1 = res * pow (10.0, expo);
+        }
+      else if (c == '-')
+        {
+          while ((c = *cp++) && isdigit (c))
+            {
+              expo *= 10;
+              expo += (c - '0');
+            }
+          f1 = res * pow (10.0, -expo);
+        }
+      else
+        return 0;
+
+      dest->type = T_REAL;
+      dest->u.real = (neg ? -f1 : f1);
+      *cpp = cp;
+      return 1;
+    }
+  else
+    {
+      dest->type = T_NUMBER;
+      dest->u.number = (neg ? -res : res);
+      *cpp = cp;
+      return 1;
+    }
+}
+
+static void add_map_stats (mapping_t * m, int count) {
+  total_mapping_nodes += count;
+  total_mapping_size += count * sizeof (mapping_node_t);
+  m->count = count;
+}
 
 int valid_hide (object_t * obj) {
   svalue_t *ret;
@@ -156,7 +303,7 @@ size_t svalue_save_size (const svalue_t * v) {
     }
 }
 
-void save_svalue (svalue_t * v, char **buf) {
+void save_svalue (const svalue_t * v, char **buf) {
   switch (v->type)
     {
     case T_STRING:
@@ -282,8 +429,8 @@ void save_svalue (svalue_t * v, char **buf) {
     }
 }
 
-static int restore_internal_size (char **str, int is_mapping, int depth) {
-  register char *cp = *str;
+static int restore_internal_size (const char **str, int is_mapping, int depth) {
+  register const char *cp = *str;
   int size = 0;
   char c, delim, index = 0;
 
@@ -420,8 +567,8 @@ static int restore_internal_size (char **str, int is_mapping, int depth) {
   return 0;
 }
 
-static int restore_size (char **str, int is_mapping) {
-  register char *cp = *str;
+static int restore_size (const char **str, int is_mapping) {
+  register const char *cp = *str;
   int size = 0, mb_span;
   char c, delim, index = 0;
 
@@ -437,7 +584,7 @@ static int restore_size (char **str, int is_mapping) {
                     {
                       case '"':
                         {
-                    char* start = cp - 1;
+                    const char *start = cp - 1;
                     while ((c = *cp) != '"')
                       {
                               mb_span = mblen (cp, MB_CUR_MAX);
@@ -546,200 +693,75 @@ static int restore_size (char **str, int is_mapping) {
   return -1;
 }
 
-static int restore_interior_string (char **val, svalue_t * sv) {
-  register char *cp = *val;
-  char *start = cp;
-  char c;
-  size_t len;
 
-  while ((c = *cp++) != '"')
-    {
-      switch (c)
-        {
-        case '\r':
-          {
-            *(cp - 1) = '\n';
-            break;
-          }
+/**
+ * @brief Helper to parse a saved string, un-escaping characters.
+ *
+ * This function parses a string in the save_object() format, from the
+ * character after the opening quote, up to the closing quote.
+ *
+ * It does not modify the input buffer. It allocates a new string for the
+ * result.
+ *
+ * @param in The input string, starting after the opening quote.
+ * @param endp A pointer to a char* which will be updated to point to the
+ *             character after the closing quote in the input string.
+ * @param sv The svalue to store the resulting string in.
+ * @return 0 on success, or a ROB_* error code on failure.
+ */
+static int unquote_and_unescape_string (const char *in, const char **endp, svalue_t *sv) {
+    const char *p = in;
+    size_t len = 0;
+    char c;
 
-        case '\\':
-          {
-            char *newp = cp - 1;
-
-            if ((*newp++ = *cp++))
-              {
-                while ((c = *cp++) != '"')
-                  {
-                    if (c == '\\')
-                      {
-                        if (!(*newp++ = *cp++))
-                          return ROB_STRING_ERROR;
-                      }
-                    else
-                      {
-                        if (c == '\r')
-                          *newp++ = '\n';
-                        else
-                          *newp++ = c;
-                      }
-                  }
-                if (c == '\0')
-                  return ROB_STRING_ERROR;
-                *newp = '\0';
-                *val = cp;
-                {
-                  char *restored = new_string (len = (newp - start), "restore_string");
-                  strcpy (restored, start);
-                  SET_SVALUE_MALLOC_STRING (sv, restored);
-                }
-                return 0;
-              }
-            else
-              return ROB_STRING_ERROR;
-          }
-
-        case '\0':
-          {
-            return ROB_STRING_ERROR;
-          }
-
+    // First pass: calculate length and find the end
+    while ((c = *p) != '"') {
+        if (c == '\0') return ROB_STRING_ERROR; // Unterminated string
+        if (c == '\\') {
+            p++;
+            if (*p == '\0') return ROB_STRING_ERROR; // Dangling escape
         }
+        len++;
+        p++;
     }
 
-  *val = cp;
-  *--cp = '\0';
-  len = (size_t)(cp - start);
-  {
-    char *restored = new_string (len, "restore_string");
-    strcpy (restored, start);
-    SET_SVALUE_MALLOC_STRING (sv, restored);
-  }
-  return 0;
+    // p now points to the closing quote.
+    *endp = p + 1;
+
+    // Second pass: allocate and copy
+    char *restored = new_string(len, "unquote_and_unescape_string");
+    char *newp = restored;
+    p = in;
+
+    while ((c = *p) != '"') {
+        if (c == '\\') {
+            p++;
+            c = *p;
+            if (c == '\r') {
+                *newp++ = '\n';
+            } else {
+                *newp++ = c;
+            }
+        } else if (c == '\r') {
+            *newp++ = '\n';
+        } else {
+            *newp++ = c;
+        }
+        p++;
+    }
+    *newp = '\0';
+
+    SET_SVALUE_MALLOC_STRING(sv, restored);
+    return 0;
 }
 
-static int parse_numeric (char **cpp, char c, svalue_t * dest) {
-  char *cp = *cpp;
-  int res, neg;
-
-  if (c == '-')
-    {
-      neg = 1;
-      res = 0;
-      c = *cp++;
-      if (!isdigit (c))
-        return 0;
-    }
-  else
-    neg = 0;
-  res = c - '0';
-
-  while ((c = *cp++) && isdigit (c))
-    {
-      res *= 10;
-      res += c - '0';
-    }
-  if (c == '.')
-    {
-      double f1 = 0.0, f2 = 10.0;
-
-      c = *cp++;
-      if (!isdigit (c))
-        return 0;
-
-      do
-        {
-          f1 += (c - '0') / f2;
-          f2 *= 10;
-        }
-      while ((c = *cp++) && isdigit (c));
-
-      f1 += res;
-      if (c == 'e')
-        {
-          int expo = 0;
-
-          if ((c = *cp++) == '+')
-            {
-              while ((c = *cp++) && isdigit (c))
-                {
-                  expo *= 10;
-                  expo += (c - '0');
-                }
-              f1 *= pow (10.0, expo);
-            }
-          else if (c == '-')
-            {
-              while ((c = *cp++) && isdigit (c))
-                {
-                  expo *= 10;
-                  expo += (c - '0');
-                }
-              f1 *= pow (10.0, -expo);
-            }
-          else
-            return 0;
-        }
-
-      dest->type = T_REAL;
-      dest->u.real = (neg ? -f1 : f1);
-      *cpp = cp;
-      return 1;
-    }
-  else if (c == 'e')
-    {
-      int expo = 0;
-      double f1;
-
-      if ((c = *cp++) == '+')
-        {
-          while ((c = *cp++) && isdigit (c))
-            {
-              expo *= 10;
-              expo += (c - '0');
-            }
-          f1 = res * pow (10.0, expo);
-        }
-      else if (c == '-')
-        {
-          while ((c = *cp++) && isdigit (c))
-            {
-              expo *= 10;
-              expo += (c - '0');
-            }
-          f1 = res * pow (10.0, -expo);
-        }
-      else
-        return 0;
-
-      dest->type = T_REAL;
-      dest->u.real = (neg ? -f1 : f1);
-      *cpp = cp;
-      return 1;
-    }
-  else
-    {
-      dest->type = T_NUMBER;
-      dest->u.number = (neg ? -res : res);
-      *cpp = cp;
-      return 1;
-    }
-}
-
-static void add_map_stats (mapping_t * m, int count) {
-  total_mapping_nodes += count;
-  total_mapping_size += count * sizeof (mapping_node_t);
-  m->count = count;
-}
-
-int growMap (mapping_t *);
-
-static int restore_mapping (char **str, svalue_t * sv) {
+static int restore_mapping (const char **str, svalue_t * sv) {
   int size, i, mask, oi, count = 0;
   char c;
   mapping_t *m;
   svalue_t key, value;
   mapping_node_t **a, *elt, *elt2;
-  char *cp = *str;
+  const char *cp = *str;
   int err;
 
   if (save_svalue_depth)
@@ -984,12 +1006,12 @@ key_error:
 }
 
 
-static int restore_class (char **str, svalue_t * ret) {
+static int restore_class (const char **str, svalue_t * ret) {
   int size;
   char c;
   array_t *v;
   svalue_t *sv;
-  char *cp = *str;
+  const char *cp = *str;
   int err;
 
   if (save_svalue_depth)
@@ -1085,12 +1107,12 @@ error:
   return err;
 }
 
-static int restore_array (char **str, svalue_t * ret) {
+static int restore_array (const char **str, svalue_t * ret) {
   int size;
   char c;
   array_t *v;
   svalue_t *sv;
-  char *cp = *str;
+  const char *cp = *str;
   int err;
 
   if (save_svalue_depth)
@@ -1186,81 +1208,28 @@ error:
   return err;
 }
 
-int restore_string (char *val, svalue_t * sv) {
-  register char *cp = val;
-  char *start = cp;
-  char c;
-  size_t len;
-
-  while ((c = *cp++) != '"')
-    {
-      switch (c)
-        {
-        case '\r':
-          {
-            *(cp - 1) = '\n';
-            break;
-          }
-
-        case '\\':
-          {
-            char *newp = cp - 1;
-
-            if ((*newp++ = *cp++))
-              {
-                while ((c = *cp++) != '"')
-                  {
-                    if (c == '\\')
-                      {
-                        if (!(*newp++ = *cp++))
-                          return ROB_STRING_ERROR;
-                      }
-                    else
-                      {
-                        if (c == '\r')
-                          *newp++ = '\n';
-                        else
-                          *newp++ = c;
-                      }
-                  }
-                if ((c == '\0') || (*cp != '\0'))
-                  return ROB_STRING_ERROR;
-                *newp = '\0';
-                {
-                  char *restored = new_string (newp - start, "restore_string");
-                  strcpy (restored, start);
-                  SET_SVALUE_MALLOC_STRING (sv, restored);
-                }
-                return 0;
-              }
-            else
-              return ROB_STRING_ERROR;
-          }
-
-        case '\0':
-          {
-            return ROB_STRING_ERROR;
-          }
-
-        }
+/**
+ * @brief Restore a string from its saved form, which is pointed to by val.
+ *   The restored string is stored in the svalue_t structure pointed to by sv.
+ */
+static int restore_string (const char *val, svalue_t * sv) {
+    const char *endp;
+    int err = unquote_and_unescape_string(val, &endp, sv);
+    if (err) {
+        return err;
     }
-
-  if (*cp--)
-    return ROB_STRING_ERROR;
-  *cp = '\0';
-  len = (size_t)(cp - start);
-  {
-    char *restored = new_string (len, "restore_string");
-    strcpy (restored, start);
-    SET_SVALUE_MALLOC_STRING (sv, restored);
-  }
-  return 0;
+    if (*endp != '\0') {
+        free_svalue(sv, "restore_string");
+        return ROB_STRING_ERROR;
+    }
+    return 0;
 }
 
 /* for this case, the variable in question has been set to zero already,
    and we don't have to worry about preserving it */
-int restore_svalue (char *cp, svalue_t * v) {
+int restore_svalue (const char *cp_in, svalue_t * v) {
   int ret;
+  const char *cp = cp_in;
   char c;
 
   switch (c = *cp++)
@@ -1319,9 +1288,10 @@ int restore_svalue (char *cp, svalue_t * v) {
 
 /* for this case, we're being careful and want to leave the value alone on
    an error */
-int safe_restore_svalue (char *cp, svalue_t * v) {
+int safe_restore_svalue (char *cp_in, svalue_t * v) {
   int ret;
   svalue_t val;
+  const char *cp = cp_in;
   char c;
 
   val.type = T_NUMBER;
@@ -1633,9 +1603,9 @@ int save_object (object_t * ob, const char *file, int save_zeros) {
  * return a string representing an svalue in the form that save_object()
  * would write it.
  */
-char* save_variable (svalue_t * var) {
+malloc_str_t save_variable (const svalue_t * var) {
   size_t theSize;
-  char *new_str, *p;
+  malloc_str_t new_str, p;
 
   save_svalue_depth = 0;
   theSize = svalue_save_size (var);
@@ -1765,7 +1735,7 @@ int restore_object (object_t * ob, const char *file, int noclear) {
   return 1;
 }
 
-void restore_variable (svalue_t * var, char *str) {
+void restore_variable (svalue_t * var, const char *str) {
   int rc;
 
   rc = restore_svalue (str, var);
@@ -1785,7 +1755,7 @@ void restore_variable (svalue_t * var, char *str) {
     }
 }
 
-void tell_npc (object_t * ob, char *str) {
+void tell_npc (object_t * ob, const char *str) {
   copy_and_push_string (str);
   APPLY_CALL (APPLY_CATCH_TELL, ob, 1, ORIGIN_DRIVER);
 }
@@ -1800,7 +1770,7 @@ void tell_npc (object_t * ob, char *str) {
  * goes to catch_tell unless the target of tell_object is interactive
  * and is the current_object in which case it is written via add_message().
  */
-void tell_object (object_t * ob, char *str) {
+void tell_object (object_t * ob, const char *str) {
   if (!ob || (ob->flags & O_DESTRUCTED))
     {
       add_message (0, str);
@@ -1988,11 +1958,11 @@ object_t **hashed_living;
 
 static int num_living_names, num_searches = 1, search_length = 1;
 
-static int hash_living_name (char *str) {
+static int hash_living_name (const char *str) {
   return whashstr (str, NULL, 20) % CONFIG_INT (__LIVING_HASH_TABLE_SIZE__);
 }
 
-object_t* find_living_object (char *str, int user) {
+object_t* find_living_object (const char *str, int user) {
   object_t **obp, *tmp;
   object_t **hl;
 
@@ -2027,7 +1997,7 @@ object_t* find_living_object (char *str, int user) {
   return tmp;
 }
 
-void set_living_name (object_t * ob, char *str) {
+void set_living_name (object_t * ob, const char *str) {
   object_t **hl;
 
   if (ob->flags & O_DESTRUCTED)

@@ -269,8 +269,6 @@ void f_link (void) {
   svalue_t *ret;
   int i = 0;
 
-  if (get_machine_state() < MS_MUDLIB_LIMBO)
-    error ("link() efun called before master object is set up.\n");
   if (sp)
     {
       push_svalue (sp - 1);

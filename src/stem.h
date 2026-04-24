@@ -14,21 +14,23 @@ extern int comp_flag;
 extern time_t boot_time;
 extern int slow_shutdown_to_do;
 
-extern int init_stem(
+int init_stem(
     int debug_level,
     unsigned long trace_flags,
     const char* config_file
 );
 
 /* resource management */
-extern void preload_objects(int eflag);
-extern void look_for_objects_to_swap (void);
-extern void start_timers(void);
+void preload_objects(int eflag);
+void look_for_objects_to_swap (void);
+void start_timers(void);
 
 /* stem workflows */
-extern int stem_startup(void);
-extern void stem_run(void);
-extern void stem_crash_handler(const char *msg);
+int stem_startup(void);
+void stem_run(void);
+void stem_crash_handler(const char *msg);
+
+void smart_log(const char *error_file, int line, const char *what, int warning);
 
 #ifdef __cplusplus
 }

@@ -189,6 +189,45 @@ void look_for_objects_to_swap(void) {
 }
 
 /**
+ * @brief smart_log() - compiler error logging function.
+ *
+ * There is an error in a specific file. Ask the master object to log the
+ * message somewhere.
+ * 
+ * @param error_file The file where the error occurred.
+ * @param line The line number where the error occurred.
+ * @param what The error message to log.
+ * @param warning If non-zero, indicates that this is a warning rather than an error.
+ */
+void smart_log (const char *error_file, int line, const char *what, int warning) {
+
+  char *buff;
+  svalue_t *mret;
+  extern int pragmas;
+
+  buff = (char *) DMALLOC (strlen (error_file) + strlen (what) +
+             ((pragmas & PRAGMA_ERROR_CONTEXT) ? 100 : 40), TAG_TEMPORARY,
+             "smart_log: 1");
+
+  if (warning)
+    sprintf (buff, "%s line %d: Warning: %s%s", error_file, line, what,
+             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
+  else
+    sprintf (buff, "%s line %d: %s%s", error_file, line, what,
+             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
+
+  share_and_push_string (error_file);
+  copy_and_push_string (buff);
+  mret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_LOG_ERROR, 2);
+  if (!mret || mret == (svalue_t *) - 1)
+    {
+      log_message (NULL, "\t%s", buff);
+    }
+  APPLY_SLOT_FINISH_CALL();
+  FREE (buff);
+}				/* smart_log() */
+
+/**
  * @brief Heart beat timer callback.
  * Sets the heart_beat_flag to trigger heart beat processing.
  * Wakes up the async runtime blocking wait to run timer-related tasks.

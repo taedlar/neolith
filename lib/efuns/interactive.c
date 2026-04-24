@@ -128,20 +128,6 @@ f_in_input (void)
 #endif
 
 
-#ifdef F_RECEIVE
-void
-f_receive (void)
-{
-  if (current_object->interactive)
-    {
-      check_legal_string (SVALUE_STRPTR(sp));
-      add_message (current_object, SVALUE_STRPTR(sp));
-    }
-  free_string_svalue (sp--);
-}
-#endif
-
-
 #ifdef F_REMOVE_INTERACTIVE
 /* Magician - 08May95
  * int remove_interactive(object ob)
