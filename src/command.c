@@ -687,8 +687,6 @@ static int user_parser (const char *buff) {
   strput (verb_buff, verb_buff + MAX_TEXT, user_verb); /* always null-terminated */
   if (space && (space - buff) < MAX_TEXT)
     verb_buff[space - buff] = '\0';
-  assert (user_verb != NULL);
-  assert (strlen(user_verb) == length);
 
   save_illegal_sentence_action = illegal_sentence_action;
   illegal_sentence_action = 0;
@@ -758,8 +756,30 @@ static int user_parser (const char *buff) {
       where = (current_object ? ORIGIN_EFUN : ORIGIN_DRIVER);
 
       /* Push command args FIRST (correct LPC order) */
-      if (s->flags & (V_NOSPACE | V_SHORT))
+      if (s->flags & V_NOSPACE)
         copy_and_push_string (&buff[strlen (s->verb)]);
+      else if (s->flags & V_SHORT)
+        {
+          if (!*s->verb)
+            {
+              if (buff[length] == ' ')
+                copy_and_push_string (&buff[length + 1]);
+              else
+                push_undefined ();
+            }
+          else
+            {
+              const char *arg = &buff[strlen (s->verb)];
+
+              if (*arg == ' ')
+                arg++;
+
+              if (*arg)
+                copy_and_push_string (arg);
+              else
+                push_undefined ();
+            }
+        }
       else if (strchr(s->verb, ' '))
         {
           size_t verb_len = strlen(s->verb);

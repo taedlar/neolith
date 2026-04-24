@@ -77,6 +77,7 @@ protected:
       int call_count;
 
       void register_actions() {
+        add_action("act_empty_short", "", 1);
         add_action("act_regular", "look");
         add_action("act_multi", "look at");
         add_action("act_short", "say");
@@ -106,6 +107,14 @@ protected:
 
       int act_short(string arg) {
         last_handler = "short";
+        last_verb_seen = query_verb();
+        last_arg_seen = arg;
+        call_count++;
+        return 1;
+      }
+
+      int act_empty_short(string arg) {
+        last_handler = "empty_short";
         last_verb_seen = query_verb();
         last_arg_seen = arg;
         call_count++;
@@ -235,6 +244,18 @@ TEST_F(ProcessCommandTest, HandlesNoSpaceXverbVariant) {
   char input[] = "prefix";
   EXPECT_EQ(process_command(input, obj), 1);
   expect_state(obj, "xverb", "fix", "fix", 1);
+
+  destruct_object(obj);
+}
+
+TEST_F(ProcessCommandTest, HandlesEmptyShortVerbVariant) {
+  object_t *obj = load_command_object("/tests/backend/test_process_command_empty_short");
+  ASSERT_NE(obj, nullptr);
+  register_actions(obj);
+
+  char input[] = "dance quickly now";
+  EXPECT_EQ(process_command(input, obj), 1);
+  expect_state(obj, "empty_short", "dance", "quickly now", 1);
 
   destruct_object(obj);
 }
