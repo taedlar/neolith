@@ -151,7 +151,7 @@ static inline void mstr_update_size_impl(malloc_str_t str, size_t new_size) {
   allocd_bytes += new_size - old_size;
   bytes_distinct_strings += new_size - old_size;
 #endif
-  MSTR_BLOCK(str)->size = (new_size > USHRT_MAX ? USHRT_MAX : new_size);
+  MSTR_BLOCK(str)->size = (unsigned short)(new_size > USHRT_MAX ? USHRT_MAX : new_size);
   MSTR_BLOCK(str)->blkend = (new_size >= USHRT_MAX ? (void *)(str + new_size) : (void *)0);
 }
 

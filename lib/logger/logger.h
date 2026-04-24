@@ -1,11 +1,11 @@
 #pragma once
 #include <stdio.h>
 
-extern FILE* current_log_file;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern FILE* current_log_file;
 
 int log_message (const char* file, const char *fmt, ...);
 
