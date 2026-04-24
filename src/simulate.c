@@ -1990,7 +1990,7 @@ static char *last_verb = 0;
  * @brief Parse user input and execute the corresponding command function if
  *    a matching sentence is found.
  */
-int user_parser (char *buff) {
+static int user_parser (char *buff) {
   char verb_buff[MAX_VERB_BUFF];
   sentence_t *s;
   char *p;

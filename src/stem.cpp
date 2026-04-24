@@ -210,28 +210,6 @@ void smart_log (const char *error_file, int line, const char *what, int warning)
              "smart_log: 1");
 
   if (warning)
-    sprintf (buff, "%s line %d: Warning: %s", error_file, line, what);
-  else
-    sprintf (buff, "%s line %d: %s", error_file, line, what);
-
-  if (pragmas & PRAGMA_ERROR_CONTEXT)
-    {
-      char *ls = strrchr (buff, '\n');
-      char *tmp;
-      if (ls)
-        {
-          tmp = ls + 1;
-          while (*tmp && isspace (*tmp))
-            tmp++;
-          if (!*tmp)
-            *ls = 0;
-        }
-      strcat (buff, show_error_context ());
-    }
-  else
-    strcat (buff, "\n");
-
-  if (warning)
     sprintf (buff, "%s line %d: Warning: %s%s", error_file, line, what,
              (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
   else
