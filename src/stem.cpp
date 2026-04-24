@@ -188,6 +188,17 @@ void look_for_objects_to_swap(void) {
     }
 }
 
+#ifdef LAZY_RESETS
+void try_reset (object_t * ob) {
+  if ((ob->next_reset < current_time) && !(ob->flags & O_RESET_STATE))
+    {
+      /* need to set the flag here to prevent infinite loops in apply_low */
+      ob->flags |= O_RESET_STATE;
+      reset_object (ob);
+    }
+}
+#endif
+
 /**
  * @brief smart_log() - compiler error logging function.
  *

@@ -2,6 +2,7 @@
 
 set(port_SOURCES
     stpcpy.c
+    strput.c
     xcalloc.c
     xstrdup.c
     socket_comm.c

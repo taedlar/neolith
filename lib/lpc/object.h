@@ -48,6 +48,8 @@ struct sentence_s {
     array_t *args;  /* carryover arguments for input_to() and add_action() */
 };
 
+extern int tot_alloc_sentence;
+
 struct object_s {
     unsigned short ref;		/* Reference count. */
     unsigned short flags;	/* Bits or'ed together from above */

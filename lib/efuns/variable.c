@@ -84,7 +84,7 @@ fv_recurse (array_t * arr, int *idx, program_t * prog, int type, uint64_t flag)
   int i;
   array_t *subarr;
   char buf[256];
-  char *end = EndOf (buf);
+  char *end = buf + sizeof(buf);
 
   for (i = 0; i < prog->num_inherited; i++)
     {

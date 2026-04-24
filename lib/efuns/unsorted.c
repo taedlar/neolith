@@ -1252,7 +1252,7 @@ f_functions (void)
   int flag = (int)(sp--)->u.number;
   unsigned short *types;
   char buf[256];
-  char *end = EndOf (buf);
+  char *end = buf + sizeof (buf);
   program_t *progp;
 
   progp = sp->u.ob->prog;

@@ -11,6 +11,8 @@
 #include "rc/rc.h"
 #include "efuns/ed.h"
 
+static int illegal_sentence_action;
+
  /*
   * This macro is for testing whether ip is still valid, since many
   * functions call LPC code, which could otherwise use
@@ -44,7 +46,7 @@ static char *get_user_command (void);
 static char *first_cmd_in_buf (interactive_t *);
 static void next_cmd_in_buf (interactive_t *);
 static void print_prompt (interactive_t *);
-
+static int user_parser (char * buff);
 
 void set_prompt (char *str) {
   if (command_giver && command_giver->interactive)
@@ -612,6 +614,235 @@ static void next_cmd_in_buf (interactive_t * ip) {
     }
 }				/* next_cmd_in_buf() */
 
+#define MAX_VERB_BUFF 100
+
+static char *last_verb = 0;
+
+/**
+ * @brief Parse user input and execute the corresponding command function if
+ *    a matching sentence is found.
+ */
+static int user_parser (char *buff) {
+  char verb_buff[MAX_VERB_BUFF];
+  sentence_t *s;
+  char *p;
+  ptrdiff_t length;
+  object_t *save_command_giver = command_giver;
+  char *user_verb = 0;
+  int where;
+  int save_illegal_sentence_action;
+
+  for (p = buff + strlen (buff) - 1; p >= buff; p--)
+    {
+      if (isspace (*p))
+        continue;
+      *(p + 1) = '\0';		/* truncate */
+      break;
+    }
+
+  if (buff[0] == '\0')		/* empty line ? */
+    return 0;
+
+  if (0 == (command_giver->flags & O_ENABLE_COMMANDS))
+    return 0;
+
+  length = p - buff + 1;
+  p = strchr (buff, ' ');
+  if (p == 0)
+    {
+      user_verb = findstring(buff, NULL);
+    }
+  else
+    {
+      *p = '\0';
+      user_verb = findstring(buff, NULL);
+      *p = ' ';
+      length = p - buff;
+    }
+
+  if (!user_verb)
+    {
+      /* either an xverb or a verb without a specific add_action */
+      user_verb = buff;
+    }
+
+  /*
+   * copy user_verb into a static character buffer to be pointed to by
+   * last_verb.
+   */
+  strncpy (verb_buff, user_verb, MAX_VERB_BUFF - 1);
+  if (p)
+    {
+      ptrdiff_t pos;
+
+      pos = p - buff;
+      if (pos < MAX_VERB_BUFF)
+        {
+          verb_buff[pos] = '\0';
+        }
+    }
+
+  save_illegal_sentence_action = illegal_sentence_action;
+  illegal_sentence_action = 0;
+
+  for (s = save_command_giver->sent; s; s = s->next)
+    {
+      svalue_t *ret;
+      int ret_is_nonzero;
+      int ret_is_missing;
+
+      /* Skip sentences from destructed objects (ref counting keeps memory valid) */
+      if (s->ob->flags & O_DESTRUCTED)
+        continue;
+
+      if (s->flags & (V_NOSPACE | V_SHORT))
+        {
+          if (strncmp (buff, s->verb, strlen (s->verb)) != 0)
+            continue;
+        }
+      else
+        {
+          /* note: if was add_action(blah, "") then accept it */
+          if (s->verb[0] && (user_verb != s->verb))
+            continue;
+        }
+
+      if (s->flags & V_NOSPACE)
+        {
+          size_t l1 = strlen (s->verb);
+          size_t l2 = strlen (verb_buff);
+
+          if (l1 < l2)
+            last_verb = verb_buff + l1;
+          else
+            last_verb = "";
+        }
+      else
+        {
+          if (!s->verb[0] || (s->flags & V_SHORT))
+            last_verb = verb_buff;
+          else
+            last_verb = s->verb;
+        }
+
+      /*
+       * If the function is static and not defined by current object, then
+       * it will fail. If this is called directly from user input, then
+       * the origin is the driver and it will be allowed.
+       */
+      where = (current_object ? ORIGIN_EFUN : ORIGIN_DRIVER);
+
+      /* Push command args FIRST (correct LPC order) */
+      if (s->flags & V_NOSPACE)
+        copy_and_push_string (&buff[strlen (s->verb)]);
+      else if (buff[length] == ' ')
+        copy_and_push_string (&buff[length + 1]);
+      else
+        push_undefined ();
+
+      /* Push carryover args AFTER command args */
+      int num_args = 1;  /* Command args */
+      if (s->args)
+        {
+          for (int i = 0; i < s->args->size; i++)
+            {
+              push_svalue (&s->args->item[i]);
+            }
+          num_args += s->args->size;
+        }
+
+      /* Call function with all args */
+      if (s->flags & V_FUNCTION)
+        ret = CALL_FUNCTION_POINTER_SLOT_CALL (s->function.f, num_args);
+      else
+        {
+          if (s->function.s[0] == APPLY___INIT_SPECIAL_CHAR)
+            error ("*Illegal function name.");
+          ret = APPLY_SLOT_CALL (s->function.s, s->ob, num_args, where);
+        }
+
+      ret_is_missing = (ret == 0);
+      ret_is_nonzero = (ret && (ret->type != T_NUMBER || ret->u.number != 0));
+      if (s->flags & V_FUNCTION)
+        CALL_FUNCTION_POINTER_SLOT_FINISH();
+      else
+        APPLY_SLOT_FINISH_CALL();
+
+      /* s may be dangling at this point */
+
+      command_giver = save_command_giver;
+
+      last_verb = 0;
+
+      /* was this the right verb? */
+      if (ret_is_missing)
+        {
+          /* is it still around?  Otherwise, ignore this ...
+             it moved somewhere or dested itself */
+          if (s == save_command_giver->sent)
+            {
+              if (s->flags & V_FUNCTION)
+                {
+                  error ("*Verb '%s' bound to uncallable function pointer.", s->verb);
+                }
+              else
+                {
+                  error ("*Function for verb '%s' not found.", s->verb);
+                }
+            }
+        }
+
+      if (ret_is_nonzero)
+        {
+          if (!illegal_sentence_action)
+            illegal_sentence_action = save_illegal_sentence_action;
+          return 1;
+        }
+
+      if (illegal_sentence_action)
+        {
+          switch (illegal_sentence_action)
+            {
+            case 1:
+              error ("*Illegal to call remove_action() from a verb returning zero.");
+            case 2:
+              error ("*Illegal to move or destruct an object defining actions from a verb function which returns zero.");
+            }
+        }
+    }
+
+  notify_no_command ();
+  illegal_sentence_action = save_illegal_sentence_action;
+
+  return 0;
+}
+
+/*
+ * Take a user command and parse it.
+ * The command can also come from a NPC.
+ * Beware that 'str' can be modified and extended !
+ */
+int process_command (char *buff, object_t * ob) {
+  object_t *save = command_giver;
+  int res;
+
+  /* disallow users to issue commands containing ansi escape codes */
+#if defined(NO_ANSI) && !defined(STRIP_BEFORE_PROCESS_INPUT)
+  char *c;
+
+  for (c = str; *c; c++)
+    {
+      if (*c == 27)
+        {
+          *c = ' ';		/* replace ESC with ' ' */
+        }
+    }
+#endif
+  command_giver = ob;
+  res = user_parser (buff);
+  command_giver = save;
+  return (res);
+}				/* process_command() */
 
 /**
  *  User command turn handler.
@@ -792,3 +1023,148 @@ int process_user_command () {
   current_interactive = 0;
   return 0;
 }				/* process_user_command() */
+
+/*
+ * Associate a command with function in this object.
+ *
+ * The optinal third argument is a flag that will state that the verb should
+ * only match against leading characters.
+ *
+ * The optional varargs after the flag are carryover arguments that will be
+ * passed to the action function after the command argument.
+ *
+ * The object must be near the command giver, so that we ensure that the
+ * sentence is removed when the command giver leaves.
+ *
+ * If the call is from a shadow, make it look like it is really from
+ * the shadowed object.
+ */
+void add_action (svalue_t * str, const char *cmd, int flag, int num_carry, svalue_t *carry_args) {
+  sentence_t *p;
+  object_t *ob;
+
+  if (current_object->flags & O_DESTRUCTED)
+    return;
+  ob = current_object;
+#ifndef NO_SHADOWS
+  while (ob->shadowing)
+    {
+      ob = ob->shadowing;
+    }
+  /* don't allow add_actions of a static function from a shadowing object */
+  if ((ob != current_object) && str->type == T_STRING
+      && is_static (SVALUE_STRPTR(str), ob))
+    {
+      return;
+    }
+#endif
+  if (command_giver == 0 || (command_giver->flags & O_DESTRUCTED))
+    return;
+  if (ob != command_giver
+      && ob->super != command_giver &&
+      ob->super != command_giver->super && ob != command_giver->super)
+    return;			/* No need for an error, they know what they
+                                 * did wrong. */
+  p = alloc_sentence ();
+  if (str->type == T_STRING)
+    {
+      p->function.s = make_shared_string(SVALUE_STRPTR(str), NULL);
+      p->flags = flag;
+    }
+  else
+    {
+      p->function.f = str->u.fp;
+      str->u.fp->hdr.ref++;
+      p->flags = flag | V_FUNCTION;
+    }
+  p->ob = ob;
+  add_ref (ob, "add_action");
+  p->verb = make_shared_string(cmd, NULL);
+
+  /* Store carryover args in sentence */
+  if (num_carry > 0)
+    {
+      array_t *arg_array = allocate_empty_array (num_carry);
+      for (int i = 0; i < num_carry; i++)
+        assign_svalue_no_free (&arg_array->item[i], &carry_args[i]);
+      p->args = arg_array;
+    }
+  else
+    {
+      p->args = NULL;
+    }
+
+  /* This is ok; adding to the top of the list doesn't harm anything */
+  p->next = command_giver->sent;
+  command_giver->sent = p;
+}
+
+
+/*
+ * Remove sentence with specified verb and action.  Return 1
+ * if success.  If command_giver, remove his action, otherwise
+ * remove current_object's action.
+ */
+int remove_action (const char *act, const char *verb) {
+  object_t *ob;
+  sentence_t **s;
+
+  if (command_giver)
+    ob = command_giver;
+  else
+    ob = current_object;
+
+  if (ob)
+    {
+      for (s = &ob->sent; *s; s = &((*s)->next))
+        {
+          sentence_t *tmp;
+
+          if (((*s)->ob == current_object) && (!((*s)->flags & V_FUNCTION))
+              && !strcmp ((*s)->function.s, act)
+              && !strcmp ((*s)->verb, verb))
+            {
+              tmp = *s;
+              *s = tmp->next;
+              free_sentence (tmp);
+              illegal_sentence_action = 1;
+              return 1;
+            }
+        }
+    }
+  return 0;
+}
+
+
+/**
+ * Remove all commands (sentences) defined by object 'ob' in object 'user'
+ */
+void remove_sent (object_t * ob, object_t * user) {
+  sentence_t **s;
+
+  for (s = &user->sent; *s;)
+    {
+      sentence_t *tmp;
+
+      if ((*s)->ob == ob)
+        {
+          tmp = *s;
+          *s = tmp->next;
+          free_sentence (tmp);
+          illegal_sentence_action = 2;
+        }
+      else
+        s = &((*s)->next);
+    }
+}
+
+#ifdef F_QUERY_VERB
+void f_query_verb (void) {
+  if (!last_verb)
+    {
+      push_number (0);
+      return;
+    }
+  share_and_push_string (last_verb);
+}
+#endif

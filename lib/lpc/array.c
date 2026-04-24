@@ -6,6 +6,7 @@
 #include "rc.h"
 #include "src/interpret.h"
 #include "src/comm.h"
+#include "src/command.h"
 #include "efuns/regexp.h"
 #include "qsort.h"
 
