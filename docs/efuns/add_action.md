@@ -29,12 +29,15 @@ player, either being the player, being carried by the
 player, being the room around the player, or being an object
 in the same room as the player.
 
-If argument **flag** is 1, then only the leading characters of
-the command has to match the verb **cmd** and the entire verb
-is returned by query_verb().  If argument **flag** is 2, then
-again, only the leading characters must match, but
-query_verb() will only return the characters following
-**cmd**.
+### Flag Semantics
+
+If argument **flag** is 1, then only the leading characters of the command has to match the verb **cmd**.
+
+- **Non-empty verb** (e.g., `add_action(func, "'", 1)`): When a command matches the first characters of **cmd**, the handler receives the portion of the user input following the matched verb. For example, with `add_action(func, "'", 1)` and user input `'hello world`, the handler receives `hello world` as the argument. The `query_verb()` function returns the entire matched verb (`'hello`).
+
+- **Empty verb** (e.g., `add_action(func, "", 1)`): An empty verb acts as a wildcard that matches any first token (word) of the command. The matched token becomes the verb, and the remainder becomes the argument. For example, with `add_action(func, "", 1)` and user input `dance quickly now`, the handler receives `quickly now` as the argument. The `query_verb()` function returns the matched verb (`dance`). This empty verb behavior is compatible with MudOS behavior.
+
+If argument **flag** is 2, then only the leading characters must match, but `query_verb()` will only return the characters following **cmd**.
 
 ## IMPLEMENTATION NOTES
 In Neolith, `add_action` supports carryover arguments which are passed to the command handler

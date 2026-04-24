@@ -57,7 +57,6 @@ check_symbol_exists(gettimeofday sys/time.h HAVE_GETTIMEOFDAY)
 check_symbol_exists(poll poll.h HAVE_POLL)
 check_symbol_exists(realpath stdlib.h HAVE_REALPATH)
 check_symbol_exists(stpcpy string.h HAVE_STPCPY)
-check_symbol_exists(stpncpy string.h HAVE_STPNCPY)
 check_symbol_exists(strtod stdlib.h HAVE_STRTOD)
 
 # check for libraries

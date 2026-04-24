@@ -34,7 +34,6 @@
 #cmakedefine HAVE_POLL
 #cmakedefine HAVE_REALPATH
 #cmakedefine HAVE_STPCPY
-#cmakedefine HAVE_STPNCPY
 #cmakedefine HAVE_STRTOD
 
 #cmakedefine HAVE_BOOST

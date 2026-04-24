@@ -11,6 +11,7 @@
 #include "mapping.h"
 #include "program.h"
 #include "src/comm.h"
+#include "src/command.h"
 #include "rc.h"
 #include "src/frame.h"
 #include "src/simul_efun.h"

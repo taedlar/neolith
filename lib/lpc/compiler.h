@@ -4,6 +4,9 @@
 #include "lpc/program.h"
 #include "lpc/program/parse_trees.h"
 
+/* The end of a static buffer */
+#define EndOf(x) (x + sizeof(x)/sizeof(x[0]))
+
 #ifdef __cplusplus
 extern "C" {
 #endif
