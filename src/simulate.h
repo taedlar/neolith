@@ -45,7 +45,6 @@ extern object_t *current_interactive;
 
 /* command routing */
 void enable_commands (int enable);
-int command_for_object(const char *cmd);
 int input_to(svalue_t *, int, int, svalue_t *);
 int get_char(svalue_t *, int, int, svalue_t *);
 void save_command_giver (object_t*);

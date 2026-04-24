@@ -98,15 +98,20 @@ static void print_prompt (interactive_t * ip) {
 void notify_no_command () {
   string_or_func_t p;
   svalue_t *v;
+  object_t *saved_ob = command_giver;
 
   if (!command_giver || !command_giver->interactive)
     return;
   p = command_giver->interactive->default_err_message;
   if (command_giver->interactive->iflags & NOTIFY_FAIL_FUNC)
     {
-      save_command_giver (command_giver);
-      v = CALL_FUNCTION_POINTER_SLOT_CALL (p.f, 0);
-      restore_command_giver ();
+      /* Use local variable for exception-safe restoration.
+       * If error() is called during the function pointer invocation,
+       * the stack-based save/restore would leak references and cause
+       * command_giver state corruption. Local variables avoid this.
+       */
+      v = SAFE_CALL_FUNCTION_POINTER_SLOT_CALL (p.f, 0);
+      command_giver = saved_ob;  /* Restore regardless of whether error() was called */
       free_funp (p.f);
       if (command_giver && command_giver->interactive)
         {
@@ -614,100 +619,118 @@ static void next_cmd_in_buf (interactive_t * ip) {
     }
 }				/* next_cmd_in_buf() */
 
-#define MAX_VERB_BUFF 100
-
 static char *last_verb = 0;
+
+#ifdef F_QUERY_VERB
+void f_query_verb (void) {
+  if (!last_verb)
+    {
+      push_number (0);
+      return;
+    }
+  share_and_push_string (last_verb);
+}
+#endif
+
+#define MAX_VERB_BUFF 100
 
 /**
  * @brief Parse user input and execute the corresponding command function if
  *    a matching sentence is found.
+ *
+ * This function could be re-entrant if a sentence function called by this function calls
+ * command() again. 
+ * 
+ * @see add_action() efun for short verb, xverb, and function pointer command registration.
+ * @param buff The user input command string (null-terminated) to parse and execute.
  */
 static int user_parser (char *buff) {
   char verb_buff[MAX_VERB_BUFF];
+  char *save_last_verb = last_verb;
   sentence_t *s;
-  char *p;
+  char *p, *space;
   ptrdiff_t length;
-  object_t *save_command_giver = command_giver;
+  object_t *save_command_giver = command_giver; /* save command giver on entry */
   char *user_verb = 0;
   int where;
   int save_illegal_sentence_action;
 
-  for (p = buff + strlen (buff) - 1; p >= buff; p--)
-    {
-      if (isspace (*p))
-        continue;
-      *(p + 1) = '\0';		/* truncate */
-      break;
-    }
-
-  if (buff[0] == '\0')		/* empty line ? */
+  /* command_giver must be enabled for commands */
+  if (!(command_giver->flags & O_ENABLE_COMMANDS))
     return 0;
 
-  if (0 == (command_giver->flags & O_ENABLE_COMMANDS))
+  /* trim trailing whitespace (in-place) and skip empty lines */
+  p = buff + strlen (buff);
+  while (p > buff && isspace (*(p - 1)))
+    p--;
+  *p = '\0';
+  if (*buff == '\0')
     return 0;
+  assert (p > buff);
 
+  /* find the "verb" (using space separator) in the command */
   length = p - buff + 1;
-  p = strchr (buff, ' ');
-  if (p == 0)
+  if ((space = strchr (buff, ' ')))
     {
-      user_verb = findstring(buff, NULL);
+      user_verb = findstring (buff, space);
+      length = space - buff;
     }
   else
     {
-      *p = '\0';
-      user_verb = findstring(buff, NULL);
-      *p = ' ';
-      length = p - buff;
+      user_verb = findstring (buff, p);
     }
-
   if (!user_verb)
     {
-      /* either an xverb or a verb without a specific add_action */
+      /* either an xverb (V_NOSPACE) or a verb without a previous add_action() */
       user_verb = buff;
     }
-
-  /*
-   * copy user_verb into a static character buffer to be pointed to by
-   * last_verb.
-   */
-  strncpy (verb_buff, user_verb, MAX_VERB_BUFF - 1);
-  if (p)
-    {
-      ptrdiff_t pos;
-
-      pos = p - buff;
-      if (pos < MAX_VERB_BUFF)
-        {
-          verb_buff[pos] = '\0';
-        }
-    }
+  strput (verb_buff, verb_buff + MAX_VERB_BUFF, user_verb); /* always null-terminated */
+  assert (user_verb != NULL);
+  assert (strlen(user_verb) == length);
 
   save_illegal_sentence_action = illegal_sentence_action;
   illegal_sentence_action = 0;
 
+  /* iterate all sentences */
   for (s = save_command_giver->sent; s; s = s->next)
     {
       svalue_t *ret;
       int ret_is_nonzero;
       int ret_is_missing;
 
-      /* Skip sentences from destructed objects (ref counting keeps memory valid) */
+      /* skip sentences from destructed objects (ref counting keeps memory valid) */
       if (s->ob->flags & O_DESTRUCTED)
         continue;
 
-      if (s->flags & (V_NOSPACE | V_SHORT))
+      /* determine if the verb matches */
+      if (s->flags & (V_NOSPACE | V_SHORT) || strchr(s->verb, ' '))
         {
-          if (strncmp (buff, s->verb, strlen (s->verb)) != 0)
+          size_t verb_len = strlen(s->verb);
+          if (strncmp (buff, s->verb, verb_len) != 0)
+            continue;
+
+          /* multi-word verbs must be followed by a space or end-of-command */
+          if (!(s->flags & (V_NOSPACE | V_SHORT)) && buff[verb_len] != ' ' && buff[verb_len] != '\0')
             continue;
         }
       else
         {
-          /* note: if was add_action(blah, "") then accept it */
-          if (s->verb[0] && (user_verb != s->verb))
-            continue;
+          /* s->verb is a shared string that will match findstring() results */
+          if (*s->verb) {
+            if (user_verb == s->verb) {
+              /* match */
+            } else if (user_verb != buff) {
+              /* user_verb is a shared string but not matching s->verb */
+              continue;
+            } else if (strcmp(s->verb, verb_buff) != 0) {
+              /* user_verb is not a shared string, so we compare strings */
+              continue;
+            }
+          }
+          /* the verb matches or the sentence was added by add_action() with "" as verb */
         }
 
-      if (s->flags & V_NOSPACE)
+      if (s->flags & V_NOSPACE) /* xverb: return the part after s->verb in query_verb() */
         {
           size_t l1 = strlen (s->verb);
           size_t l2 = strlen (verb_buff);
@@ -719,10 +742,10 @@ static int user_parser (char *buff) {
         }
       else
         {
-          if (!s->verb[0] || (s->flags & V_SHORT))
+          if (!*s->verb || (s->flags & V_SHORT))
             last_verb = verb_buff;
           else
-            last_verb = s->verb;
+            last_verb = ref_string(to_shared_str(s->verb));
         }
 
       /*
@@ -735,6 +758,14 @@ static int user_parser (char *buff) {
       /* Push command args FIRST (correct LPC order) */
       if (s->flags & V_NOSPACE)
         copy_and_push_string (&buff[strlen (s->verb)]);
+      else if (strchr(s->verb, ' '))
+        {
+          size_t verb_len = strlen(s->verb);
+          if (buff[verb_len] == ' ')
+            copy_and_push_string(&buff[verb_len + 1]);
+          else
+            push_undefined();
+        }
       else if (buff[length] == ' ')
         copy_and_push_string (&buff[length + 1]);
       else
@@ -772,6 +803,8 @@ static int user_parser (char *buff) {
 
       command_giver = save_command_giver;
 
+      if (last_verb != verb_buff && *last_verb)
+        free_string(to_shared_str(last_verb));
       last_verb = 0;
 
       /* was this the right verb? */
@@ -796,7 +829,8 @@ static int user_parser (char *buff) {
         {
           if (!illegal_sentence_action)
             illegal_sentence_action = save_illegal_sentence_action;
-          return 1;
+          last_verb = save_last_verb;
+          return 1; /* Verb handled successfully */
         }
 
       if (illegal_sentence_action)
@@ -814,10 +848,11 @@ static int user_parser (char *buff) {
   notify_no_command ();
   illegal_sentence_action = save_illegal_sentence_action;
 
+  last_verb = save_last_verb;
   return 0;
 }
 
-/*
+/**
  * Take a user command and parse it.
  * The command can also come from a NPC.
  * Beware that 'str' can be modified and extended !
@@ -845,6 +880,33 @@ int process_command (char *buff, object_t * ob) {
 }				/* process_command() */
 
 /**
+ * Execute a command for an object.
+ * Copy the command into a new buffer, because 'process_command()' can modify the command.
+ * If the object is not current object, static functions will not be executed.
+ * This will prevent forcing users to do illegal things.
+ *
+ * Return cost of the command executed if success (> 0).
+ * When failure, return 0.
+ */
+int command_for_object (const char *str, object_t *ob) {
+
+  char buff[1000];
+  int save_eval_cost = eval_cost;
+  object_t *target_ob = ob ? ob : current_object;
+
+  if (strlen (str) > sizeof (buff) - 1)
+    error ("*Too long command.");
+  else if (target_ob->flags & O_DESTRUCTED)
+    return 0;
+  strncpy (buff, str, sizeof buff);
+  buff[sizeof buff - 1] = '\0';
+  if (process_command (buff, target_ob))
+    return (int)(save_eval_cost - eval_cost);
+  else
+    return 0;
+}
+
+/**
  *  User command turn handler.
  *
  *  This function is called by the backend after unblocked from a communication polling.
@@ -864,7 +926,7 @@ int process_command (char *buff, object_t * ob) {
 int process_user_command () {
 
   char *user_command;
-  static char buf[MAX_TEXT], *tbuf;
+  char buf[MAX_TEXT], *tbuf;
   object_t *save_current_object = current_object;
   object_t *save_command_giver = command_giver;
   interactive_t *ip;
@@ -1157,14 +1219,3 @@ void remove_sent (object_t * ob, object_t * user) {
         s = &((*s)->next);
     }
 }
-
-#ifdef F_QUERY_VERB
-void f_query_verb (void) {
-  if (!last_verb)
-    {
-      push_number (0);
-      return;
-    }
-  share_and_push_string (last_verb);
-}
-#endif

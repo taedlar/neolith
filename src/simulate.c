@@ -54,35 +54,6 @@ static object_t *load_virtual_object (const char *);
 static char *make_new_name (const char *);
 static void send_say (object_t *, char *, array_t *);
 
-
-/*************************************************************************
- *  command_giver_stack
- */
-
-static object_t *command_giver_stack[1024];
-static object_t **cgsp = command_giver_stack;
-
-void save_command_giver (object_t * new_command_giver) {
-  if (cgsp >= command_giver_stack + sizeof (command_giver_stack) / sizeof (command_giver_stack[0]) - 1)
-    fatal ("*****Command giver stack overflow!");
-
-  *(++cgsp) = command_giver;
-
-  if (new_command_giver)
-    add_ref (new_command_giver, "save_command_giver");
-  command_giver = new_command_giver;
-}
-
-void restore_command_giver () {
-  if (command_giver)
-    free_object (command_giver, "restore_command_giver");
-
-  if (cgsp == command_giver_stack)
-    fatal ("*****Command giver stack underflow!");
-
-  command_giver = *(cgsp--);
-}
-
 /*********************************************************************/
 
 /**
@@ -675,32 +646,6 @@ object_t* environment (svalue_t * arg) {
   if (ob->flags & O_DESTRUCTED)
     error ("*environment() of destructed object.");
   return ob->super;
-}
-
-/**
- * Execute a command for an object.
- * Copy the command into a new buffer, because 'process_command()' can modify the command.
- * If the object is not current object, static functions will not be executed.
- * This will prevent forcing users to do illegal things.
- *
- * Return cost of the command executed if success (> 0).
- * When failure, return 0.
- */
-int command_for_object (const char *str) {
-
-  char buff[1000];
-  int save_eval_cost = eval_cost;
-
-  if (strlen (str) > sizeof (buff) - 1)
-    error ("*Too long command.");
-  else if (current_object->flags & O_DESTRUCTED)
-    return 0;
-  strncpy (buff, str, sizeof buff);
-  buff[sizeof buff - 1] = '\0';
-  if (process_command (buff, current_object))
-    return (int)(save_eval_cost - eval_cost);
-  else
-    return 0;
 }
 
 /*

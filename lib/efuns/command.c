@@ -260,8 +260,18 @@ void
 f_command (void)
 {
   int64_t i;
+  object_t *ob = 0;
 
-  i = command_for_object (SVALUE_STRPTR(sp));
+  if (st_num_arg == 2)
+    {
+      if (sp->type == T_OBJECT)
+        ob = sp->u.ob;
+      else
+        error ("*Bad type for command second argument.");
+      sp--;
+    }
+
+  i = command_for_object (SVALUE_STRPTR(sp), ob);
   free_string_svalue (sp);
   put_number (i);
 }
