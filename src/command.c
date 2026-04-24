@@ -110,7 +110,9 @@ void notify_no_command () {
        * the stack-based save/restore would leak references and cause
        * command_giver state corruption. Local variables avoid this.
        */
+      add_ref(command_giver, "notify_no_command"); /* ensure command_giver is not destructed during call */
       v = SAFE_CALL_FUNCTION_POINTER_SLOT_CALL (p.f, 0);
+      free_object (command_giver, "notify_no_command");  /* balance ref increment above */
       command_giver = saved_ob;  /* Restore regardless of whether error() was called */
       free_funp (p.f);
       if (command_giver && command_giver->interactive)
