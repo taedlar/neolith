@@ -189,7 +189,7 @@ void look_for_objects_to_swap(void) {
 }
 
 #ifdef LAZY_RESETS
-void try_reset (object_t * ob) {
+extern "C" void try_reset (object_t * ob) {
   if ((ob->next_reset < current_time) && !(ob->flags & O_RESET_STATE))
     {
       /* need to set the flag here to prevent infinite loops in apply_low */
