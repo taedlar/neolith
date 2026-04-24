@@ -830,7 +830,7 @@ int process_command (char *buff, object_t * ob) {
 #if defined(NO_ANSI) && !defined(STRIP_BEFORE_PROCESS_INPUT)
   char *c;
 
-  for (c = str; *c; c++)
+  for (c = buff; *c; c++)
     {
       if (*c == 27)
         {
