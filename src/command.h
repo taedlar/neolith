@@ -26,7 +26,7 @@ void remove_sent (object_t *, object_t *);
 
 /* command fail handling */
 void notify_no_command (void);
-void set_notify_fail_message (char *);
+void set_notify_fail_message (const char *);
 void set_notify_fail_function (funptr_t *);
 void clear_notify (interactive_t *);
 

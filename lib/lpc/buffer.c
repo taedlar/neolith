@@ -64,7 +64,7 @@ allocate_buffer (size_t size)
 }
 
 int
-write_buffer (buffer_t * buf, long start, char *str, size_t theLength)
+write_buffer (buffer_t * buf, long start, const char *str, size_t theLength)
 {
   size_t size;
 

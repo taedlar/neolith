@@ -1969,7 +1969,7 @@ static void query_addr_name (object_t * ob) {
 /**
  * Does a call back on the current_object with the function call_back.
  */
-int query_addr_number (char *name, char *call_back) {
+int query_addr_number (const char *name, const char *call_back) {
   int request_id;
 
   if (name == NULL || call_back == NULL || strlen (name) >= RESOLVER_STR_MAX)

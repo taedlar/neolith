@@ -14,13 +14,13 @@
  * Dump information about a program, optionally disassembling it.
  */
 
-static void dump_prog (program_t *, char *, int);
+static void dump_prog (program_t *, const char *, int);
 
 void
 f_dump_prog (void)
 {
   program_t *prog;
-  char *where;
+  const char *where;
   int d;
   object_t *ob;
   int narg = st_num_arg;
@@ -63,7 +63,7 @@ f_dump_prog (void)
  * 2 - dump line number table
  */
 static void
-dump_prog (program_t * prog, char *fn, int dump_flags)
+dump_prog (program_t * prog, const char *fn, int dump_flags)
 {
   char *fname;
   FILE *f;

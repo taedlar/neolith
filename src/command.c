@@ -158,7 +158,7 @@ void clear_notify (interactive_t * ip) {
   ip->default_err_message.s = 0;
 }				/* clear_notify() */
 
-void set_notify_fail_message (char *str) {
+void set_notify_fail_message (const char *str) {
   if (!command_giver || !command_giver->interactive)
     return;
   clear_notify (command_giver->interactive);

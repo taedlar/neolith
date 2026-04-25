@@ -191,7 +191,7 @@ void f_file_size (void) {
  * file_length() efun, returns the number of lines in a file.
  * Returns -1 if no privs or file doesn't exist.
  */
-int file_length (char *file) {
+int file_length (const char *file) {
   struct stat st;
   int fd;
   FILE *f;

@@ -287,7 +287,7 @@ static time_t time_left (int slot, time_t delay) {
  * The time left until execution is returned.
  * -1 is returned if no call out pending.
  */
-int remove_call_out (object_t * ob, char *fun) {
+int remove_call_out (object_t * ob, const char *fun) {
   pending_call_t **copp, *cop;
   time_t delay;
   int i;
@@ -348,7 +348,7 @@ int find_call_out_by_handle (int handle) {
   return -1;
 }
 
-int find_call_out (object_t * ob, char *fun) {
+int find_call_out (object_t * ob, const char *fun) {
   pending_call_t *cop;
   time_t delay;
   int i;

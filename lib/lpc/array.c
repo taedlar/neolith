@@ -155,10 +155,10 @@ void check_for_destr (array_t * v) {
 /**
  * Split a string into sub-strings separated by delimiter, return an array of sub-strings.
  */
-array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
-  char *p, *beg, *end;
+array_t* explode_string (const char *str, size_t slen, const char *del, size_t len) {
+  const char *p, *beg, *end;
 #ifndef REVERSIBLE_EXPLODE_STRING
-  char *lastdel = (char *) NULL;
+  const char *lastdel = (const char *) NULL;
 #endif
   int num, j, limit;
   array_t *ret;
@@ -311,7 +311,7 @@ array_t* explode_string (char *str, size_t slen, char *del, size_t len) {
   return ret;
 }
 
-char* implode_string (array_t * arr, char *del, size_t del_len) {
+malloc_str_t implode_string (array_t * arr, const char *del, size_t del_len) {
 
   size_t size;
   int i, num;
@@ -1102,7 +1102,7 @@ map_array (svalue_t * arg, int num_arg)
 void
 map_string (svalue_t * arg, int num_arg)
 {
-  char *arr = SVALUE_STRPTR(arg);
+  const char *arr = SVALUE_STRPTR(arg);
   char *p;
   funptr_t *funp = 0;
   int numex = 0;
@@ -1919,7 +1919,7 @@ settle_business:
 }
 
 int
-match_single_regexp (char *str, char *pattern)
+match_single_regexp (const char *str, const char *pattern)
 {
   struct regexp *reg;
   int ret;
@@ -1934,7 +1934,7 @@ match_single_regexp (char *str, char *pattern)
 }
 
 array_t *
-match_regexp (array_t * v, char *pattern, int flag)
+match_regexp (array_t * v, const char *pattern, int flag)
 {
   struct regexp *reg;
   char *res;
@@ -2067,7 +2067,7 @@ inherit_list (object_t * ob)
   return ret;
 }
 
-array_t* children (char *str) {
+array_t* children (const char *str) {
 
   int i, j;
   int t_sz;
@@ -2298,10 +2298,10 @@ f_objects (void)
  *
  */
 array_t *
-reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
+reg_assoc (const char *str, array_t * pat, array_t * tok, svalue_t * def)
 {
   int i, size;
-  char *tmp;
+  const char *tmp;
   array_t *ret;
 
   regexp_user = EFUN_REGEXP;
@@ -2322,7 +2322,7 @@ reg_assoc (char *str, array_t * pat, array_t * tok, svalue_t * def)
       struct reg_match
       {
         int tok_i;
-        char *begin, *end;
+        const char *begin, *end;
         struct reg_match *next;
       }
        *rmp = (struct reg_match *) 0, *rmph = (struct reg_match *) 0;

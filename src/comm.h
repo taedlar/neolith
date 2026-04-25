@@ -120,7 +120,7 @@ void set_telnet_single_char (interactive_t *, int);
 int replace_interactive (object_t *, object_t *);
 void remove_interactive (object_t *, int);
 int flush_message (interactive_t *);
-int query_addr_number (char *, char *);
+int query_addr_number (const char *, const char *);
 char *query_ip_name (object_t *);
 char *query_ip_number (object_t *);
 char *query_host_name (void);

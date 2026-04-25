@@ -128,8 +128,8 @@ typedef struct ed_buffer_s {
 /*
  * ed.c
  */
-void ed_start(char *, char *, char *, int, object_t *);
-void ed_cmd(char *);
+void ed_start(const char *, const char *, const char *, int, object_t *);
+void ed_cmd(const char *);
 void save_ed_buffer(object_t *);
 
 #ifdef OLD_ED

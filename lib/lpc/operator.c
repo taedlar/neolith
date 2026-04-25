@@ -658,7 +658,7 @@ void f_range (int code) {
     {
     case T_STRING:
       {
-        char *res = SVALUE_STRPTR(sp);
+        const char *res = SVALUE_STRPTR(sp);
 
         len = (int64_t)SVALUE_STRLEN (sp);
         to = (--sp)->u.number;
@@ -775,7 +775,7 @@ void f_extract_range (int code) {
     {
     case T_STRING:
       {
-        char *res = SVALUE_STRPTR(sp);
+        const char *res = SVALUE_STRPTR(sp);
 
         len = (int64_t)SVALUE_STRLEN (sp);
         from = (--sp)->u.number;

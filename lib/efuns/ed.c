@@ -73,7 +73,7 @@ static int version = 601;
 static int EdErr = 0;
 
 static int append (int, int);
-static int more_append (char *);
+static int more_append (const char *);
 static int ckglob (void);
 static int deflt (int, int);
 static int del (int, int);
@@ -82,18 +82,18 @@ static int dolst (int, int);
 static int esc PROT((char **));
 */
 static int doprnt (int, int);
-static void prntln (char *, int, int);
+static void prntln (const char *, int, int);
 static int egets (char *, int, FILE *);
-static int doread (int, char *);
-static int dowrite (int, int, char *, int);
+static int doread (int, const char *);
+static int dowrite (int, int, const char *, int);
 static int find (regexp *, int);
-static char *getfn (int);
+static const char *getfn (int);
 static int getnum (int);
 static int getone (void);
 static int getlst (void);
 static ed_line_t *getptr (int);
 static int getrhs (char *);
-static int ins (char *);
+static int ins (const char *);
 static int join (int, int);
 static int move (int);
 static int transfer (int);
@@ -104,7 +104,7 @@ static int subst (regexp *, char *, int, int);
 static int docmd (int);
 static int doglob (void);
 static void free_ed_buffer (object_t *);
-static void shift (char *);
+static void shift (const char *);
 static void indent (char *);
 static int indent_code (void);
 static void report_status (int);
@@ -118,7 +118,7 @@ static void object_free_ed_buffer (void);
 static void print_help (int arg);
 static void print_help2 (void);
 static void count_blanks (int line);
-static void _count_blanks (char *str, int blanks);
+static void _count_blanks (const char *str, int blanks);
 
 static ed_buffer_t *current_ed_buffer;
 static object_t *current_editor;	/* the object responsible */
@@ -316,7 +316,7 @@ append (int line, int glob)
 }
 
 static int
-more_append (char *str)
+more_append (const char *str)
 {
   if (str[0] == '.' && str[1] == '\0')
     {
@@ -363,7 +363,7 @@ count_blanks (int line)
 }
 
 static void
-_count_blanks (char *str, int blanks)
+_count_blanks (const char *str, int blanks)
 {
   for (; *str; str++)
     {
@@ -560,7 +560,7 @@ free_ed_buffer (object_t * who)
 #define putcntl(X) *line++ = '^'; *line++ = (X) ? ((*str&31)|'@') : '?'
 
 static void
-prntln (char *str, int vflg, int len)
+prntln (const char *str, int vflg, int len)
 {
   char *line, start[ED_MAXLINE + 2];
 
@@ -656,7 +656,7 @@ egets (char *str, int size, FILE * stream)
 }				/* egets */
 
 static int
-doread (int lin, char *fname)
+doread (int lin, const char *fname)
 {
   FILE *f;
   int err;
@@ -703,7 +703,7 @@ doread (int lin, char *fname)
 }				/* doread */
 
 static int
-dowrite (int from, int to, char *fname, int apflg)
+dowrite (int from, int to, const char *fname, int apflg)
 {
   FILE *f;
   int lin, err;
@@ -807,7 +807,7 @@ find (regexp * pat, int dir)
 
 /*	getfn.c	*/
 
-static char *
+static const char *
 getfn (int writeflg)
 {
   static char file[MAXFNAME];
@@ -1093,9 +1093,9 @@ getrhs (char *sub)
 /*	ins.c	*/
 
 static int
-ins (char *str)
+ins (const char *str)
 {
-  char *cp;
+  const char *cp;
   ed_line_t *new_ln, *nxt;
   size_t len;
 
@@ -1354,7 +1354,7 @@ set_ed_buf ()
 
 static int subst (regexp * pat, char *sub, int gflg, int pflag) {
   int nchngd = 0;
-  char *txtptr;
+  const char *txtptr;
   char *newp, *old, buf[ED_MAXLINE];
   int space;			/* amylaar */
   int still_running = 1;
@@ -1441,7 +1441,7 @@ static int shi;			/* the current shift (negative for left
  *              environments.
  */
 static void
-shift (register char *text)
+shift (const char *text)
 {
   register int indent_index;
 
@@ -1983,7 +1983,7 @@ docmd (int glob)
   int c, err, line3;
   int apflg, pflag, gflag;
   int nchng;
-  char *fptr;
+  const char *fptr;
   int st;
 
   pflag = FALSE;
@@ -2406,8 +2406,8 @@ doglob ()
  */
 #ifdef OLD_ED
 void
-ed_start (char *file_arg, char *write_fn, char *exit_fn, int restricted,
-          object_t * exit_ob)
+ed_start (const char *file_arg, const char *write_fn, const char *exit_fn,
+          int restricted, object_t * exit_ob)
 {
   svalue_t *setup;
 
@@ -2500,7 +2500,7 @@ ed_start (char *file_arg, char *write_fn, char *exit_fn, int restricted,
 
 #ifdef OLD_ED
 void
-ed_cmd (char *str)
+ed_cmd (const char *str)
 {
   int status = 0;
 
@@ -2518,10 +2518,10 @@ ed_cmd (char *str)
       more_append (str);
       return;
     }
-  if (strlen (str) < ED_MAXLINE)
-    strcat (str, "\n");
 
   strncpy (inlin, str, ED_MAXLINE - 1);
+  if (strlen (inlin) < ED_MAXLINE - 1)
+    strcat (inlin, "\n");
   inlin[ED_MAXLINE - 1] = 0;
   inptr = inlin;
   if (((status = getlst ()) >= 0) || (status == NO_LINE_RANGE))
@@ -2621,7 +2621,7 @@ void
 save_ed_buffer (object_t * who)
 {
   svalue_t *stmp;
-  char *fname;
+  const char *fname;
 
   regexp_user = ED_REGEXP;
   current_ed_buffer = who->interactive->ed_buffer;

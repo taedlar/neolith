@@ -9,7 +9,7 @@ extern "C" {
  * dumpstat.c
  */
 int data_size(object_t *);
-void dumpstat(char *);
+void dumpstat(const char *);
 
 
 #ifdef __cplusplus

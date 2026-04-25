@@ -52,7 +52,7 @@ static int give_uid_to_object (object_t *);
 static int init_object (object_t *);
 static object_t *load_virtual_object (const char *);
 static char *make_new_name (const char *);
-static void send_say (object_t *, char *, array_t *);
+static void send_say (object_t *, const char *, array_t *);
 
 /*********************************************************************/
 
@@ -78,7 +78,7 @@ static void check_legal_string (const char *s) {
  */
 static int give_uid_to_object (object_t * ob) {
   svalue_t *ret;
-  char *creator_name = NULL;
+  const char *creator_name = NULL;
 
   /* before master object is loaded */
   if (mud_state() < MS_MUDLIB_LIMBO)
@@ -188,7 +188,7 @@ static object_t *load_virtual_object (const char *name) {
 void set_master (object_t * ob) {
   int first_load = (!master_ob);
   svalue_t *ret;
-  char *uid = NULL;
+  const char *uid = NULL;
 
   if (ob && ob->flags & O_DESTRUCTED)
     error ("Bad master object\n");
@@ -1273,7 +1273,7 @@ void remove_destructed_objects () {
  * rewritten, bobf@metronet.com (Blackthorn) 9/6/93
  */
 
-static void send_say (object_t * ob, char *text, array_t * avoid) {
+static void send_say (object_t * ob, const char *text, array_t * avoid) {
   int valid, j;
 
   for (valid = 1, j = 0; j < avoid->size; j++)
@@ -1295,7 +1295,7 @@ static void send_say (object_t * ob, char *text, array_t * avoid) {
 
 void say (svalue_t * v, array_t * avoid) {
   object_t *ob, *origin, *save_command_giver = command_giver;
-  char *buff;
+  const char *buff;
 
   check_legal_string (SVALUE_STRPTR(v));
   buff = SVALUE_STRPTR(v);
@@ -1345,7 +1345,7 @@ void say (svalue_t * v, array_t * avoid) {
 #ifdef F_TELL_ROOM
 void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
   object_t *ob;
-  char *buff;
+  const char *buff;
   int valid, j;
   char txt_buf[LARGEST_PRINTABLE_STRING];
 
@@ -1359,12 +1359,12 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
       buff = v->u.ob->name;
       break;
     case T_NUMBER:
+      sprintf (txt_buf, "%" PRId64, v->u.number);
       buff = txt_buf;
-      sprintf (buff, "%" PRId64, v->u.number);
       break;
     case T_REAL:
+      sprintf (txt_buf, "%g", v->u.real);
       buff = txt_buf;
-      sprintf (buff, "%g", v->u.real);
       break;
     default:
       bad_argument (v, T_OBJECT | T_NUMBER | T_REAL | T_STRING,

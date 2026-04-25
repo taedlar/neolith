@@ -109,7 +109,7 @@ struct svalue_s {
  * lpc::svalue_view::c_str() provides a C++ wrapper around this macro with the const char* semantics (safe).
  */
 #define SVALUE_STRPTR(sv) svalue_strptr_impl(sv)
-static inline char *svalue_strptr_impl(const svalue_t *sv) {
+static inline const char *svalue_strptr_impl(const svalue_t *sv) {
     if (sv->type != T_STRING)
         return NULL;
     if (sv->subtype == STRING_MALLOC) {
@@ -118,7 +118,7 @@ static inline char *svalue_strptr_impl(const svalue_t *sv) {
         return sv->u.shared_string;
     } else {
         /* FIXME: this is not safe */
-        return (char*)sv->u.const_string;
+        return sv->u.const_string;
     }
 }
 

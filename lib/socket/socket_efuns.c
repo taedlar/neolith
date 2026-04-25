@@ -89,7 +89,7 @@ static socket_runtime_state_t *socket_runtime_state = NULL;
 static int next_socket_op_id = 1;
 static socket_release_test_hook_t socket_release_test_hook = NULL;
 
-static int socket_name_to_sin (char *, struct sockaddr_in *);
+static int socket_name_to_sin (const char *, struct sockaddr_in *);
 static char *inet_address (struct sockaddr_in *);
 static const char *lookup_socket_operation_phase_name (enum socket_operation_phase phase);
 static int is_socket_operation_terminal_phase (enum socket_operation_phase phase);
@@ -1016,7 +1016,7 @@ int socket_accept (int s, svalue_t * read_callback, svalue_t * write_callback) {
 /*
  * Connect an LPC efun socket
  */
-int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * write_callback)
+int socket_connect (int i, const char *name, svalue_t * read_callback, svalue_t * write_callback)
 {
   if (i < 0 || i >= max_lpc_socks)
     return EEFDRANGE;
@@ -1198,7 +1198,7 @@ int socket_connect (int i, char *name, svalue_t * read_callback, svalue_t * writ
  * @param name the address to send to (for datagram sockets)
  * @return error code
  */
-int socket_write (int i, svalue_t * message, char *name) {
+int socket_write (int i, svalue_t * message, const char *name) {
 
   size_t len;
   int off;
@@ -1946,7 +1946,7 @@ assign_socket_owner (svalue_t * sv, object_t * ob)
 /**
  * Convert a string representation of an address to a sockaddr_in
  */
-static int socket_name_to_sin (char *name, struct sockaddr_in *sin) {
+static int socket_name_to_sin (const char *name, struct sockaddr_in *sin) {
   long port;
   char *cp, *port_end, addr[ADDR_BUF_SIZE];
 

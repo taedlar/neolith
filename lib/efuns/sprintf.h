@@ -9,7 +9,7 @@ extern "C" {
 #define SV2STR_NONEWLINE	0x0004	/* don't generate newline */
 
 void svalue_to_string(svalue_t *, outbuffer_t *, int, char, int);
-char *string_print_formatted(char *, int, svalue_t *);
+char *string_print_formatted(const char *, int, svalue_t *);
 
 #ifdef __cplusplus
 }

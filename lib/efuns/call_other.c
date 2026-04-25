@@ -60,7 +60,7 @@ f_call_other (void)
 {
   svalue_t *arg;
   object_t *ob;
-  char *funcname;
+  const char *funcname;
   int num_arg = st_num_arg;
 
   if (current_object->flags & O_DESTRUCTED)

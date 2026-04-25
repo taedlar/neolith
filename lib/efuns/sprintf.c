@@ -185,7 +185,7 @@ static svalue_t clean = { .type = T_NUMBER };
 static void sprintf_error (int) NO_RETURN;
 static void numadd (outbuffer_t *, int64_t num);
 static void add_space (outbuffer_t *, int indent);
-static void add_justified (char *str, size_t slen, pad_info_t * pad, int fs, format_info finfo, short int trailing);
+static void add_justified (const char *str, size_t slen, pad_info_t * pad, int fs, format_info finfo, short int trailing);
 static int add_column (cst ** column, int trailing);
 static int add_table (cst ** table);
 
@@ -621,7 +621,7 @@ static void add_nstr (char *str, size_t len) {
  * @param finfo The format info.
  * @param trailing A flag indicating if trailing justification is to be done.
  */
-static void add_justified (char *str, size_t slen, pad_info_t * pad, int fs, format_info finfo, short int trailing) {
+static void add_justified (const char *str, size_t slen, pad_info_t * pad, int fs, format_info finfo, short int trailing) {
   /* compensate field size by adding count of characters for ANSI escape sequences */
   const char *pstr;
   for (pstr = str; pstr - str < (ptrdiff_t)slen;)
@@ -826,7 +826,7 @@ pad_info_t* make_pad (pad_info_t * p) {
  * this function is called again, or if it's going to be modified (esp.
  * if it risks being free()ed).
  */
-char* string_print_formatted (char *format_str, int argc, svalue_t * argv) {
+char* string_print_formatted (const char *format_str, int argc, svalue_t * argv) {
   format_info finfo;
   svalue_t *carg;		/* current arg */
   unsigned int nelemno = 0;	/* next offset into array */

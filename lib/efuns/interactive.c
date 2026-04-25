@@ -247,7 +247,7 @@ f_query_host_name (void)
 void
 f_resolve (void)
 {
-  int i, query_addr_number (char *, char *);
+  int i;
 
   i = query_addr_number (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
