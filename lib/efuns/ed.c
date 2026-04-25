@@ -2520,9 +2520,9 @@ ed_cmd (const char *str)
     }
 
   strncpy (inlin, str, ED_MAXLINE - 1);
+  inlin[ED_MAXLINE - 1] = 0;
   if (strlen (inlin) < ED_MAXLINE - 1)
     strcat (inlin, "\n");
-  inlin[ED_MAXLINE - 1] = 0;
   inptr = inlin;
   if (((status = getlst ()) >= 0) || (status == NO_LINE_RANGE))
     {

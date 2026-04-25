@@ -115,10 +115,12 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
           /* fallthrough */
         case 'd':
           {
+            char* endptr;
             tmp = in_string;
-            num = (int) strtoll (in_string, (char**)&in_string, base);
-            if (tmp == in_string)
+            num = (int64_t) strtoll (in_string, &endptr, base);
+            if (tmp == endptr)
               return number_of_matches;
+            in_string = endptr;
             if (!skipme)
               {
                 SSCANF_ASSIGN_SVALUE_NUMBER (num);
@@ -128,12 +130,14 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
           }
         case 'f':
           {
+            char* endptr;
             double tmp_num;
 
             tmp = in_string;
-            tmp_num = strtod (in_string, (char**)&in_string);
-            if (tmp == in_string)
+            tmp_num = strtod (in_string, &endptr);
+            if (tmp == endptr)
               return number_of_matches;
+            in_string = endptr;
             if (!skipme)
               {
                 SSCANF_ASSIGN_SVALUE (T_REAL, u.real, tmp_num);
@@ -369,7 +373,9 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
               /* fall through */
             case 'd':
               {
-                num = (int) strtol (in_string, (char**)&in_string, base);
+                char* endptr;
+                num = (int) strtol (in_string, &endptr, base);
+                in_string = endptr;
                 /* We already knew it would be matched - Sym */
                 if (!skipme2)
                   {
@@ -380,7 +386,9 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
               }
             case 'f':
               {
-                double tmp_num = strtod (in_string, (char**)&in_string);
+                char* endptr;
+                double tmp_num = strtod (in_string, &endptr);
+                in_string = endptr;
                 if (!skipme2)
                   {
                     SSCANF_ASSIGN_SVALUE (T_REAL, u.real, tmp_num);

@@ -796,9 +796,7 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
     }
 
   if (!ret_path)
-    {
-      ret_path = (char *)path;
-    }
+    ret_path = path;
 
   if (ret_path[0] == '/')
     ret_path++;
