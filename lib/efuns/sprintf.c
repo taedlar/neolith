@@ -149,20 +149,20 @@ typedef unsigned int format_info;
 }
 
 typedef struct pad_info_s {
-  char *what;
+  const char *what;
   int len;
 } pad_info_t;
 
 typedef struct tab_data_s {
-  char *start;
-  char *cur;
+  const char *start;
+  const char *cur;
 } tab_data_t;
 
 /* slash here means 'or' */
 typedef struct ColumnSlashTable {
   union CSTData
   {
-    char *col;			/* column data */
+    const char *col;			/* column data */
     tab_data_t *tab;		/* table data */
   }
   d;				/* d == data */
@@ -576,7 +576,7 @@ static void add_pad (pad_info_t * pad, size_t len) {
   if (pad && (padlen = pad->len))
     {
       char *end;
-      char *pstr = pad->what;
+      const char *pstr = pad->what;
       int i;
       char c;
 
@@ -598,7 +598,7 @@ static void add_pad (pad_info_t * pad, size_t len) {
     memset (p, ' ', len);
 }
 
-static void add_nstr (char *str, size_t len) {
+static void add_nstr (const char *str, size_t len) {
   if (outbuf_extend (&obuff, len) != len)
     sprintf_error (ERR_BUFF_OVERFLOW);
   memcpy (obuff.buffer + obuff.real_size, str, len);
@@ -689,7 +689,7 @@ static int add_column (cst ** column, int trailing) {
   unsigned int space = (unsigned int)-1;
   int ret;
   cst *col = *column;		/* always holds (*column) */
-  char *col_d = col->d.col;	/* always holds (col->d.col) */
+  const char *col_d = col->d.col;	/* always holds (col->d.col) */
 
   done = 0;
   /* find a good spot to break the line */
@@ -745,7 +745,7 @@ static int add_table (cst ** table) {
   int done, i;
   cst *tab = *table; /* always (*table) */
   tab_data_t *tab_d = tab->d.tab; /* always tab->d.tab */
-  char *tab_di; /* always tab->d.tab[i].cur */
+  const char *tab_di; /* always tab->d.tab[i].cur */
   ptrdiff_t end;
 
   for (i = 0; i < tab->nocols && (tab_di = tab_d[i].cur); i++)
@@ -1186,7 +1186,7 @@ char* string_print_formatted (const char *format_str, int argc, svalue_t * argv)
                       else
                         {	/* (finfo & INFO_TABLE) */
                           unsigned int n, len, max_len;
-                          char *p1, *p2;
+                          const char *p1, *p2;
 
 #define TABLE SVALUE_STRPTR(carg)
 

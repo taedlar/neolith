@@ -734,7 +734,7 @@ f_unique_array (void)
   unique_list_t *unlist;
   unique_t **head, *uptr, *nptr;
   funptr_t *funp = 0;
-  char *func = NULL;
+  const char *func = NULL;
 
   size = (v = (sp - num_arg + 1)->u.arr)->size;
   if (!size)
@@ -1102,13 +1102,13 @@ map_array (svalue_t * arg, int num_arg)
 void
 map_string (svalue_t * arg, int num_arg)
 {
-  const char *arr = SVALUE_STRPTR(arg);
+  char *arr;
   char *p;
   funptr_t *funp = 0;
   int numex = 0;
   object_t *ob = NULL;
   svalue_t *extra = NULL, *v;
-  char *func = NULL;
+  const char *func = NULL;
 
   /* get a modifiable string */
   /* do not use arg after this; it has been copied or freed.
@@ -1116,7 +1116,7 @@ map_string (svalue_t * arg, int num_arg)
      error (note it is also in the right spot for the return value).
    */
   unlink_string_svalue (arg);
-  arr = SVALUE_STRPTR(arg);
+  arr = arg->u.malloc_string;
 
   if (arg[1].type == T_FUNCTION)
     {
@@ -2184,7 +2184,7 @@ livings ()
 void
 f_objects (void)
 {
-  char *func = NULL;
+  const char *func = NULL;
   object_t *ob, **tmp;
   array_t *ret;
   funptr_t *f = 0;
@@ -2330,7 +2330,7 @@ reg_assoc (const char *str, array_t * pat, array_t * tok, svalue_t * def)
       svalue_t *sv1, *sv2, *sv;
       int index;
       struct regexp *tmpreg;
-      char *laststart, *currstart;
+      const char *laststart, *currstart;
 
       rgpp =
         CALLOCATE (size, struct regexp *, TAG_TEMPORARY, "reg_assoc : rgpp");

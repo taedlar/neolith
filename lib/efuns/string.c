@@ -50,7 +50,7 @@ void f_c_str (void) {
 
 #ifdef F_LOWER_CASE
 void f_lower_case (void) {
-  register char *str;
+  register const char *str;
 
   str = SVALUE_STRPTR(sp);
   /* find first upper case letter, if any */
@@ -58,14 +58,15 @@ void f_lower_case (void) {
     {
       if (isupper (*str))
         {
+          char* p;
           size_t len = str - SVALUE_STRPTR(sp);
           unlink_string_svalue (sp);
-          str = sp->u.malloc_string + len;
-          *str += 'a' - 'A';
-          for (str++; *str; str++)
+          p = sp->u.malloc_string + len;
+          *p += 'a' - 'A';
+          for (p++; *p; p++)
             {
-              if (isupper (*str))
-                *str += 'a' - 'A';
+              if (isupper (*p))
+                *p += 'a' - 'A';
             }
           return;
         }
@@ -76,7 +77,7 @@ void f_lower_case (void) {
 
 #ifdef F_UPPER_CASE
 void f_upper_case (void) {
-  register char *str;
+  register const char *str;
 
   str = SVALUE_STRPTR(sp);
   /* find first upper case letter, if any */
@@ -84,14 +85,15 @@ void f_upper_case (void) {
     {
       if (islower (*str))
         {
+          char* p;
           size_t len = str - SVALUE_STRPTR(sp);
           unlink_string_svalue (sp);
-          str = sp->u.malloc_string + len;
-          *str -= 'a' - 'A';
-          for (str++; *str; str++)
+          p = sp->u.malloc_string + len;
+          *p -= 'a' - 'A';
+          for (p++; *p; p++)
             {
-              if (islower (*str))
-                *str -= 'a' - 'A';
+              if (islower (*p))
+                *p -= 'a' - 'A';
             }
           return;
         }
@@ -117,7 +119,7 @@ void f_strwrap (void) {
 
 #ifdef F_REPEAT_STRING
 void f_repeat_string (void) {
-  char *str;
+  const char *str;
   size_t repeat, len;
   char *ret, *p;
   size_t i;
@@ -157,7 +159,8 @@ char *crypt (const char *key, const char *salt);
 #endif
 
 void f_crypt (void) {
-  char *res, *p, salt[SALT_LEN + 1];
+  const char* p;
+  char *res, salt[SALT_LEN + 1];
   char *choice = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
 
   if (sp->type == T_STRING && SVALUE_STRLEN (sp) >= 2)
@@ -401,14 +404,14 @@ void f_regexp (void) {
 void f_replace_string (void) {
   size_t plen, rlen, dlen, slen, first, last, cur, j;
 
-  char *pattern;
-  char *replace;
+  const char *pattern;
+  const char *replace;
   register char *src, *dst1, *dst2;
   svalue_t *arg;
   size_t skip_table[256];
-  char *slimit = NULL;
-  char *flimit = NULL;
-  char *climit = NULL;
+  const char *slimit = NULL;
+  const char *flimit = NULL;
+  const char *climit = NULL;
   size_t probe = 0, skip;
 
   if (st_num_arg > 5)
@@ -418,8 +421,7 @@ void f_replace_string (void) {
       return;
     }
   arg = sp - st_num_arg + 1;
-  src = SVALUE_STRPTR(arg);
-  opt_trace (TT_EVAL|3, "src ='%s'\n", src);
+  opt_trace (TT_EVAL|3, "src ='%s'\n", SVALUE_STRPTR(arg));
   first = 0;
   last = 0;
 
@@ -465,11 +467,9 @@ void f_replace_string (void) {
   dlen = 0;
   cur = 0;
 
-  if (rlen <= plen)
-    {
-      unlink_string_svalue (arg);
-      src = arg->u.malloc_string;
-    }
+  if ((arg->subtype != STRING_MALLOC) || (rlen <= plen))
+    unlink_string_svalue (arg);
+  src = arg->u.malloc_string;
 
   if (plen > 1)
     {
@@ -722,7 +722,7 @@ void f_replace_string (void) {
  */
 
 void f_strsrch (void) {
-  register char *big, *little, *pos;
+  register const char *big, *little, *pos;
   wchar_t wch[2];
   char mbs[10];
   int i;

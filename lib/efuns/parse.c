@@ -1253,7 +1253,7 @@ static svalue_t *
 prepos_parse (array_t * warr, int *cix_in, int *fail, svalue_t * prepos)
 {
   array_t *parr, *tarr;
-  char *tmp;
+  const char *tmp;
   int pix, tix;
 
   if ((!prepos) || (prepos->type != T_ARRAY))
@@ -1337,7 +1337,7 @@ match_object (int obix, array_t * warr, int *cix_in, int *plur)
 {
   array_t *ids;
   int il, pos, cplur, old_cix;
-  char *str;
+  const char *str;
 
   for (cplur = (*plur * 2); cplur < 4; cplur++)
     {
@@ -1611,12 +1611,12 @@ parse_to_plural (const char *str)
     {
       if ((EQ (SVALUE_STRPTR(&words->item[il]), "of")) || (il + 1 == words->size))
         {
-          sentence = parse_one_plural (SVALUE_STRPTR(&words->item[il - 1]));
-          if (sentence != SVALUE_STRPTR(&words->item[il - 1]))
+          const char* plural = parse_one_plural (SVALUE_STRPTR(&words->item[il - 1]));
+          if (plural != SVALUE_STRPTR(&words->item[il - 1]))
             {
               free_svalue (&words->item[il - 1], "parse_to_plural");
               SET_SVALUE_MALLOC_STRING (&words->item[il - 1],
-                                        string_copy (sentence, "parse_to_plural"));
+                                        string_copy (plural, "parse_to_plural"));
               changed = 1;
             }
         }
