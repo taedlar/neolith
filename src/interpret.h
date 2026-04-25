@@ -52,7 +52,7 @@ typedef struct {
     object_t *ob;
     union {
         funptr_t *fp;
-        char *str;
+        const char *str;
     } f;
     int narg;
     svalue_t *args;

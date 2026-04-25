@@ -168,7 +168,7 @@ userid_t *add_uid (const char *name) {
 }
 
 userid_t *
-set_root_uid (char *name)
+set_root_uid (const char *name)
 {
   if (!root_uid)
     return (root_uid = add_uid (name));
@@ -182,7 +182,7 @@ set_root_uid (char *name)
 }
 
 userid_t *
-set_backbone_uid (char *name)
+set_backbone_uid (const char *name)
 {
   if (!backbone_uid)
     return (backbone_uid = add_uid (name));

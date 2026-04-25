@@ -212,7 +212,7 @@ size_t svalue_save_size (const svalue_t * v) {
     {
     case T_STRING:
       {
-        register char *cp = SVALUE_STRPTR(v);
+        register const char *cp = SVALUE_STRPTR(v);
         char c;
         size_t size = 0;
 
@@ -309,7 +309,8 @@ void save_svalue (const svalue_t * v, char **buf) {
     {
     case T_STRING:
       {
-        register char *cp = *buf, *str = SVALUE_STRPTR(v);
+        register char *cp = *buf;
+        register const char *str = SVALUE_STRPTR(v);
         char c;
 
         *cp++ = '"';

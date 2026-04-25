@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
+#include "src/comm.h"
 #include "src/command.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
@@ -247,7 +248,7 @@ f_query_host_name (void)
 void
 f_resolve (void)
 {
-  int i, query_addr_number (char *, char *);
+  int i;
 
   i = query_addr_number (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
   free_string_svalue (sp--);

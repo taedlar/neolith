@@ -33,14 +33,14 @@ void dump_file_descriptors(outbuffer_t *);
 
 char *read_file(const char *file, long start, size_t len);
 char *read_bytes(const char *file, long start, size_t len, size_t *rlen);
-int write_file(char* file, char* str, int flags);
-int write_bytes(char* file, long start, char *, size_t len);
-array_t *get_dir(char *, int);
-int tail(char *);
-int file_size(char *);
-int copy_file(char *, char *);
-int do_rename(char *, char *, int);
-int remove_file(char *);
+int write_file(const char *file, const char *str, int flags);
+int write_bytes(const char *file, long start, const char *buf, size_t len);
+array_t *get_dir(const char *path, int flag);
+int tail(const char *file);
+int file_size(const char *file);
+int copy_file(const char *from, const char *to);
+int do_rename(const char *from, const char *to, int flag);
+int remove_file(const char *file);
 
 #ifdef __cplusplus
 }

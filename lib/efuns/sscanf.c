@@ -35,14 +35,15 @@ double strtod (const char *, char **);
  */
 int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
 
-  char *fmt;            /* Format description */
-  char *in_string;      /* The string to be parsed. */
+  const char *fmt;            /* Format description */
+  const char *in_string, *ss;      /* The string to be parsed. */
   int number_of_matches;
   int skipme;           /* Encountered a '*' ? */
   int base = 10;
   int64_t num;
-  char *match, old_char;
-  register char *tmp;
+  char old_char;
+  char *match;
+  register const char *tmp;
 
   /*
    * First get the string to be parsed.
@@ -114,10 +115,12 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
           /* fallthrough */
         case 'd':
           {
+            char* endptr;
             tmp = in_string;
-            num = (int) strtoll (in_string, &in_string, base);
-            if (tmp == in_string)
+            num = (int64_t) strtoll (in_string, &endptr, base);
+            if (tmp == endptr)
               return number_of_matches;
+            in_string = endptr;
             if (!skipme)
               {
                 SSCANF_ASSIGN_SVALUE_NUMBER (num);
@@ -127,12 +130,14 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
           }
         case 'f':
           {
+            char* endptr;
             double tmp_num;
 
             tmp = in_string;
-            tmp_num = strtod (in_string, &in_string);
-            if (tmp == in_string)
+            tmp_num = strtod (in_string, &endptr);
+            if (tmp == endptr)
               return number_of_matches;
+            in_string = endptr;
             if (!skipme)
               {
                 SSCANF_ASSIGN_SVALUE (T_REAL, u.real, tmp_num);
@@ -368,7 +373,9 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
               /* fall through */
             case 'd':
               {
-                num = (int) strtol (in_string, &in_string, base);
+                char* endptr;
+                num = (int) strtol (in_string, &endptr, base);
+                in_string = endptr;
                 /* We already knew it would be matched - Sym */
                 if (!skipme2)
                   {
@@ -379,7 +386,9 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
               }
             case 'f':
               {
-                double tmp_num = strtod (in_string, &in_string);
+                char* endptr;
+                double tmp_num = strtod (in_string, &endptr);
+                in_string = endptr;
                 if (!skipme2)
                   {
                     SSCANF_ASSIGN_SVALUE (T_REAL, u.real, tmp_num);
@@ -400,7 +409,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
         }
 
       old_char = *--fmt;
-      match = in_string;
+      ss = in_string;
 
       /* This loop would be even faster if it used replace_string's skiptable
          algorithm.  Maybe that algorithm should be lifted so it can be
@@ -416,9 +425,9 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                 {
                   char *newmatch;
 
-                  skipme = (int)(in_string - match);
+                  skipme = (int)(in_string - ss);
                   newmatch = new_string (skipme, "inter_sscanf");
-                  memcpy (newmatch, match, skipme);
+                  memcpy (newmatch, ss, skipme);
                   newmatch[skipme] = 0;
                   SSCANF_ASSIGN_SVALUE_STRING (newmatch);
                 }

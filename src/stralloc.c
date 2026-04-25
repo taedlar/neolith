@@ -694,15 +694,14 @@ void unlink_string_svalue (svalue_t * s) {
         size_t len = SHARED_STRLEN (s->u.shared_string);
 
         str = new_string (len, "unlink_string_svalue");
-        strncpy (str, s->u.shared_string, len + 1);
+        memcpy (str, s->u.shared_string, len);
         shared = s->u.shared_string;
         free_string (to_shared_str(shared));
         SET_SVALUE_MALLOC_STRING(s, str);
         break;
       }
     case STRING_CONSTANT:
-      SET_SVALUE_MALLOC_STRING(s,
-                               string_copy (s->u.const_string, "unlink_string_svalue"));
+      SET_SVALUE_MALLOC_STRING(s, string_copy (s->u.const_string, "unlink_string_svalue"));
       break;
     }
 }

@@ -841,15 +841,15 @@ regoptail (char *p, char *val)
 /*
  * Global work variables for regexec().
  */
-static char *reginput;		/* String-input pointer. */
-static char *regbol;		/* Beginning of input, for ^ check. */
-static char **regstartp;	/* Pointer to startp array. */
-static char **regendp;		/* Ditto for endp. */
+static const char *reginput;		/* String-input pointer. */
+static const char *regbol;		/* Beginning of input, for ^ check. */
+static const char **regstartp;	/* Pointer to startp array. */
+static const char **regendp;		/* Ditto for endp. */
 
 /*
  * Forwards.
  */
-static int regtry (regexp *, char *);
+static int regtry (regexp *, const char *);
 static int regmatch (char *);
 static int regrepeat (char *);
 
@@ -857,12 +857,12 @@ static int regrepeat (char *);
  - regexec - match a regexp against a string
  */
 int
-regexec (register regexp * prog, register char *string)
+regexec (regexp * prog, const char *string)
 {
-  register char *s;
+  register const char *s;
 
   /* Be paranoid... */
-  if (prog == (regexp *) NULL || string == (char *) NULL)
+  if (prog == (regexp *) NULL || string == NULL)
     {
       regerror ("NULL parameter\n");
       return (0);
@@ -920,11 +920,11 @@ regexec (register regexp * prog, register char *string)
  - regtry - try match at specific point
  */
 static int
-regtry (regexp * prog, char *string)
+regtry (regexp * prog, const char *string)
 {
   register int i;
-  register char **start;
-  register char **end;
+  register const char **start;
+  register const char **end;
 
   reginput = string;
   regstartp = prog->startp;
@@ -1039,7 +1039,7 @@ regmatch (char *prog)
         case OPEN + 9:
           {
             register int no;
-            register char *save;
+            register const char *save;
 
             no = OP (scan) - OPEN;
             save = reginput;
@@ -1069,7 +1069,7 @@ regmatch (char *prog)
         case CLOSE + 9:
           {
             register int no;
-            register char *save;
+            register const char *save;
 
             no = OP (scan) - CLOSE;
             save = reginput;
@@ -1090,7 +1090,7 @@ regmatch (char *prog)
           break;
         case BRANCH:
           {
-            register char *save;
+            register const char *save;
 
             if (OP (nxt) != BRANCH)	/* No choice. */
               nxt = OPERAND (scan);	/* Avoid recursion. */
@@ -1115,7 +1115,7 @@ regmatch (char *prog)
           {
             register char nextch;
             register int no;
-            register char *save;
+            register const char *save;
             register int minimum;
 
             /*
@@ -1168,7 +1168,7 @@ static int
 regrepeat (char *p)
 {
   size_t count = 0;
-  register char *scan;
+  register const char *scan;
   register char *opnd;
 
   scan = reginput;

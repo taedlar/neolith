@@ -114,7 +114,7 @@ data_size (object_t * ob)
 }
 
 void
-dumpstat (char *tfn)
+dumpstat (const char *tfn)
 {
   FILE *f;
   object_t *ob;

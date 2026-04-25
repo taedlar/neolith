@@ -23,12 +23,12 @@
 
 extern int sys_nerr;
 
-static int match_string (char *, char *);
-static int copy (char *from, char *to);
-static int do_move (char *from, char *to, int flag);
+static int match_string (const char *, const char *);
+static int copy (const char *from, const char *to);
+static int do_move (const char *from, const char *to, int flag);
 static int pstrcmp (const void *, const void *);
 static int parrcmp (const void *, const void *);
-static void encode_stat (svalue_t *, int, char *, struct stat *);
+static void encode_stat (svalue_t *, int, const char *, struct stat *);
 
 #define MAX_LINES 50
 
@@ -54,7 +54,7 @@ parrcmp (const void *p1, const void *p2)
 }
 
 static void
-encode_stat (svalue_t * vp, int flags, char *str, struct stat *st)
+encode_stat (svalue_t * vp, int flags, const char *str, struct stat *st)
 {
   if (flags == -1)
     {
@@ -100,7 +100,7 @@ encode_stat (svalue_t * vp, int flags, char *str, struct stat *st)
 #define MAX_FNAME_SIZE 255
 #define MAX_PATH_LEN   1024
 
-array_t* get_dir (char *path, int flags) {
+array_t* get_dir (const char *path, int flags) {
   array_t *v;
   int i, count = 0;
 #ifdef HAVE_DIRENT_H
@@ -304,7 +304,7 @@ array_t* get_dir (char *path, int flags) {
 }
 
 int
-tail (char *path)
+tail (const char *path)
 {
   char buff[1000];
   FILE *f;
@@ -343,7 +343,7 @@ tail (char *path)
 }
 
 int
-remove_file (char *path)
+remove_file (const char *path)
 {
   path = check_valid_path (path, current_object, "remove_file", 1);
 
@@ -418,7 +418,7 @@ int legal_path (const char *path) {
  *  @returns Return 0 for failure, otherwise 1.
  *  @see docs/efuns/write_file.md
  */
-int write_file (char *file, char *str, int flags)
+int write_file (const char *file, const char *str, int flags)
 {
   FILE *f;
   size_t n_written;
@@ -677,7 +677,7 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
 }
 
 int
-write_bytes (char *file, long start, char *str, size_t theLength)
+write_bytes (const char *file, long start, const char *str, size_t theLength)
 {
   struct stat st;
   size_t size;
@@ -732,7 +732,7 @@ write_bytes (char *file, long start, char *str, size_t theLength)
 }
 
 int
-file_size (char *file)
+file_size (const char *file)
 {
   struct stat st;
   int ret;
@@ -764,7 +764,7 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
   static char current_dir[] = ".";
   static svalue_t retained_path = { .type = T_NUMBER };
   svalue_t *v;
-  char* ret_path = 0;
+  const char* ret_path = 0;
 
   if (call_object == 0 || call_object->flags & O_DESTRUCTED)
     return 0;
@@ -796,9 +796,7 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
     }
 
   if (!ret_path)
-    {
-      ret_path = (char *)path;
-    }
+    ret_path = path;
 
   if (ret_path[0] == '/')
     ret_path++;
@@ -818,7 +816,7 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
 }
 
 static int
-match_string (char *match, char *str)
+match_string (const char *match, const char *str)
 {
   int i;
 
@@ -884,7 +882,7 @@ again:
  * Return 0 if success, or return non-zero if fails.
  * */
 static int
-copy (char *from, char *to)
+copy (const char *from, const char *to)
 {
   int ifd;
   int ofd;
@@ -972,7 +970,7 @@ copy (char *from, char *to)
    If TO is a directory, FROM must be also.
    Return 0 if successful, 1 if an error occurred.  */
 #ifdef F_RENAME
-static int do_move (char *from, char *to, int flag) {
+static int do_move (const char *from, const char *to, int flag) {
   if (flag == F_RENAME)
     {
       if (0 == rename (from, to))
@@ -1012,8 +1010,9 @@ static int do_move (char *from, char *to, int flag) {
  */
 
 #ifdef F_RENAME
-int do_rename (char *fr, char *t, int flag) {
-  char *from, *to, tbuf[3];
+int do_rename (const char *fr, const char *t, int flag) {
+  const char *from, *to;
+  char tbuf[3];
   char newfrom[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
   size_t flen;
   static svalue_t from_sv = { .type = T_NUMBER };
@@ -1044,15 +1043,15 @@ int do_rename (char *fr, char *t, int flag) {
   to = to_sv.u.malloc_string;
   if (!strlen (to) && !strcmp (t, "/"))
     {
+      sprintf (tbuf, "./");
       to = tbuf;
-      sprintf (to, "./");
     }
 
   /* Strip trailing slashes */
   flen = strlen (from);
   if (flen > 1 && from[flen - 1] == '/')
     {
-      char *p = from + flen - 2;
+      const char *p = from + flen - 2;
       ptrdiff_t n;
 
       while (*p == '/' && (p > from))
@@ -1066,7 +1065,7 @@ int do_rename (char *fr, char *t, int flag) {
   if (file_size (to) == -2)
     {
       /* Target is a directory; build full target filename. */
-      char *cp;
+      const char *cp;
       char newto[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
 
       cp = strrchr (from, '/');
@@ -1085,7 +1084,7 @@ int do_rename (char *fr, char *t, int flag) {
 }
 #endif /* F_RENAME */
 
-int copy_file (char *from, char *to) {
+int copy_file (const char *from, const char *to) {
   struct stat st;
   char buf[32768];
   int from_fd, to_fd;
@@ -1118,7 +1117,7 @@ int copy_file (char *from, char *to) {
   char newto[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
   if (0 == stat (to, &st) && (S_IFDIR & st.st_mode))
     {
-      char *cp;
+      const char *cp;
 
       cp = strrchr (from, '/');
       if (cp)

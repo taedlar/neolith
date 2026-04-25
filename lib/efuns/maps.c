@@ -109,7 +109,8 @@ void
 f_match_path (void)
 {
   svalue_t *value;
-  register char *src, *dst;
+  register const char *src;
+  register char *dst;
   svalue_t *nvalue;
   mapping_t *map;
   char *tmpstr;

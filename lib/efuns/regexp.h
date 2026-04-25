@@ -17,8 +17,8 @@ extern "C" {
 
 #define NSUBEXP  10
 typedef struct regexp {
-    char *startp[NSUBEXP];
-    char *endp[NSUBEXP];
+    const char *startp[NSUBEXP];
+    const char *endp[NSUBEXP];
     char regstart;		/* Internal use only. */
     char reganch;		/* Internal use only. */
     char *regmust;		/* Internal use only. */
@@ -32,7 +32,7 @@ extern char *regexp_error;
 
 void regdump(regexp *);
 regexp *regcomp(unsigned char *, int);
-int regexec(regexp *, char *);
+int regexec(regexp *, const char *);
 char *regsub(regexp *, char *, char *, int);
 
 
