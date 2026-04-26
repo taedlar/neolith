@@ -32,7 +32,6 @@
 
 size_t tot_alloc_object = 0, tot_alloc_object_size = 0;
 
-char *save_mapping (mapping_t * m);
 static int restore_array (const char **str, svalue_t *);
 static int restore_class (const char **str, svalue_t *);
 static int restore_interior_string (const char **val, svalue_t * sv);
@@ -1755,43 +1754,6 @@ void restore_variable (svalue_t * var, const char *str) {
       else if (rc & ROB_STRING_ERROR)
         error ("restore_object(): Illegal string format.\n");
     }
-}
-
-void tell_npc (object_t * ob, const char *str) {
-  copy_and_push_string (str);
-  APPLY_CALL (APPLY_CATCH_TELL, ob, 1, ORIGIN_DRIVER);
-}
-
-/*
- * tell_object: send a message to an object.
- * If it is an interactive object, it will go to his
- * screen. Otherwise, it will go to a local function
- * catch_tell() in that object. This enables communications
- * between users and NPC's, and between other NPC's.
- * If INTERACTIVE_CATCH_TELL is defined then the message always
- * goes to catch_tell unless the target of tell_object is interactive
- * and is the current_object in which case it is written via add_message().
- */
-void tell_object (object_t * ob, const char *str) {
-  if (!ob || (ob->flags & O_DESTRUCTED))
-    {
-      add_message (0, str);
-      return;
-    }
-
-  if (ob == master_ob || ob == simul_efun_ob)
-    {
-      debug_message ("*%s", str);
-      return;
-    }
-
-  /* if this is on, EVERYTHING goes through catch_tell() */
-#ifndef INTERACTIVE_CATCH_TELL
-  if (ob->interactive)
-    add_message (ob, str);
-  else
-#endif
-    tell_npc (ob, str);
 }
 
 static sentence_t *sent_free = 0;

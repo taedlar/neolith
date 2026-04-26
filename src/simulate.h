@@ -55,6 +55,7 @@ object_t *load_object(const char *name, const char *pre_text);
 void reset_load_object_limits();
 object_t *clone_object(const char *, int);
 object_t *environment(svalue_t *);
+array_t *all_inventory(object_t *, int);
 object_t *first_inventory(svalue_t *);
 object_t *object_present(svalue_t *, object_t *);
 object_t *find_or_load_object(const char *);
@@ -68,6 +69,7 @@ void remove_destructed_objects(void);
 void do_write(svalue_t *);
 void do_message(svalue_t *, svalue_t *, array_t *, array_t *, int);
 void say(svalue_t *, array_t *);
+void tell_object(object_t *, const char *);
 void tell_room(object_t *, svalue_t *, array_t *);
 void shout_string(const char *);
 

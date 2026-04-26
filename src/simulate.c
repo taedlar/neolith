@@ -1338,6 +1338,43 @@ void say (svalue_t * v, array_t * avoid) {
   command_giver = save_command_giver;
 }
 
+static void tell_npc (object_t * ob, const char *str) {
+  copy_and_push_string (str);
+  APPLY_CALL (APPLY_CATCH_TELL, ob, 1, ORIGIN_DRIVER);
+}
+
+/*
+ * tell_object: send a message to an object.
+ * If it is an interactive object, it will go to his
+ * screen. Otherwise, it will go to a local function
+ * catch_tell() in that object. This enables communications
+ * between users and NPC's, and between other NPC's.
+ * If INTERACTIVE_CATCH_TELL is defined then the message always
+ * goes to catch_tell unless the target of tell_object is interactive
+ * and is the current_object in which case it is written via add_message().
+ */
+void tell_object (object_t * ob, const char *str) {
+  if (!ob || (ob->flags & O_DESTRUCTED))
+    {
+      add_message (0, str);
+      return;
+    }
+
+  if (ob == master_ob || ob == simul_efun_ob)
+    {
+      debug_message ("*%s", str);
+      return;
+    }
+
+  /* if this is on, EVERYTHING goes through catch_tell() */
+#ifndef INTERACTIVE_CATCH_TELL
+  if (ob->interactive)
+    add_message (ob, str);
+  else
+#endif
+    tell_npc (ob, str);
+}
+
 /*
  * Sends a string to all objects inside of a specific object.
  * Revised, bobf@metronet.com 9/6/93
@@ -2070,7 +2107,6 @@ void do_message (svalue_t * msg_class, svalue_t * msg, array_t * scope, array_t 
 }
 
 
-#ifdef F_FIRST_INVENTORY
 object_t* first_inventory (svalue_t * arg) {
   object_t *ob;
 
@@ -2100,7 +2136,59 @@ object_t* first_inventory (svalue_t * arg) {
     }
   return 0;
 }
-#endif
+
+/* Returns an array of all objects contained in 'ob' */
+array_t* all_inventory (object_t * ob, int override_master) {
+  array_t *d;
+  object_t *cur;
+  int cnt, res;
+  int display_hidden;
+
+  if (override_master)
+    {
+      display_hidden = 1;
+    }
+  else
+    {
+      display_hidden = -1;
+    }
+  cnt = 0;
+  for (cur = ob->contains; cur; cur = cur->next_inv)
+    {
+      if (cur->flags & O_HIDDEN)
+        {
+          if (display_hidden == -1)
+            {
+              display_hidden = valid_hide (current_object);
+            }
+          if (display_hidden)
+            cnt++;
+        }
+      else
+        cnt++;
+    }
+
+  if (!cnt)
+    return &the_null_array;
+
+  d = allocate_empty_array (cnt);
+  cur = ob->contains;
+
+  for (res = 0; res < cnt; res++)
+    {
+      if ((cur->flags & O_HIDDEN) && !display_hidden)
+        {
+          cur = cur->next_inv;
+          res--;
+          continue;
+        }
+      d->item[res].type = T_OBJECT;
+      d->item[res].u.ob = cur;
+      add_ref (cur, "all_inventory");
+      cur = cur->next_inv;
+    }
+  return d;
+}
 
 int mud_state() {
   if (proceeding_fatal_error)

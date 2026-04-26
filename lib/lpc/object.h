@@ -111,8 +111,6 @@ int object_visible(object_t *);
 void set_living_name(object_t *, const char *);
 void remove_living_name(object_t *);
 void stat_living_objects(outbuffer_t *);
-void tell_npc(object_t *, const char *);
-void tell_object(object_t *, const char *);
 int find_global_variable(program_t *, const char *, unsigned short *);
 void dealloc_object(object_t *, const char *);
 

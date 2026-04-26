@@ -10,6 +10,7 @@
 #include "lpc/buffer.h"
 #include "lpc/functional.h"
 #include "lpc/operator.h"
+#include "regexp.h"
 #include "sprintf.h"
 
 #ifdef F_CAPITALIZE
@@ -297,6 +298,183 @@ void f_explode (void) {
 
 
 #ifdef F_REG_ASSOC
+/*
+ * write(sprintf("%O", reg_assoc("testhahatest", ({ "haha", "te" }),
+ *              ({ 2,3 }), 4)));
+
+ * --------
+ * ({
+ *   ({ "", "te", "st", "haha", "", "te", "st" }),
+ *   ({  4,    3,    4,      2,  4,    3,   4  })
+ * })
+ *
+ */
+static array_t *
+reg_assoc (const char *str, array_t * pat, array_t * tok, svalue_t * def)
+{
+  int i, size;
+  const char *tmp;
+  array_t *ret;
+
+  regexp_user = EFUN_REGEXP;
+  if ((size = pat->size) != tok->size)
+    error ("Pattern and token array sizes must be identical.\n");
+
+  for (i = 0; i < size; i++)
+    {
+      if (!(pat->item[i].type == T_STRING))
+        error ("Non-string found in pattern array.\n");
+    }
+
+  ret = allocate_empty_array (2);
+
+  if (size)
+    {
+      struct regexp **rgpp;
+      struct reg_match
+      {
+        int tok_i;
+        const char *begin, *end;
+        struct reg_match *next;
+      }
+       *rmp = (struct reg_match *) 0, *rmph = (struct reg_match *) 0;
+      int num_match = 0;
+      svalue_t *sv1, *sv2, *sv;
+      int index;
+      struct regexp *tmpreg;
+      const char *laststart, *currstart;
+
+      rgpp =
+        CALLOCATE (size, struct regexp *, TAG_TEMPORARY, "reg_assoc : rgpp");
+      for (i = 0; i < size; i++)
+        {
+          if (!
+              (rgpp[i] =
+               regcomp ((unsigned char *) SVALUE_STRPTR(&pat->item[i]), 0)))
+            {
+              while (i--)
+                FREE ((char *) rgpp[i]);
+              FREE ((char *) rgpp);
+              free_empty_array (ret);
+              error (regexp_error);
+            }
+        }
+
+      tmp = str;
+      while (*tmp)
+        {
+
+          /* Sigh - need a kludge here - Randor */
+          /* In the future I may alter regexp.c to include branch info */
+          /* so as to minimize checks here - Randor 5/30/94 */
+
+          laststart = 0;
+          index = -1;
+
+          for (i = 0; i < size; i++)
+            {
+              if (regexec (tmpreg = rgpp[i], tmp))
+                {
+                  currstart = tmpreg->startp[0];
+                  if (tmp == currstart)
+                    {
+                      index = i;
+                      break;
+                    }
+                  if (!laststart || currstart < laststart)
+                    {
+                      laststart = currstart;
+                      index = i;
+                    }
+                }
+            }
+
+          if (index >= 0)
+            {
+              num_match++;
+              if (rmp)
+                {
+                  rmp->next = ALLOCATE (struct reg_match, TAG_TEMPORARY, "reg_assoc : rmp->next");
+                  rmp = rmp->next;
+                }
+              else
+                rmph = rmp = ALLOCATE (struct reg_match, TAG_TEMPORARY, "reg_assoc : rmp");
+              tmpreg = rgpp[index];
+              rmp->begin = tmpreg->startp[0];
+              rmp->end = tmp = tmpreg->endp[0];
+              rmp->tok_i = index;
+              rmp->next = (struct reg_match *) 0;
+            }
+          else
+            break;
+
+          /* The following is from regexplode, to prevent i guess infinite */
+          /* loops on "" patterns - Randor 5/29/94 */
+          if (rmp->begin == tmp && (!*++tmp))
+            break;
+        }
+
+      sv = ret->item;
+      sv->type = T_ARRAY;
+      sv1 = (sv->u.arr = allocate_empty_array (2 * num_match + 1))->item;
+
+      sv++;
+      sv->type = T_ARRAY;
+      sv2 = (sv->u.arr = allocate_empty_array (2 * num_match + 1))->item;
+
+      rmp = rmph;
+
+      tmp = str;
+
+      while (num_match--)
+        {
+          char *svtmp;
+          size_t length;
+
+          length = rmp->begin - tmp;
+          SET_SVALUE_MALLOC_STRING (sv1, svtmp = new_string (length, "reg_assoc : sv1"));
+          strncpy (svtmp, tmp, length);
+          svtmp[length] = 0;
+          sv1++;
+          assign_svalue_no_free (sv2++, def);
+          tmp += length;
+          length = rmp->end - rmp->begin;
+          SET_SVALUE_MALLOC_STRING (sv1, svtmp = new_string (length, "reg_assoc : sv1"));
+          strncpy (svtmp, tmp, length);
+          svtmp[length] = 0;
+          sv1++;
+          assign_svalue_no_free (sv2++, &tok->item[rmp->tok_i]);
+          tmp += length;
+          rmp = rmp->next;
+        }
+      SET_SVALUE_MALLOC_STRING (sv1, string_copy (tmp, "reg_assoc"));
+      assign_svalue_no_free (sv2, def);
+      for (i = 0; i < size; i++)
+        FREE ((char *) rgpp[i]);
+      FREE ((char *) rgpp);
+
+      while ((rmp = rmph))
+        {
+          rmph = rmp->next;
+          FREE ((char *) rmp);
+        }
+      return ret;
+    }
+  else
+    {				/* Default match */
+      svalue_t *temp;
+      svalue_t *sv;
+
+      (sv = ret->item)->type = T_ARRAY;
+      temp = (sv->u.arr = allocate_empty_array (1))->item;
+      SET_SVALUE_MALLOC_STRING (temp, string_copy (str, "reg_assoc"));
+      sv = &ret->item[1];
+      sv->type = T_ARRAY;
+      assign_svalue_no_free ((sv->u.arr = allocate_empty_array (1))->item, def);
+      return ret;
+    }
+}
+
 void f_reg_assoc (void) {
   svalue_t *arg;
   array_t *vec;
@@ -322,6 +500,88 @@ void f_reg_assoc (void) {
 
 
 #ifdef F_REGEXP
+static int
+match_single_regexp (const char *str, const char *pattern)
+{
+  struct regexp *reg;
+  int ret;
+
+  regexp_user = EFUN_REGEXP;
+  reg = regcomp ((unsigned char *) pattern, 0);
+  if (!reg)
+    error (regexp_error);
+  ret = regexec (reg, str);
+  FREE ((char *) reg);
+  return ret;
+}
+
+static array_t *
+match_regexp (array_t * v, const char *pattern, int flag)
+{
+  struct regexp *reg;
+  char *res;
+  int num_match, size, match = !(flag & 2);
+  array_t *ret;
+  svalue_t *sv1, *sv2;
+
+  regexp_user = EFUN_REGEXP;
+  if (!(size = v->size))
+    return &the_null_array;
+  reg = regcomp ((unsigned char *) pattern, 0);
+  if (!reg)
+    error (regexp_error);
+  res = (char *) DMALLOC (size, TAG_TEMPORARY, "match_regexp: res");
+  sv1 = v->item + size;
+  num_match = 0;
+  while (size--)
+    {
+      if (!((--sv1)->type == T_STRING)
+          || (regexec (reg, SVALUE_STRPTR(sv1)) != match))
+        {
+          res[size] = 0;
+        }
+      else
+        {
+          res[size] = 1;
+          num_match++;
+        }
+    }
+
+  flag &= 1;
+  ret = allocate_empty_array (num_match << flag);
+  sv2 = ret->item + (num_match << flag);
+  size = v->size;
+  while (size--)
+    {
+      if (res[size])
+        {
+          if (flag)
+            {
+              (--sv2)->type = T_NUMBER;
+              sv2->u.number = size + 1;
+            }
+          (--sv2)->type = T_STRING;
+          sv1 = v->item + size;
+          *sv2 = *sv1;
+          if (sv1->subtype == STRING_MALLOC)
+            {
+              INC_COUNTED_REF (sv1->u.malloc_string);
+              ADD_STRING (MSTR_SIZE (sv1->u.malloc_string));
+            }
+          else if (sv1->subtype == STRING_SHARED)
+            {
+              INC_COUNTED_REF (sv1->u.shared_string);
+              ADD_STRING (MSTR_SIZE (sv1->u.shared_string));
+            }
+          if (!--num_match)
+            break;
+        }
+    }
+  FREE (res);
+  FREE ((char *) reg);
+  return ret;
+}
+
 void f_regexp (void) {
   array_t *v;
   int flag;

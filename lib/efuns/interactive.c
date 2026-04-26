@@ -51,9 +51,47 @@ void f_userp (void) {
 
 
 #ifdef F_USERS
-void
-f_users (void)
-{
+static array_t* users () {
+
+  register object_t *ob;
+  int i, j;
+  int display_hidden = 0;
+  array_t *ret;
+
+  if (num_hidden > 0)
+    {
+      if (current_object->flags & O_HIDDEN)
+        {
+          display_hidden = 1;
+        }
+      else
+        {
+          display_hidden = valid_hide (current_object);
+        }
+    }
+
+  ret = allocate_empty_array (num_user - (display_hidden ? 0 : num_hidden));
+
+  for (i = j = 0; i < max_users; i++)
+    {
+      if (!all_users[i])
+        continue;
+
+      ob = all_users[i]->ob;
+
+      if (!display_hidden && (ob->flags & O_HIDDEN))
+        continue;
+
+      ret->item[j].type = T_OBJECT;
+      ret->item[j].u.ob = ob;
+      add_ref (ob, "users");
+      j++;
+    }
+
+  return ret;
+}
+
+void f_users (void) {
   push_refed_array (users ());
 }
 #endif

@@ -52,6 +52,50 @@ f_living (void)
 
 
 #ifdef F_LIVINGS
+static array_t* livings () {
+  int nob, apply_valid_hide, hide_is_valid = 0;
+  object_t *ob, **obtab;
+  array_t *vec;
+
+  nob = 0;
+  apply_valid_hide = 1;
+
+  obtab =
+    CALLOCATE (CONFIG_INT (__MAX_ARRAY_SIZE__), object_t *, TAG_TEMPORARY,
+               "livings");
+
+  for (ob = obj_list; ob != NULL; ob = ob->next_all)
+    {
+      if ((ob->flags & O_ENABLE_COMMANDS) == 0)
+        continue;
+      if (ob->flags & O_HIDDEN)
+        {
+          if (apply_valid_hide)
+            {
+              apply_valid_hide = 0;
+              hide_is_valid = valid_hide (current_object);
+            }
+          if (!hide_is_valid)
+            continue;
+        }
+      if (nob == CONFIG_INT (__MAX_ARRAY_SIZE__))
+        break;
+      obtab[nob++] = ob;
+    }
+
+  vec = allocate_empty_array (nob);
+  while (--nob >= 0)
+    {
+      vec->item[nob].type = T_OBJECT;
+      vec->item[nob].u.ob = obtab[nob];
+      add_ref (obtab[nob], "livings");
+    }
+
+  FREE (obtab);
+
+  return vec;
+}
+
 void
 f_livings (void)
 {
@@ -278,9 +322,42 @@ f_command (void)
 
 
 #ifdef F_COMMANDS
-void
-f_commands (void)
-{
+static array_t* commands (object_t * ob) {
+  sentence_t *s;
+  array_t *v, *p;
+  int cnt = 0;
+  svalue_t *sv;
+
+  for (s = ob->sent; s && s->verb; s = s->next)
+    {
+      if (++cnt == CONFIG_INT (__MAX_ARRAY_SIZE__))
+        break;
+    }
+  v = allocate_empty_array (cnt);
+  sv = v->item;
+  for (s = ob->sent; cnt-- && s && s->verb; s = s->next)
+    {
+      sv->type = T_ARRAY;
+      (sv++)->u.arr = p = allocate_empty_array (4);
+      SET_SVALUE_SHARED_STRING (&p->item[0], ref_string (to_shared_str (s->verb))); /* the verb is shared */
+      p->item[1].type = T_NUMBER;
+      p->item[1].u.number = s->flags;
+      p->item[2].type = T_OBJECT;
+      p->item[2].u.ob = s->ob;
+      if (s->flags & V_FUNCTION)
+        {
+          SET_SVALUE_CONSTANT_STRING (&p->item[3], "<function>");
+        }
+      else
+        {
+          SET_SVALUE_SHARED_STRING (&p->item[3], ref_string (to_shared_str (s->function.s)));
+        }
+      add_ref (s->ob, "commands");
+    }
+  return v;
+}
+
+void f_commands (void) {
   push_refed_array (commands (current_object));
 }
 #endif
