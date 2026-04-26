@@ -162,6 +162,24 @@ void f_read_file (void) {
 #endif
 
 
+#ifdef F_TAIL
+void
+f_tail (void)
+{
+  if (tail (SVALUE_STRPTR(sp)))
+    {
+      free_string_svalue (sp);
+      *sp = const1;
+    }
+  else
+    {
+      free_string_svalue (sp);
+      *sp = const0;
+    }
+}
+#endif
+
+
 #ifdef F_WRITE_FILE
 void f_write_file (void) {
   int flags = 0;

@@ -1221,13 +1221,6 @@ void add_mapping_string (mapping_t * m, const char *key, const char *value) {
   SET_SVALUE_SHARED_STRING (s, make_shared_string (value, NULL));
 }
 
-void add_mapping_malloced_string (mapping_t * m, char *key, char *value) {
-  svalue_t *s;
-
-  s = insert_in_mapping (m, key);
-  SET_SVALUE_MALLOC_STRING (s, value);
-}
-
 void add_mapping_object (mapping_t * m, const char *key, object_t * value) {
   svalue_t *s;
 

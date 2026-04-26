@@ -56,6 +56,71 @@ f_allocate_buffer (void)
 
 
 #ifdef F_CHILDREN
+static array_t* children (const char *str) {
+
+  int i, j;
+  int t_sz;
+  size_t sl, ol;
+  object_t *ob;
+  object_t **tmp_children;
+  array_t *ret;
+  int display_hidden;
+  char tmpbuf[MAX_OBJECT_NAME_SIZE];
+
+  display_hidden = -1;
+  if (!strip_name (str, tmpbuf, sizeof tmpbuf))
+    return &the_null_array;
+
+  sl = strlen (tmpbuf);
+
+  if (!(tmp_children = (object_t **)
+        DMALLOC (sizeof (object_t *) * (t_sz = 50),
+                 TAG_TEMPORARY, "children: tmp_children")))
+    return &the_null_array;	/* unable to malloc enough temp space */
+
+  for (i = 0, ob = obj_list; ob; ob = ob->next_all)
+    {
+      ol = strlen (ob->name);
+      if (((ol == sl) || ((ol > sl) && (ob->name[sl] == '#')))
+          && !strncmp (tmpbuf, ob->name, sl))
+        {
+          if (ob->flags & O_HIDDEN)
+            {
+              if (display_hidden == -1)
+                {
+                  display_hidden = valid_hide (current_object);
+                }
+              if (!display_hidden)
+                continue;
+            }
+          tmp_children[i] = ob;
+          if ((++i == t_sz) && (!(tmp_children
+                                  =
+                                  RESIZE (tmp_children, (t_sz += 50),
+                                          object_t *, TAG_TEMPORARY,
+                                          "children: tmp_children: realloc"))))
+            {
+              /* unable to REALLOC more space 
+               * (tmp_children is now NULL) */
+              return &the_null_array;
+            }
+        }
+    }
+  if (i > CONFIG_INT (__MAX_ARRAY_SIZE__))
+    {
+      i = CONFIG_INT (__MAX_ARRAY_SIZE__);
+    }
+  ret = allocate_empty_array (i);
+  for (j = 0; j < i; j++)
+    {
+      ret->item[j].type = T_OBJECT;
+      ret->item[j].u.ob = tmp_children[j];
+      add_ref (tmp_children[j], "children");
+    }
+  FREE ((void *) tmp_children);
+  return ret;
+}
+
 void
 f_children (void)
 {
@@ -86,7 +151,148 @@ f_clone_object (void)
 #endif
 
 
+#ifdef F_OBJECTS
+void
+f_objects (void)
+{
+  const char *func = NULL;
+  object_t *ob, **tmp;
+  array_t *ret;
+  funptr_t *f = 0;
+  int display_hidden = 0, t_sz, i, j, num_arg = st_num_arg;
+  svalue_t *v;
+
+  if (!num_arg)
+    func = 0;
+  else if (sp->type == T_FUNCTION)
+    f = sp->u.fp;
+  else
+    func = SVALUE_STRPTR(sp);
+
+  if (!(tmp = (object_t **) new_string ((t_sz = 1000) * sizeof (object_t *),
+                                        "TMP: objects: tmp")))
+    fatal ("Out of memory!\n");
+
+  push_malloced_string ((char *) tmp);
+
+  for (i = 0, ob = obj_list; ob; ob = ob->next_all)
+    {
+      if (ob->flags & O_HIDDEN)
+        {
+          if (!display_hidden)
+            display_hidden = 1 + !!valid_hide (current_object);
+          if (!(display_hidden & 2))
+            continue;
+        }
+      if (f)
+        {
+          push_object (ob);
+          v = CALL_FUNCTION_POINTER_SLOT_CALL (f, 1);
+          if (!v)
+            {
+              CALL_FUNCTION_POINTER_SLOT_FINISH();
+              FREE_MSTR ((char *) tmp);
+              sp--;
+              free_svalue (sp, "f_objects");
+              *sp = const0;
+              return;
+            }
+          if (v->type == T_NUMBER && !v->u.number)
+            {
+              CALL_FUNCTION_POINTER_SLOT_FINISH();
+              continue;
+            }
+          CALL_FUNCTION_POINTER_SLOT_FINISH();
+        }
+      else if (func)
+        {
+          push_object (ob);
+          v = APPLY_SLOT_CALL (func, current_object, 1, ORIGIN_EFUN);
+          if (!v)
+            {
+              APPLY_SLOT_FINISH_CALL();
+              FREE_MSTR ((char *) tmp);
+              sp--;
+              free_svalue (sp, "f_objects");
+              *sp = const0;
+              return;
+            }
+          if ((v->type == T_NUMBER) && !v->u.number)
+            {
+              APPLY_SLOT_FINISH_CALL();
+              continue;
+            }
+          APPLY_SLOT_FINISH_CALL();
+        }
+
+      tmp[i] = ob;
+      if (++i == t_sz)
+        {
+          if (!
+              (tmp =
+               (object_t **) extend_string ((char *) tmp,
+                                            (t_sz +=
+                                             1000) * sizeof (object_t *))))
+            fatal ("Out of memory!\n");
+          else
+            sp->u.malloc_string = (char *) tmp;
+        }
+    }
+  if (i > CONFIG_INT (__MAX_ARRAY_SIZE__))
+    i = CONFIG_INT (__MAX_ARRAY_SIZE__);
+  ret = allocate_empty_array (i);
+  for (j = 0; j < i; j++)
+    {
+      ret->item[j].type = T_OBJECT;
+      ret->item[j].u.ob = tmp[j];
+      add_ref (tmp[j], "objects");
+    }
+
+  FREE_MSTR ((char *) tmp);
+  sp--;
+  pop_n_elems (num_arg);
+  (++sp)->type = T_ARRAY;
+  sp->u.arr = ret;
+}
+#endif
+
+
 #ifdef F_DEEP_INHERIT_LIST
+/*
+ * Returns a list of all inherited files.
+ *
+ * Must be fixed so that any number of files can be returned, now max 256
+ * (Sounds like a contradiction to me /Lars).
+ */
+static array_t *
+deep_inherit_list (object_t * ob)
+{
+  array_t *ret;
+  program_t *pr, *plist[256];
+  int il, il2, next, cur;
+
+  plist[0] = ob->prog;
+  next = 1;
+  cur = 0;
+
+  for (; cur < next && next < 256; cur++)
+    {
+      pr = plist[cur];
+      for (il2 = 0; il2 < (int) pr->num_inherited; il2++)
+        plist[next++] = pr->inherit[il2].prog;
+    }
+
+  next--;
+  ret = allocate_empty_array (next);
+
+  for (il = 0; il < next; il++)
+    {
+      pr = plist[il + 1];
+      SET_SVALUE_MALLOC_STRING (&ret->item[il], add_slash (pr->name));
+    }
+  return ret;
+}
+
 void
 f_deep_inherit_list (void)
 {
@@ -385,6 +591,38 @@ f_inherits (void)
 
 
 #ifdef F_SHALLOW_INHERIT_LIST
+/*
+ * Returns a list of the immediate inherited files.
+ *
+ */
+static array_t *
+inherit_list (object_t * ob)
+{
+  array_t *ret;
+  program_t *pr, *plist[256];
+  int il, il2, next, cur;
+
+  plist[0] = ob->prog;
+  next = 1;
+  cur = 0;
+
+  pr = plist[cur];
+  for (il2 = 0; il2 < (int) pr->num_inherited; il2++)
+    {
+      plist[next++] = pr->inherit[il2].prog;
+    }
+
+  next--;			/* don't count the file itself */
+  ret = allocate_empty_array (next);
+
+  for (il = 0; il < next; il++)
+    {
+      pr = plist[il + 1];
+      SET_SVALUE_MALLOC_STRING (&ret->item[il], add_slash (pr->name));
+    }
+  return ret;
+}
+
 void
 f_shallow_inherit_list (void)
 {

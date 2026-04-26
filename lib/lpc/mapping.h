@@ -36,22 +36,6 @@ struct mapping_s {
     int count;                  /* total # of nodes actually in mapping  */
 };
 
-typedef struct finfo_s {
-    char *func;
-    object_t *obj;
-    svalue_t *extra;
-    funptr_t *fp;
-}       finfo_t;
-
-typedef struct vinfo_s {
-    array_t *v;
-    int pos, size, w;
-}       vinfo_t;
-
-typedef struct minfo_s {
-    mapping_t *map, *newmap;
-}       minfo_t;
-
 #define mapping_too_large()     error("Mapping too large.\n");
 
 #ifndef max
@@ -66,7 +50,6 @@ extern int total_mapping_size;
 extern int total_mapping_nodes;
 
 int msameval(svalue_t *, svalue_t *);
-int mapping_save_size(mapping_t *);
 typedef int(*map_func_t)(mapping_t *, mapping_node_t *, void *);
 mapping_t *mapTraverse(mapping_t *, map_func_t, void *);
 mapping_t *load_mapping_from_aggregate(svalue_t *, int);
@@ -85,14 +68,10 @@ void filter_mapping(svalue_t *, int);
 mapping_t *compose_mapping(mapping_t *, mapping_t *, unsigned short);
 array_t *mapping_indices(mapping_t *);
 array_t *mapping_values(mapping_t *);
-array_t *mapping_each(mapping_t *);
-char *save_mapping(mapping_t *);
 void dealloc_mapping(mapping_t *);
-void mark_mapping_node_blocks(void);
 
 void add_mapping_pair(mapping_t *, const char *, int);
 void add_mapping_string(mapping_t *, const char *, const char *);
-void add_mapping_malloced_string(mapping_t *, char *, char *);
 void add_mapping_object(mapping_t *, const char *, object_t *);
 void add_mapping_array(mapping_t *, const char *, array_t *);
 void add_mapping_shared_string(mapping_t *, char *, char *);
