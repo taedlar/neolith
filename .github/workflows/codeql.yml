@@ -67,7 +67,10 @@ jobs:
     - name: Dependency caching
       uses: actions/cache@v4
       with:
-        path: out/build/linux/_deps
+        path: |
+          out/build/linux/_deps
+          out/build/linux/openssl
+
         key: ${{ runner.os }}-codeql-deps-${{ hashFiles('**/CMakeLists.txt') }}
         restore-keys: |
           ${{ runner.os }}-build-
