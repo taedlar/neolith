@@ -8,7 +8,6 @@ add_executable(test_backend
 )
 
 target_link_libraries(test_backend PRIVATE stem GTest::gtest_main)
-target_compile_definitions(test_backend PRIVATE UNITTESTING_BACKEND)
 
 # setup testing data
 # (the default working directory is ${CMAKE_CURRENT_BINARY_DIR} when running tests)

@@ -75,14 +75,9 @@ void *neolith::heap::allocation_scope::allocate(size_t size, bool zeroed, bool n
       return nullptr;
     }
 
-  if (zeroed)
-    {
-      ptr = std::calloc(1, size);
-    }
-  else
-    {
-      ptr = no_fail ? static_cast<void *>(xalloc(size)) : std::malloc(size);
-    }
+  ptr = no_fail ? static_cast<void *>(xalloc(size)) : std::malloc(size);
+  if (ptr && zeroed)
+    std::memset(ptr, 0, size);
 
   if (ptr && !track_in_current_scope(ptr))
     {
@@ -117,18 +112,16 @@ neolith::heap::allocation_scope *&neolith::heap::allocation_scope::current_scope
 
 bool neolith::heap::allocation_scope::reserve_tracking_slot(allocation_scope *scope) noexcept {
   if (!scope)
-    {
-      return true;
-    }
+    return true;
 
+  // for unit-tests
   if (reserve_test_hook_ && reserve_test_hook_())
-    {
-      return false;
-    }
+    return false;
 
   try
     {
-      scope->tracked_.reserve(scope->tracked_.size() + 1);
+      if (scope->tracked_.size() == scope->tracked_.capacity())
+        scope->tracked_.reserve(scope->tracked_.size() + 16); // pre-reserve some extra capacity to avoid frequent reallocations
     }
   catch (...)
     {
@@ -173,9 +166,11 @@ neolith::heap::allocation_scope *neolith::heap::allocation_scope::find_owner(voi
   return nullptr;
 }
 
+#ifdef HAVE_GTEST
 void neolith::heap::allocation_scope::set_reserve_test_hook(reserve_test_hook_t hook) noexcept {
   reserve_test_hook_ = hook;
 }
+#endif
 
 bool neolith::heap::allocation_scope::contains(void *ptr) const noexcept {
   return std::find(tracked_.begin(), tracked_.end(), ptr) != tracked_.end();
@@ -261,11 +256,8 @@ void *neolith::heap::allocation_scope::reallocate(void *ptr, size_t size) noexce
     }
   else
     {
-      if (!track_in_current_scope(new_ptr))
-        {
-          std::free(new_ptr);
-          return nullptr;
-        }
+      // reserve_tracking_slot() pre-reserved capacity above, so push_back cannot throw or fail here.
+      track_in_current_scope(new_ptr);
     }
 
   return new_ptr;

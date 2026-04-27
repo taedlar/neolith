@@ -11,7 +11,7 @@
 
 using neolith::heap::allocation_scope;
 
-namespace {
+namespace neolith::heap {
 
 bool fail_reserve_for_test() noexcept {
   return true;
@@ -160,4 +160,4 @@ TEST_F(HeapAllocationTest, ReallocateUntrackedPointerPreservesOriginalWhenReserv
   std::free(raw_ptr);
 }
 
-} // namespace
+} // namespace neolith::heap

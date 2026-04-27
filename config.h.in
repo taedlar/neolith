@@ -43,6 +43,8 @@
 #cmakedefine HAVE_CURL
 #cmakedefine HAVE_CARES
 
+#cmakedefine HAVE_GTEST
+
 /* MudOS options */
 #include "options.h"
 

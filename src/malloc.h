@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
@@ -23,6 +24,10 @@ char *xalloc(size_t);
 
 #include <cstdint>
 #include <vector>
+#ifdef HAVE_GTEST
+/* for FRIEND_TEST */
+#include <gtest/gtest_prod.h>
+#endif
 
 namespace neolith::heap {
 
@@ -75,7 +80,7 @@ public:
    * If reallocation fails, original ptr is still valid and unchanged, caller should handle this case.
    * @param ptr Pointer to previously allocated memory (or nullptr).
    * @param size New size of memory to allocate.
-   * @return Pointer to reallocated memory, or nullptr on failure if no_fail is false.
+   * @return Pointer to reallocated memory, or nullptr on failure.
    *  Original ptr is unchanged on failure.
    */
   static void *reallocate(void *ptr, size_t size) noexcept;
@@ -88,19 +93,28 @@ public:
    */
   static void deallocate(void *ptr) noexcept;
 
-#ifdef UNITTESTING_BACKEND
-public:
-#else
 private:
-#endif
+#ifdef HAVE_GTEST
+  /* white-box testing */
+  friend class HeapAllocationTest;
+  FRIEND_TEST(HeapAllocationTest, AllocateReturnsNullWhenReservePreflightFails);
+  FRIEND_TEST(HeapAllocationTest, ReallocateUntrackedPointerAdoptsResultIntoCurrentScope);
+  FRIEND_TEST(HeapAllocationTest, ReallocateNullBehavesLikeAllocateAndTracksResult);
+  FRIEND_TEST(HeapAllocationTest, ScopeTracksAllocationAndReleaseRemovesOwnership);
+  FRIEND_TEST(HeapAllocationTest, NestedScopeRestoresParentScope);
+  FRIEND_TEST(HeapAllocationTest, ReallocateZeroFreesTrackedPointerAndClearsOwnership);
+  FRIEND_TEST(HeapAllocationTest, ReallocateUntrackedPointerPreservesOriginalWhenReservePreflightFails);
+  FRIEND_TEST(HeapAllocationTest, ReallocateTrackedPointerUpdatesTrackedSlot);
   using reserve_test_hook_t = bool (*)() noexcept;
+  static void set_reserve_test_hook(reserve_test_hook_t hook) noexcept;
+  static reserve_test_hook_t reserve_test_hook_;
+#endif
 
   /** @brief Get the current allocation scope for the thread. */
   static allocation_scope *&current_scope() noexcept;
   static bool reserve_tracking_slot(allocation_scope *scope) noexcept;
   static bool track_in_current_scope(void *ptr) noexcept;
   static allocation_scope *find_owner(void *ptr) noexcept;
-  static void set_reserve_test_hook(reserve_test_hook_t hook) noexcept;
 
   bool contains(void *ptr) const noexcept;
   size_t index_of(void *ptr) const noexcept;
@@ -111,7 +125,6 @@ private:
   allocation_scope *parent_;
   bool active_;
   std::vector<void *> tracked_;
-  static reserve_test_hook_t reserve_test_hook_;
 
   static constexpr size_t npos = static_cast<size_t>(-1);
 };
