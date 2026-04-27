@@ -16,7 +16,7 @@ extern "C" {
  *  FREE - free memory allocated by any of the above.
  */
 extern char *reserved_area;
-extern char *xalloc(size_t);
+char *xalloc(size_t);
 
 #ifdef __cplusplus
 }
@@ -39,7 +39,7 @@ public:
 	allocation_scope(const allocation_scope &) = delete;
 	allocation_scope &operator=(const allocation_scope &) = delete;
 
-	~allocation_scope();
+	~allocation_scope() noexcept;
 
 	void dismiss() noexcept;
 
@@ -53,36 +53,26 @@ public:
 	 */
 	static void *release(void *ptr) noexcept;
 
-	static void *allocate(size_t size, bool zeroed, bool no_fail);
+	static void *allocate(size_t size, bool zeroed, bool no_fail) noexcept;
 
-	static void *reallocate(void *ptr, size_t size);
+	static void *reallocate(void *ptr, size_t size) noexcept;
 
-	static void deallocate(void *ptr);
+	static void deallocate(void *ptr) noexcept;
 
 private:
-	static allocation_scope *&current_scope();
+	static allocation_scope *&current_scope() noexcept;
 
-	static void track_in_current_scope(void *ptr);
+	static bool track_in_current_scope(void *ptr) noexcept;
 
-	static allocation_scope *find_owner(void *ptr);
+	static allocation_scope *find_owner(void *ptr) noexcept;
 
-	static int find_owner_depth_addr(uintptr_t ptr_addr);
+	bool contains(void *ptr) const noexcept;
 
-	static allocation_scope *scope_at_depth(int depth);
+	size_t index_of(void *ptr) const noexcept;
 
-	bool contains(void *ptr) const;
+	void erase(void *ptr) noexcept;
 
-	bool contains_addr(uintptr_t ptr_addr) const;
-
-	size_t index_of_addr(uintptr_t ptr_addr) const;
-
-	void erase(void *ptr);
-
-	void erase_at(size_t index);
-
-	void replace_at(size_t index, void *new_ptr);
-
-	void insert_at_or_push(size_t index, void *ptr);
+	void replace_at(size_t index, void *new_ptr) noexcept;
 
 	void release_all() noexcept;
 
@@ -102,6 +92,9 @@ inline void *dmalloc(size_t size) {
 }
 
 inline void *dcalloc(size_t count, size_t size) {
+    if (size && count > SIZE_MAX / size) {
+        return nullptr; // Prevent overflow
+    }
 	return allocation_scope::allocate(count * size, true, false);
 }
 
