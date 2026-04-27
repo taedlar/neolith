@@ -4,7 +4,7 @@ set(efuns_SOURCES
     bits.c
     call_other.c
     call_out.cpp
-    command.c
+    command.cpp
     datetime.c
     debug.c
     dump_prog.c
@@ -17,6 +17,7 @@ set(efuns_SOURCES
     inventory.c
     maps.c
     math.c
+    objects.cpp
     parse.c
     prop.c
     reclaim_object.c
