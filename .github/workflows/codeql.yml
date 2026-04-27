@@ -63,6 +63,10 @@ jobs:
     # - name: Setup runtime (example)
     #   uses: actions/setup-example@v1
 
+    - name: Clean up CMake build directory
+      if: matrix.language == 'c-cpp'
+      run: rm -rf out/build
+
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v4
