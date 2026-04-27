@@ -88,11 +88,19 @@ public:
    */
   static void deallocate(void *ptr) noexcept;
 
+#ifdef UNITTESTING_BACKEND
+public:
+#else
 private:
+#endif
+  using reserve_test_hook_t = bool (*)() noexcept;
+
   /** @brief Get the current allocation scope for the thread. */
   static allocation_scope *&current_scope() noexcept;
+  static bool reserve_tracking_slot(allocation_scope *scope) noexcept;
   static bool track_in_current_scope(void *ptr) noexcept;
   static allocation_scope *find_owner(void *ptr) noexcept;
+  static void set_reserve_test_hook(reserve_test_hook_t hook) noexcept;
 
   bool contains(void *ptr) const noexcept;
   size_t index_of(void *ptr) const noexcept;
@@ -103,6 +111,7 @@ private:
   allocation_scope *parent_;
   bool active_;
   std::vector<void *> tracked_;
+  static reserve_test_hook_t reserve_test_hook_;
 
   static constexpr size_t npos = static_cast<size_t>(-1);
 };

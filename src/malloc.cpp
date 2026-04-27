@@ -38,6 +38,9 @@ extern "C" char* xalloc (size_t size) {
 
 /* C++ wrapper for tracked heap allocations in scopes. */
 
+neolith::heap::allocation_scope::reserve_test_hook_t
+    neolith::heap::allocation_scope::reserve_test_hook_ = nullptr;
+
 neolith::heap::allocation_scope::allocation_scope() noexcept :
   parent_(current_scope()), active_(true) {
   current_scope() = this;
@@ -60,7 +63,18 @@ void *neolith::heap::allocation_scope::release(void *ptr) noexcept {
 }
 
 void *neolith::heap::allocation_scope::allocate(size_t size, bool zeroed, bool no_fail) noexcept {
+  allocation_scope *scope = current_scope();
   void *ptr;
+
+  if (!reserve_tracking_slot(scope))
+    {
+      if (no_fail)
+        {
+          fatal("Out of memory while reserving allocation tracking.\n");
+        }
+      return nullptr;
+    }
+
   if (zeroed)
     {
       ptr = std::calloc(1, size);
@@ -101,6 +115,28 @@ neolith::heap::allocation_scope *&neolith::heap::allocation_scope::current_scope
   return scope;
 }
 
+bool neolith::heap::allocation_scope::reserve_tracking_slot(allocation_scope *scope) noexcept {
+  if (!scope)
+    {
+      return true;
+    }
+
+  if (reserve_test_hook_ && reserve_test_hook_())
+    {
+      return false;
+    }
+
+  try
+    {
+      scope->tracked_.reserve(scope->tracked_.size() + 1);
+    }
+  catch (...)
+    {
+      return false;
+    }
+  return true;
+}
+
 bool neolith::heap::allocation_scope::track_in_current_scope(void *ptr) noexcept {
   if (!ptr)
     return true; // nothing to track, consider it success
@@ -135,6 +171,10 @@ neolith::heap::allocation_scope *neolith::heap::allocation_scope::find_owner(voi
         }
     }
   return nullptr;
+}
+
+void neolith::heap::allocation_scope::set_reserve_test_hook(reserve_test_hook_t hook) noexcept {
+  reserve_test_hook_ = hook;
 }
 
 bool neolith::heap::allocation_scope::contains(void *ptr) const noexcept {
@@ -204,11 +244,7 @@ void *neolith::heap::allocation_scope::reallocate(void *ptr, size_t size) noexce
 
   if (!owner && scope)
     {
-      try
-        {
-          scope->tracked_.reserve(scope->tracked_.size() + 1);
-        }
-      catch (...)
+      if (!reserve_tracking_slot(scope))
         {
           return nullptr;
         }

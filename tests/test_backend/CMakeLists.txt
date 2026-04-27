@@ -3,10 +3,12 @@
 add_executable(test_backend
     test_backend.cpp
     test_backend_timer.cpp
+    test_heap_allocation.cpp
     test_process_command.cpp
 )
 
 target_link_libraries(test_backend PRIVATE stem GTest::gtest_main)
+target_compile_definitions(test_backend PRIVATE UNITTESTING_BACKEND)
 
 # setup testing data
 # (the default working directory is ${CMAKE_CURRENT_BINARY_DIR} when running tests)
