@@ -116,9 +116,11 @@ bool neolith::heap::allocation_scope::reserve_tracking_slot(allocation_scope *sc
   if (!scope)
     return true;
 
+#ifdef HAVE_GTEST
   // for unit-tests
   if (reserve_test_hook_ && reserve_test_hook_())
     return false;
+#endif
 
   try
     {
