@@ -17,7 +17,7 @@ set(stem_SOURCES
     error_context.cpp
     frame.cpp
     interpret.c
-    malloc.c
+    malloc.cpp
     outbuf.c
     simul_efun.c
     simulate.c

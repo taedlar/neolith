@@ -10,27 +10,21 @@
 
 
 #ifdef F_ENABLE_COMMANDS
-void
-f_enable_commands (void)
-{
+extern "C" void f_enable_commands (void) {
   enable_commands (1);
 }
 #endif
 
 
 #ifdef F_DISABLE_COMMANDS
-void
-f_disable_commands (void)
-{
+extern "C" void f_disable_commands (void) {
   enable_commands (0);
 }
 #endif
 
 
 #ifdef F_SET_LIVING_NAME
-void
-f_set_living_name (void)
-{
+extern "C" void f_set_living_name (void) {
   set_living_name (current_object, SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
 }
@@ -38,9 +32,7 @@ f_set_living_name (void)
 
 
 #ifdef F_LIVING
-void
-f_living (void)
-{
+extern "C" void f_living (void) {
   int living;
 
   living = sp->u.ob->flags & O_ENABLE_COMMANDS;
@@ -60,9 +52,8 @@ static array_t* livings () {
   nob = 0;
   apply_valid_hide = 1;
 
-  obtab =
-    CALLOCATE (CONFIG_INT (__MAX_ARRAY_SIZE__), object_t *, TAG_TEMPORARY,
-               "livings");
+  NEOLITH_HEAP_SCOPE (scope);
+  obtab = CALLOCATE (CONFIG_INT (__MAX_ARRAY_SIZE__), object_t *, TAG_TEMPORARY, "livings");
 
   for (ob = obj_list; ob != NULL; ob = ob->next_all)
     {
@@ -96,9 +87,7 @@ static array_t* livings () {
   return vec;
 }
 
-void
-f_livings (void)
-{
+extern "C" void f_livings (void) {
   push_refed_array (livings ());
 }
 #endif
@@ -111,9 +100,7 @@ f_livings (void)
  * substantially faster.
  */
 #ifdef F_NAMED_LIVINGS
-void
-f_named_livings ()
-{
+extern "C" void f_named_livings () {
   int i;
   int nob, apply_valid_hide, hide_is_valid = 0;
   object_t *ob, **obtab;
@@ -122,6 +109,7 @@ f_named_livings ()
   nob = 0;
   apply_valid_hide = 1;
 
+  NEOLITH_HEAP_SCOPE (scope);
   obtab = CALLOCATE (CONFIG_INT (__MAX_ARRAY_SIZE__), object_t *, TAG_TEMPORARY, "named_livings");
 
   for (i = 0; i < CONFIG_INT (__LIVING_HASH_TABLE_SIZE__); i++)
@@ -162,9 +150,7 @@ f_named_livings ()
 
 
 #ifdef F_FIND_PLAYER
-void
-f_find_player (void)
-{
+extern "C" void f_find_player (void) {
   object_t *ob;
   ob = find_living_object (SVALUE_STRPTR(sp), 1);
   free_string_svalue (sp);
@@ -179,9 +165,7 @@ f_find_player (void)
 
 
 #ifdef F_ENABLE_WIZARD
-void
-f_enable_wizard (void)
-{
+extern "C" void f_enable_wizard (void) {
   if (current_object->interactive)
     current_object->flags |= O_IS_WIZARD;
 }
@@ -189,9 +173,7 @@ f_enable_wizard (void)
 
 
 #ifdef F_DISABLE_WIZARD
-void
-f_disable_wizard (void)
-{
+extern "C" void f_disable_wizard (void) {
   if (current_object->interactive)
     current_object->flags &= ~O_IS_WIZARD;
 }
@@ -199,9 +181,7 @@ f_disable_wizard (void)
 
 
 #ifdef F_WIZARDP
-void
-f_wizardp (void)
-{
+extern "C" void f_wizardp (void) {
   int i;
 
   i = (int) sp->u.ob->flags & O_IS_WIZARD;
@@ -212,9 +192,7 @@ f_wizardp (void)
 
 
 #ifdef F_FIND_LIVING
-void
-f_find_living (void)
-{
+extern "C" void f_find_living (void) {
   object_t *ob = find_living_object (SVALUE_STRPTR(sp), 0);
   free_string_svalue (sp);
   /* safe b/c destructed objects have had their living names removed */
@@ -229,9 +207,7 @@ f_find_living (void)
 
 
 #ifdef F_ADD_ACTION
-void
-f_add_action (void)
-{
+extern "C" void f_add_action (void) {
   uint64_t flag = 0;
   int num_carry = 0;
   svalue_t *carry_args = NULL;
@@ -286,9 +262,7 @@ f_add_action (void)
 
 
 #ifdef F_REMOVE_ACTION
-void
-f_remove_action (void)
-{
+extern "C" void f_remove_action (void) {
   int success;
 
   success = remove_action (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
@@ -300,9 +274,7 @@ f_remove_action (void)
 
 
 #ifdef F_COMMAND
-void
-f_command (void)
-{
+extern "C" void f_command (void) {
   int64_t i;
   object_t *ob = 0;
 
@@ -357,16 +329,14 @@ static array_t* commands (object_t * ob) {
   return v;
 }
 
-void f_commands (void) {
+extern "C" void f_commands (void) {
   push_refed_array (commands (current_object));
 }
 #endif
 
 
 #ifdef F_NOTIFY_FAIL
-void
-f_notify_fail (void)
-{
+extern "C" void f_notify_fail (void) {
   if (sp->type == T_STRING)
     {
       set_notify_fail_message (SVALUE_STRPTR(sp));
@@ -384,9 +354,7 @@ f_notify_fail (void)
 /* This was originally written my Malic for Demon.  I rewrote parts of it
    when I added it (added function support, etc) -Beek */
 #ifdef F_QUERY_NOTIFY_FAIL
-void
-f_query_notify_fail (void)
-{
+extern "C" void f_query_notify_fail (void) {
   char *p;
 
   if (command_giver && command_giver->interactive)
