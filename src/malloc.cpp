@@ -49,10 +49,6 @@ neolith::heap::allocation_scope::~allocation_scope() noexcept {
   current_scope() = parent_;
 }
 
-void neolith::heap::allocation_scope::dismiss() noexcept {
-  active_ = false;
-}
-
 void *neolith::heap::allocation_scope::release(void *ptr) noexcept {
   if (!ptr)
     return ptr;
@@ -63,20 +59,6 @@ void *neolith::heap::allocation_scope::release(void *ptr) noexcept {
   return ptr; // untrack but do not free, ownership transferred to caller
 }
 
-/**
- * @brief Allocate memory and track it in the current scope for auto-release on unwind.
- *
- * If no current scope, behaves like standard calloc/malloc.
- * If allocation fails and no_fail is true, logs fatal error and exits; otherwise returns nullptr.
- * When called with no_fail=true, reserved_area is used as emergency fallback to free memory
- * and log before retrying allocation. This gives a chance for the MUD to save player data and
- * shutdown gracefully instead of crashing outright when memory is exhausted.
- *
- * @param size Size of memory to allocate.
- * @param zeroed If true, memory is zero-initialized.
- * @param no_fail If true, allocation failure is fatal; if false, returns nullptr on failure.
- * @return Pointer to allocated memory, or nullptr on failure if no_fail is false.
- */
 void *neolith::heap::allocation_scope::allocate(size_t size, bool zeroed, bool no_fail) noexcept {
   void *ptr;
   if (zeroed)
@@ -100,12 +82,6 @@ void *neolith::heap::allocation_scope::allocate(size_t size, bool zeroed, bool n
   return ptr;
 }
 
-/**
- * @brief Deallocate memory and update tracking in the current scope.
- * If the pointer is tracked in any active scope, it is untracked before deallocation.
- * If the pointer is not tracked, it is simply freed.
- * @param ptr Pointer to previously allocated memory (or nullptr).
- */
 void neolith::heap::allocation_scope::deallocate(void *ptr) noexcept {
   if (!ptr)
     {
@@ -120,7 +96,6 @@ void neolith::heap::allocation_scope::deallocate(void *ptr) noexcept {
   std::free(ptr);
 }
 
-/** @brief Get the current allocation scope for the thread. */
 neolith::heap::allocation_scope *&neolith::heap::allocation_scope::current_scope() noexcept {
   static thread_local allocation_scope *scope = nullptr;
   return scope;

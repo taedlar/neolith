@@ -34,80 +34,103 @@ namespace neolith::heap {
  */
 class allocation_scope {
 public:
-	allocation_scope() noexcept;
+  allocation_scope() noexcept;
 
-	allocation_scope(const allocation_scope &) = delete;
-	allocation_scope &operator=(const allocation_scope &) = delete;
+  allocation_scope(const allocation_scope &) = delete;
+  allocation_scope &operator=(const allocation_scope &) = delete;
 
-	~allocation_scope() noexcept;
+  ~allocation_scope() noexcept;
 
-	void dismiss() noexcept;
+  /**
+   * @brief Release a pointer from tracking in the active scope.
+   *
+   * Untracks the pointer so the scope destructor will not free it.
+   * Useful when ownership is transferred back to caller.
+   * @param ptr Pointer to release from tracking (or nullptr).
+   * @return The same pointer for chaining in return statements.
+   */
+  static void *release(void *ptr) noexcept;
 
-	/**
-	 * @brief Release a pointer from tracking in the active scope.
-	 *
-	 * Untracks the pointer so the scope destructor will not free it.
-	 * Useful when ownership is transferred back to caller.
-	 * @param ptr Pointer to release from tracking (or nullptr).
-	 * @return The same pointer for chaining in return statements.
-	 */
-	static void *release(void *ptr) noexcept;
+  /**
+   * @brief Allocate memory and track it in the current scope for auto-release on unwind.
+   *
+   * If no current scope, behaves like standard calloc/malloc.
+   * If allocation fails and no_fail is true, logs fatal error and exits; otherwise returns nullptr.
+   * When called with no_fail=true, reserved_area is used as emergency fallback to free memory
+   * and log before retrying allocation. This gives a chance for the MUD to save player data and
+   * shutdown gracefully instead of crashing outright when memory is exhausted.
+   *
+   * @param size Size of memory to allocate.
+   * @param zeroed If true, memory is zero-initialized.
+   * @param no_fail If true, allocation failure is fatal; if false, returns nullptr on failure.
+   * @return Pointer to allocated memory, or nullptr on failure if no_fail is false.
+   */
+  static void *allocate(size_t size, bool zeroed, bool no_fail) noexcept;
 
-	static void *allocate(size_t size, bool zeroed, bool no_fail) noexcept;
+  /**
+   * @brief Reallocate memory and update tracking in the current scope.
+   * If ptr is null, behaves like allocate(). If size is zero, behaves like deallocate().
+   * If ptr is tracked in the current scope, updates tracking to new pointer location on success.
+   * If ptr is not tracked but current scope exists, attempts to track new pointer on success.
+   * If reallocation fails, original ptr is still valid and unchanged, caller should handle this case.
+   * @param ptr Pointer to previously allocated memory (or nullptr).
+   * @param size New size of memory to allocate.
+   * @return Pointer to reallocated memory, or nullptr on failure if no_fail is false.
+   *  Original ptr is unchanged on failure.
+   */
+  static void *reallocate(void *ptr, size_t size) noexcept;
 
-	static void *reallocate(void *ptr, size_t size) noexcept;
-
-	static void deallocate(void *ptr) noexcept;
+  /**
+   * @brief Deallocate memory and update tracking in the current scope.
+   * If the pointer is tracked in any active scope, it is untracked before deallocation.
+   * If the pointer is not tracked, it is simply freed.
+   * @param ptr Pointer to previously allocated memory (or nullptr).
+   */
+  static void deallocate(void *ptr) noexcept;
 
 private:
-	static allocation_scope *&current_scope() noexcept;
+  /** @brief Get the current allocation scope for the thread. */
+  static allocation_scope *&current_scope() noexcept;
+  static bool track_in_current_scope(void *ptr) noexcept;
+  static allocation_scope *find_owner(void *ptr) noexcept;
 
-	static bool track_in_current_scope(void *ptr) noexcept;
+  bool contains(void *ptr) const noexcept;
+  size_t index_of(void *ptr) const noexcept;
+  void erase(void *ptr) noexcept;
+  void replace_at(size_t index, void *new_ptr) noexcept;
+  void release_all() noexcept;
 
-	static allocation_scope *find_owner(void *ptr) noexcept;
+  allocation_scope *parent_;
+  bool active_;
+  std::vector<void *> tracked_;
 
-	bool contains(void *ptr) const noexcept;
-
-	size_t index_of(void *ptr) const noexcept;
-
-	void erase(void *ptr) noexcept;
-
-	void replace_at(size_t index, void *new_ptr) noexcept;
-
-	void release_all() noexcept;
-
-	allocation_scope *parent_;
-	bool active_;
-	std::vector<void *> tracked_;
-
-	static constexpr size_t npos = static_cast<size_t>(-1);
+  static constexpr size_t npos = static_cast<size_t>(-1);
 };
 
-inline void *dxalloc(size_t size) {
-	return allocation_scope::allocate(size, false, true);
-}
-
-inline void *dmalloc(size_t size) {
-	return allocation_scope::allocate(size, false, false);
-}
-
 inline void *dcalloc(size_t count, size_t size) {
-    if (size && count > SIZE_MAX / size) {
-        return nullptr; // Prevent overflow
-    }
-	return allocation_scope::allocate(count * size, true, false);
-}
-
-inline void *drealloc(void *ptr, size_t size) {
-	return allocation_scope::reallocate(ptr, size);
-}
-
-inline void dfree(void *ptr) {
-	allocation_scope::deallocate(ptr);
+  if (size && count > SIZE_MAX / size) {
+      return nullptr; // Prevent overflow
+  }
+  return allocation_scope::allocate(count * size, true, false);
 }
 
 } // namespace neolith::heap
 
+/**
+ * @brief RAII scope guard for heap allocations in C++.
+ * Use NEOLITH_HEAP_SCOPE(name) at the start of a function or block to automatically track
+ * and free heap allocations on unwind.
+ *
+ * Example:
+ * void my_function() {
+ *   NEOLITH_HEAP_SCOPE(scope);
+ *   char *temp = (char *) DMALLOC(100, TAG_TEMP, "my_function: temp");
+ *   // temp will be automatically freed if the function exits before manual FREE()
+ *   // call, including on exceptions.
+ *   // If ownership of temp is transferred to caller, use NEOLITH_HEAP_RELEASE(temp) to
+ *   // untrack it before returning.
+ * }
+ */
 #define NEOLITH_HEAP_SCOPE(name) ::neolith::heap::allocation_scope name
 
 /**
@@ -119,12 +142,12 @@ inline void dfree(void *ptr) {
  */
 #define NEOLITH_HEAP_RELEASE(ptr) ::neolith::heap::allocation_scope::release(ptr)
 
-#define DXALLOC(x,tag,desc)     ::neolith::heap::dxalloc((x))
-#define DMALLOC(x,tag,desc)     ::neolith::heap::dmalloc((x))
-#define DREALLOC(x,y,tag,desc)  ::neolith::heap::drealloc((x), (y))
-#define DCALLOC(x,y,tag,desc)   ::neolith::heap::dcalloc((x), (y))
+#define DXALLOC(x,tag,desc)     ::neolith::heap::allocation_scope::allocate((x), false, true)
+#define DMALLOC(x,tag,desc)     ::neolith::heap::allocation_scope::allocate((x), false, false)
+#define DREALLOC(x,y,tag,desc)  ::neolith::heap::allocation_scope::reallocate((x), (y))
+#define DCALLOC(x,y,tag,desc)   ::neolith::heap::allocation_scope::dcalloc((x), (y))
 
-#define FREE(x)                 ::neolith::heap::dfree((x))
+#define FREE(x)                 ::neolith::heap::allocation_scope::deallocate((x))
 
 #else
 #define DXALLOC(x,tag,desc)     xalloc(x)
