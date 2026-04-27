@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <vector>
 
+#define HAVE_GTEST
 #include "malloc.h"
 
 using neolith::heap::allocation_scope;
