@@ -38,8 +38,10 @@ extern "C" char* xalloc (size_t size) {
 
 /* C++ wrapper for tracked heap allocations in scopes. */
 
+#ifdef HAVE_GTEST
 neolith::heap::allocation_scope::reserve_test_hook_t
     neolith::heap::allocation_scope::reserve_test_hook_ = nullptr;
+#endif
 
 neolith::heap::allocation_scope::allocation_scope() noexcept :
   parent_(current_scope()), active_(true) {
