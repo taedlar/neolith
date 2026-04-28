@@ -2200,8 +2200,8 @@ int mud_state() {
   if (!master_ob)
     return MS_PRE_MUDLIB; /* mudlib not yet initialized */
 
-  if (current_time == 0)
-    return MS_MUDLIB_LIMBO; /* `current_time` not yet initialized (waiting for mudlib to setup the world)*/
+  if (current_time == boot_time)
+    return MS_MUDLIB_LIMBO; /* `current_time` not yet advanced */
 
   return MS_MUDLIB_INTERACTIVE;
 }

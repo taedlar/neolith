@@ -88,7 +88,7 @@ int stem_startup(void) {
           current_time = time(NULL);
 
           debug_message("{}\t----- loading simul efuns -----");
-          init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__));
+          init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__), NULL);
 
           debug_message("{}\t----- loading master -----");
           init_master(CONFIG_STR(__MASTER_FILE__), NULL);
