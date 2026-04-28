@@ -13,10 +13,10 @@
 class StringOperatorsTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        debug_set_log_with_date(0);
+        debug_set_log_with_date (false);
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
         init_stem(3, 0177, "");
-        MAIN_OPTION(pedantic) = 1;
+        MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
 
         // Initialize string allocation subsystem

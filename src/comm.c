@@ -516,7 +516,7 @@ int flush_message (interactive_t * ip) {
        */
       num_bytes = (ip == all_users[0]) ?
         FILE_WRITE (STDOUT_FILENO, ip->message_buf + ip->message_consumer, length) :
-        SOCKET_SEND (ip->fd, ip->message_buf + ip->message_consumer, length, ip->out_of_band);
+        SOCKET_SEND (ip->fd, ip->message_buf + ip->message_consumer, length, ip->out_of_band ? MSG_OOB : 0);
       if (num_bytes == -1)
         {
           if (SOCKET_ERRNO == EWOULDBLOCK || SOCKET_ERRNO == EINTR)
@@ -536,7 +536,7 @@ int flush_message (interactive_t * ip) {
         }
       ip->message_consumer = (ip->message_consumer + num_bytes) % MESSAGE_BUF_SIZE;
       ip->message_length -= num_bytes;
-      ip->out_of_band = 0;
+      ip->out_of_band = false;
       inet_packets++;
       inet_volume += num_bytes;
     }
@@ -807,7 +807,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
               add_vmessage (ip->ob, "\n[%s-%s] \n", PACKAGE, VERSION);
               break;
             case AO:		/* Abort output. Do a telnet sync operation. */
-              ip->out_of_band = MSG_OOB;
+              ip->out_of_band = true;
               add_message (ip->ob, telnet_abort_response);
               flush_message (ip);
               break;
@@ -935,7 +935,7 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
 }
 
 
-void set_console_echo (int echo) {
+void set_console_echo (bool echo) {
 #ifdef HAVE_TERMIOS_H
   interactive_t *ip = all_users[0];
   struct termios tty;
@@ -961,16 +961,16 @@ void set_console_echo (int echo) {
  * For a sane telnet client, when we say "WILL ECHO", we can expect the client to stop echoing
  * input characters, and when we say "WONT ECHO", the client should start echoing input characters.
  * @param ob Interactive object to send the command to.
- * @param echo 1 to say "will" echo, 0 to say "won't" echo.
+ * @param echo true to say "will" echo, false to say "won't" echo.
  */
-void set_telnet_echo (object_t* ob, int echo) {
+void set_telnet_echo (object_t* ob, bool echo) {
   add_message (ob, echo ? telnet_yes_echo : telnet_no_echo);
 }
 
 /**
  *  @brief set_telnet_single_char () - set single-char mode on/off
  */
-void set_telnet_single_char (interactive_t * ip, int single) {
+void set_telnet_single_char (interactive_t * ip, bool single) {
   if (ip == all_users[0]) /* console user */
     {
 #ifdef HAVE_TERMIOS_H
@@ -1155,7 +1155,7 @@ void process_io () {
                 {
                   /* Console user disconnected - reconnect first */
                   opt_trace(TT_COMM|1, "Console user re-connecting\n");
-                  init_console_user(1);
+                  init_console_user(true);
                   console_ip = all_users[0];
                 }
               
@@ -1198,7 +1198,7 @@ void process_io () {
             {
               /* Network error or connection closed */
               opt_trace (TT_COMM|1, "Connection closed on fd %d\n", ip->fd);
-              remove_interactive (ip->ob, 0);
+              remove_interactive (ip->ob, false);
               continue;
             }
           
@@ -1312,7 +1312,7 @@ void new_interactive (socket_fd_t socket_fd) {
   master_ob->interactive->message_consumer = 0;
   master_ob->interactive->message_length = 0;
   master_ob->interactive->state = TS_DATA; /* initial telnet state when connection is established */
-  master_ob->interactive->out_of_band = 0;
+  master_ob->interactive->out_of_band = false;
   all_users[i] = master_ob->interactive;
   all_users[i]->fd = socket_fd;
   set_prompt ("> ");
@@ -1390,7 +1390,7 @@ interactive_t* create_test_interactive (object_t *ob) {
   ip->message_consumer = 0;
   ip->message_length = 0;
   ip->state = TS_DATA;
-  ip->out_of_band = 0;
+  ip->out_of_band = false;
   ip->sb_pos = 0;
   ip->connection_type = 0;
   memset(&ip->addr, 0, sizeof(ip->addr));
@@ -1502,7 +1502,7 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
     {
       /* Connection rejected by mudlib */
       if (master_ob->interactive)
-        remove_interactive (master_ob, 0);
+        remove_interactive (master_ob, false);
       return;
     }
 
@@ -1536,7 +1536,7 @@ static void setup_accepted_connection (port_def_t *port, socket_fd_t new_socket_
       if (async_runtime_post_read(g_runtime, user_ob->interactive->fd, NULL, 0) != 0)
         {
           debug_message("Failed to post initial read for user socket (fd=%d)\n", user_ob->interactive->fd);
-          remove_interactive(user_ob, 0);
+          remove_interactive(user_ob, false);
         }
       else
         {
@@ -1687,7 +1687,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
           debug_message("get_user_data: failed to post next read for fd %d\n", ip->fd);
           /* Treat as connection error */
           ip->iflags |= NET_DEAD;
-          remove_interactive(ip->ob, 0);
+          remove_interactive(ip->ob, false);
           return;
         }
     }
@@ -1710,7 +1710,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
       if (ip->iflags & CLOSING)
         debug_message ("get_user_data: tried to read from closing fd.\n");
       ip->iflags |= NET_DEAD;
-      remove_interactive (ip->ob, 0);
+      remove_interactive (ip->ob, false);
       return;
 
     case SOCKET_ERROR:
@@ -1727,7 +1727,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
               break;
             }
           ip->iflags |= NET_DEAD;
-          remove_interactive (ip->ob, 0);
+          remove_interactive (ip->ob, false);
           return;
         }
       break;
@@ -1815,7 +1815,7 @@ static void get_user_data (interactive_t* ip, io_event_t* evt) {
 /**
  *  @brief Remove an interactive user immediately.
  */
-void remove_interactive (object_t * ob, int dested) {
+void remove_interactive (object_t * ob, bool dested) {
 
   int idx;
   /* don't have to worry about this dangling, since this is the routine
@@ -1878,12 +1878,12 @@ void remove_interactive (object_t * ob, int dested) {
 #ifdef _WIN32
       if (console_type == CONSOLE_TYPE_PIPE || console_type == CONSOLE_TYPE_FILE) {
         debug_message ("Console input closed (pipe/file) - shutting down\n");
-        g_proceeding_shutdown++;
+        g_proceeding_shutdown = true;
       }
 #else
       if (!isatty(STDIN_FILENO)) {
         debug_message ("Console input closed (pipe/file) - shutting down\n");
-        g_proceeding_shutdown++;
+        g_proceeding_shutdown = true;
       }
 #endif
       else if (console_type == CONSOLE_TYPE_REAL) {

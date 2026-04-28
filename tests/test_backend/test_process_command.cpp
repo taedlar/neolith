@@ -25,10 +25,10 @@ private:
 
 protected:
   void SetUp() override {
-    debug_set_log_with_date(0);
+    debug_set_log_with_date (false);
     setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
     init_stem(3, (unsigned long)-1, "m3.conf");
-    MAIN_OPTION(pedantic) = 1;
+    MAIN_OPTION(pedantic) = true;
 
     init_config(MAIN_OPTION(config_file));
 

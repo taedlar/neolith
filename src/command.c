@@ -282,7 +282,7 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
     {
       /* don't try to set telnet options on console */
       if (flags & I_NOECHO)
-        set_console_echo (0);
+        set_console_echo (false);
     }
   else
     {
@@ -290,11 +290,11 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
        * but we won't actually do it.
        */
       if (flags & I_NOECHO)
-        set_telnet_echo (ob, 1);
+        set_telnet_echo (ob, true);
     }
 
   if (flags & I_SINGLE_CHAR)
-    set_telnet_single_char (ob->interactive, 1);
+    set_telnet_single_char (ob->interactive, true);
   return 1;
 }				/* set_call() */
 
@@ -344,7 +344,7 @@ int call_function_interactive (interactive_t * i, char *str) {
   if (i->iflags & SINGLE_CHAR)
     {
       i->iflags &= ~SINGLE_CHAR;
-      set_telnet_single_char (i, 0);
+      set_telnet_single_char (i, false);
     }
 
   /* Push input FIRST.
@@ -482,11 +482,11 @@ static char* get_user_command () {
        */
       if (ip->connection_type == CONSOLE_USER)
         {
-          set_console_echo (1);
+          set_console_echo (true);
         }
       else if (ip->connection_type == PORT_TELNET)
         {
-          set_telnet_echo (command_giver, 0);
+          set_telnet_echo (command_giver, false);
         }
       ip->iflags &= ~NOECHO;
     }
@@ -1024,7 +1024,7 @@ int process_user_command () {
               /* only 1 char ... switch to line buffer mode */
               ip->iflags |= WAS_SINGLE_CHAR;
               ip->iflags &= ~SINGLE_CHAR;
-              set_telnet_single_char (ip, 0);
+              set_telnet_single_char (ip, false);
               /* come back later */
             }
           else
@@ -1034,7 +1034,7 @@ int process_user_command () {
                   /* we now have a string ... switch back to char mode */
                   ip->iflags &= ~WAS_SINGLE_CHAR;
                   ip->iflags |= SINGLE_CHAR;
-                  set_telnet_single_char (ip, 1);
+                  set_telnet_single_char (ip, true);
                   VALIDATE_IP (ip, command_giver);
                 }
 

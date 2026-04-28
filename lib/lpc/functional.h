@@ -61,9 +61,6 @@ funptr_t* make_functional_funp (int num_arg, int num_local, int len, svalue_t * 
 void dealloc_funp(funptr_t *);
 void push_refed_funp(funptr_t *);
 
-void push_undefined(void);
-void pop_stack(void);
-
 /*
  * Stack-slot wrappers.
  * Caller must pair *_SLOT_CALL() with CALL_FUNCTION_POINTER_SLOT_FINISH()

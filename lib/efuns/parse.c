@@ -546,7 +546,7 @@ parse (const char *cmd,		/* Command to parse */
   else if (ob_or_array->type == T_OBJECT)
     {
       /* 1 == ob + deepinv */
-      parse_obarr = obarr = deep_inventory (ob_or_array->u.ob, 1);
+      parse_obarr = obarr = deep_inventory (ob_or_array->u.ob, true);
     }
   else
     error ("Bad second argument to parse_command()\n");

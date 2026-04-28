@@ -1068,7 +1068,7 @@ static function_to_call_t *sort_array_ftc;
 
 #define COMPARE_NUMS(x,y) (x < y ? -1 : (x > y ? 1 : 0))
 
-array_t* builtin_sort_array (array_t * inlist, int dir) {
+static array_t* builtin_sort_array (array_t * inlist, int dir) {
 
   quickSort ((char *) inlist->item, inlist->size, sizeof (inlist->item),
              (dir < 0) ? builtin_sort_array_cmp_rev : builtin_sort_array_cmp_fwd);
@@ -1338,7 +1338,7 @@ deep_inventory_collect (object_t * ob, array_t * inv, int *i)
 }
 
 array_t *
-deep_inventory (object_t * ob, int take_top)
+deep_inventory (object_t * ob, bool take_top)
 {
   array_t *dinv;
   int i;

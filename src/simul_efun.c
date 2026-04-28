@@ -35,7 +35,7 @@
  * table is used at compile time.
  */
 
-int simul_efun_is_loading = 0;
+static bool simul_efun_is_loading = false;
 
 simul_info_t *simuls = 0;
 object_t *simul_efun_ob;
@@ -69,14 +69,14 @@ void init_simul_efun (const char *file) {
       return;
     }
 
-  simul_efun_is_loading = 1;
+  simul_efun_is_loading = true;
   if (NULL == (new_ob = load_object (file, 0)))
     {
-      simul_efun_is_loading = 0;
+      simul_efun_is_loading = false;
       debug_error ("failed loading simul_efun file");
       return;
     }
-  simul_efun_is_loading = 0;
+  simul_efun_is_loading = false;
   set_simul_efun (new_ob);
 }
 
@@ -290,6 +290,8 @@ void set_simul_efun (object_t* ob) {
 
 void call_simul_efun (int simul_num, int num_args)
 {
+  if (simul_efun_is_loading)
+    error ("Cannot call simul_efun while loading simul_efun object.\n");
   if (simul_num < 0 || simul_num >= (int)num_simuls)
     error ("Bad simul_num %d\n", simul_num);
 

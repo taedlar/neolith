@@ -10,8 +10,8 @@ extern "C" {
 
 typedef struct main_options {
   char config_file[PATH_MAX];   /* -f, --config-file */
-  int console_mode;             /* -c, --console-mode */
-  int pedantic;                 /* -p, --pedantic */
+  bool console_mode;             /* -c, --console-mode */
+  bool pedantic;                 /* -p, --pedantic */
   int epilog_level;             /* -e, --epilog-level */
   int debug_level;              /* -d, --debug-level */
   unsigned long trace_flags;    /* -t, --trace-flags */

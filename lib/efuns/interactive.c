@@ -182,7 +182,7 @@ void f_remove_interactive (void) {
     }
   else
     {
-      remove_interactive (sp->u.ob, 0);
+      remove_interactive (sp->u.ob, false);
       /* It may have been dested */
       if (sp->type == T_OBJECT)
         free_object (sp->u.ob, "f_remove_interactive");

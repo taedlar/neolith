@@ -20,12 +20,12 @@ using namespace testing;
 class BackendTimerTest : public Test {
 protected:
     void SetUp() override {
-        debug_set_log_with_date(0);
+        debug_set_log_with_date (false);
     }
 
     void TearDown() override {
         // Ensure heart_beat_flag is reset
-        heart_beat_flag = 0;
+        heart_beat_flag = false;
     }
 };
 
@@ -37,14 +37,14 @@ TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
     memset(&test_timer, 0, sizeof(test_timer));
 
     auto test_callback = +[]() {
-        heart_beat_flag = 1;
+        heart_beat_flag = true;
     };
 
     // Initialize timer
     ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK) << "Failed to initialize timer";
 
     // Start timer with 100ms interval (100,000 microseconds)
-    heart_beat_flag = 0;
+    heart_beat_flag = false;
     ASSERT_EQ(platform_timer_start(&test_timer, 100000, test_callback), TIMER_OK)
         << "Failed to start timer";
 
@@ -52,7 +52,7 @@ TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
     std::this_thread::sleep_for(std::chrono::milliseconds(150));
 
     // Verify heart_beat_flag was set
-    EXPECT_EQ(heart_beat_flag, 1) << "heart_beat_flag should be set by timer callback";
+    EXPECT_EQ(heart_beat_flag, true) << "heart_beat_flag should be set by timer callback";
 
     // Stop timer
     ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK) << "Failed to stop timer";

@@ -2,10 +2,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
+#define NO_STEM
+#include "src/std.h"
 
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
@@ -15,18 +13,12 @@
 #include <stdarg.h>
 #endif /* HAVE_STDARG_H */
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#define PATH_MAX MAX_PATH
-#endif
-
 #include "logger.h"
 
 FILE* current_log_file = NULL;
 
 static char debug_log_file[PATH_MAX] = ""; /* default debug log goes to stderr */
-static int debug_log_with_date = 0; /* prepend date/time to debug messages? */
+static bool debug_log_with_date = false; /* prepend date/time to debug messages? */
 
 /**
   @brief Print raw log messages to file or previously opend file (if file is NULL).
@@ -91,7 +83,7 @@ void debug_set_log_file (const char* filename)
  * @brief Set whether to prepend date/time to debug messages.
  * @param enable Non-zero to enable date/time prepending, zero to disable.
  */
-void debug_set_log_with_date (int enable)
+void debug_set_log_with_date (bool enable)
 {
   debug_log_with_date = enable;
 }

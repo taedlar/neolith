@@ -1179,7 +1179,7 @@ void destruct_object (object_t * ob) {
   if (ob->interactive)
     {
       opt_trace (TT_COMM|1, "disconnecting /%s as interactive object", ob->name);
-      remove_interactive (ob, 1);
+      remove_interactive (ob, true);
     }
   opt_trace (TT_EVAL|1, "finished destructing: /%s", ob->name);
 }
@@ -2050,7 +2050,7 @@ void do_slow_shutdown (int minutes) {
       shout_string ("Out of memory.\n");
       command_giver = save_command;
       current_object = save_current;
-      g_proceeding_shutdown = 1;
+      g_proceeding_shutdown = true;
       return;
     }
   APPLY_SLOT_FINISH_CALL();

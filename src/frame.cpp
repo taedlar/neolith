@@ -329,7 +329,7 @@ char* get_line_number (const char *p, const program_t * progp) {
 }
 
 typedef struct function_trace_details_s {
-  char* name;
+  shared_str_t name;
   int num_arg;
   int num_local;
   int program_offset;

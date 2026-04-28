@@ -134,35 +134,27 @@ void transfer_push_some_svalues (svalue_t * v, int num) {
  * is incremented. Newly created arrays normally have a reference count
  * initialized to 1.
  */
-void
-push_array (array_t * v)
-{
+void push_array (array_t * v) {
   v->ref++;
   sp++;
   sp->type = T_ARRAY;
   sp->u.arr = v;
 }
 
-void
-push_refed_array (array_t * v)
-{
+void push_refed_array (array_t * v) {
   sp++;
   sp->type = T_ARRAY;
   sp->u.arr = v;
 }
 
-void
-push_buffer (buffer_t * b)
-{
+void push_buffer (buffer_t * b) {
   b->ref++;
   sp++;
   sp->type = T_BUFFER;
   sp->u.buf = b;
 }
 
-void
-push_refed_buffer (buffer_t * b)
-{
+void push_refed_buffer (buffer_t * b) {
   sp++;
   sp->type = T_BUFFER;
   sp->u.buf = b;
@@ -171,18 +163,14 @@ push_refed_buffer (buffer_t * b)
 /*
  * Push a mapping on the stack.  See push_array(), above.
  */
-void
-push_mapping (mapping_t * m)
-{
+void push_mapping (mapping_t * m) {
   m->ref++;
   sp++;
   sp->type = T_MAPPING;
   sp->u.map = m;
 }
 
-void
-push_refed_mapping (mapping_t * m)
-{
+void push_refed_mapping (mapping_t * m) {
   sp++;
   sp->type = T_MAPPING;
   sp->u.map = m;
@@ -191,18 +179,14 @@ push_refed_mapping (mapping_t * m)
 /*
  * Push a class on the stack.  See push_array(), above.
  */
-void
-push_class (array_t * v)
-{
+void push_class (array_t * v) {
   v->ref++;
   sp++;
   sp->type = T_CLASS;
   sp->u.arr = v;
 }
 
-void
-push_refed_class (array_t * v)
-{
+void push_refed_class (array_t * v) {
   sp++;
   sp->type = T_CLASS;
   sp->u.arr = v;
@@ -211,9 +195,7 @@ push_refed_class (array_t * v)
 /*
  * Push a string on the stack that is already malloced.
  */
-void
-push_malloced_string (malloc_str_t p)
-{
+void push_malloced_string (malloc_str_t p) {
 #ifdef STRING_TYPE_SAFETY
   if (!p)
     fatal ("push_malloced_string: null pointer passed as string argument");
@@ -230,9 +212,7 @@ push_malloced_string (malloc_str_t p)
  * Pushes a known shared string.  Note that this references, while 
  * push_malloced_string doesn't.
  */
-void
-push_shared_string (shared_str_t p)
-{
+void push_shared_string (shared_str_t p) {
 #ifdef STRING_TYPE_SAFETY
   if (!p)
     fatal ("push_shared_string: null pointer passed as string argument");
@@ -254,36 +234,6 @@ void push_constant_string (const char *p) {
   sp->type = T_STRING;
   sp->subtype = STRING_CONSTANT;
   sp->u.const_string = p;
-}
-
-/*
- * Pop the top-most value of the stack.
- * Don't do this if it is a value that will be used afterwards, as the
-  * data may be sent to FREE(), and destroyed.
-  */
-void pop_stack () {
-  DEBUG_CHECK (sp < start_of_stack, "Stack underflow.\n");
-  free_svalue (sp--, "pop_stack");
-}
-
-void pop_n_elems (size_t n) {
-  while (n--)
-    {
-      pop_stack ();
-    }
-}
-
-void pop_2_elems () {
-  free_svalue (sp--, "pop_2_elems");
-  DEBUG_CHECK (sp < start_of_stack, "Stack underflow.\n");
-  free_svalue (sp--, "pop_2_elems");
-}
-
-void pop_3_elems () {
-  free_svalue (sp--, "pop_3_elems");
-  free_svalue (sp--, "pop_3_elems");
-  DEBUG_CHECK (sp < start_of_stack, "Stack underflow.\n");
-  free_svalue (sp--, "pop_3_elems");
 }
 
 /**

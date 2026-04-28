@@ -56,7 +56,7 @@ TEST(LoggerTest, debugSetLogWithDate) {
     EXPECT_GE(result, 0);
 
     // Disable date/time prepending
-    debug_set_log_with_date(0);
+    debug_set_log_with_date (false);
     result = debug_message("Test debug message without date: %s", "without date");
     EXPECT_GE(result, 0);
 }

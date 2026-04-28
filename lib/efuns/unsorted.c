@@ -700,7 +700,7 @@ f_shutdown (void)
     g_exit_code = (int)(st_num_arg ? sp->u.number : (*++sp = const0, 0));
 
   /* initiate shutdown (ends backend loop) */
-  g_proceeding_shutdown++;
+  g_proceeding_shutdown = true;
 }
 #endif
 
