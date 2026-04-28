@@ -2,11 +2,14 @@
  * @file async_queue.c
  * @brief Thread-safe message queue implementation using circular buffer
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
+#define NO_STEM
+#include "src/std.h"
 #include "async/async_queue.h"
 #include "port/sync.h"
-#include <stdlib.h>
-#include <string.h>
 
 /**
  * Queue implementation using circular buffer

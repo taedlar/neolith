@@ -2,18 +2,15 @@
  * @file test_async_worker_lifecycle.cpp
  * @brief Worker thread lifecycle tests
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-#include <gtest/gtest.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-
+#include "src/std.h"
 #include "async/async_worker.h"
 
 #include <atomic>
+#include <gtest/gtest.h>
 
 class AsyncWorkerLifecycleTest : public ::testing::Test {
 };

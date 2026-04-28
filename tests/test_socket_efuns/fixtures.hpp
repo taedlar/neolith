@@ -1,10 +1,5 @@
 #pragma once
 
-#include <gtest/gtest.h>
-#include <filesystem>
-#include <queue>
-#include <memory>
-
 #include "std.h"
 #include "rc.h"
 #include "async/async_runtime.h"
@@ -16,6 +11,11 @@
 #include "lpc/object.h"
 #include "socket/socket_efuns.h"
 #include "lpc/include/socket_err.h"
+
+#include <gtest/gtest.h>
+#include <filesystem>
+#include <queue>
+#include <memory>
 
 /**
  * @brief Poll DNS completion state for a socket operation.

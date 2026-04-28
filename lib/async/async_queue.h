@@ -6,8 +6,6 @@
 #ifndef ASYNC_QUEUE_H
 #define ASYNC_QUEUE_H
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus

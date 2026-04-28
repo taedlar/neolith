@@ -4,7 +4,11 @@
  *
  * Platform-agnostic console input handling via worker thread.
  */
-
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+#define NO_STEM
+#include "src/std.h"
 #include "console_worker.h"
 #include "console_mode.h"
 #include "port/debug.h"
@@ -13,8 +17,6 @@
 #include <string.h>
 
 #ifdef _WIN32
-#include <windows.h>
-#include <io.h>
 #include <fcntl.h>
 #else
 #include <unistd.h>

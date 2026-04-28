@@ -7,13 +7,13 @@
 #include <config.h>
 #endif
 
-#include <gtest/gtest.h>
-#include <thread>
-#include <chrono>
-
 #include "std.h"
 #include "backend.h"
 #include "port/timer.h"
+
+#include <gtest/gtest.h>
+#include <thread>
+#include <chrono>
 
 using namespace testing;
 

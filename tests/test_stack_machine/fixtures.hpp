@@ -1,10 +1,10 @@
 #pragma once
 
-#include <gtest/gtest.h>
-#include <filesystem>
-
 #include "std.h"
 #include "rc.h"
+
+#include <gtest/gtest.h>
+#include <filesystem>
 
 using namespace testing;
 

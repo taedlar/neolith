@@ -6,15 +6,19 @@
  */
 
 #if defined(__linux__)
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-#include "async/async_runtime.h"
+#define NO_STEM
+#include "src/std.h"
+
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/stat.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 #include <errno.h>
+
+#include "async/async_runtime.h"
 
 #define MAX_EVENTS 64
 

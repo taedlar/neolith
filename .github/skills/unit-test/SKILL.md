@@ -50,6 +50,12 @@ Test patterns:
     s_previous_cwd = fs::current_path(); // saved for later restoration in TearDown()
     fs::current_path(mudlib_path);
 ```
+
+### Unit Test Header and Fixture Conventions
+- Each test `.cpp` file must start with configuration header `#include <config.h>` enclosed by `#ifdef HAVE_CONFIG_H`
+- Include `fixtures.hpp` (or `std.h` if no fixture is needed) after `config.h` to get properly configured standard library headers and platform-specific compatibility layers.
+- **IMPORTANT**: Do not include any headers before `config.h` and `fixtures.hpp` (or `std.h`) in test files. It can cause compilation errors due to missing platform-specific definitions.
+
 ### LPC Object Loading in Tests
 Make sure `init_master()` is called in the fixture setup before loading LPC objects, as the master object is responsible for approving `load_object()` calls. Set `current_object` to `master_ob` when loading objects in tests to ensure the master applies to approve the load.
 

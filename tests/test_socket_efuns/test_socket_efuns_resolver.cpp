@@ -2,12 +2,10 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <chrono>
-
 #include "fixtures.hpp"
-
 #include "comm.h"
 #include "stem.h"
+#include <chrono>
 
 namespace {
 

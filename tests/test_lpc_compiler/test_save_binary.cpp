@@ -2,11 +2,11 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <system_error>
-#include <cstring>
-
 #include "fixtures.hpp"
 #include "lpc/program/binaries.h"
+
+#include <system_error>
+#include <cstring>
 
 using namespace testing;
 

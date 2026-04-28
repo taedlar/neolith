@@ -1,15 +1,15 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
-#include <gtest/gtest.h>
-#include <filesystem>
-
 #include "std.h"
 #include "rc.h"
 #include "src/simul_efun.h"
 #include "uids.h"
 #include "lpc/lex.h"
 #include "lpc/object.h"
+
+#include <gtest/gtest.h>
+#include <filesystem>
 
 using namespace testing;
 

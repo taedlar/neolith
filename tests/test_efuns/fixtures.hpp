@@ -1,8 +1,5 @@
 #pragma once
 
-#include <gtest/gtest.h>
-#include <filesystem>
-
 #include "std.h"
 #include "rc.h"
 #include "efuns_prototype.h"
@@ -11,6 +8,9 @@
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/otable.h"
+
+#include <gtest/gtest.h>
+#include <filesystem>
 
 using namespace testing;
 
