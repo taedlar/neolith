@@ -29,8 +29,9 @@ extern object_t *simul_efun_ob;
 /**
  * Initialize the simul_efun subsystem by loading the specified simul_efun object.
  * @param file The path to the simul_efun object file.
+ * @param pre_text The pre-text to be used when initializing the simul_efun object.
  */
-extern void init_simul_efun(const char *file);
+extern void init_simul_efun(const char *file, const char* pre_text);
 
 /**
  * Set the current simul_efun object.
@@ -52,7 +53,7 @@ extern void set_simul_efun (object_t *ob);
  * @param func_name The name of the simul_efun function. It must be a shared string.
  * @return The index (simul_num) of the simul_efun function in the simul_efun table, or -1 if not found.
  */
-extern int find_simul_efun(const char *func_name);
+extern int find_simul_efun(shared_str_t func_name);
 
 /**
  * Call a simul_efun by its index (simul_num) in the simul_efun table.

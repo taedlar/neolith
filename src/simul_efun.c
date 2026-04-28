@@ -59,7 +59,7 @@ static void remove_simuls (void);
 static void get_simul_efuns (program_t* prog);
 
 
-void init_simul_efun (const char *file) {
+void init_simul_efun (const char *file, const char* pre_text) {
 
   object_t *new_ob;
 
@@ -70,7 +70,7 @@ void init_simul_efun (const char *file) {
     }
 
   simul_efun_is_loading = true;
-  if (NULL == (new_ob = load_object (file, 0)))
+  if (NULL == (new_ob = load_object (file, pre_text)))
     {
       simul_efun_is_loading = false;
       debug_error ("failed loading simul_efun file");
@@ -179,7 +179,7 @@ static void get_simul_efuns (program_t* prog) {
 
 #define compare_addrs(x,y) (x < y ? -1 : (x > y ? 1 : 0))
 
-int find_simul_efun (const char *name) {
+int find_simul_efun (shared_str_t name) {
   int first = 0;
   int last = (int)num_simuls - 1;
   int i, j;

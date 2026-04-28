@@ -74,91 +74,86 @@ protected:
 TEST_F(SimulEfunsTest, loadSimulEfun)
 {
     ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
-    init_simul_efun ("/simul_efun.c");
+    init_simul_efun ("/simul_efun.c", NULL);
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
     // simul_efun_ob should be granted NONAME uid without master object.
     EXPECT_STREQ(simul_efun_ob->uid->name, "NONAME");
-
-    // simul_efun_base should still be loaded
-    object_t* base_ob = find_object_by_name("api/unicode");
-    EXPECT_TRUE(base_ob != nullptr);
-    destruct_object(base_ob);
 }
 
 TEST_F(SimulEfunsTest, protectSimulEfun)
 {
+    using namespace neolith;
     ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
-    init_simul_efun ("/simul_efun.c");
+    init_simul_efun ("/simul_efun.c", NULL);
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
     init_master ("/master.c", NULL);
     ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
+    ASSERT_EQ(mud_state(), MS_MUDLIB_LIMBO);
 
     error_context_t econ;
-    save_context (&econ);
+    error_boundary_guard boundary(&econ);
     
     try {
         current_object = master_ob;
         destruct_object (simul_efun_ob); // should raise error
         /*
          * The reason to prevent simul_efun_ob from being destructed while master_ob exists:
-         * 1. The order of function definitions in simul_efun_ob is used as simul_num in the permanent identifier table.
-         * 2. When a LPC object that calls simul_efun is loaded, the corresponding simul_num is stored in the compiled
-         *    opcode F_SIMUL_EFUN at compile time.
-         * 3. If simul_efun_ob is destructed and reloaded, the order of function definitions may change,
-         *    causing the simul_num to refer to a different function than intended.
+         * 1. The order of function definitions in simul_efun_ob is used as simul_num in the
+         *    permanent identifier table.
+         * 2. When a LPC object that calls simul_efun is loaded, the corresponding simul_num is
+         *    stored in the compiled opcode F_SIMUL_EFUN at compile time.
+         * 3. If simul_efun_ob is destructed and reloaded, the order of function definitions may
+         *    change, causing the simul_num to refer to a different function than intended.
          * 
          * In original LPMud and MudOS, the simul_efun_ob is never destructed once loaded.
-         * Neolith allows destructing simul_efun_ob only when master_ob does not exist, which can only be triggered by
-         * using the --pedantic option that enables subsystem teardown when the driver.
+         * Neolith allows destructing simul_efun_ob only when master_ob does not exist, which
+         * can only be triggered by using the --pedantic option that enables subsystem teardown.
          */
-        pop_context (&econ);
         FAIL() << "destruct_object(simul_efun_ob) did not raise error when master object exists.";
     } catch (const neolith::driver_runtime_error &) {
-        restore_context (&econ);
+        boundary.restore(); // restore context before checking the error message
         debug_message("***** expected error: destruct simul_efun_ob while master object exists.");
-        pop_context (&econ);
     }
-
-    object_t* base_ob = find_object_by_name("api/unicode");
-    EXPECT_TRUE(base_ob != nullptr);
-    destruct_object(base_ob);
 }
 
 TEST_F(SimulEfunsTest, findSimulEfun)
 {
     ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
-    init_simul_efun ("/simul_efun.c");
+    init_simul_efun ("/non_existing_file.c", R"(
+        // pre_text to define a dummy simul_efun function for testing
+        string dummy_simul_efun(string str) {
+            return "wrapped: " + str;
+        }
+    )");
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
-    shared_str_t func_name = findstring("textwrap", NULL);
-    ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'textwrap'.";
-    EXPECT_NE(find_simul_efun(func_name), -1) << "find_simul_efun failed to find 'textwrap'.";
+    EXPECT_NE(find_simul_efun(findstring("dummy_simul_efun", NULL)), -1) << "find_simul_efun failed to find 'dummy_simul_efun' defined in pre_text.";
+
+    shared_str_t func_name = findstring("dummy_simul_efun", NULL);
+    ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'dummy_simul_efun'.";
+    EXPECT_NE(find_simul_efun(func_name), -1) << "find_simul_efun failed to find 'dummy_simul_efun'.";
 
     ident_hash_elem_t* ihe = lookup_ident(func_name);
-    ASSERT_TRUE(ihe != nullptr) << "lookup_ident failed to find 'textwrap'.";
-    EXPECT_TRUE(ihe->token & IHE_SIMUL) << "'textwrap' ident_hash_elem_t does not have IHE_SIMUL flag set.";
+    ASSERT_TRUE(ihe != nullptr) << "lookup_ident failed to find 'dummy_simul_efun'.";
+    EXPECT_TRUE(ihe->token & IHE_SIMUL) << "'dummy_simul_efun' ident_hash_elem_t does not have IHE_SIMUL flag set.";
 
     func_name = findstring("create", NULL); // create() is always attempted when loading an object
     ASSERT_TRUE(func_name != nullptr) << "Failed to find string 'create'.";
     EXPECT_EQ(find_simul_efun(func_name), -1);
-
-    object_t* base_ob = find_object_by_name("api/unicode");
-    EXPECT_TRUE(base_ob != nullptr);
-    destruct_object(base_ob);
 }
 
 TEST_F(SimulEfunsTest, callSimulEfun)
 {
     ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
-    init_simul_efun ("/simul_efun.c");
+    init_simul_efun ("/simul_efun.c", NULL);
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";

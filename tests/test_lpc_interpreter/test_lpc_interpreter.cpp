@@ -79,7 +79,7 @@ TEST_F(LPCInterpreterTest, callFunction) {
 }
 
 TEST_F(LPCInterpreterTest, callInheritedFunction) {
-    init_simul_efun("/simul_efun.c"); // need simul efuns to load the inherited object
+    init_simul_efun("/simul_efun.c", NULL); // need simul efuns to load the inherited object
     ASSERT_NE(simul_efun_ob, nullptr) << "simul_efun_ob is null after init_simul_efun().";
     init_master("/master.c", NULL);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
@@ -335,7 +335,7 @@ TEST_F(LPCInterpreterTest, foreachUtf8String) {
 TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
     /* Compile a small LPC object that calls from_json(buffer) through the
      * full LPC interpreter dispatch path, verifying end-to-end buffer→value. */
-    init_simul_efun("/simul_efun.c");
+    init_simul_efun("/simul_efun.c", NULL);
     ASSERT_NE(simul_efun_ob, nullptr) << "simul_efun_ob is null";
     init_master("/master.c", NULL);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null";
