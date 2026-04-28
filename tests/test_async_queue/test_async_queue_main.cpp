@@ -2,12 +2,15 @@
  * @file test_async_queue_main.cpp
  * @brief Test runner for async_queue tests
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+#include "src/std.h"
+#include "port/socket_comm.h"
 
 #include <gtest/gtest.h>
 
 #ifdef _WIN32
-#include <windows.h>
-
 class WinsockEnvironment : public ::testing::Environment {
 public:
     void SetUp() override {

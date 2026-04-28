@@ -2,13 +2,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include "std.h"
 #include <gtest/gtest.h>
-
-#include <cstdlib>
-#include <vector>
-
-#define HAVE_GTEST
-#include "malloc.h"
 
 using neolith::heap::allocation_scope;
 

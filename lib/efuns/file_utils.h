@@ -2,13 +2,7 @@
 
 #include "lpc/types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef _WIN32
-  #define WIN32_LEAN_AND_MEAN
-  #include <windows.h>
   #include <io.h>
   /* define deprecated POSIX names to ISC C names */
   #define open _open
@@ -23,9 +17,9 @@ extern "C" {
   #define getcwd _getcwd
 #endif
 
-/*
- * file.c
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int legal_path(const char *);
 char *check_valid_path(const char* path, object_t *, const char *, int);

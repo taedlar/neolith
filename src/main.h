@@ -1,15 +1,5 @@
 #pragma once
 
-#ifdef __linux__
-#include <linux/limits.h>
-#endif /* __linux__ */
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#define PATH_MAX MAX_PATH
-#endif
-
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
 #endif

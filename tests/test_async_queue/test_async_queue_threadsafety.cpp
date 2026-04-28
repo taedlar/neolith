@@ -2,20 +2,17 @@
  * @file test_async_queue_threadsafety.cpp
  * @brief Thread safety tests for async_queue
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-#include <gtest/gtest.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-
+#include "src/std.h"
 #include "async/async_queue.h"
 #include "async/async_worker.h"
 
 #include <atomic>
 #include <cstring>
+#include <gtest/gtest.h>
 
 class AsyncQueueThreadSafetyTest : public ::testing::Test {
 protected:

@@ -1,10 +1,24 @@
 #pragma once
 
+#ifdef HAVE_STDDEF_H
 #include <stddef.h>
+#endif /* HAVE_STDDEF_H */
+
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif /* HAVE_STDINT_H */
+
 #include <stdlib.h>
 
+#ifdef HAVE_GTEST
+/* for FRIEND_TEST */
+#include <gtest/gtest_prod.h>
+#endif
+
 #ifdef __cplusplus
+#include <limits>
+#include <vector>
+
 extern "C" {
 #endif
 
@@ -21,13 +35,6 @@ char *xalloc(size_t);
 
 #ifdef __cplusplus
 }
-
-#include <cstdint>
-#include <vector>
-#ifdef HAVE_GTEST
-/* for FRIEND_TEST */
-#include <gtest/gtest_prod.h>
-#endif
 
 namespace neolith::heap {
 

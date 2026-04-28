@@ -18,9 +18,7 @@
 #include "async/async_runtime.h"
 #include "async/async_worker.h"
 
-#include <stddef.h>
 #include <stdbool.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {

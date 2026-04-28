@@ -2,14 +2,16 @@
  * @file async_worker_win32.c
  * @brief Windows implementation of worker threads
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
 #ifdef _WIN32
-
+#define NO_STEM
+#include "src/std.h"
 #include "async/async_worker.h"
 #include "port/debug.h"
 #include "port/sync.h"
-#include <windows.h>
-#include <stdlib.h>
 
 struct async_worker_s {
     HANDLE thread;

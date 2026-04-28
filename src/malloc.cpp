@@ -3,12 +3,8 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-
-#ifdef __cplusplus
 #include <algorithm>
-#include <cstdint>
-#include <cstdlib>
-#endif
+#include <memory>
 
 char *reserved_area = NULL;		/* reserved for MALLOC() */
 

@@ -2,7 +2,12 @@
  * @file sync.cpp
  * @brief C++11 implementation of platform-agnostic synchronization primitives
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
+#define NO_STEM
+#include "src/std.h"
 #include "sync.h"
 #include <mutex>
 #include <new>
@@ -10,8 +15,6 @@
 #ifndef _WIN32
 #include <condition_variable>
 #include <chrono>
-#else
-#include <windows.h>
 #endif
 
 /* Internal C++ wrapper types */

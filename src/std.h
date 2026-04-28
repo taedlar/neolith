@@ -15,6 +15,10 @@
 #include <inttypes.h>
 #endif /* HAVE_INTTYPES_H */
 
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif /* HAVE_LIMITS_H */
+
 #ifdef HAVE_STDDEF_H
 #include <stddef.h>
 #endif /* HAVE_STDDEF_H */
@@ -34,6 +38,22 @@
 #ifdef	HAVE_UNISTD_H
 #include <unistd.h>
 #endif	/* HAVE_UNISTD_H */
+
+#ifdef _WIN32
+    /* The windows header defines min and max macros that interfere with std::min and
+     * std::max, so we need to define NOMINMAX before including it.
+     * NOTE: GoogleTest's header files also include windows.h, include of <gtest/gtest.h>
+     * must come after this header to avoid compilation errors.
+     */
+    #define NOMINMAX
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+    #define PATH_MAX MAX_PATH
+#else
+    #ifdef __linux__
+    #include <linux/limits.h>
+    #endif /* __linux__ */
+#endif
 
 /* dynamic memory allocations */
 #include "malloc.h"

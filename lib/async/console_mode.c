@@ -2,14 +2,16 @@
  * @file console_mode.c
  * @brief Shared console mode helpers.
  */
-
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+#define NO_STEM
+#include "src/std.h"
 #include "console_mode.h"
 
 #include "port/debug.h"
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 
 static int get_console_input_mode(HANDLE *handle, DWORD *mode) {
   *handle = GetStdHandle(STD_INPUT_HANDLE);

@@ -4,14 +4,19 @@
  */
 
 #ifndef _WIN32
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-#include "async/async_worker.h"
-#include "port/sync.h"
+#define NO_STEM
+#include "src/std.h"
+
 #include <pthread.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <time.h>
 #include <sys/time.h>
+#include "port/sync.h"
+#include "async/async_worker.h"
 
 struct async_worker_s {
     pthread_t thread;

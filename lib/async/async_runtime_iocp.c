@@ -5,16 +5,17 @@
  * This implementation uses Windows I/O Completion Ports for unified handling
  * of both I/O events and worker thread completions.
  */
-
 #ifdef _WIN32
 
-/* Must include winsock2.h before windows.h to avoid conflicts */
-#include <winsock2.h>
-#include <windows.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
+#define NO_STEM
+#include "src/std.h"
+#include "port/socket_comm.h"
 #include "async/async_runtime.h"
 #include "async/console_worker.h"
-#include <stdlib.h>
-#include <string.h>
 
 /* Maximum text buffer size */
 #ifndef MAX_TEXT

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <gtest/gtest.h>
-#include <filesystem>
-
 #include "std.h"
 #include "rc.h"
 #include "lpc/lex.h"
@@ -10,6 +7,9 @@
 extern "C" {
 #include "grammar.h"
 }
+
+#include <gtest/gtest.h>
+#include <filesystem>
 
 using namespace testing;
 

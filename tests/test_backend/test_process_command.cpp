@@ -2,9 +2,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <gtest/gtest.h>
-#include <filesystem>
-
 #include "std.h"
 #include "rc.h"
 #include "command.h"
@@ -14,6 +11,9 @@
 #include "lpc/object.h"
 #include "lpc/array.h"
 #include "lpc/types.h"
+
+#include <gtest/gtest.h>
+#include <filesystem>
 
 using namespace testing;
 

@@ -7,14 +7,16 @@
  */
 
 #if !defined(_WIN32) && !defined(__linux__)
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
+#define NO_STEM
+#include "src/std.h"
 #include "async/async_runtime.h"
 #include <poll.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 
 #define INITIAL_CAPACITY 64
