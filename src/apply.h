@@ -25,13 +25,13 @@ void pop_stack(void);
  * reading the returned pointer.
  */
 #define APPLY_SLOT_CALL(fun, ob, num_arg, where) \
-  (push_undefined(), apply_call((fun), (ob), (num_arg), (where), 1))
+  (push_undefined(), apply_call((fun), (ob), (num_arg), (where), true))
 #define APPLY_SLOT_SAFE_CALL(fun, ob, num_arg, where) \
-  (push_undefined(), safe_apply_call((fun), (ob), (num_arg), (where), 1))
+  (push_undefined(), safe_apply_call((fun), (ob), (num_arg), (where), true))
 #define APPLY_SLOT_MASTER_CALL(fun, num_arg) \
-  (push_undefined(), apply_master_ob((fun), (num_arg), 1))
+  (push_undefined(), apply_master_ob((fun), (num_arg), true))
 #define APPLY_SLOT_SAFE_MASTER_CALL(fun, num_arg) \
-  (push_undefined(), safe_apply_master_ob((fun), (num_arg), 1))
+  (push_undefined(), safe_apply_master_ob((fun), (num_arg), true))
 #define APPLY_SLOT_FINISH_CALL() pop_stack()
 
 /*
@@ -40,13 +40,13 @@ void pop_stack(void);
  * do not manage explicit stack placeholders.
  */
 #define APPLY_CALL(fun, ob, num_arg, where) \
-  apply_call((fun), (ob), (num_arg), (where), 0)
+  apply_call((fun), (ob), (num_arg), (where), false)
 #define APPLY_SAFE_CALL(fun, ob, num_arg, where) \
-  safe_apply_call((fun), (ob), (num_arg), (where), 0)
+  safe_apply_call((fun), (ob), (num_arg), (where), false)
 #define APPLY_MASTER_CALL(fun, num_arg) \
-  apply_master_ob((fun), (num_arg), 0)
+  apply_master_ob((fun), (num_arg), false)
 #define APPLY_SAFE_MASTER_CALL(fun, num_arg) \
-  safe_apply_master_ob((fun), (num_arg), 0)
+  safe_apply_master_ob((fun), (num_arg), false)
 
 #ifdef CACHE_STATS
 extern unsigned int apply_low_call_others;
@@ -54,11 +54,10 @@ extern unsigned int apply_low_cache_hits;
 extern unsigned int apply_low_slots_used;
 extern unsigned int apply_low_collisions;
 #endif
-int apply_low(const char *fun, object_t *ob, int num_arg);
-svalue_t *apply_call(const char *, object_t *, int, int, int);
-svalue_t *safe_apply_call(const char *, object_t *, int, int, int);
-svalue_t *apply_master_ob(const char *, int, int);
-svalue_t *safe_apply_master_ob(const char *, int, int);
+svalue_t *apply_call(const char *, object_t *, int, int, bool);
+svalue_t *safe_apply_call(const char *, object_t *, int, int, bool);
+svalue_t *apply_master_ob(const char *, int, bool);
+svalue_t *safe_apply_master_ob(const char *, int, bool);
 
 void clear_apply_cache(void);
 

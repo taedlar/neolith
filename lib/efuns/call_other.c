@@ -110,21 +110,6 @@ f_call_other (void)
   assign_svalue (sp - 2, sp); /* overwrites the object (as return value) */
   APPLY_SLOT_FINISH_CALL(); /* remove slot */
   pop_stack (); /* remove function name */
-  // call_origin = ORIGIN_CALL_OTHER;
-  // if (apply_low (funcname, ob, num_arg - 2) == 0)
-  //   {				/* Function not found */
-  //     pop_2_elems ();
-  //     push_undefined ();
-  //     return;
-  //   }
-
-  // /*
-  //  * The result of the function call is on the stack.  So is the function
-  //  * name and object that was called, though. These have to be removed.
-  //  */
-  // free_svalue (--sp, "f_call_other:1");
-  // free_svalue (--sp, "f_call_other:2");
-  // *sp = *(sp + 2);
 }
 #endif
 
