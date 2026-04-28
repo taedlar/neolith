@@ -10,6 +10,12 @@ Most of the efforts are to improve the code quality, code stytle consistency, po
 The project goal is to provide mudlib developers and driver maintainers with a **minimalist code base** that keeps classic LPC workflows intact while making the driver easier to extend, port, and reason about.
 
 ## Features
+### Supported Platforms
+- Conventionally, Linux is the primary development platform for LPMud.
+- Neolith has done a heavy clean up effort on MudOS codebase to enable native MSVC build (not Mingw or Cygwin).
+- Clang-CL build is also supported now.
+- Apple Clang is on the plan, but not yet started.
+
 ### Asynchronous Workers
 
 Neolith's event-driven architecture offloads blocking I/O such as DNS resolution and HTTP work to worker threads through a **unified event loop**, so mudlib code can keep using the normal single-threaded LPC model without freezing the backend. Key differentiators:
@@ -18,45 +24,6 @@ Neolith's event-driven architecture offloads blocking I/O such as DNS resolution
 - **Main Thread Single Blocking Site**: Non-blocking queue operations and timeouts guarantee responsiveness on LPMud backend (commands, heart beats, reset ... etc.)
 - **Zero Interpreter Coupling**: Workers never touch LPC state; results are self-contained
 - **Platform Portable**: Seamless IOCP (Winsock) / epoll (Linux sockets) / poll (fallback) backends
-
-```mermaid
-sequenceDiagram
-    participant Main as Main Thread<br/>(Backend Loop)
-    participant Runtime as async_runtime<br/>(Unified Event Loop)
-    participant Worker as Worker Thread<br/>(Blocking OK)
-    participant Queue as async_queue<br/>(Result Buffer)
-
-    Note over Main: 1. Event polling<br/>(timeout_ms=100)
-    Main->>Runtime: async_runtime_wait()<br/>
-    
-    par Worker Processing
-        Worker->>Worker: Blocking work<br/>(DNS, I/O, crypto)
-    and Main Waiting
-        Note over Main: BLOCKED HERE<br/>Waiting for events
-        Runtime-->>Main: (waiting...)
-    end
-
-    Note over Worker: 2. Work complete<br/>Prepare result
-    Worker->>Queue: async_queue_enqueue()<br/>(result data)
-    
-    Note over Worker: 3. Post completion<br/>to main loop
-    Worker->>Runtime: async_runtime_post_completion()<br/>(completion_key, data)
-    
-    Note over Runtime: Wakes main thread<br/>via platform primitive<br/>(eventfd/IOCP/pipe)
-    
-    Runtime-->>Main: Returns event<br/>with completion_key
-
-    Note over Main: 4. Main wakes<br/>(NEVER blocking)
-    Main->>Queue: async_queue_dequeue()<br/>(non-blocking)
-    
-    alt Result Ready
-        Queue-->>Main: result data
-        Note over Main: 5. Process result<br/>Update state<br/>No interpreter lock needed
-    end
-
-    Note over Main: 6. Return to loop<br/>(instantly, no blocking)
-    Main->>Runtime: async_runtime_wait()<br/>(continues event loop)
-```
 
 **Current Use Cases**: DNS resolution (no driver freeze), console input with testbot automation, CURL efuns, foundation for future async features (REST APIs, GUI clients).
 
@@ -74,6 +41,11 @@ When built with `PACKAGE_CURL`, mudlib objects can configure and launch non-bloc
 
 ### Upgraded LPC string, int, float
 Neolith upgrades the LPC runtime data model in ways that matter directly to mudlib code. LPC `int` is consistently 64-bits on every platform instead of depending on the host `long` size, LPC `float` now uses native `double` precision, taking advantage of 64-bits platform without increasing the storage cost of each LPC value because the payload already lives in a pointer-sized union. LPC `string` is a true counted byte-span value (similar to `std::string_view`) rather than implicit C strings, and string operators preserve that model instead of silently truncating values at the first embedded null byte.
+
+### Driver Robustness Enhancement
+- Migrated LPC error handling from `longjmp()` to C++ exceptions.
+- Harden heap allocation with C++ RAII wrappers and integrate with C++ stack unwinding.
+- Harden string memory management with semantic-explicit wrappers and const correctness API contract.
 
 ## How To Build
 
