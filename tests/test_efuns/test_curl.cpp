@@ -256,14 +256,14 @@ protected:
   }
 
   array_t *QueryLast(object_t *owner) {
-    apply_low("query_last", owner, 0);
-    EXPECT_TRUE(lpc::svalue_view::from(sp).is_array());
-    return sp->u.arr;
+    svalue_t* ret = APPLY_SLOT_CALL ("query_last", owner, 0, ORIGIN_DRIVER);
+    EXPECT_TRUE(lpc::svalue_view::from(ret).is_array());
+    return ret->u.arr;
   }
 
   int QueryEventCount(object_t *owner) {
-    apply_low("query_event_count", owner, 0);
-    auto view = lpc::svalue_view::from(sp);
+    svalue_t* ret = APPLY_SLOT_CALL ("query_event_count", owner, 0, ORIGIN_DRIVER);
+    auto view = lpc::svalue_view::from(ret);
     EXPECT_TRUE(view.is_number());
     int count = static_cast<int>(view.number());
     pop_stack();
@@ -271,8 +271,7 @@ protected:
   }
 
   void ClearEvents(object_t *owner) {
-    apply_low("clear_events", owner, 0);
-    pop_stack();
+    APPLY_CALL("clear_events", owner, 0, ORIGIN_DRIVER);
   }
 
   void ExpectBufferEq(const svalue_t &sv, const char *expected) {
@@ -303,11 +302,11 @@ protected:
 
   int CallIntMethodWithStringArg(object_t *owner, const char *method, const std::string &arg) {
     copy_and_push_string(arg.c_str());
-    apply_low(method, owner, 1);
-    auto view = lpc::svalue_view::from(sp);
+    svalue_t* ret = APPLY_SLOT_CALL (method, owner, 1, ORIGIN_DRIVER);
+    auto view = lpc::svalue_view::from(ret);
     EXPECT_TRUE(view.is_number());
     int result = view.is_number() ? static_cast<int>(view.number()) : -1;
-    pop_stack();
+    APPLY_SLOT_FINISH_CALL();
     return result;
   }
 };
@@ -347,6 +346,7 @@ static const char kConfigTransformOwnerCode[] = R"(
 )";
 
 TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
+  svalue_t* ret;
   object_t *owner = LoadInlineObject("/tests/efuns/curl_invalid_owner", kCallbackOwnerCode);
   ASSERT_NE(owner, nullptr);
 
@@ -361,27 +361,28 @@ TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
   /* Invalid callback type: number instead of string or function pointer. */
   push_number(42);
   push_number(0);
-  apply_low("try_perform_to", owner, 2);
+  ret = APPLY_SLOT_CALL ("try_perform_to", owner, 2, ORIGIN_DRIVER);
   {
-    auto view = lpc::svalue_view::from(sp);
+    auto view = lpc::svalue_view::from(ret);
     EXPECT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), 1) << "perform_to() should reject non-string/non-function callbacks.";
   }
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 
   /* Invalid flags type: string instead of number. */
   push_constant_string("curl_done");
   push_constant_string("bad");
-  apply_low("try_perform_to", owner, 2);
+  ret = APPLY_SLOT_CALL ("try_perform_to", owner, 2, ORIGIN_DRIVER);
   {
-    auto view = lpc::svalue_view::from(sp);
+    auto view = lpc::svalue_view::from(ret);
     EXPECT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), 1) << "perform_to() should reject non-number flags.";
   }
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 }
 
 TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulStringForBodyAndUrl) {
+  svalue_t* ret;
   object_t *owner = LoadInlineObject("/tests/efuns/curl_config_owner", kConfigOwnerCode);
   ASSERT_NE(owner, nullptr);
 
@@ -390,23 +391,23 @@ TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulStringForBodyAndUrl) {
 
   push_constant_string("body");
   push_svalue(embedded.raw());
-  apply_low("try_perform_using", owner, 2);
+  ret = APPLY_SLOT_CALL ("try_perform_using", owner, 2, ORIGIN_DRIVER);
   {
-    auto view = lpc::svalue_view::from(sp);
+    auto view = lpc::svalue_view::from(ret);
     ASSERT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), 1) << "perform_using(body, string) must reject embedded NUL bytes.";
   }
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 
   push_constant_string("url");
   push_svalue(embedded.raw());
-  apply_low("try_perform_using", owner, 2);
+  ret = APPLY_SLOT_CALL ("try_perform_using", owner, 2, ORIGIN_DRIVER);
   {
-    auto view = lpc::svalue_view::from(sp);
+    auto view = lpc::svalue_view::from(ret);
     ASSERT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), 1) << "perform_using(url, string) must reject embedded NUL bytes.";
   }
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 }
 
 TEST_F(CurlEfunsTest, PerformUsingAllowsBinaryBodyViaBuffer) {
@@ -420,13 +421,13 @@ TEST_F(CurlEfunsTest, PerformUsingAllowsBinaryBodyViaBuffer) {
 
   push_constant_string("body");
   push_refed_buffer(payload);
-  apply_low("try_perform_using", owner, 2);
+  svalue_t* ret = APPLY_SLOT_CALL ("try_perform_using", owner, 2, ORIGIN_DRIVER);
   {
-    auto view = lpc::svalue_view::from(sp);
+    auto view = lpc::svalue_view::from(ret);
     ASSERT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), 0) << "perform_using(body, buffer) should accept binary payloads.";
   }
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 }
 
 TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulHeaderString) {
@@ -438,13 +439,13 @@ TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulHeaderString) {
 
   push_constant_string("headers");
   push_svalue(embedded_header.raw());
-  apply_low("try_perform_using", owner, 2);
+  svalue_t* ret = APPLY_SLOT_CALL ("try_perform_using", owner, 2, ORIGIN_DRIVER);
   {
-    auto view = lpc::svalue_view::from(sp);
+    auto view = lpc::svalue_view::from(ret);
     ASSERT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), 1) << "perform_using(headers, string) must reject embedded NUL bytes.";
   }
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 }
 
 TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulHeaderArrayEntry) {
@@ -457,13 +458,13 @@ TEST_F(CurlEfunsTest, PerformUsingRejectsEmbeddedNulHeaderArrayEntry) {
 
   push_constant_string("headers");
   push_refed_array(headers);
-  apply_low("try_perform_using", owner, 2);
+  svalue_t* ret = APPLY_SLOT_CALL ("try_perform_using", owner, 2, ORIGIN_DRIVER);
   {
-    auto view = lpc::svalue_view::from(sp);
+    auto view = lpc::svalue_view::from(ret);
     ASSERT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), 1) << "perform_using(headers, string*) must reject embedded NUL bytes in any entry.";
   }
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 }
 
 #if defined(F_FROM_JSON) && defined(F_C_STR)
@@ -516,13 +517,13 @@ TEST_F(CurlEfunsTest, InPerformAndOneActiveTransferEnforced) {
   push_number(0);
   push_number(18);
   push_constant_string("second");
-  apply_low("try_perform_to", owner, 4);
+  svalue_t* ret = APPLY_SLOT_CALL ("try_perform_to", owner, 4, ORIGIN_DRIVER);
   {
-    auto view = lpc::svalue_view::from(sp);
+    auto view = lpc::svalue_view::from(ret);
     ASSERT_TRUE(view.is_number());
     EXPECT_EQ(view.number(), 1);
   }
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 
   ASSERT_TRUE(PumpUntil([&]() { return QueryEventCount(owner) == 1; }))
     << "Timed out waiting for curl callback";
@@ -555,7 +556,7 @@ TEST_F(CurlEfunsTest, CallbackOrderingAndOptionPersistenceAcrossIdlePeriods) {
   ExpectBufferEq(first->item[1], "hello from curl");
   ExpectArrayItemNumber(first, 2, 123);
   ExpectArrayItemString(first, 3, "tail");
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 
   ClearEvents(owner);
 
@@ -569,7 +570,7 @@ TEST_F(CurlEfunsTest, CallbackOrderingAndOptionPersistenceAcrossIdlePeriods) {
   ExpectBufferEq(second->item[1], "hello from curl");
   ExpectArrayItemNumber(second, 2, 456);
   ExpectArrayItemString(second, 3, "again");
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 }
 
 TEST_F(CurlEfunsTest, FunctionPointerCallbackDispatchesCarryoverArguments) {
@@ -594,7 +595,7 @@ TEST_F(CurlEfunsTest, FunctionPointerCallbackDispatchesCarryoverArguments) {
   ExpectBufferEq(result->item[1], "funptr-body");
   ExpectArrayItemNumber(result, 2, 321);
   ExpectArrayItemString(result, 3, "fp-tail");
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 }
 
 TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
@@ -632,7 +633,7 @@ TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
   ExpectBufferEq(result_a->item[1], "shared-body");
   ExpectArrayItemNumber(result_a, 2, 11);
   ExpectArrayItemString(result_a, 3, "owner-a");
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 
   array_t *result_b = QueryLast(owner_b);
   ASSERT_EQ(result_b->size, 4);
@@ -640,7 +641,7 @@ TEST_F(CurlEfunsTest, DistinctObjectsCanTransferConcurrently) {
   ExpectBufferEq(result_b->item[1], "shared-body");
   ExpectArrayItemNumber(result_b, 2, 22);
   ExpectArrayItemString(result_b, 3, "owner-b");
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 
   current_object = owner_a;
   f_in_perform();
@@ -693,7 +694,7 @@ TEST_F(CurlEfunsTest, CurlBufferPayloadParsesViaFromJson) {
   EXPECT_STREQ(msg_view.c_str(), "hi");
 
   pop_stack();
-  pop_stack();
+  APPLY_SLOT_FINISH_CALL();
 }
 
 #endif /* F_FROM_JSON */
@@ -715,8 +716,7 @@ TEST_F(CurlEfunsTest, OwnerDestructionCancelsInFlightTransfer) {
   ASSERT_NE(owner, nullptr);
 
   push_object(observer);
-  apply_low("set_observer", owner, 1);
-  pop_stack();
+  APPLY_CALL("set_observer", owner, 1, ORIGIN_DRIVER);
 
   ConfigureUrl(owner, server.url());
   StartTransfer(owner, "curl_done");
@@ -765,17 +765,16 @@ TEST_F(CurlEfunsTest, DestroyedOwnerSkipsCallbackDispatch) {
   ConfigureUrl(owner, server.url());
 
   push_object(observer);
-  apply_low("set_observer", owner, 1);
-  pop_stack();
+  APPLY_CALL("set_observer", owner, 1, ORIGIN_DRIVER);
 
   StartTransfer(owner, "curl_done", 0, nullptr);
   current_object = owner;
   destruct_object(owner);
 
   ASSERT_TRUE(PumpUntil([&]() {
-    apply_low("query_event_count", observer, 0);
-    bool done = (lpc::svalue_view::from(sp).is_number() && lpc::svalue_view::from(sp).number() == 0);
-    pop_stack();
+    svalue_t* ret = APPLY_SLOT_CALL("query_event_count", observer, 0, ORIGIN_DRIVER);
+    bool done = (lpc::svalue_view::from(ret).is_number() && lpc::svalue_view::from(ret).number() == 0);
+    APPLY_SLOT_FINISH_CALL();
     return done;
   }, 700)) << "Destroyed-owner callback unexpectedly reached observer";
 }

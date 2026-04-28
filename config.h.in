@@ -18,6 +18,7 @@
 #cmakedefine HAVE_NETDB_H
 #cmakedefine HAVE_SIGNAL_H
 #cmakedefine HAVE_STDARG_H
+#cmakedefine HAVE_STDBOOL_H
 #cmakedefine HAVE_STDDEF_H
 #cmakedefine HAVE_STDINT_H
 #cmakedefine HAVE_SYS_IOCTL_H

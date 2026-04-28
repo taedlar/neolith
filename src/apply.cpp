@@ -224,7 +224,7 @@ static int function_visible (int origin, int func_flags) {
  * @retval 1 if the applied function has been called successfully.
  *    The return value from the applied function will be on the stack if 1 is returned.
  */
-int apply_low (const char *fun, object_t* ob, int num_arg) {
+static int apply_low (const char *fun, object_t* ob, int num_arg) {
 
   if (!ob || (ob->flags & O_DESTRUCTED))
     {
@@ -417,17 +417,18 @@ void clear_apply_cache (void) {
     }
 }
 
-/*
- * Arguments are supposed to be
- * pushed (using push_string() etc) before the call. A pointer to a
- * 'svalue_t' will be returned. It will be a null pointer if the called
+/**
+ * @brief High-level apply of a function to an object, with error handling and optional
+ *        slot support.
+ *
+ * Arguments are supposed to be pushed onto the stack before the call.
+ * A pointer to a \p svalue_t will be returned. It will be a null pointer if the called
  * function was not found. Otherwise, the return payload is discarded and a
  * non-null sentinel is returned.
  * Reference counts will be updated for this value, to ensure that no pointers
  * are deallocated.
  */
-
-svalue_t *apply_call (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+svalue_t *apply_call (const char *fun, object_t *ob, int num_arg, int where, bool with_slot) {
   /*
    * Contract:
    * - Caller has already pushed num_arg args (and optional slot placeholder).
@@ -477,7 +478,7 @@ svalue_t *apply_call (const char *fun, object_t *ob, int num_arg, int where, int
   return &const1;
 }
 
-svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where, int with_slot) {
+svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where, bool with_slot) {
   /*
    * Contract:
    * - Mirrors apply_call() return contract, but swallows driver_runtime_error.
@@ -526,7 +527,7 @@ svalue_t *safe_apply_call (const char *fun, object_t *ob, int num_arg, int where
   return ret;
 }
 
-svalue_t *apply_master_ob (const char *fun, int num_arg, int with_slot) {
+svalue_t *apply_master_ob (const char *fun, int num_arg, bool with_slot) {
   /*
    * Contract:
    * - Same stack/slot behavior as apply_call(), but targets master_ob.
@@ -573,7 +574,7 @@ svalue_t *apply_master_ob (const char *fun, int num_arg, int with_slot) {
   return &const1;
 }
 
-svalue_t *safe_apply_master_ob (const char *fun, int num_arg, int with_slot) {
+svalue_t *safe_apply_master_ob (const char *fun, int num_arg, bool with_slot) {
   /*
    * Contract:
    * - Same as safe_apply_call() for master applies.

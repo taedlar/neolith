@@ -19,6 +19,14 @@
 #include <limits.h>
 #endif /* HAVE_LIMITS_H */
 
+#ifdef HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+#define bool int
+#define true 1
+#define false 0
+#endif /* !HAVE_STDBOOL_H */
+
 #ifdef HAVE_STDDEF_H
 #include <stddef.h>
 #endif /* HAVE_STDDEF_H */

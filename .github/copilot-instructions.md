@@ -207,7 +207,7 @@ python testbot.py
 - Reference: [docs/internals/async-library.md](docs/internals/async-library.md).
 
 ### Applies and Object Lifecycle
-- Driver-to-LPC applies (`heart_beat()`, `reset()`, `init()`, etc.) dispatch through `apply_low()` in [src/apply.c](src/apply.c); see [docs/applies/](docs/applies/).
+- Driver-to-LPC applies (`heart_beat()`, `reset()`, `init()`, etc.) dispatch through APPLY_CALL (don't care about return value) or APPLY_SLOT_CALL in [src/apply.h](src/apply.h); see [docs/applies/](docs/applies/).
 - Object lifecycle invariants:
   - load compiles a base object (no `#` suffix)
   - clone adds `#N` and shares program
