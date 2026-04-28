@@ -14,10 +14,10 @@ private:
 
 protected:
     void SetUp() override {
-        debug_set_log_with_date (0);
+        debug_set_log_with_date (false);
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
         init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
-        MAIN_OPTION(pedantic) = 1; // enable pedantic mode for stricter checks
+        MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
 
         init_config(MAIN_OPTION(config_file));
 

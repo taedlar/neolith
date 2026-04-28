@@ -1,5 +1,13 @@
 #pragma once
 
+#ifdef HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+typedef int bool;
+#define true 1
+#define false 0
+#endif
+
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
@@ -7,8 +15,6 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
-
-#include <stdlib.h>
 
 #include "src/stralloc.h"
 

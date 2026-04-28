@@ -65,7 +65,7 @@ struct interactive_s {
     int message_length;         /* message buffer length */
     char message_buf[MESSAGE_BUF_SIZE]; /* message buffer */
     int iflags;                 /* interactive flags */
-    int out_of_band;            /* Send a telnet sync operation            */
+    bool out_of_band;           /* Send a telnet sync operation            */
     int state;                  /* Current telnet state.  Bingly wop       */
     int sb_pos;                 /* Telnet suboption negotiation stuff      */
     BYTE sb_buf[SB_SIZE];
@@ -111,14 +111,14 @@ void init_user_conn (void);
 void ipc_remove (void);
 void process_io (void);
 
-void set_console_echo (int echo);
+void set_console_echo (bool echo);
 
 void telnet_neg (char *, char *);
-void set_telnet_echo (object_t*, int echo);
-void set_telnet_single_char (interactive_t *, int);
+void set_telnet_echo (object_t*, bool echo);
+void set_telnet_single_char (interactive_t *, bool single);
 
 int replace_interactive (object_t *, object_t *);
-void remove_interactive (object_t *, int);
+void remove_interactive (object_t *ob, bool dested);
 int flush_message (interactive_t *);
 int query_addr_number (const char *, const char *);
 char *query_ip_name (object_t *);

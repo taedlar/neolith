@@ -63,7 +63,7 @@ void free_prog (program_t * progp, int free_sub_strings) {
     }
 }
 
-char *variable_name (program_t * prog, int idx) {
+shared_str_t variable_name (const program_t * prog, int idx) {
   int i = prog->num_inherited - 1;
   int first;
 
@@ -81,7 +81,7 @@ char *variable_name (program_t * prog, int idx) {
             idx - prog->inherit[i].variable_index_offset);
 }
 
-char *function_name (program_t * prog, int index) {
+shared_str_t function_name (const program_t * prog, int index) {
   runtime_function_u *func_entry = FIND_FUNC_ENTRY (prog, index);
 
   while (prog->function_flags[index] & NAME_INHERITED)

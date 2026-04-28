@@ -6,12 +6,7 @@
  * Internal use only - encapsulated within async library implementations.
  * Main thread code should use async_queue/async_worker APIs instead.
  */
-
-#ifndef PORT_SYNC_H
-#define PORT_SYNC_H
-
-#include <stdbool.h>
-#include <stdint.h>
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -104,5 +99,3 @@ void* platform_event_get_native_handle(platform_event_t* event);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* PORT_SYNC_H */

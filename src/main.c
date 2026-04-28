@@ -174,7 +174,7 @@ parse_argument (int key, char *arg, struct argp_state *state)
         }
       break;
     case 'c':
-      MAIN_OPTION(console_mode) = 1;
+      MAIN_OPTION(console_mode) = true;
       break;
     case 'D':
       {
@@ -193,7 +193,7 @@ parse_argument (int key, char *arg, struct argp_state *state)
       MAIN_OPTION(epilog_level) = atoi (arg);
       break;
     case 'p':
-      MAIN_OPTION(pedantic) = 1;
+      MAIN_OPTION(pedantic) = true;
       break;
     case 'r':
       MAIN_OPTION(timer_flags) = (unsigned int) strtoul (arg, NULL, 0);
@@ -246,7 +246,7 @@ parse_command_line (int argc, char *argv[])
             }
           break;
         case 'c':
-          MAIN_OPTION(console_mode) = 1;
+          MAIN_OPTION(console_mode) = true;
           break;
         case 'd':
           MAIN_OPTION(debug_level) = atoi (optarg);
@@ -265,7 +265,7 @@ parse_command_line (int argc, char *argv[])
             break;
           }
         case 'p':
-          MAIN_OPTION(pedantic) = 1;
+          MAIN_OPTION(pedantic) = true;
           break;
         case 'r':
           MAIN_OPTION(timer_flags) = (unsigned int) strtoul (optarg, NULL, 0);

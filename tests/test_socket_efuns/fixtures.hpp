@@ -95,7 +95,7 @@ protected:
   void SetUp() override {
     namespace fs = std::filesystem;
     // Initialize logging and locale
-    debug_set_log_with_date(0);
+    debug_set_log_with_date (false);
     setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
 
     // Initialize core driver
@@ -103,7 +103,7 @@ protected:
     if (!fs::exists(config_dir / "m3.conf"))
       config_dir = fs::current_path().parent_path();
     init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
-    MAIN_OPTION(pedantic) = 1; // enable pedantic mode for stricter checks
+    MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
     init_config(MAIN_OPTION(config_file));
     debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
 

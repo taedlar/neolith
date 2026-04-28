@@ -2604,15 +2604,11 @@ void eval_instruction (const char *p) {
           /* optimized 1 arg efun */
           st_num_arg = 1;
           CHECK_TYPES (sp, instrs[instruction].type[0], 1, instruction);
-          (*efun_table[instruction - BASE]) ();
+          call_efun (instruction);
           continue;
         }			/* switch (instruction) */
       DEBUG_CHECK1 (sp < fp + csp->num_local_variables - 1, "Bad stack after evaluation. Instruction %d\n", instruction);
     }				/* while (1) */
-}
-
-void call_efun(int instruction) {
-  (*efun_table[instruction - BASE]) ();
 }
 
 #ifndef NO_SHADOWS

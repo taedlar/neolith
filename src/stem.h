@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 /* stem states */
-extern int g_proceeding_shutdown;
+extern bool g_proceeding_shutdown;
 extern int g_exit_code;
 extern int comp_flag;
 extern time_t boot_time;
@@ -33,7 +33,7 @@ int stem_startup(void);
 void stem_run(void);
 void stem_crash_handler(const char *msg);
 
-void smart_log(const char *error_file, int line, const char *what, int warning);
+void smart_log(const char *error_file, int line, const char *what, bool warning);
 
 #ifdef __cplusplus
 }

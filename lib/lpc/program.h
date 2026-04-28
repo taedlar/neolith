@@ -252,8 +252,8 @@ extern size_t total_prog_block_size;
 void reference_prog(program_t *, const char *);
 void free_prog(program_t *, int);
 void deallocate_program(program_t *);
-char *variable_name(program_t *, int);
-char *function_name(program_t *, int);
+shared_str_t variable_name(const program_t *, int);
+shared_str_t function_name(const program_t *, int);
 runtime_function_u *find_func_entry(const program_t*, int);
 
 /* the simple version */

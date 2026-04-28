@@ -16,9 +16,6 @@ extern int call_origin;
 
 const char* origin_name (int);
 
-void push_undefined(void);
-void pop_stack(void);
-
 /*
  * Stack-slot apply wrappers.
  * Caller must pair *_SLOT_CALL() with APPLY_SLOT_FINISH_CALL() when done

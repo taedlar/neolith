@@ -25,7 +25,6 @@ struct simul_info_s {
 extern simul_info_t *simuls;
 
 extern object_t *simul_efun_ob;
-extern int simul_efun_is_loading;
 
 /**
  * Initialize the simul_efun subsystem by loading the specified simul_efun object.

@@ -29,7 +29,7 @@
 /* The 'current_time' is updated at every heart beat. */
 time_t current_time = 0;
 
-int heart_beat_flag = 0;
+bool heart_beat_flag = false;
 
 object_t *current_heart_beat;
 
@@ -138,7 +138,7 @@ mudlib_logon (object_t * ob)
  *
  *  This is a Neolith extension.
  */
-void init_console_user(int reconnect) {
+void init_console_user(bool reconnect) {
 
   object_t* ob;
   if (!master_ob)
@@ -159,7 +159,7 @@ void init_console_user(int reconnect) {
   if (!ob)
     {
       if (master_ob->interactive)
-        remove_interactive (master_ob, 0);
+        remove_interactive (master_ob, false);
       return;
     }
 #ifdef HAVE_TERMIOS_H
@@ -223,7 +223,7 @@ static float perc_hb_probes = 100.0;	/* decaying avge of how many complete */
 void call_heart_beat () {
 
   object_t *ob;
-  heart_beat_flag = 0;
+  heart_beat_flag = false;
   time (&current_time);
   opt_trace (TT_BACKEND|1, "tick: current_time=%u", current_time);
   current_interactive = 0;
@@ -295,7 +295,7 @@ int query_heart_beat (object_t * ob) {
  * various pointers in call_heart_beat could be stuffed, so we must
  * check current_heart_beat and adjust pointers.
  * @param ob The object to modify.
- * @param to If zero, disable heart beat. If positive, enable/set heart beat
+ * @param to If zero, disable heart beat. If positive, enable/set heart beat ticks
  * @return 1 if successful, 0 on failure (e.g., trying to disable non-enabled heart beat).
  */
 int set_heart_beat (object_t * ob, int to) {
@@ -379,22 +379,20 @@ int set_heart_beat (object_t * ob, int to) {
 }
 
 int
-heart_beat_status (outbuffer_t * ob, int verbose)
+heart_beat_status (outbuffer_t * ob, bool verbose)
 {
   char buf[20];
 
-  if (verbose == 1)
+  if (verbose)
     {
       outbuf_add (ob, "Heart beat information:\n");
       outbuf_add (ob, "-----------------------\n");
       outbuf_addv (ob, "Number of objects with heart beat: %d, starts: %d\n",
                    num_hb_objs, num_hb_calls);
 
-      /* passing floats to varargs isn't highly portable so let sprintf
-         handle it */
+      /* passing floats to varargs isn't highly portable so let sprintf handle it */
       sprintf (buf, "%.2f", perc_hb_probes);
-      outbuf_addv (ob, "Percentage of HB calls completed last time: %s\n",
-                   buf);
+      outbuf_addv (ob, "Percentage of HB calls completed last time: %s\n", buf);
     }
   return (0);
 }				/* heart_beat_status() */

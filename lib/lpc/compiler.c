@@ -1778,7 +1778,7 @@ yyerror (char *str)
   function_context.num_parameters = -1;
   if (num_parse_error > 5)
     return;
-  smart_log (current_file, current_line, str, 0);
+  smart_log (current_file, current_line, str, false);
   num_parse_error++;
 }
 
@@ -1788,7 +1788,7 @@ yywarn (char *str)
   if (!(pragmas & PRAGMA_WARNINGS))
     return;
 
-  smart_log (current_file, current_line, str, 1);
+  smart_log (current_file, current_line, str, true);
 }
 
 

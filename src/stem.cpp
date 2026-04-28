@@ -20,7 +20,7 @@
 
 main_options_t *g_main_options = NULL;
 
-int g_proceeding_shutdown = 0;
+bool g_proceeding_shutdown = false;
 int g_exit_code = EXIT_SUCCESS;
 
 int comp_flag = 0;    /* Trace compilations */
@@ -43,8 +43,8 @@ int init_stem(int debug_level, unsigned long trace_flags, const char *config_fil
   stem_opts.epilog_level = 0;
   stem_opts.debug_level = debug_level;
   stem_opts.trace_flags = trace_flags;
-  stem_opts.console_mode = 0;
-  stem_opts.pedantic = 0;
+  stem_opts.console_mode = false;
+  stem_opts.pedantic = false;
   stem_opts.timer_flags = TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET;
   memset(stem_opts.config_file, 0, PATH_MAX);
   if (config_file)
@@ -210,7 +210,7 @@ extern "C" void try_reset (object_t * ob) {
  * @param what The error message to log.
  * @param warning If non-zero, indicates that this is a warning rather than an error.
  */
-void smart_log (const char *error_file, int line, const char *what, int warning) {
+void smart_log (const char *error_file, int line, const char *what, bool warning) {
 
   char *buff;
   svalue_t *mret;
@@ -245,7 +245,7 @@ void smart_log (const char *error_file, int line, const char *what, int warning)
  */
 static void heartbeat_timer_callback(void) {
   async_runtime_t *reactor = get_async_runtime();
-  heart_beat_flag = 1;
+  heart_beat_flag = true;
   if (reactor)
     async_runtime_wakeup(reactor);
 }
@@ -396,7 +396,7 @@ void driver_loop(void) {
   neolith::error_boundary_guard boundary(&econ);
 
   if (MAIN_OPTION(console_mode))
-    init_console_user(0);
+    init_console_user(false);
 
   while (1)
     {
@@ -473,7 +473,7 @@ void driver_loop(void) {
         {
           boundary.restore();
           if (MAIN_OPTION(console_mode))
-            init_console_user(0);
+            init_console_user(false);
         }
     }
 }

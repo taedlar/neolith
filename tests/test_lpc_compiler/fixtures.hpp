@@ -34,7 +34,7 @@ protected:
      * 
      *  The master object and simul_efun object are NOT loaded here.
      *
-     *  Using MAIN_OPTION(pedantic) = 1 enables pedantic mode for stricter
+     *  Using MAIN_OPTION(pedantic) = true enables pedantic mode for stricter
      *  checks during testing. It also ensures that all objects are destructed
      *  (in safe order) at the end of each test, preventing state leakage
      *  between tests.
@@ -43,14 +43,14 @@ protected:
     void SetUp() override {
         namespace fs = std::filesystem;
         previous_cwd = fs::current_path();
-        debug_set_log_with_date (0);
+        debug_set_log_with_date (false);
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
 
         fs::path config_dir = fs::current_path();
         if (!fs::exists(config_dir / "m3.conf"))
             fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
         init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
-        MAIN_OPTION(pedantic) = 1; // enable pedantic mode for stricter checks
+        MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
 
         init_config(MAIN_OPTION(config_file));
 

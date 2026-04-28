@@ -155,7 +155,7 @@ f_deep_inventory (void)
 {
   array_t *vec;
 
-  vec = deep_inventory (sp->u.ob, 0);
+  vec = deep_inventory (sp->u.ob, false);
   free_object (sp->u.ob, "f_deep_inventory");
   put_array (vec);
 }

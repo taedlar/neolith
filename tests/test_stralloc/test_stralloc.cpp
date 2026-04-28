@@ -11,10 +11,10 @@ protected:
     void SetUp() override {
         // Code here will be called immediately after the constructor (right
         // before each test).
-        debug_set_log_with_date (0);
+        debug_set_log_with_date (false);
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
         init_stem(3, 0177, ""); // use highest debug level and enable all trace logs
-        MAIN_OPTION(pedantic) = 1; // enable pedantic mode for stricter checks
+        MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
         init_strings (15000, 1000000);   // will be forced to 16384 inside the function
     }
