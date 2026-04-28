@@ -11,12 +11,13 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <string>
 #include "fixtures.hpp"
 
 #include "lpc/buffer.h"
 #include "lpc/mapping.h"
 #include "src/error_context.h"
+
+#include <string>
 
 /* ------------------------------------------------------------------ */
 /* to_json tests                                                       */
