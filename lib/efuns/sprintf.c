@@ -1164,8 +1164,7 @@ char* string_print_formatted (const char *format_str, int argc, svalue_t * argv)
                           int tmp;
                           if (pres > fs)
                             pres = fs;
-                          *temp =
-                            ALLOCATE (cst, TAG_TEMPORARY, "string_print: 3");
+                          *temp = ALLOCATE (cst, TAG_TEMPORARY, "string_print: 3");
                           (*temp)->next = 0;
                           (*temp)->d.col = SVALUE_STRPTR(carg);
                           (*temp)->pad = make_pad (&pad);
@@ -1204,7 +1203,7 @@ char* string_print_formatted (const char *format_str, int argc, svalue_t * argv)
                             {
                               if (*p1 == '\n')
                                 {
-                                  if (p1 - p2 > max_len)
+                                  if (p1 - p2 > (int)max_len)
                                     max_len = (unsigned int)(p1 - p2);
                                   p1++;
                                   if (*(p2 = p1))
@@ -1216,7 +1215,7 @@ char* string_print_formatted (const char *format_str, int argc, svalue_t * argv)
                           if (!pres)
                             {
                               /* the null terminated word */
-                              if (p1 - p2 > max_len)
+                              if (p1 - p2 > (int)max_len)
                                 max_len = (unsigned int)(p1 - p2);
                               pres = fs / (max_len + 2);	/* at least two
                                                                  * separating spaces */

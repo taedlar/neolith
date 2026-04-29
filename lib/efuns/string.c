@@ -108,12 +108,12 @@ void f_strwrap (void) {
   size_t indent = 0, width = 0;
 
   if (st_num_arg == 3)
-    indent = (sp--)->u.number;
+    indent = (size_t)(sp--)->u.number;
 
-  width = (sp--)->u.number;
+  width = (size_t)(sp--)->u.number;
 
   /* TODO: wrap the string in specified width and indent */
-  opt_trace(TT_EVAL|3, "indent=%d, width=%d: strwrap() not implemented yet.\n", indent, width);
+  opt_trace(TT_EVAL|3, "indent=%zu, width=%zu: strwrap() not implemented yet.\n", indent, width);
 }
 #endif
 
@@ -125,7 +125,7 @@ void f_repeat_string (void) {
   char *ret, *p;
   size_t i;
 
-  repeat = (sp--)->u.number;
+  repeat = (size_t)((sp--)->u.number);
   if (repeat <= 0)
     {
       free_string_svalue (sp);
@@ -688,7 +688,7 @@ void f_replace_string (void) {
   if (st_num_arg >= 4)
     {
       CHECK_TYPES ((arg + 3), T_NUMBER, 4, F_REPLACE_STRING);
-      first = (arg + 3)->u.number;
+      first = (size_t)(arg + 3)->u.number;
 
       if (st_num_arg == 4)
         {
@@ -699,7 +699,7 @@ void f_replace_string (void) {
         {
           CHECK_TYPES ((arg + 4), T_NUMBER, 5, F_REPLACE_STRING);
           /* first was set above. */
-          last = sp->u.number;
+          last = (size_t)(arg + 4)->u.number;
         }
     }
 

@@ -27,7 +27,7 @@
 void
 f_allocate (void)
 {
-  sp->u.arr = allocate_array (sp->u.number);
+  sp->u.arr = allocate_array ((size_t)sp->u.number);
   sp->type = T_ARRAY;
 }
 #endif
@@ -39,7 +39,7 @@ f_allocate_buffer (void)
 {
   buffer_t *buf;
 
-  buf = allocate_buffer (sp->u.number);
+  buf = allocate_buffer ((size_t)sp->u.number);
   if (buf)
     {
       pop_stack ();

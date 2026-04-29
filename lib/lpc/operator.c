@@ -735,8 +735,8 @@ void f_range (int code) {
         if (to >= len)
           to = len - 1;
         {
-          buffer_t *nbuf = allocate_buffer (to - from + 1);
-          memcpy (nbuf->item, rbuf->item + from, to - from + 1);
+          buffer_t *nbuf = allocate_buffer ((size_t)(to - from + 1));
+          memcpy (nbuf->item, rbuf->item + from, (size_t)(to - from + 1));
           free_buffer (rbuf);
           put_buffer (nbuf);
         }
@@ -822,8 +822,8 @@ void f_extract_range (int code) {
 #endif
         if (from > len)
           from = len;
-        nbuf = allocate_buffer (len - from);
-        memcpy (nbuf->item, rbuf->item + from, len - from);
+        nbuf = allocate_buffer ((size_t)(len - from));
+        memcpy (nbuf->item, rbuf->item + from, (size_t)(len - from));
         free_buffer (rbuf);
         put_buffer (nbuf);
         break;
@@ -952,10 +952,10 @@ void f_sub_eq () {
  */
 
 /* offsets from 'pc' */
-#define SW_TYPE		0
-#define SW_TABLE	1
-#define SW_ENDTAB       3
-#define SW_DEFAULT	5
+#define SW_TYPE	    0
+#define SW_TABLE    1
+#define SW_ENDTAB   3
+#define SW_DEFAULT  5
 
 /* offsets used for range (L_ for lower member, U_ for upper member) */
 #define L_LOWER	0
@@ -963,7 +963,7 @@ void f_sub_eq () {
 #define L_UPPER	(SWITCH_CASE_SIZE)
 #define L_ADDR	(SWITCH_CASE_SIZE + sizeof(char *))
 #define U_LOWER	(-SWITCH_CASE_SIZE)
-#define U_TYPE	(-SWITCH_CASE_SIZE + sizeof(char *))
+#define U_TYPE	(-SWITCH_CASE_SIZE + (int)sizeof(char *))
 #define U_UPPER	0
 #define U_ADDR	(sizeof(char *))
 
@@ -1027,7 +1027,7 @@ void f_switch () {
   else
     {				/* Integer table, check type */
       CHECK_TYPES (sp, T_NUMBER, 1, F_SWITCH);
-      s = (sp--)->u.number;
+      s = (intptr_t)(sp--)->u.number;
       i = (int) pc[0] & 0xf;
       opt_trace (TT_EVAL|1, "f_switch (integer labels): search %d", s);
     }
@@ -1169,7 +1169,7 @@ void f_switch () {
           /* s == r */
           COPY_SHORT (&offset, l + U_ADDR);
           /* found the key - but could be part of a range... */
-          if (!l[U_TYPE] && !l[U_TYPE + 1])
+          if (!*(l + U_TYPE) && !*(l + U_TYPE + 1))
             {
               /* end of range with lookup table */
               COPY_PTR (&r, l + U_LOWER);
