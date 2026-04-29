@@ -98,7 +98,11 @@ static void clean_up_locals(void);
 
 static int define_variable(char *, int, int);
 
-/* This function has strput() semantics; see comments in simulate.c */
+/**
+ * @brief Get a string representation of two types.
+ * 
+ * This function has strput() semantics; see comments in strput.c
+ */
 char* get_two_types (char *where, char *end, int type1, int type2) {
 
   where = strput (where, end, "( ");
@@ -968,8 +972,10 @@ function_number_t define_new_function (char *name, int num_arg, int num_local, u
               if (!(funflags & NAME_STRICT_TYPES))
                 yyerror ("Called function not compiled with type testing.");
 
-              /* Now check that argument types wasn't changed. */
-              if ((type & (~NAME_TYPE_MOD)) != funp->type)
+              /* Now check that argument types wasn't changed.
+               * if ((type & (~NAME_TYPE_MOD)) != funp->type)
+               */
+              if (!compatible_types (funp->type, type & (~NAME_TYPE_MOD)))
                 {
                   char buff[256];
                   char *end = EndOf (buff);
@@ -1131,7 +1137,10 @@ char *compiler_type_names[] = { "unknown", "mixed", "void", "void",
   "function", "float", "buffer"
 };
 
-/* This routine has the semantics of strput(); see comments in simulate.c */
+/**
+ * @brief Get the name of a type, for error messages and such.
+ * This routine has the semantics of strput(); see comments in strput.c
+ */
 char* get_type_name (char *where, char *end, int type) {
 
   int pointer = 0;
@@ -1166,7 +1175,9 @@ char* get_type_name (char *where, char *end, int type) {
       DEBUG_CHECK (type >= (int)(sizeof compiler_type_names / sizeof compiler_type_names[0]), "Bad type\n");
       where = strput (where, end, compiler_type_names[type]);
     }
-  where = strput (where, end, " ");
+  where = strput (where, end, "(");
+  where = strput_int (where, end, type);
+  where = strput (where, end, ") ");
   if (pointer)
     where = strput (where, end, "* ");
   return where;
