@@ -10,12 +10,14 @@ extern "C" {
 
 typedef struct main_options {
   char config_file[PATH_MAX];   /* -f, --config-file */
-  bool console_mode;             /* -c, --console-mode */
-  bool pedantic;                 /* -p, --pedantic */
+  bool console_mode;            /* -c, --console-mode */
+  bool pedantic;                /* -p, --pedantic */
   int epilog_level;             /* -e, --epilog-level */
   int debug_level;              /* -d, --debug-level */
   unsigned long trace_flags;    /* -t, --trace-flags */
   unsigned int timer_flags;     /* -r, --timers */
+
+  char master_file[PATH_MAX];   /* master file name, from command line */
 } main_options_t;
 
 extern main_options_t* g_main_options;

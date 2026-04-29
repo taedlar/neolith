@@ -305,17 +305,16 @@ void ipc_remove () {
 }
 
 int do_comm_polling (struct timeval *timeout) {
-  opt_trace (TT_COMM|3, "calling async_runtime_wait(): timeout %ld sec, %ld usec",
-             timeout->tv_sec, timeout->tv_usec);
-  
+  static struct timeval no_wait = {0, 0};
   /* Use async runtime for event demultiplexing */
-  g_num_io_events = async_runtime_wait (g_runtime, g_io_events,
-                                        sizeof(g_io_events) / sizeof(g_io_events[0]),
-                                        timeout);
-  
+  g_num_io_events = async_runtime_wait (
+    g_runtime, g_io_events,
+    sizeof(g_io_events) / sizeof(g_io_events[0]),
+    timeout ? timeout : &no_wait
+  );
+
   if (g_num_io_events > 0)
-    opt_trace (TT_COMM|3, "async_runtime_wait returned %d events", g_num_io_events);
-  
+    opt_trace (TT_COMM|3, "async_runtime_wait returned %d events", g_num_io_events);  
   return g_num_io_events;
 }
 

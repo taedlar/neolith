@@ -1952,11 +1952,9 @@ void fatal (const char *fmt, ...) {
  * logic from the efun call.
  *
  * In Neolith, the shutdown() efun raises the g_proceeding_shutdown flag, and the
- * backend loop will return to main() which call this function to perform the
- * actual shutdown.
+ * backend loop will call this function to perform the actual shutdown.
  *
- * @return This function does not return. It exits the process and return the
- *         g_exit_code to the operating system.
+ * @return After this function returns, the driver process should exit.
  */
 void do_shutdown () {
 
@@ -2006,6 +2004,21 @@ void do_shutdown () {
       g_runtime = NULL;
     }
 
+  /*
+   * NOTE: We do not do active tear down of the runtime environment when running as
+   * a long-lived server process. It is not pratical to require the mudlib to destruct
+   * all loaded objects and free all allocated resources in a clean way upon shutdown.
+   * All allocated resources will be reclaimed by the operating system upon process
+   * termination.
+   *
+   * In some cases, the mudlib author would like to do clean up for testing or
+   * debugging purposes. The --pedantic command line option (-p) is provided for this
+   * purpose.
+   *
+   * However, we do call tear down after running unit tests to ensure that there
+   * is no memory leak. The graceful tear down code can be found in various unit-testing
+   * code under the tests/ directory.
+   */
   if (MAIN_OPTION(pedantic))
     {
       debug_message ("{}\ttearing down world simulation");
@@ -2016,22 +2029,16 @@ void do_shutdown () {
       deinit_config();
     }
 
-#ifdef WINSOCK
-  WSACleanup(); /* for graceful shutdown */
-#endif
-
 #ifdef PROFILING
   monitor (0, 0, 0, 0, 0);	/* cause gmon.out to be written */
 #endif
-
-  exit (g_exit_code);
 }
 
-/*
+/**
  * Call this one when there is only little memory left. It will start
  * Armageddon.
  */
-void do_slow_shutdown (int minutes) {
+void initiate_slow_shutdown (int minutes) {
   /*
    * Swap out objects, and free some memory.
    */
@@ -2215,7 +2222,6 @@ void setup_simulate() {
   init_binaries ();             /* lib/lpc/program/binaries.c */
   init_uids();                  /* uids.c */
   init_backend ();              /* backend.c */
-  current_time = time (NULL);
 }
 
 void tear_down_simulate() {

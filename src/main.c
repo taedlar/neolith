@@ -80,6 +80,11 @@ int main (int argc, char **argv) {
   locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
   init_stem(0, 0, NULL);
   parse_command_line (argc, argv);
+  if (!*MAIN_OPTION(config_file))
+    {
+      fprintf (stderr, "No configuration file specified. Use -f option to specify a config file.\n");
+      exit (EXIT_FAILURE);
+    }
   init_config (MAIN_OPTION(config_file));
   init_debug_log();
 
@@ -138,24 +143,9 @@ int main (int argc, char **argv) {
     }
 
   /* Run the infinite backend loop */
-  debug_message ("{}\t----- entering MUD -----");
   stem_run ();
 
-  /* NOTE: We do not do active tear down of the runtime environment when running as
-   * a long-lived server process. It is not pratical to require the mudlib to destruct
-   * all loaded objects and free all allocated resources in a clean way upon shutdown.
-   * All allocated resources will be reclaimed by the operating system upon process
-   * termination.
-   *
-   * In some cases, the mudlib author would like to do clean up for testing or
-   * debugging purposes. The --pedantic command line option (-p) is provided for this
-   * purpose.
-   *
-   * However, we do call tear down after running unit tests to ensure that there
-   * is no memory leak. The graceful tear down code can be found in various unit-testing
-   * code under the tests/ directory.
-   */
-  do_shutdown ();
+  exit (g_exit_code);
 }
 
 
@@ -201,6 +191,14 @@ parse_argument (int key, char *arg, struct argp_state *state)
     case 't':
       MAIN_OPTION(trace_flags) = strtoul (arg, NULL, 0);
       break;
+    case ARGP_KEY_ARG:
+      if (state->arg_num == 0)
+        {
+          /* first non-option argument is master file */
+          strncpy (MAIN_OPTION(master_file), arg, PATH_MAX - 1);
+          MAIN_OPTION(master_file)[PATH_MAX - 1] = 0;
+        }
+      break;
     default:
       return ARGP_ERR_UNKNOWN;
     }
@@ -226,7 +224,7 @@ parse_command_line (int argc, char *argv[])
   struct argp parser = {
     .options = options,
     .parser = parse_argument,
-    .args_doc = NULL,
+    .args_doc = "[master-file args ...]",
     .doc = "\nA lightweight LPMud driver (MudOS fork) for easy extend."
   };
 
@@ -278,10 +276,13 @@ parse_command_line (int argc, char *argv[])
           fatal ("invalid option: %c", c);
         }
     }
+  if (optind < argc)
+    {
+      /* first non-option argument is master file */
+      strncpy (MAIN_OPTION(master_file), argv[optind], PATH_MAX - 1);
+      MAIN_OPTION(master_file)[PATH_MAX - 1] = 0;
+    }
 #endif /* ! HAVE_ARGP_H */
-
-  if (!*MAIN_OPTION(config_file))
-    snprintf (MAIN_OPTION(config_file), PATH_MAX, "/etc/neolith.conf");
 }
 
 void init_debug_log()
