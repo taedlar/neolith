@@ -18,6 +18,8 @@
 #include "simul_efun.h"
 #include "simulate.h"
 
+#include <sstream>
+
 main_options_t *g_main_options = NULL;
 
 bool g_proceeding_shutdown = false;
@@ -199,30 +201,27 @@ extern "C" void try_reset (object_t * ob) {
  */
 void smart_log (const char *error_file, int line, const char *what, bool warning) {
 
-  char *buff;
   svalue_t *mret;
   extern int pragmas;
+  std::stringstream buff;
 
-  buff = (char *) DMALLOC (strlen (error_file) + strlen (what) +
-             ((pragmas & PRAGMA_ERROR_CONTEXT) ? 100 : 40), TAG_TEMPORARY,
-             "smart_log: 1");
-
+  buff << error_file << ":" << line << ": ";
   if (warning)
-    sprintf (buff, "%s line %d: Warning: %s%s", error_file, line, what,
-             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
-  else
-    sprintf (buff, "%s line %d: %s%s", error_file, line, what,
-             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
+    buff << "warning: ";
+  buff << what;
+  if (pragmas & PRAGMA_ERROR_CONTEXT)
+    buff << show_error_context();
+  buff << "\n";
 
   share_and_push_string (error_file);
-  copy_and_push_string (buff);
+  copy_and_push_string (buff.str().c_str());
   mret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_LOG_ERROR, 2);
   if (!mret || mret == (svalue_t *) - 1)
     {
-      log_message (NULL, "\t%s", buff);
+      /* "LPC" \t error_file:line: message */
+      log_message (NULL, "\"LPC\"\t%s", buff.str().c_str());
     }
   APPLY_SLOT_FINISH_CALL();
-  FREE (buff);
 }				/* smart_log() */
 
 /**

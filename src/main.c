@@ -86,6 +86,14 @@ int main (int argc, char **argv) {
       exit (EXIT_FAILURE);
     }
   init_config (MAIN_OPTION(config_file));
+  if (*MAIN_OPTION(mud_app))
+    {
+      char* dot = strrchr(MAIN_OPTION(mud_app), '.');
+      if (dot && (strcmp(dot, ".zip") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tar.gz") == 0 || strcmp(dot, ".tgz") == 0))
+        init_mudlib_archive(MAIN_OPTION(mud_app));
+      else
+        init_application(MAIN_OPTION(mud_app));
+    }
   init_debug_log();
 
   /* Print startup banner (and smoke-test debug settings) */

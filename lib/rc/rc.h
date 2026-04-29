@@ -1,4 +1,13 @@
 #pragma once
+
+#ifdef HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+typedef int bool;
+#define true 1
+#define false 0
+#endif /* !HAVE_STDBOOL_H */
+
 #include "lpc/types.h"
 #include "lpc/include/runtime_config.h"
 #include "port/socket_comm.h"
@@ -47,9 +56,36 @@ extern "C" {
 
 /**
  * @brief Initialize runtime configurations from the specified configuration file.
- * @param config_file The path to the configuration file.
+ *
+ * @param config_file The path to the configuration file. If NULL or empty, default
+ *  configurations will be used.
  */
 void init_config(const char* config_file);
+
+/**
+ * @brief Initialize the MUD application by loading from a mudlib archive.
+ *
+ * Files in the mudlib archive can be used in loading objects (read only).
+ * TODO: Define the archive format and implement this function.
+ *
+ * @param archive_path The path to the mudlib archive.
+ */
+void init_mudlib_archive(const char* archive_path);
+
+/**
+ * @brief Initialize the MUD application with the specified master file.
+ *
+ * If configuration file is not specified, the parent directory of the master file will
+ * be used as MudLibDir.
+ *
+ * If configuration file is specified, this function overrides the MasterFile setting in
+ * the configuration file with the provided \p master_file argument, and loads it as the
+ * master object. If \p master_file is not in the MudlibDir specified in the configuration
+ * file, this function will fail and exit the driver with an error message.
+ *
+ * @param master_file The path to the master file.
+ */
+void init_application(const char* master_file);
 
 void deinit_config();
 
@@ -57,9 +93,9 @@ void deinit_config();
  * @brief Retrieve a runtime configuration item.
  * @param res Pointer to svalue_t where the result will be stored.
  * @param arg Pointer to svalue_t containing the configuration item number.
- * @return 1 if the configuration item was found and retrieved, 0 otherwise.
+ * @return true if the configuration item was found and retrieved, false otherwise.
  */
-int get_config_item(svalue_t* res, svalue_t* arg);
+bool get_config_item(svalue_t* res, svalue_t* arg);
 
 #ifdef __cplusplus
 }
