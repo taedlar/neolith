@@ -12,6 +12,13 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#ifdef HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+typedef int bool;
+#define true 1
+#define false 0
+#endif /* !HAVE_STDBOOL_H */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,9 +56,9 @@ port_def_t external_port[5];
 static int fatal_config_error = 0;
 
 static char *read_config_malloc (const char *filename);
-static char *scan_config (char *config, const char *name, int required, char *def);
-static int scan_config_i (char *config, const char *name, int required, int def);
-static int scan_config_b (char *config, const char *name, int required, int def);
+static char *scan_config (char *config, const char *name, bool required, char *def);
+static int scan_config_i (char *config, const char *name, bool required, int def);
+static int scan_config_b (char *config, const char *name, bool required, bool def);
 
 /* implementations */
 
@@ -111,17 +118,17 @@ read_config_malloc (const char *filename)
  *  @param config The configuration data (will be modified).
  *  @param name The name of the configuration item to search for.
  *  @param required Flag indicating if the configuration item is required.
- *    if required > 0, it is mandatory; if required == 0, it is optional;
- *    if required < 0, it is optional with a warning if missing.
  *  @param def Default value to return if the item is not found.
  *  @return The extracted configuration value (allocated) or the default value.
  */
-static char *
-scan_config (char *config, const char *name, int required, char *def)
+static char*
+scan_config (char *config, const char *name, bool required, char *def)
 {
   size_t sz_name;
   char *term, *p;
 
+  if (!config)
+    return def ? xstrdup(def) : NULL;
   sz_name = strlen (name);
 
   for (term = config; term; term = strchr (term, '\n'))
@@ -148,25 +155,18 @@ scan_config (char *config, const char *name, int required, char *def)
       return term;
     }
 
-  // name not found
-  if (required < 0)
-    {
-      debug_warn ("{}\t%s is missing, assuming %s", name, def ? def : "null");
-      return def;
-    }
-
-  if (required > 0)
+  if (required)
     {
       debug_error ("%s is missing", name);
       fatal_config_error++;
       return NULL;
     }
 
-  return def;
+  return def ? xstrdup (def) : NULL;
 }
 
 static int
-scan_config_i (char *config, const char *name, int required, int def)
+scan_config_i (char *config, const char *name, bool required, int def)
 {
   char *term;
   int n;
@@ -181,21 +181,21 @@ scan_config_i (char *config, const char *name, int required, int def)
 }
 
 static int
-scan_config_b (char *config, const char *name, int required, int def)
+scan_config_b (char *config, const char *name, bool required, bool def)
 {
   char *p;
-  int result = def;
+  int result = def ? 1 : 0;
 
   while ((p = scan_config (config, name, required, NULL)))
     {
-      if (!strcasecmp (p, "yes"))
+      if (!strcasecmp (p, "yes") || !strcasecmp (p, "true") || !strcasecmp (p, "on") || !strcmp (p, "1"))
         result = 1;
-      else if (!strcasecmp (p, "no"))
+      else if (!strcasecmp (p, "no") || !strcasecmp (p, "false") || !strcasecmp (p, "off") || !strcmp (p, "0"))
         result = 0;
       else
-        debug_message ("warnning: %s must be 'Yes' or 'No' [got: %s]\n", name, p);
+        debug_message ("warnning: %s must be 'yes/no' or 'true/false' [got: %s]\n", name, p);
       free (p);
-      required = 0;
+      required = false; /* only consider the first occurrence of the config item */
     }
 
   return result;
@@ -211,15 +211,20 @@ extern "C" void init_config (const char *config_file)
   for (i = 0; i < NUM_CONFIG_STRS; i++)
     config_str[i] = 0;
 
-  if (NULL == (config = read_config_malloc (config_file)))
+  if (config_file && *config_file)
     {
-      perror (config_file);
-      if (errno == ENOENT)
-        fprintf (stderr, "Use -f option to specify a config file\n");
-      exit (EXIT_FAILURE);
+      if (NULL == (config = read_config_malloc (config_file)))
+        {
+          perror (config_file);
+          if (errno == ENOENT)
+            fprintf (stderr, "Use -f option to specify a config file\n");
+          exit (EXIT_FAILURE);
+        }
     }
+  else
+    config = NULL; /* no config file specified */
 
-  CONFIG_STR (__LOG_DIR__) = scan_config (config, "LogDir", 0, NULL);
+  CONFIG_STR (__LOG_DIR__) = scan_config (config, "LogDir", false, NULL);
   if (CONFIG_STR (__LOG_DIR__))
     {
       // we only assign DebugLogFile if LogDir is specified because the debug log file
@@ -228,28 +233,24 @@ extern "C" void init_config (const char *config_file)
       //
       // This guarantees that debug logs are always written to the console when LogDir
       // is not set, which is useful for a read-only mudlib environment.
-      CONFIG_STR (__DEBUG_LOG_FILE__) = scan_config (config, "DebugLogFile", 0, NULL);
+      CONFIG_STR (__DEBUG_LOG_FILE__) = scan_config (config, "DebugLogFile", false, NULL);
     }
-  else
-    {
-      fprintf (stderr, "LogDir is not specified, debug logs will be written to standard error\n");
-    }
-  CONFIG_INT (__ENABLE_LOG_DATE__) = scan_config_b (config, "LogWithDate", 0, 0);
+  CONFIG_INT (__ENABLE_LOG_DATE__) = scan_config_b (config, "LogWithDate", false, false);
 
-  CONFIG_STR (__MUD_LIB_DIR__) = scan_config (config, "MudlibDir", 1, NULL); // required
-  CONFIG_STR (__MUD_NAME__) = scan_config (config, "MudName", 0, NULL);
-  CONFIG_STR (__ADDR_SERVER_IP__) = scan_config (config, "AddrServerIP", 0, NULL);
+  CONFIG_STR (__MUD_LIB_DIR__) = scan_config (config, "MudlibDir", true, NULL); // required
+  CONFIG_STR (__MUD_NAME__) = scan_config (config, "MudName", false, NULL);
+  CONFIG_STR (__ADDR_SERVER_IP__) = scan_config (config, "AddrServerIP", false, NULL);
 
-  CONFIG_STR (__GLOBAL_INCLUDE_FILE__) = scan_config (config, "GlobalInclude", 0, NULL);
+  CONFIG_STR (__GLOBAL_INCLUDE_FILE__) = scan_config (config, "GlobalInclude", false, NULL);
   CONFIG_STR (__BIN_DIR__) = NULL;
-  CONFIG_STR (__INCLUDE_DIRS__) = scan_config (config, "IncludeDir", 0, NULL);
-  CONFIG_STR (__SAVE_BINARIES_DIR__) = scan_config (config, "SaveBinaryDir", 0, NULL);
-  CONFIG_STR (__MASTER_FILE__) = scan_config (config, "MasterFile", 1, NULL); // required
-  CONFIG_STR (__SIMUL_EFUN_FILE__) = scan_config (config, "SimulEfunFile", 0, NULL);
-  CONFIG_STR (__DEFAULT_ERROR_MESSAGE__) = scan_config (config, "DefaultErrorMsg", 0, NULL);
-  CONFIG_STR (__DEFAULT_FAIL_MESSAGE__) = scan_config (config, "DefaultFailMsg", 0, NULL);
+  CONFIG_STR (__INCLUDE_DIRS__) = scan_config (config, "IncludeDir", false, NULL);
+  CONFIG_STR (__SAVE_BINARIES_DIR__) = scan_config (config, "SaveBinaryDir", false, NULL);
+  CONFIG_STR (__MASTER_FILE__) = scan_config (config, "MasterFile", true, NULL); // required
+  CONFIG_STR (__SIMUL_EFUN_FILE__) = scan_config (config, "SimulEfunFile", false, NULL);
+  CONFIG_STR (__DEFAULT_ERROR_MESSAGE__) = scan_config (config, "DefaultErrorMsg", false, NULL);
+  CONFIG_STR (__DEFAULT_FAIL_MESSAGE__) = scan_config (config, "DefaultFailMsg", false, NULL);
 
-  for (i = 0; i < 5 && (p = scan_config (config, "Port", 0, NULL)); i++)
+  for (i = 0; i < 5 && (p = scan_config (config, "Port", false, NULL)); i++)
     {
       char *typ;
 
@@ -269,39 +270,39 @@ extern "C" void init_config (const char *config_file)
     }
   CONFIG_INT (__MUD_PORT__) = (i > 0) ? external_port[0].port : 0; /* external port is optional since we have console-mode */
 
-  CONFIG_INT (__ADDR_SERVER_PORT__) = scan_config_i (config, "AddrServerPort", 0, 0);
-  CONFIG_INT (__TIME_TO_CLEAN_UP__) = scan_config_i (config, "CleanupDuration", 0, 600);
-  CONFIG_INT (__TIME_TO_RESET__) = scan_config_i (config, "ResetDuration", 0, 1800);
-  CONFIG_INT (__INHERIT_CHAIN_SIZE__) = scan_config_i (config, "MaxInheritDepth", 0, 30);
-  CONFIG_INT (__MAX_EVAL_COST__) = scan_config_i (config, "MaxEvaluationCost", 0, 1000000);
-  CONFIG_INT (__RESERVED_MEM_SIZE__) = scan_config_i (config, "ReservedMemorySize", 0, 0); /* reserved for emergent shutdown */
+  CONFIG_INT (__ADDR_SERVER_PORT__) = scan_config_i (config, "AddrServerPort", false, 0);
+  CONFIG_INT (__TIME_TO_CLEAN_UP__) = scan_config_i (config, "CleanupDuration", false, 600);
+  CONFIG_INT (__TIME_TO_RESET__) = scan_config_i (config, "ResetDuration", false, 1800);
+  CONFIG_INT (__INHERIT_CHAIN_SIZE__) = scan_config_i (config, "MaxInheritDepth", false, 30);
+  CONFIG_INT (__MAX_EVAL_COST__) = scan_config_i (config, "MaxEvaluationCost", false, 1000000);
+  CONFIG_INT (__RESERVED_MEM_SIZE__) = scan_config_i (config, "ReservedMemorySize", false, 0); /* reserved for emergent shutdown */
 
-  CONFIG_INT (__MAX_ARRAY_SIZE__) = scan_config_i (config, "MaxArraySize", 0, 15000);
-  CONFIG_INT (__MAX_BUFFER_SIZE__) = scan_config_i (config, "MaxBufferSize", 0, 4000000);
-  CONFIG_INT (__MAX_MAPPING_SIZE__) = scan_config_i (config, "MaxMappingSize", 0, 15000);
-  CONFIG_INT (__MAX_STRING_LENGTH__) = scan_config_i (config, "MaxStringLength", 0, 200000);
-  CONFIG_INT (__MAX_BITFIELD_BITS__) = scan_config_i (config, "MaxBitFieldBits", 0, 1200);
+  CONFIG_INT (__MAX_ARRAY_SIZE__) = scan_config_i (config, "MaxArraySize", false, 15000);
+  CONFIG_INT (__MAX_BUFFER_SIZE__) = scan_config_i (config, "MaxBufferSize", false, 4000000);
+  CONFIG_INT (__MAX_MAPPING_SIZE__) = scan_config_i (config, "MaxMappingSize", false, 15000);
+  CONFIG_INT (__MAX_STRING_LENGTH__) = scan_config_i (config, "MaxStringLength", false, 200000);
+  CONFIG_INT (__MAX_BITFIELD_BITS__) = scan_config_i (config, "MaxBitFieldBits", false, 1200);
 
-  CONFIG_INT (__MAX_BYTE_TRANSFER__) = scan_config_i (config, "MaxByteTransfer", 0, 10000);
-  CONFIG_INT (__MAX_READ_FILE_SIZE__) = scan_config_i (config, "MaxReadFileSize", 0, 20000);
-  CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__) = scan_config_i (config, "SharedStringHashSize", 0, 20011);
-  CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__) = scan_config_i (config, "ObjectHashSize", 0, 10007);
-  CONFIG_INT (__ENABLE_CRASH_DROP_CORE__) = scan_config_b (config, "CrashDropCore", 0, 1);
-  CONFIG_INT (__RESOLVER_FORWARD_CACHE_TTL__) = scan_config_i (config, "ResolverForwardCacheTtl", 0, 300);
-  CONFIG_INT (__RESOLVER_REVERSE_CACHE_TTL__) = scan_config_i (config, "ResolverReverseCacheTtl", 0, 900);
-  CONFIG_INT (__RESOLVER_NEGATIVE_CACHE_TTL__) = scan_config_i (config, "ResolverNegativeCacheTtl", 0, 30);
-  CONFIG_INT (__RESOLVER_STALE_REFRESH_WINDOW__) = scan_config_i (config, "ResolverStaleRefreshWindow", 0, 30);
-  CONFIG_INT (__RESOLVER_FORWARD_QUOTA__) = scan_config_i (config, "ResolverForwardQuota", 0, 10);
-  CONFIG_INT (__RESOLVER_REVERSE_QUOTA__) = scan_config_i (config, "ResolverReverseQuota", 0, 4);
-  CONFIG_INT (__RESOLVER_REFRESH_QUOTA__) = scan_config_i (config, "ResolverRefreshQuota", 0, 2);
-  CONFIG_INT (__EVALUATOR_STACK_SIZE__) = scan_config_i (config, "StackSize", 0, 1000);
-  CONFIG_INT (__MAX_LOCAL_VARIABLES__) = scan_config_i (config, "MaxLocalVariables", 0, 25);
-  CONFIG_INT (__MAX_CALL_DEPTH__) = scan_config_i (config, "MaxCallDepth", 0, 50);
+  CONFIG_INT (__MAX_BYTE_TRANSFER__) = scan_config_i (config, "MaxByteTransfer", false, 10000);
+  CONFIG_INT (__MAX_READ_FILE_SIZE__) = scan_config_i (config, "MaxReadFileSize", false, 20000);
+  CONFIG_INT (__SHARED_STRING_HASH_TABLE_SIZE__) = scan_config_i (config, "SharedStringHashSize", false, 20011);
+  CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__) = scan_config_i (config, "ObjectHashSize", false, 10007);
+  CONFIG_INT (__ENABLE_CRASH_DROP_CORE__) = scan_config_b (config, "CrashDropCore", false, true);
+  CONFIG_INT (__RESOLVER_FORWARD_CACHE_TTL__) = scan_config_i (config, "ResolverForwardCacheTtl", false, 300);
+  CONFIG_INT (__RESOLVER_REVERSE_CACHE_TTL__) = scan_config_i (config, "ResolverReverseCacheTtl", false, 900);
+  CONFIG_INT (__RESOLVER_NEGATIVE_CACHE_TTL__) = scan_config_i (config, "ResolverNegativeCacheTtl", false, 30);
+  CONFIG_INT (__RESOLVER_STALE_REFRESH_WINDOW__) = scan_config_i (config, "ResolverStaleRefreshWindow", false, 30);
+  CONFIG_INT (__RESOLVER_FORWARD_QUOTA__) = scan_config_i (config, "ResolverForwardQuota", false, 10);
+  CONFIG_INT (__RESOLVER_REVERSE_QUOTA__) = scan_config_i (config, "ResolverReverseQuota", false, 4);
+  CONFIG_INT (__RESOLVER_REFRESH_QUOTA__) = scan_config_i (config, "ResolverRefreshQuota", false, 2);
+  CONFIG_INT (__EVALUATOR_STACK_SIZE__) = scan_config_i (config, "StackSize", false, 1000);
+  CONFIG_INT (__MAX_LOCAL_VARIABLES__) = scan_config_i (config, "MaxLocalVariables", false, 25);
+  CONFIG_INT (__MAX_CALL_DEPTH__) = scan_config_i (config, "MaxCallDepth", false, 50);
 
-  if (scan_config_b (config, "ArgumentsInTrace", 0, 0))
+  if (scan_config_b (config, "ArgumentsInTrace", false, false))
     g_trace_flag |= DUMP_WITH_ARGS;
 
-  if (scan_config_b (config, "LocalVariablesInTrace", 0, 0))
+  if (scan_config_b (config, "LocalVariablesInTrace", false, false))
     g_trace_flag |= DUMP_WITH_LOCALVARS;
 
   /*

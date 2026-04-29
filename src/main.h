@@ -17,7 +17,7 @@ typedef struct main_options {
   unsigned long trace_flags;    /* -t, --trace-flags */
   unsigned int timer_flags;     /* -r, --timers */
 
-  char master_file[PATH_MAX];   /* master file name, from command line */
+  char mud_app[PATH_MAX];   /* master file or mudlib archive, from command line */
 } main_options_t;
 
 extern main_options_t* g_main_options;

@@ -80,9 +80,9 @@ int main (int argc, char **argv) {
   locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
   init_stem(0, 0, NULL);
   parse_command_line (argc, argv);
-  if (!*MAIN_OPTION(config_file))
+  if (!*MAIN_OPTION(config_file) && !*MAIN_OPTION(mud_app))
     {
-      fprintf (stderr, "No configuration file specified. Use -f option to specify a config file.\n");
+      fprintf (stderr, "%s: you must specify a configuration file, mudlib archive or master file.\n", argv[0]);
       exit (EXIT_FAILURE);
     }
   init_config (MAIN_OPTION(config_file));
@@ -194,9 +194,12 @@ parse_argument (int key, char *arg, struct argp_state *state)
     case ARGP_KEY_ARG:
       if (state->arg_num == 0)
         {
-          /* first non-option argument is master file */
-          strncpy (MAIN_OPTION(master_file), arg, PATH_MAX - 1);
-          MAIN_OPTION(master_file)[PATH_MAX - 1] = 0;
+          /* first non-option argument is master file or mudlib archive */
+          if (!realpath (arg, MAIN_OPTION(mud_app)))
+            {
+              perror (arg);
+              exit (EXIT_FAILURE);
+            }
         }
       break;
     default:
@@ -224,7 +227,7 @@ parse_command_line (int argc, char *argv[])
   struct argp parser = {
     .options = options,
     .parser = parse_argument,
-    .args_doc = "[master-file args ...]",
+    .args_doc = "[MASTER-FILE|MUDLIB-ARCHIVE args ...]",
     .doc = "\nA lightweight LPMud driver (MudOS fork) for easy extend."
   };
 
@@ -278,9 +281,12 @@ parse_command_line (int argc, char *argv[])
     }
   if (optind < argc)
     {
-      /* first non-option argument is master file */
-      strncpy (MAIN_OPTION(master_file), argv[optind], PATH_MAX - 1);
-      MAIN_OPTION(master_file)[PATH_MAX - 1] = 0;
+      /* first non-option argument is master file or mudlib archive */
+      if (!realpath (argv[optind], MAIN_OPTION(mud_app)))
+        {
+          perror (argv[optind]);
+          exit (EXIT_FAILURE);
+        }
     }
 #endif /* ! HAVE_ARGP_H */
 }
