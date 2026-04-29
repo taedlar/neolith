@@ -1044,7 +1044,7 @@ void i_update_forward_branch_links (BYTE kind, parse_node_t* link_start) {
   current_forward_branch = offset;
   do
     {
-      offset = link_start->v.number;
+      offset = (ptrdiff_t)link_start->v.number;
       upd_byte (offset - 1, kind);
       upd_short (offset, (short)(CURRENT_PROGRAM_SIZE - offset));
       link_start = link_start->l.expr;
@@ -1078,7 +1078,7 @@ i_update_branch_list (parse_node_t * bl)
 
   while (bl)
     {
-      upd_short (bl->l.number, (short)(current_size - bl->l.number));
+      upd_short ((ptrdiff_t)bl->l.number, (short)(current_size - (ptrdiff_t)bl->l.number));
       bl = bl->v.expr;
     }
 }

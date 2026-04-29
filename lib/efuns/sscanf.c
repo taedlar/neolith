@@ -329,16 +329,16 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                         {
                           if (!skipme)
                             {
-                              match = new_string (num = (size_t)(*reg->startp - in_string), "inter_sscanf");
-                              memcpy (match, in_string, num);
+                              match = new_string ((size_t)(num = *reg->startp - in_string), "inter_sscanf");
+                              memcpy (match, in_string, (size_t)num);
                               match[num] = 0;
                               SSCANF_ASSIGN_SVALUE_STRING (match);
                             }
                           in_string = *reg->endp;
                           if (!skipme2)
                             {
-                              match = new_string (num = (size_t)(*reg->endp - *reg->startp), "inter_sscanf");
-                              memcpy (match, *reg->startp, num);
+                              match = new_string ((size_t)(num = *reg->endp - *reg->startp), "inter_sscanf");
+                              memcpy (match, *reg->startp, (size_t)num);
                               match[num] = 0;
                               SSCANF_ASSIGN_SVALUE_STRING (match);
                             }
@@ -359,8 +359,8 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
 
           if (!skipme)
             {
-              match = new_string (num = (tmp - in_string), "inter_sscanf");
-              memcpy (match, in_string, num);
+              match = new_string ((size_t)(num = tmp - in_string), "inter_sscanf");
+              memcpy (match, in_string, (size_t)num);
               match[num] = 0;
               SSCANF_ASSIGN_SVALUE_STRING (match);
             }
@@ -416,7 +416,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
          used in strsrch as well has here, etc? */
       while (*in_string)
         {
-          if ((*in_string == old_char) && !strncmp (in_string, fmt, num))
+          if ((*in_string == old_char) && !strncmp (in_string, fmt, (size_t)num))
             {
               /*
                * Found a match !
@@ -426,7 +426,7 @@ int inter_sscanf (svalue_t * arg, svalue_t * s0, svalue_t * s1, int num_arg) {
                   char *newmatch;
 
                   skipme = (int)(in_string - ss);
-                  newmatch = new_string (skipme, "inter_sscanf");
+                  newmatch = new_string ((size_t)skipme, "inter_sscanf");
                   memcpy (newmatch, ss, skipme);
                   newmatch[skipme] = 0;
                   SSCANF_ASSIGN_SVALUE_STRING (newmatch);

@@ -963,7 +963,7 @@ first_for_expr:
                 }
                 node2->l.expr = $3;
                 node2->r.expr = node1;
-                prepare_cases(node2, $<number>2);
+                prepare_cases(node2, (size_t)$<number>2);
                 context = $<number>1;
                 $$ = node2;
                 pop_n_locals($7.num);
@@ -1120,11 +1120,11 @@ first_for_expr:
             }
     |   L_NUMBER
             {
-                $$ = $1;
+                $$ = (intptr_t)$1;
             }
     |   '-' L_NUMBER
             {
-                $$ = -$2;
+                $$ = (intptr_t)(-$2);
             }
     |   L_NOT L_NUMBER
             {
@@ -1132,7 +1132,7 @@ first_for_expr:
             }
     |   '~' L_NUMBER
             {
-                $$ = ~$2;
+                $$ = (intptr_t)(~$2);
             }
     ;
 
