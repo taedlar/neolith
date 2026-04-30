@@ -95,6 +95,7 @@ object_t* mudlib_connect(int port, const char* addr) {
       debug_message ("connection from %s rejected by master\n", addr);
       return 0;
     }
+
   ob = ret->u.ob; /* the new user object */
   APPLY_SLOT_FINISH_CALL();
 
@@ -111,19 +112,48 @@ object_t* mudlib_connect(int port, const char* addr) {
    */
   ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_PROCESS_INPUT);
 
-  master_ob->flags &= ~(O_ONCE_INTERACTIVE|O_CONSOLE_USER);
-  master_ob->interactive = 0;
+  if (ob == master_ob)
+    {
+      debug_message ("{}\t***** [%s] connected as single-user.\n", addr);
+    }
+  else
+    {
+      master_ob->flags &= ~(O_ONCE_INTERACTIVE|O_CONSOLE_USER);
+      master_ob->interactive = 0;
+    }
   free_object (master_ob, "mudlib_connect"); /* remove extra reference added when calling connect() */
 
   add_ref (ob, "mudlib_connect");
-  command_giver = ob;
   return ob;
 }
 
+/**
+ * @brief Call the logon() function in the master object after a new user has connected.
+ *
+ * This allows the MUD to perform any necessary initialization for the new user, such as setting
+ * up their environment, sending a welcome message, etc.
+ *
+ * @param ob The user object that has just connected and for which logon() should be called.
+ */
 void mudlib_logon (object_t * ob) {
+  svalue_t* ret;
+
   /* current_object no longer set */
-  APPLY_CALL (APPLY_LOGON, ob, 0, ORIGIN_DRIVER);
+  command_giver = ob;
+  ret = APPLY_SAFE_CALL (APPLY_LOGON, ob, 0, ORIGIN_DRIVER);
+  if (!ret)
+    {
+      /* TODO: show error in debug log */
+      debug_error ("Error occured in logon() of object %s.\n", ob->name);
+      return;
+    }
+
   /* function not existing is no longer fatal */
+  if (ret == (svalue_t *) - 1)
+    {
+      debug_warn ("No logon() function in user object %s.\n", ob->name);
+      return;
+    }
 }
 
 /**

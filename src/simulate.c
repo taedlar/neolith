@@ -1343,7 +1343,10 @@ static void tell_npc (object_t * ob, const char *str) {
   APPLY_CALL (APPLY_CATCH_TELL, ob, 1, ORIGIN_DRIVER);
 }
 
-/*
+/**
+ * @brief Send a message to an object, either to its screen if it's interactive or
+ * to its catch_tell() function if it's not.
+ * 
  * tell_object: send a message to an object.
  * If it is an interactive object, it will go to his
  * screen. Otherwise, it will go to a local function
@@ -1357,10 +1360,12 @@ void tell_object (object_t * ob, const char *str) {
   if (!ob || (ob->flags & O_DESTRUCTED))
     {
       add_message (0, str);
+      debug_message ("*%s", str);
       return;
     }
 
-  if (ob == master_ob || ob == simul_efun_ob)
+  /* [NEOLITH-EXTENSION] master_ob can be used as a user object when in single-user mode */
+  if ((ob == simul_efun_ob) || ((ob == master_ob) && !master_ob->interactive))
     {
       debug_message ("*%s", str);
       return;
@@ -1381,7 +1386,7 @@ void tell_object (object_t * ob, const char *str) {
  */
 #ifdef F_TELL_ROOM
 void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
-  object_t *ob;
+  object_t *ob, *next_ob;
   const char *buff;
   int valid, j;
   char txt_buf[LARGEST_PRINTABLE_STRING];
@@ -1410,11 +1415,18 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
       return;
     }
 
-  for (ob = room->contains; ob; ob = ob->next_inv)
+  for (ob = room->contains; ob; ob = next_ob)
     {
+      if (ob->flags & O_DESTRUCTED)
+        {
+          /* TODO: resume next object for tell_room */
+          break;
+        }
+      next_ob = ob->next_inv; /* in case ob is destructed during tell_object() */
       if (!ob->interactive && !(ob->flags & O_LISTENER))
         continue;
 
+      /* skip objects in the avoid array */
       for (valid = 1, j = 0; j < avoid->size; j++)
         {
           if (avoid->item[j].type != T_OBJECT)
@@ -1425,22 +1437,11 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
               break;
             }
         }
-
       if (!valid)
         continue;
 
-      if (!ob->interactive)
-        {
-          tell_npc (ob, buff);
-          if (ob->flags & O_DESTRUCTED)
-            break;
-        }
-      else
-        {
-          tell_object (ob, buff);
-          if (ob->flags & O_DESTRUCTED)
-            break;
-        }
+      /* tell the object */
+      tell_object (ob, buff);
     }
 }
 #endif

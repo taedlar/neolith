@@ -23,7 +23,7 @@ int init_stem(
 /* resource management */
 void preload_objects(int eflag);
 void look_for_objects_to_swap (void);
-void start_timers(void);
+void start_timers (unsigned int timer_flags);
 #ifdef LAZY_RESETS
 void try_reset(object_t *);
 #endif

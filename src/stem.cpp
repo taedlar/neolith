@@ -96,15 +96,11 @@ bool stem_startup(void) {
           init_simul_efun (CONFIG_STR(__SIMUL_EFUN_FILE__), NULL);
         }
 
-      debug_message ("{}\t----- loading master -----");
+      debug_message ("{}\t----- loading master [%s] -----", CONFIG_STR(__MASTER_FILE__));
       init_master (CONFIG_STR(__MASTER_FILE__), NULL);
 
-      debug_message ("{}\t----- epilogue (%d) -----", MAIN_OPTION(epilog_level));
+      debug_message ("{}\t----- epilogue [%d] -----", MAIN_OPTION(epilog_level));
       preload_objects (MAIN_OPTION(epilog_level));
-
-      debug_message ("{}\t----- entering MUD -----");
-      if (MAIN_OPTION(console_mode))
-        init_console_user(false);
 
       return true;
     }
@@ -238,11 +234,20 @@ static void heartbeat_timer_callback(void) {
 
 static platform_timer_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
 
+/**
+ * @brief Start the heart beat timer if enabled in the configuration.
+ *
+ * The timer will trigger the heartbeat_timer_callback at the configured interval.
+ * The HEARTBEAT_INTERVAL defines the "tick" duration for heart beats, which is the minimum
+ * time resolution for all other timers in the MUD.
+ *
+ * @param timer_flags Flags indicating which timers to start.
+ */
 extern "C"
-void start_timers(void) {
+void start_timers (unsigned int timer_flags) {
 #ifdef HEARTBEAT_INTERVAL
   /* start timer if any of the timer flags are set */
-  if (MAIN_OPTION(timer_flags) & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
+  if (timer_flags & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
     {
       timer_error_t timer_err;
       timer_err = platform_timer_init(&heartbeat_timer);
@@ -259,12 +264,12 @@ void start_timers(void) {
               opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
                         timer_error_string(timer_err));
             }
-          debug_message ("timer started (timer flags = %d)\n", MAIN_OPTION(timer_flags));
+          debug_message ("{}\ttimer started (0x%x)\n", timer_flags);
         }
     }
   else
     {
-      debug_message ("timer not used (timer flags = %d)\n", MAIN_OPTION(timer_flags));
+      debug_message ("{}\ttimer disabled (0x%x)\n", timer_flags);
     }
 #endif /* HEARTBEAT_INTERVAL */
 }
@@ -441,14 +446,19 @@ void stem_run () {
 #endif
   init_user_conn();		/* initialize user connection socket */
   init_backend();
+
+  debug_message ("{}\t----- entering MUD -----");
   start_timers();
+  if (MAIN_OPTION(console_mode))
+    init_console_user(false);
 
   driver_loop();
-  do_shutdown ();
 
 #ifdef HEARTBEAT_INTERVAL
   platform_timer_cleanup(&heartbeat_timer);
 #endif
+  do_shutdown ();
+
 #ifdef WINSOCK
   WSACleanup(); /* for graceful shutdown */
 #endif
