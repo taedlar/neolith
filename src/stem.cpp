@@ -92,14 +92,14 @@ bool stem_startup(void) {
     {
       if (CONFIG_STR(__SIMUL_EFUN_FILE__))
         {
-          debug_message ("{}\t----- loading simul efuns -----");
+          LOG_NOTICE ("{}\t----- loading simul efuns -----");
           init_simul_efun (CONFIG_STR(__SIMUL_EFUN_FILE__), NULL);
         }
 
-      debug_message ("{}\t----- loading master [%s] -----", CONFIG_STR(__MASTER_FILE__));
+      LOG_NOTICE ("{}\t----- loading master [%s] -----", CONFIG_STR(__MASTER_FILE__));
       init_master (CONFIG_STR(__MASTER_FILE__), NULL);
 
-      debug_message ("{}\t----- epilogue [%d] -----", MAIN_OPTION(epilog_level));
+      LOG_NOTICE ("{}\t----- epilogue [%d] -----", MAIN_OPTION(epilog_level));
       preload_objects (MAIN_OPTION(epilog_level));
 
       return true;
@@ -215,7 +215,7 @@ void smart_log (const char *error_file, int line, const char *what, bool warning
   if (!mret || mret == (svalue_t *) - 1)
     {
       /* "LPC" \t error_file:line: message */
-      log_message (NULL, "\"LPC\"\t%s", buff.str().c_str());
+      LOG_ERROR ("\"LPC\"\t%s", buff.str().c_str());
     }
   APPLY_SLOT_FINISH_CALL();
 }				/* smart_log() */
@@ -264,12 +264,12 @@ void start_timers (unsigned int timer_flags) {
               opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
                         timer_error_string(timer_err));
             }
-          debug_message ("{}\ttimer started (0x%x)\n", timer_flags);
+          LOG_NOTICE ("{}\ttimer started (0x%x)\n", timer_flags);
         }
     }
   else
     {
-      debug_message ("{}\ttimer disabled (0x%x)\n", timer_flags);
+      LOG_NOTICE ("{}\ttimer disabled (0x%x)\n", timer_flags);
     }
 #endif /* HEARTBEAT_INTERVAL */
 }
@@ -298,7 +298,7 @@ void preload_objects (int eflag) {
   if ((ret == 0) || (ret == (svalue_t *) -1) || (ret->type != T_ARRAY))
     {
       APPLY_SLOT_FINISH_CALL();
-      debug_message("{}\t----- master epilog(%d) did not return an array, skipping preload.", eflag);
+      LOG_NOTICE ("{}\t----- master epilog(%d) did not return an array, skipping preload.", eflag);
       return;
     }
   prefiles = ret->u.arr;
@@ -417,12 +417,12 @@ void stem_crash_handler (const char *msg) {
   ret = APPLY_SLOT_SAFE_MASTER_CALL(APPLY_CRASH, 3);
   if (ret && ret != (svalue_t *)-1)
     {
-      debug_message("{}\t----- mudlib crash handler finished, shutdown now.");
+      LOG_NOTICE ("{}\t----- mudlib crash handler finished, shutdown now.");
     }
   else
     {
-      debug_message("{}\t----- mudlib crash handler failed, using default handler.");
-      log_message (NULL, "CRASH: %s", msg);
+      LOG_ERROR ("{}\t----- mudlib crash handler failed, using default handler.");
+      LOG_FATAL ("CRASH: %s", msg);
     }
   APPLY_SLOT_FINISH_CALL();
 }
@@ -447,12 +447,12 @@ void stem_run () {
   init_user_conn();		/* initialize user connection socket */
   init_backend();
 
-  debug_message ("{}\t----- entering MUD -----");
-  start_timers();
+  LOG_NOTICE ("{}\t----- entering MUD -----");
+  start_timers(MAIN_OPTION(timer_flags));
   if (MAIN_OPTION(console_mode))
     init_console_user(false);
 
-  driver_loop();
+  driver_loop();  /* main driver loop */
 
 #ifdef HEARTBEAT_INTERVAL
   platform_timer_cleanup(&heartbeat_timer);

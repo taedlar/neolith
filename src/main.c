@@ -99,14 +99,14 @@ int main (int argc, char **argv) {
   /* Print startup banner (and smoke-test debug settings) */
   print_startup_info();
   if (locale)
-    debug_message ("{}\tusing locale \"%s\"", locale);
+    LOG_NOTICE ("{}\tusing locale \"%s\"", locale);
 
   /* Change working directory to MudLibDir */
-  debug_message ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
+  LOG_NOTICE ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
   if (-1 == CHDIR (CONFIG_STR (__MUD_LIB_DIR__)))
     {
       debug_perror ("chdir", CONFIG_STR (__MUD_LIB_DIR__));
-      debug_fatal ("Cannot change working directory to MudLibDir.\n");
+      LOG_FATAL ("{}\t***** cannot change working directory to %s.\n", CONFIG_STR (__MUD_LIB_DIR__));
       exit (EXIT_FAILURE);
     }
 
@@ -137,7 +137,7 @@ int main (int argc, char **argv) {
    */
   if (!stem_startup())
     {
-      debug_message ("{}\t***** error occurs in mudlib startup, shutting down.");
+      LOG_FATAL ("{}\t***** error occurs in mudlib startup, shutting down.");
       exit (EXIT_FAILURE);
     }
 
@@ -314,6 +314,7 @@ void init_debug_log()
     }
 
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
+  debug_set_log_severity (SEVERITY_WARN); /* default to log warnings and above */
 }
 
 /**
@@ -321,14 +322,14 @@ void init_debug_log()
  *        for debug logging system.
  */
 static void print_startup_info() {
-  if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
-    exit (EXIT_FAILURE);
+  LOG_NOTICE("{}\t===== %s version %s starting up =====", PACKAGE, VERSION);
 #ifdef HAVE_SYS_RESOURCE_H
   struct rlimit rl;
-  if (getrlimit (RLIMIT_NOFILE, &rl) == 0) {
-    debug_message ("{}\tmaximum file descriptors: soft=%lu, hard=%lu",
-                   (unsigned long)rl.rlim_cur, (unsigned long)rl.rlim_max);
-  }
+  if (getrlimit (RLIMIT_NOFILE, &rl) == 0)
+    {
+      LOG_NOTICE ("{}\tmaximum file descriptors: soft=%lu, hard=%lu",
+                  (unsigned long)rl.rlim_cur, (unsigned long)rl.rlim_max);
+    }
 #endif
 }
 
@@ -361,7 +362,7 @@ sig_usr1 (int sig)
   push_undefined ();
   push_undefined ();
   APPLY_MASTER_CALL (APPLY_CRASH, 3);
-  debug_message ("{}\t***** received SIGUSR1, calling exit(-1)");
+  LOG_FATAL ("{}\t***** received SIGUSR1, calling exit(-1)");
   exit (EXIT_FAILURE);
 }
 
@@ -381,7 +382,7 @@ static RETSIGTYPE
 sig_term (int sig)
 {
   (void)sig; /* unused */
-  fatal ("process terminated");
+  LOG_FATAL ("{}\t***** process terminated", PACKAGE);
 }
 
 static RETSIGTYPE
@@ -416,6 +417,6 @@ static RETSIGTYPE
 sig_hup (int sig)
 {
   (void)sig; /* unused */
-  debug_message ("SIGHUP received, reconfiguration not implemented.\n");
+  LOG_NOTICE ("{}\tSIGHUP received, reconfiguration not implemented.\n");
 }
 #endif /* ! _WIN32 */

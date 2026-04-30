@@ -964,7 +964,8 @@ extern "C" program_t *load_binary (const char *name, unsigned long flags) {
   return prog;
 }
 
-extern "C" void init_binaries () {
+extern "C"
+void init_binaries () {
 
   if (CONFIG_STR(__SAVE_BINARIES_DIR__))
     {
@@ -974,13 +975,13 @@ extern "C" void init_binaries () {
        * simul_efun definitions change.
        */
       refresh_opcode_config_id();
-      debug_message ("{}\tusing #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
+      LOG_NOTICE ("{}\tusing #pragma save_binary with data directory %s", CONFIG_STR(__SAVE_BINARIES_DIR__));
       opt_trace (TT_COMPILE|1, "magic id: \"%s\" (len=%d)", magic_id, (int)strlen(magic_id));
       opt_trace (TT_COMPILE|1, "driver id: %u (len=%d)", driver_id, sizeof(driver_id));
     }
   else
     {
-      debug_message ("{}\tnot using #pragma save_binary");
+      LOG_NOTICE ("{}\tnot using #pragma save_binary");
     }
 }
 

@@ -92,7 +92,7 @@ object_t* mudlib_connect(int port, const char* addr) {
     {
       APPLY_SLOT_FINISH_CALL();
       free_object (master_ob, "mudlib_connect"); /* remove extra reference added when calling connect() */
-      debug_message ("connection from %s rejected by master\n", addr);
+      LOG_NOTICE ("connection from %s rejected by master\n", addr);
       return 0;
     }
 
@@ -114,7 +114,7 @@ object_t* mudlib_connect(int port, const char* addr) {
 
   if (ob == master_ob)
     {
-      debug_message ("{}\t***** [%s] connected as single-user.\n", addr);
+      LOG_NOTICE ("{}\t***** [%s] connected as single-user.\n", addr);
     }
   else
     {
@@ -144,14 +144,14 @@ void mudlib_logon (object_t * ob) {
   if (!ret)
     {
       /* TODO: show error in debug log */
-      debug_error ("Error occured in logon() of object %s.\n", ob->name);
+      LOG_ERROR ("Error occured in logon() of object %s.\n", ob->name);
       return;
     }
 
   /* function not existing is no longer fatal */
   if (ret == (svalue_t *) - 1)
     {
-      debug_warn ("No logon() function in user object %s.\n", ob->name);
+      LOG_WARN ("No logon() function in user object %s.\n", ob->name);
       return;
     }
 }
@@ -173,13 +173,13 @@ void init_console_user (bool reconnect) {
   object_t* ob;
   if (!master_ob)
     {
-      debug_message("No master object loaded, cannot initialize console user.\n");
+      debug_warn ("No master object loaded, cannot initialize console user.\n");
       return;
     }
   new_interactive (STDIN_FILENO);
   if (!master_ob->interactive)
     {
-      debug_message ("Failed to create interactive for console user.\n");
+      LOG_ERROR ("Failed to create interactive for console user.\n");
       return;
     }
   master_ob->interactive->connection_type = CONSOLE_USER;
@@ -213,7 +213,7 @@ void init_console_user (bool reconnect) {
   if (reconnect)
     {
       /* Any pending input and the ENTER key was discarded after calling tcssetattr() with TCSAFLUSH */
-      debug_message("Console user re-connected.\n");
+      LOG_NOTICE ("{}\tconsole user re-connected.\n");
     }
   mudlib_logon (ob);
 }

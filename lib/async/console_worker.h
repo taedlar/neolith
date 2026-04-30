@@ -18,7 +18,13 @@
 #include "async/async_runtime.h"
 #include "async/async_worker.h"
 
+#ifdef HAVE_STDBOOL_H
 #include <stdbool.h>
+#else
+typedef int bool;
+#define true 1
+#define false 0
+#endif
 
 #ifdef __cplusplus
 extern "C" {
