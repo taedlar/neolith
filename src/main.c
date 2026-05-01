@@ -314,7 +314,7 @@ void init_debug_log()
     }
 
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
-  debug_set_log_severity (SEVERITY_WARN); /* default to log warnings and above */
+  debug_set_log_severity (DEBUG_SEVERITY_WARN); /* default to log warnings and above */
 }
 
 /**

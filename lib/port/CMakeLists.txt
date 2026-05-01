@@ -16,7 +16,7 @@ if(MSVC)
     list(APPEND port_SOURCES
         getopt.c
         gettimeofday.c
-        realpath.c
+        realpath.cpp
         symlink.c
     )
 endif()

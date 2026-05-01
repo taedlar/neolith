@@ -31,6 +31,7 @@
 #define close       _close
 #define strcasecmp  _stricmp
 #define strncasecmp _strnicmp
+#define PATH_MAX    MAX_PATH
 #endif
 
 #include "port/wrapper.h"
