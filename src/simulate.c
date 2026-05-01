@@ -1386,16 +1386,16 @@ void tell_object (object_t * ob, const char *str) {
  */
 #ifdef F_TELL_ROOM
 void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
-  object_t *ob, *next_ob;
+  object_t *ob;
   const char *buff;
-  int valid, j;
+  size_t num_targets = 0;
   char txt_buf[LARGEST_PRINTABLE_STRING];
 
   switch (v->type)
     {
     case T_STRING:
       check_legal_string (SVALUE_STRPTR(v));
-      buff = SVALUE_STRPTR(v);
+      buff = SVALUE_STRPTR(v); /* TODO: replace embedded null with printable characters? */
       break;
     case T_OBJECT:
       buff = v->u.ob->name;
@@ -1415,33 +1415,43 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
       return;
     }
 
-  for (ob = room->contains; ob; ob = next_ob)
+  /* push all objects in the room onto the stack */
+  for (ob = room->contains; ob; ob = ob->next_inv)
     {
-      if (ob->flags & O_DESTRUCTED)
-        {
-          /* TODO: resume next object for tell_room */
-          break;
-        }
-      next_ob = ob->next_inv; /* in case ob is destructed during tell_object() */
+      bool skip = false;
       if (!ob->interactive && !(ob->flags & O_LISTENER))
         continue;
-
       /* skip objects in the avoid array */
-      for (valid = 1, j = 0; j < avoid->size; j++)
+      for (int j = 0; j < avoid->size; j++)
         {
           if (avoid->item[j].type != T_OBJECT)
             continue;
           if (avoid->item[j].u.ob == ob)
             {
-              valid = 0;
+              skip = true;
               break;
             }
         }
-      if (!valid)
+      if (skip)
         continue;
 
-      /* tell the object */
-      tell_object (ob, buff);
+      push_object (ob); /* raise error if stack full */
+      num_targets++;
+    }
+
+  /* call tell_obejct() on all the targets pushed onto the stack.
+   * - If any target is destructed during the loop, it will be removed from the
+   *   stack by remove_object_from_stack() in destruct_object() by replacing the
+   *   object reference with number 0.
+   * - If an error was raised during the loop (e.g. APPLY_CATCH_TELL), the stack
+   *   will be unwound and the pushed objects will be popped, so stale references
+   *   are avoided.
+   */
+  while (num_targets-- > 0)
+    {
+      if (sp->type == T_OBJECT)
+        tell_object (sp->u.ob, buff);
+      pop_stack();
     }
 }
 #endif

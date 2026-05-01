@@ -89,7 +89,7 @@ int main (int argc, char **argv) {
   if (*MAIN_OPTION(mud_app))
     {
       char* dot = strrchr(MAIN_OPTION(mud_app), '.');
-      if (dot && (strcmp(dot, ".zip") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tar.gz") == 0 || strcmp(dot, ".tgz") == 0))
+      if (dot && (strcmp(dot, ".zip") == 0 || strcmp(dot, ".gz") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tgz") == 0))
         init_mudlib_archive(MAIN_OPTION(mud_app));
       else
         init_application(MAIN_OPTION(mud_app));
@@ -382,35 +382,35 @@ static RETSIGTYPE
 sig_term (int sig)
 {
   (void)sig; /* unused */
-  LOG_FATAL ("{}\t***** process terminated", PACKAGE);
+  fatal ("***** process terminated");
 }
 
 static RETSIGTYPE
 sig_int (int sig)
 {
   (void)sig; /* unused */
-  fatal ("process interrupted");
+  fatal ("***** process interrupted");
 }
 
 static RETSIGTYPE
 sig_segv (int sig)
 {
   (void)sig; /* unused */
-  fatal ("segmentation fault");
+  fatal ("***** segmentation fault");
 }
 
 static RETSIGTYPE
 sig_bus (int sig)
 {
   (void)sig; /* unused */
-  fatal ("bus error");
+  fatal ("***** bus error");
 }
 
 static RETSIGTYPE
 sig_ill (int sig)
 {
   (void)sig; /* unused */
-  fatal ("illegal instruction");
+  fatal ("***** illegal instruction");
 }
 
 static RETSIGTYPE

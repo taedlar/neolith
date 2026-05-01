@@ -182,7 +182,7 @@ static int scan_config_bool (char *config, const char *name, bool required, bool
       else if (!strcasecmp (p, "no") || !strcasecmp (p, "false") || !strcasecmp (p, "off") || !strcmp (p, "0"))
         result = 0;
       else
-        debug_message ("warnning: %s must be 'yes/no' or 'true/false' [got: %s]\n", name, p);
+        debug_message ("warning: %s must be 'yes/no' or 'true/false' [got: %s]\n", name, p);
       free (p);
       required = false; /* only consider the first occurrence of the config item */
     }
@@ -315,6 +315,8 @@ void init_mudlib_archive(const char* archive_path) {
     {
       /* TODO: Implement mudlib archive initialization */
     }
+  fprintf(stderr, "Mudlib archive support is not implemented yet. Given archive path: %s\n", archive_path);
+  exit (EXIT_FAILURE);
 }
 
 extern "C"

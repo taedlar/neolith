@@ -332,7 +332,6 @@ void add_message (object_t * who, const char *data) {
     {
       if (who == master_ob || who == simul_efun_ob)
         debug_message ("%s", data);
-      debug_message ("Dropped message to destructed or non-interactive object.\n");
       return;
     }
 

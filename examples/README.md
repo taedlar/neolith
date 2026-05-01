@@ -65,13 +65,13 @@ Driver started. Sending commands...
 ```
 
 ### MUD Applications
-A **MUD application** is specified by first non-option argument when starting `neolith`.
+A [**MUD application**](/docs/manual/mud-application.md) is specified by first non-option argument when starting `neolith`.
 
-The [hello_world.c](apps/hello_world.c) demonstrates a simple MUD application that prints hello-world message and exits.
+The [apps/hello_world.c](apps/hello_world.c) demonstrates a simple MUD application that prints hello-world message to the console and exits.
 
 To run the example MUD application:
 ```bash
-neolith -c hello_world.c
+/path/to/neolith -c apps/hello_world.c
 ```
 
 ## Configuration Files

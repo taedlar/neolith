@@ -22,7 +22,7 @@ This allows standalone LPC programs or **MUD applications** to be created.
 For a minimal viable MUD application:
 - Single LPC file and implicit mudlib directory
 - No configuration file (with default settings)
-- Run with [console mode](coosole-mode.md).
+- Run with [console mode](console-mode.md).
 
 Example:
 ```cxx
@@ -47,5 +47,5 @@ The example prints the message to console and exits.
 - The file `hello_world.c` is used as the **master file** to create a minimal LPMud that does not listen on any TCP port.
 - Without specifying a configuration file with `-f` option, Neolith uses the **parent directory** of `hello_world.c` as the mudlib directory.
 - With `-c` option, the driver connects the **console user** on start up.
-- In the master apply [`connect`](/docs/applies/master/connect.md), the master obejct itself is returned as the **user object** for the console user.
+- In the master apply [`connect`](/docs/applies/master/connect.md), the master object itself is returned as the **user object** for the console user.
 - The driver calls [`logon`](/docs/applies/interactive/logon.md) apply on the user object, which is master object itself. The LPC code prints the message to console user and shutdown the MUD.

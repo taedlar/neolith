@@ -144,7 +144,7 @@ void mudlib_logon (object_t * ob) {
   if (!ret)
     {
       /* TODO: show error in debug log */
-      LOG_ERROR ("Error occured in logon() of object %s.\n", ob->name);
+      LOG_ERROR ("Error occurred in logon() of object %s.\n", ob->name);
       return;
     }
 
