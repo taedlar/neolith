@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+#define MAX_MUD_APP_ARGS 16
+
 typedef struct main_options {
   char config_file[PATH_MAX];   /* -f, --config-file */
   bool console_mode;            /* -c, --console-mode */
@@ -18,6 +20,8 @@ typedef struct main_options {
   unsigned int timer_flags;     /* -r, --timers */
 
   char mud_app[PATH_MAX];   /* master file or mudlib archive, from command line */
+  int argc;
+  char* argv[MAX_MUD_APP_ARGS];
 } main_options_t;
 
 extern main_options_t* g_main_options;

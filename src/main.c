@@ -90,7 +90,8 @@ int main (int argc, char **argv) {
     {
       char* dot = strrchr(MAIN_OPTION(mud_app), '.');
       if (dot && (strcmp(dot, ".zip") == 0 || strcmp(dot, ".gz") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tgz") == 0))
-        init_mudlib_archive(MAIN_OPTION(mud_app));
+        init_mudlib_archive(MAIN_OPTION(mud_app),
+                            MAIN_OPTION(argc) > 0 ? MAIN_OPTION(argv)[0] : ""); /* use the first argument as label if exists */
       else
         init_application(MAIN_OPTION(mud_app));
     }
@@ -209,6 +210,15 @@ parse_argument (int key, char *arg, struct argp_state *state)
               exit (EXIT_FAILURE);
             }
         }
+      else
+        {
+          /* store additional arguments for the mud application */
+          if (state->arg_num - 1 < MAX_MUD_APP_ARGS)
+            {
+              MAIN_OPTION(argv)[state->arg_num - 1] = arg;
+              MAIN_OPTION(argc)++;
+            }
+        }
       break;
     default:
       return ARGP_ERR_UNKNOWN;
@@ -294,6 +304,14 @@ parse_command_line (int argc, char *argv[])
         {
           perror (argv[optind]);
           exit (EXIT_FAILURE);
+        }
+      optind++;
+      /* store additional arguments for the mud application */
+      while (optind < argc && MAIN_OPTION(argc) < MAX_MUD_APP_ARGS)
+        {
+          MAIN_OPTION(argv)[MAIN_OPTION(argc)] = argv[optind];
+          MAIN_OPTION(argc)++;
+          optind++;
         }
     }
 #endif /* ! HAVE_ARGP_H */

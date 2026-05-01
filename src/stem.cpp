@@ -50,6 +50,7 @@ int init_stem(int debug_level, unsigned long trace_flags, const char *config_fil
   stem_opts.timer_flags = TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET;
   memset(stem_opts.config_file, 0, PATH_MAX);
   memset(stem_opts.mud_app, 0, PATH_MAX);
+  stem_opts.argc = 0;
   if (config_file)
     strncpy(stem_opts.config_file, config_file, PATH_MAX - 1);
 

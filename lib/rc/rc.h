@@ -69,8 +69,9 @@ void init_config(const char* config_file);
  * TODO: Define the archive format and implement this function.
  *
  * @param archive_path The path to the mudlib archive.
+ * @param label A label for the application in the mudlib archive.
  */
-void init_mudlib_archive(const char* archive_path);
+void init_mudlib_archive(const char* archive_path, const char* label);
 
 /**
  * @brief Initialize the MUD application with the specified master file.

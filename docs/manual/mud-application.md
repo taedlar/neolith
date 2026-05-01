@@ -49,3 +49,51 @@ The example prints the message to console and exits.
 - With `-c` option, the driver connects the **console user** on start up.
 - In the master apply [`connect`](/docs/applies/master/connect.md), the master object itself is returned as the **user object** for the console user.
 - The driver calls [`logon`](/docs/applies/interactive/logon.md) apply on the user object, which is master object itself. The LPC code prints the message to console user and shutdown the MUD.
+
+### Regular MUD application
+With configuration file (`neolith.conf`), a MUD application is defined by specifying a particular **master file** via the driver command line argument (overriding the `MasterFile` setting in the configuration file).
+
+For example:
+```bash
+neolith -f neolith.conf -c mudlib/adm/apps/migrate_player_file.c
+```
+> [!NOTE]: When configuration file is specified, the mudlib directory must be explicitly define with `MudlibDir`.
+> Specifying a MUD application outside the mudlib directory will be rejected.
+
+A regular MUD application shares the same configuration settings with the production MUD server (e.g. simul efuns), while starting with its own [`epilog()`](/docs/applies/master/epilog.md) stage, its own [`connect()`](/docs/applies/master/connect.md) interface, and all the policies controlled by master file.
+
+Example of regular MUD application use cases:
+- Experiment mass mudlib refactoring
+- Sandboxing access to the MUD for agentic AI users
+- Running as MCP server for AI coding agents
+- Exercise maintenance tasks with tailor-made master file in console mode
+- Automate LPC code testings or performance testings.
+
+### Packaged MUD application (planned)
+If the MUD application is an archive, it is used as a packaged (read-only) mudlib serving as MUD applications.
+- When used alone, the archive provides a file tree acting as the mudlib directory. The driver shall look for a `config.json` file in the archive for labelled configuration settings. For example:
+  ```json
+  {
+    ".defaults": {
+        "SimulEfunFile": "/adm/obj/simul_efun.c"
+    },
+    "production": {
+        "inherits": [".defaults"],
+        "MasterFile": "/adm/obj/master.c",
+        "Port": [[4000, "telnet"]]
+    },
+    "migrate-player-file": {
+        "inherits": [".defaults"],
+        "MasterFile": "/adm/apps/migrate_player_file.c"
+    }
+  }
+  ```
+  - Each label name a MUD application in the package.
+  - If the label name start with a dot(`.`), it is hidden from the UI.
+- When used with a configuration file, it overrides the `MudlibDir` setting and restricts the driver to load LPC files only from the archive.
+  - Settings in the configuration file overrides `config.json`.
+
+To launch particular MUD application in an archive, add the label after archive name. For example:
+```bash
+neolith -c package.zip migrate-player-file
+```
