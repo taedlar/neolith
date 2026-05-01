@@ -399,5 +399,5 @@ void deinit_identifiers () {
   ident_hash_table = NULL;
   ident_hash_head = NULL;
   ident_hash_tail = NULL;
-  debug_info ("freed %d permanent identifiers (leaked %d).", n, r - (int)num_keywords);
+  debug_notice ("freed %d permanent identifiers (leaked %d).", n, r - (int)num_keywords);
 }

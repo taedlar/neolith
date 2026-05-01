@@ -16,19 +16,12 @@
 #include "logger.h"
 
 FILE* current_log_file = NULL;
+int current_log_severity = -1; /* default to -1, anything greater than it will be logged */
 
 static char debug_log_file[PATH_MAX] = ""; /* default debug log goes to stderr */
 static bool debug_log_with_date = false; /* prepend date/time to debug messages? */
 
-/**
-  @brief Print raw log messages to file or previously opend file (if file is NULL).
-  @param file The log file path. If NULL, write to the previously opened log file.
-              If empty string, write to stderr.
-  @param fmt The format string.
-  @return The number of characters written, or a negative value if an error occurs.
- */
-int log_message (const char *file, const char *fmt, ...)
-{
+int log_message (const char *file, const char *fmt, ...) {
   int n_written = 0;
   static char current_log_filename[PATH_MAX] = "";
   va_list args;
@@ -69,32 +62,20 @@ int log_message (const char *file, const char *fmt, ...)
   return n_written;
 }
 
-/**
- * @brief Set the debug log file.
- * @param filename The path to the log file.
- */
-void debug_set_log_file (const char* filename)
-{
+void debug_set_log_file (const char* filename) {
   strncpy (debug_log_file, filename, sizeof(debug_log_file) - 1);
   debug_log_file[sizeof(debug_log_file) - 1] = 0;
 }
 
-/**
- * @brief Set whether to prepend date/time to debug messages.
- * @param enable Non-zero to enable date/time prepending, zero to disable.
- */
-void debug_set_log_with_date (bool enable)
-{
+void debug_set_log_with_date (bool enable) {
   debug_log_with_date = enable;
 }
 
-/**
- * @brief Log a debug message.
- * @param fmt The format string.
- * @return The number of characters written, or a negative value if an error occurs.
- */
-int debug_message (const char *fmt, ...)
-{
+void debug_set_log_severity (int severity) {
+  current_log_severity = severity;
+}
+
+int debug_message (const char *fmt, ...) {
   va_list args;
   int n_written = 0;
   char msg[8192];	/* error message cannot exceed this size */
@@ -126,9 +107,7 @@ int debug_message (const char *fmt, ...)
   return n_written;
 }
 
-int
-debug_message_with_src (const char* log_type, const char* func, const char* src, int line, const char *fmt, ...)
-{
+int debug_log_with_src (const char* log_type, const char* func, const char* src, int line, const char *fmt, ...) {
 #ifdef _WIN32
   const char* abbrev_src = strstr(src, "\\neolith\\");
 #else
@@ -149,9 +128,7 @@ debug_message_with_src (const char* log_type, const char* func, const char* src,
   return debug_message ("%s", msg);
 }
 
-int
-debug_perror_with_src (const char* func, const char* src, int line, const char *what, const char *file)
-{
+int debug_perror_with_src (const char* func, const char* src, int line, const char *what, const char *file) {
 #ifdef _WIN32
   const char* abbrev_src = strstr(src, "\\neolith\\");
 #else

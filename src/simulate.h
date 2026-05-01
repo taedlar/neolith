@@ -80,8 +80,8 @@ void tear_down_simulate(void);
 
 void fatal(const char* fmt, ...) NO_RETURN;  /* Fatal termination path; never returns to caller. */
 
-void do_shutdown (void) NO_RETURN;            /* Shutdown path terminates process/driver loop. */
-void do_slow_shutdown (int);
+void initiate_slow_shutdown (int minutes);
+void do_shutdown (void);            /* shutdown path */
 
 #ifdef __cplusplus
 }

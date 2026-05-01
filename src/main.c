@@ -80,20 +80,34 @@ int main (int argc, char **argv) {
   locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
   init_stem(0, 0, NULL);
   parse_command_line (argc, argv);
+  if (!*MAIN_OPTION(config_file) && !*MAIN_OPTION(mud_app))
+    {
+      fprintf (stderr, "%s: you must specify a configuration file, mudlib archive or master file.\n", argv[0]);
+      exit (EXIT_FAILURE);
+    }
   init_config (MAIN_OPTION(config_file));
+  if (*MAIN_OPTION(mud_app))
+    {
+      char* dot = strrchr(MAIN_OPTION(mud_app), '.');
+      if (dot && (strcmp(dot, ".zip") == 0 || strcmp(dot, ".gz") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tgz") == 0))
+        init_mudlib_archive(MAIN_OPTION(mud_app),
+                            MAIN_OPTION(argc) > 0 ? MAIN_OPTION(argv)[0] : ""); /* use the first argument as label if exists */
+      else
+        init_application(MAIN_OPTION(mud_app));
+    }
   init_debug_log();
 
   /* Print startup banner (and smoke-test debug settings) */
   print_startup_info();
   if (locale)
-    debug_message ("{}\tusing locale \"%s\"", locale);
+    LOG_NOTICE ("{}\tusing locale \"%s\"", locale);
 
   /* Change working directory to MudLibDir */
-  debug_message ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
+  LOG_NOTICE ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
   if (-1 == CHDIR (CONFIG_STR (__MUD_LIB_DIR__)))
     {
       debug_perror ("chdir", CONFIG_STR (__MUD_LIB_DIR__));
-      debug_fatal ("Cannot change working directory to MudLibDir.\n");
+      LOG_FATAL ("{}\t***** cannot change working directory to %s.\n", CONFIG_STR (__MUD_LIB_DIR__));
       exit (EXIT_FAILURE);
     }
 
@@ -124,7 +138,7 @@ int main (int argc, char **argv) {
    */
   if (!stem_startup())
     {
-      debug_message ("{}\t***** error occurs in mudlib startup, shutting down.");
+      LOG_FATAL ("{}\t***** error occurs in mudlib startup, shutting down.");
       exit (EXIT_FAILURE);
     }
 
@@ -138,24 +152,9 @@ int main (int argc, char **argv) {
     }
 
   /* Run the infinite backend loop */
-  debug_message ("{}\t----- entering MUD -----");
   stem_run ();
 
-  /* NOTE: We do not do active tear down of the runtime environment when running as
-   * a long-lived server process. It is not pratical to require the mudlib to destruct
-   * all loaded objects and free all allocated resources in a clean way upon shutdown.
-   * All allocated resources will be reclaimed by the operating system upon process
-   * termination.
-   *
-   * In some cases, the mudlib author would like to do clean up for testing or
-   * debugging purposes. The --pedantic command line option (-p) is provided for this
-   * purpose.
-   *
-   * However, we do call tear down after running unit tests to ensure that there
-   * is no memory leak. The graceful tear down code can be found in various unit-testing
-   * code under the tests/ directory.
-   */
-  do_shutdown ();
+  exit (g_exit_code);
 }
 
 
@@ -201,6 +200,26 @@ parse_argument (int key, char *arg, struct argp_state *state)
     case 't':
       MAIN_OPTION(trace_flags) = strtoul (arg, NULL, 0);
       break;
+    case ARGP_KEY_ARG:
+      if (state->arg_num == 0)
+        {
+          /* first non-option argument is master file or mudlib archive */
+          if (!realpath (arg, MAIN_OPTION(mud_app)))
+            {
+              perror (arg);
+              exit (EXIT_FAILURE);
+            }
+        }
+      else
+        {
+          /* store additional arguments for the mud application */
+          if (state->arg_num - 1 < MAX_MUD_APP_ARGS)
+            {
+              MAIN_OPTION(argv)[state->arg_num - 1] = arg;
+              MAIN_OPTION(argc)++;
+            }
+        }
+      break;
     default:
       return ARGP_ERR_UNKNOWN;
     }
@@ -226,7 +245,7 @@ parse_command_line (int argc, char *argv[])
   struct argp parser = {
     .options = options,
     .parser = parse_argument,
-    .args_doc = NULL,
+    .args_doc = "[MASTER-FILE|MUDLIB-ARCHIVE args ...]",
     .doc = "\nA lightweight LPMud driver (MudOS fork) for easy extend."
   };
 
@@ -278,10 +297,24 @@ parse_command_line (int argc, char *argv[])
           fatal ("invalid option: %c", c);
         }
     }
+  if (optind < argc)
+    {
+      /* first non-option argument is master file or mudlib archive */
+      if (!realpath (argv[optind], MAIN_OPTION(mud_app)))
+        {
+          perror (argv[optind]);
+          exit (EXIT_FAILURE);
+        }
+      optind++;
+      /* store additional arguments for the mud application */
+      while (optind < argc && MAIN_OPTION(argc) < MAX_MUD_APP_ARGS)
+        {
+          MAIN_OPTION(argv)[MAIN_OPTION(argc)] = argv[optind];
+          MAIN_OPTION(argc)++;
+          optind++;
+        }
+    }
 #endif /* ! HAVE_ARGP_H */
-
-  if (!*MAIN_OPTION(config_file))
-    snprintf (MAIN_OPTION(config_file), PATH_MAX, "/etc/neolith.conf");
 }
 
 void init_debug_log()
@@ -299,6 +332,7 @@ void init_debug_log()
     }
 
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
+  debug_set_log_severity (DEBUG_SEVERITY_WARN); /* default to log warnings and above */
 }
 
 /**
@@ -306,14 +340,14 @@ void init_debug_log()
  *        for debug logging system.
  */
 static void print_startup_info() {
-  if (!debug_message ("{}\t===== %s version %s starting up =====", PACKAGE, VERSION))
-    exit (EXIT_FAILURE);
+  LOG_NOTICE("{}\t===== %s version %s starting up =====", PACKAGE, VERSION);
 #ifdef HAVE_SYS_RESOURCE_H
   struct rlimit rl;
-  if (getrlimit (RLIMIT_NOFILE, &rl) == 0) {
-    debug_message ("{}\tmaximum file descriptors: soft=%lu, hard=%lu",
-                   (unsigned long)rl.rlim_cur, (unsigned long)rl.rlim_max);
-  }
+  if (getrlimit (RLIMIT_NOFILE, &rl) == 0)
+    {
+      LOG_NOTICE ("{}\tmaximum file descriptors: soft=%lu, hard=%lu",
+                  (unsigned long)rl.rlim_cur, (unsigned long)rl.rlim_max);
+    }
 #endif
 }
 
@@ -346,7 +380,7 @@ sig_usr1 (int sig)
   push_undefined ();
   push_undefined ();
   APPLY_MASTER_CALL (APPLY_CRASH, 3);
-  debug_message ("{}\t***** received SIGUSR1, calling exit(-1)");
+  LOG_FATAL ("{}\t***** received SIGUSR1, calling exit(-1)");
   exit (EXIT_FAILURE);
 }
 
@@ -366,41 +400,41 @@ static RETSIGTYPE
 sig_term (int sig)
 {
   (void)sig; /* unused */
-  fatal ("process terminated");
+  fatal ("***** process terminated");
 }
 
 static RETSIGTYPE
 sig_int (int sig)
 {
   (void)sig; /* unused */
-  fatal ("process interrupted");
+  fatal ("***** process interrupted");
 }
 
 static RETSIGTYPE
 sig_segv (int sig)
 {
   (void)sig; /* unused */
-  fatal ("segmentation fault");
+  fatal ("***** segmentation fault");
 }
 
 static RETSIGTYPE
 sig_bus (int sig)
 {
   (void)sig; /* unused */
-  fatal ("bus error");
+  fatal ("***** bus error");
 }
 
 static RETSIGTYPE
 sig_ill (int sig)
 {
   (void)sig; /* unused */
-  fatal ("illegal instruction");
+  fatal ("***** illegal instruction");
 }
 
 static RETSIGTYPE
 sig_hup (int sig)
 {
   (void)sig; /* unused */
-  debug_message ("SIGHUP received, reconfiguration not implemented.\n");
+  LOG_NOTICE ("{}\tSIGHUP received, reconfiguration not implemented.\n");
 }
 #endif /* ! _WIN32 */

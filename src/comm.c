@@ -305,22 +305,21 @@ void ipc_remove () {
 }
 
 int do_comm_polling (struct timeval *timeout) {
-  opt_trace (TT_COMM|3, "calling async_runtime_wait(): timeout %ld sec, %ld usec",
-             timeout->tv_sec, timeout->tv_usec);
-  
+  static struct timeval no_wait = {0, 0};
   /* Use async runtime for event demultiplexing */
-  g_num_io_events = async_runtime_wait (g_runtime, g_io_events,
-                                        sizeof(g_io_events) / sizeof(g_io_events[0]),
-                                        timeout);
-  
+  g_num_io_events = async_runtime_wait (
+    g_runtime, g_io_events,
+    sizeof(g_io_events) / sizeof(g_io_events[0]),
+    timeout ? timeout : &no_wait
+  );
+
   if (g_num_io_events > 0)
-    opt_trace (TT_COMM|3, "async_runtime_wait returned %d events", g_num_io_events);
-  
+    opt_trace (TT_COMM|3, "async_runtime_wait returned %d events", g_num_io_events);  
   return g_num_io_events;
 }
 
-/*
- * Send a message to an interactive object.
+/**
+ * @brief Send a message to an interactive object.
  */
 void add_message (object_t * who, const char *data) {
 
@@ -341,6 +340,7 @@ void add_message (object_t * who, const char *data) {
   /* write message into ip->message_buf. */
   for (cp = data; *cp; cp++)
     {
+      /* if message buffer is full, flush it */
       if (ip->message_length == MESSAGE_BUF_SIZE)
         {
           if (!flush_message (ip))
@@ -351,6 +351,8 @@ void add_message (object_t * who, const char *data) {
           if (ip->message_length == MESSAGE_BUF_SIZE)
             break;
         }
+
+      /* write CR LF for every newline, to make some crappy terminal happy */
       if (*cp == '\n')
         {
           if (ip->message_length == (MESSAGE_BUF_SIZE - 1))
@@ -367,6 +369,8 @@ void add_message (object_t * who, const char *data) {
           ip->message_producer = (ip->message_producer + 1) % MESSAGE_BUF_SIZE;
           ip->message_length++;
         }
+
+      /* write the actual character */
       ip->message_buf[ip->message_producer] = *cp;
       ip->message_producer = (ip->message_producer + 1) % MESSAGE_BUF_SIZE;
       ip->message_length++;
@@ -1267,6 +1271,11 @@ void new_interactive (socket_fd_t socket_fd) {
     i = 0; /* reserve slot #0 for console user */
   }
   else {
+    if (master_ob->interactive) {
+      /* master object is occupied by existing connection (single-user mode) */
+      SOCKET_CLOSE (socket_fd);
+      return;
+    }
     /* find a free slot in all_users (slot #0 reserved for console user) */
     for (i = 1; i < max_users; i++)
       if (!all_users[i])

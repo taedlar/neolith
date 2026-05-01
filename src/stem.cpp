@@ -18,6 +18,8 @@
 #include "simul_efun.h"
 #include "simulate.h"
 
+#include <sstream>
+
 main_options_t *g_main_options = NULL;
 
 bool g_proceeding_shutdown = false;
@@ -37,7 +39,7 @@ int init_stem(int debug_level, unsigned long trace_flags, const char *config_fil
 #else
   tzset();
 #endif
-  current_time = boot_time = time(NULL);
+  current_time = time(&boot_time);
   srand((unsigned int)boot_time);
 
   stem_opts.epilog_level = 0;
@@ -47,6 +49,8 @@ int init_stem(int debug_level, unsigned long trace_flags, const char *config_fil
   stem_opts.pedantic = false;
   stem_opts.timer_flags = TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET;
   memset(stem_opts.config_file, 0, PATH_MAX);
+  memset(stem_opts.mud_app, 0, PATH_MAX);
+  stem_opts.argc = 0;
   if (config_file)
     strncpy(stem_opts.config_file, config_file, PATH_MAX - 1);
 
@@ -73,117 +77,99 @@ void stem_get_addr_resolver_config(addr_resolver_config_t *config) {
   config->refresh_quota = normalize_runtime_setting(CONFIG_INT(__RESOLVER_REFRESH_QUOTA__));
 }
 
+/**
+ * @brief Initialize the MUD driver, including loading master and simul_efun
+ * objects, and preloading necessary objects.
+ * @return true on successful initialization, false if a fatal error occurred
+ * during startup.
+ */
 extern "C"
-int stem_startup(void) {
+bool stem_startup(void) {
   error_context_t econ;
+  neolith::error_boundary_guard boundary(&econ);
 
   eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
-
   try
     {
-      neolith::error_boundary_guard boundary(&econ);
-
-      try
+      if (CONFIG_STR(__SIMUL_EFUN_FILE__))
         {
-          current_time = time(NULL);
-
-          debug_message("{}\t----- loading simul efuns -----");
-          init_simul_efun(CONFIG_STR(__SIMUL_EFUN_FILE__), NULL);
-
-          debug_message("{}\t----- loading master -----");
-          init_master(CONFIG_STR(__MASTER_FILE__), NULL);
-
-          debug_message("{}\t----- epilogue -----");
-          preload_objects(MAIN_OPTION(epilog_level));
-
-          return 1;
+          LOG_NOTICE ("{}\t----- loading simul efuns -----");
+          init_simul_efun (CONFIG_STR(__SIMUL_EFUN_FILE__), NULL);
         }
-      catch (const neolith::driver_runtime_error &)
-        {
-          boundary.restore();
-          return 0;
-        }
+
+      LOG_NOTICE ("{}\t----- loading master [%s] -----", CONFIG_STR(__MASTER_FILE__));
+      init_master (CONFIG_STR(__MASTER_FILE__), NULL);
+
+      LOG_NOTICE ("{}\t----- epilogue [%d] -----", MAIN_OPTION(epilog_level));
+      preload_objects (MAIN_OPTION(epilog_level));
+
+      return true;
     }
   catch (const neolith::driver_runtime_error &)
     {
-      return 0;
+      boundary.restore();
+      return false;
     }
 }
 
 /**
- *  @brief Despite the name, this routine takes care of several things.
- *      It will loop through all objects once every 15 minutes.
+ * @brief Despite the name, this routine takes care of several things.
+ * It will loop through all objects once every 15 minutes.
  *
- *      If an object is found in a state of not having done reset, and the
- *      delay to next reset has passed, then reset() will be done.
+ * If an object is found in a state of not having done reset, and the
+ * delay to next reset has passed, then reset() will be done.
  *
- *      If the object has a existed more than the time limit given for swapping,
- *      then 'clean_up' will first be called in the object, after which it will
- *      be swapped out if it still exists.
+ * If the object has a existed more than the time limit given for swapping,
+ * then 'clean_up' will first be called in the object, after which it will
+ * be swapped out if it still exists.
  *
- *      There are some problems if the object self-destructs in clean_up, so
- *      special care has to be taken of how the linked list is used.
+ * There are some problems if the object self-destructs in clean_up, so
+ * special care has to be taken of how the linked list is used.
  */
 extern "C"
 void look_for_objects_to_swap(void) {
   static time_t next_time;
+  bool clean_up_enabled = CONFIG_INT(__TIME_TO_CLEAN_UP__) > 0;
+  int time_to_clean_up = CONFIG_INT(__TIME_TO_CLEAN_UP__);
 
   if (current_time < next_time)
     return;
   next_time = current_time + 15 * 60;
 
-  while (1)
+  while (true)
     {
-      object_t *next_ob;
-      object_t *ob;
       error_context_t econ;
-      int had_error = 0;
       neolith::error_boundary_guard boundary(&econ);
 
       try
         {
-          for (ob = obj_list; ob; ob = next_ob)
+          for (object_t *next_ob, *ob = obj_list; ob; ob = next_ob)
             {
-              time_t ref_time;
-
               if (ob->flags & O_DESTRUCTED)
                 {
                   ob = obj_list;
                   if (!ob)
                     break;
                 }
-
               next_ob = ob->next_all;
-              ref_time = ob->time_of_ref;
               eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
 
 #ifndef LAZY_RESETS
-              if ((ob->flags & O_WILL_RESET) && (ob->next_reset < current_time)
-                  && !(ob->flags & O_RESET_STATE))
-                {
-                  reset_object(ob);
-                }
+              if ((ob->flags & O_WILL_RESET) && (ob->next_reset < current_time) && !(ob->flags & O_RESET_STATE))
+                reset_object(ob);
 #endif
 
-              if (CONFIG_INT(__TIME_TO_CLEAN_UP__) > 0)
+              if (clean_up_enabled && (ob->flags & O_WILL_CLEAN_UP))
                 {
-                  if (current_time - ref_time > CONFIG_INT(__TIME_TO_CLEAN_UP__)
-                      && (ob->flags & O_WILL_CLEAN_UP))
-                    {
-                      clean_up_object(ob);
-                    }
+                  if (current_time - ob->time_of_ref > time_to_clean_up)
+                    clean_up_object(ob);
                 }
             }
+          break; /* finished without exception */
         }
       catch (const neolith::driver_runtime_error &)
         {
           boundary.restore();
-          had_error = 1;
-        }
-
-      if (!had_error)
-        {
-          break;
         }
     }
 }
@@ -212,30 +198,27 @@ extern "C" void try_reset (object_t * ob) {
  */
 void smart_log (const char *error_file, int line, const char *what, bool warning) {
 
-  char *buff;
   svalue_t *mret;
   extern int pragmas;
+  std::stringstream buff;
 
-  buff = (char *) DMALLOC (strlen (error_file) + strlen (what) +
-             ((pragmas & PRAGMA_ERROR_CONTEXT) ? 100 : 40), TAG_TEMPORARY,
-             "smart_log: 1");
-
+  buff << error_file << ":" << line << ": ";
   if (warning)
-    sprintf (buff, "%s line %d: Warning: %s%s", error_file, line, what,
-             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
-  else
-    sprintf (buff, "%s line %d: %s%s", error_file, line, what,
-             (pragmas & PRAGMA_ERROR_CONTEXT) ? show_error_context () : "\n");
+    buff << "warning: ";
+  buff << what;
+  if (pragmas & PRAGMA_ERROR_CONTEXT)
+    buff << show_error_context();
+  buff << "\n";
 
   share_and_push_string (error_file);
-  copy_and_push_string (buff);
+  copy_and_push_string (buff.str().c_str());
   mret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_LOG_ERROR, 2);
   if (!mret || mret == (svalue_t *) - 1)
     {
-      log_message (NULL, "\t%s", buff);
+      /* "LPC" \t error_file:line: message */
+      LOG_ERROR ("\"LPC\"\t%s", buff.str().c_str());
     }
   APPLY_SLOT_FINISH_CALL();
-  FREE (buff);
 }				/* smart_log() */
 
 /**
@@ -252,11 +235,20 @@ static void heartbeat_timer_callback(void) {
 
 static platform_timer_t heartbeat_timer = {0}; /* cross-platform heart beat timer */
 
+/**
+ * @brief Start the heart beat timer if enabled in the configuration.
+ *
+ * The timer will trigger the heartbeat_timer_callback at the configured interval.
+ * The HEARTBEAT_INTERVAL defines the "tick" duration for heart beats, which is the minimum
+ * time resolution for all other timers in the MUD.
+ *
+ * @param timer_flags Flags indicating which timers to start.
+ */
 extern "C"
-void start_timers(void) {
+void start_timers (unsigned int timer_flags) {
 #ifdef HEARTBEAT_INTERVAL
   /* start timer if any of the timer flags are set */
-  if (MAIN_OPTION(timer_flags) & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
+  if (timer_flags & (TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET))
     {
       timer_error_t timer_err;
       timer_err = platform_timer_init(&heartbeat_timer);
@@ -273,259 +265,174 @@ void start_timers(void) {
               opt_warn (0, "Timer start failed: %s. heart_beat(), call_out() and reset() disabled.",
                         timer_error_string(timer_err));
             }
-          debug_message ("timer started (timer flags = %d)\n", MAIN_OPTION(timer_flags));
+          LOG_NOTICE ("{}\ttimer started (0x%x)\n", timer_flags);
         }
     }
   else
     {
-      debug_message ("timer not used (timer flags = %d)\n", MAIN_OPTION(timer_flags));
+      LOG_NOTICE ("{}\ttimer disabled (0x%x)\n", timer_flags);
     }
-  /* do initial timer tick (initialize current_time and allow LPC code to access time).
-   * This is always done even if no timer is started, so that current_time is valid.
-   */
-  call_heart_beat ();
 #endif /* HEARTBEAT_INTERVAL */
 }
 
 /**
- * @brief Run startup preload sequence via the guarded C++ path.
+ * @brief Run startup preload sequence via safe master apply.
  *
  * Calls master::epilog(eflag) through the slot-wrapper apply contract. If
  * epilog returns an array, that array is retained before slot cleanup and
  * each string element is passed to master::preload().
+ * 
+ * Any errors in the master object during this process are caught and logged by
+ * the driver, and the preload sequence will not be aborted, allowing the MUD to
+ * start even if some preloads fail.
  *
- * Errors during epilog or an individual preload file are contained by the
- * guarded path so startup can continue where possible.
+ * @param eflag The epilog level to pass to master::epilog.
  */
 extern "C"
-void preload_objects(int eflag) {
+void preload_objects (int eflag) {
   array_t *prefiles;
   svalue_t *ret;
-  int ix;
-  error_context_t econ;
 
-  try
+  /* call master::epilog(eflag) */
+  push_number (eflag);
+  ret = APPLY_SLOT_SAFE_MASTER_CALL(APPLY_EPILOG, 1);
+  if ((ret == 0) || (ret == (svalue_t *) -1) || (ret->type != T_ARRAY))
     {
-      neolith::error_boundary_guard boundary(&econ);
-
-      try
-        {
-          push_number(eflag);
-          ret = APPLY_SLOT_SAFE_MASTER_CALL(APPLY_EPILOG, 1);
-        }
-      catch (const neolith::driver_runtime_error &)
-        {
-          boundary.restore();
-          return;
-        }
-
-      if ((ret == 0) || (ret == (svalue_t *) -1) || (ret->type != T_ARRAY))
-        {
-          APPLY_SLOT_FINISH_CALL();
-          return;
-        }
-      prefiles = ret->u.arr;
-      if ((prefiles == 0) || (prefiles->size < 1))
-        {
-          APPLY_SLOT_FINISH_CALL();
-          return;
-        }
-
-      // Retain the array before finishing the slot
-      prefiles->ref++;
       APPLY_SLOT_FINISH_CALL();
-
-      opt_info(1, "Preloading %d objects", prefiles->size);
-      ix = 0;
-
-      while (ix < prefiles->size)
-        {
-          int had_error = 0;
-
-          try
-            {
-              error_context_t preload_econ;
-              neolith::error_boundary_guard preload_boundary(&preload_econ);
-
-              try
-                {
-                  for (; ix < prefiles->size; ix++)
-                    {
-                      if (prefiles->item[ix].type != T_STRING)
-                        continue;
-                      eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
-                      push_svalue(prefiles->item + ix);
-                      (void) APPLY_MASTER_CALL (APPLY_PRELOAD, 1);
-                    }
-                }
-              catch (const neolith::driver_runtime_error &)
-                {
-                  preload_boundary.restore();
-                  had_error = 1;
-                }
-            }
-          catch (const neolith::driver_runtime_error &)
-            {
-              break;
-            }
-
-          if (had_error)
-            {
-              opt_warn(1, "Error preloading file %d/%d, continuing.", ix + 1, prefiles->size);
-              ix++;
-              continue;
-            }
-          break;
-        }
-
-      free_array(prefiles);
-
-      opt_info(1, "Preloading complete");
-    }
-  catch (const neolith::driver_runtime_error &)
-    {
+      LOG_NOTICE ("{}\t----- master epilog(%d) did not return an array, skipping preload.", eflag);
       return;
     }
+  prefiles = ret->u.arr;
+  prefiles->ref++; /* retain before slot cleanup */
+  APPLY_SLOT_FINISH_CALL();
+
+  /* call master::preload() for each file */
+  opt_info(1, "Preloading %d objects", prefiles->size);
+  for (int i = 0; i < prefiles->size; i++)
+    {
+      if (prefiles->item[i].type != T_STRING)
+        continue;
+      eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
+      reset_load_object_limits();
+      push_svalue (prefiles->item + i);
+      (void) APPLY_SAFE_MASTER_CALL (APPLY_PRELOAD, 1);
+    }
+  free_array (prefiles);
+  opt_info (1, "Preloading complete");
 }
 
 /** @brief Main driver loop, handling user commands, heart beats,
  *  and periodic tasks.
  */
-void driver_loop(void) {
+static void driver_loop(void) {
+  struct timeval timeout = {10, 0}; /* 10 seconds timeout for async_runtime_wait */
   error_context_t econ;
   neolith::error_boundary_guard boundary(&econ);
-
-  if (MAIN_OPTION(console_mode))
-    init_console_user(false);
 
   while (1)
     {
       try
         {
-          while (1)
+          bool has_pending_commands = false;
+          int connected_users = 0;
+          int nb;
+
+          current_interactive = 0;
+          eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
+
+          if (g_proceeding_shutdown)
             {
-              struct timeval timeout;
-              int has_pending_commands = 0;
-              int connected_users = 0;
-              int i;
-              int nb;
-
-              current_interactive = 0;
-              eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
-
-              if (g_proceeding_shutdown)
-                {
-                  boundary.restore();
-                  return;
-                }
-
-              remove_destructed_objects();
-
-              if (slow_shutdown_to_do)
-                {
-                  int tmp = slow_shutdown_to_do;
-                  slow_shutdown_to_do = 0;
-                  do_slow_shutdown(tmp);
-                }
-
-              for (i = 0; i < max_users; i++)
-                {
-                  if (all_users[i])
-                    {
-                      all_users[i]->iflags |= HAS_CMD_TURN;
-                      connected_users++;
-
-                      if (!has_pending_commands && (all_users[i]->iflags & CMD_IN_BUF))
-                        {
-                          has_pending_commands = 1;
-                        }
-                    }
-                }
-
-              if (heart_beat_flag || has_pending_commands)
-                {
-                  timeout.tv_sec = 0;
-                  timeout.tv_usec = 0;
-                }
-              else
-                {
-                  timeout.tv_sec = 60;
-                  timeout.tv_usec = 0;
-                }
-
-              nb = do_comm_polling(&timeout);
-              if (nb == -1)
-                {
-                  debug_perror("backend: do_comm_polling", 0);
-                  fatal("backend: do_comm_polling failed.\n");
-                }
-
-              if (nb > 0)
-                process_io();
-
-              for (i = 0; process_user_command() && i < connected_users; i++);
-
-              if (heart_beat_flag)
-                call_heart_beat();
+              boundary.restore();
+              return;
             }
+
+          remove_destructed_objects();
+
+          if (slow_shutdown_to_do)
+            {
+              int tmp = slow_shutdown_to_do;
+              slow_shutdown_to_do = 0;
+              initiate_slow_shutdown (tmp);
+            }
+
+          /* grant command turn to all users; detect pending commands */
+          for (int i = 0; i < max_users; i++)
+            {
+              if (all_users[i])
+                {
+                  all_users[i]->iflags |= HAS_CMD_TURN;
+                  connected_users++;
+
+                  if (all_users[i]->iflags & CMD_IN_BUF)
+                    has_pending_commands = true;
+                }
+            }
+
+          /* poll for events from asynchronous runtime */
+          nb = do_comm_polling ((heart_beat_flag || has_pending_commands) ? NULL : &timeout);
+          if (nb == -1)
+            {
+              debug_perror ("backend: do_comm_polling", 0);
+              fatal ("backend: do_comm_polling failed.\n");
+            }
+
+          /* process I/O events */
+          if (nb > 0)
+            process_io();
+
+          /* consume user command turns */
+          for (int i = 0; process_user_command() && i < connected_users; i++);
+
+          /* call heart beat if raised. (TODO: use atomic heart_beat_flag) */
+          if (heart_beat_flag)
+            call_heart_beat();
         }
       catch (const neolith::driver_runtime_error &)
         {
           boundary.restore();
-          if (MAIN_OPTION(console_mode))
-            init_console_user(false);
         }
     }
 }
 
+/** @brief Handle a crash in the MUD.
+ * Calls master::crash() through the slot-wrapper apply contract, passing the
+ * crash message and context. If master::crash() is unavailable or fails, logs
+ * the crash message through the driver's logging mechanism.
+ */
 extern "C"
-void stem_crash_handler(const char *msg) {
-  error_context_t econ;
+void stem_crash_handler (const char *msg) {
+  svalue_t *ret;
 
-  try
+  copy_and_push_string (msg);
+
+  if (command_giver)
+    push_object(command_giver);
+  else
+    push_undefined();
+
+  if (current_object)
+    push_object(current_object);
+  else
+    push_undefined();
+
+  ret = APPLY_SLOT_SAFE_MASTER_CALL(APPLY_CRASH, 3);
+  if (ret && ret != (svalue_t *)-1)
     {
-      neolith::error_boundary_guard boundary(&econ);
-
-      try
-        {
-          svalue_t *ret;
-
-          copy_and_push_string(msg);
-
-          if (command_giver)
-            push_object(command_giver);
-          else
-            push_undefined();
-
-          if (current_object)
-            push_object(current_object);
-          else
-            push_undefined();
-
-          ret = APPLY_SLOT_MASTER_CALL(APPLY_CRASH, 3);
-          if (ret && ret != (svalue_t *)-1)
-            {
-              debug_message("{}\t----- mudlib crash handler finished, shutdown now.");
-            }
-          APPLY_SLOT_FINISH_CALL();
-        }
-      catch (const neolith::driver_runtime_error &)
-        {
-          boundary.restore();
-          debug_message("{}\t***** error in master::%s(), shutdown now.", APPLY_CRASH);
-        }
+      LOG_NOTICE ("{}\t----- mudlib crash handler finished, shutdown now.");
     }
-  catch (const neolith::driver_runtime_error &)
+  else
     {
-      debug_message("{}\t***** error in master::%s(), shutdown now.", APPLY_CRASH);
+      LOG_ERROR ("{}\t----- mudlib crash handler failed, using default handler.");
+      LOG_FATAL ("CRASH: %s", msg);
     }
+  APPLY_SLOT_FINISH_CALL();
 }
 
 /** @brief Run the MUD's main loop.
  */
 void stem_run () {
 
-  opt_info (1, "Entering backend loop.");
+  opt_info (1, "Entering main loop.");
 
 #ifdef WINSOCK
   {
@@ -540,9 +447,22 @@ void stem_run () {
 #endif
   init_user_conn();		/* initialize user connection socket */
   init_backend();
-  start_timers();
 
-  driver_loop();
+  LOG_NOTICE ("{}\t----- entering MUD -----");
+  start_timers(MAIN_OPTION(timer_flags));
+  if (MAIN_OPTION(console_mode))
+    init_console_user(false);
 
+  driver_loop();  /* main driver loop */
+
+#ifdef HEARTBEAT_INTERVAL
   platform_timer_cleanup(&heartbeat_timer);
+#endif
+  do_shutdown ();
+
+#ifdef WINSOCK
+  WSACleanup(); /* for graceful shutdown */
+#endif
+
+  opt_info (1, "Leaving main loop.");
 }

@@ -23,17 +23,18 @@ int init_stem(
 /* resource management */
 void preload_objects(int eflag);
 void look_for_objects_to_swap (void);
-void start_timers(void);
+void start_timers (unsigned int timer_flags);
 #ifdef LAZY_RESETS
 void try_reset(object_t *);
 #endif
 
 /* stem workflows */
-int stem_startup(void);
-void stem_run(void);
-void stem_crash_handler(const char *msg);
+bool stem_startup (void);
+void stem_run (void);
+void stem_crash_handler (const char *msg);
 
-void smart_log(const char *error_file, int line, const char *what, bool warning);
+/* LPC compiler logger */
+void smart_log (const char *error_file, int line, const char *what, bool warning);
 
 #ifdef __cplusplus
 }

@@ -68,12 +68,13 @@ void init_backend () {
 }
 
 /**
- *  @brief This function calls the master object's connect() function to
- *  determine whether to accept a new user connection. If accepted, the
- *  user object returned by connect() is initialized and returned.
- *  @param port The port number on which the new connection was received.
- *  @param addr The address of the connecting user as a string.
- *  @return The user object if the connection is accepted, NULL otherwise.
+ * @brief This function calls the master::connect() to determine whether to accept
+ * a new user connection. If accepted, the user object returned by connect() is
+ * initialized and returned.
+ *
+ * @param port The port number on which the new connection was received.
+ * @param addr The address of the connecting user as a string.
+ * @return The user object if the connection is accepted, NULL otherwise.
  */
 object_t* mudlib_connect(int port, const char* addr) {
 
@@ -90,15 +91,14 @@ object_t* mudlib_connect(int port, const char* addr) {
   if (ret == 0 || ret == (svalue_t *) - 1 || ret->type != T_OBJECT || !master_ob->interactive)
     {
       APPLY_SLOT_FINISH_CALL();
-      debug_message ("connection from %s rejected by master\n", addr);
+      free_object (master_ob, "mudlib_connect"); /* remove extra reference added when calling connect() */
+      LOG_NOTICE ("connection from %s rejected by master\n", addr);
       return 0;
     }
 
-  /*
-   * There was an object returned from connect(). Use this as the user object.
-   */
-  ob = ret->u.ob;
+  ob = ret->u.ob; /* the new user object */
   APPLY_SLOT_FINISH_CALL();
+
   if (ob->flags & O_HIDDEN)
     num_hidden++;
   ob->interactive = master_ob->interactive;
@@ -112,50 +112,80 @@ object_t* mudlib_connect(int port, const char* addr) {
    */
   ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_PROCESS_INPUT);
 
-  master_ob->flags &= ~(O_ONCE_INTERACTIVE|O_CONSOLE_USER);
-  master_ob->interactive = 0;
+  if (ob == master_ob)
+    {
+      LOG_NOTICE ("{}\t***** [%s] connected as single-user.\n", addr);
+    }
+  else
+    {
+      master_ob->flags &= ~(O_ONCE_INTERACTIVE|O_CONSOLE_USER);
+      master_ob->interactive = 0;
+    }
   free_object (master_ob, "mudlib_connect"); /* remove extra reference added when calling connect() */
+
   add_ref (ob, "mudlib_connect");
-  command_giver = ob;
   return ob;
 }
 
-void
-mudlib_logon (object_t * ob)
-{
+/**
+ * @brief Call the logon() function in the master object after a new user has connected.
+ *
+ * This allows the MUD to perform any necessary initialization for the new user, such as setting
+ * up their environment, sending a welcome message, etc.
+ *
+ * @param ob The user object that has just connected and for which logon() should be called.
+ */
+void mudlib_logon (object_t * ob) {
+  svalue_t* ret;
+
   /* current_object no longer set */
-  APPLY_CALL (APPLY_LOGON, ob, 0, ORIGIN_DRIVER);
+  command_giver = ob;
+  ret = APPLY_SAFE_CALL (APPLY_LOGON, ob, 0, ORIGIN_DRIVER);
+  if (!ret)
+    {
+      /* TODO: show error in debug log */
+      LOG_ERROR ("Error occurred in logon() of object %s.\n", ob->name);
+      return;
+    }
+
   /* function not existing is no longer fatal */
+  if (ret == (svalue_t *) - 1)
+    {
+      LOG_WARN ("No logon() function in user object %s.\n", ob->name);
+      return;
+    }
 }
 
 /**
- *  @brief Initiate connection of the console user in console mode.
- *  A console user is a special interactive user that uses the standard
- *  input/output of the driver process as the communication channel.
+ * @brief Initiate connection of the console user in console mode.
+ * A console user is a special interactive user that uses the standard
+ * input/output of the driver process as the communication channel.
  *
- *  When a console user is disconnected, the stdin is not closed, and
- *  this function can be called again to reconnect the console user.
+ * When a console user is disconnected, the stdin is not closed, and
+ * this function can be called again to reconnect the console user.
  *
- *  This is a Neolith extension.
+ * This is a Neolith extension.
+ *
+ * @param reconnect If true, indicates that this is a reconnection of an existing console user.
  */
-void init_console_user(bool reconnect) {
+void init_console_user (bool reconnect) {
 
   object_t* ob;
   if (!master_ob)
     {
-      debug_message("No master object loaded, cannot initialize console user.\n");
+      debug_warn ("No master object loaded, cannot initialize console user.\n");
       return;
     }
-  new_interactive(STDIN_FILENO);
+  new_interactive (STDIN_FILENO);
   if (!master_ob->interactive)
     {
-      debug_message("Failed to create interactive for console user.\n");
+      LOG_ERROR ("Failed to create interactive for console user.\n");
       return;
     }
   master_ob->interactive->connection_type = CONSOLE_USER;
   master_ob->interactive->addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
-  ob = mudlib_connect(0, "console"); /* port 0 for console */
+  ob = mudlib_connect (0, "console"); /* port 0 for console */
   if (!ob)
     {
       if (master_ob->interactive)
@@ -183,9 +213,9 @@ void init_console_user(bool reconnect) {
   if (reconnect)
     {
       /* Any pending input and the ENTER key was discarded after calling tcssetattr() with TCSAFLUSH */
-      debug_message("Console user re-connected.\n");
+      LOG_NOTICE ("{}\tconsole user re-connected.\n");
     }
-  mudlib_logon(ob);
+  mudlib_logon (ob);
 }
 
 /* Call all heart_beat() functions in all objects.  Also call the next reset,
@@ -218,6 +248,9 @@ static float perc_hb_probes = 100.0;	/* decaying avge of how many complete */
 
 /**
  * @brief Call all heart_beat() functions in all objects.
+ * This function is also responsible for updating the current_time, which makes
+ * the time ticking in the MUD.
+ * 
  * Also process invocation of LPC reset() and LPC call_out().
  */
 void call_heart_beat () {
@@ -251,6 +284,7 @@ void call_heart_beat () {
                     command_giver = 0;
                   eval_cost = CONFIG_INT (__MAX_EVAL_COST__);
                   opt_trace (TT_BACKEND|3, "calling heart beat #%d/%d: %s", heart_beat_index + 1, num_hb_to_do, ob->name);
+                  /* TODO: catch exceptions */
                   call_function (ob->prog, ob->prog->heart_beat, 0, 0);
                   command_giver = 0;
                   current_object = 0;
@@ -378,9 +412,7 @@ int set_heart_beat (object_t * ob, int to) {
   return 1;
 }
 
-int
-heart_beat_status (outbuffer_t * ob, bool verbose)
-{
+int heart_beat_status (outbuffer_t * ob, bool verbose) {
   char buf[20];
 
   if (verbose)
@@ -400,9 +432,7 @@ heart_beat_status (outbuffer_t * ob, bool verbose)
 #define NUM_CONSTS 5
 static double consts[NUM_CONSTS];
 
-void
-init_precomputed_tables ()
-{
+void init_precomputed_tables () {
   int i;
 
   for (i = 0; i < (int)(sizeof consts / sizeof consts[0]); i++)
@@ -411,9 +441,7 @@ init_precomputed_tables ()
 
 static double load_av = 0.0;
 
-void
-update_load_av ()
-{
+void update_load_av () {
   static time_t last_time;
   time_t duration;
   double c;
@@ -434,9 +462,7 @@ update_load_av ()
 
 static double compile_av = 0.0;
 
-void
-update_compile_av (int lines)
-{
+void update_compile_av (int lines) {
   static time_t last_time;
   time_t duration;
   double c;
@@ -455,9 +481,7 @@ update_compile_av (int lines)
   acc = 0;
 }				/* update_compile_av() */
 
-char *
-query_load_av ()
-{
+char* query_load_av () {
   static char buff[100];
 
   sprintf (buff, "%.2f cmds/s, %.2f comp lines/s", load_av, compile_av);
@@ -465,9 +489,7 @@ query_load_av ()
 }				/* query_load_av() */
 
 #ifdef F_HEART_BEATS
-array_t *
-get_heart_beats ()
-{
+array_t* get_heart_beats () {
   int n = num_hb_objs;
   heart_beat_t *hb = heart_beats;
   array_t *arr;

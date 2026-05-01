@@ -20,6 +20,10 @@ int symlink (const char* target, const char* linkpath);
 char *strput(char *dest, char *end, const char *src);
 char *strput_int(char *, char *, int);
 
+#ifndef HAVE_REALPATH
+char* realpath(const char* path, char* resolved_path);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

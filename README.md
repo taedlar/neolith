@@ -28,7 +28,7 @@ Neolith's event-driven architecture offloads blocking I/O such as DNS resolution
 **Current Use Cases**: DNS resolution (no driver freeze), console input with testbot automation, CURL efuns, foundation for future async features (REST APIs, GUI clients).
 
 ### Console Mode
-Console mode lets Neolith treat standard input and output as a connected interactive user, so mudlib code can run without a telnet client or socket frontend. That makes it useful not only for deterministic test automation and local debugging, but also for instrumented mudlibs and VM-like CLI applications that use the LPC object model, command loop, and input APIs as a standalone application platform.
+Console mode lets Neolith treat standard input and output as a connected interactive user, so mudlib code can run without a telnet client or socket frontend. That makes it useful not only for deterministic test automation and local debugging, but also for instrumented mudlibs and VM-like CLI applications that use the LPC object model, command loop, and input APIs as a standalone [MUD application](docs/manual/mud-application.md) platform.
 
 ### UTF-8 Support
 Neolith stores LPC strings as counted multi-byte strings and is designed for UTF-8 locales. For mudlib code, that means Unicode text can be handled without dropping back to raw C-string rules: wide string literals are validated at compile time, `explode(str, "")` can split UTF-8 text into characters, and `strsrch()` accepts wide-character search input while still returning byte offsets that match LPC range operators.

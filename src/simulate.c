@@ -1343,7 +1343,10 @@ static void tell_npc (object_t * ob, const char *str) {
   APPLY_CALL (APPLY_CATCH_TELL, ob, 1, ORIGIN_DRIVER);
 }
 
-/*
+/**
+ * @brief Send a message to an object, either to its screen if it's interactive or
+ * to its catch_tell() function if it's not.
+ * 
  * tell_object: send a message to an object.
  * If it is an interactive object, it will go to his
  * screen. Otherwise, it will go to a local function
@@ -1357,10 +1360,12 @@ void tell_object (object_t * ob, const char *str) {
   if (!ob || (ob->flags & O_DESTRUCTED))
     {
       add_message (0, str);
+      debug_message ("*%s", str);
       return;
     }
 
-  if (ob == master_ob || ob == simul_efun_ob)
+  /* [NEOLITH-EXTENSION] master_ob can be used as a user object when in single-user mode */
+  if ((ob == simul_efun_ob) || ((ob == master_ob) && !master_ob->interactive))
     {
       debug_message ("*%s", str);
       return;
@@ -1383,14 +1388,14 @@ void tell_object (object_t * ob, const char *str) {
 void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
   object_t *ob;
   const char *buff;
-  int valid, j;
+  size_t num_targets = 0;
   char txt_buf[LARGEST_PRINTABLE_STRING];
 
   switch (v->type)
     {
     case T_STRING:
       check_legal_string (SVALUE_STRPTR(v));
-      buff = SVALUE_STRPTR(v);
+      buff = SVALUE_STRPTR(v); /* TODO: replace embedded null with printable characters? */
       break;
     case T_OBJECT:
       buff = v->u.ob->name;
@@ -1410,37 +1415,43 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
       return;
     }
 
+  /* push all objects in the room onto the stack */
   for (ob = room->contains; ob; ob = ob->next_inv)
     {
+      bool skip = false;
       if (!ob->interactive && !(ob->flags & O_LISTENER))
         continue;
-
-      for (valid = 1, j = 0; j < avoid->size; j++)
+      /* skip objects in the avoid array */
+      for (int j = 0; j < avoid->size; j++)
         {
           if (avoid->item[j].type != T_OBJECT)
             continue;
           if (avoid->item[j].u.ob == ob)
             {
-              valid = 0;
+              skip = true;
               break;
             }
         }
-
-      if (!valid)
+      if (skip)
         continue;
 
-      if (!ob->interactive)
-        {
-          tell_npc (ob, buff);
-          if (ob->flags & O_DESTRUCTED)
-            break;
-        }
-      else
-        {
-          tell_object (ob, buff);
-          if (ob->flags & O_DESTRUCTED)
-            break;
-        }
+      push_object (ob); /* raise error if stack full */
+      num_targets++;
+    }
+
+  /* call tell_obejct() on all the targets pushed onto the stack.
+   * - If any target is destructed during the loop, it will be removed from the
+   *   stack by remove_object_from_stack() in destruct_object() by replacing the
+   *   object reference with number 0.
+   * - If an error was raised during the loop (e.g. APPLY_CATCH_TELL), the stack
+   *   will be unwound and the pushed objects will be popped, so stale references
+   *   are avoided.
+   */
+  while (num_targets-- > 0)
+    {
+      if (sp->type == T_OBJECT)
+        tell_object (sp->u.ob, buff);
+      pop_stack();
     }
 }
 #endif
@@ -1952,11 +1963,9 @@ void fatal (const char *fmt, ...) {
  * logic from the efun call.
  *
  * In Neolith, the shutdown() efun raises the g_proceeding_shutdown flag, and the
- * backend loop will return to main() which call this function to perform the
- * actual shutdown.
+ * backend loop will call this function to perform the actual shutdown.
  *
- * @return This function does not return. It exits the process and return the
- *         g_exit_code to the operating system.
+ * @return After this function returns, the driver process should exit.
  */
 void do_shutdown () {
 
@@ -2006,6 +2015,21 @@ void do_shutdown () {
       g_runtime = NULL;
     }
 
+  /*
+   * NOTE: We do not do active tear down of the runtime environment when running as
+   * a long-lived server process. It is not pratical to require the mudlib to destruct
+   * all loaded objects and free all allocated resources in a clean way upon shutdown.
+   * All allocated resources will be reclaimed by the operating system upon process
+   * termination.
+   *
+   * In some cases, the mudlib author would like to do clean up for testing or
+   * debugging purposes. The --pedantic command line option (-p) is provided for this
+   * purpose.
+   *
+   * However, we do call tear down after running unit tests to ensure that there
+   * is no memory leak. The graceful tear down code can be found in various unit-testing
+   * code under the tests/ directory.
+   */
   if (MAIN_OPTION(pedantic))
     {
       debug_message ("{}\ttearing down world simulation");
@@ -2016,22 +2040,16 @@ void do_shutdown () {
       deinit_config();
     }
 
-#ifdef WINSOCK
-  WSACleanup(); /* for graceful shutdown */
-#endif
-
 #ifdef PROFILING
   monitor (0, 0, 0, 0, 0);	/* cause gmon.out to be written */
 #endif
-
-  exit (g_exit_code);
 }
 
-/*
+/**
  * Call this one when there is only little memory left. It will start
  * Armageddon.
  */
-void do_slow_shutdown (int minutes) {
+void initiate_slow_shutdown (int minutes) {
   /*
    * Swap out objects, and free some memory.
    */
@@ -2215,7 +2233,6 @@ void setup_simulate() {
   init_binaries ();             /* lib/lpc/program/binaries.c */
   init_uids();                  /* uids.c */
   init_backend ();              /* backend.c */
-  current_time = time (NULL);
 }
 
 void tear_down_simulate() {

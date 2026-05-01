@@ -112,7 +112,7 @@ static void* console_worker_proc_win32(void* ctx) {
     char line_buffer[CONSOLE_MAX_LINE];
     DWORD chars_read = 0;
 
-    debug_message ("console worker started (type: %s)\n", console_type_str(cctx->console_type));
+    debug_notice ("console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
     while (!async_worker_should_stop(async_worker_current())) {
         /* Wait for stdin to be signaled OR stop event */
@@ -166,7 +166,7 @@ static void* console_worker_proc_win32(void* ctx) {
         }
     }
 
-    debug_message ("{}\tconsole worker stopped\n");
+    debug_notice ("console worker stopped\n");
     return NULL;
 }
 #else
@@ -177,7 +177,7 @@ static void* console_worker_proc_posix(void* ctx) {
     console_worker_context_t* cctx = (console_worker_context_t*)ctx;
     char line_buffer[CONSOLE_MAX_LINE];
 
-    debug_message("Console worker started (type: %s)\n", console_type_str(cctx->console_type));
+    debug_notice ("console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
     while (!async_worker_should_stop(async_worker_current())) {
         /* Use select with timeout to check shutdown flag */
@@ -227,7 +227,7 @@ static void* console_worker_proc_posix(void* ctx) {
         async_runtime_post_completion(cctx->runtime, cctx->completion_key, bytes_read);
     }
 
-    debug_message("Console worker stopped\n");
+    debug_notice ("console worker stopped\n");
     return NULL;
 }
 #endif
@@ -252,7 +252,7 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
     ctx->completion_key = completion_key;
     ctx->console_type = console_detect_type();
 
-    /* debug_info ("Console type detected: %s\n", console_type_str(ctx->console_type)); */
+    /* debug_notice ("Console type detected: %s\n", console_type_str(ctx->console_type)); */
 
     if (ctx->console_type == CONSOLE_TYPE_NONE) {
         debug_warn ("No console detected, worker will not start\n");

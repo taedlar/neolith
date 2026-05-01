@@ -64,6 +64,16 @@ Driver started. Sending commands...
 ✅ TEST PASSED - Driver exited successfully
 ```
 
+### MUD Applications
+A [**MUD application**](/docs/manual/mud-application.md) is specified by first non-option argument when starting `neolith`.
+
+The [apps/hello_world.c](apps/hello_world.c) demonstrates a simple MUD application that prints hello-world message to the console and exits.
+
+To run the example MUD application:
+```bash
+/path/to/neolith -c apps/hello_world.c
+```
+
 ## Configuration Files
 
 ### m3.conf

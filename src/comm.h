@@ -97,7 +97,7 @@ void new_interactive (socket_fd_t socket_fd);
  * - Completed console input lines from console worker.
  * - Completed async worker tasks (future use).
  * .
- * @param timeout Timeout value for polling.
+ * @param timeout Timeout value for polling. If NULL, return immediately without blocking.
  * @returns Number of events occurred, or 0 on timeout, or -1 on error.
  */
 int do_comm_polling (struct timeval* timeout);
