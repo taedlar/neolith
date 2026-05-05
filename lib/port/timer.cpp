@@ -47,21 +47,24 @@ struct platform_timer_internal {
 static void timer_thread_func(platform_timer_internal* internal) {
     auto next_tick = std::chrono::steady_clock::now() + internal->interval;
     
-    while (!internal->stop_requested.load()) {
-        // Wait until next tick or stop is requested
-        std::cv_status status;
+    for (;;) {
+        // Predicate-based wait_until: atomically checks stop_requested on entry and
+        // on every wakeup, eliminating the lost-notify window between the loop
+        // condition check and entering the wait.
+        // Returns true if predicate triggered (stop), false if timeout.
+        bool stop;
         {
             std::unique_lock<std::mutex> lock(internal->mutex);
-            status = internal->cv.wait_until(lock, next_tick);
+            stop = internal->cv.wait_until(lock, next_tick,
+                [internal]{ return internal->stop_requested.load(); });
         }
         
-        // If we were signaled (not timeout), check if we should stop
-        if (internal->stop_requested.load()) {
+        if (stop) {
             break;
         }
         
         // Execute callback on timeout (without holding the lock)
-        if (status == std::cv_status::timeout && internal->active.load() && internal->callback) {
+        if (internal->active.load() && internal->callback) {
             internal->callback();
         }
         

@@ -176,28 +176,47 @@ static void* console_worker_proc_win32(void* ctx) {
 static void* console_worker_proc_posix(void* ctx) {
     console_worker_context_t* cctx = (console_worker_context_t*)ctx;
     char line_buffer[CONSOLE_MAX_LINE];
+    int stop_fd = cctx->stop_pipe_fds[0];
 
     debug_notice ("console worker started (type: %s)\n", console_type_str(cctx->console_type));
 
     while (!async_worker_should_stop(async_worker_current())) {
-        /* Use select with timeout to check shutdown flag */
+        /* Block in select() on stdin and the stop-pipe read end.
+         * NULL timeout means infinite wait - no polling needed. */
         fd_set readfds;
         FD_ZERO(&readfds);
         FD_SET(STDIN_FILENO, &readfds);
 
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 10000; /* 10ms */
+        int nfds = STDIN_FILENO + 1;
+        struct timeval poll_timeout;
+        struct timeval* timeout_ptr = NULL; /* NULL = infinite, used when pipe is available */
+        if (stop_fd >= 0) {
+            FD_SET(stop_fd, &readfds);
+            if (stop_fd >= nfds)
+                nfds = stop_fd + 1;
+        } else {
+            /* Pipe unavailable (creation failed at init): fall back to 10ms polling
+             * so the should_stop flag check at the top of the loop is eventually reached. */
+            poll_timeout.tv_sec = 0;
+            poll_timeout.tv_usec = 10000;
+            timeout_ptr = &poll_timeout;
+        }
 
-        int ret = select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout);
+        int ret = select(nfds, &readfds, NULL, NULL, timeout_ptr);
         if (ret < 0) {
             if (errno == EINTR) {
                 continue; /* Interrupted by signal, retry */
             }
             debug_message("select() failed: %s\n", strerror(errno));
             break;
-        } else if (ret == 0) {
-            /* Timeout - check shutdown flag */
+        }
+
+        /* Stop pipe signaled - exit cleanly */
+        if (stop_fd >= 0 && FD_ISSET(stop_fd, &readfds)) {
+            break;
+        }
+
+        if (!FD_ISSET(STDIN_FILENO, &readfds)) {
             continue;
         }
 
@@ -254,6 +273,16 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
 
     /* debug_notice ("Console type detected: %s\n", console_type_str(ctx->console_type)); */
 
+#ifndef _WIN32
+    /* Create self-pipe for stop signaling so the worker can block in select() indefinitely
+     * and be woken by either stdin becoming readable or a stop signal. */
+    ctx->stop_pipe_fds[0] = ctx->stop_pipe_fds[1] = -1;
+    if (pipe(ctx->stop_pipe_fds) != 0) {
+        debug_warn ("console_worker_init: failed to create stop pipe: %s\n", strerror(errno));
+        /* Non-fatal: worker falls back to polling with timeout */
+    }
+#endif
+
     if (ctx->console_type == CONSOLE_TYPE_NONE) {
         debug_warn ("No console detected, worker will not start\n");
         /* Don't treat as fatal - allow mudlib to run without console */
@@ -287,6 +316,14 @@ bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
         return true; /* No worker to shutdown */
     }
 
+#ifndef _WIN32
+    /* Wake the select() in the POSIX worker by writing to the stop pipe */
+    if (ctx->stop_pipe_fds[1] >= 0) {
+        char byte = 1;
+        (void)write(ctx->stop_pipe_fds[1], &byte, 1);
+    }
+#endif
+
     async_worker_signal_stop(ctx->worker);
     return async_worker_join(ctx->worker, timeout_ms);
 }
@@ -302,6 +339,17 @@ void console_worker_destroy(console_worker_context_t* ctx) {
     if (ctx->worker) {
         async_worker_destroy(ctx->worker);
     }
+
+#ifndef _WIN32
+    if (ctx->stop_pipe_fds[0] >= 0) {
+        close(ctx->stop_pipe_fds[0]);
+        ctx->stop_pipe_fds[0] = -1;
+    }
+    if (ctx->stop_pipe_fds[1] >= 0) {
+        close(ctx->stop_pipe_fds[1]);
+        ctx->stop_pipe_fds[1] = -1;
+    }
+#endif
 
     free(ctx);
 }

@@ -22,6 +22,7 @@
 #include "lpc/otable.h"
 #include "lpc/include/function.h"
 #include "efuns/ed.h"
+#include "src/backend.h"
 
 #ifdef F_ALLOCATE
 void
@@ -701,6 +702,12 @@ f_shutdown (void)
 
   /* initiate shutdown (ends backend loop) */
   g_proceeding_shutdown = true;
+
+  /* Wake async_runtime_wait immediately so shutdown does not wait for poll timeout. */
+  if (g_runtime)
+    {
+      (void) async_runtime_wakeup (g_runtime);
+    }
 }
 #endif
 

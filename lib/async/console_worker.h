@@ -39,6 +39,9 @@ typedef struct console_worker_context_s {
     async_worker_t* worker;        /**< Worker thread handle */
     console_type_t console_type;   /**< Detected console type */
     uintptr_t completion_key;      /**< Completion key for runtime */
+#ifndef _WIN32
+    int stop_pipe_fds[2];          /**< Self-pipe for POSIX stop signaling: [0]=read, [1]=write */
+#endif
 } console_worker_context_t;
 
 /**
