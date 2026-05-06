@@ -139,7 +139,7 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
     
     struct epoll_event epoll_events[MAX_EVENTS];
     int max_epoll_events = (max_events < MAX_EVENTS) ? max_events : MAX_EVENTS;
-    
+
     int result = epoll_wait(runtime->epoll_fd, epoll_events, max_epoll_events, timeout_ms);
     if (result < 0) {
         /* EINTR (signal interruption) is used to wake up the event loop.

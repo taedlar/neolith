@@ -893,6 +893,12 @@ void deinit_curl_subsystem(void) {
 
   if (s_worker) {
     async_worker_signal_stop(s_worker);
+#if LIBCURL_VERSION_NUM >= 0x074400
+    /* curl_multi_poll() may be blocking for up to CURL_POLL_TIMEOUT_MS (1s).
+     * Wake it immediately so the worker can observe the stop signal. */
+    if (s_curl_multi)
+      curl_multi_wakeup(s_curl_multi);
+#endif
     async_worker_join(s_worker, -1);
     async_worker_destroy(s_worker);
     s_worker = nullptr;

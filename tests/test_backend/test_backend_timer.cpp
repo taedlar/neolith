@@ -233,6 +233,49 @@ TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
 #endif /* HEARTBEAT_INTERVAL */
 
 /**
+ * @brief Regression test: stop signal delivered just before wait_until entry must not stall
+ *
+ * Without a predicate-based wait_until, a stop notification delivered between
+ * the thread's loop-condition check and the blocking call is silently dropped.
+ * The thread then sleeps for the full interval before seeing stop_requested,
+ * causing platform_timer_stop() to stall.
+ *
+ * With the predicate, wait_until re-evaluates stop_requested atomically on
+ * entry, so the thread exits immediately regardless of notification timing.
+ *
+ * The test uses a 10-second interval and asserts that each stop completes in
+ * under 1 second. Without the fix, some iterations would stall for ~10 seconds.
+ */
+TEST_F(BackendTimerTest, StopDoesNotStallOnLostNotifyRegression) {
+    constexpr unsigned long long long_interval_us = 10'000'000; // 10 seconds
+    constexpr long max_stop_ms = 1000; // well under one full interval
+
+    auto dummy_callback = +[]() { };
+
+    // Repeat to increase the probability of hitting the race window.
+    for (int iteration = 0; iteration < 20; ++iteration) {
+        platform_timer_t test_timer;
+        memset(&test_timer, 0, sizeof(test_timer));
+
+        ASSERT_EQ(platform_timer_init(&test_timer), TIMER_OK);
+        ASSERT_EQ(platform_timer_start(&test_timer, long_interval_us, dummy_callback), TIMER_OK);
+
+        // Stop immediately, racing against the thread's first wait_until entry.
+        auto t0 = std::chrono::steady_clock::now();
+        ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK);
+        long elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - t0).count();
+
+        EXPECT_LT(elapsed_ms, max_stop_ms)
+            << "platform_timer_stop() stalled " << elapsed_ms
+            << " ms on iteration " << iteration
+            << "; lost-notify race detected (predicate-based wait_until required)";
+
+        platform_timer_cleanup(&test_timer);
+    }
+}
+
+/**
  * @brief Test query_heart_beat integration with timer
  */
 TEST_F(BackendTimerTest, QueryHeartBeatIntegration) {
