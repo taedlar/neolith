@@ -324,7 +324,10 @@ bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
     /* Wake the select() in the POSIX worker by writing to the stop pipe */
     if (ctx->stop_pipe_fds[1] >= 0) {
         char byte = 1;
-        (void)write(ctx->stop_pipe_fds[1], &byte, 1);
+        ssize_t written;
+        do {
+            written = write(ctx->stop_pipe_fds[1], &byte, 1);
+        } while (written < 0 && errno == EINTR);
     }
 #endif
 
