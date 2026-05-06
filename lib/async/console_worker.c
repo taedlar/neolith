@@ -297,6 +297,10 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
 
     if (!ctx->worker) {
         debug_error ("Failed to create console worker thread\n");
+#ifndef _WIN32
+        if (ctx->stop_pipe_fds[0] >= 0) close(ctx->stop_pipe_fds[0]);
+        if (ctx->stop_pipe_fds[1] >= 0) close(ctx->stop_pipe_fds[1]);
+#endif
         free(ctx);
         return NULL;
     }
