@@ -1201,7 +1201,7 @@ The following efuns are opted in for dot-call. Aliases are listed under their pr
 
 | Category | Efuns |
 |---|---|
-| Conversion | `to_int`, `to_float` |
+| Conversion | `to_int`, `to_float`, `to_json`, `from_json` |
 | String | `file_name`, `capitalize`, `upper_case`, `lower_case`, `replace_string`, `repeat_string`, `explode`, `implode`, `strsrch`, `strcmp`, `strwrap`, `sprintf` |
 | Size | `len` (alias for `sizeof`) |
 | Regex | `regexp`, `reg_assoc` |
