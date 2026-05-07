@@ -97,3 +97,76 @@ To launch particular MUD application in an archive, add the label after archive 
 ```bash
 neolith -c package.zip migrate-player-file
 ```
+
+## Usage
+For console-mode applications, Neolith behaves like an LPC runtime hosted by the driver backend.
+Even in console mode, the program runs as a real LPMud session with one interactive user.
+
+### Quick start with `hello_openai.c`
+The example at `examples/apps/hello_openai.c` sends the message `"hello"` to OpenAI with CURL efuns and parses the JSON response with JSON efuns.
+
+1. Build Neolith with CURL and JSON support (`PACKAGE_CURL=ON`, `PACKAGE_JSON=ON`).
+2. Add your API key in a local file beside the app:
+   ```bash
+   echo "sk-..." > examples/apps/.openai_api_key
+   ```
+3. Run in console mode:
+   ```bash
+   neolith -c examples/apps/hello_openai.c
+   ```
+
+Expected flow:
+- `logon()` loads the API key and starts the request.
+- `perform_using()` sets URL, headers, request body, and timeout.
+- `perform_to()` dispatches a non-blocking HTTP transfer.
+- The completion callback receives `success` + `buffer|string`, parses with `from_json()`, prints output, then calls `shutdown()`.
+
+### Runtime characteristics
+A MUD application keeps core LPMud semantics:
+- **Application entry points**:
+  - `epilog()` for optional preload logic
+  - `connect()` to bind an incoming user to an object
+  - `logon()` for per-user startup
+- **Independent sessions**: Each user session is isolated; disconnect a user with `destruct()`.
+- **Service lifecycle**: The backend loop continues until `shutdown()` is called.
+- **Sandbox boundary**: File access remains restricted to the mudlib directory.
+- **Piped I/O**: In console mode, standard input and output can be piped for automation.
+- **Configurable deployment**: With `-f`, you can run the same app with production mudlib settings and open network ports.
+- **Recoverable coding loop**: LPC compile/runtime errors do not crash the driver process; diagnostics are surfaced through standard error/log paths (including `log_error()` policy hooks).
+
+## Advanced MUD application creation
+
+Use this pattern when moving from one-shot scripts to production-style tools.
+
+### 1) Separate bootstrap from business logic
+- Keep master applies (`epilog()`, `connect()`, `logon()`) minimal.
+- Delegate domain behavior to service objects and helper modules.
+- In interactive apps, return a dedicated user object from `connect()` instead of reusing the master object.
+
+### 2) Design for asynchronous operations
+- Prefer non-blocking efuns (`perform_using()` + `perform_to()`) for network access.
+- Treat callbacks as state transitions; store request context explicitly.
+- Add timeout and retry policy for external APIs.
+
+### 3) Use structured payload boundaries
+- Build payloads as LPC mappings/arrays, serialize with `to_json()`.
+- Parse external responses with `from_json()` before business logic.
+- Validate expected schema (`mappingp`, `arrayp`, key existence) before indexing nested values.
+
+### 4) Harden secrets and configuration
+- Keep secrets out of source files; load from local files or deployment-managed secrets.
+- Fail fast with clear operator-facing messages when required configuration is missing.
+- When using `-f neolith.conf`, keep app paths inside `MudlibDir`.
+
+### 5) Plan for multi-user and remote clients
+- In LPC all variables are bound to an object; there are no global variables. Per-user state belongs on the user/session object, shared state belongs on a dedicated service object.
+- Separate console automation flows from telnet/websocket user flows.
+- Implement explicit teardown paths so abandoned sessions do not leak resources.
+- **Live repair without restart**: When command-processing or other LPC code has bugs, the normal fix cycle is: edit the source file, `destruct()` the live object(s) carrying the old program, then let the driver recompile on the next access. No MUD restart is required. This is especially important for remote clients where downtime is disruptive.
+  - Destructing a parent object does not affect clones that have already inherited its program; destruct those independently if needed.
+  - Keep application logic in separate objects from the master file so bugs can be fixed without touching the master.
+
+### 6) Test like a service
+- Test console-mode behavior with scripted stdin/stdout.
+- Add interaction tests for multi-user flows (for example with `examples/testbot.py`).
+- Verify failure paths: network errors, invalid JSON, missing config, and callback object destruction.
