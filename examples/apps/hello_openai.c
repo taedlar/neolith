@@ -3,7 +3,6 @@
 // Sends "hello" to the OpenAI Chat Completions API and prints the reply.
 //
 // Usage:
-//   export OPENAI_API_KEY=sk-...
 //   neolith -c hello_openai.c
 //
 // The API key is read from a file named ".openai_api_key" in the same
@@ -42,7 +41,7 @@ void logon() {
     }
 
     // Trim trailing newline / spaces.
-    while (raw_key != "" && (raw_key[<1] == '\n' || raw_key[<1] == '\r' || raw_key[<1] == ' '))
+    while (raw_key != "" && (raw_key[<1] == '\n' || raw_key[<1] == '\r' || raw_key[<1] == '\t' || raw_key[<1] == ' '))
         raw_key = raw_key[0..<2];
 
     api_key = raw_key;
@@ -57,7 +56,6 @@ void logon() {
 
 void send_hello() {
     mapping request_body;
-    string json_body;
     string auth_header;
 
     // Build the request payload as an LPC mapping, then serialize to JSON.
@@ -93,9 +91,8 @@ void on_response(int success, mixed body_or_error) {
         return;
     }
 
-    // body_or_error is a buffer on success; convert to string for JSON parsing.
+    // body_or_error is a buffer on success; convert to LPC mapping.
     parsed = from_json(body_or_error);
-
     if (!mapp(parsed)) {
         write("Unexpected response format.\n");
         shutdown();
