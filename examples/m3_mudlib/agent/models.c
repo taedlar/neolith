@@ -3,7 +3,6 @@
 // Usage:
 //   neolith -f m3.conf -c m3_mudlib/agent/models.c
 //
-// #include "../config.h"
 
 string master_key;
 

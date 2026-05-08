@@ -89,8 +89,20 @@ Neolith treats `MudlibDir` as the root of the mudlib filesystem sandbox for driv
 - Keep `MudlibDir` set to the intended mudlib root directory.
 - Do not rely on the process current working directory as a security boundary.
 - Include, object loading, and binary cache paths are resolved against a verified mudlib root captured at startup.
+- File access efuns are hardened through master permission applies (`valid_read()` / `valid_write()`) and sandboxed path resolution.
+- Paths that attempt traversal (for example using `..`) are rejected.
 
 For design details and implementation references, see [filesystem-sandboxing.md](../internals/filesystem-sandboxing.md).
+
+### File Access Efun Hardening
+
+For file access efuns (such as `cp`, `read_file`, `write_file`, `rm`, and `rename`), Neolith enforces both:
+
+- mudlib policy checks through master object applies (`valid_read()` / `valid_write()`), and
+- sandbox containment under `MudlibDir`.
+
+Operationally, this means mudlib code must pass both policy checks and path safety checks to access files.
+Path traversal patterns (notably `..`) are blocked by the driver.
 
 ## Optional Settings
 
@@ -101,7 +113,7 @@ Name | Value | Default |
 `LogDir` | The full-path for `log_file()` to create log files. | use stderr (ideal for *read-only* mudlib) |
 `DebugLogFile` | The filename of debug log file where the LPMud driver's log messages is appended to. | Use stderr |
 `LogWithDate` | Prefix each log message with an ISO-8601 format date and time. | No |
-`IncludeDir` | The search path of LPC #include. Multiple paths can be assigned by separate them with `:` character. | Not using |
+`IncludeDir` | The search path of LPC `#include`. Multiple paths can be assigned by separating them with `:`. Use `/` to mean mudlib top-level directory. | Not using |
 `GlobalInclude` | An #include header that is automatically included by all LPC programs. | Not using |
 `SaveBinaryDir` | The path for storing data file when using `#pragma save_binary`. | Ignores #pragma save_binary |
 `SimulEfunFile` | The first LPC object to be loaded, and all its public functions are made available to any LPC program like efuns. | Not using |
@@ -120,3 +132,17 @@ Name | Value | Default |
 `MaxCallDepth` | Maximum depth of LPC function calls before the LPMud driver should abort the evaluation. | 50 |
 `ArgumentsInTrace` | Enable output of function call arguments in the dump trace message. | No |
 `LocalVariablesInTrace` | Enable output of local variables in the dump trace message. | No |
+
+### IncludeDir Notes
+
+- `IncludeDir` entries are resolved relative to mudlib.
+- `/` is supported and means the mudlib top-level include search location.
+- You can combine `/` with additional include directories using `:`.
+
+Example from [examples/m3.conf](../../examples/m3.conf):
+
+~~~conf
+IncludeDir      /:/include
+~~~
+
+For sandbox safety, include path traversal attempts (for example `..`) are rejected.

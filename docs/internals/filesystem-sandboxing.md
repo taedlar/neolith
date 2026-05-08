@@ -1,6 +1,6 @@
 # Filesystem Sandboxing in Neolith
 
-**Status**: Implemented (hardened path anchoring for include/compiler/object/binary flows)
+**Status**: Implemented (hardened path anchoring for include/compiler/object/binary flows and file access efuns)
 **Audience**: Driver developers maintaining compiler, loader, and runtime file I/O
 **Created**: 2026-05-08
 
@@ -16,6 +16,8 @@ Neolith treats the mudlib directory as a filesystem sandbox root. Historically (
 This approach is fragile because process CWD is global mutable state. Any code (driver, dependency, or platform helper) that changes CWD can silently redirect file access.
 
 Neolith hardens this by computing and storing a verified absolute mudlib root at startup, then using that root explicitly in critical path resolution logic.
+
+For file access efuns, Neolith also moved path validation/anchoring to a push-style API that is re-entrant safe and unwind-safe.
 
 ---
 
@@ -99,6 +101,35 @@ It now resolves `__SIMUL_EFUN_FILE__` against verified mudlib root when availabl
 
 - see [lib/lpc/compiler.c](../../lib/lpc/compiler.c)
 
+### 6) File access efuns hardened with stack-owned path contracts
+
+Historically, path validation helpers for file efuns relied on retained/static path storage (`check_valid_path`), which is fragile when master applies re-enter file efuns (for example, `valid_read` / `valid_write` side effects).
+
+Neolith now hardens file efun path handling with two helpers in [lib/efuns/file_utils.c](../../lib/efuns/file_utils.c) declared in [lib/efuns/file_utils.h](../../lib/efuns/file_utils.h):
+
+- `push_valid_path(path, caller, call_fun, writeflg)` (replaces `check_valid_path`)
+  - runs master object permission applies,
+  - normalizes to legal relative path,
+  - pushes validated path on eval stack.
+- `push_resolved_valid_path(path, caller, call_fun, writeflg)`
+  - performs `push_valid_path` stage,
+  - resolves to sandboxed absolute path using `resolve_path_in_mudlib`,
+  - pushes resolved path on eval stack.
+
+Key hardening properties:
+
+- no shared static return buffer; each call owns its stack slot,
+- nested/re-entrant permission apply flows cannot overwrite sibling path results,
+- on LPC `error()` unwind, stack-owned temporary paths are automatically freed,
+- no fallback to implicit CWD-based resolution when `mudlib_dir_absolute` is unset.
+
+Path legality and root containment are centralized in C++17 filesystem helpers:
+
+- [lib/misc/filepath.cpp](../../lib/misc/filepath.cpp)
+- [lib/misc/filepath.h](../../lib/misc/filepath.h)
+
+This hardening is now used by core file efun paths (read/write/remove/stat/rename/cp), dump helpers, editor file access, and save/restore object path flows.
+
 ---
 
 ## MudOS vs Neolith: Behavioral Contrast
@@ -114,6 +145,7 @@ It now resolves `__SIMUL_EFUN_FILE__` against verified mudlib root when availabl
 - Verified absolute mudlib root stored once.
 - Critical subsystems perform explicit root-based path resolution.
 - Include path traversal blocked with containment checks.
+- File access efuns use stack-owned validated/resolved paths instead of retained static path storage.
 - CWD changes are less likely to break sandbox assumptions.
 
 ---
@@ -131,13 +163,15 @@ Regression tests validate behavior outside mudlib CWD:
 
 These tests ensure path-sensitive operations remain correct when current working directory is intentionally moved away from mudlib.
 
+File-efun hardening is exercised through existing efun/object test coverage (including `cp`/`save_object` paths) and full unit-test runs after migration.
+
 ---
 
 ## Remaining Considerations
 
 1. CWD is still process-global state, and some legacy/auxiliary code may still assume mudlib CWD.
-2. Hardening here focuses on compiler/include/object/binary paths, which are high-impact for sandbox correctness.
-3. New file I/O entry points should prefer explicit root-based joins over CWD-relative behavior.
+2. Hardening now covers compiler/include/object/binary flows and core file access efun call paths.
+3. New file I/O entry points should prefer explicit root-based joins and push-style stack ownership over retained/static path storage.
 
 ---
 
@@ -148,4 +182,5 @@ When adding filesystem access in driver internals:
 1. Prefer `MAIN_OPTION(mudlib_dir_absolute)` as root anchor.
 2. Normalize untrusted path fragments before joining.
 3. Enforce containment checks where traversal can appear.
-4. Add tests that run with CWD outside mudlib to catch regressions.
+4. For efun-facing file paths, use `push_valid_path` / `push_resolved_valid_path` and pop stack slots in all non-error paths.
+5. Add tests that run with CWD outside mudlib to catch regressions.

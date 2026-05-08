@@ -128,7 +128,7 @@ bool path_is_within_root(const char *path, const char *root) {
 /**
  * @brief Resolve a relative path to an absolute path within mudlib and verify containment.
  *
- * Takes a relative path (e.g., from check_valid_path) and mudlib root directory,
+ * Takes a relative path (e.g., from push_resolved_valid_path) and mudlib root directory,
  * combines them into an absolute path, and verifies the result is within the mudlib root
  * to prevent directory traversal attacks.
  *
