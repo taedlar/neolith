@@ -42,6 +42,11 @@ protected:
         previous_cwd = fs::current_path();
         fs::current_path(mudlib_path); // change working directory to mudlib
 
+        // populate mudlib_dir_absolute so resolve_valid_path() can sandbox file I/O
+        if (!realpath(".", MAIN_OPTION(mudlib_dir_absolute))) {
+            FAIL() << "realpath failed for mudlib directory: " << mudlib_path;
+        }
+
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
         init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__), CONFIG_STR (__INCLUDE_DIRS__));
         setup_simulate();

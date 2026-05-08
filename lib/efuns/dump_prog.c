@@ -62,25 +62,23 @@ f_dump_prog (void)
  * 1 - do disassembly
  * 2 - dump line number table
  */
-static void
-dump_prog (program_t * prog, const char *fn, int dump_flags)
-{
-  char *fname;
+static void dump_prog (program_t * prog, const char *fn, int dump_flags) {
   FILE *f;
   int i, j;
 
-  fname = check_valid_path (fn, current_object, "dumpallobj", 1);
-  if (!fname)
+  if (!push_valid_path (fn, current_object, "dumpallobj", 1))
     {
       error ("Invalid path '%s' for writing.\n", fn);
       return;
     }
-  f = fopen (fname, "w");
+  f = fopen (SVALUE_STRPTR (sp), "w");
   if (!f)
     {
-      error ("Unable to open '/%s' for writing.\n", fname);
+      error ("Unable to open '/%s' for writing.\n", SVALUE_STRPTR (sp));
+      /* error() unwinds; stack cleanup is automatic */
       return;
     }
+  pop_stack (); /* path no longer needed; f is open */
   fprintf (f, "NAME: /%s\n", prog->name);
   fprintf (f, "INHERITS:\n");
   fprintf (f, "\tname                    fio    vio\n");
