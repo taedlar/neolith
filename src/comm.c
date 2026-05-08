@@ -291,7 +291,7 @@ void ipc_remove () {
     {
       if (!external_port[i].port)
         continue;
-      debug_message ("{}\tclosing service on TCP port %d\n", external_port[i].port);
+      LOG_NOTICE ("{}\t----- stopping service on TCP port %d\n", external_port[i].port);
       if (SOCKET_CLOSE (external_port[i].fd) == SOCKET_ERROR)
         debug_error ("SOCKET_CLOSE() failed: %d", SOCKET_ERRNO);
     }

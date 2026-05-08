@@ -11,6 +11,7 @@
 #include "lpc/program/generate.h"
 #include "lpc/include/runtime_config.h"
 #include "efuns/file_utils.h"
+#include "src/main.h"
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -2579,15 +2580,36 @@ uint64_t compute_opcode_config_id() {
   if (CONFIG_STR(__SIMUL_EFUN_FILE__))
     {
       struct stat st;
+      char simul_full_path[PATH_MAX];
       const char *simul_path = CONFIG_STR(__SIMUL_EFUN_FILE__);
       if (simul_path && simul_path[0])
         {
-          /* Strip leading '/' for relative path handling */
           const char *path_to_stat = simul_path;
-          if (path_to_stat[0] == '/')
+
+          if (g_main_options && MAIN_OPTION(mudlib_dir_absolute)[0] != '\0')
             {
+              const char *simul_rel = simul_path;
+              size_t mudlib_len = strlen(MAIN_OPTION(mudlib_dir_absolute));
+              size_t simul_len;
+
+              while (*simul_rel == '/')
+                simul_rel++;
+
+              simul_len = strlen(simul_rel);
+              if (mudlib_len + 1 + simul_len + 1 <= sizeof(simul_full_path))
+                {
+                  memcpy(simul_full_path, MAIN_OPTION(mudlib_dir_absolute), mudlib_len);
+                  simul_full_path[mudlib_len] = '/';
+                  memcpy(simul_full_path + mudlib_len + 1, simul_rel, simul_len + 1);
+                  path_to_stat = simul_full_path;
+                }
+            }
+          else if (path_to_stat[0] == '/')
+            {
+              /* Legacy fallback when verified mudlib path is not available. */
               path_to_stat++;
             }
+
           if (0 == stat(path_to_stat, &st))
             {
               new_config_id = (uint64_t)st.st_mtime;

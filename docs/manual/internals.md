@@ -40,6 +40,12 @@ The LPMud Driver stays in backend mode until `shutdown()` is called or the proce
 When the LPMud Driver is running the backend loop, at least one LPC object exists: the master object.
 Depending on mudlib design, additional objects may be loaded in `epilog()` before the driver is ready to accept user connections.
 
+# Filesystem Sandboxing
+
+Neolith resolves mudlib-visible compile/load paths against the configured mudlib root rather than relying on process working directory behavior.
+For implementation details and source references, see
+[Filesystem Sandboxing Internals](../internals/filesystem-sandboxing.md).
+
 # Error Model (Mudlib-Facing)
 
 Neolith now uses C++ exception transport internally for runtime error handling.

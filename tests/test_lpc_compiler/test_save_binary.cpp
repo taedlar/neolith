@@ -98,4 +98,37 @@ TEST_F(LPCCompilerTest, saveBinaryPreservesEmbeddedNullStringLiteral) {
 
     free_prog(prog, 1);
 }
+
+TEST_F(LPCCompilerTest, loadBinaryUsesVerifiedMudlibPathOutsideMudlibCwd) {
+    ASSERT_NE(CONFIG_STR(__SAVE_BINARIES_DIR__), nullptr)
+        << "__SAVE_BINARIES_DIR__ is not configured.";
+
+    namespace fs = std::filesystem;
+    const fs::path mudlib_cwd = fs::current_path();
+    const fs::path shifted_cwd = mudlib_cwd.parent_path();
+
+    ASSERT_LT(mudlib_cwd.string().size(), static_cast<size_t>(PATH_MAX));
+    strncpy(MAIN_OPTION(mudlib_dir_absolute), mudlib_cwd.string().c_str(), PATH_MAX - 1);
+    MAIN_OPTION(mudlib_dir_absolute)[PATH_MAX - 1] = '\0';
+    SET_CONFIG_STR(__SIMUL_EFUN_FILE__, "config.h");
+    init_binaries();
+
+    std::error_code ec;
+    fs::remove("bin/tests/test_save_binary/pathcheck.b", ec);
+
+    program_t* prog = compile_file(-1, "tests/test_save_binary/pathcheck.c", R"(
+        #pragma save_binary
+        int run_test() { return 42; }
+    )");
+    ASSERT_NE(prog, nullptr) << "compile_file returned null program.";
+    total_lines = 0;
+    free_prog(prog, 1);
+
+    fs::current_path(shifted_cwd);
+    prog = load_binary("tests/test_save_binary/pathcheck.c", BIN_IGNORE_SOURCE_FILE | BIN_IGNORE_INCLUDE_FILES);
+    ASSERT_NE(prog, nullptr) << "load_binary failed outside mudlib cwd.";
+    free_prog(prog, 1);
+
+    fs::current_path(mudlib_cwd);
+}
 #endif

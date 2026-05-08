@@ -16,6 +16,7 @@
 #include "lpc/include/runtime_config.h"
 #include "src/interpret.h"
 #include "lpc/lex.h"
+#include "misc/filepath.h"
 
 #include "file_utils.h"
 
@@ -358,54 +359,7 @@ remove_file (const char *path)
  * Check that it is an legal path. No '..' are allowed.
  */
 int legal_path (const char *path) {
-  const char *p;
-
-  if (path == NULL)
-    return 0;
-  if (path[0] == '/')
-    {
-      opt_trace (TT_EVAL|0, "absolute path '/...' rejected\n");
-      return 0;
-    }
-  /*
-   * disallowing # seems the easiest way to solve a bug involving loading
-   * files containing that character
-   */
-  if (strchr (path, '#'))
-    {
-      opt_trace (TT_EVAL|0, "path with '#' rejected\n");
-      return 0;
-    }
-  p = path;
-  while (p)
-    {				/* Zak, 930530 - do better checking */
-      if (p[0] == '.')
-        {
-          if (p[1] == '\0')	/* trailing `.' ok */
-            break;
-          if (p[1] == '.')	/* check for `..' or `../' */
-            p++;
-          if (p[1] == '/' || p[1] == '\0')
-            return 0;		/* check for `./', `..', or `../' */
-        }
-      p = (char *) strstr (p, "/.");	/* search next component */
-      if (p)
-        p++;			/* step over `/' */
-    }
-#if defined(AMIGA) || defined(LATTICE) || defined(_WIN32)
-  /*
-   * I don't know what the proper define should be, just leaving an
-   * appropriate place for the right stuff to happen here - Wayfarer
-   */
-  /*
-   * fail if there's a ':' since on AmigaDOS this means it's a logical
-   * device!
-   */
-  /* Could be a drive thingy for os2. */
-  if (strchr (path, ':'))
-    return 0;
-#endif
-  return 1;
+  return path_is_legal_relative (path);
 }				/* legal_path() */
 
 /**

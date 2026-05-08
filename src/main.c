@@ -111,6 +111,13 @@ int main (int argc, char **argv) {
       exit (EXIT_FAILURE);
     }
 
+  if (NULL == realpath (".", MAIN_OPTION(mudlib_dir_absolute)))
+    {
+      debug_perror ("realpath", CONFIG_STR (__MUD_LIB_DIR__));
+      LOG_FATAL ("{}\t***** cannot resolve MudLibDir absolute path: %s.\n", CONFIG_STR (__MUD_LIB_DIR__));
+      exit (EXIT_FAILURE);
+    }
+
   /* Initialize resource pools */
   if (CONFIG_INT (__RESERVED_MEM_SIZE__) > 0)
     {

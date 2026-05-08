@@ -82,6 +82,16 @@ Name | Value |
 `MasterFile` | The file path of the privileged master object. |
 `Port` | The TCP port for which your MUD shall listen for new connections. |
 
+### MudlibDir and Filesystem Sandboxing
+
+Neolith treats `MudlibDir` as the root of the mudlib filesystem sandbox for driver-internal compile/load paths.
+
+- Keep `MudlibDir` set to the intended mudlib root directory.
+- Do not rely on the process current working directory as a security boundary.
+- Include, object loading, and binary cache paths are resolved against a verified mudlib root captured at startup.
+
+For design details and implementation references, see [filesystem-sandboxing.md](../internals/filesystem-sandboxing.md).
+
 ## Optional Settings
 
 Below is a list of optional settings.
