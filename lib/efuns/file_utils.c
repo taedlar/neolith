@@ -758,10 +758,11 @@ bool push_valid_path (const char *path, object_t * call_object, const char *call
     }
 
   if (!ret_path)
-    ret_path = path;
+    ret_path = path; /* fallback to original path */
 
   if (ret_path[0] == '/')
-    ret_path++;
+    ret_path++; /* strip leading '/' */
+
   if (ret_path[0] == '\0')
     ret_path = current_dir;
 
@@ -795,6 +796,12 @@ bool push_valid_path (const char *path, object_t * call_object, const char *call
  * Re-entrant and exception-unwind safe via the same eval-stack ownership invariant
  * as push_valid_path().
  *
+ * @note The resolved path is a host filesystem path, not an LPC path. This function is intended
+ *       for internal efun helpers that need to access the host filesystem, and the result is not
+ *       suitable for passing back to LPC code or master object applies. The caller contract is that
+ *       the result is a "usable path" for host filesystem access, and the caller should not make
+ *       any assumptions about the format of the path (e.g. it may be an absolute path, or an
+ *       archive-relative path if mudlib is an archive).
  * @note When mudlib is an archive, stage 2 will resolve to an archive-relative path instead
  *       of an absolute filesystem path. The caller contract ("usable path") stays the same.
  *

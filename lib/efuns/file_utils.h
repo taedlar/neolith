@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 /* legacy LPMud file path validation. Now refactored to use C++17 filesystem */
-static inline int legal_path(const char *path) { return path_is_legal_relative(path); }
+static inline bool legal_path(const char *path) { return is_path_descendant(path); }
 
 bool push_valid_path(const char* path, object_t *caller_ob, const char *call_fun, int writeflg);
 

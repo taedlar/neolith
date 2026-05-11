@@ -456,7 +456,7 @@ static int inc_open (char *buf, size_t buf_size, const char *name) {
       opt_trace (TT_COMPILE|3, "Trying include path: \"%s\"", buf);
 
       /* Security check: ensure the path doesn't escape mudlib directory */
-      if (!path_is_within_root (buf, mudlib_dir))
+      if (!is_path_within_root (buf, mudlib_dir))
         {
           opt_warn (1, "rejected unsafe path: \"%s\"", buf);
           continue;  /* Skip this unsafe path */

@@ -12,9 +12,61 @@ extern "C" {
   #define false 0
 #endif
 
-bool path_is_legal_relative(const char *path);
-bool path_is_within_root(const char *path, const char *root);
-char *resolve_path_in_mudlib(const char *relative_path, const char *mudlib_root);
+/**
+ * @brief Checks if the given path only contains valid characters and does not
+ *        attempt to traverse outside where it starts.
+ *
+ * This is a C++17 implementation of the legacy legal_path() function, using
+ * std::filesystem for robust path parsing and validation.
+ *
+ * When passing a path to LPC code, it must pass this validation to ensure
+ * consistent view of the filesystem. This includes:
+ * - Header includes via #include
+ * - LPC object loading (include inherits)
+ * - Master applies for file access permissions
+ * - File I/O efuns (e.g., read_file, write_file)
+ * - Any other code that takes file paths from LPC and needs to ensure they are
+ *   within the mudlib directory structure.
+ *
+ * If the path is valid, it can then be resolved to an absolute host file path using
+ * resolve_path_in_mudlib(), which will also verify that the resolved path is within
+ * the mudlib root to prevent directory traversal attacks.
+ *
+ * @param path The path to validate. It must be normalized to a relative path from
+ *             the mudlib root (e.g., "obj/player.c" or ".").
+ * @return true if the path is within the mudlib, false otherwise.
+ */
+bool is_path_descendant(const char *path);
+
+/**
+ * @brief Checks if the given absolute path is within the specified root directory.
+ *
+ * This function ensures that the path is within the root directory, enforcing
+ * filesystem sandboxing.
+ *
+ * @param path The absolute path to check.
+ * @param root The root directory to check against (usually the mudlib root).
+ * @return true if the path is within the root, false otherwise.
+ */
+bool is_path_within_root(const char *path, const char *root);
+
+/**
+ * @brief Resolve a relative path to an absolute path within a root directory and
+ * verify containment.
+ *
+ * Takes a relative path (e.g., from push_resolved_valid_path) and root directory,
+ * combines them into an absolute (host) path, and verifies the result is within the
+ * root to prevent directory traversal attacks.
+ *
+ * Uses C++17 std::filesystem for robust path normalization and component comparison.
+ *
+ * @param relative_path The mudlib-local path (e.g., "." or "obj/player")
+ * @param root          The absolute root directory
+ * @return malloc'd absolute path if valid and within root, nullptr on error.
+ *         Returns exactly the root if relative_path is "."
+ *         Caller must free the returned string with free().
+ */
+char *resolve_path_in_mudlib(const char *relative_path, const char *root);
 
 #ifdef __cplusplus
 }
