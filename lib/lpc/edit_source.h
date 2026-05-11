@@ -7,16 +7,16 @@ extern FILE *yyin;
 
 #define MAX_FUNC    2048  /* If we need more than this we're in trouble! */
 
-#define VOID        1
-#define INT         2
-#define STRING      3
-#define OBJECT      4
-#define MAPPING     5
-#define MIXED       6
-#define UNKNOWN     7
-#define FLOAT       8
-#define FUNCTION    9
-#define BUFFER      10
+#define L_VOID      1
+#define L_INT       2
+#define L_STRING    3
+#define L_OBJECT    4
+#define L_MAPPING   5
+#define L_MIXED     6
+#define L_UNKNOWN   7
+#define L_FLOAT     8
+#define L_FUNCTION  9
+#define L_BUFFER    10
 
 extern int num_buff;
 extern int op_code, efun_code, efun1_code;
