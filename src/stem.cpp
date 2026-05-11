@@ -204,7 +204,7 @@ extern "C" void try_reset (object_t * ob) {
  * @param root          The absolute root directory
  * @return malloc'd absolute path if valid and within root, nullptr on error.
  *         Returns exactly the root if relative_path is "."
- *         Caller must free the returned string with free().
+ *         Caller must free the returned string with FREE_MSTR().
  */
 extern "C"
 malloc_str_t resolve_path_in_mudlib(const char *relative_path, const char *mudlib_root) {

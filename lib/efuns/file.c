@@ -85,17 +85,29 @@ void f_stat (void) {
   int dir_flags;
   array_t *v;
   object_t *ob;
+  char lpc_name[PATH_MAX + 2];
 
   /* sp = flags, sp-1 = path string; save flag then move sp to path */
   dir_flags = (int)sp->u.number;
   sp--;
-  if (!push_resolved_valid_path (SVALUE_STRPTR(sp), current_object, "stat", 0))
+  /* Stage 1: get the normalized LPC-style path for find_object_by_name */
+  if (!push_valid_path (SVALUE_STRPTR(sp), current_object, "stat", 0))
     {
       free_string_svalue (sp);
       *sp = const0;
       return;
     }
-  /* sp = validated path; sp-1 = original path string */
+  strncpy (lpc_name, SVALUE_STRPTR(sp), sizeof (lpc_name) - 1);
+  lpc_name[sizeof (lpc_name) - 1] = '\0';
+  pop_stack ();
+  /* Stage 2: resolve to sandboxed absolute path for OS stat() call */
+  if (!push_resolved_valid_path (lpc_name, current_object, "stat", 0))
+    {
+      free_string_svalue (sp);
+      *sp = const0;
+      return;
+    }
+  /* sp = absolute path; sp-1 = original path string */
   if (stat (SVALUE_STRPTR(sp), &buf) != -1)
     {
       if (buf.st_mode & S_IFREG)
@@ -106,7 +118,7 @@ void f_stat (void) {
           v->item[1].type = T_NUMBER;
           v->item[1].u.number = buf.st_mtime;
           v->item[2].type = T_NUMBER;
-          ob = find_object_by_name (SVALUE_STRPTR(sp));
+          ob = find_object_by_name (lpc_name);
           if (ob && !object_visible (ob))
             ob = 0;
           v->item[2].u.number = ob ? ob->load_time : 0;

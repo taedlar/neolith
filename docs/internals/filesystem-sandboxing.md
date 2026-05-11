@@ -50,10 +50,10 @@ For driver-internal file I/O in compile/load paths:
 
 ### 1) Verified mudlib root captured at startup
 
-Startup still validates mudlib by changing CWD, then persists the canonical absolute path:
+`setup_simulate()` (called from `main.c`) resolves and stores the canonical absolute mudlib path, then changes CWD to it:
 
-- `CHDIR(CONFIG_STR(__MUD_LIB_DIR__))` in [src/main.c](../../src/main.c)
-- `realpath(".", MAIN_OPTION(mudlib_dir_absolute))` in [src/main.c](../../src/main.c)
+- `realpath(CONFIG_STR(__MUD_LIB_DIR__), MAIN_OPTION(mudlib_dir_absolute))` in [src/simulate.c](../../src/simulate.c)
+- `CHDIR(MAIN_OPTION(mudlib_dir_absolute))` in [src/simulate.c](../../src/simulate.c)
 - field definition in [src/main.h](../../src/main.h)
 
 This converts a runtime assumption ("CWD is mudlib") into explicit state (`mudlib_dir_absolute`) reusable by subsystems.

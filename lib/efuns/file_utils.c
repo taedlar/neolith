@@ -144,7 +144,7 @@ array_t* get_dir (const char *path, int flags) {
 
   strncpy (fs_path, resolved_path, sizeof (fs_path) - 1);
   fs_path[sizeof (fs_path) - 1] = '\0';
-  free (resolved_path);
+  FREE_MSTR (resolved_path);
 
   if (strlen (path) < 2)
     {

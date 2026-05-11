@@ -32,7 +32,7 @@ protected:
         fs::path config_dir = fs::current_path();
         if (!fs::exists(config_dir / "m3.conf"))
             fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
-        init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
+        init_stem(3, (unsigned long)-1, "m3.conf");
         MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
 
         // setup runtime / simulate
