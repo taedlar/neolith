@@ -117,8 +117,11 @@ array_t* get_dir (const char *path, int flags) {
   struct stat st;
   char *endtemp;
   char temppath[PATH_MAX + 2];
+  char fs_path[PATH_MAX + 2];
   char regexppath[PATH_MAX + 2];
   char *p;
+  const char *mudlib_dir;
+  char *resolved_path;
 
   if (!path)
     return 0;
@@ -127,6 +130,22 @@ array_t* get_dir (const char *path, int flags) {
     return 0;
 
   path = SVALUE_STRPTR (sp);
+  strncpy (temppath, path, sizeof (temppath) - 1);
+  temppath[sizeof (temppath) - 1] = '\0';
+  pop_stack ();
+
+  mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
+  if (!mudlib_dir || !*mudlib_dir)
+    return 0;
+
+  resolved_path = resolve_path_in_mudlib (temppath, mudlib_dir);
+  if (!resolved_path)
+    return 0;
+
+  strncpy (fs_path, resolved_path, sizeof (fs_path) - 1);
+  fs_path[sizeof (fs_path) - 1] = '\0';
+  free (resolved_path);
+
   if (strlen (path) < 2)
     {
       temppath[0] = path[0] ? path[0] : '.';
@@ -135,9 +154,6 @@ array_t* get_dir (const char *path, int flags) {
     }
   else
     {
-      strncpy (temppath, path, PATH_MAX + 1);
-      temppath[PATH_MAX + 1] = '\0';
-
       /*
        * If path ends with '/' or "/." remove it
        */
@@ -146,22 +162,30 @@ array_t* get_dir (const char *path, int flags) {
       if (p[0] == '/' && ((p[1] == '.' && p[2] == '\0') || p[1] == '\0'))
         *p = '\0';
     }
-  pop_stack ();
 
-  if (stat (temppath, &st) < 0)
+  if (stat (fs_path, &st) < 0)
     {
       if (*p == '\0')
         return 0;
       if (p != temppath)
         {
           strcpy (regexppath, p + 1);
-          *p = '\0';
         }
       else
         {
           strcpy (regexppath, p);
-          strcpy (temppath, ".");
         }
+      {
+        char *fs_parent = strrchr (fs_path, '/');
+
+        if (fs_parent)
+          {
+            if (fs_parent == fs_path)
+              fs_path[1] = '\0';
+            else
+              *fs_parent = '\0';
+          }
+      }
       do_match = 1;
     }
   else if (*p != '\0' && strcmp (temppath, "."))
@@ -173,10 +197,10 @@ array_t* get_dir (const char *path, int flags) {
       return v;
     }
 #ifdef HAVE_DIRENT_H
-  if ((dirp = opendir (temppath)) == 0)
+  if ((dirp = opendir (fs_path)) == 0)
     return 0;
 #elif _WIN32
-  snprintf(searchPath, sizeof(searchPath), "%s\\*", temppath);
+  snprintf(searchPath, sizeof(searchPath), "%s\\*", fs_path);
   dirp = FindFirstFile(searchPath, &findFileData);
   if (dirp == INVALID_HANDLE_VALUE)
     return 0;
@@ -234,7 +258,7 @@ array_t* get_dir (const char *path, int flags) {
   FindClose(dirp);
   dirp = FindFirstFile(searchPath, &findFileData);
 #endif
-  endtemp = temppath + strlen (temppath);
+  endtemp = fs_path + strlen (fs_path);
   strcat (endtemp++, "/");
 
 #ifdef HAVE_DIRENT_H
@@ -253,8 +277,8 @@ array_t* get_dir (const char *path, int flags) {
            * We'll have to .... sigh.... stat() the file to get some add'tl
            * info.
            */
-          strcpy (endtemp, de->d_name);
-          stat (temppath, &st);	/* We assume it works. */
+              strcpy (endtemp, de->d_name);
+              stat (fs_path, &st); /* We assume it works. */
         }
       encode_stat (&v->item[i], flags, de->d_name, &st);
       i++;
@@ -287,7 +311,7 @@ array_t* get_dir (const char *path, int flags) {
                * info.
                */
               strcpy (endtemp, findFileData.cFileName);
-              stat (temppath, &st);	/* We assume it works. */
+              stat (fs_path, &st); /* We assume it works. */
             }
           encode_stat (&v->item[i], flags, findFileData.cFileName, &st);
           i++;
