@@ -105,34 +105,3 @@ bool is_path_within_root(const char *path, const char *root) {
 
   return true;
 }
-
-extern "C"
-char *resolve_path_in_mudlib(const char *relative_path, const char *mudlib_root) {
-  if (!relative_path || !mudlib_root || mudlib_root[0] == '\0') {
-    return nullptr;
-  }
-
-  // Handle the special case where "." means the mudlib root itself
-  if (relative_path[0] == '.' && relative_path[1] == '\0') {
-    return strdup(mudlib_root);
-  }
-
-  // Construct absolute path: mudlib_root / relative_path
-  fs::path root(mudlib_root);
-  std::string combined = root.generic_string();
-  combined += '/';
-  combined += relative_path;
-
-  // Check bounds before attempting allocation
-  if (combined.length() + 1 > PATH_MAX) {
-    return nullptr;
-  }
-
-  // Verify the combined path is within the mudlib root
-  if (!is_path_within_root(combined.c_str(), mudlib_root)) {
-    return nullptr;
-  }
-
-  // Return malloc'd copy of the combined path
-  return strdup(combined.c_str());
-}

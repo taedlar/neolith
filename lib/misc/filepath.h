@@ -50,24 +50,6 @@ bool is_path_descendant(const char *path);
  */
 bool is_path_within_root(const char *path, const char *root);
 
-/**
- * @brief Resolve a relative path to an absolute path within a root directory and
- * verify containment.
- *
- * Takes a relative path (e.g., from push_resolved_valid_path) and root directory,
- * combines them into an absolute (host) path, and verifies the result is within the
- * root to prevent directory traversal attacks.
- *
- * Uses C++17 std::filesystem for robust path normalization and component comparison.
- *
- * @param relative_path The mudlib-local path (e.g., "." or "obj/player")
- * @param root          The absolute root directory
- * @return malloc'd absolute path if valid and within root, nullptr on error.
- *         Returns exactly the root if relative_path is "."
- *         Caller must free the returned string with free().
- */
-char *resolve_path_in_mudlib(const char *relative_path, const char *root);
-
 #ifdef __cplusplus
 }
 #endif

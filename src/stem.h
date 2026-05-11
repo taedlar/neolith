@@ -3,43 +3,6 @@
 /* driver command line arguments and trace settings */
 #include "main.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* stem states */
-extern bool g_proceeding_shutdown;
-extern int g_exit_code;
-extern int comp_flag;
-extern time_t boot_time;
-extern int slow_shutdown_to_do;
-
-int init_stem(
-    int debug_level,
-    unsigned long trace_flags,
-    const char* config_file
-);
-
-/* resource management */
-void preload_objects(int eflag);
-void look_for_objects_to_swap (void);
-void start_timers (unsigned int timer_flags);
-#ifdef LAZY_RESETS
-void try_reset(object_t *);
-#endif
-
-/* stem workflows */
-bool stem_startup (void);
-void stem_run (void);
-void stem_crash_handler (const char *msg);
-
-/* LPC compiler logger */
-void smart_log (const char *error_file, int line, const char *what, bool warning);
-
-#ifdef __cplusplus
-}
-#endif
-
 /* legacy C message buffer formatting (to be replaced) */
 #include "outbuf.h"
 
@@ -81,3 +44,41 @@ static inline char* alloc_cstring(const char* cstr, const char* caller) {
 #include "backend.h"
 #include "simulate.h"
 #include "error_context.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* stem states */
+extern bool g_proceeding_shutdown;
+extern int g_exit_code;
+extern int comp_flag;
+extern time_t boot_time;
+extern int slow_shutdown_to_do;
+
+int init_stem(
+    int debug_level,
+    unsigned long trace_flags,
+    const char* config_file
+);
+
+/* resource management */
+void preload_objects(int eflag);
+void look_for_objects_to_swap (void);
+void start_timers (unsigned int timer_flags);
+#ifdef LAZY_RESETS
+void try_reset(object_t *);
+#endif
+malloc_str_t resolve_path_in_mudlib(const char *relative_path, const char *mudlib_root);
+
+/* stem workflows */
+bool stem_startup (void);
+void stem_run (void);
+void stem_crash_handler (const char *msg);
+
+/* LPC compiler logger */
+void smart_log (const char *error_file, int line, const char *what, bool warning);
+
+#ifdef __cplusplus
+}
+#endif
