@@ -18,7 +18,7 @@ TEST_F(LPCCompilerTest, compileFile) {
     // compile_file() is a low-level API that compiles a file and returns the compiled
     // program structure. It does not rely on CWD being set to the mudlib directory,
     // but it does require the file path to be correct.
-    int fd = FILE_OPEN(path.c_str(), O_RDONLY);
+    int fd = FILE_OPEN(path.u8string().c_str(), O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open master.c for reading.";
     program_t* prog = compile_file (fd, "master.c", 0);
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";

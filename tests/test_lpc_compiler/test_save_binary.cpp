@@ -52,7 +52,7 @@ TEST_F(LPCCompilerTest, compileWithSaveBinary) {
      *  does require the file path to be correct.
      */
     fs::path source = fs::path(CONFIG_STR(__MUD_LIB_DIR__)) / "api/unicode.c";
-    int fd = FILE_OPEN(source.c_str(), O_RDONLY);
+    int fd = FILE_OPEN(source.u8string().c_str(), O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open api/unicode.c for reading.";
     prog = compile_file(fd, "api/unicode.c", "#pragma save_binary"); // now with #pragma save_binary
     EXPECT_TRUE(prog != nullptr) << "compile_file returned null program.";
