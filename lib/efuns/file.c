@@ -53,7 +53,7 @@ void f_rm (void) {
 void f_mkdir (void) {
   int ok = 0;
 
-  if (push_valid_path (SVALUE_STRPTR(sp), current_object, "mkdir", 1))
+  if (push_resolved_valid_path (SVALUE_STRPTR(sp), current_object, "mkdir", 1))
     {
       ok = (mkdir (SVALUE_STRPTR(sp), 0770) != -1);
       pop_stack ();
@@ -68,7 +68,7 @@ void f_mkdir (void) {
 void f_rmdir (void) {
   int ok = 0;
 
-  if (push_valid_path (SVALUE_STRPTR(sp), current_object, "rmdir", 1))
+  if (push_resolved_valid_path (SVALUE_STRPTR(sp), current_object, "rmdir", 1))
     {
       ok = (rmdir (SVALUE_STRPTR(sp)) != -1);
       pop_stack ();
@@ -89,7 +89,7 @@ void f_stat (void) {
   /* sp = flags, sp-1 = path string; save flag then move sp to path */
   dir_flags = (int)sp->u.number;
   sp--;
-  if (!push_valid_path (SVALUE_STRPTR(sp), current_object, "stat", 0))
+  if (!push_resolved_valid_path (SVALUE_STRPTR(sp), current_object, "stat", 0))
     {
       free_string_svalue (sp);
       *sp = const0;
@@ -212,7 +212,7 @@ int file_length (const char *file) {
   char buf[2049];
   char *p, *newp;
 
-  if (!push_valid_path (file, current_object, "file_size", 0))
+  if (!push_resolved_valid_path (file, current_object, "file_length", 0))
     return -1;
   fd = open (SVALUE_STRPTR (sp), O_RDONLY);
   pop_stack ();

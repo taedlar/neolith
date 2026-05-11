@@ -14,37 +14,32 @@ private:
 
 protected:
     void SetUp() override {
-        debug_set_log_with_date (false);
+        // init testing environment
+        namespace fs = std::filesystem;
+        previous_cwd = fs::current_path();
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
+        debug_set_log_with_date (false);
+        debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
+
+        // setup stem
+        fs::path config_dir = fs::current_path();
+        if (!fs::exists(config_dir / "m3.conf"))
+            fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
         init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
         MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
 
+        // setup runtime (without LPC compiler since we are only testing stack machine execution, not compilation)
         init_config(MAIN_OPTION(config_file));
-
-        debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-        ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
-        namespace fs = std::filesystem;
-        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relative to cwd
-        if (mudlib_path.is_relative()) {
-            mudlib_path = fs::current_path() / mudlib_path;
-        }
-        ASSERT_TRUE(fs::exists(mudlib_path)) << "Mudlib directory does not exist: " << mudlib_path;
-        previous_cwd = fs::current_path();
-        fs::current_path(mudlib_path); // change working directory to mudlib
-
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
-
         setup_simulate();
-        eval_cost = CONFIG_INT (__MAX_EVAL_COST__); /* simulates calling LPC code from backend */
     }
 
     void TearDown() override {
-        tear_down_simulate();
-        // deinit_lpc_compiler();
-        deinit_strings();
-
         namespace fs = std::filesystem;
-        fs::current_path(previous_cwd);
+        tear_down_simulate();
+        deinit_strings();
         deinit_config();
+
+        fs::current_path(previous_cwd);
     }
 };

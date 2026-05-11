@@ -118,7 +118,7 @@ void dumpstat (const char *tfn) {
   object_t *ob;
   int display_hidden;
 
-  if (!push_valid_path (tfn, current_object, "dumpallobj", 1))
+  if (!push_resolved_valid_path (tfn, current_object, "dumpallobj", 1))
     {
       error ("Invalid path '/%s' for writing.\n", tfn);
       return;

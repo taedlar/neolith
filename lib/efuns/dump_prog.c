@@ -66,7 +66,7 @@ static void dump_prog (program_t * prog, const char *fn, int dump_flags) {
   FILE *f;
   int i, j;
 
-  if (!push_valid_path (fn, current_object, "dumpallobj", 1))
+  if (!push_resolved_valid_path (fn, current_object, "dumpallobj", 1))
     {
       error ("Invalid path '%s' for writing.\n", fn);
       return;

@@ -7,10 +7,20 @@
 using namespace testing;
 
 TEST_F(LPCCompilerTest, compileFile) {
-    // compile a simple test file
-    int fd = FILE_OPEN("master.c", O_RDONLY);
+    namespace fs = std::filesystem;
+    // without setup_simulate(), current directory is configuration directory initialized
+    // by test fixture.
+    EXPECT_TRUE(MAIN_OPTION(mudlib_dir_absolute)[0] == '\0')
+        << "MAIN_OPTION(mudlib_dir_absolute) should be empty before setup_simulate()";
+    fs::path path = fs::current_path() / CONFIG_STR(__MUD_LIB_DIR__) / "master.c";
+    ASSERT_TRUE(fs::exists(path)) << "Test file does not exist: " << path;
+
+    // compile_file() is a low-level API that compiles a file and returns the compiled
+    // program structure. It does not rely on CWD being set to the mudlib directory,
+    // but it does require the file path to be correct.
+    int fd = FILE_OPEN(path.c_str(), O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open master.c for reading.";
-    program_t* prog = compile_file(fd, "master.c", 0);
+    program_t* prog = compile_file (fd, "master.c", 0);
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
     total_lines = 0;
     FILE_CLOSE(fd);

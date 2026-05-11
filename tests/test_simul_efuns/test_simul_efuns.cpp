@@ -26,48 +26,40 @@ protected:
      *  --------------------------------
      */
     void SetUp() override {
-        debug_set_log_with_date (false);
+        namespace fs = std::filesystem;
+        previous_cwd = fs::current_path();
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
+        debug_set_log_with_date (false);
+        debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
+
+        // setup stem
+        fs::path config_dir = fs::current_path();
+        if (!fs::exists(config_dir / "m3.conf"))
+            fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
         init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
         MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
 
         init_config(MAIN_OPTION(config_file));
-
-        debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-        ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
-        namespace fs = std::filesystem;
-        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relative to cwd
-        if (mudlib_path.is_relative()) {
-            mudlib_path = fs::current_path() / mudlib_path;
-        }
-        ASSERT_TRUE(fs::exists(mudlib_path)) << "Mudlib directory does not exist: " << mudlib_path;
-        previous_cwd = fs::current_path();
-        fs::current_path(mudlib_path); // change working directory to mudlib
-
-        // Clear the binary cache before each test to prevent cross-test contamination.
-        // Compiled binaries reference shared string indices that are specific to a string
-        // table state. When tests reinitialize the string table (deinit_strings/init_strings),
-        // cached binaries from prior tests become incompatible. Clearing the cache forces a
-        // fresh compile from source each time, ensuring correctness.
-        auto bin_path = mudlib_path / "bin";
-        if (fs::exists(bin_path))
-            fs::remove_all(bin_path);
-
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
         init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__), CONFIG_STR (__INCLUDE_DIRS__));
-
         setup_simulate();
-        eval_cost = CONFIG_INT (__MAX_EVAL_COST__); /* simulates calling LPC code from backend */
+        ASSERT_TRUE(MAIN_OPTION(mudlib_dir_absolute)[0] != '\0')
+            << "MAIN_OPTION(mudlib_dir_absolute) should be set after setup_simulate().";
+
+        // remove leftover saved binary from previous runs to ensure clean slate for testing
+        auto bin_path = fs::path(MAIN_OPTION(mudlib_dir_absolute)) / "bin";
+        if (fs::exists(bin_path))
+            fs::remove_all(bin_path);
     }
 
     void TearDown() override {
+        namespace fs = std::filesystem;
         tear_down_simulate();
         deinit_lpc_compiler();
         deinit_strings();
 
-        namespace fs = std::filesystem;
-        fs::current_path(previous_cwd);
         deinit_config();
+        fs::current_path(previous_cwd);
     }
 };
 

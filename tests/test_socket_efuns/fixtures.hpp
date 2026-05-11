@@ -94,7 +94,7 @@ protected:
 
   void SetUp() override {
     namespace fs = std::filesystem;
-    // Initialize logging and locale
+    s_previous_cwd = fs::current_path();
     debug_set_log_with_date (false);
     setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
 
@@ -104,28 +104,12 @@ protected:
       config_dir = fs::current_path().parent_path();
     init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
     MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
+
     init_config(MAIN_OPTION(config_file));
     debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-
-    // Verify mudlib path and change to it
-    ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__)) << "Mudlib directory not configured";
-    auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
-    if (mudlib_path.is_relative()) {
-      mudlib_path = config_dir / mudlib_path;
-    }
-    ASSERT_TRUE(fs::exists(mudlib_path))
-      << "Mudlib directory does not exist: " << mudlib_path;
-    s_previous_cwd = fs::current_path();
-    fs::current_path(mudlib_path);
-
-    // Initialize LPC string and compiler subsystems
     init_strings(8192, 1000000);
-    init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__),
-                      CONFIG_STR(__INCLUDE_DIRS__));
-
-    // Initialize simulate and eval cost
+    init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__), CONFIG_STR(__INCLUDE_DIRS__));
     setup_simulate();
-    eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
 
     // Initialize async runtime (needed for socket operations and DNS)
     if (g_runtime == nullptr) {
@@ -141,10 +125,10 @@ protected:
   }
 
   void TearDown() override {
+    namespace fs = std::filesystem;
     // Clean up runtime in reverse setup order.
-    if (master_ob) {
+    if (master_ob)
       close_referencing_sockets(master_ob);
-    }
 
     // Deinitialize async runtime
     if (g_runtime != nullptr) {
@@ -157,10 +141,7 @@ protected:
     deinit_strings();
     deinit_config();
 
-    // Restore working directory
-    namespace fs = std::filesystem;
-    if (!s_previous_cwd.empty())
-      fs::current_path(s_previous_cwd);
+    fs::current_path(s_previous_cwd);
   }
 
   /**

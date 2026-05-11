@@ -65,7 +65,7 @@ This converts a runtime assumption ("CWD is mudlib") into explicit state (`mudli
 Key locations:
 
 - include open path logic in [lib/lpc/lex.c](../../lib/lpc/lex.c)
-- sandbox containment check `is_path_within_mudlib(...)` in [lib/lpc/lex.c](../../lib/lpc/lex.c)
+- sandbox containment check `is_path_within_root(...)` in [lib/lpc/lex.c](../../lib/lpc/lex.c)
 - include path normalization in `set_inc_list(...)` in [lib/lpc/lex.c](../../lib/lpc/lex.c)
 
 `set_inc_list` normalization aligns with `inc_open` expectations:
