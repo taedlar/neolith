@@ -112,12 +112,14 @@ TEST_F(LPCCompilerTest, includeUsesVerifiedMudlibPathOutsideMudlibCwd) {
     strncpy(MAIN_OPTION(mudlib_dir_absolute), mudlib_cwd.string().c_str(), PATH_MAX - 1);
     MAIN_OPTION(mudlib_dir_absolute)[PATH_MAX - 1] = '\0';
 
+    // This is to simulate that CWD was changed accidentally by some code
     fs::current_path(shifted_cwd);
 
     current_object = master_ob;
-    object_t *obj = load_object("test_include_verified_path.c",
-                                  "#include <config.h>\n"
-                                                            "void create() {}\n");
+    object_t *obj = load_object("test_include_verified_path.c", R"(
+        #include <config.h>
+        void create() {}
+    )");
     ASSERT_NE(obj, nullptr) << "load_object() failed to resolve include path outside mudlib cwd.";
 
     fs::current_path(mudlib_cwd);

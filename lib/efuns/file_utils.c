@@ -126,6 +126,7 @@ array_t* get_dir (const char *path, int flags) {
   if (!path)
     return 0;
 
+  /* MudOS calls master apply with "stat" as caller here. We'll retain compatibility here */
   if (!push_valid_path (path, current_object, "stat", 0))
     return 0;
 

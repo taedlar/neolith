@@ -168,12 +168,14 @@ TEST_F(LPCInterpreterTest, nonCatchableEvalCostEscapesCatchBoundary) {
     try {
         eval_cost = 500;
         call_function(prog, runtime_index, 0, nullptr);
-    } catch (const neolith::driver_runtime_error &e) {
+    }
+    catch (const neolith::driver_runtime_error &e) {
         escaped_catch = 1;
         restore_context(&econ);
         EXPECT_NE(std::string(e.what()).find("Can't catch eval cost"), std::string::npos)
             << "Expected eval-cost escape message from catch boundary.";
-    } catch (...) {
+    }
+    catch (...) {
         restore_context(&econ);
         throw;
     }
@@ -198,7 +200,6 @@ TEST_F(LPCInterpreterTest, nonCatchableStackFullEscapesCatchBoundary) {
     save_context(&econ);
     
     try {
-        eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
         call_function(prog, runtime_index, 0, nullptr);
     } catch (const neolith::driver_runtime_error &e) {
         escaped_catch = 1;
@@ -357,7 +358,6 @@ TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
     memcpy(buf->item, payload, sizeof(payload) - 1);
     push_refed_buffer(buf);
 
-    eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
     call_function(prog, runtime_index, 1, ret.raw());
 
     ASSERT_TRUE(ret.view().is_array() == false);

@@ -67,7 +67,7 @@ bool is_path_descendant(const char *path) {
     return false;
 
   for (const auto &part : parsed) {
-    if (part == "..")
+    if (part == "." || part == "..")
       return false;
   }
 
