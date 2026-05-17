@@ -2,26 +2,34 @@
  * @file test_async_queue_basic.cpp
  * @brief Basic async_queue functionality tests
  */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-#include <gtest/gtest.h>
-
-#include "async/async_queue.h"
-
+#include "fixtures.hpp"
 #include <cstring>
 
-class AsyncQueueBasicTest : public ::testing::Test {
-protected:
-    async_queue_t* queue = nullptr;
+#ifdef _WIN32
+class WinsockEnvironment : public ::testing::Environment {
+public:
+    void SetUp() override {
+        WSADATA wsa_data;
+        int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+        if (result != 0) {
+            throw std::runtime_error("WSAStartup failed");
+        }
+    }
     
     void TearDown() override {
-        if (queue) {
-            async_queue_destroy(queue);
-            queue = nullptr;
-        }
+        WSACleanup();
     }
 };
 
-TEST_F(AsyncQueueBasicTest, CreateDestroy) {
+static ::testing::Environment* const winsock_env =
+    ::testing::AddGlobalTestEnvironment(new WinsockEnvironment);
+#endif
+
+TEST_F(AsyncQueueTest, CreateDestroy) {
     queue = async_queue_create(16, 128, (async_queue_flags_t)0);
     ASSERT_NE(queue, nullptr);
     
@@ -29,7 +37,7 @@ TEST_F(AsyncQueueBasicTest, CreateDestroy) {
     EXPECT_FALSE(async_queue_is_full(queue));
 }
 
-TEST_F(AsyncQueueBasicTest, EnqueueDequeue) {
+TEST_F(AsyncQueueTest, EnqueueDequeue) {
     queue = async_queue_create(16, 128, (async_queue_flags_t)0);
     ASSERT_NE(queue, nullptr);
     
@@ -47,7 +55,7 @@ TEST_F(AsyncQueueBasicTest, EnqueueDequeue) {
     EXPECT_TRUE(async_queue_is_empty(queue));
 }
 
-TEST_F(AsyncQueueBasicTest, MultipleMessages) {
+TEST_F(AsyncQueueTest, MultipleMessages) {
     queue = async_queue_create(8, 64, (async_queue_flags_t)0);
     ASSERT_NE(queue, nullptr);
     
@@ -72,7 +80,7 @@ TEST_F(AsyncQueueBasicTest, MultipleMessages) {
     EXPECT_TRUE(async_queue_is_empty(queue));
 }
 
-TEST_F(AsyncQueueBasicTest, QueueFull) {
+TEST_F(AsyncQueueTest, QueueFull) {
     queue = async_queue_create(4, 32, (async_queue_flags_t)0);
     ASSERT_NE(queue, nullptr);
     
@@ -90,7 +98,7 @@ TEST_F(AsyncQueueBasicTest, QueueFull) {
     EXPECT_FALSE(async_queue_enqueue(queue, overflow, strlen(overflow) + 1));
 }
 
-TEST_F(AsyncQueueBasicTest, DropOldest) {
+TEST_F(AsyncQueueTest, DropOldest) {
     queue = async_queue_create(4, 32, ASYNC_QUEUE_DROP_OLDEST);
     ASSERT_NE(queue, nullptr);
     
@@ -111,7 +119,7 @@ TEST_F(AsyncQueueBasicTest, DropOldest) {
     EXPECT_STREQ(buffer, "Msg1");
 }
 
-TEST_F(AsyncQueueBasicTest, Statistics) {
+TEST_F(AsyncQueueTest, Statistics) {
     queue = async_queue_create(8, 64, (async_queue_flags_t)0);
     ASSERT_NE(queue, nullptr);
     
@@ -140,7 +148,7 @@ TEST_F(AsyncQueueBasicTest, Statistics) {
     EXPECT_EQ(stats.dequeue_count, 1);
 }
 
-TEST_F(AsyncQueueBasicTest, ClearQueue) {
+TEST_F(AsyncQueueTest, ClearQueue) {
     queue = async_queue_create(8, 64, (async_queue_flags_t)0);
     ASSERT_NE(queue, nullptr);
     

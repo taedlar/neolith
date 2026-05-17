@@ -6,25 +6,10 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "src/std.h"
-#include "async/async_queue.h"
-#include "async/async_worker.h"
+#include "fixtures.hpp"
 
 #include <atomic>
 #include <cstring>
-#include <gtest/gtest.h>
-
-class AsyncQueueThreadSafetyTest : public ::testing::Test {
-protected:
-    async_queue_t* queue = nullptr;
-    
-    void TearDown() override {
-        if (queue) {
-            async_queue_destroy(queue);
-            queue = nullptr;
-        }
-    }
-};
 
 struct ProducerContext {
     async_queue_t* queue;
@@ -52,7 +37,7 @@ static void* producer_thread(void* arg) {
     return nullptr;
 }
 
-TEST_F(AsyncQueueThreadSafetyTest, SingleProducerSingleConsumer) {
+TEST_F(AsyncQueueTest, SingleProducerSingleConsumer) {
     queue = async_queue_create(32, 128, (async_queue_flags_t)0);
     ASSERT_NE(queue, nullptr);
     
@@ -87,7 +72,7 @@ TEST_F(AsyncQueueThreadSafetyTest, SingleProducerSingleConsumer) {
     async_worker_destroy(worker);
 }
 
-TEST_F(AsyncQueueThreadSafetyTest, MultipleProducers) {
+TEST_F(AsyncQueueTest, MultipleProducers) {
     queue = async_queue_create(256, 128, ASYNC_QUEUE_DROP_OLDEST);
     ASSERT_NE(queue, nullptr);
     

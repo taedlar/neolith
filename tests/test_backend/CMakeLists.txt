@@ -2,7 +2,7 @@
 
 add_executable(test_backend
     test_backend.cpp
-    test_backend_timer.cpp
+    test_platform_timer.cpp
     test_heap_allocation.cpp
     test_process_command.cpp
 )

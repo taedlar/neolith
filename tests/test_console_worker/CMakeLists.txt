@@ -1,8 +1,3 @@
-cmake_minimum_required(VERSION 3.21)
-
-# Console Worker Unit Tests
-project(test_console_worker)
-
 # Test executable
 add_executable(test_console_worker
     test_console_worker_lifecycle.cpp
@@ -11,11 +6,7 @@ add_executable(test_console_worker
 )
 
 # Link to async library (includes console_worker) and logger
-target_link_libraries(test_console_worker PRIVATE
-    async
-    logger
-    GTest::gtest_main
-)
+target_link_libraries(test_console_worker PRIVATE async logger GTest::gtest_main)
 
 # Windows needs ws2_32 for socket functions
 if(WIN32)

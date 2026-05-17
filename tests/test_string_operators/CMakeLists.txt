@@ -1,5 +1,5 @@
 add_executable(test_string_operators
-    test_string_operators_main.cpp
+    test_string_operators.cpp
     test_string_operators_lpc.cpp
 )
 

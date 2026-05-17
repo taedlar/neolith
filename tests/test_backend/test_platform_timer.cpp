@@ -17,7 +17,7 @@
 
 using namespace testing;
 
-class BackendTimerTest : public Test {
+class PlatformTimerTest : public Test {
 protected:
     void SetUp() override {
         debug_set_log_with_date (false);
@@ -32,7 +32,7 @@ protected:
 /**
  * @brief Test that heart_beat_flag is set by timer callback
  */
-TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
+TEST_F(PlatformTimerTest, HeartBeatFlagSetByTimer) {
     platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
 
@@ -64,7 +64,7 @@ TEST_F(BackendTimerTest, HeartBeatFlagSetByTimer) {
 /**
  * @brief Test multiple timer callbacks over time
  */
-TEST_F(BackendTimerTest, MultipleTimerCallbacks) {
+TEST_F(PlatformTimerTest, MultipleTimerCallbacks) {
     platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
@@ -97,7 +97,7 @@ TEST_F(BackendTimerTest, MultipleTimerCallbacks) {
 /**
  * @brief Test timer stop prevents further callbacks
  */
-TEST_F(BackendTimerTest, TimerStopPreventsFurtherCallbacks) {
+TEST_F(PlatformTimerTest, TimerStopPreventsFurtherCallbacks) {
     platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
@@ -132,7 +132,7 @@ TEST_F(BackendTimerTest, TimerStopPreventsFurtherCallbacks) {
 /**
  * @brief Test timer restart functionality
  */
-TEST_F(BackendTimerTest, TimerRestart) {
+TEST_F(PlatformTimerTest, TimerRestart) {
     platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
@@ -167,7 +167,7 @@ TEST_F(BackendTimerTest, TimerRestart) {
 /**
  * @brief Test timer is_active status
  */
-TEST_F(BackendTimerTest, TimerActiveStatus) {
+TEST_F(PlatformTimerTest, TimerActiveStatus) {
     platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
 
@@ -193,7 +193,7 @@ TEST_F(BackendTimerTest, TimerActiveStatus) {
 /**
  * @brief Test HEARTBEAT_INTERVAL timer interval (2 seconds)
  */
-TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
+TEST_F(PlatformTimerTest, HeartBeatIntervalTiming) {
     platform_timer_t test_timer;
     memset(&test_timer, 0, sizeof(test_timer));
     static volatile int callback_count = 0;
@@ -246,7 +246,7 @@ TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
  * The test uses a 10-second interval and asserts that each stop completes in
  * under 1 second. Without the fix, some iterations would stall for ~10 seconds.
  */
-TEST_F(BackendTimerTest, StopDoesNotStallOnLostNotifyRegression) {
+TEST_F(PlatformTimerTest, StopDoesNotStallOnLostNotifyRegression) {
     constexpr unsigned long long long_interval_us = 10'000'000; // 10 seconds
     constexpr long long max_stop_ms = 1000; // well under one full interval
 
@@ -278,7 +278,7 @@ TEST_F(BackendTimerTest, StopDoesNotStallOnLostNotifyRegression) {
 /**
  * @brief Test query_heart_beat integration with timer
  */
-TEST_F(BackendTimerTest, QueryHeartBeatIntegration) {
+TEST_F(PlatformTimerTest, QueryHeartBeatIntegration) {
     // This test verifies that query_heart_beat() works correctly
     // even though the underlying timer implementation has changed
 

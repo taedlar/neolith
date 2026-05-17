@@ -1,17 +1,11 @@
 # Test async_queue
 
 add_executable(test_async_queue
-    test_async_queue_main.cpp
-    test_async_queue_basic.cpp
+    test_async_queue.cpp
     test_async_queue_threadsafety.cpp
 )
 
-target_link_libraries(test_async_queue PRIVATE
-    async
-    port
-    GTest::gtest
-    GTest::gtest_main
-)
+target_link_libraries(test_async_queue PRIVATE async port GTest::gtest_main)
 
 # Windows needs ws2_32 for WSAStartup/WSACleanup
 if(WIN32)

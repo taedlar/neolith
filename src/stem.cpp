@@ -246,7 +246,7 @@ malloc_str_t resolve_path_in_mudlib(const char *relative_path, const char *mudli
  */
 void smart_log (const char *error_file, int line, const char *what, bool warning) {
 
-  svalue_t *mret;
+  svalue_t *mret = NULL;
   extern int pragmas;
   std::stringstream buff;
 
@@ -258,15 +258,19 @@ void smart_log (const char *error_file, int line, const char *what, bool warning
     buff << show_error_context();
   buff << "\n";
 
-  share_and_push_string (error_file);
-  copy_and_push_string (buff.str().c_str());
-  mret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_LOG_ERROR, 2);
+  if (mud_state() >= MS_PRE_MUDLIB)
+    {
+      share_and_push_string (error_file);
+      copy_and_push_string (buff.str().c_str());
+      mret = APPLY_SLOT_SAFE_MASTER_CALL (APPLY_LOG_ERROR, 2);
+      APPLY_SLOT_FINISH_CALL();
+    }
+
   if (!mret || mret == (svalue_t *) - 1)
     {
       /* "LPC" \t error_file:line: message */
       LOG_ERROR ("\"LPC\"\t%s", buff.str().c_str());
     }
-  APPLY_SLOT_FINISH_CALL();
 }				/* smart_log() */
 
 /**
