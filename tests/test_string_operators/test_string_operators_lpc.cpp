@@ -21,34 +21,26 @@ protected:
     svalue_t *saved_sp_ = nullptr;
 
     void SetUp() override {
+        // init testing environment
         namespace fs = std::filesystem;
-
-        debug_set_log_with_date (false);
+        previous_cwd_ = fs::current_path();
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
-
-        fs::path config_dir = fs::current_path();
-        if (!fs::exists(config_dir / "m3.conf")) {
-            config_dir = fs::current_path().parent_path();
-        }
-
-        init_stem(3, (unsigned long)-1, (config_dir / "m3.conf").string().c_str());
-        MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
-        init_config(MAIN_OPTION(config_file));
+        debug_set_log_with_date (false);
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
 
-        ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
-        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
-        if (mudlib_path.is_relative()) {
-            mudlib_path = config_dir / mudlib_path;
-        }
-        ASSERT_TRUE(fs::exists(mudlib_path)) << "Mudlib directory does not exist: " << mudlib_path;
-        previous_cwd_ = fs::current_path();
-        fs::current_path(mudlib_path);
+        // setup stem
+        fs::path config_dir = fs::current_path();
+        if (!fs::exists(config_dir / "m3.conf"))
+            fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
+        init_stem(3, (unsigned long)-1, "m3.conf");
+        MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
 
+        // setup runtime / simulate
+        init_config(MAIN_OPTION(config_file));
         init_strings(8192, 1000000);
         init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__), CONFIG_STR(__INCLUDE_DIRS__));
         setup_simulate();
-        saved_sp_ = sp;
+        saved_sp_ = sp; // we use a local svalue stack in tests, so save the original sp to restore later
 
         init_master(CONFIG_STR(__MASTER_FILE__), NULL);
         ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
@@ -56,17 +48,12 @@ protected:
 
     void TearDown() override {
         namespace fs = std::filesystem;
-
-        sp = saved_sp_;
-
+        sp = saved_sp_; // restore original sp in case tests modified it
         tear_down_simulate();
         deinit_lpc_compiler();
         deinit_strings();
-
-        if (!previous_cwd_.empty()) {
-            fs::current_path(previous_cwd_);
-        }
         deinit_config();
+        fs::current_path(previous_cwd_);
     }
 
     object_t *load_inline_object(const char *name, const char *code) {

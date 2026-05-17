@@ -51,38 +51,30 @@ void f_rm (void) {
 
 #ifdef F_MKDIR
 void f_mkdir (void) {
-  char *path;
+  int ok = 0;
 
-  path = check_valid_path (SVALUE_STRPTR(sp), current_object, "mkdir", 1);
-  if (!path || mkdir (path, 0770) == -1)
+  if (push_resolved_valid_path (SVALUE_STRPTR(sp), current_object, "mkdir", 1))
     {
-      free_string_svalue (sp);
-      *sp = const0;
+      ok = (mkdir (SVALUE_STRPTR(sp), 0770) != -1);
+      pop_stack ();
     }
-  else
-    {
-      free_string_svalue (sp);
-      *sp = const1;
-    }
+  free_string_svalue (sp);
+  *sp = ok ? const1 : const0;
 }
 #endif
 
 
 #ifdef F_RMDIR
 void f_rmdir (void) {
-  char *path;
+  int ok = 0;
 
-  path = check_valid_path (SVALUE_STRPTR(sp), current_object, "rmdir", 1);
-  if (!path || rmdir (path) == -1)
+  if (push_resolved_valid_path (SVALUE_STRPTR(sp), current_object, "rmdir", 1))
     {
-      free_string_svalue (sp);
-      *sp = const0;
+      ok = (rmdir (SVALUE_STRPTR(sp)) != -1);
+      pop_stack ();
     }
-  else
-    {
-      free_string_svalue (sp);
-      *sp = const1;
-    }
+  free_string_svalue (sp);
+  *sp = ok ? const1 : const0;
 }
 #endif
 
@@ -90,18 +82,33 @@ void f_rmdir (void) {
 #ifdef F_STAT
 void f_stat (void) {
   struct stat buf;
-  char *path;
+  int dir_flags;
   array_t *v;
   object_t *ob;
+  char lpc_name[PATH_MAX + 2];
 
-  path = check_valid_path (SVALUE_STRPTR(--sp), current_object, "stat", 0);
-  if (!path)
+  /* sp = flags, sp-1 = path string; save flag then move sp to path */
+  dir_flags = (int)sp->u.number;
+  sp--;
+  /* Stage 1: get the normalized LPC-style path for find_object_by_name */
+  if (!push_valid_path (SVALUE_STRPTR(sp), current_object, "stat", 0))
     {
       free_string_svalue (sp);
       *sp = const0;
       return;
     }
-  if (stat (path, &buf) != -1)
+  strncpy (lpc_name, SVALUE_STRPTR(sp), sizeof (lpc_name) - 1);
+  lpc_name[sizeof (lpc_name) - 1] = '\0';
+  pop_stack ();
+  /* Stage 2: resolve to sandboxed absolute path for OS stat() call */
+  if (!push_resolved_valid_path (lpc_name, current_object, "stat", 0))
+    {
+      free_string_svalue (sp);
+      *sp = const0;
+      return;
+    }
+  /* sp = absolute path; sp-1 = original path string */
+  if (stat (SVALUE_STRPTR(sp), &buf) != -1)
     {
       if (buf.st_mode & S_IFREG)
         {			/* if a regular file */
@@ -111,19 +118,18 @@ void f_stat (void) {
           v->item[1].type = T_NUMBER;
           v->item[1].u.number = buf.st_mtime;
           v->item[2].type = T_NUMBER;
-          ob = find_object_by_name (path);
+          ob = find_object_by_name (lpc_name);
           if (ob && !object_visible (ob))
             ob = 0;
-          if (ob)
-            v->item[2].u.number = ob->load_time;
-          else
-            v->item[2].u.number = 0;
+          v->item[2].u.number = ob ? ob->load_time : 0;
+          pop_stack ();	/* validated path; sp = original path string */
           free_string_svalue (sp);
           put_array (v);
           return;
         }
     }
-  v = get_dir (SVALUE_STRPTR(sp), (int)(sp + 1)->u.number);
+  pop_stack ();	/* validated path; sp = original path string */
+  v = get_dir (SVALUE_STRPTR(sp), dir_flags);
   free_string_svalue (sp);
   if (v)
     {
@@ -218,11 +224,10 @@ int file_length (const char *file) {
   char buf[2049];
   char *p, *newp;
 
-  file = check_valid_path (file, current_object, "file_size", 0);
-
-  if (!file)
+  if (!push_resolved_valid_path (file, current_object, "file_length", 0))
     return -1;
-  fd = open (file, O_RDONLY);
+  fd = open (SVALUE_STRPTR (sp), O_RDONLY);
+  pop_stack ();
   if (fd == -1)
     return -1;
 

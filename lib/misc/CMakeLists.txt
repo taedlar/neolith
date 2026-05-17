@@ -3,6 +3,7 @@
 set(adt_SOURCES
     avltree.c
     crc32.c
+    filepath.cpp
     hash.c
     qsort.c
     scratchpad.c

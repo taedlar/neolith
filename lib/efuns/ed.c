@@ -807,12 +807,9 @@ find (regexp * pat, int dir)
 
 /*	getfn.c	*/
 
-static const char *
-getfn (int writeflg)
-{
+static const char *getfn (int writeflg) {
   static char file[MAXFNAME];
   char *cp;
-  char *file2;
   svalue_t *ret;
 
   if (*inptr == NL)
@@ -853,11 +850,11 @@ getfn (int writeflg)
     }
 
   /* valid_read/valid_write done here */
-  file2 = check_valid_path (file, current_editor, "ed_start", writeflg);
-  if (!file2)
+  if (!push_valid_path (file, current_editor, "ed_start", writeflg))
     return (NULL);
-  strncpy (file, file2, MAXFNAME - 1);
+  strncpy (file, SVALUE_STRPTR (sp), MAXFNAME - 1);
   file[MAXFNAME - 1] = 0;
+  pop_stack ();
 
   if (strlen (file) == 0)
     {
@@ -2477,17 +2474,14 @@ ed_start (const char *file_arg, const char *write_fn, const char *exit_fn,
    * Check for read on startup, since the buffer is read in. But don't
    * check for write, since we may want to change the file name. 
    */
-  if (file_arg
-      && (file_arg =
-          check_valid_path (file_arg, current_editor,
-                            "ed_start", 0)) && !doread (0, file_arg))
+  if (file_arg && push_valid_path (file_arg, current_editor, "ed_start", 0))
     {
-      setCurLn (1);
-    }
-  if (file_arg)
-    {
+      file_arg = SVALUE_STRPTR (sp);
+      if (!doread (0, file_arg))
+        setCurLn (1);
       strncpy (P_FNAME, file_arg, MAXFNAME - 1);
       P_FNAME[MAXFNAME - 1] = 0;
+      pop_stack ();
     }
   else
     {

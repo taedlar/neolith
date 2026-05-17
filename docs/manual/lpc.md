@@ -58,6 +58,16 @@ Unlike original MudOS, Neolith follows the modern C preprocessor rule: a directi
 
 This is particularly useful when LPC code is generated or embedded inside other text where directives may be indented.
 
+### `#include` sandbox scope
+
+In Neolith, `#include` resolution is sandboxed to mudlib-rooted search paths (`MudlibDir` + `IncludeDir` entries).
+
+- A leading `/` in include search entries means "from mudlib root".
+- Empty include search entries resolve from mudlib root.
+- Parent traversal attempts that escape mudlib are rejected.
+
+For administrator-facing configuration, see [admin.md](admin.md). For internal path-hardening design and source references, see [filesystem-sandboxing.md](../internals/filesystem-sandboxing.md).
+
 ### Text blocks (`@`) and array blocks (`@@`)
 
 Neolith supports heredoc-style blocks in LPC source.

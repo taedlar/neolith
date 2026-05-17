@@ -113,26 +113,24 @@ data_size (object_t * ob)
   return total;
 }
 
-void
-dumpstat (const char *tfn)
-{
+void dumpstat (const char *tfn) {
   FILE *f;
   object_t *ob;
-  char *fn;
   int display_hidden;
 
-  fn = check_valid_path (tfn, current_object, "dumpallobj", 1);
-  if (!fn)
+  if (!push_resolved_valid_path (tfn, current_object, "dumpallobj", 1))
     {
-      error ("Invalid path '/%s' for writing.\n", fn);
+      error ("Invalid path '/%s' for writing.\n", tfn);
       return;
     }
-  f = fopen (fn, "w");
+  f = fopen (SVALUE_STRPTR (sp), "w");
   if (!f)
     {
-      error ("Unable to open '/%s' for writing.\n", fn);
+      error ("Unable to open '/%s' for writing.\n", SVALUE_STRPTR (sp));
+      /* error() unwinds; stack cleanup is automatic */
       return;
     }
+  pop_stack (); /* path no longer needed; f is open */
 
   display_hidden = -1;
   for (ob = obj_list; ob; ob = ob->next_all)

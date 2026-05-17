@@ -22,6 +22,7 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "src/std.h"
+#include "src/main.h"
 #include "efuns/file_utils.h"
 #include "lpc/object.h"
 #include "lpc/otable.h"
@@ -79,6 +80,31 @@ std::filesystem::path make_binary_path(const char *save_dir, const char *name) {
   std::filesystem::path path(strip_leading_slash(save_dir));
   path /= strip_leading_slash(name);
   path.replace_extension(".b");
+
+  if (g_main_options && MAIN_OPTION(mudlib_dir_absolute)[0] != '\0')
+    {
+      path = std::filesystem::path(MAIN_OPTION(mudlib_dir_absolute)) / path;
+    }
+
+  return path;
+}
+
+std::filesystem::path make_source_path(const char *name) {
+  std::filesystem::path raw(name ? name : "");
+  std::filesystem::path path;
+
+  if (raw.is_absolute())
+    {
+      return raw;
+    }
+
+  path = std::filesystem::path(strip_leading_slash(name));
+
+  if (g_main_options && MAIN_OPTION(mudlib_dir_absolute)[0] != '\0')
+    {
+      path = std::filesystem::path(MAIN_OPTION(mudlib_dir_absolute)) / path;
+    }
+
   return path;
 }
 
@@ -993,8 +1019,10 @@ static int
 check_times (time_t mtime, const char *nm)
 {
   struct stat st;
+  const std::filesystem::path source_path = make_source_path(nm);
+  const std::string source_name = source_path.string();
 
-  if (stat (nm, &st) == -1)
+  if (stat (source_name.c_str(), &st) == -1)
     return -1;
   if (st.st_mtime > mtime)
     {

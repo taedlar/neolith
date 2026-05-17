@@ -311,6 +311,7 @@ void init_config (const char *config_file) {
 
 extern "C"
 void init_mudlib_archive(const char* archive_path, const char* label) {
+  (void)label; /* currently unused, but may be used in the future to support named applications in mudlib archive */
   if (archive_path && *archive_path)
     {
       /* TODO: Implement mudlib archive initialization */

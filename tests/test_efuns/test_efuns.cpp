@@ -322,7 +322,6 @@ TEST_F(EfunsTest, throwWithoutCatchRaisesRuntimeError) {
     volatile int raised = 0;
     save_context(&econ);
     try {
-        eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
         call_function(prog, runtime_index, 0, nullptr);
     }
     catch (const neolith::driver_runtime_error &) {
@@ -376,7 +375,6 @@ TEST_F(EfunsTest, errorHandlerCallableContract) {
     volatile int error_caught = 0;
     save_context(&econ);
     try {
-        eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
         call_function(prog, runtime_index, 0, nullptr);
     }
     catch (const neolith::driver_runtime_error &) {

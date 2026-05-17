@@ -39,16 +39,16 @@ struct type {
     char *name;
     int num;
 } types[] = {
-{ "void",       VOID },
-{ "int",        INT },
-{ "string",     STRING },
-{ "object",     OBJECT },
-{ "mapping",    MAPPING },
-{ "mixed",      MIXED },
-{ "unknown",    UNKNOWN },
-{ "float",      FLOAT},
-{ "function",   FUNCTION},
-{ "buffer",     BUFFER}
+{ "void",       L_VOID },
+{ "int",        L_INT },
+{ "string",     L_STRING },
+{ "object",     L_OBJECT },
+{ "mapping",    L_MAPPING },
+{ "mixed",      L_MIXED },
+{ "unknown",    L_UNKNOWN },
+{ "float",      L_FLOAT},
+{ "function",   L_FUNCTION},
+{ "buffer",     L_BUFFER}
 };
 
 #define NELEMS(arr) 	(sizeof arr / sizeof arr[0])
@@ -59,11 +59,14 @@ struct type {
     char *string;
 }
 
-%token ID NUM DEFAULT OPERATOR
+%token <number> NUM
+%token <string> ID
+%token <string> DEFAULT
+%token <string> OPERATOR
 
-%type <number> type arg_list basic typel arg_type typel2 NUM
+%type <number> type arg_list basic typel arg_type typel2
 
-%type <string> ID optional_ID optional_default
+%type <string> optional_ID optional_default
 
 %%
 
@@ -167,13 +170,13 @@ func: type ID optional_ID '(' arg_list optional_default ')' ';'
             }
         }
         if (!strcmp($2, "call_other") && !lookup_define("CAST_CALL_OTHERS")) {
-            $1 = MIXED;
+            $1 = L_MIXED;
         }
         sprintf(buff, "{\"%s\",%s%s,0,0,%d,%d,%s,%s,%s,%s,%s,%d,%s},\n",
             $2, f_name,
             (pragmas & PRAGMA_ALLOW_DOT_CALL) ? "|IHE_ALLOW_DOT_CALL" : "",
             min_arg, limit_max ? -1 : $5, 
-            $1 != VOID ? ctype($1) : "TYPE_NOVALUE",
+            $1 != L_VOID ? ctype($1) : "TYPE_NOVALUE",
             etype(0), etype(1), etype(2), etype(3), i, $6);
         if (strlen(buff) > sizeof buff)
             mf_fatal("Local buffer overwritten !\n");
@@ -221,7 +224,7 @@ typel2: typel
 
 arg_type: type
     {
-        if ($1 != VOID) {
+        if ($1 != L_VOID) {
             curr_arg_types[curr_arg_type_size++] = $1;
             if (curr_arg_type_size == NELEMS(curr_arg_types))
                 yyerror("Too many arguments");
@@ -229,8 +232,8 @@ arg_type: type
         $$ = $1;
     } ;
 
-typel: arg_type			{ $$ = ($1 == VOID && min_arg == -1); }
-     | typel '|' arg_type 	{ $$ = (min_arg == -1 && ($1 || $3 == VOID));}
+typel: arg_type			{ $$ = ($1 == L_VOID && min_arg == -1); }
+     | typel '|' arg_type 	{ $$ = (min_arg == -1 && ($1 || $3 == L_VOID));}
      | '.' '.' '.'		{ $$ = min_arg == -1 ; limit_max = 1; } ;
 
 %%
@@ -246,16 +249,16 @@ char* ctype(int n) {
         buff[0] = '\0';
     n &= ~0x10000;
     switch(n) {
-        case FLOAT: p = "TYPE_REAL"; break;
-        case FUNCTION: p = "TYPE_FUNCTION"; break;
-        case VOID: p = "TYPE_VOID"; break;
-        case STRING: p = "TYPE_STRING"; break;
-        case INT: p = "TYPE_NUMBER"; break;
-        case OBJECT: p = "TYPE_OBJECT"; break;
-        case MAPPING: p = "TYPE_MAPPING"; break;
-        case BUFFER: p = "TYPE_BUFFER"; break;
-        case MIXED: p = "TYPE_ANY"; break;
-        case UNKNOWN: p = "TYPE_UNKNOWN"; break;
+        case L_FLOAT: p = "TYPE_REAL"; break;
+        case L_FUNCTION: p = "TYPE_FUNCTION"; break;
+        case L_VOID: p = "TYPE_VOID"; break;
+        case L_STRING: p = "TYPE_STRING"; break;
+        case L_INT: p = "TYPE_NUMBER"; break;
+        case L_OBJECT: p = "TYPE_OBJECT"; break;
+        case L_MAPPING: p = "TYPE_MAPPING"; break;
+        case L_BUFFER: p = "TYPE_BUFFER"; break;
+        case L_MIXED: p = "TYPE_ANY"; break;
+        case L_UNKNOWN: p = "TYPE_UNKNOWN"; break;
         default: yyerror("Bad type!");
     }
     strcat(buff, p);
@@ -269,21 +272,21 @@ char* etype1(int n) {
     if (n & 0x10000)
         return "T_ARRAY";
     switch(n) {
-    case FLOAT:
+    case L_FLOAT:
     return "T_REAL";
-    case FUNCTION:
+    case L_FUNCTION:
     return "T_FUNCTION";
-    case INT:
+    case L_INT:
         return "T_NUMBER";
-    case OBJECT:
+    case L_OBJECT:
         return "T_OBJECT";
-    case MAPPING:
+    case L_MAPPING:
         return "T_MAPPING";
-    case STRING:
+    case L_STRING:
         return "T_STRING";
-    case BUFFER:
+    case L_BUFFER:
         return "T_BUFFER";
-    case MIXED:
+    case L_MIXED:
         return "T_ANY";	/* 0 means any type */
     default:
         yyerror("Illegal type for argument");
@@ -308,7 +311,7 @@ char* etype(int n) {
     buff[0] = '\0';
     for(; curr_arg_types[i] != 0; i++) {
         char *p;
-        if (curr_arg_types[i] == VOID)
+        if (curr_arg_types[i] == L_VOID)
             continue;
         if (buff[0] != '\0')
             strcat(buff, "|");

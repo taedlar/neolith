@@ -121,3 +121,4 @@ TEST_F(LPCLexerTest, preprocessPragmaWithIndentedDirective) {
     free_string(to_shared_str(current_file));
     current_file = 0;
 }
+

@@ -26,21 +26,35 @@ bool programHasString(program_t* prog, const char* bytes, size_t length) {
 TEST_F(LPCCompilerTest, compileWithSaveBinary) {
     ASSERT_NE(CONFIG_STR(__SAVE_BINARIES_DIR__), nullptr)
         << "__SAVE_BINARIES_DIR__ is not configured.";
-    init_binaries();
     namespace fs = std::filesystem;
-    std::error_code ec;
-    fs::remove ("bin/api/unicode.b", ec); // ensure no leftover binary from previous runs
 
-    program_t* prog = load_binary("api/unicode.c", 0);
+    const fs::path mudlib_root = fs::weakly_canonical(
+        fs::current_path() / fs::path(CONFIG_STR(__MUD_LIB_DIR__)));
+    ASSERT_TRUE(fs::exists(mudlib_root)) << "Mudlib root does not exist: " << mudlib_root;
+    ASSERT_LT(mudlib_root.string().size(), static_cast<size_t>(PATH_MAX));
+    strncpy(MAIN_OPTION(mudlib_dir_absolute), mudlib_root.string().c_str(), PATH_MAX - 1);
+    MAIN_OPTION(mudlib_dir_absolute)[PATH_MAX - 1] = '\0';
+
+    init_binaries();
+
+    // ensure no leftover binary from previous runs
+    std::error_code ec;
+    fs::remove (fs::path(CONFIG_STR(__MUD_LIB_DIR__)) / "bin/api/unicode.b", ec);
+
+    program_t* prog = load_binary("api/unicode.c", 0); // the source file does not contain #pragma save_binary
     EXPECT_TRUE(prog == nullptr) << "Binary should not exist before compilation.";
 
     /*  The #pragma save_binary is checked in epilog(), which is called
-        *  as the last step in compile_file(). A master apply "valid_save_binary"
-        *  is called to confirm saving is allowed.
-        */
-    int fd = FILE_OPEN("api/unicode.c", O_RDONLY);
+     *  as the last step in compile_file(). A master apply "valid_save_binary"
+     *  is called to confirm saving is allowed.
+     *
+     *  Saving binary should not rely on CWD being set to the mudlib directory, but it
+     *  does require the file path to be correct.
+     */
+    fs::path source = fs::path(CONFIG_STR(__MUD_LIB_DIR__)) / "api/unicode.c";
+    int fd = FILE_OPEN(source.u8string().c_str(), O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open api/unicode.c for reading.";
-    prog = compile_file(fd, "api/unicode.c", "#pragma save_binary");
+    prog = compile_file(fd, "api/unicode.c", "#pragma save_binary"); // now with #pragma save_binary
     EXPECT_TRUE(prog != nullptr) << "compile_file returned null program.";
     total_lines = 0;
     FILE_CLOSE(fd);
@@ -55,7 +69,7 @@ TEST_F(LPCCompilerTest, compileWithSaveBinary) {
      * 3. The source file, included files and all inherited files must be older than the binary
      */
     prog = load_binary("api/unicode.c", 0);
-    EXPECT_TRUE(prog != nullptr) << "load_binary failed to load saved binary.";
+    ASSERT_NE(prog, nullptr) << "load_binary failed to load saved binary.";
     free_prog(prog, 1);
 }
 
@@ -65,7 +79,7 @@ TEST_F(LPCCompilerTest, saveBinaryPreservesEmbeddedNullStringLiteral) {
     init_binaries();
     namespace fs = std::filesystem;
     std::error_code ec;
-    fs::remove ("bin/tests/test_save_binary/bytespan.b", ec); //
+    fs::remove (fs::path(CONFIG_STR(__MUD_LIB_DIR__)) / "bin/tests/test_save_binary/bytespan.b", ec); //
 
     program_t* prog = compile_file(-1, "tests/test_save_binary/bytespan.c", R"(
         #pragma save_binary
@@ -97,5 +111,38 @@ TEST_F(LPCCompilerTest, saveBinaryPreservesEmbeddedNullStringLiteral) {
         << "Loaded binary string table lost embedded-null bytes for hex literal.";
 
     free_prog(prog, 1);
+}
+
+TEST_F(LPCCompilerTest, loadBinaryUsesVerifiedMudlibPathOutsideMudlibCwd) {
+    ASSERT_NE(CONFIG_STR(__SAVE_BINARIES_DIR__), nullptr)
+        << "__SAVE_BINARIES_DIR__ is not configured.";
+
+    namespace fs = std::filesystem;
+    const fs::path mudlib_cwd = fs::current_path();
+    const fs::path shifted_cwd = mudlib_cwd.parent_path();
+
+    ASSERT_LT(mudlib_cwd.string().size(), static_cast<size_t>(PATH_MAX));
+    strncpy(MAIN_OPTION(mudlib_dir_absolute), mudlib_cwd.string().c_str(), PATH_MAX - 1);
+    MAIN_OPTION(mudlib_dir_absolute)[PATH_MAX - 1] = '\0';
+    SET_CONFIG_STR(__SIMUL_EFUN_FILE__, "config.h");
+    init_binaries();
+
+    std::error_code ec;
+    fs::remove(fs::path(CONFIG_STR(__MUD_LIB_DIR__)) / "bin/tests/test_save_binary/pathcheck.b", ec);
+
+    program_t* prog = compile_file(-1, "tests/test_save_binary/pathcheck.c", R"(
+        #pragma save_binary
+        int run_test() { return 42; }
+    )");
+    ASSERT_NE(prog, nullptr) << "compile_file returned null program.";
+    total_lines = 0;
+    free_prog(prog, 1);
+
+    fs::current_path(shifted_cwd);
+    prog = load_binary("tests/test_save_binary/pathcheck.c", BIN_IGNORE_SOURCE_FILE | BIN_IGNORE_INCLUDE_FILES);
+    ASSERT_NE(prog, nullptr) << "load_binary failed outside mudlib cwd.";
+    free_prog(prog, 1);
+
+    fs::current_path(mudlib_cwd);
 }
 #endif

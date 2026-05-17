@@ -1,5 +1,4 @@
 #pragma once
-
 #include "std.h"
 #include "rc.h"
 #include "src/simul_efun.h"
@@ -22,58 +21,37 @@ private:
     std::filesystem::path previous_cwd;
 
 protected:
-    /*  LPCCompilerTest::SetUp()
-     *  --------------------------------
-     *  Initialize the LPC compiler environment for testing.
-     *  This includes setting up logging, locale, configuration,
-     *  string management, UID management, object management,
-     *  and object table.
-     *  Also initializes identifiers, local variable management,
-     *  include paths, instruction table, stack machine,
-     *  and predefines.
-     * 
-     *  The master object and simul_efun object are NOT loaded here.
-     *
-     *  Using MAIN_OPTION(pedantic) = true enables pedantic mode for stricter
-     *  checks during testing. It also ensures that all objects are destructed
-     *  (in safe order) at the end of each test, preventing state leakage
-     *  between tests.
-     *  --------------------------------
-     */
     void SetUp() override {
         namespace fs = std::filesystem;
         previous_cwd = fs::current_path();
         debug_set_log_with_date (false);
         setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
 
+        // setup stem
         fs::path config_dir = fs::current_path();
         if (!fs::exists(config_dir / "m3.conf"))
             fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
         init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
         MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
 
+        // setup LPC compiler (no simulate)
         init_config(MAIN_OPTION(config_file));
-
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-        ASSERT_NE(CONFIG_STR(__MUD_LIB_DIR__), nullptr);
-        fs::path mudlib_path (CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relative to cwd
-        if (mudlib_path.is_relative())
-            mudlib_path = fs::current_path() / mudlib_path;
-        ASSERT_TRUE(fs::exists(mudlib_path)) << "Mudlib directory does not exist: " << mudlib_path;
-        fs::current_path (mudlib_path); // change working directory to mudlib
-
         init_strings (8192, 1000000); // LPC compiler needs this since prolog()
         init_lpc_compiler(CONFIG_INT (__MAX_LOCAL_VARIABLES__), CONFIG_STR (__INCLUDE_DIRS__));
 
-        eval_cost = CONFIG_INT (__MAX_EVAL_COST__); /* simulates calling LPC code from backend */
+        // *** NOTE ***
+        // We do not do setup_simulate() here: only test bare LPC compilation without
+        // loading master or simul_efun objects, to isolate the compiler behavior.
+        // The LPC compiler tests should not depend on CWD for resolving file paths.
     }
 
     void TearDown() override {
+        namespace fs = std::filesystem;
         deinit_lpc_compiler();
         deinit_strings();
 
-        namespace fs = std::filesystem;
-        fs::current_path(previous_cwd);
         deinit_config();
+        fs::current_path(previous_cwd); // restore previous CWD after test
     }
 };

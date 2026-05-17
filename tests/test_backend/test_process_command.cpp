@@ -25,31 +25,23 @@ private:
 
 protected:
   void SetUp() override {
-    debug_set_log_with_date (false);
+    namespace fs = std::filesystem;
+    previous_cwd = fs::current_path();
     setlocale(LC_ALL, PLATFORM_UTF8_LOCALE);
+    debug_set_log_with_date (false);
+    debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
+
+    // setup stem
+    fs::path config_dir = fs::current_path();
+    if (!fs::exists(config_dir / "m3.conf"))
+        fs::current_path(config_dir.parent_path()); // change to parent if config not found in current dir
     init_stem(3, (unsigned long)-1, "m3.conf");
     MAIN_OPTION(pedantic) = true;
 
     init_config(MAIN_OPTION(config_file));
-
-    debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-    ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
-
-    namespace fs = std::filesystem;
-    auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__));
-    if (mudlib_path.is_relative()) {
-      mudlib_path = fs::current_path() / mudlib_path;
-    }
-    ASSERT_TRUE(fs::exists(mudlib_path)) << "Mudlib directory does not exist: " << mudlib_path;
-
-    previous_cwd = fs::current_path();
-    fs::current_path(mudlib_path);
-
     init_strings(8192, 1000000);
     init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__), CONFIG_STR(__INCLUDE_DIRS__));
-
     setup_simulate();
-    eval_cost = CONFIG_INT(__MAX_EVAL_COST__);
 
     init_master("/master.c", NULL);
     ASSERT_NE(master_ob, nullptr);

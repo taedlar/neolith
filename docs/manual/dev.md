@@ -62,6 +62,10 @@ If you use something else, you may also read these markdown documents with the [
 
 Note that Neolith documentation may use some Github Flavored Markdown syntax that may not display correctly in other viewers.  
 
+For mudlib-path security and resolution behavior, see:
+- [Filesystem Sandboxing Internals](../internals/filesystem-sandboxing.md)
+- [Administrator configuration reference](admin.md)
+
 ## Inline Function Documentations
 Neolith prefers adding doxygen-style inline function documentations within the source code.
 It enables modern code editors like Visual Studio Code to show brief function descriptions when moving your mouse cursor over the function name.

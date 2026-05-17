@@ -248,7 +248,7 @@ TEST_F(BackendTimerTest, HeartBeatIntervalTiming) {
  */
 TEST_F(BackendTimerTest, StopDoesNotStallOnLostNotifyRegression) {
     constexpr unsigned long long long_interval_us = 10'000'000; // 10 seconds
-    constexpr long max_stop_ms = 1000; // well under one full interval
+    constexpr long long max_stop_ms = 1000; // well under one full interval
 
     auto dummy_callback = +[]() { };
 
@@ -263,7 +263,7 @@ TEST_F(BackendTimerTest, StopDoesNotStallOnLostNotifyRegression) {
         // Stop immediately, racing against the thread's first wait_until entry.
         auto t0 = std::chrono::steady_clock::now();
         ASSERT_EQ(platform_timer_stop(&test_timer), TIMER_OK);
-        long elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - t0).count();
 
         EXPECT_LT(elapsed_ms, max_stop_ms)

@@ -9,6 +9,7 @@
 #include "frame.h"
 #include "interpret.h"
 #include "addr_resolver.h"
+#include "main.h"
 #include "simulate.h"
 #include "simul_efun.h"
 #include "uids.h"
@@ -311,6 +312,10 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
   svalue_t *mret;
   struct stat c_st;
   char real_name[PATH_MAX], name[PATH_MAX - 2];
+  char source_path[PATH_MAX];
+  const char *mudlib_dir;
+  size_t mudlib_len;
+  size_t real_len;
 
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
     error ("*Inherit chain too deep: > %d when trying to load '%s'.", CONFIG_INT (__INHERIT_CHAIN_SIZE__), obj_name);
@@ -331,8 +336,30 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
   (void) strncpy (real_name, name, sizeof(real_name) - 1);
   (void) strncat (real_name, ".c", sizeof(real_name) - strlen(real_name) - 1);
 
+  /* Use verified absolute mudlib directory for source file I/O when available.
+   * Fallback to legacy relative path for non-main contexts (e.g., some unit tests).
+   */
+  mudlib_dir = MAIN_OPTION(mudlib_dir_absolute);
+  if (mudlib_dir && *mudlib_dir)
+    {
+      mudlib_len = strlen (mudlib_dir);
+      real_len = strlen (real_name);
+      if (mudlib_len + 1 + real_len + 1 > sizeof (source_path))
+        {
+          error ("*Source file path too long for '/%s'.", real_name);
+        }
+      memcpy (source_path, mudlib_dir, mudlib_len);
+      source_path[mudlib_len] = '/';
+      memcpy (source_path + mudlib_len + 1, real_name, real_len + 1);
+    }
+  else
+    {
+      (void) strncpy (source_path, real_name, sizeof(source_path) - 1);
+      source_path[sizeof(source_path) - 1] = '\0';
+    }
+
   opt_trace(TT_COMPILE|1, "load_object: \"%s\"", real_name);
-  if (stat (real_name, &c_st) == -1)
+  if (stat (source_path, &c_st) == -1)
     {
       if ((ob = load_virtual_object (name)))
         {
@@ -384,13 +411,13 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
 
       /* maybe move this section into compile_file? */
 #ifdef _WIN32
-      f = FILE_OPEN (real_name, O_RDONLY | O_TEXT);
+  f = FILE_OPEN (source_path, O_RDONLY | O_TEXT);
 #else
-      f = FILE_OPEN (real_name, O_RDONLY);
+  f = FILE_OPEN (source_path, O_RDONLY);
 #endif
       if (f == -1 && !pre_text) /* [NEOLITH-EXTENSION] if pre_text is specified, the source file is optional */
         {
-          debug_perror ("open()", real_name);
+      debug_perror ("open()", source_path);
           error ("*Could not read the file '/%s'.", real_name);
         }
       /* compile LPC program from the source, optionally using pre_text */
@@ -2226,7 +2253,26 @@ int mud_state() {
 
 void setup_simulate() {
   if (master_ob || simul_efun_ob || obj_list || obj_list_destruct)
-    fatal ("setup_simulate() called but master_ob, simul_efun_ob, obj_list or obj_list_destruct is not empty");
+    fatal ("setup_simulate() called when vital objects already exist.");
+  if (!CONFIG_STR(__MUD_LIB_DIR__))
+    fatal ("unable to determine mudlib directory.");
+
+  /* Resolve absolute path of mudlib directory (with current working directory) */
+  if (!realpath (CONFIG_STR (__MUD_LIB_DIR__), MAIN_OPTION(mudlib_dir_absolute)))
+    {
+      debug_perror ("realpath", CONFIG_STR (__MUD_LIB_DIR__));
+      LOG_FATAL ("{}\t***** cannot resolve mudlib directory: \"%s\"\n", CONFIG_STR (__MUD_LIB_DIR__));
+      exit (EXIT_FAILURE);
+    }
+  /* Change working directory to MudLibDir */
+  if (-1 == CHDIR (MAIN_OPTION(mudlib_dir_absolute)))
+    {
+      debug_perror ("chdir", CONFIG_STR (__MUD_LIB_DIR__));
+      LOG_FATAL ("{}\t***** cannot change working directory to \"%s\"\n", CONFIG_STR (__MUD_LIB_DIR__));
+      exit (EXIT_FAILURE);
+    }
+  LOG_NOTICE ("{}\tmudlib directory: \"%s\"", MAIN_OPTION(mudlib_dir_absolute));
+
   init_otable (CONFIG_INT (__OBJECT_HASH_TABLE_SIZE__));		/*lib/lpc/otable.c */
   init_objects ();              /* lib/lpc/object.c */
   init_precomputed_tables ();   /* backend.c */

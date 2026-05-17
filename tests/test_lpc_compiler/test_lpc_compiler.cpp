@@ -7,10 +7,20 @@
 using namespace testing;
 
 TEST_F(LPCCompilerTest, compileFile) {
-    // compile a simple test file
-    int fd = FILE_OPEN("master.c", O_RDONLY);
+    namespace fs = std::filesystem;
+    // without setup_simulate(), current directory is configuration directory initialized
+    // by test fixture.
+    EXPECT_TRUE(MAIN_OPTION(mudlib_dir_absolute)[0] == '\0')
+        << "MAIN_OPTION(mudlib_dir_absolute) should be empty before setup_simulate()";
+    fs::path path = fs::current_path() / CONFIG_STR(__MUD_LIB_DIR__) / "master.c";
+    ASSERT_TRUE(fs::exists(path)) << "Test file does not exist: " << path;
+
+    // compile_file() is a low-level API that compiles a file and returns the compiled
+    // program structure. It does not rely on CWD being set to the mudlib directory,
+    // but it does require the file path to be correct.
+    int fd = FILE_OPEN(path.u8string().c_str(), O_RDONLY);
     ASSERT_NE(fd, -1) << "Failed to open master.c for reading.";
-    program_t* prog = compile_file(fd, "master.c", 0);
+    program_t* prog = compile_file (fd, "master.c", 0);
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
     total_lines = 0;
     FILE_CLOSE(fd);
@@ -60,6 +70,59 @@ TEST_F(LPCCompilerTest, loadObject) {
     EXPECT_STREQ(obj->name, "path/to/test_object") << "Loaded object name mismatch.";
 
     // clean up all loaded objects automatically
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, loadObjectUsesVerifiedMudlibPathOutsideMudlibCwd) {
+    namespace fs = std::filesystem;
+
+    setup_simulate();
+    init_master (CONFIG_STR (__MASTER_FILE__), NULL);
+    ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
+
+    const fs::path mudlib_cwd = fs::current_path();
+    const fs::path shifted_cwd = mudlib_cwd.parent_path();
+
+    ASSERT_LT(mudlib_cwd.string().size(), static_cast<size_t>(PATH_MAX));
+    strncpy(MAIN_OPTION(mudlib_dir_absolute), mudlib_cwd.string().c_str(), PATH_MAX - 1);
+    MAIN_OPTION(mudlib_dir_absolute)[PATH_MAX - 1] = '\0';
+
+    fs::current_path(shifted_cwd);
+
+    current_object = master_ob;
+    object_t* obj = load_object("user.c", 0);
+    ASSERT_NE(obj, nullptr) << "load_object() returned null for user.c outside mudlib cwd.";
+    EXPECT_STREQ(obj->name, "user") << "Loaded object name mismatch.";
+
+    fs::current_path(mudlib_cwd);
+    tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, includeUsesVerifiedMudlibPathOutsideMudlibCwd) {
+    namespace fs = std::filesystem;
+
+    setup_simulate();
+    init_master (CONFIG_STR (__MASTER_FILE__), NULL);
+    ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
+
+    const fs::path mudlib_cwd = fs::current_path();
+    const fs::path shifted_cwd = mudlib_cwd.parent_path();
+
+    ASSERT_LT(mudlib_cwd.string().size(), static_cast<size_t>(PATH_MAX));
+    strncpy(MAIN_OPTION(mudlib_dir_absolute), mudlib_cwd.string().c_str(), PATH_MAX - 1);
+    MAIN_OPTION(mudlib_dir_absolute)[PATH_MAX - 1] = '\0';
+
+    // This is to simulate that CWD was changed accidentally by some code
+    fs::current_path(shifted_cwd);
+
+    current_object = master_ob;
+    object_t *obj = load_object("test_include_verified_path.c", R"(
+        #include <config.h>
+        void create() {}
+    )");
+    ASSERT_NE(obj, nullptr) << "load_object() failed to resolve include path outside mudlib cwd.";
+
+    fs::current_path(mudlib_cwd);
     tear_down_simulate();
 }
 

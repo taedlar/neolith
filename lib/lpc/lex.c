@@ -25,6 +25,8 @@
 #include "scratchpad.h"
 #include "lpc/include/function.h"
 #include "efuns/file_utils.h"
+#include "misc/filepath.h"
+#include "src/main.h"
 
 #include "preprocess.h"
 #include "grammar.h"
@@ -92,6 +94,7 @@ typedef struct incstate_s
 incstate_t;
 
 static incstate_t *inctop = 0;
+
 
 /* prevent unbridled recursion */
 #define MAX_INCLUDE_DEPTH 32
@@ -195,7 +198,7 @@ static void add_quoted_predefine (char *, char *);
 static void lexerror (char *);
 static int skip_to (char *, char *);
 static void handle_cond (int);
-static int inc_open (char *, const char *);
+static int inc_open (char *, size_t, const char *);
 static void handle_include (const char *, int);
 static int get_terminator (char *);
 static int get_array_block (char *);
@@ -382,10 +385,13 @@ static int skip_to (char *token, char *atoken)
  *             If it contains dot or dot-dot in the path, it is normalized using current_file as the base.
  * @return File descriptor, or -1 on failure.
  */
-static int inc_open (char *buf, const char *name) {
+static int inc_open (char *buf, size_t buf_size, const char *name) {
 
   int i, fd;
   char *p;
+  const char *mudlib_dir;
+  size_t mudlib_len;
+  size_t name_len;
 
   inc_lexically_normal (current_file, name, buf);
   if ((fd = FILE_OPEN (buf, O_RDONLY)) != -1)
@@ -401,16 +407,64 @@ static int inc_open (char *buf, const char *name) {
       if (p[1] == '.')
         return -1;
     }
+
+  /* Get mudlib directory once, outside the loop */
+  mudlib_dir = MAIN_OPTION(mudlib_dir_absolute);
+  if (!mudlib_dir || !*mudlib_dir)
+    return -1;  /* Cannot search inc_list without mudlib directory */
+
+  mudlib_len = strlen (mudlib_dir);
+  name_len = strlen (name);
+
   for (i = 0; i < inc_list_size; i++)
     {
       if (!inc_list)
         break;
       if (inc_list[i] == 0)
         continue;
-      sprintf (buf, "%s/%s", inc_list[i], name);
+
+      /* Empty string in inc_list searches from mudlib directory root;
+       * non-empty strings are relative paths from mudlib directory */
+      if (inc_list[i][0] == '\0')
+        {
+          /* "mudlib_dir/name" + trailing NUL */
+          if (mudlib_len + 1 + name_len + 1 > buf_size)
+            {
+              opt_warn (1, "include path too long, skipping: \"%s/%s\"", mudlib_dir, name);
+              continue;
+            }
+          memcpy (buf, mudlib_dir, mudlib_len);
+          buf[mudlib_len] = '/';
+          memcpy (buf + mudlib_len + 1, name, name_len + 1);
+        }
+      else
+        {
+          size_t inc_len = strlen (inc_list[i]);
+
+          /* "mudlib_dir/inc_list[i]/name" + trailing NUL */
+          if (mudlib_len + 1 + inc_len + 1 + name_len + 1 > buf_size)
+            {
+              opt_warn (1, "include path too long, skipping: \"%s/%s/%s\"", mudlib_dir, inc_list[i], name);
+              continue;
+            }
+          memcpy (buf, mudlib_dir, mudlib_len);
+          buf[mudlib_len] = '/';
+          memcpy (buf + mudlib_len + 1, inc_list[i], inc_len);
+          buf[mudlib_len + 1 + inc_len] = '/';
+          memcpy (buf + mudlib_len + 1 + inc_len + 1, name, name_len + 1);
+        }
+      opt_trace (TT_COMPILE|3, "Trying include path: \"%s\"", buf);
+
+      /* Security check: ensure the path doesn't escape mudlib directory */
+      if (!is_path_within_root (buf, mudlib_dir))
+        {
+          opt_warn (1, "rejected unsafe path: \"%s\"", buf);
+          continue;  /* Skip this unsafe path */
+        }
+
       if ((fd = FILE_OPEN (buf, O_RDONLY)) != -1)
         {
-          opt_trace (TT_COMPILE|3, "opened (fd %d): \"%s\"", fd, buf);
+          opt_trace (TT_COMPILE|2, "reading \"%s\" for #include \"%s\"", buf, name);
           return fd;
         }
     }
@@ -426,7 +480,7 @@ static int inc_open (char *buf, const char *name) {
 static void handle_include (const char *inc_name, int optional) {
   char *p, *name;
   char fname[PATH_MAX];
-  static char buf[1024];
+  char buf[PATH_MAX];
   incstate_t *is;
   int delim, fd;
 
@@ -476,7 +530,7 @@ static void handle_include (const char *inc_name, int optional) {
     {
       include_error ("Maximum include depth exceeded");
     }
-  else if ((fd = inc_open (buf, name)) != -1) /* open header file */
+  else if ((fd = inc_open (buf, sizeof(buf), name)) != -1) /* open header file */
     {
       is = ALLOCATE (incstate_t, TAG_COMPILER, "handle_include: 1");
       is->yyin_desc = yyin_desc;
@@ -3428,10 +3482,10 @@ void set_inc_list (const char *list) {
 
   if (mbstowcs (NULL, list, 0) != strlen(list))
     {
-      debug_fatal ("non-ANSI characters are not allowed in include search path.");
+      LOG_FATAL ("non-ANSI characters are not allowed in include search path.");
       exit (EXIT_FAILURE);
     }
-  debug_message ("{}\tusing LPC header search path: %s", list);
+  LOG_NOTICE ("{}\tusing LPC header search path: %s", list);
 
   size = 1;
   p = list_copy = xstrdup(list); /* make a copy we can modify */
@@ -3447,7 +3501,8 @@ void set_inc_list (const char *list) {
   inc_list_size = size;
   for (i = size - 1; i >= 0; i--)
     {
-      p = strrchr (list, ':'); /* get one path from the end of list */
+      /* Iterate list_copy backwards by chopping at the last ':' each time */
+      p = strrchr (list_copy, ':');
       if (p)
         {
           *p = '\0';
@@ -3457,15 +3512,27 @@ void set_inc_list (const char *list) {
         {
           if (i)
             {
-              while (i>0)
+              while (i > 0)
                 inc_list[i--] = 0;
             }
           p = list_copy;
         }
+
+      /* A leading '/' means "relative to mudlib directory" per LPC convention.
+       * Strip it so inc_open can prefix mudlib_dir directly.
+       * A lone '/' (now empty string) means search from mudlib root. */
       if (*p == '/')
         p++;
 
-      if (!legal_path (p))
+      /* Normalize trailing '/' so inc_open can join consistently. */
+      {
+        size_t path_len = strlen (p);
+        while (path_len > 0 && p[path_len - 1] == '/')
+          p[--path_len] = '\0';
+      }
+
+      /* Empty string (from '/' or '::') is valid: means search mudlib root */
+      if (*p != '\0' && !legal_path (p))
         {
           debug_warn ("unsafe directory removed from include search path: %s", p);
           inc_list[i] = 0;

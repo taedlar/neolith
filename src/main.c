@@ -102,15 +102,6 @@ int main (int argc, char **argv) {
   if (locale)
     LOG_NOTICE ("{}\tusing locale \"%s\"", locale);
 
-  /* Change working directory to MudLibDir */
-  LOG_NOTICE ("{}\tusing MudLibDir \"%s\"", CONFIG_STR(__MUD_LIB_DIR__));
-  if (-1 == CHDIR (CONFIG_STR (__MUD_LIB_DIR__)))
-    {
-      debug_perror ("chdir", CONFIG_STR (__MUD_LIB_DIR__));
-      LOG_FATAL ("{}\t***** cannot change working directory to %s.\n", CONFIG_STR (__MUD_LIB_DIR__));
-      exit (EXIT_FAILURE);
-    }
-
   /* Initialize resource pools */
   if (CONFIG_INT (__RESERVED_MEM_SIZE__) > 0)
     {

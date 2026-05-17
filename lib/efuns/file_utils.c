@@ -16,6 +16,8 @@
 #include "lpc/include/runtime_config.h"
 #include "src/interpret.h"
 #include "lpc/lex.h"
+#include "misc/filepath.h"
+#include "src/main.h"
 
 #include "file_utils.h"
 
@@ -97,8 +99,6 @@ encode_stat (svalue_t * vp, int flags, const char *str, struct stat *st)
  *    last update of file.
  */
 /* WIN32 should be fixed to do this correctly (i.e. no ifdefs for it) */
-#define MAX_FNAME_SIZE 255
-#define MAX_PATH_LEN   1024
 
 array_t* get_dir (const char *path, int flags) {
   array_t *v;
@@ -109,24 +109,43 @@ array_t* get_dir (const char *path, int flags) {
 #elif _WIN32
   HANDLE dirp;
   WIN32_FIND_DATA findFileData;
-  char searchPath[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
+  char searchPath[PATH_MAX + 2];
 #endif
   size_t namelen;
   int do_match = 0;
 
   struct stat st;
   char *endtemp;
-  char temppath[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
-  char regexppath[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
+  char temppath[PATH_MAX + 2];
+  char fs_path[PATH_MAX + 2];
+  char regexppath[PATH_MAX + 2];
   char *p;
+  const char *mudlib_dir;
+  char *resolved_path;
 
   if (!path)
     return 0;
 
-  path = check_valid_path (path, current_object, "stat", 0);
-
-  if (path == 0)
+  /* MudOS calls master apply with "stat" as caller here. We'll retain compatibility here */
+  if (!push_valid_path (path, current_object, "stat", 0))
     return 0;
+
+  path = SVALUE_STRPTR (sp);
+  strncpy (temppath, path, sizeof (temppath) - 1);
+  temppath[sizeof (temppath) - 1] = '\0';
+  pop_stack ();
+
+  mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
+  if (!mudlib_dir || !*mudlib_dir)
+    return 0;
+
+  resolved_path = resolve_path_in_mudlib (temppath, mudlib_dir);
+  if (!resolved_path)
+    return 0;
+
+  strncpy (fs_path, resolved_path, sizeof (fs_path) - 1);
+  fs_path[sizeof (fs_path) - 1] = '\0';
+  FREE_MSTR (resolved_path);
 
   if (strlen (path) < 2)
     {
@@ -136,9 +155,6 @@ array_t* get_dir (const char *path, int flags) {
     }
   else
     {
-      strncpy (temppath, path, MAX_FNAME_SIZE + MAX_PATH_LEN + 1);
-      temppath[MAX_FNAME_SIZE + MAX_PATH_LEN + 1] = '\0';
-
       /*
        * If path ends with '/' or "/." remove it
        */
@@ -148,20 +164,29 @@ array_t* get_dir (const char *path, int flags) {
         *p = '\0';
     }
 
-  if (stat (temppath, &st) < 0)
+  if (stat (fs_path, &st) < 0)
     {
       if (*p == '\0')
         return 0;
       if (p != temppath)
         {
           strcpy (regexppath, p + 1);
-          *p = '\0';
         }
       else
         {
           strcpy (regexppath, p);
-          strcpy (temppath, ".");
         }
+      {
+        char *fs_parent = strrchr (fs_path, '/');
+
+        if (fs_parent)
+          {
+            if (fs_parent == fs_path)
+              fs_path[1] = '\0';
+            else
+              *fs_parent = '\0';
+          }
+      }
       do_match = 1;
     }
   else if (*p != '\0' && strcmp (temppath, "."))
@@ -173,10 +198,10 @@ array_t* get_dir (const char *path, int flags) {
       return v;
     }
 #ifdef HAVE_DIRENT_H
-  if ((dirp = opendir (temppath)) == 0)
+  if ((dirp = opendir (fs_path)) == 0)
     return 0;
 #elif _WIN32
-  snprintf(searchPath, sizeof(searchPath), "%s\\*", temppath);
+  snprintf(searchPath, sizeof(searchPath), "%s\\*", fs_path);
   dirp = FindFirstFile(searchPath, &findFileData);
   if (dirp == INVALID_HANDLE_VALUE)
     return 0;
@@ -234,7 +259,7 @@ array_t* get_dir (const char *path, int flags) {
   FindClose(dirp);
   dirp = FindFirstFile(searchPath, &findFileData);
 #endif
-  endtemp = temppath + strlen (temppath);
+  endtemp = fs_path + strlen (fs_path);
   strcat (endtemp++, "/");
 
 #ifdef HAVE_DIRENT_H
@@ -253,8 +278,8 @@ array_t* get_dir (const char *path, int flags) {
            * We'll have to .... sigh.... stat() the file to get some add'tl
            * info.
            */
-          strcpy (endtemp, de->d_name);
-          stat (temppath, &st);	/* We assume it works. */
+              strcpy (endtemp, de->d_name);
+              stat (fs_path, &st); /* We assume it works. */
         }
       encode_stat (&v->item[i], flags, de->d_name, &st);
       i++;
@@ -287,7 +312,7 @@ array_t* get_dir (const char *path, int flags) {
                * info.
                */
               strcpy (endtemp, findFileData.cFileName);
-              stat (temppath, &st);	/* We assume it works. */
+              stat (fs_path, &st); /* We assume it works. */
             }
           encode_stat (&v->item[i], flags, findFileData.cFileName, &st);
           i++;
@@ -311,11 +336,11 @@ tail (const char *path)
   struct stat st;
   int offset;
 
-  path = check_valid_path (path, current_object, "tail", 0);
-
-  if (path == 0)
+  if (!push_resolved_valid_path (path, current_object, "tail", 0))
     return 0;
+  path = SVALUE_STRPTR (sp);
   f = fopen (path, "r");
+  pop_stack (); /* done with path */
   if (f == 0)
     return 0;
   if (fstat (fileno (f), &st) == -1)
@@ -330,7 +355,7 @@ tail (const char *path)
       /* Throw away the first incomplete line. */
       if (NULL == fgets (buff, sizeof buff, f))
         {
-          debug_perror ("fgets()", path);
+          debug_perror ("fgets()", "(tail file)");
           error ("Failed reading file.");
         }
     }
@@ -345,68 +370,12 @@ tail (const char *path)
 int
 remove_file (const char *path)
 {
-  path = check_valid_path (path, current_object, "remove_file", 1);
-
-  if (path == 0)
+  if (!push_resolved_valid_path (path, current_object, "remove_file", 1))
     return 0;
-  if (unlink (path) == -1)
-    return 0;
-  return 1;
+  int rc = (unlink (SVALUE_STRPTR (sp)) != -1);
+  pop_stack ();
+  return rc;
 }
-
-/**
- * Check that it is an legal path. No '..' are allowed.
- */
-int legal_path (const char *path) {
-  const char *p;
-
-  if (path == NULL)
-    return 0;
-  if (path[0] == '/')
-    {
-      opt_trace (TT_EVAL|0, "absolute path '/...' rejected\n");
-      return 0;
-    }
-  /*
-   * disallowing # seems the easiest way to solve a bug involving loading
-   * files containing that character
-   */
-  if (strchr (path, '#'))
-    {
-      opt_trace (TT_EVAL|0, "path with '#' rejected\n");
-      return 0;
-    }
-  p = path;
-  while (p)
-    {				/* Zak, 930530 - do better checking */
-      if (p[0] == '.')
-        {
-          if (p[1] == '\0')	/* trailing `.' ok */
-            break;
-          if (p[1] == '.')	/* check for `..' or `../' */
-            p++;
-          if (p[1] == '/' || p[1] == '\0')
-            return 0;		/* check for `./', `..', or `../' */
-        }
-      p = (char *) strstr (p, "/.");	/* search next component */
-      if (p)
-        p++;			/* step over `/' */
-    }
-#if defined(AMIGA) || defined(LATTICE) || defined(_WIN32)
-  /*
-   * I don't know what the proper define should be, just leaving an
-   * appropriate place for the right stuff to happen here - Wayfarer
-   */
-  /*
-   * fail if there's a ':' since on AmigaDOS this means it's a logical
-   * device!
-   */
-  /* Could be a drive thingy for os2. */
-  if (strchr (path, ':'))
-    return 0;
-#endif
-  return 1;
-}				/* legal_path() */
 
 /**
  *  @brief Append string to file.
@@ -423,10 +392,10 @@ int write_file (const char *file, const char *str, int flags)
   FILE *f;
   size_t n_written;
 
-  file = check_valid_path (file, current_object, "write_file", 1);
-  if (!file)
+  if (!push_resolved_valid_path (file, current_object, "write_file", 1))
     return 0;
-  f = fopen (file, (flags & 1) ? "w" : "a");
+  f = fopen (SVALUE_STRPTR (sp), (flags & 1) ? "w" : "a");
+  pop_stack ();
   if (f == 0)
     {
       debug_perror ("fopen()", file);
@@ -444,10 +413,8 @@ int write_file (const char *file, const char *str, int flags)
  *  @param start The line number to start reading from (1-based). If < 1, start from line 1.
  *  @param len The number of lines to read. If < 1, read the entire file.
  */
-char *read_file (const char *path, long start, size_t len)
-{
+char *read_file (const char *path, long start, size_t len) {
   char path_copy[PATH_MAX];
-  char* file;
   struct stat st;
   int fd;
   FILE *f;
@@ -458,16 +425,17 @@ char *read_file (const char *path, long start, size_t len)
 
   strncpy (path_copy, path, PATH_MAX - 1);
   path_copy[PATH_MAX - 1] = '\0';
-  file = check_valid_path (path_copy, current_object, "read_file", 0);
-
-  if (!file)
+  if (!push_resolved_valid_path (path_copy, current_object, "read_file", 0))
     return 0;
 
 #ifdef _WIN32
-  fd = open (file, O_RDONLY | O_TEXT);
+  fd = open (SVALUE_STRPTR (sp), O_RDONLY | O_TEXT);
 #else
-  fd = open (file, O_RDONLY);
+  fd = open (SVALUE_STRPTR (sp), O_RDONLY);
 #endif
+  strncpy (path_copy, SVALUE_STRPTR (sp), PATH_MAX - 1);
+  path_copy[PATH_MAX - 1] = '\0';
+  pop_stack ();
   if (-1 == fd)
     return 0;
   /*
@@ -528,7 +496,7 @@ char *read_file (const char *path, long start, size_t len)
         {
           if (ferror (f))
             {
-              debug_perror ("fread()", file);
+              debug_perror ("fread()", path_copy);
               error ("Failed reading file.");
             }
           opt_trace (TT_EVAL|0, "fread(): EOF before start line");
@@ -626,10 +594,10 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
   char *str;
   size_t size;
 
-  file = check_valid_path (file, current_object, "read_bytes", 0);
-  if (!file)
+  if (!push_resolved_valid_path (file, current_object, "read_bytes", 0))
     return 0;
-  f = fopen (file, "rb");
+  f = fopen (SVALUE_STRPTR (sp), "rb");
+  pop_stack ();
   if (f == NULL)
     return 0;
   if (fstat (fileno (f), &st) == -1)
@@ -684,21 +652,26 @@ write_bytes (const char *file, long start, const char *str, size_t theLength)
   int fd;
   FILE *f;
 
-  file = check_valid_path (file, current_object, "write_bytes", 1);
-
-  if (!file)
+  if (!push_resolved_valid_path (file, current_object, "write_bytes", 1))
     return 0;
   if (theLength > (size_t)CONFIG_INT (__MAX_BYTE_TRANSFER__))
-    return 0;
+    {
+      pop_stack ();
+      return 0;
+    }
 
-  fd = open (file, O_CREAT | O_RDWR
+  fd = open (SVALUE_STRPTR (sp), O_CREAT | O_RDWR
 #ifndef _WIN32
     , S_IRUSR | S_IWUSR
 #endif
   ); /* create the file if it does not exist, do not truncate */
   if (-1 == fd)
-    return 0;
+    {
+      pop_stack ();
+      return 0;
+    }
 
+  pop_stack (); /* done with path; fd is open */
   f = fdopen (fd, "r+");
   if (!f) {
     close (fd);
@@ -737,37 +710,51 @@ file_size (const char *file)
   struct stat st;
   int ret;
 
-  file = check_valid_path (file, current_object, "file_size", 0);
-  if (!file)
+  if (!push_resolved_valid_path (file, current_object, "file_size", 0))
     return -1;
 
-  if (stat (file, &st) == -1)
+  if (stat (SVALUE_STRPTR (sp), &st) == -1)
     ret = -1;
   else if (S_IFDIR & st.st_mode)
     ret = -2;
   else
     ret = st.st_size;
+  pop_stack ();
 
   return ret;
 }
 
 
 /**
- *  @brief Check that a path to a file is valid for read or write.
- *  This is done by functions in the master object.
- *  The path is always treated as an absolute path, and is returned without a leading '/'.
- *  If the path was '/', then '.' is returned.
- *  The returned path is retained in static storage owned by this helper until the next call.
+ * @brief Validate an LPC path via master object and push the result onto the eval stack.
+ *
+ * Performs master object permission check (valid_read / valid_write applies),
+ * normalises the result (strips leading '/', maps empty to "."), and validates
+ * it with legal_path.
+ *
+ * On success the normalised, legal path is pushed as a malloc string onto sp.
+ * The caller is responsible for pop_stack() when done with the path.
+ * On failure nothing is pushed and 0 is returned.
+ *
+ * The push-style return is re-entrant safe: each invocation owns its own stack
+ * slot, so nested calls (e.g. valid_write calling a file efun) cannot overwrite
+ * each other's result.  On LPC error unwind the eval stack is cleaned up
+ * automatically, so no explicit cleanup is needed on error paths.
+ *
+ * @param path         LPC path to validate (relative or absolute, as seen from LPC code)
+ * @param call_object  The LPC object making the call (for master object apply)
+ * @param call_fun     The function name calling this (for error messages)
+ * @param writeflg     Non-zero if this is for write access, 0 for read
+ * @return true on success (path pushed), false on failure (nothing pushed).
  */
-char *check_valid_path (const char *path, object_t * call_object, const char *call_fun, int writeflg) {
+bool push_valid_path (const char *path, object_t * call_object, const char *call_fun, int writeflg) {
 
   static char current_dir[] = ".";
-  static svalue_t retained_path = { .type = T_NUMBER };
   svalue_t *v;
-  const char* ret_path = 0;
+  const char *ret_path = 0;
 
   if (call_object == 0 || call_object->flags & O_DESTRUCTED)
-    return 0;
+    return false;
 
   copy_and_push_string (path);
   push_object (call_object);
@@ -786,33 +773,98 @@ char *check_valid_path (const char *path, object_t * call_object, const char *ca
     {
       if (v->type == T_NUMBER && v->u.number == 0)
         {
-          APPLY_SLOT_FINISH_CALL();
-          return 0;
+          APPLY_SLOT_FINISH_CALL ();
+          return false;
         }
       if (v->type == T_STRING)
         {
-          ret_path = SVALUE_STRPTR(v);
+          ret_path = SVALUE_STRPTR (v);
         }
     }
 
   if (!ret_path)
-    ret_path = path;
+    ret_path = path; /* fallback to original path */
 
   if (ret_path[0] == '/')
-    ret_path++;
+    ret_path++; /* strip leading '/' */
+
   if (ret_path[0] == '\0')
     ret_path = current_dir;
+
   if (legal_path (ret_path))
     {
-      free_svalue (&retained_path, "check_valid_path");
-      SET_SVALUE_MALLOC_STRING(&retained_path, string_copy (ret_path, "check_valid_path"));
-      APPLY_SLOT_FINISH_CALL();
-      opt_trace(TT_EVAL, "legal path: %s (%s)", path, ret_path);
-      return retained_path.u.malloc_string;
+      /* Copy before APPLY_SLOT_FINISH_CALL frees the apply slot. */
+      malloc_str_t copy = string_copy (ret_path, "push_valid_path");
+      APPLY_SLOT_FINISH_CALL ();
+      opt_trace (TT_EVAL, "legal path: %s (%s)", path, ret_path);
+      push_malloced_string (copy);
+      return true;
     }
-  APPLY_SLOT_FINISH_CALL();
-  opt_trace(TT_EVAL, "not legal path: %s", path);
-  return 0;
+
+  APPLY_SLOT_FINISH_CALL ();
+  opt_trace (TT_EVAL, "not legal path: %s", path);
+  return false;
+}
+
+/**
+ * @brief Validate an LPC path via master object, resolve to a sandboxed absolute
+ *        location, and push the result onto the eval stack.
+ *
+ * Two-stage process:
+ * 1. push_valid_path() — master object permission check.
+ * 2. resolve_path_in_mudlib() — anchors to mudlib root and verifies containment.
+ *
+ * On success the absolute sandboxed path is pushed as a malloc string onto sp.
+ * Caller must pop_stack() when done.
+ * On failure nothing is pushed and 0 is returned.
+ *
+ * Re-entrant and exception-unwind safe via the same eval-stack ownership invariant
+ * as push_valid_path().
+ *
+ * @note The resolved path is a host filesystem path, not an LPC path. This function is intended
+ *       for internal efun helpers that need to access the host filesystem, and the result is not
+ *       suitable for passing back to LPC code or master object applies. The caller contract is that
+ *       the result is a "usable path" for host filesystem access, and the caller should not make
+ *       any assumptions about the format of the path (e.g. it may be an absolute path, or an
+ *       archive-relative path if mudlib is an archive).
+ * @note When mudlib is an archive, stage 2 will resolve to an archive-relative path instead
+ *       of an absolute filesystem path. The caller contract ("usable path") stays the same.
+ *
+ * @param path         LPC path to validate (relative or absolute, as seen from LPC code)
+ * @param call_object  The LPC object making the call (for master object apply)
+ * @param call_fun     The function name calling this (for error messages)
+ * @param writeflg     Non-zero if this is for write access, 0 for read
+ * @return true on success (path pushed), false on failure (nothing pushed).
+ */
+bool push_resolved_valid_path (const char *path, object_t * call_object, const char *call_fun, int writeflg) {
+
+  const char *mudlib_dir;
+  char *full_path;
+
+  /* Stage 1: Permission check via master object applies. */
+  if (!push_valid_path (path, call_object, call_fun, writeflg))
+    return false;
+
+  mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
+  if (!mudlib_dir || !*mudlib_dir)
+    {
+      pop_stack ();
+      opt_warn (1, "mudlib_dir_absolute not set; cannot resolve path in %s()", call_fun);
+      return false;
+    }
+
+  /* Stage 2: Resolve relative path within mudlib root and verify containment. */
+  full_path = resolve_path_in_mudlib (SVALUE_STRPTR (sp), mudlib_dir);
+  pop_stack (); /* relative path no longer needed */
+
+  if (!full_path)
+    {
+      opt_warn (1, "rejected unsafe path in %s(): %s", call_fun, path);
+      return false;
+    }
+
+  push_malloced_string (full_path);
+  return true;
 }
 
 static int
@@ -1013,34 +1065,27 @@ static int do_move (const char *from, const char *to, int flag) {
 int do_rename (const char *fr, const char *t, int flag) {
   const char *from, *to;
   char tbuf[3];
-  char newfrom[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
+  char newfrom[PATH_MAX + 2];
   size_t flen;
-  static svalue_t from_sv = { .type = T_NUMBER };
-  static svalue_t to_sv = { .type = T_NUMBER };
-
+  struct stat st;
   /*
-   * important that the same write access checks are done for link() as are
-   * done for rename().  Otherwise all kinds of security problems would
-   * arise (e.g. creating links to files in protected directories and then
-   * modifying the protected file by modifying the linked file). The idea
-   * is prevent linking to a file unless the person doing the linking has
-   * permission to move the file.
+   * Both paths are pushed onto the eval stack before any OS call.
+   * This is re-entrant safe: each resolve call owns its own stack slot,
+   * and the stack is unwound automatically on LPC error.
    */
-  from = check_valid_path (fr, current_object, "rename", 1);
-  if (!from)
+  if (!push_resolved_valid_path (fr, current_object, "rename", 1))
     return 1;
+  /* sp -> from path */
 
-  free_svalue (&from_sv, "do_rename:from");
-  SET_SVALUE_MALLOC_STRING(&from_sv, string_copy (from, "do_rename:from"));
-  from = from_sv.u.malloc_string;
+  if (!push_resolved_valid_path (t, current_object, "rename", 1))
+    {
+      pop_stack (); /* from */
+      return 1;
+    }
+  /* sp-1 -> from path, sp -> to path */
 
-  to = check_valid_path (t, current_object, "rename", 1);
-  if (!to)
-    return 1;
-
-  free_svalue (&to_sv, "do_rename:to");
-  SET_SVALUE_MALLOC_STRING(&to_sv, string_copy (to, "do_rename:to"));
-  to = to_sv.u.malloc_string;
+  from = SVALUE_STRPTR (sp - 1);
+  to = SVALUE_STRPTR (sp);
   if (!strlen (to) && !strcmp (t, "/"))
     {
       sprintf (tbuf, "./");
@@ -1062,11 +1107,12 @@ int do_rename (const char *fr, const char *t, int flag) {
       from = newfrom;
     }
 
-  if (file_size (to) == -2)
+  int result;
+  if (0 == stat (to, &st) && (S_IFDIR & st.st_mode))
     {
       /* Target is a directory; build full target filename. */
       const char *cp;
-      char newto[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
+      char newto[PATH_MAX + 2];
 
       cp = strrchr (from, '/');
       if (cp)
@@ -1075,49 +1121,82 @@ int do_rename (const char *fr, const char *t, int flag) {
         cp = from;
 
       if (snprintf (newto, sizeof(newto), "%s/%s", to, cp) >= (int)sizeof(newto))
-        error("File path too long.");
+        {
+          pop_n_elems (2);
+          error("File path too long.");
+        }
 
-      return do_move (from, newto, flag);
+      result = do_move (from, newto, flag);
     }
   else
-    return do_move (from, to, flag);
+    result = do_move (from, to, flag);
+
+  pop_n_elems (2); /* from and to */
+  return result;
 }
 #endif /* F_RENAME */
 
+/**
+ * @brief Copy a file from source path to destination path.
+ *
+ * Implements the `cp` efun contract.
+ *
+ * Both input paths are validated through master object permission checks and
+ * resolved to sandboxed absolute paths before any filesystem operation.
+ *
+ * Destination behavior matches classic cp semantics used by this driver:
+ * if @p to refers to an existing directory, the basename of @p from is
+ * appended and the file is copied into that directory.
+ *
+ * @param from Source file path as passed from LPC.
+ * @param to Destination file path as passed from LPC.
+ * @return 1 on success.
+ * @return -1 if source validation/open/read fails.
+ * @return -2 if destination validation/open/path construction fails.
+ * @return -3 if read/write during copy fails.
+ */
 int copy_file (const char *from, const char *to) {
   struct stat st;
   char buf[32768];
   int from_fd, to_fd;
   int num_read, num_written;
   char *write_ptr;
-  static svalue_t from_sv = { .type = T_NUMBER };
-  static svalue_t to_sv = { .type = T_NUMBER };
+  char from_buf[PATH_MAX + 2];
+  char to_buf[PATH_MAX + 2];
 
-  from = check_valid_path (from, current_object, "cp", 0);
-  if (from == 0)
+  if (!push_resolved_valid_path (from, current_object, "cp", 0))
     return -1;
-  free_svalue (&from_sv, "copy_file:from");
-  SET_SVALUE_MALLOC_STRING(&from_sv, string_copy (from, "copy_file:from"));
-  from = from_sv.u.malloc_string;
+  /* sp -> from path */
 
-  to = check_valid_path (to, current_object, "cp", 1);
-  if (to == 0)
-    return -2;
-  free_svalue (&to_sv, "copy_file:to");
-  SET_SVALUE_MALLOC_STRING(&to_sv, string_copy (to, "copy_file:to"));
-  to = to_sv.u.malloc_string;
+  if (!push_resolved_valid_path (to, current_object, "cp", 1))
+    {
+      pop_stack (); /* from */
+      return -2;
+    }
+  /* sp-1 -> from path, sp -> to path */
+
+  /* Copy to local buffers before popping; both may be needed through the OS calls. */
+  strncpy (from_buf, SVALUE_STRPTR (sp - 1), sizeof (from_buf) - 1);
+  from_buf[sizeof (from_buf) - 1] = '\0';
+  strncpy (to_buf, SVALUE_STRPTR (sp), sizeof (to_buf) - 1);
+  to_buf[sizeof (to_buf) - 1] = '\0';
+  pop_n_elems (2);
+  from = from_buf;
+  to = to_buf;
 
   from_fd = open (from, O_RDONLY);
   if (from_fd < 0)
     {
-      debug_perror ("copy_file: open", from);
+      debug_perror ("open()", from);
       return (-1);
     }
 
-  char newto[MAX_FNAME_SIZE + MAX_PATH_LEN + 2];
+  char newto[PATH_MAX + 2];
   if (0 == stat (to, &st) && (S_IFDIR & st.st_mode))
     {
       const char *cp;
+      size_t to_len;
+      size_t cp_len;
 
       cp = strrchr (from, '/');
       if (cp)
@@ -1125,14 +1204,25 @@ int copy_file (const char *from, const char *to) {
       else
         cp = from;
 
-      sprintf (newto, "%s/%s", to, cp);
+      to_len = strlen (to);
+      cp_len = strlen (cp);
+      if (to_len + 1 + cp_len >= sizeof (newto))
+        {
+          close (from_fd);
+          return (-2);
+        }
+
+      memcpy (newto, to, to_len);
+      newto[to_len] = '/';
+      memcpy (newto + to_len + 1, cp, cp_len);
+      newto[to_len + 1 + cp_len] = '\0';
       to = newto;
     }
 
   to_fd = open (to, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (to_fd < 0)
     {
-      debug_perror ("copy_file: open", to);
+      debug_perror ("open()", to);
       close (from_fd);
       return (-2);
     }
@@ -1141,7 +1231,7 @@ int copy_file (const char *from, const char *to) {
     {
       if (num_read < 0)
         {
-          debug_perror ("copy_file: read", from);
+          debug_perror ("read()", from);
           close (from_fd);
           close (to_fd);
           return (-3);
@@ -1153,7 +1243,7 @@ int copy_file (const char *from, const char *to) {
           num_written = write (to_fd, write_ptr, num_read);
           if (num_written < 0)
             {
-              debug_perror ("copy_file: write", to);
+              debug_perror ("write()", to);
               close (from_fd);
               close (to_fd);
               return (-3);

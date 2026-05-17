@@ -13,12 +13,16 @@
 #include "lpc/object.h"
 #include "lpc/program.h"
 #include "lpc/include/origin.h"
+#include "misc/filepath.h"
 #include "port/timer.h"
 #include "rc.h"
 #include "simul_efun.h"
 #include "simulate.h"
 
+#include <filesystem>
 #include <sstream>
+
+namespace fs = std::filesystem;
 
 main_options_t *g_main_options = NULL;
 
@@ -49,6 +53,7 @@ int init_stem(int debug_level, unsigned long trace_flags, const char *config_fil
   stem_opts.pedantic = false;
   stem_opts.timer_flags = TIMER_FLAG_HEARTBEAT | TIMER_FLAG_CALLOUT | TIMER_FLAG_RESET;
   memset(stem_opts.config_file, 0, PATH_MAX);
+  memset(stem_opts.mudlib_dir_absolute, 0, PATH_MAX);
   memset(stem_opts.mud_app, 0, PATH_MAX);
   stem_opts.argc = 0;
   if (config_file)
@@ -184,6 +189,49 @@ extern "C" void try_reset (object_t * ob) {
     }
 }
 #endif
+
+/**
+ * @brief Resolve a relative path to an absolute path within a root directory and
+ * verify containment.
+ *
+ * Takes a relative path (e.g., from push_resolved_valid_path) and root directory,
+ * combines them into an absolute (host) path, and verifies the result is within the
+ * root to prevent directory traversal attacks.
+ *
+ * Uses C++17 std::filesystem for robust path normalization and component comparison.
+ *
+ * @param relative_path The mudlib-local path (e.g., "." or "obj/player")
+ * @param root          The absolute root directory
+ * @return malloc'd absolute path if valid and within root, nullptr on error.
+ *         Returns exactly the root if relative_path is "."
+ *         Caller must free the returned string with FREE_MSTR().
+ */
+extern "C"
+malloc_str_t resolve_path_in_mudlib(const char *relative_path, const char *mudlib_root) {
+  if (!relative_path || !mudlib_root || mudlib_root[0] == '\0')
+    return nullptr;
+
+  // Handle the special case where "." means the mudlib root itself
+  if (relative_path[0] == '.' && relative_path[1] == '\0')
+    return string_copy (mudlib_root, "resolve_path_in_mudlib");
+
+  // Construct absolute path: mudlib_root / relative_path
+  fs::path root(mudlib_root);
+  std::string combined = root.generic_string();
+  combined += '/';
+  combined += relative_path;
+
+  // Check bounds before attempting allocation
+  if (combined.length() + 1 > PATH_MAX)
+    return nullptr;
+
+  // Verify the combined path is within the mudlib root
+  if (!is_path_within_root(combined.c_str(), mudlib_root))
+    return nullptr;
+
+  // Return malloc'd copy of the combined path
+  return string_copy (combined.c_str(), "resolve_path_in_mudlib");
+}
 
 /**
  * @brief smart_log() - compiler error logging function.

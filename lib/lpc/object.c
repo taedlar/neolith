@@ -1511,7 +1511,7 @@ static size_t sel = (size_t)-1; /* save extension length */
 int save_object (object_t * ob, const char *file, int save_zeros) {
 
   char *name;
-  static char tmp_name[256];
+  static char tmp_name[PATH_MAX];
   size_t len;
   FILE *f;
   int success;
@@ -1532,28 +1532,34 @@ int save_object (object_t * ob, const char *file, int save_zeros) {
   name = new_string (len + strlen (SAVE_EXTENSION), "save_object");
   strcpy (name, file);
   strcpy (name + len, SAVE_EXTENSION);
-  push_malloced_string (name);	/* errors */
+  push_malloced_string (name);	/* errors: sp -> name */
 
-  file = check_valid_path (name, ob, "save_object", 1);
-  if (!file)
+  if (!push_resolved_valid_path (name, ob, "save_object", 1))
     {
-      /* error ("Denied write permission in save_object().\n"); */
+      /* sp -> name only; push_resolved_valid_path didn't push */
       free_string_svalue (sp--);
       return 0;
     }
+  /* sp -> absolute file path, sp-1 -> name */
+  file = SVALUE_STRPTR (sp);
 
   /*
    * Write the save-files to different directories, just in case
    * they are on different file systems.
    */
-  snprintf (tmp_name, sizeof(tmp_name), "%.250s.tmp", file);
-  tmp_name[sizeof(tmp_name) - 1] = '\0';
+  if (snprintf (tmp_name, sizeof(tmp_name), "%s.tmp", file) >= (int)sizeof(tmp_name))
+    {
+      pop_stack ();
+      free_string_svalue (sp--);
+      return 0;
+    }
 
   opt_trace (TT_EVAL|1, "creating tmp file: %s", tmp_name);
   f = fopen (tmp_name, "w");
   if (!f)
     {
       debug_perror ("fopen()", tmp_name);
+      pop_stack ();
       free_string_svalue (sp--);
       return 0;  
     }
@@ -1561,6 +1567,7 @@ int save_object (object_t * ob, const char *file, int save_zeros) {
   if (fprintf (f, "#/%s\n", ob->prog->name) < 0)
     {
       debug_perror ("Could not write save_object() header", tmp_name);
+      pop_stack ();
       free_string_svalue (sp--);
       return 0;
     }
@@ -1595,6 +1602,7 @@ int save_object (object_t * ob, const char *file, int save_zeros) {
         }
     }
 
+  pop_stack ();			/* absolute file path; done */
   free_string_svalue (sp--);
   return success ? 1 : 0;
 }
@@ -1677,14 +1685,15 @@ int restore_object (object_t * ob, const char *file, int noclear) {
   strncpy (name, file, len);
   strcpy (name + len, SAVE_EXTENSION);
 
-  push_malloced_string (name);	/* errors */
+  push_malloced_string (name);	/* errors: sp -> name */
 
-  file = check_valid_path (name, ob, "restore_object", 0);
-  if (!file)
+  if (!push_resolved_valid_path (name, ob, "restore_object", 0))
     {
       free_string_svalue (sp--);
       error ("Denied read permission in restore_object().\n");
     }
+  /* sp -> absolute file path, sp-1 -> name */
+  file = SVALUE_STRPTR (sp);
 
   opt_trace (TT_EVAL|1, "restoring object from file: %s", file);
   f = fopen (file, "r");
@@ -1692,6 +1701,7 @@ int restore_object (object_t * ob, const char *file, int noclear) {
     {
       if (f)
         (void) fclose (f);
+      pop_stack ();
       free_string_svalue (sp--);
       return 0;
     }
@@ -1699,6 +1709,7 @@ int restore_object (object_t * ob, const char *file, int noclear) {
   if (!(i = st.st_size))
     {
       (void) fclose (f);
+      pop_stack ();
       free_string_svalue (sp--);
       return 0;
     }
@@ -1714,10 +1725,13 @@ int restore_object (object_t * ob, const char *file, int noclear) {
 #endif
     {
       FREE (theBuff);
-      debug_perror ("restore_object()", file);
+      debug_perror ("restore_object()", SVALUE_STRPTR (sp));
+      pop_stack ();
       free_string_svalue (sp--);
       error ("restore_object(): Read error.\n");
     }
+  pop_stack ();			/* absolute file path; done */
+  free_string_svalue (sp--);	/* name */
   theBuff[n_read] = '\0';
   current_object = ob;
 
@@ -1732,7 +1746,6 @@ int restore_object (object_t * ob, const char *file, int noclear) {
   current_object = save;
 
   FREE (theBuff);
-  free_string_svalue (sp--);
   return 1;
 }
 
