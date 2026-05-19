@@ -22,13 +22,6 @@
 extern "C" {
 #endif
 
-/* legacy LPMud file path validation. Now refactored to use C++17 filesystem */
-static inline bool legal_path(const char *path) { return is_path_descendant(path); }
-
-bool push_valid_path(const char* path, object_t *caller_ob, const char *call_fun, int writeflg);
-
-bool push_resolved_valid_path(const char* path, object_t *caller_ob, const char *call_fun, int writeflg);
-
 void dump_file_descriptors(outbuffer_t *);
 
 char *read_file(const char *file, long start, size_t len);

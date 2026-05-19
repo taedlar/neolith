@@ -50,6 +50,9 @@ bool is_path_descendant(const char *path);
  */
 bool is_path_within_root(const char *path, const char *root);
 
+/* legacy LPMud file path validation. Now refactored to use C++17 filesystem */
+static inline bool legal_path(const char *path) { return is_path_descendant(path); }
+
 #ifdef __cplusplus
 }
 #endif
