@@ -89,7 +89,7 @@ write_buffer (buffer_t * buf, long start, const char *str, size_t theLength)
   return 1;
 }				/* write_buffer() */
 
-char* read_buffer (buffer_t * b, long start, size_t len, size_t *rlen) {
+malloc_str_t read_buffer (buffer_t * b, long start, size_t len, size_t *rlen) {
   char *str;
   size_t size;
 

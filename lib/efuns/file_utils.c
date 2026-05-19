@@ -14,14 +14,10 @@
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"
-#include "src/interpret.h"
 #include "lpc/lex.h"
 #include "misc/filepath.h"
-#include "src/main.h"
 
 #include "file_utils.h"
-
-/* see binaries.c.  We don't want no $@$(*)@# system dependent mess of includes */
 
 extern int sys_nerr;
 
@@ -76,7 +72,8 @@ encode_stat (svalue_t * vp, int flags, const char *str, struct stat *st)
     }
 }
 
-/*
+#if defined(F_GET_DIR) || defined(F_STAT)
+/**
  * List files in directory. This function do same as standard list_files did,
  * but instead writing files right away to user this returns an array
  * containing those files. Actually most of code is copied from list_files()
@@ -97,9 +94,12 @@ encode_stat (svalue_t * vp, int flags, const char *str, struct stat *st)
  *    name of file,
  *    size of file,
  *    last update of file.
+ * 
+ * @param path The directory to list, or a file to stat.
+ * @param flags If 0, return an array of file names. If -1, return an array of
+ *       arrays with file information. Other values are reserved for future use.
+ * @see docs/efuns/get_dir.md
  */
-/* WIN32 should be fixed to do this correctly (i.e. no ifdefs for it) */
-
 array_t* get_dir (const char *path, int flags) {
   array_t *v;
   int i, count = 0;
@@ -327,68 +327,110 @@ array_t* get_dir (const char *path, int flags) {
   qsort ((void *) v->item, count, sizeof v->item[0], (flags == -1) ? parrcmp : pstrcmp);
   return v;
 }
+#endif /* F_GET_DIR || F_STAT */
 
-int
-tail (const char *path)
-{
+#ifdef F_TAIL
+int do_tail_file (const char *path) {
   char buff[1000];
+  char resolved_path[PATH_MAX + 2];
   FILE *f;
   struct stat st;
   int offset;
+  const char *mudlib_dir;
+  char *resolved;
 
-  if (!push_resolved_valid_path (path, current_object, "tail", 0))
+  if (!push_valid_path (path, current_object, "tail", 0))
     return 0;
+
   path = SVALUE_STRPTR (sp);
-  f = fopen (path, "r");
+  mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
+  if (!mudlib_dir || !*mudlib_dir)
+    {
+      pop_stack ();
+      return 0;
+    }
+
+  resolved = resolve_path_in_mudlib (path, mudlib_dir);
   pop_stack (); /* done with path */
-  if (f == 0)
+  if (!resolved)
     return 0;
+
+  strncpy (resolved_path, resolved, sizeof (resolved_path) - 1);
+  resolved_path[sizeof (resolved_path) - 1] = '\0';
+  FREE_MSTR (resolved);
+
+  f = fopen (resolved_path, "r");
+  if (f == 0)
+    {
+      debug_perror ("fopen()", resolved_path);
+      return 0;
+    }
+
   if (fstat (fileno (f), &st) == -1)
-    fatal ("Could not stat an open file.\n");
+    {
+      debug_perror ("fstat()", resolved_path);
+      fclose (f);
+      return 0;
+    }
+
   offset = st.st_size - 54 * 20;
   if (offset < 0)
     offset = 0;
   if (fseek (f, offset, 0) == -1)
-    fatal ("Could not seek.\n");
+    {
+      debug_perror ("fseek()", resolved_path);
+      fclose (f);
+      return 0;
+    }
+
   if (offset > 0)
     {
       /* Throw away the first incomplete line. */
-      if (NULL == fgets (buff, sizeof buff, f))
+      if (NULL == fgets (buff, sizeof buff, f) && ferror (f))
         {
           debug_perror ("fgets()", "(tail file)");
-          error ("Failed reading file.");
+          fclose (f);
+          return 0;
         }
     }
   while (fgets (buff, sizeof buff, f))
     {
       tell_object (command_giver, buff);
     }
+  if (ferror (f))
+    {
+      debug_perror ("fgets()", "(tail file)");
+      fclose (f);
+      return 0;
+    }
   fclose (f);
   return 1;
 }
+#endif /* F_TAIL */
 
-int
-remove_file (const char *path)
-{
-  if (!push_resolved_valid_path (path, current_object, "remove_file", 1))
+#ifdef F_RM
+int do_remove_file (const char *path) {
+  if (!push_resolved_valid_path (path, current_object, "rm", 1))
     return 0;
   int rc = (unlink (SVALUE_STRPTR (sp)) != -1);
   pop_stack ();
   return rc;
 }
+#endif /* F_RM */
 
+#ifdef F_WRITE_FILE
 /**
  *  @brief Append string to file.
  *  @param file The file to write to.
  *  @param str The string to write.
+ *  @param len Number of bytes to write from str.
  *  @param flags If 1, overwrite the file instead of appending.
  *               If 0, append to the file.
  *               Other bits are reserved for future use.
  *  @returns Return 0 for failure, otherwise 1.
  *  @see docs/efuns/write_file.md
  */
-int write_file (const char *file, const char *str, int flags)
-{
+int do_write_file (const char *file, const char *str, size_t len, int flags) {
   FILE *f;
   size_t n_written;
 
@@ -402,18 +444,20 @@ int write_file (const char *file, const char *str, int flags)
       /* error ("Wrong permissions for opening file /%s for %s.\n\"%s\"\n", file, (flags & 1) ? "overwrite" : "append", strerror (errno)); */
       return 0;
     }
-  n_written = fwrite (str, strlen (str), 1, f);
+  n_written = fwrite (str, 1, len, f);
   fclose (f);
-  return (n_written == 1);
-}				/* write_file() */
+  return (n_written == len);
+}
+#endif /* F_WRITE_FILE */
 
+#ifdef F_READ_FILE
 /**
  *  @brief Reads a text file into a string.
  *  @param file The file to read.
  *  @param start The line number to start reading from (1-based). If < 1, start from line 1.
  *  @param len The number of lines to read. If < 1, read the entire file.
  */
-char *read_file (const char *path, long start, size_t len) {
+malloc_str_t do_read_file (const char *path, long start, size_t len) {
   char path_copy[PATH_MAX];
   struct stat st;
   int fd;
@@ -532,12 +576,6 @@ char *read_file (const char *path, long start, size_t len) {
               if (!--len)
                 break;
             }
-          else if (c == '\0') /* NUL character is not allowed in LPC string */
-            {
-              fclose (f);
-              FREE_MSTR (str);
-              error ("Attempted to read '\\0' into a string!\n");
-            }
         }
       /* [NEOLITH-EXTENSION] Read more data if necessary and does not rely on st.st_size anymore.
        * This is important in Windows text mode that translates \r\n to \n on reading. The actual
@@ -560,12 +598,6 @@ char *read_file (const char *path, long start, size_t len) {
           *end = '\0';
           for (; p2 != end;)
             {
-              if (*p2 == '\0')
-                {
-                  fclose (f);
-                  FREE_MSTR (str);
-                  error ("Attempted to read '\\0' into a string!\n");
-                }
               if (*p2++ == '\n')
                 if (!--len)
                   break; /* done reading requested lines */
@@ -586,22 +618,54 @@ char *read_file (const char *path, long start, size_t len) {
 
   fclose (f);
   return str;
-}				/* read_file() */
+}				/* do_read_file() */
+#endif /* F_READ_FILE */
 
-char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
+
+#if defined(F_READ_BYTES) || defined(F_READ_BUFFER)
+malloc_str_t do_read_bytes (const char *file, long start, size_t len, size_t *rlen) {
   struct stat st;
   FILE *f;
-  char *str;
+  malloc_str_t str;
   size_t size;
+  char resolved_path[PATH_MAX + 2];
+  const char *mudlib_dir;
+  char *resolved;
 
-  if (!push_resolved_valid_path (file, current_object, "read_bytes", 0))
+  if (!push_valid_path (file, current_object, "read_bytes", 0))
     return 0;
-  f = fopen (SVALUE_STRPTR (sp), "rb");
-  pop_stack ();
+
+  file = SVALUE_STRPTR (sp);
+  mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
+  if (!mudlib_dir || !*mudlib_dir)
+    {
+      pop_stack ();
+      return 0;
+    }
+
+  resolved = resolve_path_in_mudlib (file, mudlib_dir);
+  pop_stack (); /* done with path */
+  if (!resolved)
+    return 0;
+
+  strncpy (resolved_path, resolved, sizeof (resolved_path) - 1);
+  resolved_path[sizeof (resolved_path) - 1] = '\0';
+  FREE_MSTR (resolved);
+
+  f = fopen (resolved_path, "rb");
   if (f == NULL)
-    return 0;
+    {
+      debug_perror ("fopen()", resolved_path);
+      return 0;
+    }
+
   if (fstat (fileno (f), &st) == -1)
-    fatal ("Could not stat an open file.\n");
+    {
+      debug_perror ("fstat()", resolved_path);
+      fclose (f);
+      return 0;
+    }
+
   size = st.st_size;
   if (start < 0)
     start = (long)size + start;
@@ -610,6 +674,7 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
     len = size;
   if (len > (size_t)CONFIG_INT (__MAX_BYTE_TRANSFER__))
     {
+      fclose (f);
       error ("Transfer exceeded maximum allowed number of bytes.\n");
       return 0;
     }
@@ -622,11 +687,23 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
     len = size - start;
 
   if (fseek (f, start, 0) < 0)
-    return 0;
+    {
+      debug_perror ("fseek()", resolved_path);
+      fclose (f);
+      return 0;
+    }
 
   str = new_string (len, "read_bytes: str");
 
   size = fread (str, 1, len, f);
+
+  if (ferror (f))
+    {
+      debug_perror ("fread()", resolved_path);
+      fclose (f);
+      FREE_MSTR (str);
+      return 0;
+    }
 
   fclose (f);
 
@@ -643,10 +720,10 @@ char* read_bytes (const char *file, long start, size_t len, size_t *rlen) {
   *rlen = size;
   return str;
 }
+#endif /* F_READ_BYTES || F_READ_BUFFER */
 
-int
-write_bytes (const char *file, long start, const char *str, size_t theLength)
-{
+#ifdef F_WRITE_BYTES
+int do_write_bytes (const char *file, long start, const char *str, size_t theLength) {
   struct stat st;
   size_t size;
   int fd;
@@ -703,10 +780,10 @@ write_bytes (const char *file, long start, const char *str, size_t theLength)
     }
   return 1;
 }
+#endif /* F_WRITE_BYTES */
 
-int
-file_size (const char *file)
-{
+#ifdef F_FILE_SIZE
+int get_file_size (const char *file) {
   struct stat st;
   int ret;
 
@@ -723,6 +800,7 @@ file_size (const char *file)
 
   return ret;
 }
+#endif /* F_FILE_SIZE */
 
 static int
 match_string (const char *match, const char *str)
@@ -993,6 +1071,7 @@ int do_rename (const char *fr, const char *t, int flag) {
 }
 #endif /* F_RENAME */
 
+#ifdef F_CP
 /**
  * @brief Copy a file from source path to destination path.
  *
@@ -1012,7 +1091,7 @@ int do_rename (const char *fr, const char *t, int flag) {
  * @return -2 if destination validation/open/path construction fails.
  * @return -3 if read/write during copy fails.
  */
-int copy_file (const char *from, const char *to) {
+int do_copy_file (const char *from, const char *to) {
   struct stat st;
   char buf[32768];
   int from_fd, to_fd;
@@ -1115,6 +1194,7 @@ int copy_file (const char *from, const char *to) {
 
   return 1;			/* success */
 }
+#endif /* F_CP */
 
 void dump_file_descriptors (outbuffer_t * out) {
   (void) out;
