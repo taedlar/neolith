@@ -1,7 +1,6 @@
 #pragma once
 
 #include "lpc/types.h"
-#include "misc/filepath.h"
 
 #ifdef _WIN32
   #include <io.h>
@@ -22,25 +21,18 @@
 extern "C" {
 #endif
 
-/* legacy LPMud file path validation. Now refactored to use C++17 filesystem */
-static inline bool legal_path(const char *path) { return is_path_descendant(path); }
-
-bool push_valid_path(const char* path, object_t *caller_ob, const char *call_fun, int writeflg);
-
-bool push_resolved_valid_path(const char* path, object_t *caller_ob, const char *call_fun, int writeflg);
-
 void dump_file_descriptors(outbuffer_t *);
 
-char *read_file(const char *file, long start, size_t len);
-char *read_bytes(const char *file, long start, size_t len, size_t *rlen);
-int write_file(const char *file, const char *str, int flags);
-int write_bytes(const char *file, long start, const char *buf, size_t len);
+malloc_str_t do_read_file(const char *file, long start, size_t len);
+malloc_str_t do_read_bytes(const char *file, long start, size_t len, size_t *rlen);
+int do_write_file(const char *file, const char *str, size_t len, int flags);
+int do_write_bytes(const char *file, long start, const char *buf, size_t len);
 array_t *get_dir(const char *path, int flag);
-int tail(const char *file);
-int file_size(const char *file);
-int copy_file(const char *from, const char *to);
+int do_tail_file(const char *file);
+int get_file_size(const char *file);
+int do_copy_file(const char *from, const char *to);
 int do_rename(const char *from, const char *to, int flag);
-int remove_file(const char *file);
+int do_remove_file(const char *file);
 
 #ifdef __cplusplus
 }

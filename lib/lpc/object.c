@@ -18,7 +18,6 @@
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
 #include "efuns/call_out.h"
-#include "efuns/file_utils.h"
 #include "socket/socket_efuns.h"
 #ifdef PACKAGE_CURL
 #include "curl/curl_efuns.h"

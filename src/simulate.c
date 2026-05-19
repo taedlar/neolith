@@ -24,13 +24,13 @@
 #include "lpc/program/binaries.h"
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
+#include "misc/filepath.h"
 #include "socket/socket_efuns.h"
 #ifdef PACKAGE_CURL
 #include "curl/curl_efuns.h"
 #endif
 #include "efuns/call_out.h"
 #include "efuns/ed.h"
-#include "efuns/file_utils.h"
 #include "efuns/replace_program.h"
 
 #include <sys/stat.h>

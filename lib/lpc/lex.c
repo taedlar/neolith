@@ -24,7 +24,6 @@
 #include "compiler.h"
 #include "scratchpad.h"
 #include "lpc/include/function.h"
-#include "efuns/file_utils.h"
 #include "misc/filepath.h"
 #include "src/main.h"
 

@@ -18,7 +18,7 @@
 void f_cp (void) {
   int i;
 
-  i = copy_file (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
+  i = do_copy_file (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp));
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_number (i);
@@ -42,7 +42,7 @@ void f_rename (void) {
 void f_rm (void) {
   int i;
 
-  i = remove_file (SVALUE_STRPTR(sp));
+  i = do_remove_file (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   put_number (i);
 }
@@ -158,7 +158,7 @@ void f_read_file (void) {
   else
     start = 0;
 
-  str = read_file (SVALUE_STRPTR(sp), start, len);
+  str = do_read_file (SVALUE_STRPTR(sp), start, len);
   free_string_svalue (sp);
   if (!str)
     *sp = const0;
@@ -172,7 +172,7 @@ void f_read_file (void) {
 void
 f_tail (void)
 {
-  if (tail (SVALUE_STRPTR(sp)))
+  if (do_tail_file (SVALUE_STRPTR(sp)))
     {
       free_string_svalue (sp);
       *sp = const1;
@@ -189,12 +189,14 @@ f_tail (void)
 #ifdef F_WRITE_FILE
 void f_write_file (void) {
   int flags = 0;
+  size_t len;
 
   if (st_num_arg == 3)
     {
       flags = (int)(sp--)->u.number;
     }
-  flags = write_file (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), flags);
+  len = SVALUE_STRLEN (sp);
+  flags = do_write_file (SVALUE_STRPTR(sp - 1), SVALUE_STRPTR(sp), len, flags);
   free_string_svalue (sp--);
   free_string_svalue (sp);
   put_number (flags);
@@ -203,7 +205,7 @@ void f_write_file (void) {
 
 #ifdef F_FILE_SIZE
 void f_file_size (void) {
-  int i = file_size (SVALUE_STRPTR(sp));
+  int i = get_file_size (SVALUE_STRPTR(sp));
   free_string_svalue (sp);
   put_number (i);
 }
@@ -312,7 +314,7 @@ void f_link (void) {
 
 #ifdef F_READ_BYTES
 void f_read_bytes (void) {
-  char *str;
+  malloc_str_t str;
   long start = 0;
   size_t len = 0, rlen = 0;
   int num_arg = st_num_arg;
@@ -325,7 +327,7 @@ void f_read_bytes (void) {
     {
       len = (size_t)arg[2].u.number;
     }
-  str = read_bytes (SVALUE_STRPTR(&arg[0]), start, len, &rlen);
+  str = do_read_bytes (SVALUE_STRPTR(&arg[0]), start, len, &rlen);
   pop_n_elems (num_arg);
   if (str == 0)
     push_number (0);
@@ -339,11 +341,11 @@ void f_read_bytes (void) {
 
 #ifdef F_READ_BUFFER
 void f_read_buffer (void) {
-  char *str;
+  malloc_str_t str;
   long start = 0;
   size_t len = 0, rlen = 0;
   int num_arg = st_num_arg;
-  int from_file = 0;		/* new line */
+  bool from_file = false;		/* new line */
   svalue_t *arg = sp - num_arg + 1;
 
   if (num_arg > 1)
@@ -356,8 +358,8 @@ void f_read_buffer (void) {
     }
   if (arg[0].type == T_STRING)
     {
-      from_file = 1;		/* new line */
-      str = read_bytes (SVALUE_STRPTR(&arg[0]), start, len, &rlen);
+      from_file = true;		/* new line */
+      str = do_read_bytes (SVALUE_STRPTR(&arg[0]), start, len, &rlen);
     }
   else
     {				/* T_BUFFER */
@@ -369,9 +371,8 @@ void f_read_buffer (void) {
       push_number (0);
     }
   else if (from_file)
-    {				/* changed */
+    {
       buffer_t *buf;
-
       buf = allocate_buffer (rlen);
       memcpy (buf->item, str, rlen);
       (++sp)->u.buf = buf;
@@ -401,17 +402,15 @@ void f_write_bytes (void) {
           bad_arg (3, F_WRITE_BYTES);
         netint = htonl ((unsigned long)sp->u.number);	/* convert to network byte-order */
         netbuf = (char *) &netint;
-        i = write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number, netbuf, sizeof (int));
+        i = do_write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number, netbuf, sizeof (int));
         break;
       }
 
     case T_BUFFER:
-      i = write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number,
-                       (char *) sp->u.buf->item, sp->u.buf->size);
+      i = do_write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number, (char *) sp->u.buf->item, sp->u.buf->size);
       break;
     case T_STRING:
-      i = write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number,
-                       SVALUE_STRPTR(sp), SVALUE_STRLEN (sp));
+      i = do_write_bytes (SVALUE_STRPTR(sp - 2), (long)(sp - 1)->u.number, SVALUE_STRPTR(sp), SVALUE_STRLEN (sp));
       break;
     default:
       bad_argument (sp, T_BUFFER | T_STRING | T_NUMBER, 3, F_WRITE_BYTES);

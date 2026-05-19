@@ -10,7 +10,6 @@
 #include "lpc/program/binaries.h"
 #include "lpc/program/generate.h"
 #include "lpc/include/runtime_config.h"
-#include "efuns/file_utils.h"
 #include "src/main.h"
 
 #include <sys/stat.h>
