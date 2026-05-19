@@ -744,6 +744,7 @@ int do_write_bytes (const char *file, long start, const char *str, size_t theLen
   ); /* create the file if it does not exist, do not truncate */
   if (-1 == fd)
     {
+      debug_perror ("open()", SVALUE_STRPTR (sp));
       pop_stack ();
       return 0;
     }
@@ -751,12 +752,17 @@ int do_write_bytes (const char *file, long start, const char *str, size_t theLen
   pop_stack (); /* done with path; fd is open */
   f = fdopen (fd, "r+");
   if (!f) {
+    debug_perror ("fdopen()", file);
     close (fd);
     return 0;
   }
 
   if (fstat (fd, &st) == -1)
-    fatal ("Could not stat an open file.\n");
+    {
+      debug_perror ("fstat()", file);
+      fclose (f);
+      return 0;
+    }
   size = st.st_size;
   if (start < 0) /* negative start position means offset from end-of-file */
     start = (long)size + start;
@@ -767,10 +773,18 @@ int do_write_bytes (const char *file, long start, const char *str, size_t theLen
     }
   if ((size = fseek (f, start, 0)) != 0)
     {
+      debug_perror ("fseek()", file);
       fclose (f);
       return 0;
     }
   size = fwrite (str, 1, theLength, f);
+
+  if (ferror (f))
+    {
+      debug_perror ("fwrite()", file);
+      fclose (f);
+      return 0;
+    }
 
   fclose (f);
 
