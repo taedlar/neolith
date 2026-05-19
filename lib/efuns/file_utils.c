@@ -20,8 +20,8 @@
 #endif
 
 static int match_string (const char *, const char *);
-static int copy (const char *from, const char *to);
-static int do_move_file (const char *from, const char *to, int flag);
+static int copy (const char *from, const char *to, const char *from_log);
+static int do_move_file (const char *from, const char *to, const char *from_log, const char *to_log, int flag);
 static int pstrcmp (const void *, const void *);
 static int parrcmp (const void *, const void *);
 static void encode_stat (svalue_t *, int, const char *, struct stat *);
@@ -406,13 +406,13 @@ int do_tail_file (const char *path) {
   f = fopen (resolved_path, "r");
   if (f == 0)
     {
-      debug_perror ("fopen()", resolved_path);
+      debug_perror ("fopen()", path);
       return 0;
     }
 
   if (fstat (fileno (f), &st) == -1)
     {
-      debug_perror ("fstat()", resolved_path);
+      debug_perror ("fstat()", path);
       fclose (f);
       return 0;
     }
@@ -422,7 +422,7 @@ int do_tail_file (const char *path) {
     offset = 0;
   if (fseek (f, offset, 0) == -1)
     {
-      debug_perror ("fseek()", resolved_path);
+      debug_perror ("fseek()", path);
       fclose (f);
       return 0;
     }
@@ -479,10 +479,13 @@ int do_remove_file (const char *path) {
  */
 int do_write_file (const char *file, const char *str, size_t len, int flags) {
   FILE *f;
+  char resolved_path[PATH_MAX + 2];
   size_t n_written;
 
   if (!push_resolved_valid_path (file, current_object, "write_file", 1))
     return 0;
+  strncpy (resolved_path, SVALUE_STRPTR (sp), sizeof (resolved_path) - 1);
+  resolved_path[sizeof (resolved_path) - 1] = '\0';
   f = fopen (SVALUE_STRPTR (sp), (flags & 1) ? "w" : "a");
   pop_stack ();
   if (f == 0)
@@ -527,8 +530,6 @@ malloc_str_t do_read_file (const char *path, long start, size_t len) {
 #else
   fd = open (SVALUE_STRPTR (sp), O_RDONLY);
 #endif
-  strncpy (path_copy, SVALUE_STRPTR (sp), PATH_MAX - 1);
-  path_copy[PATH_MAX - 1] = '\0';
   pop_stack ();
   if (-1 == fd)
     return 0;
@@ -712,13 +713,13 @@ malloc_str_t do_read_bytes (const char *file, long start, size_t len, size_t *rl
   f = fopen (resolved_path, "rb");
   if (f == NULL)
     {
-      debug_perror ("fopen()", resolved_path);
+      debug_perror ("fopen()", file);
       return 0;
     }
 
   if (fstat (fileno (f), &st) == -1)
     {
-      debug_perror ("fstat()", resolved_path);
+      debug_perror ("fstat()", file);
       fclose (f);
       return 0;
     }
@@ -745,7 +746,7 @@ malloc_str_t do_read_bytes (const char *file, long start, size_t len, size_t *rl
 
   if (fseek (f, start, 0) < 0)
     {
-      debug_perror ("fseek()", resolved_path);
+      debug_perror ("fseek()", file);
       fclose (f);
       return 0;
     }
@@ -756,7 +757,7 @@ malloc_str_t do_read_bytes (const char *file, long start, size_t len, size_t *rl
 
   if (ferror (f))
     {
-      debug_perror ("fread()", resolved_path);
+      debug_perror ("fread()", file);
       fclose (f);
       FREE_MSTR (str);
       return 0;
@@ -787,6 +788,7 @@ malloc_str_t do_read_bytes (const char *file, long start, size_t len, size_t *rl
 int do_write_bytes (const char *file, long start, const char *str, size_t theLength) {
   struct stat st;
   size_t size;
+  char resolved_path[PATH_MAX + 2];
   int fd;
   FILE *f;
 
@@ -798,6 +800,9 @@ int do_write_bytes (const char *file, long start, const char *str, size_t theLen
       return 0;
     }
 
+  strncpy (resolved_path, SVALUE_STRPTR (sp), sizeof (resolved_path) - 1);
+  resolved_path[sizeof (resolved_path) - 1] = '\0';
+
   fd = open (SVALUE_STRPTR (sp), O_CREAT | O_RDWR
 #ifndef _WIN32
     , S_IRUSR | S_IWUSR
@@ -805,7 +810,7 @@ int do_write_bytes (const char *file, long start, const char *str, size_t theLen
   ); /* create the file if it does not exist, do not truncate */
   if (-1 == fd)
     {
-      debug_perror ("open()", SVALUE_STRPTR (sp));
+      debug_perror ("open()", file);
       pop_stack ();
       return 0;
     }
@@ -898,7 +903,7 @@ int get_file_size (const char *file) {
  * Return 0 if success, or return non-zero if fails.
  * */
 static int
-copy (const char *from, const char *to)
+copy (const char *from, const char *to, const char *from_log)
 {
   int ifd;
   int ofd;
@@ -916,7 +921,7 @@ copy (const char *from, const char *to)
   }
   if (!S_ISREG (from_stats.st_mode)) /* is regular file ? */
     {
-      debug_message ("copy(): not a regular file: /%s\n", from);
+      debug_message ("copy(): not a regular file: %s\n", from_log);
       close (ifd);
       return -1;
     }
@@ -991,7 +996,7 @@ copy (const char *from, const char *to)
  * Efun failure contract (rename/link backend):
  * return non-zero failure codes and do not throw via error()/fatal().
  */
-static int do_move_file (const char *from, const char *to, int flag) {
+static int do_move_file (const char *from, const char *to, const char *from_log, const char *to_log, int flag) {
   if (flag == F_RENAME)
     {
       if (0 == rename (from, to))
@@ -999,20 +1004,22 @@ static int do_move_file (const char *from, const char *to, int flag) {
 
       if (errno != EXDEV)
         {
-          debug_perror ("rename()", to);
+          debug_perror ("rename()", to_log);
           return 1;
         }
 
       /* rename failed on cross-filesystem link.  Copy the file instead. */
-      if (0 != copy (from, to))
+      if (0 != copy (from, to, from_log))
         {
-          debug_message ("rename(): cannot copy '/%s' to '/%s'\n", from, to);
+          debug_message ("rename(): cannot copy '%s' to '%s'\n",
+            from_log,
+            to_log);
           return 1;
         }
 
       if (0 != unlink (from))
         {
-          debug_perror ("unlink()", from);
+          debug_perror ("unlink()", from_log);
           return 1;
         }
 
@@ -1023,7 +1030,7 @@ static int do_move_file (const char *from, const char *to, int flag) {
     {
       if (symlink (from, to) == 0)	/* symbolic link */
         return 0;
-      debug_perror ("symlink()", to);
+      debug_perror ("symlink()", to_log);
       return 1;
     }
 #endif
@@ -1046,7 +1053,10 @@ static int do_move_file (const char *from, const char *to, int flag) {
 int do_rename (const char *fr, const char *t, int flag) {
   const char *from, *to;
   const char *mudlib_dir;
+  const char *to_log = t;
   char tbuf[3];
+  char from_log[PATH_MAX + 2];
+  char to_log_buf[PATH_MAX + 2];
   char normalized_from[PATH_MAX + 2];
   struct stat st;
   /*
@@ -1080,6 +1090,11 @@ int do_rename (const char *fr, const char *t, int flag) {
       debug_message ("rename(): source path too long\n");
       return 1;
     }
+  if (!filepath_strip_trailing_separators (fr, from_log, sizeof (from_log)))
+    {
+      strncpy (from_log, fr, sizeof (from_log) - 1);
+      from_log[sizeof (from_log) - 1] = '\0';
+    }
   from = normalized_from;
 
   int result;
@@ -1094,6 +1109,8 @@ int do_rename (const char *fr, const char *t, int flag) {
           debug_message ("rename(): destination path too long\n");
           return 1;
         }
+      if (filepath_join_dir_and_basename (t, fr, to_log_buf, sizeof (to_log_buf)))
+        to_log = to_log_buf;
       if (!mudlib_dir || !*mudlib_dir || !is_path_within_root (newto, mudlib_dir))
         {
           pop_n_elems (2);
@@ -1101,10 +1118,10 @@ int do_rename (const char *fr, const char *t, int flag) {
           return 1;
         }
 
-      result = do_move_file (from, newto, flag);
+      result = do_move_file (from, newto, from_log, to_log, flag);
     }
   else
-    result = do_move_file (from, to, flag);
+    result = do_move_file (from, to, from_log, to_log, flag);
 
   pop_n_elems (2); /* from and to */
   return result;
@@ -1120,7 +1137,6 @@ int do_rename (const char *fr, const char *t, int flag) {
  * Both input paths are validated through master object permission checks and
  * resolved to sandboxed absolute paths before any filesystem operation.
  *
- * Destination behavior matches classic cp semantics used by this driver:
  * if @p to refers to an existing directory, the basename of @p from is
  * appended and the file is copied into that directory.
  *
@@ -1138,6 +1154,8 @@ int do_copy_file (const char *from, const char *to) {
   struct stat st;
   char buf[32768];
   const char *mudlib_dir;
+  const char *from_log = from;
+  const char *to_log = to;
   int from_fd, to_fd;
   int num_read, num_written;
   char *write_ptr;
@@ -1168,7 +1186,7 @@ int do_copy_file (const char *from, const char *to) {
   from_fd = open (from, O_RDONLY);
   if (from_fd < 0)
     {
-      debug_perror ("open()", from);
+      debug_perror ("open()", from_log);
       return (-1);
     }
 
@@ -1191,7 +1209,7 @@ int do_copy_file (const char *from, const char *to) {
   to_fd = open (to, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   if (to_fd < 0)
     {
-      debug_perror ("open()", to);
+      debug_perror ("open()", to_log);
       close (from_fd);
       return (-2);
     }
@@ -1200,7 +1218,7 @@ int do_copy_file (const char *from, const char *to) {
     {
       if (num_read < 0)
         {
-          debug_perror ("read()", from);
+          debug_perror ("read()", from_log);
           close (from_fd);
           close (to_fd);
           return (-3);
@@ -1212,7 +1230,7 @@ int do_copy_file (const char *from, const char *to) {
           num_written = write (to_fd, write_ptr, num_read);
           if (num_written < 0)
             {
-              debug_perror ("write()", to);
+              debug_perror ("write()", to_log);
               close (from_fd);
               close (to_fd);
               return (-3);
