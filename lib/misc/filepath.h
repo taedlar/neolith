@@ -11,6 +11,7 @@ extern "C" {
   #define true 1
   #define false 0
 #endif
+#include <stddef.h>
 
 /**
  * @brief Checks if the given path only contains valid characters and does not
@@ -49,6 +50,29 @@ bool is_path_descendant(const char *path);
  * @return true if the path is within the root, false otherwise.
  */
 bool is_path_within_root(const char *path, const char *root);
+
+/**
+ * @brief Remove trailing directory separators from a path.
+ *
+ * Keeps root paths intact (for example, "/" remains "/").
+ *
+ * @param path Input path.
+ * @param out Caller-provided destination buffer.
+ * @param out_size Size of @p out in bytes.
+ * @return true on success, false if input is invalid or output buffer is too small.
+ */
+bool filepath_strip_trailing_separators(const char *path, char *out, size_t out_size);
+
+/**
+ * @brief Build a destination path by joining a directory and basename(path).
+ *
+ * @param dir Destination directory path.
+ * @param path Source path used to extract the basename.
+ * @param out Caller-provided destination buffer.
+ * @param out_size Size of @p out in bytes.
+ * @return true on success, false if inputs are invalid or output buffer is too small.
+ */
+bool filepath_join_dir_and_basename(const char *dir, const char *path, char *out, size_t out_size);
 
 /* legacy LPMud file path validation. Now refactored to use C++17 filesystem */
 static inline bool legal_path(const char *path) { return is_path_descendant(path); }

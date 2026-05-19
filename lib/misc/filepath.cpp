@@ -105,3 +105,52 @@ bool is_path_within_root(const char *path, const char *root) {
 
   return true;
 }
+
+bool filepath_strip_trailing_separators(const char *path, char *out, size_t out_size) {
+  if (!path || !out || out_size == 0) {
+    return false;
+  }
+
+  try {
+    std::string normalized = fs::path(path).generic_string();
+    if (normalized.empty()) {
+      return false;
+    }
+
+    while (normalized.size() > 1 && normalized.back() == '/') {
+      normalized.pop_back();
+    }
+
+    if (normalized.size() >= out_size) {
+      return false;
+    }
+
+    std::memcpy(out, normalized.c_str(), normalized.size() + 1);
+    return true;
+  } catch (...) {
+    return false;
+  }
+}
+
+bool filepath_join_dir_and_basename(const char *dir, const char *path, char *out, size_t out_size) {
+  if (!dir || !path || !out || out_size == 0) {
+    return false;
+  }
+
+  try {
+    fs::path base = fs::path(path).filename();
+    if (base.empty()) {
+      return false;
+    }
+
+    std::string joined = (fs::path(dir) / base).generic_string();
+    if (joined.size() >= out_size) {
+      return false;
+    }
+
+    std::memcpy(out, joined.c_str(), joined.size() + 1);
+    return true;
+  } catch (...) {
+    return false;
+  }
+}

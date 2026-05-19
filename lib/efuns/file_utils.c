@@ -2,13 +2,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#ifdef HAVE_DIRENT_H
-#include <dirent.h>
-#endif
-
 #include "src/std.h"
 #include "rc.h"
 #include "lpc/array.h"
@@ -19,11 +12,16 @@
 
 #include "file_utils.h"
 
-extern int sys_nerr;
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#endif
 
 static int match_string (const char *, const char *);
 static int copy (const char *from, const char *to);
-static int do_move (const char *from, const char *to, int flag);
+static int do_move_file (const char *from, const char *to, int flag);
 static int pstrcmp (const void *, const void *);
 static int parrcmp (const void *, const void *);
 static void encode_stat (svalue_t *, int, const char *, struct stat *);
@@ -69,6 +67,48 @@ encode_stat (svalue_t * vp, int flags, const char *str, struct stat *st)
   else
     {
       SET_SVALUE_MALLOC_STRING(vp, string_copy (str, "encode_stat"));
+    }
+}
+
+static int
+match_string (const char *match, const char *str)
+{
+  int i;
+
+again:
+  if (*str == '\0' && *match == '\0')
+    return 1;
+  switch (*match)
+    {
+    case '?':
+      if (*str == '\0')
+        return 0;
+      str++;
+      match++;
+      goto again;
+    case '*':
+      match++;
+      if (*match == '\0')
+        return 1;
+      for (i = 0; str[i] != '\0'; i++)
+        if (match_string (match, str + i))
+          return 1;
+      return 0;
+    case '\0':
+      return 0;
+    case '\\':
+      match++;
+      if (*match == '\0')
+        return 0;
+      /* Fall through ! */
+    default:
+      if (*match == *str)
+        {
+          match++;
+          str++;
+          goto again;
+        }
+      return 0;
     }
 }
 
@@ -330,6 +370,10 @@ array_t* get_dir (const char *path, int flags) {
 #endif /* F_GET_DIR || F_STAT */
 
 #ifdef F_TAIL
+/*
+ * Efun failure contract (tail): do not throw via error()/fatal().
+ * Log with debug_perror()/debug_message() and return 0 on failure, 1 on success.
+ */
 int do_tail_file (const char *path) {
   char buff[1000];
   char resolved_path[PATH_MAX + 2];
@@ -429,6 +473,9 @@ int do_remove_file (const char *path) {
  *               Other bits are reserved for future use.
  *  @returns Return 0 for failure, otherwise 1.
  *  @see docs/efuns/write_file.md
+ *
+ *  Efun failure contract: do not call error()/fatal() for I/O failures.
+ *  Log diagnostics and return 0 for failure.
  */
 int do_write_file (const char *file, const char *str, size_t len, int flags) {
   FILE *f;
@@ -456,6 +503,9 @@ int do_write_file (const char *file, const char *str, size_t len, int flags) {
  *  @param file The file to read.
  *  @param start The line number to start reading from (1-based). If < 1, start from line 1.
  *  @param len The number of lines to read. If < 1, read the entire file.
+ *
+ *  Efun failure contract: return 0 on failures and avoid error()/fatal().
+ *  Use debug_perror()/debug_message() for diagnostics.
  */
 malloc_str_t do_read_file (const char *path, long start, size_t len) {
   char path_copy[PATH_MAX];
@@ -541,7 +591,9 @@ malloc_str_t do_read_file (const char *path, long start, size_t len) {
           if (ferror (f))
             {
               debug_perror ("fread()", path_copy);
-              error ("Failed reading file.");
+              fclose (f);
+              FREE_MSTR (str);
+              return 0;
             }
           opt_trace (TT_EVAL|0, "fread(): EOF before start line");
           fclose (f);
@@ -623,6 +675,11 @@ malloc_str_t do_read_file (const char *path, long start, size_t len) {
 
 
 #if defined(F_READ_BYTES) || defined(F_READ_BUFFER)
+/*
+ * Efun failure contract (read_bytes/read_buffer file path):
+ * return 0 on failure; do not throw via error()/fatal().
+ * Emit diagnostics via debug_perror()/debug_message().
+ */
 malloc_str_t do_read_bytes (const char *file, long start, size_t len, size_t *rlen) {
   struct stat st;
   FILE *f;
@@ -675,7 +732,7 @@ malloc_str_t do_read_bytes (const char *file, long start, size_t len, size_t *rl
   if (len > (size_t)CONFIG_INT (__MAX_BYTE_TRANSFER__))
     {
       fclose (f);
-      error ("Transfer exceeded maximum allowed number of bytes.\n");
+      debug_message ("read_bytes(): transfer exceeded maximum allowed number of bytes.\n");
       return 0;
     }
   if ((size_t)start >= size)
@@ -723,6 +780,10 @@ malloc_str_t do_read_bytes (const char *file, long start, size_t len, size_t *rl
 #endif /* F_READ_BYTES || F_READ_BUFFER */
 
 #ifdef F_WRITE_BYTES
+/*
+ * Efun failure contract (write_bytes): return 0 on failure, 1 on success.
+ * Keep this non-throwing: no error()/fatal() in file access paths.
+ */
 int do_write_bytes (const char *file, long start, const char *str, size_t theLength) {
   struct stat st;
   size_t size;
@@ -788,11 +849,7 @@ int do_write_bytes (const char *file, long start, const char *str, size_t theLen
 
   fclose (f);
 
-  if (size <= 0)
-    {
-      return 0;
-    }
-  return 1;
+  return size > 0 ? 1 : 0;
 }
 #endif /* F_WRITE_BYTES */
 
@@ -815,48 +872,6 @@ int get_file_size (const char *file) {
   return ret;
 }
 #endif /* F_FILE_SIZE */
-
-static int
-match_string (const char *match, const char *str)
-{
-  int i;
-
-again:
-  if (*str == '\0' && *match == '\0')
-    return 1;
-  switch (*match)
-    {
-    case '?':
-      if (*str == '\0')
-        return 0;
-      str++;
-      match++;
-      goto again;
-    case '*':
-      match++;
-      if (*match == '\0')
-        return 1;
-      for (i = 0; str[i] != '\0'; i++)
-        if (match_string (match, str + i))
-          return 1;
-      return 0;
-    case '\0':
-      return 0;
-    case '\\':
-      match++;
-      if (*match == '\0')
-        return 0;
-      /* Fall through ! */
-    default:
-      if (*match == *str)
-        {
-          match++;
-          str++;
-          goto again;
-        }
-      return 0;
-    }
-}
 
 /*
  * Credits for some of the code below goes to Free Software Foundation
@@ -901,7 +916,8 @@ copy (const char *from, const char *to)
   }
   if (!S_ISREG (from_stats.st_mode)) /* is regular file ? */
     {
-      error ("not a regular file: /%", from);
+      debug_message ("copy(): not a regular file: /%s\n", from);
+      close (ifd);
       return -1;
     }
 
@@ -971,7 +987,11 @@ copy (const char *from, const char *to)
    If TO is a directory, FROM must be also.
    Return 0 if successful, 1 if an error occurred.  */
 #ifdef F_RENAME
-static int do_move (const char *from, const char *to, int flag) {
+/*
+ * Efun failure contract (rename/link backend):
+ * return non-zero failure codes and do not throw via error()/fatal().
+ */
+static int do_move_file (const char *from, const char *to, int flag) {
   if (flag == F_RENAME)
     {
       if (0 == rename (from, to))
@@ -979,28 +999,36 @@ static int do_move (const char *from, const char *to, int flag) {
 
       if (errno != EXDEV)
         {
-          error ("cannot move `/%s' to `/%s'\n", from, to);
+          debug_perror ("rename()", to);
           return 1;
         }
 
       /* rename failed on cross-filesystem link.  Copy the file instead. */
-      if ((0 == copy (from, to)) && (0 == unlink (from)))
-        return 0;
+      if (0 != copy (from, to))
+        {
+          debug_message ("rename(): cannot copy '/%s' to '/%s'\n", from, to);
+          return 1;
+        }
 
-      error ("cannot copy `/%s' to `/%s'", from, to);
-      return 1;
+      if (0 != unlink (from))
+        {
+          debug_perror ("unlink()", from);
+          return 1;
+        }
+
+      return 0;
     }
 #ifdef F_LINK
   else if (flag == F_LINK)
     {
       if (symlink (from, to) == 0)	/* symbolic link */
         return 0;
-      error ("cannot link `/%s' to `/%s'", from, to);
+      debug_perror ("symlink()", to);
       return 1;
     }
 #endif
 
-  error ("invalid flag: %d", flag);
+  debug_message ("do_move_file(): invalid flag: %d\n", flag);
   return 1; /* invalid flag */
 }
 #endif /* F_RENAME */
@@ -1010,12 +1038,16 @@ static int do_move (const char *from, const char *to, int flag) {
  * of the unix system call rename and the unix command mv.
  */
 
-#ifdef F_RENAME
+#if defined(F_RENAME) || defined(F_LINK)
+/*
+ * Efun failure contract (rename/link): return non-zero on failure.
+ * Keep stack balanced and avoid error()/fatal() in normal failure paths.
+ */
 int do_rename (const char *fr, const char *t, int flag) {
   const char *from, *to;
+  const char *mudlib_dir;
   char tbuf[3];
-  char newfrom[PATH_MAX + 2];
-  size_t flen;
+  char normalized_from[PATH_MAX + 2];
   struct stat st;
   /*
    * Both paths are pushed onto the eval stack before any OS call.
@@ -1035,55 +1067,49 @@ int do_rename (const char *fr, const char *t, int flag) {
 
   from = SVALUE_STRPTR (sp - 1);
   to = SVALUE_STRPTR (sp);
+  mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
   if (!strlen (to) && !strcmp (t, "/"))
     {
       sprintf (tbuf, "./");
       to = tbuf;
     }
 
-  /* Strip trailing slashes */
-  flen = strlen (from);
-  if (flen > 1 && from[flen - 1] == '/')
+  if (!filepath_strip_trailing_separators (from, normalized_from, sizeof (normalized_from)))
     {
-      const char *p = from + flen - 2;
-      ptrdiff_t n;
-
-      while (*p == '/' && (p > from))
-        p--;
-      n = p - from + 1;
-      memcpy (newfrom, from, n);
-      newfrom[n] = 0;
-      from = newfrom;
+      pop_n_elems (2);
+      debug_message ("rename(): source path too long\n");
+      return 1;
     }
+  from = normalized_from;
 
   int result;
   if (0 == stat (to, &st) && (S_IFDIR & st.st_mode))
     {
       /* Target is a directory; build full target filename. */
-      const char *cp;
       char newto[PATH_MAX + 2];
 
-      cp = strrchr (from, '/');
-      if (cp)
-        cp++;
-      else
-        cp = from;
-
-      if (snprintf (newto, sizeof(newto), "%s/%s", to, cp) >= (int)sizeof(newto))
+      if (!filepath_join_dir_and_basename (to, from, newto, sizeof (newto)))
         {
           pop_n_elems (2);
-          error("File path too long.");
+          debug_message ("rename(): destination path too long\n");
+          return 1;
+        }
+      if (!mudlib_dir || !*mudlib_dir || !is_path_within_root (newto, mudlib_dir))
+        {
+          pop_n_elems (2);
+          debug_message ("rename(): destination path escapes mudlib root\n");
+          return 1;
         }
 
-      result = do_move (from, newto, flag);
+      result = do_move_file (from, newto, flag);
     }
   else
-    result = do_move (from, to, flag);
+    result = do_move_file (from, to, flag);
 
   pop_n_elems (2); /* from and to */
   return result;
 }
-#endif /* F_RENAME */
+#endif /* F_RENAME || F_LINK */
 
 #ifdef F_CP
 /**
@@ -1104,10 +1130,14 @@ int do_rename (const char *fr, const char *t, int flag) {
  * @return -1 if source validation/open/read fails.
  * @return -2 if destination validation/open/path construction fails.
  * @return -3 if read/write during copy fails.
+ *
+ * Efun failure contract: report failure via negative return codes.
+ * Do not throw via error()/fatal() for operational I/O failures.
  */
 int do_copy_file (const char *from, const char *to) {
   struct stat st;
   char buf[32768];
+  const char *mudlib_dir;
   int from_fd, to_fd;
   int num_read, num_written;
   char *write_ptr;
@@ -1133,6 +1163,7 @@ int do_copy_file (const char *from, const char *to) {
   pop_n_elems (2);
   from = from_buf;
   to = to_buf;
+  mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
 
   from_fd = open (from, O_RDONLY);
   if (from_fd < 0)
@@ -1144,28 +1175,16 @@ int do_copy_file (const char *from, const char *to) {
   char newto[PATH_MAX + 2];
   if (0 == stat (to, &st) && (S_IFDIR & st.st_mode))
     {
-      const char *cp;
-      size_t to_len;
-      size_t cp_len;
-
-      cp = strrchr (from, '/');
-      if (cp)
-        cp++;
-      else
-        cp = from;
-
-      to_len = strlen (to);
-      cp_len = strlen (cp);
-      if (to_len + 1 + cp_len >= sizeof (newto))
+      if (!filepath_join_dir_and_basename (to, from, newto, sizeof (newto)))
         {
           close (from_fd);
           return (-2);
         }
-
-      memcpy (newto, to, to_len);
-      newto[to_len] = '/';
-      memcpy (newto + to_len + 1, cp, cp_len);
-      newto[to_len + 1 + cp_len] = '\0';
+      if (!mudlib_dir || !*mudlib_dir || !is_path_within_root (newto, mudlib_dir))
+        {
+          close (from_fd);
+          return (-2);
+        }
       to = newto;
     }
 
