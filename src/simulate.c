@@ -2257,10 +2257,10 @@ void setup_simulate() {
   if (!CONFIG_STR(__MUD_LIB_DIR__))
     fatal ("unable to determine mudlib directory.");
 
-  /* Resolve absolute path of mudlib directory (with current working directory) */
-  if (!realpath (CONFIG_STR (__MUD_LIB_DIR__), MAIN_OPTION(mudlib_dir_absolute)))
+  /* Resolve absolute path of mudlib directory relative to the config file location */
+  if (!filepath_resolve_mudlib_dir (CONFIG_STR (__MUD_LIB_DIR__), MAIN_OPTION(config_file),
+                                    MAIN_OPTION(mudlib_dir_absolute), PATH_MAX))
     {
-      debug_perror ("realpath", CONFIG_STR (__MUD_LIB_DIR__));
       LOG_FATAL ("{}\t***** cannot resolve mudlib directory: \"%s\"\n", CONFIG_STR (__MUD_LIB_DIR__));
       exit (EXIT_FAILURE);
     }

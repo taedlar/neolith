@@ -63,7 +63,7 @@ typedef struct {
 typedef enum {
     CONSOLE_TYPE_NONE = 0,
     CONSOLE_TYPE_REAL,    /**< Real console (Windows) or TTY (POSIX with termios) */
-    CONSOLE_TYPE_PIPE,    /**< Pipe (e.g., testbot.py piping input) */
+    CONSOLE_TYPE_PIPE,    /**< Pipe (e.g., testbot piping input) */
     CONSOLE_TYPE_FILE     /**< File (stdin redirected from file) */
 } console_type_t;
 

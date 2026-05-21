@@ -131,17 +131,6 @@ Get-Content commands.txt | .\neolith.exe -f neolith.conf -c
 
 The driver processes commands until EOF and then shuts down for pipe or file modes.
 
-### Python Automation
-
-Use [examples/testbot.py](../../examples/testbot.py):
-
-~~~sh
-cd examples
-python testbot.py
-~~~
-
-Also see [docs/manual/testbot.md](testbot.md) for broader automation guidance.
-
 ## Unit Tests
 
 Current console-mode coverage is in [tests/test_console_worker](../../tests/test_console_worker):

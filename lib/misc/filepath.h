@@ -74,6 +74,23 @@ bool filepath_strip_trailing_separators(const char *path, char *out, size_t out_
  */
 bool filepath_join_dir_and_basename(const char *dir, const char *path, char *out, size_t out_size);
 
+/**
+ * @brief Resolve a mudlib directory path relative to the configuration file's location.
+ *
+ * If @p mudlib_dir is a relative path, it is resolved relative to the directory
+ * containing @p config_file. Absolute paths are used as-is. The result is
+ * canonicalized (symlinks resolved, . and .. collapsed) and written to @p out.
+ *
+ * @param mudlib_dir  Path to the mudlib directory (absolute or relative).
+ * @param config_file Path to the configuration file whose directory is used as
+ *                    the base for relative @p mudlib_dir values.
+ * @param out         Caller-provided destination buffer for the resolved path.
+ * @param out_size    Size of @p out in bytes.
+ * @return true on success, false if inputs are invalid or the path cannot be resolved.
+ */
+bool filepath_resolve_mudlib_dir(const char *mudlib_dir, const char *config_file,
+                                 char *out, size_t out_size);
+
 /* legacy LPMud file path validation. Now refactored to use C++17 filesystem */
 static inline bool legal_path(const char *path) { return is_path_descendant(path); }
 

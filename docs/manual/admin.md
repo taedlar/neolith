@@ -78,7 +78,7 @@ The source code of Neolith includes an example configuration in [src/neolith.con
 Below is a list of settings that are mandatory.
 Name | Value |
 --- | --- |
-`MudlibDir` | Full-path of the mudlib directory in the host filesystem. |
+`MudlibDir` | Path of the mudlib directory in the host filesystem. It must be a full-path or relative path from the location of configuration file. |
 `MasterFile` | The file path of the privileged master object. |
 `Port` | The TCP port for which your MUD shall listen for new connections. |
 
