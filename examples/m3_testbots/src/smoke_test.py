@@ -6,11 +6,6 @@ This testing robot demonstrates how to test the Neolith driver in console mode b
 piping commands to stdin and validating output. Use this as a template for creating 
 more advanced test automation scripts.
 
-Platform support:
-- Linux/WSL: ✅ Phase 1 complete - pipes work correctly
-- Windows: ✅ Phase 2 complete - pipes work correctly
-  See docs/manual/console-testbot-support.md for design details
-
 How it works:
 - Uses pexpect.PopenSpawn for robust interactive process control
 - Sends commands line-by-line with interactive pattern matching
@@ -20,18 +15,14 @@ How it works:
 - Test validates clean exit with code 0
 
 Usage:
-    cd examples
-    python testbot.py [driver arguments...]
-    
-    Examples:
-        python testbot.py              # Basic test with default config
-        python testbot.py -r5          # Test with max recursion depth 5
-        python testbot.py --debug      # Test with debug flags
+        hatch run smoke_test              # Basic test with default config
+        hatch run smoke_test -r5          # Test with max recursion depth 5
+        hatch run smoke_test --debug      # Test with debug flags
 
     Any arguments after the script name are passed directly to the driver.
 
 Requirements:
-    pip install pexpect
+    pexpect
 """
 
 import sys
@@ -58,13 +49,13 @@ def test_console_mode():
     
     # Determine paths (relative to examples/ directory)
     if os.name == 'nt':  # Windows
-        driver_path = Path("../out/build/vs16-x64/src/RelWithDebInfo/neolith.exe")
+        driver_path = Path("../../out/build/vs16-x64/src/RelWithDebInfo/neolith.exe")
         if not driver_path.exists():
-            driver_path = Path("../out/build/clang-x64/src/RelWithDebInfo/neolith.exe")
+            driver_path = Path("../../out/build/clang-x64/src/RelWithDebInfo/neolith.exe")
     else:  # Linux/WSL
-        driver_path = Path("../out/build/linux/src/RelWithDebInfo/neolith")
+        driver_path = Path("../../out/build/linux/src/RelWithDebInfo/neolith")
     
-    config_path = Path("m3.conf")
+    config_path = Path("../m3.conf")
     
     # Verify files exist
     if not driver_path.exists():

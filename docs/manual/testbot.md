@@ -2,7 +2,8 @@
 
 ## Overview
 
-Neolith supports automated testing via piped stdin on both Linux/WSL and Windows platforms. This enables `testbot.py` and similar automation scripts to send commands to the driver non-interactively, making regression testing and CI/CD integration possible.
+Neolith supports automated testing via piped stdin on both Linux/WSL and Windows platforms.
+This enables automation scripts to send commands to the driver non-interactively, making regression testing and CI/CD integration possible.
 
 ## Design Principle
 
@@ -53,16 +54,19 @@ This distinction enables automated tests to exit cleanly while preserving intera
 
 ### Automated Testing
 
+Using regular shell and piped stdin/stdout:
 ```bash
 # Linux/WSL
 echo -e "say test\nshutdown" | neolith -f config.conf -c
 
 # Windows
 "say test`nshutdown" | neolith.exe -f config.conf -c
+```
 
-# Python testbot
-cd examples
-python testbot.py
+Using a testbot (with Python `pexpect`):
+```bash
+cd examples/m3_testbots
+hatch run smoke_test
 ```
 
 ### Testing Strategy
@@ -121,4 +125,4 @@ For detailed implementation information, see:
 - [Async Library Design](../internals/async-library.md) - Unified async runtime architecture
 - [Console Worker Implementation](../../lib/async/console_worker.c) - Platform-specific console handling
 - [Examples Guide](../../examples/README.md) - Testing procedures and troubleshooting
-- [testbot.py](../../examples/testbot.py) - Testing robot template
+- [m3_testbots](../../examples/m3_testbots) - Example testbots using M3 mudlib

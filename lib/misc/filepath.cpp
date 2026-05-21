@@ -154,3 +154,40 @@ bool filepath_join_dir_and_basename(const char *dir, const char *path, char *out
     return false;
   }
 }
+
+bool filepath_resolve_mudlib_dir(const char *mudlib_dir, const char *config_file,
+                                 char *out, size_t out_size) {
+  if (!mudlib_dir || !config_file || !out || out_size == 0)
+    return false;
+
+  try {
+    fs::path mud_path(mudlib_dir);
+    fs::path base;
+
+    if (mud_path.is_absolute())
+      {
+        base = mud_path;
+      }
+    else
+      {
+        fs::path config_dir = fs::path(config_file).parent_path();
+        if (config_dir.empty())
+          config_dir = ".";
+        base = config_dir / mud_path;
+      }
+
+    std::error_code ec;
+    fs::path canonical = fs::weakly_canonical(base, ec);
+    if (ec)
+      return false;
+
+    std::string result = canonical.generic_string();
+    if (result.size() >= out_size)
+      return false;
+
+    std::memcpy(out, result.c_str(), result.size() + 1);
+    return true;
+  } catch (...) {
+    return false;
+  }
+}

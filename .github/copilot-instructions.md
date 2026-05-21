@@ -113,20 +113,13 @@ Example:
 ctest --test-dir out/build/clang-x64 -R RelWithDebInfo --build-and-test
 ```
 
-#### Testing complex interactions with a testing robot
-- Use [examples/testbot.py](examples/testbot.py) to script multi-user interaction tests.
-- Setup:
-```bash
-python -m venv .venv
-.venv\Scripts\activate.bat  # Windows
-source .venv/bin/activate  # Linux/WSL
-python -m pip install pexpect
-```
-
+#### Integrated Smoke Testing with M3 Testbot
+- Use `examples/m3_testbots` for integration testing involving simulation of user interactions.
+- Update `examples/m3_testbots/src/smoke_test.py` with test scenarios as needed.
 - Run:
 ```bash
-cd examples
-python testbot.py
+cd examples/m3_testbots
+hatch run smoke_test
 ```
 
 ## Code Conventions & Patterns

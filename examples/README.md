@@ -17,23 +17,14 @@ A minimal example mudlib demonstrating core LPC functionality:
 - `shutdown` - Shutdown the driver (console mode)
 - `curlget <url>` - Fetch a URL asynchronously when the driver is built with `PACKAGE_CURL`
 
-### testbot.py
-Example of an automated **testing robot** using console mode.
-The python script runs Neolith with `popen` and enables console mode to send command and receive outputs via piped stdin/stdout of the LPMud server process.
-
-**Purpose**: Validate cross-platform piped stdin support for automated testing.
-
-**Platform Support**:
-- ✅ Linux/WSL
-- ✅ Windows
-- Requires `pexpect` python module for interaction with the mudlib. It can be installed via `pip install pexpect`.
+### m3_testbots/
+Examples of automated **testbots** using console mode.
+The python scripts run Neolith with `popen` and enables console mode to send command and receive outputs via piped stdin/stdout of the LPMud server process.
 
 **Usage**:
-- Create a python virtual environment and install `pexpect`.
-- Activate the virtual environment
 ```bash
-cd examples
-python testbot.py
+cd examples/m3_testbots
+hatch run smoke_test
 ```
 
 **How It Works**:
@@ -133,7 +124,7 @@ echo -e "say test\nhelp\nshutdown" | /path/to/neolith -f m3.conf -c
 - Linux: Use `\n` in echo with `-e` flag
 
 ### Test timeout
-If testbot.py times out, the driver might not be exiting cleanly. Check:
+If a testbot times out, the driver might not be exiting cleanly. Check:
 - Shutdown command is included in test commands
 - Driver logs don't show errors preventing shutdown
 - No infinite loops in LPC code
