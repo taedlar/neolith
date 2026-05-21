@@ -181,7 +181,7 @@ bool filepath_resolve_mudlib_dir(const char *mudlib_dir, const char *config_file
     if (ec)
       return false;
 
-    std::string result = canonical.string();
+    std::string result = canonical.generic_string();
     if (result.size() >= out_size)
       return false;
 

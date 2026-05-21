@@ -58,7 +58,7 @@ For example:
 neolith -f neolith.conf -c mudlib/adm/apps/migrate_player_file.c
 ```
 > [!NOTE]
-> To prevent ambiguity, if configuration file is specified, neolith requires the mudlib directory be explicitly define with `MudlibDir`.
+> To prevent ambiguity, if configuration file is specified, neolith requires the mudlib directory be explicitly defined with `MudlibDir`.
 > Specifying a MUD application outside the mudlib directory will be rejected.
 
 A regular MUD application shares the same configuration settings with the production MUD server (e.g. simul efuns), while starting with its own [`epilog()`](/docs/applies/master/epilog.md) stage, its own [`connect()`](/docs/applies/master/connect.md) interface, and all the policies controlled by master file.

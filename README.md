@@ -72,7 +72,7 @@ neolith -f /path/to/neolith.conf
 ~~~
 
 ### Quick Start & Testing
-Neolith includes a minimal mudlib testsuite in [examples/m3_mudlib/](examples/m3_mudlib/) and a pexpect-based testing framework in [example/m3_testbots](examples/m3_testbots/).
+Neolith includes a minimal mudlib testsuite in [examples/m3_mudlib/](examples/m3_mudlib/) and a pexpect-based testing framework in [examples/m3_testbots](examples/m3_testbots/).
 
 ~~~sh
 # Start the M3 mudlib and login as console user
@@ -82,7 +82,7 @@ cd examples
 
 For automated testing, first build Neolith with `pr-*` or `ci-*` preset, and run (requires [hatch](https://pypi.org/project/hatch/)):
 ~~~sh
-# Run automated testbots against M3 mudlib using localy built LPMud driver
+# Run automated testbots against M3 mudlib using locally built LPMud driver
 cd examples/m3_testbots
 hatch run smoke_test
 ~~~

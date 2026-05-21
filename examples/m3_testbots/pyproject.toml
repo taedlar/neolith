@@ -28,20 +28,8 @@ dependencies = [
   "pexpect",
 ]
 
-[project.scripts]
-smoke_test = "smoke_test:test_console_mode"
+[tool.hatch.envs.default.scripts]
+smoke_test = "python src/smoke_test.py {args}"
 
 [tool.hatch.version]
 path = "src/__about__.py"
-
-[tool.hatch.envs.types]
-extra-dependencies = [
-  "mypy>=1.0.0",
-]
-
-[tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src tests}"
-
-[tool.hatch.build.targets.wheel]
-include = ["src/smoke_test.py"]
-sources = ["src"]

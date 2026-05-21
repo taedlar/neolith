@@ -19,7 +19,7 @@ A minimal example mudlib demonstrating core LPC functionality:
 
 ### m3_testbots/
 Examples of automated **testbots** using console mode.
-The python scripts runs Neolith with `popen` and enables console mode to send command and receive outputs via piped stdin/stdout of the LPMud server process.
+The python scripts run Neolith with `popen` and enables console mode to send command and receive outputs via piped stdin/stdout of the LPMud server process.
 
 **Usage**:
 ```bash
