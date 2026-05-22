@@ -1,6 +1,6 @@
 # net_dead()
 ## NAME
-**net_dead** - called by the driver when an interactive object drops its connection
+**net_dead** - called when an interactive object loses its connection
 
 ## SYNOPSIS
 ~~~cxx
@@ -8,8 +8,28 @@ void net_dead (void);
 ~~~
 
 ## DESCRIPTION
-If an interactive object (i.e. the player object) suddenly loses its connection (i.e. it goes "net dead"), then the driver calls this function on that object giving it a chance to clean up, notify its environment etc.
-Be aware that functions that depend on the object being interactive will not work as expected.
+`net_dead()` is a disconnect callback for interactive objects.
 
-## AUTHOR
-Wayfarer@Portals
+Use it to handle cases where a player/client disappears unexpectedly, such as:
+
+- network connection drop
+- terminal/console session ending
+
+From a mudlib point of view, this is the place to perform application-level
+cleanup for a disconnected session.
+
+Typical mudlib tasks in `net_dead()`:
+
+- save player/application state
+- clear temporary session state
+- stop heartbeats or timers specific to that session
+- notify rooms/channels or related game systems
+
+Keep the handler short and robust. Avoid long-running logic and avoid relying
+on additional input from the disconnected client.
+
+If you need reconnection behavior, implement it in mudlib policy code (for
+example, marking a session as disconnected and allowing later reattach).
+
+In piped console mode, when stdin reaches EOF, `net_dead()` is called first.
+Driver shutdown then proceeds after this apply returns.

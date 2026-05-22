@@ -60,6 +60,11 @@ void logon() {
   input_to("handle_line", 0);
 }
 
+void net_dead() {
+  // EOF in console mode or client disconnect in socket mode.
+  shutdown();
+}
+
 void error_handler(mixed err, int caught) {
   if (!undefinedp(current_request_id))
     send_error(current_request_id, ERR_INTERNAL_ERROR, "Internal error: " + err["error"]);
@@ -120,15 +125,13 @@ private void dispatch_method(mixed id, string method, mixed params) {
 private void handle_line(string line) {
   mixed err, msg, id, method, params;
 
-  // EOF on stdin — the client closed the pipe.
-  if (!stringp(line) || line == "") {
-    shutdown();
-    return;
-  }
-
   // Re-arm input_to BEFORE processing.  If any error below escapes catch,
   // the server remains responsive to the next message.
   input_to("handle_line", 0);
+
+  // EOF/disconnect is handled by net_dead(). Ignore non-string/blank lines.
+  if (!stringp(line) || line == "")
+    return;
 
   // Parse.
   err = catch(msg = from_json(line));

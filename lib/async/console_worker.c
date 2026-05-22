@@ -25,6 +25,18 @@
 #include <errno.h>
 #endif
 
+static void console_worker_set_eof(console_worker_context_t* ctx) {
+    if (!ctx)
+        return;
+
+    platform_mutex_lock(&ctx->state_mutex);
+    ctx->eof_detected = true;
+    platform_mutex_unlock(&ctx->state_mutex);
+
+    /* Wake the main loop so EOF can be handled on the main thread. */
+    async_runtime_post_completion(ctx->runtime, ctx->completion_key, 0);
+}
+
 /**
  * Convert console type to string
  */
@@ -154,6 +166,7 @@ static void* console_worker_proc_win32(void* ctx) {
                 async_runtime_post_completion(cctx->runtime, cctx->completion_key, chars_read);
             } else {
                 /* EOF */
+                console_worker_set_eof(cctx);
                 break;
             }
         } else if (wait_result == WAIT_OBJECT_0 + 1) {
@@ -231,6 +244,7 @@ static void* console_worker_proc_posix(void* ctx) {
         } else if (bytes_read == 0) {
             /* EOF */
             debug_message("Console EOF detected\n");
+            console_worker_set_eof(cctx);
             break;
         }
 
@@ -270,6 +284,12 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
     ctx->runtime = runtime;
     ctx->completion_key = completion_key;
     ctx->console_type = console_detect_type();
+    ctx->eof_detected = false;
+
+    if (!platform_mutex_init(&ctx->state_mutex)) {
+        free(ctx);
+        return NULL;
+    }
 
     /* debug_notice ("Console type detected: %s\n", console_type_str(ctx->console_type)); */
 
@@ -301,6 +321,7 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
         if (ctx->stop_pipe_fds[0] >= 0) close(ctx->stop_pipe_fds[0]);
         if (ctx->stop_pipe_fds[1] >= 0) close(ctx->stop_pipe_fds[1]);
 #endif
+        platform_mutex_destroy(&ctx->state_mutex);
         free(ctx);
         return NULL;
     }
@@ -358,5 +379,21 @@ void console_worker_destroy(console_worker_context_t* ctx) {
     }
 #endif
 
+    platform_mutex_destroy(&ctx->state_mutex);
+
     free(ctx);
+}
+
+bool console_worker_take_eof(console_worker_context_t* ctx) {
+    bool saw_eof;
+
+    if (!ctx)
+        return false;
+
+    platform_mutex_lock(&ctx->state_mutex);
+    saw_eof = ctx->eof_detected;
+    ctx->eof_detected = false;
+    platform_mutex_unlock(&ctx->state_mutex);
+
+    return saw_eof;
 }

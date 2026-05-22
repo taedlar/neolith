@@ -1083,6 +1083,16 @@ static void add_console_line (interactive_t *ip, const char *line_buffer, size_t
  * pulling any already-queued lines each backend loop.
  */
 static void drain_console_queue_lines (void) {
+  if (g_console_worker && console_worker_take_eof(g_console_worker))
+    {
+      interactive_t *ip = (all_users) ? all_users[0] : NULL;
+      if (ip && ip->ob)
+        {
+          opt_trace (TT_COMM|1, "Console EOF: removing interactive user\n");
+          remove_interactive (ip->ob, false);
+        }
+    }
+
   if (!g_console_queue || !all_users)
     return;
 
