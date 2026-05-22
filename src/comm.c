@@ -1076,6 +1076,37 @@ static void add_console_line (interactive_t *ip, const char *line_buffer, size_t
 }
 
 /**
+ * @brief Drain queued console input lines into the console interactive buffer.
+ *
+ * This is safe to call even when no completion event is present. It helps
+ * recover from missed/coalesced completion notifications by opportunistically
+ * pulling any already-queued lines each backend loop.
+ */
+static void drain_console_queue_lines (void) {
+  if (!g_console_queue)
+    return;
+
+  /* all_users slot #0 is reserved for the console user */
+  interactive_t *console_ip = all_users[0];
+  if (!console_ip)
+    {
+      opt_trace (TT_COMM|1, "Console user re-connecting\n");
+      init_console_user (true);
+      console_ip = all_users[0];
+      if (!console_ip)
+        return;
+    }
+
+  char line_buffer[CONSOLE_MAX_LINE];
+  size_t line_length;
+
+  while (async_queue_dequeue (g_console_queue, line_buffer, sizeof(line_buffer), &line_length))
+    {
+      add_console_line (console_ip, line_buffer, line_length);
+    }
+}
+
+/**
  *  @brief Process I/O for sockets or console (if enabled).
  *
  *  This function is called after async_runtime_wait() returns events.
@@ -1146,36 +1177,6 @@ void process_io () {
               debug_message ("Error on listening port %d\n", port->port);
             }
         }
-      else if (evt->completion_key == CONSOLE_COMPLETION_KEY)
-        {
-          /* Console input - completion posted by console worker thread.
-           * Console uses virtual terminal mode (VT), not TELNET protocol.
-           * Worker thread has already read the data; we just process it. */
-          if (g_console_queue)
-            {
-              /* all_users slot #0 is reserved for the console user */
-              interactive_t *console_ip = all_users[0];
-              if (!console_ip)
-                {
-                  /* Console user disconnected - reconnect first */
-                  opt_trace(TT_COMM|1, "Console user re-connecting\n");
-                  init_console_user(true);
-                  console_ip = all_users[0];
-                }
-              
-              /* Drain all pending lines from queue (always null-terminated) */
-              if (console_ip)
-                {
-                  char line_buffer[CONSOLE_MAX_LINE];
-                  size_t line_length;
-                  
-                  while (async_queue_dequeue(g_console_queue, line_buffer, sizeof(line_buffer), &line_length))
-                    {
-                      add_console_line(console_ip, line_buffer, line_length);
-                    }
-                }
-            }
-        }
       else if (evt->completion_key == RESOLVER_COMPLETION_KEY)
         {
           process_addr_resolver_completions ();
@@ -1236,6 +1237,12 @@ void process_io () {
         }
 #endif
     }
+
+  /* Console completions are wake-only signals. We always drain the queue
+   * here so queued lines are consumed even when completion edges are
+   * coalesced or missed.
+   */
+  drain_console_queue_lines ();
   
   /* Flush console user output if connected (console is always writable) */
   if (all_users && all_users[0])

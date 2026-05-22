@@ -235,16 +235,16 @@ while (running) {
     int n = async_runtime_wait(runtime, events, 64, timeout_ms);
     
     for (int i = 0; i < n; i++) {
-        if (events[i].completion_key == CONSOLE_COMPLETION_KEY) {
-            // Worker posted completion - dequeue messages
-            while (async_queue_dequeue(console_queue, line, sizeof(line), &len)) {
-                process_console_input(line, len);
-            }
+        if (events[i].completion_key == DNS_KEY) {
+            drain_dns_results();
         } else {
             // I/O event - handle socket read/write
             handle_socket_io(&events[i]);
         }
     }
+
+    // Console completions are wake-only; always drain queued lines.
+    drain_console_lines();
 }
 ```
 
@@ -288,14 +288,14 @@ while (!async_worker_should_stop(worker)) {
 
 **Main Thread**:
 ```c
-if (events[i].completion_key == CONSOLE_KEY) {
-    while (async_queue_dequeue(queue, line, sizeof(line), &len)) {
-        process_console_input(line, len);  // Non-blocking
-    }
+// Console completion wakes the loop, but queue draining is unconditional
+// once per process_io() cycle.
+while (async_queue_dequeue(queue, line, sizeof(line), &len)) {
+    process_console_input(line, len);  // Non-blocking
 }
 ```
 
-**Benefit**: Console input becomes another completion source in the event loop with prompt command processing.
+**Benefit**: Console input remains low-latency (completion wakeup) while avoiding starvation if completion edges are coalesced or missed.
 
 ### Pattern 2: Built-In DNS Resolver Integration (Implemented)
 
@@ -357,6 +357,7 @@ if (events[i].completion_key == DNS_KEY) {
 **Worker-to-Main Communication Pattern**:
 - Workers enqueue results then call `async_runtime_post_completion()` (order matters for atomicity)
 - Main thread drains result queues upon receiving completion key
+- Console path: completion is wake-only; queue is drained once each `process_io()` cycle
 - Completion keys are user-defined values for correlation (do not reuse across subsystems without coordination)
 
 **LPC Interpreter Isolation**:

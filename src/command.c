@@ -422,8 +422,19 @@ static char* get_user_command () {
             ip = 0;
         }
 
-      if (ip && ip->iflags & CMD_IN_BUF)
+      if (ip)
         {
+          /* Keep readiness flag in sync with actual buffered command state. */
+          if (cmd_in_buf (ip))
+            ip->iflags |= CMD_IN_BUF;
+
+          if (!(ip->iflags & CMD_IN_BUF))
+            {
+              if (s_next_user-- == 0)
+                s_next_user = max_users - 1; /* wrap around */
+              continue;
+            }
+
           user_command = first_cmd_in_buf (ip);
           if (user_command)
             {
@@ -440,7 +451,12 @@ static char* get_user_command () {
                 }
             }
           else
-            ip->iflags &= ~CMD_IN_BUF;
+            {
+              if (cmd_in_buf (ip))
+                ip->iflags |= CMD_IN_BUF;
+              else
+                ip->iflags &= ~CMD_IN_BUF;
+            }
         }
 
       if (s_next_user-- == 0)

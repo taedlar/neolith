@@ -38,7 +38,12 @@ Console mode uses async runtime plus a dedicated console worker.
 - Console input is handled by `console_worker` (worker thread).
 - Worker pushes completed lines to `async_queue_t`.
 - Worker posts completions (`CONSOLE_COMPLETION_KEY`) to wake backend.
-- Backend drains queued lines into the console interactive command buffer.
+- Backend drains queued lines into the console interactive command buffer once per `process_io()` cycle.
+
+Completion behavior:
+
+- Console completion events are wake-up signals.
+- Queue draining is unconditional in `process_io()` so queued input does not starve if completion edges are coalesced or missed.
 
 This keeps command processing unified while avoiding platform-specific stdin blocking in the backend thread.
 

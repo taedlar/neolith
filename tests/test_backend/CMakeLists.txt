@@ -5,6 +5,7 @@ add_executable(test_backend
     test_platform_timer.cpp
     test_heap_allocation.cpp
     test_process_command.cpp
+    test_console_queue_drain.cpp
 )
 
 target_link_libraries(test_backend PRIVATE stem GTest::gtest_main)

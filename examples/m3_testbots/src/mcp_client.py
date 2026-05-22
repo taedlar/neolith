@@ -56,12 +56,9 @@ def _find_driver() -> Path:
 def _find_config() -> Path:
     # examples/ is two parents above this file: src/ -> m3_testbots/ -> examples/
     examples = Path(__file__).resolve().parent.parent.parent
-    # Prefer a console-specific config that omits the Port line so the driver
-    # does not try to bind a telnet port (which may already be occupied).
-    for name in ("m3_console.conf", "m3.conf"):
-        p = examples / name
-        if p.exists():
-            return p
+    p = examples / "m3.conf"
+    if p.exists():
+        return p
     raise FileNotFoundError(f"No config found in {examples}")
 
 
