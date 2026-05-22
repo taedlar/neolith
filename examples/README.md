@@ -1,136 +1,46 @@
 # Neolith Examples
 
-This directory contains example mudlibs and testing tools for the Neolith LPMud driver.
+This directory contains example MUD server applications, a minimal example mudlib, and Python integration testbots for the Neolith LPMud driver.
 
-## Contents
+## Example Types
 
-### m3_mudlib/
-A minimal example mudlib demonstrating core LPC functionality:
-- **master.c**: Master object implementing driver applies
-- **user.c**: Interactive user object with basic commands
-- **simul_efun.c**: Simulated efuns (mudlib-level functions)
+### [apps/](apps/README.md) — MUD Applications
 
-**Available Commands**:
-- `say <message>` - Say something
-- `help` - Show available commands
-- `quit` - Disconnect from MUD
-- `shutdown` - Shutdown the driver (console mode)
-- `curlget <url>` - Fetch a URL asynchronously when the driver is built with `PACKAGE_CURL`
+Single-file LPC programs passed directly to the driver. Use these to quickly try out driver features or prototype new functionality without setting up a full mudlib.
 
-### m3_testbots/
-Examples of automated **testbots** using console mode.
-The python scripts run Neolith with `popen` and enables console mode to send command and receive outputs via piped stdin/stdout of the LPMud server process.
-
-**Usage**:
-```bash
-cd examples/m3_testbots
-hatch run smoke_test
-```
-
-**How It Works**:
-1. Starts the Neolith driver in console mode (`-c` flag)
-2. Pipes test commands via stdin
-3. Driver processes commands until pipe closes (EOF)
-4. Driver automatically shuts down on pipe EOF
-5. Test validates clean exit (exit code 0)
-
-**Example Output**:
-```
-✓ Using driver: ../out/build/vs16-x64/src/RelWithDebInfo/neolith.exe
-✓ Using config: m3.conf
-
-============================================================
-CONSOLE MODE AUTOMATED TEST
-============================================================
-Platform: nt
-
-Input commands:
-  1. say Hello from Python test!
-  2. help
-  3. shutdown
-
-Driver started. Sending commands...
-------------------------------------------------------------
-...
-✅ TEST PASSED - Driver exited successfully
-```
-
-### MUD Applications
-A [**MUD application**](/docs/manual/mud-application.md) is specified by first non-option argument when starting `neolith`.
-
-The [apps/hello_world.c](apps/hello_world.c) demonstrates a simple MUD application that prints hello-world message to the console and exits.
-
-To run the example MUD application:
 ```bash
 /path/to/neolith -c apps/hello_world.c
 ```
 
-## Configuration Files
+### [m3_mudlib/](m3_mudlib/README.md) — Example Mudlib
 
-### m3.conf
-Example configuration for the m3_mudlib:
-- Minimal configuration for testing
-- Uses relative paths for convenience
-- Logs to stderr by default
-
-**Customization**:
-Copy `m3.conf` to `m3.local.conf` for local testing:
-```bash
-cp m3.conf m3.local.conf
-# Edit m3.local.conf to customize paths, ports, etc.
-```
-
-## Manual Testing
-
-### Interactive Console Mode
+A minimal LPC mudlib that boots the driver and supports interactive or scripted sessions. It is also the backing mudlib for Neolith's integration tests.
 
 ```bash
 /path/to/neolith -f m3.conf -c
 ```
 
-### Piped Commands
+### [m3_testbots/](m3_testbots/README.md) — Integration Testbots
+
+Python scripts that run the driver as a subprocess in console mode and validate end-to-end behavior by sending commands through piped stdin/stdout.
 
 ```bash
-echo -e "say test\nhelp\nshutdown" | /path/to/neolith -f m3.conf -c
+hatch run smoke_test
 ```
 
-## Expected Behavior
+Requires a one-time hatch setup — see [m3_testbots/README.md](m3_testbots/README.md) for details.
 
-### Real Console (Interactive)
-- Driver accepts keyboard input
-- Reconnection supported after disconnect
-- Unicode input works correctly
-- Ctrl+C interrupts driver
+## Configuration
 
-### Piped/Redirected Input (Automated)
-- Driver processes all commands from pipe/file
-- Automatic shutdown on EOF (pipe closure)
-- No reconnection prompt
-- Clean exit with code 0
+`m3.conf` sits alongside `m3_mudlib/` in this directory. Its `MudlibDir` is the relative path `m3_mudlib`, which Neolith resolves relative to the conf file's own location. This keeps the whole `examples/` tree relocatable — no absolute paths needed. (MudOS required `MudlibDir` to be absolute.)
 
-## Troubleshooting
+Copy to `m3.local.conf` for local customization:
 
-### "Failed to get console mode" warnings
-**Expected on Windows with piped stdin**. These are informational messages indicating stdin/stdout are not real console handles. The driver detects this and uses appropriate I/O methods.
-
-### Driver exits immediately
-- Check `MudlibDir` path in config file
-- Verify master.c compiles successfully
-- Check debug log for compilation errors
-
-### Commands not processed
-- Ensure commands end with newline
-- Windows: Use backtick-n (`` `n ``) for newlines in PowerShell
-- Linux: Use `\n` in echo with `-e` flag
-
-### Test timeout
-If a testbot times out, the driver might not be exiting cleanly. Check:
-- Shutdown command is included in test commands
-- Driver logs don't show errors preventing shutdown
-- No infinite loops in LPC code
+```bash
+cp m3.conf m3.local.conf
+```
 
 ## Further Reading
 
-- [Console Mode Documentation](../docs/manual/console-mode.md)
-- [Console Testbot Support](../docs/manual/testbot.md)
+- [Console Mode](../docs/manual/console-mode.md)
 - [Developer Manual](../docs/manual/dev.md)
