@@ -382,7 +382,7 @@ print_call_out_usage (outbuffer_t * ob, int verbose)
     {
       outbuf_add (ob, "Call out information:\n");
       outbuf_add (ob, "---------------------\n");
-      outbuf_addv (ob, "Number of allocated call outs: %8d, %8d bytes\n",
+      outbuf_addv (ob, "Number of allocated call outs: %8d, %8ld bytes\n",
                    num_call, num_call * sizeof (pending_call_t));
       outbuf_addv (ob, "Current length: %d\n", i);
     }
