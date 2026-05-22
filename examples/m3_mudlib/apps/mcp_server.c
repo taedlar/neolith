@@ -132,7 +132,7 @@ private void handle_line(string line) {
   // Parse.
   err = catch(msg = from_json(line));
   if (err || !mapp(msg)) {
-    send_error(0, ERR_PARSE_ERROR, "Parse error");
+    send_error(id, ERR_PARSE_ERROR, "Parse error");
     return;
   }
 

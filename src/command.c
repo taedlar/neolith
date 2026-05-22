@@ -427,6 +427,8 @@ static char* get_user_command () {
           /* Keep readiness flag in sync with actual buffered command state. */
           if (cmd_in_buf (ip))
             ip->iflags |= CMD_IN_BUF;
+          else
+            ip->iflags &= ~CMD_IN_BUF;
 
           if (!(ip->iflags & CMD_IN_BUF))
             {

@@ -6,7 +6,7 @@ add_executable(test_console_worker
     test_console_worker_queue_drain.cpp
 )
 
-# Link to async library (includes console_worker) and logger
+# Link to the stem library and GoogleTest main entry point
 target_link_libraries(test_console_worker PRIVATE stem GTest::gtest_main)
 
 # Windows needs ws2_32 for socket functions
