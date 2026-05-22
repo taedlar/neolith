@@ -92,7 +92,6 @@ See [examples/README.md](examples/README.md) for comprehensive usage examples an
 If you are new to Neolith, the follow documentations are for you:
 - [Neolith Administrator Guide](docs/manual/admin.md)
 - [Neolith LPC Guide](docs/manual/lpc.md)
-- [Neolith World Creation Guide](docs/manual/world.md)
 
 ## Contributing
 The decades-old C codes from MudOS/LPMud is quite messy and buggy in terms of modern C/C++ standards.

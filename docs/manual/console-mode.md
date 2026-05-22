@@ -38,7 +38,13 @@ Console mode uses async runtime plus a dedicated console worker.
 - Console input is handled by `console_worker` (worker thread).
 - Worker pushes completed lines to `async_queue_t`.
 - Worker posts completions (`CONSOLE_COMPLETION_KEY`) to wake backend.
-- Backend drains queued lines into the console interactive command buffer.
+- Backend drains queued lines into the console interactive command buffer once per `process_io()` cycle.
+
+Completion behavior:
+
+- Console completion events are wake-up signals.
+- Queue draining is unconditional in `process_io()` so queued input does not starve if completion edges are coalesced or missed.
+- Console EOF is also posted as a wake-up signal and consumed on the backend thread.
 
 This keeps command processing unified while avoiding platform-specific stdin blocking in the backend thread.
 
@@ -78,8 +84,14 @@ For pipe and file stdin, helper calls are no-op by design, preserving scripted i
 
 ### EOF and Reconnection
 
-- Real console disconnect: reconnect prompt path remains available.
-- Pipe or file EOF: driver proceeds to shutdown.
+- EOF is detected by the console worker and handled on the backend thread.
+- Backend EOF handling removes the console interactive through `remove_interactive()`.
+- `remove_interactive()` invokes the interactive `net_dead()` apply.
+- Pipe or file stdin: teardown sets shutdown flow after console removal.
+- Real terminal stdin: reconnect prompt path remains available.
+
+For piped/file console input, `net_dead()` returns before the driver proceeds
+with shutdown.
 
 This split supports both interactive use and deterministic automation.
 
@@ -130,6 +142,9 @@ Get-Content commands.txt | .\neolith.exe -f neolith.conf -c
 ~~~
 
 The driver processes commands until EOF and then shuts down for pipe or file modes.
+
+In mudlib terms, console EOF now follows the same disconnect apply path as other
+interactive teardown: `net_dead()` is called during removal.
 
 ## Unit Tests
 

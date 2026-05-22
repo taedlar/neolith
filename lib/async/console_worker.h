@@ -39,6 +39,8 @@ typedef struct console_worker_context_s {
     async_worker_t* worker;        /**< Worker thread handle */
     console_type_t console_type;   /**< Detected console type */
     uintptr_t completion_key;      /**< Completion key for runtime */
+    platform_mutex_t state_mutex;  /**< Guards worker state flags */
+    bool eof_detected;             /**< Set true when stdin EOF is observed */
 #ifndef _WIN32
     int stop_pipe_fds[2];          /**< Self-pipe for POSIX stop signaling: [0]=read, [1]=write */
 #endif
@@ -92,6 +94,14 @@ bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms);
  * @param ctx Console worker context
  */
 void console_worker_destroy(console_worker_context_t* ctx);
+
+/**
+ * Consume the console EOF signal.
+ *
+ * Returns true once after EOF is observed by the worker, then resets the
+ * internal flag to false.
+ */
+bool console_worker_take_eof(console_worker_context_t* ctx);
 
 /**
  * Get console type string (for logging)

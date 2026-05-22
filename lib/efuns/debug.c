@@ -286,7 +286,7 @@ void f_mud_status (void) {
                    tot_alloc_sentence * sizeof (sentence_t));
       outbuf_addv (&ob, "Objects:\t\t\t%8ld %8ld\n",
                    tot_alloc_object, tot_alloc_object_size);
-      outbuf_addv (&ob, "Prog blocks:\t\t\t%8d %8ld\n",
+      outbuf_addv (&ob, "Prog blocks:\t\t\t%8ld %8ld\n",
                    total_num_prog_blocks, total_prog_block_size);
 #ifdef ARRAY_STATS
       outbuf_addv (&ob, "Arrays:\t\t\t\t%8d %8ld\n", num_arrays,

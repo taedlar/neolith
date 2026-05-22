@@ -40,6 +40,10 @@ Copy to `m3.local.conf` for local customization:
 cp m3.conf m3.local.conf
 ```
 
+> [!NOTE]
+> The `m3.conf` disables telnet port by default to accelerate Neolith unit-testing and allows multiple instances of MUD applications.
+> You can enable the telnet port by uncommenting the `Port` line.
+
 ## Further Reading
 
 - [Console Mode](../docs/manual/console-mode.md)

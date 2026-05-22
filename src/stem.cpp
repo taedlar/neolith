@@ -557,8 +557,15 @@ static void driver_loop(void) {
                   all_users[i]->iflags |= HAS_CMD_TURN;
                   connected_users++;
 
-                  if (all_users[i]->iflags & CMD_IN_BUF)
-                    has_pending_commands = true;
+                  if (cmd_in_buf (all_users[i]))
+                    {
+                      all_users[i]->iflags |= CMD_IN_BUF;
+                      has_pending_commands = true;
+                    }
+                  else
+                    {
+                      all_users[i]->iflags &= ~CMD_IN_BUF;
+                    }
                 }
             }
 
@@ -570,9 +577,8 @@ static void driver_loop(void) {
               fatal ("backend: do_comm_polling failed.\n");
             }
 
-          /* process I/O events */
-          if (nb > 0)
-            process_io();
+          /* process I/O events (and opportunistic queue drains) */
+          process_io();
 
           /* consume user command turns */
           for (int i = 0; process_user_command() && i < connected_users; i++);
