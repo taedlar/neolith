@@ -321,7 +321,7 @@ void init_mudlib_archive(const char* archive_path, const char* label) {
 }
 
 extern "C"
-void init_application(const char* master_file) {
+void init_application(const char* master_file, const char* config_file) {
   namespace fs = std::filesystem;
   if (master_file && *master_file)
     {
@@ -334,6 +334,8 @@ void init_application(const char* master_file) {
       if (CONFIG_STR(__MUD_LIB_DIR__))
         {
           fs::path mudlib_dir(CONFIG_STR(__MUD_LIB_DIR__));
+          if (mudlib_dir.is_relative() && config_file && *config_file)
+            mudlib_dir = fs::path(config_file).parent_path() / mudlib_dir;
           fs::path master_path(path);
 
           if (!fs::exists(mudlib_dir))

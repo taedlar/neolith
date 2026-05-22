@@ -85,8 +85,10 @@ void init_mudlib_archive(const char* archive_path, const char* label);
  * file, this function will fail and exit the driver with an error message.
  *
  * @param master_file The path to the master file.
+ * @param config_file The path to the configuration file, used to resolve a relative
+ *  MudlibDir against. May be NULL or empty when no configuration file is in use.
  */
-void init_application(const char* master_file);
+void init_application(const char* master_file, const char* config_file);
 
 void deinit_config();
 

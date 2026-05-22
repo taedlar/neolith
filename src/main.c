@@ -93,7 +93,7 @@ int main (int argc, char **argv) {
         init_mudlib_archive(MAIN_OPTION(mud_app),
                             MAIN_OPTION(argc) > 0 ? MAIN_OPTION(argv)[0] : ""); /* use the first argument as label if exists */
       else
-        init_application(MAIN_OPTION(mud_app));
+        init_application(MAIN_OPTION(mud_app), MAIN_OPTION(config_file));
     }
   init_debug_log();
 
