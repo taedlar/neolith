@@ -1,128 +1,93 @@
-# Testing Robot
+# Testbot
 
 ## Overview
 
-Neolith supports automated testing via piped stdin on both Linux/WSL and Windows platforms.
-This enables automation scripts to send commands to the driver non-interactively, making regression testing and CI/CD integration possible.
+Neolith supports automated integration testing via piped stdin/stdout on Linux and Windows. When the driver detects that stdin is a pipe rather than an interactive terminal, it switches to a pipe-friendly I/O mode: commands are read from stdin as-is, and the driver shuts down cleanly when stdin reaches EOF.
 
-## Design Principle
+This makes it straightforward to script interactions against a real running driver without a telnet client or special test harness.
 
-The implementation uses a **hybrid dispatch system**:
+## Driver Behavior in Pipe Mode
 
-- **Real Terminals** (TTY/Console): Use platform-specific APIs for optimal UX and security
-- **Pipes/Files** (Testing Robots): Use generic I/O to preserve all input data for automation
+| Condition | Behavior |
+|-----------|----------|
+| stdin is a real terminal | Interactive console UX; input flushed on mode changes for security |
+| stdin is a pipe or file | All input data preserved; clean shutdown (`exit 0`) on EOF |
 
-This ensures that:
-- ✅ Interactive console mode works optimally for human users
-- ✅ Automated testing works reliably on both platforms
-- ✅ Security is preserved (terminals flush input on mode changes)
-- ✅ Backward compatibility is maintained
+The switch is automatic — no special flag is needed beyond `-c` (console mode).
 
-## Platform Implementation
+## Piped commands without a testbot
 
-### POSIX (Linux/WSL)
+For quick one-off checks you can pipe commands directly:
 
-**Detection**: Uses `isatty(fd)` to distinguish TTY from pipes/files
-
-**Behavior**:
-- **Real TTY**: Uses `tcsetattr(..., TCSAFLUSH, ...)` to flush input on mode changes (security)
-- **Pipe/File**: Uses `tcsetattr(..., TCSANOW, ...)` to preserve all input data (automation)
-
-**Implementation**: `safe_tcsetattr()` helper function conditionally applies flushing based on `isatty()` result
-
-### Windows
-
-**Detection**: Uses `GetFileType(handle)` to distinguish console from pipes/files
-
-**Behavior**:
-- **Real Console**: Uses `ReadConsoleInputW()` for Unicode keyboard events (existing implementation)
-- **Pipe**: Uses synchronous `ReadFile()` for simple data streaming
-- **File**: Uses synchronous `ReadFile()` for file input
-
-**Implementation**: `console_type_t` enum tracks handle type, dispatcher selects appropriate I/O method
-
-## EOF Handling
-
-When stdin reaches EOF:
-
-- **Real Console/TTY**: Display reconnection prompt (existing behavior)
-- **Pipe/File**: Call `do_shutdown(0)` for clean exit (new behavior)
-
-This distinction enables automated tests to exit cleanly while preserving interactive console functionality.
-
-## Usage
-
-### Automated Testing
-
-Using regular shell and piped stdin/stdout:
 ```bash
-# Linux/WSL
-echo -e "say test\nshutdown" | neolith -f config.conf -c
+# Linux
+echo -e "say test\nshutdown" | /path/to/neolith -f your.conf -c
 
-# Windows
-"say test`nshutdown" | neolith.exe -f config.conf -c
+# Windows (PowerShell)
+"say test`nshutdown" | neolith.exe -f your.conf -c
 ```
 
-Using a testbot (with Python `pexpect`):
-```bash
-cd examples/m3_testbots
-hatch run smoke_test
+Simple piping works well for fire-and-forget sequences, but it provides no way to wait for a specific response before sending the next command, or to assert on particular output. For that, use `pexpect`.
+
+## Interactive testing with pexpect
+
+[pexpect](https://pexpect.readthedocs.io/) gives you full control over the interaction: send a command, wait for a specific pattern in the output, then send the next command. Use `pexpect.PopenSpawn` to launch the driver as a subprocess (works on both Linux and Windows):
+
+```python
+import pexpect
+from pexpect.popen_spawn import PopenSpawn
+
+child = PopenSpawn(
+    ["/path/to/neolith", "-f", "your.conf", "-c"],
+    timeout=10, encoding="utf-8"
+)
+
+child.sendline("say hello")
+child.expect("You say: hello")   # blocks until the pattern appears
+
+child.sendline("shutdown")
+child.expect(pexpect.EOF)
+child.wait()
+assert child.exitstatus == 0
 ```
 
-### Testing Strategy
+Each `expect()` call blocks until the pattern appears in stdout or a timeout fires, making the test sensitive to actual driver output rather than timing. A `pexpect.TIMEOUT` exception is raised when a pattern is not seen within the timeout, which surfaces as a test failure.
 
-See [examples/README.md](../../examples/README.md) for comprehensive testing guide including:
-- Interactive testing procedures
-- Piped command examples
-- File redirect patterns
-- Troubleshooting tips
+## Using hatch to manage testbots
 
-## Platform Support Matrix
+[hatch](https://hatch.pypa.io/) is the recommended way to manage a testbot project. It handles the Python virtual environment and dependencies, and with project mode enabled it resolves the project by name so `hatch run` works from any working directory.
 
-| Platform | Real Console | Piped Stdin | File Redirect |
-|----------|--------------|-------------|---------------|
-| **Linux/WSL** | ✅ Works | ✅ Works | ✅ Works |
-| **Windows** | ✅ Works | ✅ Works | ✅ Works |
+### One-time setup
 
-All modes preserve optimal UX for their respective use cases.
+```bash
+hatch config set projects.<your-project> /path/to/your/testbots
+hatch config set mode project
+```
 
-## Security Considerations
+### Declaring scripts
 
-**Input Flushing**:
-- Real terminals flush input on mode changes (prevents injection attacks)
-- Pipes preserve all data (controlled by test author)
+In your `pyproject.toml`, declare each testbot as a script under `[tool.hatch.envs.default.scripts]`:
 
-**Attack Surface**: Low - piped input implies trusted source (developer's own test scripts)
+```toml
+[tool.hatch.envs.default.scripts]
+my_test = "python src/my_test.py {args}"
+```
 
-**Mitigation**: Console mode is for development/testing only, not production use
+### Running
 
-## Performance Impact
+```bash
+hatch run my_test
+```
 
-- **POSIX**: `isatty()` adds ~1µs per mode switch (4 calls per session) - negligible
-- **Windows**: `GetFileType()` adds ~1µs at startup - negligible
-- Pipe I/O uses same patterns as network sockets - already optimized
+Extra arguments are forwarded to the driver and are useful for tuning debug, epilog, or trace levels:
 
-## Backward Compatibility
-
-✅ **Fully backward compatible**:
-- No API, config, or LPC changes
-- Real terminal behavior unchanged
-- Existing tests continue to pass
-- New functionality for previously unsupported scenarios
-
-## Implementation Details
-
-For detailed implementation information, see:
-
-- **Development Plan**: [docs/history/console-testbot-support.md](../history/console-testbot-support.md) (archived - completed)
-- **Phase 1 (POSIX)**: [docs/history/agent-reports/console-testbot-phase1.md](../history/agent-reports/console-testbot-phase1.md) (if exists)
-- **Phase 2 (Windows)**: [docs/history/agent-reports/console-testbot-phase2.md](../history/agent-reports/console-testbot-phase2.md)
-- **Phase 3 (Documentation)**: [docs/history/agent-reports/console-testbot-phase3-complete.md](../history/agent-reports/console-testbot-phase3-complete.md)
+```bash
+hatch run my_test -d 1 -t 011  # debug level 1 and trace flags 011 (octal)
+hatch run my_test -e 1         # epilog level 1
+```
 
 ## Related Documentation
 
-- [Console Mode Manual](console-mode.md) - Complete console mode documentation
-- [Async Library Design](../internals/async-library.md) - Unified async runtime architecture
-- [Console Worker Implementation](../../lib/async/console_worker.c) - Platform-specific console handling
-- [Examples Guide](../../examples/README.md) - Testing procedures and troubleshooting
-- [m3_testbots](../../examples/m3_testbots) - Example testbots using M3 mudlib
+- [Console Mode](console-mode.md) — console mode flags and behavior
+- [m3_testbots](../../examples/m3_testbots/README.md) — reference testbot implementation using the m3 mudlib
+

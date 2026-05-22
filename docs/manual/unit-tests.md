@@ -1,27 +1,62 @@
 Unit-Testing
 =====
-Neolith uses googletest (Google&trade; C++ Testing Framework) to do unit-testings.
+Neolith uses **googletest** as unit-testing framework.
 
-Prerequistes:
+If GoogleTest is not found in the build environment, the unit-testing programs are skipped automatically.
+
+## Prerequisites
+
+### Linux
+
+Install GoogleTest from the system package manager:
+
 ~~~sh
 sudo apt install libgtest-dev
 ~~~
 
-If googletest is not found in the build environment, the unit-testing programs are skipped automatically.
+Alternatively, fetch it from source at configure time (see below).
 
-> [!NOTE]
-> MudOS and LPMud does not come with any unit-testing code.
-> All the unit-testing code are added by the Neolith project and may not work with other forks of LPMud Driver.
+### Windows
+
+GoogleTest is not available as a system package on Windows. Pass `FETCH_GOOGLETEST_FROM_SOURCE` to the configure step with the desired Git tag:
+
+~~~sh
+cmake --preset vs16-x64   -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+cmake --preset clang-x64  -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+~~~
+
+CMake will clone and build GoogleTest automatically before compiling the tests.
+
+### Fetching from source (any platform)
+
+`FETCH_GOOGLETEST_FROM_SOURCE` can also be used on Linux to pin a specific version or to build in environments where the system package is unavailable:
+
+~~~sh
+cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+~~~
 
 ## Running Tests
 To run unit-tests, run the `ctest` command using preset:
 ~~~sh
+# Linux
 ctest --preset ut-linux
+
+# Windows (MSVC)
+ctest --preset ut-vs16-x64
+
+# Windows (Clang)
+ctest --preset ut-clang-x64
 ~~~
 
 ## Adding Unit Tests
 Unit-testing is an efficient way to automate tests and enhance software quality.
-It also provides an source-controlled way to formalize required software behaviors with testing code.
+It also provides a source-controlled way to formalize required software behaviors with testing code.
+
+> [!IMPORTANT]
+> MudOS and LPMud does not come with any unit-testing code.
+> All the unit-testing code are specific to Neolith.
+> For Efun behaviors, the testing code are mostly derived from Efun docs to keep compatibility with MudOS.
+> For internal functions and driver architecture, the testing code are for locking down function contracts.
 
 To add unit-tests, create a subdirectory in `tests` and build an executable testing program for the testee package.
 
@@ -33,54 +68,51 @@ gtest_discover_tests(test_package DISCOVERY_TIMEOUT 20)
 ~~~
 
 > [!TIP]
-> DO NOT implement the `main()` function, it is provided by the `GTest::gtest_main` target and handles various command line options.
+> DO NOT implement the `main()` function, use the `GTest::gtest_main` target which handles command line options and integrates with IDE.
 
 ### What are the "units" ?
 The original LPMud and MudOS code base was developed by dozens of different authors during a time span of decades.
 Not every author has consistent view of "units" about the LPMud source code.
-The inconsistency of design and coding style makes it difficulty to enhance or migrate the code to use modern C/C++ standard libraries, e.g. memory management, exception handling, portable filesystem access, ... etc.
+The inconsistency of design and coding style makes it difficult to enhance or migrate the code to use modern C/C++ standard libraries, e.g. memory management, exception handling, portable filesystem access, ... etc.
 
 In Neolith, the LPMud driver source code are re-organized into several static library units in the `/lib` directory and a collection of LPMud driver dependencies (CMake object library) in the `/src` directory.
 
-- For **generic library units**, the unit-testing program only need to link necessary dependency targets.
+- For **generic libraries**, the unit-testing program only need to link necessary dependency targets.
   - See the [test_logger](/tests/test_logger/CMakeLists.txt) program for example.
-- For **LPMud driver units**, the unit-testing program adds the `stem` link target to add the same list of object files for the `neolith` executable.
+- For **LPMud driver components**, the unit-testing program links with the `stem` CMake target (the object files that form the `neolith` executable).
   - See the [test_lpc_compiler](/tests/test_lpc_compiler/CMakeLists.txt) program for example.
 
-> [!TIP]
-> Search the keyword `target_link_libraries` in the source tree to get a summary of **units** defined in the Neolith project.
->
-> As we continue to clean up the legacy source code, it is possible that more units will be made available as generic library units and, replaced with modern implementations.
-
 ### Writing unit-testing code
-For best utilization of googletest, you'll need to write the unit-testing code in **C++**.
-Begin the `.cpp` file with some mandatory #include like below:
+Googletest requires unit-testing code written in **C++**.
+Neolith has inserted necessary `extern "C"` guards in all headers to enable unit-testing.
+
+Begin a unit testing implementation file with mandatory headers like below:
 ~~~cxx
 #ifdef HAVE_CONFIG_H
-#include <config.h> // configuration defines
+#include <config.h> // project configurations, must come first
 #endif
-#include "std.h" // standard includes
-// insert more testee unit's #include here
-#include <gtest/gtest.h> // googletest
 
-using namespace testing; // googletest
+#include "src/std.h" // for cross-platform stuff
+// <--- insert more testee headers here
+
+#include <gtest/gtest.h> // gtest main header
+
+using namespace testing; // to access gtest helpers
 ~~~
 
-Implement your unit-testing code with `TEST()` or `TEST_F()` blocks. For example:
+Implement testing code with `TEST()` or `TEST_F()` blocks and write assertions. For example:
 ~~~cxx
 TEST(TestSuite, testName) {
-    // tests if test_func() returns 0
-    EXPECT_EQ(test_func(), 0);
+    EXPECT_EQ(test_func(), 0) // assertion
+        << "test_func() returns non-zero"; // if failed, print this
 }
 ~~~
 
 ## Visual Studio Code Integration
-The googletest framework works very well with the popular VS Code (using CMake Tools extension from Microsoft&trade;).
-And of course, on Windows WSL.
+The googletest framework is well supported by the popular VS Code (using CMake Tools extension from Microsoft). The **Windows WSL + VS Code + CMake** combination provides the best build speed and testing environment for Neolith.
 
-This makes **Windows WSL + VS Code + CMake** a ideal cross-platform development environment for the Neolith LPMud Driver.
-
-The unit-tests added this way can be found in the **Testing** panel on VS Code and provides an easy to use IDE for the Neolith project.
+Test cases added via `TEST()` and `TEST_F()` can be discovered automatically and shown in the **Testing** panel of VS Code for easy access.
+This can save a lot of typing when running particular test.
 
 ### Debugging with CTest and VSCode
 You can run individual unit-test by clicking the **Run Test** icon from the "Testing" tab of VSCode.
@@ -104,7 +136,8 @@ Add a configuration like below in your `.vscode/launch.json`:
 }
 ~~~
 
-This will further enable the **Debug Test** icon to let you debug a failed unit-test.
-
-> [!TIP]
+> [!NOTE]
 > For using MSVC debugger in Windows, change `cppdbg` to `cppvsdbg`.
+
+This will further enable the **Debug Test** icon to let you debug test failure.
+
