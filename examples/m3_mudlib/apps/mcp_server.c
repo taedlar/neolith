@@ -61,7 +61,8 @@ void logon() {
 }
 
 void error_handler(mixed err, int caught) {
-  send_error(current_request_id, ERR_INTERNAL_ERROR, "Internal error: " + err["error"]);
+  if (!undefinedp(current_request_id))
+    send_error(current_request_id, ERR_INTERNAL_ERROR, "Internal error: " + err["error"]);
 }
 
 // -----------------------------------------------------------------------
@@ -137,6 +138,7 @@ private void handle_line(string line) {
   }
 
   id     = msg["id"];
+  current_request_id = id;  // for error handler context
   method = msg["method"];
   params = msg["params"];
 
