@@ -1083,7 +1083,7 @@ static void add_console_line (interactive_t *ip, const char *line_buffer, size_t
  * pulling any already-queued lines each backend loop.
  */
 static void drain_console_queue_lines (void) {
-  if (!g_console_queue)
+  if (!g_console_queue || !all_users)
     return;
 
   /* all_users slot #0 is reserved for the console user */
