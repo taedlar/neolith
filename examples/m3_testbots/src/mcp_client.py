@@ -21,8 +21,10 @@ Exit codes:
 import collections
 import json
 import os
+import selectors
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -72,6 +74,8 @@ class McpClient:
     def __init__(self, proc: subprocess.Popen) -> None:
         self._proc = proc
         self._next_id = 1
+        self._pump_timeout_s = float(os.environ.get("MCP_PUMP_TIMEOUT_S", "10"))
+        self._use_selector_wait = (os.name != "nt")
         # Incoming notifications and server-initiated requests.
         self._recv_queue: collections.deque[dict] = collections.deque()
         # Responses keyed by request id (JSON-RPC: has "id", no "method").
@@ -110,7 +114,7 @@ class McpClient:
         server-initiated requests) goes into ``_recv_queue``.
         """
         while True:
-            raw = self._proc.stdout.readline()
+            raw = self._readline_with_timeout()
             if not raw:
                 raise EOFError("Server closed stdout unexpectedly")
             line = raw.decode("utf-8", errors="replace").strip()
@@ -123,6 +127,38 @@ class McpClient:
             else:
                 self._recv_queue.append(msg)
             return
+
+    def _readline_with_timeout(self) -> bytes:
+        """Read one line from server stdout with periodic timeout checks.
+
+        On POSIX we wait for readability with selectors to avoid an
+        indefinitely blocking readline(). On Windows, fall back to the
+        existing blocking readline() behavior due to pipe limitations in
+        select()-based APIs.
+        """
+        if not self._use_selector_wait:
+            return self._proc.stdout.readline()
+
+        deadline = time.monotonic() + self._pump_timeout_s
+        with selectors.DefaultSelector() as sel:
+            sel.register(self._proc.stdout, selectors.EVENT_READ)
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(
+                        f"Timed out waiting for server output after {self._pump_timeout_s:.1f}s"
+                    )
+
+                # Wake periodically so we can detect process exit promptly.
+                events = sel.select(timeout=min(0.25, remaining))
+                if not events:
+                    if self._proc.poll() is not None:
+                        raise EOFError(
+                            f"Server exited unexpectedly with code {self._proc.returncode}"
+                        )
+                    continue
+
+                return self._proc.stdout.readline()
 
     def recv(self) -> dict:
         """Return the next notification or server-initiated request.
@@ -314,6 +350,9 @@ def run_tests(extra_args: list[str]) -> int:
         test_shutdown_and_exit(client)
     except EOFError as exc:
         print(f"\nConnection error: {exc}")
+        _failures.append(str(exc))
+    except TimeoutError as exc:
+        print(f"\nTimeout error: {exc}")
         _failures.append(str(exc))
     except json.JSONDecodeError as exc:
         print(f"\nJSON decode error: {exc}")
