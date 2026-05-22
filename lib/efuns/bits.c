@@ -121,7 +121,7 @@ f_clear_bit (void)
 
   if (sp->u.number > CONFIG_INT (__MAX_BITFIELD_BITS__))
     error ("clear_bit() bit requested : %d > maximum bits: %d\n",
-           sp->u.number, CONFIG_INT (__MAX_BITFIELD_BITS__));
+           (int)sp->u.number, CONFIG_INT (__MAX_BITFIELD_BITS__));
   bit = (int) (sp--)->u.number;
   if (bit < 0)
     error ("Bad argument 2 (negative) to clear_bit().\n");
@@ -149,7 +149,7 @@ f_set_bit (void)
   int ind, bit;
 
   if (sp->u.number > CONFIG_INT (__MAX_BITFIELD_BITS__))
-    error ("set_bit() bit requested: %d > maximum bits: %d\n", sp->u.number,
+    error ("set_bit() bit requested: %d > maximum bits: %d\n", (int)sp->u.number,
            CONFIG_INT (__MAX_BITFIELD_BITS__));
   bit = (int) (sp--)->u.number;
   if (bit < 0)

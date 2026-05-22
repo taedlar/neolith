@@ -12,7 +12,7 @@
 #include "src/interpret.h"
 
 int num_mappings = 0;
-int total_mapping_size = 0;
+size_t total_mapping_size = 0;
 int total_mapping_nodes = 0;
 
 static int node_hash (mapping_node_t * mn)

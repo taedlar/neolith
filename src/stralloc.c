@@ -429,17 +429,16 @@ size_t add_string_status (outbuffer_t * out, int verbose) {
       outbuf_add (out, "-------------------------\t Strings    Bytes\n");
     }
   if (verbose != -1)
-    outbuf_addv (out, "All strings:\t\t\t%7d %8d + %d overhead\n",
+    outbuf_addv (out, "All strings:\t\t\t%7d %8ld + %ld overhead\n",
                  num_distinct_strings, bytes_distinct_strings,
                  overhead_bytes);
   if (verbose == 1)
     {
-      outbuf_addv (out, "Total asked for\t\t\t%8d %8d\n",
+      outbuf_addv (out, "Total asked for\t\t\t%8d %8ld\n",
                    allocd_strings, allocd_bytes);
-      outbuf_addv (out, "Space actually required/total string bytes %d%%\n",
-                   (bytes_distinct_strings +
-                    overhead_bytes) * 100 / allocd_bytes);
-      outbuf_addv (out, "Searches: %d    Average search length: %6.3f\n",
+      outbuf_addv (out, "Space actually required/total string bytes %6.2f%%\n",
+                   (bytes_distinct_strings + overhead_bytes) * 100.0 / allocd_bytes);
+      outbuf_addv (out, "Searches: %d    Average search length: %6.2f\n",
                    num_str_searches, (double) search_len / num_str_searches);
     }
   return (bytes_distinct_strings + overhead_bytes);

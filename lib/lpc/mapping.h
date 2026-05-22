@@ -46,7 +46,7 @@ struct mapping_s {
  * mapping.c
  */
 extern int num_mappings;
-extern int total_mapping_size;
+extern size_t total_mapping_size;
 extern int total_mapping_nodes;
 
 int msameval(svalue_t *, svalue_t *);

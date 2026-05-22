@@ -67,13 +67,13 @@ print_cache_stats (outbuffer_t * ob)
   outbuf_add (ob, "-------------------------------\n");
   outbuf_addv (ob, "%% cache hits:    %10.2f\n",
                100 * ((double) apply_low_cache_hits / apply_low_call_others));
-  outbuf_addv (ob, "call_others:     %10lu\n", apply_low_call_others);
-  outbuf_addv (ob, "cache hits:      %10lu\n", apply_low_cache_hits);
-  outbuf_addv (ob, "cache size:      %10lu\n", APPLY_CACHE_SIZE);
-  outbuf_addv (ob, "slots used:      %10lu\n", apply_low_slots_used);
+  outbuf_addv (ob, "call_others:     %10u\n", apply_low_call_others);
+  outbuf_addv (ob, "cache hits:      %10u\n", apply_low_cache_hits);
+  outbuf_addv (ob, "cache size:      %10u\n", APPLY_CACHE_SIZE);
+  outbuf_addv (ob, "slots used:      %10u\n", apply_low_slots_used);
   outbuf_addv (ob, "%% slots used:    %10.2f\n",
                100 * ((double) apply_low_slots_used / APPLY_CACHE_SIZE));
-  outbuf_addv (ob, "collisions:      %10lu\n", apply_low_collisions);
+  outbuf_addv (ob, "collisions:      %10u\n", apply_low_collisions);
   outbuf_addv (ob, "%% collisions:    %10.2f\n",
                100 * ((double) apply_low_collisions / apply_low_call_others));
 }
@@ -261,7 +261,7 @@ void f_mud_status (void) {
       outbuf_add (&ob, "add_message statistics\n");
       outbuf_add (&ob, "------------------------------\n");
       outbuf_addv (&ob,
-                   "Calls to add_message: %d   Packets: %d   Average packet size: %f\n\n",
+                   "Calls to add_message: %d   Packets: %d   Average packet size: %.2f\n\n",
                    add_message_calls, inet_packets,
                    (float) inet_volume / inet_packets);
 
@@ -282,23 +282,23 @@ void f_mud_status (void) {
   else
     {
       /* !verbose */
-      outbuf_addv (&ob, "Sentences:\t\t\t%8d %8d\n", tot_alloc_sentence,
+      outbuf_addv (&ob, "Sentences:\t\t\t%8d %8ld\n", tot_alloc_sentence,
                    tot_alloc_sentence * sizeof (sentence_t));
-      outbuf_addv (&ob, "Objects:\t\t\t%8d %8d\n",
+      outbuf_addv (&ob, "Objects:\t\t\t%8ld %8ld\n",
                    tot_alloc_object, tot_alloc_object_size);
-      outbuf_addv (&ob, "Prog blocks:\t\t\t%8d %8d\n",
+      outbuf_addv (&ob, "Prog blocks:\t\t\t%8d %8ld\n",
                    total_num_prog_blocks, total_prog_block_size);
 #ifdef ARRAY_STATS
-      outbuf_addv (&ob, "Arrays:\t\t\t\t%8d %8d\n", num_arrays,
+      outbuf_addv (&ob, "Arrays:\t\t\t\t%8d %8ld\n", num_arrays,
                    total_array_size);
 #else
       outbuf_add (&ob,
                   "<Array statistics disabled, no information available>\n");
 #endif
-      outbuf_addv (&ob, "Mappings:\t\t\t%8d %8d\n", num_mappings,
+      outbuf_addv (&ob, "Mappings:\t\t\t%8d %8ld\n", num_mappings,
                    total_mapping_size);
       outbuf_addv (&ob, "Mappings(nodes):\t\t%8d\n", total_mapping_nodes);
-      outbuf_addv (&ob, "Interactives:\t\t\t%8d %8d\n", total_users,
+      outbuf_addv (&ob, "Interactives:\t\t\t%8d %8ld\n", total_users,
                    total_users * sizeof (interactive_t));
 
       tot = show_otable_status (&ob, verbose) +
@@ -318,7 +318,7 @@ void f_mud_status (void) {
   if (!verbose)
     {
       outbuf_add (&ob, "\t\t\t\t\t --------\n");
-      outbuf_addv (&ob, "Total:\t\t\t\t\t %8d\n", tot);
+      outbuf_addv (&ob, "Total:\t\t\t\t\t %8ld\n", tot);
     }
   outbuf_push (&ob);
 }
@@ -558,8 +558,8 @@ f_debug_info (void)
                      flags & O_WILL_CLEAN_UP ? "TRUE" : "FALSE");
         outbuf_addv (&out, "O_WILL_RESET: %s\n",
                      flags & O_WILL_RESET ? "TRUE" : "FALSE");
-        outbuf_addv (&out, "next_reset  : %d\n", ob->next_reset);
-        outbuf_addv (&out, "time_of_ref : %d\n", ob->time_of_ref);
+        outbuf_addv (&out, "next_reset  : %lld\n", ob->next_reset);
+        outbuf_addv (&out, "time_of_ref : %lld\n", ob->time_of_ref);
         outbuf_addv (&out, "ref         : %d\n", ob->ref);
         outbuf_addv (&out, "name        : '/%s'\n", ob->name);
         outbuf_addv (&out, "next_all    : OBJ(/%s)\n",
@@ -581,20 +581,20 @@ f_debug_info (void)
       outbuf_addv (&out, "program ref's %d\n", ob->prog->ref);
       outbuf_addv (&out, "Name /%s\n", ob->prog->name);
       outbuf_addv (&out, "program size %d\n", ob->prog->program_size);
-      outbuf_addv (&out, "runtime function table %d (%d) \n",
+      outbuf_addv (&out, "runtime function table %d (%ld) \n",
                    ob->prog->num_functions_total,
                    ob->prog->num_functions_total *
                    (sizeof (runtime_function_u) + 1));
-      outbuf_addv (&out, "compiler function table %d (%d) \n",
+      outbuf_addv (&out, "compiler function table %d (%ld) \n",
                    ob->prog->num_functions_defined,
                    ob->prog->num_functions_defined *
                    sizeof (compiler_function_t));
       outbuf_addv (&out, "num strings %d\n", ob->prog->num_strings);
-      outbuf_addv (&out, "num vars %d (%d)\n",
+      outbuf_addv (&out, "num vars %d (%ld)\n",
                    ob->prog->num_variables_defined,
                    ob->prog->num_variables_defined * (sizeof (char *) +
                                                       sizeof (short)));
-      outbuf_addv (&out, "num inherits %d (%d)\n", ob->prog->num_inherited,
+      outbuf_addv (&out, "num inherits %d (%ld)\n", ob->prog->num_inherited,
                    ob->prog->num_inherited * sizeof (inherit_t));
       outbuf_addv (&out, "total size %d\n", ob->prog->total_size);
       break;

@@ -273,7 +273,7 @@ show_otable_status (outbuffer_t * out, int verbose)
 
   if (!verbose)
     {
-      outbuf_addv (out, "Obj table overhead:\t\t%8d %8d\n",
+      outbuf_addv (out, "Otable and overheads:\t\t%8ld + %8d\n",
                    otable_size * sizeof (object_t *), starts);
     }
   return starts;

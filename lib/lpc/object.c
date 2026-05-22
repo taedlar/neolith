@@ -1846,7 +1846,7 @@ void dealloc_object (object_t * ob, const char *from) {
   if (!(ob->flags & O_DESTRUCTED))
     {
       /* This is fatal, and should never happen. */
-      fatal ("FATAL: Object 0x%x /%s ref count 0, but not destructed (from %s).\n", ob, ob->name, from);
+      fatal ("FATAL: Object %s ref count 0, but not destructed (from %s).\n", ob->name, from);
     }
   DEBUG_CHECK (ob->interactive, "Tried to free an interactive object.\n");
 
