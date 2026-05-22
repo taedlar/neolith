@@ -389,7 +389,7 @@ print_call_out_usage (outbuffer_t * ob, int verbose)
   else
     {
       if (verbose != -1)
-        outbuf_addv (ob, "call out:\t\t\t%8d %8d (current length %d)\n",
+        outbuf_addv (ob, "call out:\t\t\t%8d %8ld (current length %d)\n",
                      num_call, num_call * sizeof (pending_call_t), i);
     }
   return (int) (num_call * sizeof (pending_call_t));
