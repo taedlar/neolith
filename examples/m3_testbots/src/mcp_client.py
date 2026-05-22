@@ -18,6 +18,7 @@ Exit codes:
     2   Setup error (driver not found, config not found, etc.)
 """
 
+import collections
 import json
 import os
 import subprocess
@@ -74,6 +75,10 @@ class McpClient:
     def __init__(self, proc: subprocess.Popen) -> None:
         self._proc = proc
         self._next_id = 1
+        # Incoming notifications and server-initiated requests.
+        self._recv_queue: collections.deque[dict] = collections.deque()
+        # Responses keyed by request id (JSON-RPC: has "id", no "method").
+        self._pending_responses: dict[int, dict] = {}
 
     # ------------------------------------------------------------------
     # Low-level send / receive
@@ -100,20 +105,39 @@ class McpClient:
             msg["params"] = params
         self._write(msg)
 
-    def recv(self) -> dict:
-        """Read and decode one JSON-RPC message from the server."""
+    def _pump(self) -> None:
+        """Read one raw message from the pipe and route it to the right buffer.
+
+        JSON-RPC responses (have ``id``, no ``method``) go into
+        ``_pending_responses`` keyed by id.  Everything else (notifications,
+        server-initiated requests) goes into ``_recv_queue``.
+        """
         while True:
             raw = self._proc.stdout.readline()
             if not raw:
                 raise EOFError("Server closed stdout unexpectedly")
             line = raw.decode("utf-8", errors="replace").strip()
-            if not line:
-                continue  # skip blank separator lines
             print(f"<<< {line}")
-            return json.loads(line)
+            if not line or not line.startswith("{"):
+                continue  # skip blank separator lines
+            msg = json.loads(line)
+            if "id" in msg and "method" not in msg:
+                self._pending_responses[msg["id"]] = msg
+            else:
+                self._recv_queue.append(msg)
+            return
+
+    def recv(self) -> dict:
+        """Return the next notification or server-initiated request.
+
+        Drains ``_recv_queue`` first; pumps the pipe when the queue is empty.
+        """
+        while not self._recv_queue:
+            self._pump()
+        return self._recv_queue.popleft()
 
     def _write(self, msg: dict) -> None:
-        line = (json.dumps(msg, separators=(",", ":")) + "\n").encode("utf-8")
+        line = (json.dumps(msg, separators=(",", ":")) + "\r\n").encode("utf-8")
         self._proc.stdin.write(line)
         self._proc.stdin.flush()
         print(f">>> {line.decode('utf-8', errors='replace').strip()}")
@@ -122,13 +146,21 @@ class McpClient:
     # High-level helpers
     # ------------------------------------------------------------------
 
+    def recv_response(self, request_id: int) -> dict:
+        """Block until the response for request_id arrives.
+
+        Responses for other in-flight requests accumulate in
+        ``_pending_responses`` and are returned by their own
+        ``recv_response()`` calls.  Notifications accumulate in
+        ``_recv_queue`` and are returned by ``recv()``.
+        """
+        while request_id not in self._pending_responses:
+            self._pump()
+        return self._pending_responses.pop(request_id)
+
     def request(self, method: str, params: dict | None = None) -> dict:
         """Send a request and block until its matching response arrives."""
-        request_id = self.send_request(method, params)
-        while True:
-            msg = self.recv()
-            if msg.get("id") == request_id:
-                return msg
+        return self.recv_response(self.send_request(method, params))
 
     def close(self) -> None:
         """Close the server's stdin (signals EOF) and wait for it to exit."""
@@ -272,7 +304,7 @@ def run_tests(extra_args: list[str]) -> int:
         cmd,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,  # suppress driver log noise
+        stderr=subprocess.STDOUT,   # capture MCP server errors too
         cwd=Path(config).parent,    # run from the examples/ directory
     )
     client = McpClient(proc)
