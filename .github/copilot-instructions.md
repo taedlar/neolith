@@ -18,7 +18,7 @@ Neolith is a minimalist LPMud driver forked from MudOS v22pre5, modernizing deca
 
 **Core Source** (frequently modified)
 - [src/backend.c](../src/backend.c) — main event loop; [src/interpret.c](../src/interpret.c) — LPC VM; [src/simulate.c](../src/simulate.c) — object management
-- [src/comm.c](../src/comm.c) — network I/O; [src/apply.c](../src/apply.c) — LPC apply dispatch
+- [src/comm.c](../src/comm.c) — network I/O; [src/apply.cpp](../src/apply.cpp) — LPC apply dispatch
 - [lib/lpc/](../lib/lpc/) — LPC compiler pipeline and runtime types
 - [lib/lpc/func_spec.c.in](../lib/lpc/func_spec.c.in) — efun definitions source template; edited directly, configured by CMake into `func_spec.c` then preprocessed into `func_spec.i`
 - [lib/lpc/grammar.y](../lib/lpc/grammar.y) — LPC parser grammar
@@ -262,11 +262,11 @@ hatch run smoke_test
 ## Common Pitfalls
 1. **Don't modify generated files** like `grammar.c`/`grammar.h` (from Bison) or efun tables (from edit_source)
 2. **Object destruction**: Always check `ob->flags & O_DESTRUCTED` after applies—objects can self-destruct
-3. **Stack discipline**: Applies must clean up arguments even on failure (see [apply.c](../src/apply.c) comments)
+3. **Stack discipline**: Applies must clean up arguments even on failure (see [apply.cpp](../src/apply.cpp) comments)
 4. **Global state**: Minimize globals; use `static` within .c files when possible
 5. **Line-of-code metrics**: Avoid unnecessary line wrapping; check LOC with `git ls-files | egrep -v '^(docs|examples)' | xargs wc -l`
 6. **Type system mixing**: Never mix compile-time TYPE_* with runtime T_* values—see [lpc-types.md](../docs/internals/lpc-types.md)
-7. **Binary compatibility**: Always bump driver_id in [binaries.c](../lib/lpc/program/binaries.c) when adding/removing/reordering opcodes or changing runtime struct sizes
+7. **Binary compatibility**: Always bump driver_id in [binaries.cpp](../lib/lpc/program/binaries.cpp) when adding/removing/reordering opcodes or changing runtime struct sizes
 8. **svalue wrapper construction**: Do not assign raw `svalue_t` to `lpc::svalue`—use `lpc::svalue_ref` for explicit retained-copy semantics, or use `lpc::svalue::view()` for borrowing-only access. The raw constructor was removed to prevent ambiguity.
 9. **svalue borrowing**: Always use `lpc::svalue_view` or `lpc::const_svalue_view` for zero-cost borrow-only access to `svalue_t` fields. Prefer immutable views (`const_svalue_view`) when mutation is not needed.
 10. **Temporary allocation unwinding in C/C++**: Manual *ALLOC (DMALLOC, DXALLOC, etc.) in C/C++ functions leak when exceptions (LPC errors, apply calls, or function pointer invocations) unwind before reaching cleanup code. **Recommendation**: Migrate allocation-heavy functions to C++ and use `NEOLITH_HEAP_SCOPE(scope)` to wrap temporary blocks. If ownership of a tracked allocation escapes the scope, explicitly untrack it with `NEOLITH_HEAP_RELEASE(ptr)` before returning or storing it elsewhere. The RAII scope guard in [src/malloc.cpp](../src/malloc.cpp) automatically frees tracked allocations on unwind, while `NEOLITH_HEAP_RELEASE` prevents accidental free on successful ownership transfer. See [lib/efuns/command.cpp](../lib/efuns/command.cpp) and [lib/efuns/objects.cpp](../lib/efuns/objects.cpp) for patterns. For C-only legacy code where migration is not feasible, ensure all early-return and error paths explicitly free allocations before unwinding.
