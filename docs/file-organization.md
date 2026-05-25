@@ -1,13 +1,19 @@
-# Documentation File Organization
+# Documentation File Organization by Location
 
-Documentation files should be named using lowercase letters and dashes (`-`) as word separators. Avoid underscores and camelCase.
-Prefix the filenames with the library name, feature or subsystem name for easy identification (e.g., `async-dns-integration.md`).
+Documents in [docs/](../docs/) are organized by subdirectory by purpose and audience.
 
 ## Design & Planning ([docs/plan/](plan/))
 
-- Create design docs here before implementation starts. Move to manual/internals when implementation begins.
-- When extending an existing feature, update the original design doc instead of creating a new one.
-- Don't duplicate implementation details here; focus on high-level design, rationale, alternatives considered, and final decisions.
+- Plan docs are **current-state docs** during implementation. Do not link to them from permanent docs or source code.
+- Create a plan document here before implementation starts. When extending an existing feature, update the original plan doc instead of creating a new one.
+- **PLAN DOCUMENT STRUCTURE**:
+  - Write a concise plan description (< 500 words) as the first section to prevent context drift.
+  - Use staged status (`not started`, `in progress`, `complete`) when work spans multiple stages. Keep status updated in a table immediately after the description.
+  - **HANDOFFS**: After implementation starts, include clear handoff instructions in a "Current State Handoff" section after the staged status. Keep handoffs current whenever status changes.
+  - Document each stage with checklists of specific tasks, and update them as work progresses so others can pick up where you left off.
+  - **LESSONS LEARNED**: Add a "Lessons Learned" section at the end of the plan doc with useful insights.
+- Read the plan description, handoffs, and lessons learned before starting work to preserve context and continuity.
+- Do not duplicate implementation details here; focus on high-level design, rationale, alternatives considered, and final decisions.
 
 ## High-level Design Documentation ([docs/manual/](manual/))
 
@@ -20,14 +26,14 @@ Prefix the filenames with the library name, feature or subsystem name for easy i
 - [internals.md](manual/internals.md): Driver architecture overview. Links to [docs/internals/](internals/) for deep dives into specific subsystems.
 - [trace.md](manual/trace.md): Debugging and tracing guide - how to enable and interpret trace logs.
 - When extending an existing feature, update the original design doc instead of creating a new one.
-- Keep these documents updated as the codebase evolves. Focus on high-level architecture and terminology for current code.
-- High-level concepts includes features that are visible to mudlib developers (efuns, applies, object model, compiler behavior).
-- When starting new features, create design docs in [docs/plan/](plan/) first, then move to manual when implementation starts. Keep implementation status updated. Link implementation details back to design docs.
+- Keep these documents updated as the codebase evolves, with high-level architecture and terminology for current code.
+- High-level concepts include features visible to mudlib developers (efuns, applies, object model, compiler behavior).
+- For new features, create design docs in [docs/plan/](plan/) first, then move to manual when implementation starts. Keep implementation status updated and link implementation details back to design docs.
 
 ## Implementation Details ([docs/internals/](internals/))
 
-- Keep these documents focused on design decisions, technical specifications and internal architecture such as C APIs and data structures.
-- Update as implementation details change. Link back to high-level design docs in [docs/manual/internals.md](manual/internals.md).
+- Keep these documents focused on design decisions, technical specifications, and internal architecture such as C APIs and data structures.
+- Update them as implementation details change. Link back to high-level design docs in [docs/manual/internals.md](manual/internals.md).
 - [lpc-types.md](internals/lpc-types.md): Complete LPC type system reference - lpc_type_t vs svalue_type_t, encoding schemes, compatibility checking, common pitfalls
 - [lpc-program.md](internals/lpc-program.md): Complete LPC compiler memory block system, binary save/load format, pointer serialization, inheritance resolution
 - [int64-design.md](internals/int64-design.md): Platform-agnostic 64-bit integer implementation - runtime types, bytecode encoding, binary compatibility

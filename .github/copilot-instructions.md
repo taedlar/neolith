@@ -3,54 +3,55 @@
 ## Project Overview
 Neolith is a minimalist LPMud driver forked from MudOS v22pre5, modernizing decades-old C/C++ code while maintaining compatibility with the LPC (Lars Pensjö C) scripting language used by MUD builders.
 
-**Development Priorities**: Stability, LPC compatibility, documentation, and incremental modernization (Boost, OpenSSL, CURL). See [docs/internals/](docs/internals/) for persistent architecture and design references.
+**Development Priorities**: Stability, LPC compatibility, documentation, and incremental modernization (Boost, OpenSSL, CURL). See [docs/internals/](../docs/internals/) for persistent architecture and design references.
 
 **When adding features or refactoring**: Prioritize decisions that preserve LPC behavior and performance, favor portable C++ (Linux + Windows/MSVC/Clang), and maintain the single-threaded backend design.
 
 ## Key File Locations
 
 **Build & Runtime**
-- [config.h.in](config.h.in) — compile-time feature flags
-- [src/neolith.conf](src/neolith.conf) — runtime configuration template
-- [examples/m3_mudlib/](examples/m3_mudlib/) — test mudlib
+- [config.h.in](../config.h.in) — compile-time feature flags
+- [src/neolith.conf](../src/neolith.conf) — runtime configuration template
+- [examples/m3_mudlib/](../examples/m3_mudlib/) — test mudlib
+- [examples/m3_testbots/](../examples/m3_testbots/) — integration test scenarios simulating user interactions
+- [examples/apps/](../examples/apps/) — example applications using Neolith as a LPC shell
 
 **Core Source** (frequently modified)
-- [src/backend.c](src/backend.c) — main event loop; [src/interpret.c](src/interpret.c) — LPC VM; [src/simulate.c](src/simulate.c) — object management
-- [src/comm.c](src/comm.c) — network I/O; [src/apply.c](src/apply.c) — LPC apply dispatch
-- [lib/lpc/func_spec.c.in](lib/lpc/func_spec.c.in) — efun definitions source template; edited directly, configured by CMake into `func_spec.c` then preprocessed into `func_spec.i`
-- [lib/lpc/grammar.y](lib/lpc/grammar.y) — LPC parser grammar
+- [src/backend.c](../src/backend.c) — main event loop; [src/interpret.c](../src/interpret.c) — LPC VM; [src/simulate.c](../src/simulate.c) — object management
+- [src/comm.c](../src/comm.c) — network I/O; [src/apply.c](../src/apply.c) — LPC apply dispatch
+- [lib/lpc/](../lib/lpc/) — LPC compiler pipeline and runtime types
+- [lib/lpc/func_spec.c.in](../lib/lpc/func_spec.c.in) — efun definitions source template; edited directly, configured by CMake into `func_spec.c` then preprocessed into `func_spec.i`
+- [lib/lpc/grammar.y](../lib/lpc/grammar.y) — LPC parser grammar
+- [lib/port/](../lib/port/) — platform abstraction layer (file I/O, sockets, etc.)
+- [lib/misc/](../lib/misc/) — utilities (string, time, host filepath, etc.)
 
 **Reference Docs** (ground truth for LPC behavior)
-- [docs/efuns/](docs/efuns/) — efun signatures and behavior
-- [docs/applies/](docs/applies/) — driver-to-LPC apply callback reference
-
-**Architecture Docs** (read before touching a subsystem)
-- [docs/internals/lpc-types.md](docs/internals/lpc-types.md) — compile-time vs runtime type systems
-- [docs/internals/lpc-program.md](docs/internals/lpc-program.md) — compiler memory layout and lifecycle
-- [docs/internals/async-library.md](docs/internals/async-library.md) — async worker/queue/runtime design
-- [docs/manual/dev.md](docs/manual/dev.md) — developer setup, build, and run guide
+- [docs/efuns/](../docs/efuns/) — efun signatures and behavior
+- [docs/applies/](../docs/applies/) — driver-to-LPC apply callback reference
 
 **Planning & History** (active work context)
-- [docs/internals/](docs/internals/) — persistent feature architecture and subsystem design references
-- [docs/history/](docs/history/) — active implementation reports (recent changes, may cause regressions)
-- [docs/ChangeLog.md](docs/ChangeLog.md) — release-level change summaries
+- [docs/plan/](../docs/plan/) — active design and implementation plans (short-term, may be deleted or archived)
+- [docs/history/](../docs/history/) — recently completed plans and experimental features.
+- [docs/ChangeLog.md](../docs/ChangeLog.md) — release-level change summaries
 
 ## Architecture
 
 Neolith is an LPC VM driver with these core parts:
 
-1. **Backend** ([src/backend.c](src/backend.c)) — main loop, timers, lifecycle orchestration.
-2. **Interpreter** ([src/interpret.c](src/interpret.c)) — opcode execution and call-stack runtime.
-3. **Simulate** ([src/simulate.c](src/simulate.c)) — object loading, cloning, movement, destruction.
-4. **Comm** ([src/comm.c](src/comm.c)) — non-blocking network I/O and input/output buffering.
-5. **LPC Compiler** ([lib/lpc/](lib/lpc/)) — on-demand LPC compile pipeline.
-6. **Efuns** ([lib/efuns/](lib/efuns/)) — generated built-in LPC functions.
+1. **Backend** ([src/backend.c](../src/backend.c)) — main loop, timers, lifecycle orchestration.
+2. **Interpreter** ([src/interpret.c](../src/interpret.c)) — opcode execution and call-stack runtime.
+3. **Simulate** ([src/simulate.c](../src/simulate.c)) — object loading, cloning, movement, destruction.
+4. **Comm** ([src/comm.c](../src/comm.c)) — non-blocking network I/O and input/output buffering.
+5. **LPC Compiler** ([lib/lpc/](../lib/lpc/)) — on-demand LPC compile pipeline.
+6. **Efuns** ([lib/efuns/](../lib/efuns/)) — generated built-in LPC functions.
 
 Keep this section as a map only. Put subsystem behavior and invariants in dedicated docs for retrieval:
-- [docs/internals/async-library.md](docs/internals/async-library.md)
-- [docs/internals/lpc-types.md](docs/internals/lpc-types.md)
-- [docs/internals/lpc-program.md](docs/internals/lpc-program.md)
-- [docs/applies/](docs/applies/)
+- [docs/internals/](../docs/internals/) — persistent feature architecture and subsystem design references
+- [docs/internals/async-library.md](../docs/internals/async-library.md)
+- [docs/internals/lpc-types.md](../docs/internals/lpc-types.md)
+- [docs/internals/lpc-program.md](../docs/internals/lpc-program.md)
+- [docs/applies/](../docs/applies/) — driver-to-LPC apply callback reference
+- [docs/manual/dev.md](../docs/manual/dev.md) — developer setup, build, and run guide
 
 ## Critical Developer Workflows
 
@@ -81,20 +82,20 @@ Keep this section as a map only. Put subsystem behavior and invariants in dedica
   ```bash
   /path/to/neolith -f /path/to/neolith.conf -p
   ```
-- Use [src/neolith.conf](src/neolith.conf) as the config template.
-- `-p` enables pedantic mode (memory leak checks); see [docs/manual/dev.md](docs/manual/dev.md).
-- `-t` enables trace logging; see [docs/manual/trace.md](docs/manual/trace.md).
+- Use [src/neolith.conf](../src/neolith.conf) as the config template.
+- `-p` enables pedantic mode (memory leak checks); see [docs/manual/dev.md](../docs/manual/dev.md).
+- `-t` enables trace logging; see [docs/manual/trace.md](../docs/manual/trace.md).
 
 #### Running in Console Mode
 - Use `-c` for stdin/stdout-driven testing (no telnet client required).
-- Reference: [docs/manual/console-mode.md](docs/manual/console-mode.md).
+- Reference: [docs/manual/console-mode.md](../docs/manual/console-mode.md).
 - Example:
 ```bash
 /path/to/neolith -f /path/to/neolith.conf -c < /path/to/console_commands.txt > /path/to/console_output.log
 ```
 
 ### Testing
-- Unit tests use GoogleTest in [tests/](tests/); test files follow `test_*.cpp` and use `TEST()` / `TEST_F()`.
+- Unit tests use GoogleTest in [tests/](../tests/); test files follow `test_*.cpp` and use `TEST()` / `TEST_F()`.
 - Run `ctest` from repository root.
 
 ```bash
@@ -118,20 +119,19 @@ ctest --test-dir out/build/clang-x64 -R RelWithDebInfo --build-and-test
 - Update `examples/m3_testbots/src/smoke_test.py` with test scenarios as needed.
 - Run:
 ```bash
-cd examples/m3_testbots
 hatch run smoke_test
 ```
 
 ## Code Conventions & Patterns
 
 ### Architecture and Modularity
-- Keep subsystems in their libraries under [lib/](lib/) (`async`, `lpc`, `efuns`, etc.); driver glue lives in [src/](src/) and links through `stem`.
+- Keep subsystems in their libraries under [lib/](../lib/) (`async`, `lpc`, `efuns`, etc.); driver glue lives in [src/](../src/) and links through `stem`.
 - Prefer `static` file-local state over new globals.
 - Preserve init/deinit symmetry (`init_*()` with matching `deinit_*()`), coordinated by `mud_state()`.
 
 ### Includes and Headers
 - In `.c` files, include `config.h` first.
-- In [src/](src/) `.c` files, include `std.h` immediately after `config.h`.
+- In [src/](../src/) `.c` files, include `std.h` immediately after `config.h`.
 - Keep headers C/C++ compatible (`extern "C"` guards when `__cplusplus` is defined) and avoid unnecessary includes.
 
 ### Formatting
@@ -195,12 +195,12 @@ hatch run smoke_test
 ### Async Runtime (Critical)
 - `async_runtime_wait()` must have exactly one caller thread: the backend/main thread.
 - Never call `async_runtime_wait()` from workers or concurrently.
-- Current single call site is `do_comm_polling()` in [src/comm.c](src/comm.c); keep it that way.
+- Current single call site is `do_comm_polling()` in [src/comm.c](../src/comm.c); keep it that way.
 - Workers should notify via `async_runtime_post_completion()`.
-- Reference: [docs/internals/async-library.md](docs/internals/async-library.md).
+- Reference: [docs/internals/async-library.md](../docs/internals/async-library.md).
 
 ### Applies and Object Lifecycle
-- Driver-to-LPC applies (`heart_beat()`, `reset()`, `init()`, etc.) dispatch through APPLY_CALL (don't care about return value) or APPLY_SLOT_CALL in [src/apply.h](src/apply.h); see [docs/applies/](docs/applies/).
+- Driver-to-LPC applies (`heart_beat()`, `reset()`, `init()`, etc.) dispatch through APPLY_CALL (don't care about return value) or APPLY_SLOT_CALL in [src/apply.h](../src/apply.h); see [docs/applies/](../docs/applies/).
 - Object lifecycle invariants:
   - load compiles a base object (no `#` suffix)
   - clone adds `#N` and shares program
@@ -208,28 +208,29 @@ hatch run smoke_test
   - destruction frees programs only when refcount reaches zero
 
 ### Build and Efun Integration
-- Respect library dependency flow in [src/CMakeLists.txt](src/CMakeLists.txt):
+- Respect library dependency flow in [src/CMakeLists.txt](../src/CMakeLists.txt):
   - `stem -> efuns, lpc, rc, socket, misc, logger, port`
   - `lpc -> logger, efuns, rc`
   - `efuns -> port, misc`
 - Efuns are generated, not manually registered:
-  1. Update [lib/lpc/func_spec.c.in](lib/lpc/func_spec.c.in)
+  1. Update [lib/lpc/func_spec.c.in](../lib/lpc/func_spec.c.in)
   2. Build to produce `func_spec.i`
   3. Let `edit_source` regenerate dispatch tables
-  4. Implement guarded C code in [lib/efuns/](lib/efuns/)
+  4. Implement guarded C code in [lib/efuns/](../lib/efuns/)
 
 ### LPC Types and Compiler Touchpoints
 - Keep compile-time `TYPE_*` (`lpc_type_t`) separate from runtime `T_*` (`svalue_type_t`). Never mix domains.
 - When checking compile-time base type, mask modifiers: `type & ~NAME_TYPE_MOD`.
 - Arrays/classes use modifier checks (`TYPE_MOD_ARRAY`, `IS_CLASS(type)`).
-- Type-system reference: [docs/internals/lpc-types.md](docs/internals/lpc-types.md).
-- Compiler work reference: [docs/internals/lpc-program.md](docs/internals/lpc-program.md).
+- Type-system reference: [docs/internals/lpc-types.md](../docs/internals/lpc-types.md).
+- Compiler work reference: [docs/internals/lpc-program.md](../docs/internals/lpc-program.md).
 - Common edits:
-  - opcode: `function.h` -> `icode.c` -> [src/interpret.c](src/interpret.c) -> `disassemble.c`
-  - grammar: [lib/lpc/grammar.y](lib/lpc/grammar.y) -> `parse_trees.c` -> `icode.c`
+  - opcode: `function.h` -> `icode.c` -> [src/interpret.c](../src/interpret.c) -> `disassemble.c`
+  - grammar: [lib/lpc/grammar.y](../lib/lpc/grammar.y) -> `parse_trees.c` -> `icode.c`
   - compile debug: `TT_COMPILE`, `opt_trace(...)`, `num_parse_error`, `mem_block[].current_size`
 
 ## Documentation Conventions
+
 - Use inline Doxygen function comments:
   ```c
   /**
@@ -238,59 +239,45 @@ hatch run smoke_test
    * @returns What the function returns.
    */
   ```
-- Write docs in Markdown under [docs/](docs/) (GitHub Flavored Markdown).
-- Keep **permanent-state docs** in [docs/manual/](docs/manual/) and [docs/internals/](docs/internals/) accurate as code evolves.
+- Add block comments for complex logic or important invariants, especially in critical paths like memory management, applies, and async handling.
+- Write docs in Markdown under [docs/](../docs/) (GitHub Flavored Markdown). Follow [file-organization.md](../docs/file-organization.md) for naming and structure.
+- Name documentation files with lowercase letters and dashes (`-`) as separators (no underscores or camelCase), and prefix filenames with the library, feature, or subsystem (for example, `async-dns-integration.md`).
+- Updating existing docs can proceed silently. Creation of new documents requires user approval.
+- Start feature work with a plan document in [docs/plan/](../docs/plan/) to track design decisions, implementation status, and handoff instructions, and keep it updated as work progresses.
+- Search [docs/history](../docs/history/) for recently completed plans when debugging regressions; they may contain bugs or experimental changes.
+- Keep **permanent-state docs** in [docs/manual/](../docs/manual/) and [docs/internals/](../docs/internals/) accurate as code evolves:
   - Manuals are for operators and mudlib developers (coding in LPC); internals are for driver developers (coding in C/C++).
-  - **docs/manual style**: Avoid explaining driver implementations in C/C++ terms; focus on behavior, contracts, and examples in LPC terms.
-  - **docs/manual style**: Use code snippets to illustrate behavior, not to document implementation.
-  - **docs/internals style**: Emphasize design rationale (why), architecture, and integration patterns; avoid duplicating implementation details.
-  - **docs/internals style**: Link to source instead of copying code.
-- **IMPORTANT**: Start feature work with a plan document in [docs/plan/](docs/plan/) to track design decisions, implementation status, and handoff instructions. Update the plan as work progresses and archive when complete.
-  - Write a short description (< 300 words) of the plan at the top of the plan document.
-  - Use staged status (`not started`, `in progress`, `complete`) when work spans multiple stages. Keep the status updated and visible following the description.
-  - If the a stage contains a long checklist, ask for user confirmation before breaking it down into sub-stages with their own status tracking.
-  - **NO PERMANENT CROSS REFERENCES**: plan documents must be treated as temporary that will be archived or deleted in a future commit. Do not link to them from permanent docs or source code.
-  - Permanent-state docs can be created during implementation only after user confirmation, and must be kept concise and focused on behavior and contracts, not implementation details. Permanent docs should not link to plan documents.
-  - **HANDOFFS** after implementation starts, plan documents should include clear handoff instructions in a top-level heading "Current State Handoff" near top of the document. Keep handoffs up-to-date whenever implementation status changes.
-  - **LESSONS LEARNED**: add a "Lessons Learned" section to the plan document when implementation is completed with insights that may be useful for this plan. Place this section after handoffs and read it before implementing things.
-- When you are reqiored to close a plan:
-  - If there are items not in `complete` status, ask for user confirmation before closing the plan. Create a sumarrized handoff notes (pre-closing) with the date of close and a brief list of any non-complete items.
-  - Do a quick review of the plan document for any useful insights or lessons learned that may be helpful for future work; add them to a "Lessons Learned" section at the end of the plan if so.
-  - Move the plan doc to [docs/history/](docs/history/) with `git mv`
-- When you are required to archive a plan (look for plan doc in [docs/plan/](docs/plan/) or [docs/history/](docs/history/)):
-  - Ask for user confirmation before archiving any plan document. Show descriptive information, not the archiving action.
-  - If the plan is not in [docs/history/](docs/history/) yet, do plan closing steps above first (including handoff notes and lessons learned).
-  - To archive a plan, add the plan doc to `hN.zip` in [docs/history/](docs/history/) and roll over to a new archive when the current one exceeds 1 MB. Delete the original plan doc after archiving.
+  - Avoid implementation details; focus on behavior, contracts, and design decisions.
+  - Permanent-state docs can only link to other permanent-state docs (no links to plan docs or source code).
+- When adding content to audience-specific docs (manuals vs internals), ensure the content matches the intended audience.
+- Use [docs/manual/internals.md](../docs/manual/internals.md) as a cross-reference for linking between manuals and internals when needed.
 
 ### Documentation Best Practices
 1. Keep docs concise and structured for retrieval (clear headings, tables, and short bullet lists).
-2. Document decisions and interfaces, not full implementations; link to source for details.
-3. Keep implementation reports focused on deltas and status.
-4. Before PRs, remove outdated or redundant text and ensure plan/current-state docs are aligned.
-
-## Reference Documentation
-
-Documentation files use lowercase names with dash (`-`) separators, prefixed with the library/feature name. See [docs/file-organization.md](docs/file-organization.md) for the complete guide to doc placement and conventions.
+2. Don't mix driver-facing and mudlib-facing details in the same doc.
+3. Document decisions and interfaces, not full implementations.
+4. Keep implementation status focused on deltas.
+5. When updating docs, remove outdated or redundant text and keep plan/current-state docs aligned.
 
 ## Common Pitfalls
 1. **Don't modify generated files** like `grammar.c`/`grammar.h` (from Bison) or efun tables (from edit_source)
 2. **Object destruction**: Always check `ob->flags & O_DESTRUCTED` after applies—objects can self-destruct
-3. **Stack discipline**: Applies must clean up arguments even on failure (see [apply.c](src/apply.c) comments)
+3. **Stack discipline**: Applies must clean up arguments even on failure (see [apply.c](../src/apply.c) comments)
 4. **Global state**: Minimize globals; use `static` within .c files when possible
 5. **Line-of-code metrics**: Avoid unnecessary line wrapping; check LOC with `git ls-files | egrep -v '^(docs|examples)' | xargs wc -l`
-6. **Type system mixing**: Never mix compile-time TYPE_* with runtime T_* values—see [lpc-types.md](docs/internals/lpc-types.md)
-7. **Binary compatibility**: Always bump driver_id in [binaries.c](lib/lpc/program/binaries.c) when adding/removing/reordering opcodes or changing runtime struct sizes
+6. **Type system mixing**: Never mix compile-time TYPE_* with runtime T_* values—see [lpc-types.md](../docs/internals/lpc-types.md)
+7. **Binary compatibility**: Always bump driver_id in [binaries.c](../lib/lpc/program/binaries.c) when adding/removing/reordering opcodes or changing runtime struct sizes
 8. **svalue wrapper construction**: Do not assign raw `svalue_t` to `lpc::svalue`—use `lpc::svalue_ref` for explicit retained-copy semantics, or use `lpc::svalue::view()` for borrowing-only access. The raw constructor was removed to prevent ambiguity.
 9. **svalue borrowing**: Always use `lpc::svalue_view` or `lpc::const_svalue_view` for zero-cost borrow-only access to `svalue_t` fields. Prefer immutable views (`const_svalue_view`) when mutation is not needed.
-10. **Temporary allocation unwinding in C/C++**: Manual *ALLOC (DMALLOC, DXALLOC, etc.) in C/C++ functions leak when exceptions (LPC errors, apply calls, or function pointer invocations) unwind before reaching cleanup code. **Recommendation**: Migrate allocation-heavy functions to C++ and use `NEOLITH_HEAP_SCOPE(scope)` to wrap temporary blocks. If ownership of a tracked allocation escapes the scope, explicitly untrack it with `NEOLITH_HEAP_RELEASE(ptr)` before returning or storing it elsewhere. The RAII scope guard in [src/malloc.cpp](src/malloc.cpp) automatically frees tracked allocations on unwind, while `NEOLITH_HEAP_RELEASE` prevents accidental free on successful ownership transfer. See [lib/efuns/command.cpp](lib/efuns/command.cpp) and [lib/efuns/objects.cpp](lib/efuns/objects.cpp) for patterns. For C-only legacy code where migration is not feasible, ensure all early-return and error paths explicitly free allocations before unwinding.
-11. **Guarding driver state with mud_state()**: Many driver subsystems are only initialized when the mudlib is ready (after MS_PRE_MUDLIB state). Calling functions that depend on initialized state—like stack operations (`share_and_push_string()`, `copy_and_push_string()`), master object applies, or evaluator operations—without checking `mud_state()` first causes crashes or undefined behavior. **Pattern**: In functions called during compile-only paths (e.g., `compile_file()` without simulate setup) or error handlers, guard state-dependent operations with `if (mud_state() >= MS_PRE_MUDLIB) { /* operation */ } else { /* fallback */ }`. Example: `smart_log()` in [src/stem.cpp](src/stem.cpp) checks state before pushing strings onto the LPC stack and falls back to `LOG_ERROR()` when mudlib is unavailable. **In unit tests**: Use `setup_simulate()` and `init_master()` to advance `mud_state()` before operations requiring them, or use bare `compile_file()` only when mudlib state is intentionally not needed.
+10. **Temporary allocation unwinding in C/C++**: Manual *ALLOC (DMALLOC, DXALLOC, etc.) in C/C++ functions leak when exceptions (LPC errors, apply calls, or function pointer invocations) unwind before reaching cleanup code. **Recommendation**: Migrate allocation-heavy functions to C++ and use `NEOLITH_HEAP_SCOPE(scope)` to wrap temporary blocks. If ownership of a tracked allocation escapes the scope, explicitly untrack it with `NEOLITH_HEAP_RELEASE(ptr)` before returning or storing it elsewhere. The RAII scope guard in [src/malloc.cpp](../src/malloc.cpp) automatically frees tracked allocations on unwind, while `NEOLITH_HEAP_RELEASE` prevents accidental free on successful ownership transfer. See [lib/efuns/command.cpp](../lib/efuns/command.cpp) and [lib/efuns/objects.cpp](../lib/efuns/objects.cpp) for patterns. For C-only legacy code where migration is not feasible, ensure all early-return and error paths explicitly free allocations before unwinding.
+11. **Guarding driver state with mud_state()**: Many driver subsystems are only initialized when the mudlib is ready (after MS_PRE_MUDLIB state). Calling functions that depend on initialized state—like stack operations (`share_and_push_string()`, `copy_and_push_string()`), master object applies, or evaluator operations—without checking `mud_state()` first causes crashes or undefined behavior. **Pattern**: In functions called during compile-only paths (e.g., `compile_file()` without simulate setup) or error handlers, guard state-dependent operations with `if (mud_state() >= MS_PRE_MUDLIB) { /* operation */ } else { /* fallback */ }`. Example: `smart_log()` in [src/stem.cpp](../src/stem.cpp) checks state before pushing strings onto the LPC stack and falls back to `LOG_ERROR()` when mudlib is unavailable. **In unit tests**: Use `setup_simulate()` and `init_master()` to advance `mud_state()` before operations requiring them, or use bare `compile_file()` only when mudlib state is intentionally not needed.
 
 ## Agent Execution Priorities
 - Prioritize impact-first changes: fix code and tests first, then update only docs directly affected by the change.
 - Run the smallest relevant test scope for touched behavior (targeted test files first; expand scope only when risk is broader).
 - Apply doc updates conditionally:
-  - Update [docs/efuns/](docs/efuns/) only when efun behavior/signature is added or changed.
-  - Update [docs/manual/](docs/manual/) or [docs/internals/](docs/internals/) only when architecture, contracts, or operational behavior changes.
-  - Update [docs/ChangeLog.md](docs/ChangeLog.md) for release-relevant user-visible or developer-facing changes.
+  - Update [docs/efuns/](../docs/efuns/) only when efun behavior/signature is added or changed.
+  - Update [docs/manual/](../docs/manual/) or [docs/internals/](../docs/internals/) only when architecture, contracts, or operational behavior changes.
+  - Update [docs/ChangeLog.md](../docs/ChangeLog.md) for release-relevant user-visible or developer-facing changes.
 - Keep doc edits concise and source-linked; avoid restating implementation that is already clear in code.
-- Use [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) as the policy source of truth when guidance conflicts.
+- Use [docs/CONTRIBUTING.md](../docs/CONTRIBUTING.md) as the policy source of truth when guidance conflicts.
