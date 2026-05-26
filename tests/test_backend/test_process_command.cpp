@@ -190,6 +190,34 @@ protected:
 
     free_array(state);
   }
+
+  object_t *load_query_verb_case_object(const char *name) {
+    constexpr const char *kLpcCode = R"(
+      string seen_in_command;
+
+      void register_actions() {
+        add_action("act_regular", "look");
+      }
+
+      int act_regular(string arg) {
+        seen_in_command = query_verb();
+        return 1;
+      }
+
+      mixed query_verb_outside() {
+        return query_verb();
+      }
+
+      mixed *state() {
+        return ({ seen_in_command, query_verb() });
+      }
+    )";
+
+    current_object = master_ob;
+    object_t *obj = load_object(name, kLpcCode);
+    EXPECT_NE(obj, nullptr);
+    return obj;
+  }
 };
 
 TEST_F(ProcessCommandTest, HandlesRegularVerbFromAddAction) {
@@ -256,6 +284,45 @@ TEST_F(ProcessCommandTest, HandlesEmptyShortVerbVariant) {
   char input[] = "dance quickly now";
   EXPECT_EQ(process_command(input, obj), 1);
   expect_state(obj, "empty_short", "dance", "quickly now", 1);
+
+  destruct_object(obj);
+}
+
+TEST_F(ProcessCommandTest, QueryVerbReturnsZeroOutsideCommandAndDoesNotLeak) {
+  object_t *obj = load_query_verb_case_object("/tests/backend/test_process_command_query_verb_scope");
+  ASSERT_NE(obj, nullptr);
+  register_actions(obj);
+
+  svalue_t *outside_before = APPLY_SLOT_CALL("query_verb_outside", obj, 0, ORIGIN_DRIVER);
+  ASSERT_NE(outside_before, nullptr);
+  auto outside_before_view = lpc::svalue_view::from(outside_before);
+  ASSERT_TRUE(outside_before_view.is_number());
+  EXPECT_EQ(outside_before_view.number(), 0);
+  APPLY_SLOT_FINISH_CALL();
+
+  char input[] = "look sky";
+  EXPECT_EQ(process_command(input, obj), 1);
+
+  array_t *state = fetch_state(obj);
+  ASSERT_NE(state, nullptr);
+  ASSERT_EQ(state->size, 2);
+
+  auto seen_in_command_view = lpc::svalue_view::from(&state->item[0]);
+  ASSERT_TRUE(seen_in_command_view.is_string());
+  EXPECT_STREQ(seen_in_command_view.c_str(), "look");
+
+  auto seen_after_command_view = lpc::svalue_view::from(&state->item[1]);
+  ASSERT_TRUE(seen_after_command_view.is_number());
+  EXPECT_EQ(seen_after_command_view.number(), 0);
+
+  free_array(state);
+
+  svalue_t *outside_after = APPLY_SLOT_CALL("query_verb_outside", obj, 0, ORIGIN_DRIVER);
+  ASSERT_NE(outside_after, nullptr);
+  auto outside_after_view = lpc::svalue_view::from(outside_after);
+  ASSERT_TRUE(outside_after_view.is_number());
+  EXPECT_EQ(outside_after_view.number(), 0);
+  APPLY_SLOT_FINISH_CALL();
 
   destruct_object(obj);
 }

@@ -1,4 +1,4 @@
-// unicode processing
+/* api/unicode.c */
 
 string textwrap (string str, int width) {
     string* mbch;

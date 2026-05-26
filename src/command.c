@@ -47,6 +47,7 @@ static char *first_cmd_in_buf (interactive_t *);
 static void next_cmd_in_buf (interactive_t *);
 static void print_prompt (interactive_t *);
 static int user_parser (const char * buff);
+static void set_last_verb_from_input (const char *input, char *verb_buf, size_t verb_buf_size);
 
 void set_prompt (char *str) {
   if (command_giver && command_giver->interactive)
@@ -641,6 +642,39 @@ static void next_cmd_in_buf (interactive_t * ip) {
 
 const char *last_verb = 0;
 
+/**
+ * @brief Parse the first command token from input and publish it via last_verb.
+ *
+ * This is used for process_input() applies, which run before user_parser()
+ * sets command-dispatch verb state.
+ */
+static void set_last_verb_from_input (const char *input, char *verb_buf, size_t verb_buf_size) {
+  const char *start = input;
+  const char *end;
+  size_t len;
+
+  while (*start && isspace ((unsigned char)*start))
+    start++;
+
+  if (!*start)
+    {
+      last_verb = 0;
+      return;
+    }
+
+  end = start;
+  while (*end && !isspace ((unsigned char)*end))
+    end++;
+
+  len = end - start;
+  if (len >= verb_buf_size)
+    len = verb_buf_size - 1;
+
+  memcpy (verb_buf, start, len);
+  verb_buf[len] = '\0';
+  last_verb = verb_buf;
+}
+
 #ifdef F_QUERY_VERB
 void f_query_verb (void) {
   if (!last_verb)
@@ -984,7 +1018,9 @@ int64_t command_for_object (const char *str, object_t *ob) {
 int process_user_command () {
 
   char *user_command;
+  char process_input_verb[MAX_TEXT];
   char buf[MAX_TEXT], *tbuf;
+  const char *save_last_verb = last_verb;
   object_t *save_current_object = current_object;
   object_t *save_command_giver = command_giver;
   interactive_t *ip;
@@ -1015,11 +1051,15 @@ int process_user_command () {
         {
           command_giver = save_command_giver;
           current_object = save_current_object;
+          last_verb = save_last_verb;
           return 1;
         }
       ip = command_giver->interactive;
       if (!ip)
-        return 1;
+        {
+          last_verb = save_last_verb;
+          return 1;
+        }
       current_interactive = command_giver;
       current_object = 0;
       clear_notify (ip);
@@ -1058,8 +1098,12 @@ int process_user_command () {
 
               if (ip->iflags & HAS_PROCESS_INPUT)
                 {
+                  const char *saved_last_verb = last_verb;
+
+                  set_last_verb_from_input (user_command + 1, process_input_verb, sizeof (process_input_verb));
                   copy_and_push_string (user_command + 1);
                   ret = APPLY_SLOT_CALL (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
+                  last_verb = saved_last_verb;
                   VALIDATE_IP (ip, command_giver);
                   if (!ret)
                     ip->iflags &= ~HAS_PROCESS_INPUT;
@@ -1102,8 +1146,12 @@ int process_user_command () {
            */
           if (ip->iflags & HAS_PROCESS_INPUT)
             {
+              const char *save_process_input_last_verb = last_verb;
+
+              set_last_verb_from_input (user_command, process_input_verb, sizeof (process_input_verb));
               copy_and_push_string (user_command);
               ret = APPLY_SLOT_CALL (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
+              last_verb = save_process_input_last_verb;
               VALIDATE_IP (ip, command_giver);
               if (!ret)
                 ip->iflags &= ~HAS_PROCESS_INPUT;
@@ -1135,12 +1183,14 @@ int process_user_command () {
       current_object = save_current_object;
       command_giver = save_command_giver;
       current_interactive = 0;
+      last_verb = save_last_verb;
       return (1);
     }
   /* no more commands */
   current_object = save_current_object;
   command_giver = save_command_giver;
   current_interactive = 0;
+  last_verb = save_last_verb;
   return 0;
 }				/* process_user_command() */
 
