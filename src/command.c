@@ -1098,7 +1098,7 @@ int process_user_command () {
 
               if (ip->iflags & HAS_PROCESS_INPUT)
                 {
-                  char *saved_last_verb = last_verb;
+                  const char *saved_last_verb = last_verb;
 
                   set_last_verb_from_input (user_command + 1, process_input_verb, sizeof (process_input_verb));
                   copy_and_push_string (user_command + 1);
@@ -1146,7 +1146,7 @@ int process_user_command () {
            */
           if (ip->iflags & HAS_PROCESS_INPUT)
             {
-              char *save_process_input_last_verb = last_verb;
+              const char *save_process_input_last_verb = last_verb;
 
               set_last_verb_from_input (user_command, process_input_verb, sizeof (process_input_verb));
               copy_and_push_string (user_command);
