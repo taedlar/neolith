@@ -1098,9 +1098,12 @@ int process_user_command () {
 
               if (ip->iflags & HAS_PROCESS_INPUT)
                 {
+                  char *saved_last_verb = last_verb;
+
                   set_last_verb_from_input (user_command + 1, process_input_verb, sizeof (process_input_verb));
                   copy_and_push_string (user_command + 1);
                   ret = APPLY_SLOT_CALL (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
+                  last_verb = saved_last_verb;
                   VALIDATE_IP (ip, command_giver);
                   if (!ret)
                     ip->iflags &= ~HAS_PROCESS_INPUT;
@@ -1143,9 +1146,12 @@ int process_user_command () {
            */
           if (ip->iflags & HAS_PROCESS_INPUT)
             {
+              char *save_process_input_last_verb = last_verb;
+
               set_last_verb_from_input (user_command, process_input_verb, sizeof (process_input_verb));
               copy_and_push_string (user_command);
               ret = APPLY_SLOT_CALL (APPLY_PROCESS_INPUT, command_giver, 1, ORIGIN_DRIVER);
+              last_verb = save_process_input_last_verb;
               VALIDATE_IP (ip, command_giver);
               if (!ret)
                 ip->iflags &= ~HAS_PROCESS_INPUT;
