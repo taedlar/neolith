@@ -1,4 +1,4 @@
-// example master object for m3 mudlib
+/* master.c */
 
 private object connect (int port) {
   return new ("user.c");

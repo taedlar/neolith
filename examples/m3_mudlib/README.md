@@ -9,6 +9,7 @@
 | `master.c` | Master object — implements driver applies (`valid_read`, `valid_write`, `connect`, etc.) |
 | `user.c` | Interactive user object — handles player input and built-in commands |
 | `simul_efun.c` | Simulated efuns available globally to all LPC code in the mudlib |
+| `trait/command_giver.c` | Command-giver trait with a reusable input alias subsystem (`process_input`) |
 | `base/room.c` | Base room implementation |
 | `room/start_room.c` | Starting room players are moved into on login |
 | `room/observatory.c` | Additional example room |
@@ -26,7 +27,29 @@ Once connected (interactive or console mode), the following commands are availab
 | `help` | List available commands |
 | `quit` | Disconnect |
 | `shutdown` | Shut down the driver (useful in console/test mode) |
+| `alias <name> <command>` | Add or update an input alias |
+| `unalias <name>` | Remove an input alias |
+| `aliases` | List all defined aliases |
 | `curlget <url>` | Fetch a URL asynchronously (requires `PACKAGE_CURL=ON`) |
+
+### Alias Subsystem (Command Giver Trait)
+
+The example `user.c` inherits `trait/command_giver.c`, which provides a small
+command alias subsystem:
+
+- `set_alias(name, command)`
+- `remove_alias(name)`
+- `query_alias(name)`
+- `query_aliases()`
+- `expand_alias(input)`
+- `process_input(input)`
+
+Aliases are applied in `process_input()` before normal command dispatch. The
+trait uses `query_verb()` to identify the current command token and rewrites
+only the first token of the input.
+
+Default aliases configured in `user.c` include `l -> look` and short movement
+aliases such as `n`, `s`, `e`, and `w`.
 
 ## Running Manually
 

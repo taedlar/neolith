@@ -116,10 +116,44 @@ def test_console_mode():
         child.sendline("help")
         child.expect('Available commands:', timeout=5)
         child.expect('shutdown', timeout=5)  # Verify shutdown command is listed
+        child.expect('alias <n> <c>', timeout=5)  # Verify alias management commands are listed
         print("✓ Help command verified")
+
+        # Test 3: Move with aliases into observatory and inspect surroundings
+        print("\nTest 3: Alias navigation to observatory and look checks")
+
+        print("  -> Sending alias move: 'n' (go north)")
+        child.sendline("n")
+        child.expect('Observatory', timeout=5)
+        child.expect('Obvious exits are:', timeout=5)
+
+        print("  -> Sending alias look: 'l telescope'")
+        child.sendline("l telescope")
+        child.expect('pointed at the sky', timeout=5)
+
+        print("  -> Sending alias move: 'e' (go east)")
+        child.sendline("e")
+        child.expect('East Wing', timeout=5)
+
+        print("  -> Sending alias move: 'w' (go west)")
+        child.sendline("w")
+        child.expect('Observatory', timeout=5)
+
+        print("  -> Sending alias move: 'w' again (go west)")
+        child.sendline("w")
+        child.expect('West Wing', timeout=5)
+
+        print("  -> Sending alias move: 'e' (back to observatory)")
+        child.sendline("e")
+        child.expect('Observatory', timeout=5)
+
+        print("  -> Sending alias move: 's' (back to start room)")
+        child.sendline("s")
+        child.expect('Starting Room', timeout=5)
+        print("✓ Alias navigation and room look checks verified")
         
-        # Test 3: Send "shutdown" command
-        print("\nTest 3: Sending 'shutdown'")
+        # Test 4: Send "shutdown" command
+        print("\nTest 4: Sending 'shutdown'")
         child.sendline("shutdown")
         child.expect('Shutting down...', timeout=5)
         print("✓ Shutdown command verified")
@@ -163,11 +197,14 @@ def test_console_mode():
         return 1
     except Exception as e:
         print(f"❌ Error during test: {e}")
-        if child and child.isalive():
-            child.kill(9)
+        if child:
+            try:
+                child.kill(9)
+            except Exception:
+                pass
             try:
                 child.wait()
-            except:
+            except Exception:
                 pass
         return 1
     finally:

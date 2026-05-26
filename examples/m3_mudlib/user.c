@@ -1,13 +1,23 @@
-// example user object for m3 mudlib
+/* user.c */
 
 #include "config.h"
 
-static object my_env;
+inherit "trait/command_giver.c";
 
 void write_prompt();
 
 void create() {
+  create_command_giver_trait();
   seteuid (getuid()); // enable loading inventory objects
+  set_alias ("l", "look");
+  set_alias ("n", "go north");
+  set_alias ("s", "go south");
+  set_alias ("e", "go east");
+  set_alias ("w", "go west");
+  set_alias ("ne", "go northeast");
+  set_alias ("nw", "go northwest");
+  set_alias ("se", "go southeast");
+  set_alias ("sw", "go southwest");
 }
 
 #ifdef __PACKAGE_CURL__
@@ -43,6 +53,9 @@ void logon() {
   add_action("cmd_say", "say");
   add_action("cmd_help", "help");
   add_action("cmd_shutdown", "shutdown");
+  add_action("cmd_alias", "alias");
+  add_action("cmd_unalias", "unalias");
+  add_action("cmd_aliases", "aliases");
 #ifdef __PACKAGE_CURL__
   add_action("cmd_curlget", "curlget");
 #endif
@@ -73,8 +86,7 @@ int cmd_quit (string arg) {
 }
 
 int cmd_say (string arg) {
-  if (!arg || arg == "")
-  {
+  if (!arg || arg == "") {
     write("Say what?\n");
     return 1;
   }
@@ -88,9 +100,68 @@ int cmd_help (string arg) {
   write("  help           - Show this help\n");
   write("  quit           - Exit the MUD\n");
   write("  shutdown       - Shutdown the driver\n");
+  write("  alias <n> <c>  - Set alias name <n> to command <c>\n");
+  write("  unalias <n>    - Remove alias <n>\n");
+  write("  aliases        - List all aliases\n");
 #ifdef __PACKAGE_CURL__
   write("  curlget <url>  - Fetch a URL with the PACKAGE_CURL demo\n");
 #endif
+  return 1;
+}
+
+int cmd_alias (string arg) {
+  string name;
+  string command;
+
+  if (!arg || arg == "")
+    {
+      write("Usage: alias <name> <command>\n");
+      return 1;
+    }
+
+  if (sscanf(arg, "%s %s", name, command) != 2)
+    {
+      write("Usage: alias <name> <command>\n");
+      return 1;
+    }
+
+  set_alias(name, command);
+  write("Alias set: " + name + " -> " + command + "\n");
+  return 1;
+}
+
+int cmd_unalias (string arg) {
+  if (!arg || arg == "")
+    {
+      write("Usage: unalias <name>\n");
+      return 1;
+    }
+
+  remove_alias(arg);
+  write("Alias removed: " + arg + "\n");
+  return 1;
+}
+
+int cmd_aliases (string arg) {
+  mapping current_aliases;
+  string *names;
+  int i;
+
+  current_aliases = query_aliases();
+  names = keys(current_aliases);
+
+  if (!sizeof(names))
+    {
+      write("No aliases defined.\n");
+      return 1;
+    }
+
+  write("Aliases:\n");
+  for (i = 0; i < sizeof(names); i++)
+    {
+      write("  " + names[i] + " -> " + current_aliases[names[i]] + "\n");
+    }
+
   return 1;
 }
 
