@@ -1807,13 +1807,13 @@ yywarn (char *str)
  *  @brief Compile an LPC file.
  *  @param fd File descriptor of the file to compile. If -1, indicates no actual
  *      file to read from; program source can be provided via pre_text.
- *  @param name Name of the file to compile.
+ *  @param source_file Local file path of the source code to compile.
  *  @param pre_text [NEOLITH-EXTENSION] Text to prepend to the file being compiled.
  *      This is a Neolith extension mainly for unit-testing LPC compiler.
  *      It can be NULL.
  *  @return The compiled program, or NULL on failure.
  */
-program_t *compile_file (int fd, const char *name, const char* pre_text) {
+program_t *compile_file (int fd, const char *source_file, const char* pre_text) {
 
   static int guard = 0;
   program_t *prog;
@@ -1826,8 +1826,8 @@ program_t *compile_file (int fd, const char *name, const char* pre_text) {
     error ("Object cannot be loaded during compilation.\n");
   guard = 1;
 
-  opt_trace (TT_COMPILE|2, "starting compiling: \"%s\"", name);
-  prolog (name);
+  opt_trace (TT_COMPILE|2, "starting compiling: \"%s\"", source_file);
+  prolog (source_file);
   start_new_file (fd, pre_text); /* initalize the lexer */
 
   /* start parsing */
@@ -1839,7 +1839,7 @@ program_t *compile_file (int fd, const char *name, const char* pre_text) {
   prog = epilog ();
 
   if (prog)
-    opt_trace (TT_COMPILE|2, "finished compiling: \"%s\"", name);
+    opt_trace (TT_COMPILE|2, "finished compiling: \"%s\"", source_file);
   guard = 0;
   return prog;
 }

@@ -36,6 +36,7 @@
 
 #include "port/wrapper.h"
 #include "port/debug.h"
+#include "misc/filepath.h"
 #include "rc.h"
 
 #include <filesystem>
@@ -333,9 +334,15 @@ void init_application(const char* master_file, const char* config_file) {
         }
       if (CONFIG_STR(__MUD_LIB_DIR__))
         {
-          fs::path mudlib_dir(CONFIG_STR(__MUD_LIB_DIR__));
-          if (mudlib_dir.is_relative() && config_file && *config_file)
-            mudlib_dir = fs::path(config_file).parent_path() / mudlib_dir;
+          char mudlib_dir_buf[PATH_MAX];
+          if (!filepath_resolve_with_origin (CONFIG_STR(__MUD_LIB_DIR__), config_file,
+                                              mudlib_dir_buf, sizeof(mudlib_dir_buf)))
+            {
+              debug_message ("{}\t***** unable to resolve mudlib directory relative to config file: %s\n",
+                             CONFIG_STR(__MUD_LIB_DIR__));
+              exit (EXIT_FAILURE);
+            }
+          fs::path mudlib_dir(mudlib_dir_buf);
           fs::path master_path(path);
 
           if (!fs::exists(mudlib_dir))

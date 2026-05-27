@@ -26,6 +26,11 @@ static int pstrcmp (const void *, const void *);
 static int parrcmp (const void *, const void *);
 static void encode_stat (svalue_t *, int, const char *, struct stat *);
 
+static const char *path_basename (const char *path) {
+  const char *base = strrchr (path, '/');
+  return base ? base + 1 : path;
+}
+
 #define MAX_LINES 50
 
 /*
@@ -1084,17 +1089,18 @@ int do_rename (const char *fr, const char *t, int flag) {
       to = tbuf;
     }
 
-  if (!filepath_strip_trailing_separators (from, normalized_from, sizeof (normalized_from)))
+  strncpy (normalized_from, from, sizeof (normalized_from) - 1);
+  normalized_from[sizeof (normalized_from) - 1] = '\0';
+  filepath_strip (normalized_from);
+  if (normalized_from[0] == '\0')
     {
       pop_n_elems (2);
-      debug_message ("rename(): source path too long\n");
+      debug_message ("rename(): source path is empty\n");
       return 1;
     }
-  if (!filepath_strip_trailing_separators (fr, from_log, sizeof (from_log)))
-    {
-      strncpy (from_log, fr, sizeof (from_log) - 1);
-      from_log[sizeof (from_log) - 1] = '\0';
-    }
+  strncpy (from_log, fr, sizeof (from_log) - 1);
+  from_log[sizeof (from_log) - 1] = '\0';
+  filepath_strip (from_log);
   from = normalized_from;
 
   int result;
@@ -1102,14 +1108,16 @@ int do_rename (const char *fr, const char *t, int flag) {
     {
       /* Target is a directory; build full target filename. */
       char newto[PATH_MAX + 2];
+      const char *from_base = path_basename (from);
+      const char *fr_base = path_basename (fr);
 
-      if (!filepath_join_dir_and_basename (to, from, newto, sizeof (newto)))
+      if (!filepath_join (to, from_base, newto, sizeof (newto)))
         {
           pop_n_elems (2);
           debug_message ("rename(): destination path too long\n");
           return 1;
         }
-      if (filepath_join_dir_and_basename (t, fr, to_log_buf, sizeof (to_log_buf)))
+      if (filepath_join (t, fr_base, to_log_buf, sizeof (to_log_buf)))
         to_log = to_log_buf;
       if (!mudlib_dir || !*mudlib_dir || !is_path_within_root (newto, mudlib_dir))
         {
@@ -1161,6 +1169,7 @@ int do_copy_file (const char *from, const char *to) {
   char *write_ptr;
   char from_buf[PATH_MAX + 2];
   char to_buf[PATH_MAX + 2];
+  const char *from_base;
 
   if (!push_resolved_valid_path (from, current_object, "cp", 0))
     return -1;
@@ -1182,6 +1191,7 @@ int do_copy_file (const char *from, const char *to) {
   from = from_buf;
   to = to_buf;
   mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
+  from_base = path_basename (from);
 
   from_fd = open (from, O_RDONLY);
   if (from_fd < 0)
@@ -1193,7 +1203,7 @@ int do_copy_file (const char *from, const char *to) {
   char newto[PATH_MAX + 2];
   if (0 == stat (to, &st) && (S_IFDIR & st.st_mode))
     {
-      if (!filepath_join_dir_and_basename (to, from, newto, sizeof (newto)))
+      if (!filepath_join (to, from_base, newto, sizeof (newto)))
         {
           close (from_fd);
           return (-2);

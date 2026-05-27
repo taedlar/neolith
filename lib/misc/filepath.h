@@ -56,40 +56,40 @@ bool is_path_within_root(const char *path, const char *root);
  *
  * Keeps root paths intact (for example, "/" remains "/").
  *
- * @param path Input path.
- * @param out Caller-provided destination buffer.
- * @param out_size Size of @p out in bytes.
- * @return true on success, false if input is invalid or output buffer is too small.
+ * @param path Mutable path buffer to edit in place.
  */
-bool filepath_strip_trailing_separators(const char *path, char *out, size_t out_size);
+void filepath_strip(char *path);
 
 /**
- * @brief Build a destination path by joining a directory and basename(path).
+ * @brief Build a destination path by joining a directory and path.
+ *
+ * The path is appended using std::filesystem path composition rules, so
+ * relative subpaths are preserved and absolute paths replace the directory.
  *
  * @param dir Destination directory path.
- * @param path Source path used to extract the basename.
+ * @param path Path to append.
  * @param out Caller-provided destination buffer.
  * @param out_size Size of @p out in bytes.
  * @return true on success, false if inputs are invalid or output buffer is too small.
  */
-bool filepath_join_dir_and_basename(const char *dir, const char *path, char *out, size_t out_size);
+bool filepath_join(const char *dir, const char *path, char *out, size_t out_size);
 
 /**
- * @brief Resolve a mudlib directory path relative to the configuration file's location.
+ * @brief Resolve a path relative to an origin file path's location.
  *
- * If @p mudlib_dir is a relative path, it is resolved relative to the directory
- * containing @p config_file. Absolute paths are used as-is. The result is
+ * If @p path is a relative path, it is resolved relative to the directory
+ * containing @p origin_file. Absolute paths are used as-is. The result is
  * canonicalized (symlinks resolved, . and .. collapsed) and written to @p out.
  *
- * @param mudlib_dir  Path to the mudlib directory (absolute or relative).
- * @param config_file Path to the configuration file whose directory is used as
- *                    the base for relative @p mudlib_dir values.
+ * @param path        Path to resolve (absolute or relative).
+ * @param origin_file  Path whose directory is used as the base for relative
+ *                    @p path values.
  * @param out         Caller-provided destination buffer for the resolved path.
  * @param out_size    Size of @p out in bytes.
  * @return true on success, false if inputs are invalid or the path cannot be resolved.
  */
-bool filepath_resolve_mudlib_dir(const char *mudlib_dir, const char *config_file,
-                                 char *out, size_t out_size);
+bool filepath_resolve_with_origin(const char *path, const char *origin_file,
+                                  char *out, size_t out_size);
 
 /* legacy LPMud file path validation. Now refactored to use C++17 filesystem */
 static inline bool legal_path(const char *path) { return is_path_descendant(path); }

@@ -358,21 +358,16 @@ malloc_str_t resolve_path_in_mudlib(const char *relative_path, const char *mudli
     return string_copy (mudlib_root, "resolve_path_in_mudlib");
 
   // Construct absolute path: mudlib_root / relative_path
-  fs::path root(mudlib_root);
-  std::string combined = root.generic_string();
-  combined += '/';
-  combined += relative_path;
-
-  // Check bounds before attempting allocation
-  if (combined.length() + 1 > PATH_MAX)
+  char combined[PATH_MAX];
+  if (!filepath_join (mudlib_root, relative_path, combined, sizeof (combined)))
     return nullptr;
 
   // Verify the combined path is within the mudlib root
-  if (!is_path_within_root(combined.c_str(), mudlib_root))
+  if (!is_path_within_root(combined, mudlib_root))
     return nullptr;
 
   // Return malloc'd copy of the combined path
-  return string_copy (combined.c_str(), "resolve_path_in_mudlib");
+  return string_copy (combined, "resolve_path_in_mudlib");
 }
 
 /**
