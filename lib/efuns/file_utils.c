@@ -1109,7 +1109,6 @@ int do_rename (const char *fr, const char *t, int flag) {
       /* Target is a directory; build full target filename. */
       char newto[PATH_MAX + 2];
       const char *from_base = path_basename (from);
-      const char *fr_base = path_basename (fr);
 
       if (!filepath_join (to, from_base, newto, sizeof (newto)))
         {
@@ -1117,7 +1116,7 @@ int do_rename (const char *fr, const char *t, int flag) {
           debug_message ("rename(): destination path too long\n");
           return 1;
         }
-      if (filepath_join (t, fr_base, to_log_buf, sizeof (to_log_buf)))
+      if (filepath_join (t, from, to_log_buf, sizeof (to_log_buf)))
         to_log = to_log_buf;
       if (!mudlib_dir || !*mudlib_dir || !is_path_within_root (newto, mudlib_dir))
         {
