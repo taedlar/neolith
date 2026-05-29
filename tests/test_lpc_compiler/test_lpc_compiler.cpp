@@ -58,6 +58,21 @@ TEST_F(LPCCompilerTest, loadObject) {
     object_t* obj = load_object("/path/to/non-existing/object.c", 0);
     EXPECT_EQ(obj, nullptr) << "load_object() did not return null for non-existent file.";
 
+    // load_object must reject invalid traversal paths outside m3_mudlib
+    error_context_t econ;
+    bool invalid_path_rejected = false;
+    save_context(&econ);
+    try {
+        obj = load_object("../user.c", 0);
+        invalid_path_rejected = (obj == nullptr);
+    }
+    catch (const neolith::driver_runtime_error &) {
+        restore_context(&econ);
+        invalid_path_rejected = true;
+    }
+    pop_context(&econ);
+    EXPECT_TRUE(invalid_path_rejected) << "load_object() did not reject invalid path traversal.";
+
     // load an existing object
     obj = load_object("user.c", 0);
     ASSERT_NE(obj, nullptr) << "load_object() returned null for user.c.";

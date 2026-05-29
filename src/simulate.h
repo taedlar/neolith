@@ -51,7 +51,7 @@ void save_command_giver (object_t*);
 void restore_command_giver (void);
 
 /* object physics */
-object_t *load_object(const char *name, const char *pre_text);
+object_t *load_object(const char *name_or_path, const char *pre_text);
 void reset_load_object_limits();
 object_t *clone_object(const char *, int);
 object_t *environment(svalue_t *);

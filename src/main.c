@@ -25,6 +25,7 @@
 #include "rc.h"
 #include "comm.h"
 #include "simul_efun.h"
+#include "misc/filepath.h"
 
 #ifdef HAVE_ARGP_H
 const char *argp_program_version = PACKAGE "-" VERSION;
@@ -312,14 +313,32 @@ void init_debug_log()
 {
   if (CONFIG_STR (__DEBUG_LOG_FILE__))
     {
-      char path[PATH_MAX];
       if (CONFIG_STR (__LOG_DIR__))
-        snprintf (path, sizeof(path), "%s/%s", CONFIG_STR (__LOG_DIR__), CONFIG_STR (__DEBUG_LOG_FILE__));
+        {
+          char path[PATH_MAX];
+          if (filepath_resolve_with_origin (CONFIG_STR (__LOG_DIR__), MAIN_OPTION(config_file),
+                                             path, sizeof(path)))
+            {
+              char log_file[PATH_MAX];
+              if (filepath_join (path, CONFIG_STR (__DEBUG_LOG_FILE__),
+                                 log_file, sizeof (log_file)))
+                {
+                  debug_set_log_file (log_file);
+                }
+              else
+                {
+                  debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
+                }
+            }
+          else
+            {
+              debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
+            }
+        }
       else
-        snprintf (path, sizeof(path), "%s", CONFIG_STR (__DEBUG_LOG_FILE__));
-      path[sizeof(path) - 1] = 0;
-      /* TODO: check if the path is absolute */
-      debug_set_log_file (path);
+        {
+          debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
+        }
     }
 
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));

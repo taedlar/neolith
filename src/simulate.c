@@ -277,7 +277,7 @@ void reset_load_object_limits() {
  * from an object that is not loaded, discard all, load the inherited object,
  * and reload again.
  *
- * In mudlib3.0 when loading inherited objects, their reset() is not called.
+ * In LPMud 3.0 when loading inherited objects, their reset() is not called.
  * - why is this??  it makes no sense and causes a problem when a developer
  * inherits code from a real used item.  Say a room for example.  In this case
  * the room is loaded but is never set up properly, so when someone enters it
@@ -289,12 +289,12 @@ void reset_load_object_limits() {
  *
  * Save the command_giver, because reset() in the new object might change it.
  *
- * @param[IN] obj_name The name of the object to load. Leading slashes
+ * @param name_or_path The otable name or path of the object to load. Leading slashes
  *            are stripped. Extension ".c" is added if not present. Nested paths
- *            supported (e.g., "path/to/object.c"). The resulting object name
+ *            supported (e.g., "path/to/object.c"). The resulting object_t.name
  *            strips leading slashes and ".c" extension.
- * @param[IN] pre_text [NEOLITH-EXTENSION] Optional LPC source code to compile.
- *            If NULL, loads from filesystem. If non-NULL, compiles from this
+ * @param pre_text [NEOLITH-EXTENSION] Optional LPC source code to compile.
+ *            If NULL, a source file is required. If non-NULL, compiles from this
  *            string and the source file becomes optional. This enables unit
  *            testing without filesystem scaffolding.
  *            Example: load_object("test.c", "void create() { }\n");
@@ -304,64 +304,59 @@ void reset_load_object_limits() {
  * @note Requires master_ob to be initialized first (via init_master()).
  * @note Enforces inherit chain depth limit (__INHERIT_CHAIN_SIZE__ config).
  */
-object_t* load_object (const char *obj_name, const char *pre_text) {
+object_t* load_object (const char *name_or_path, const char *pre_text) {
 
   int f;
   program_t *prog = NULL;
   object_t *ob, *save_command_giver = command_giver;
   svalue_t *mret;
   struct stat c_st;
-  char real_name[PATH_MAX], name[PATH_MAX - 2];
+  char source_file[PATH_MAX], otable_name[PATH_MAX - 2];
   char source_path[PATH_MAX];
   const char *mudlib_dir;
-  size_t mudlib_len;
-  size_t real_len;
 
   if (++num_objects_this_thread > CONFIG_INT (__INHERIT_CHAIN_SIZE__))
-    error ("*Inherit chain too deep: > %d when trying to load '%s'.", CONFIG_INT (__INHERIT_CHAIN_SIZE__), obj_name);
-
-  if (!strip_name (obj_name, name, sizeof (name)))
-    error ("*Filenames with consecutive /'s in them aren't allowed (%s).", obj_name);
+    error ("*Inherit chain too deep: > %d when trying to load '%s'.", CONFIG_INT (__INHERIT_CHAIN_SIZE__), name_or_path);
 
   if (mud_state() >= MS_MUDLIB_LIMBO)
     {
-      if (current_object && current_object!=master_ob && current_object->euid == NULL)
+      if (current_object && current_object != master_ob && current_object->euid == NULL)
         error ("*Can't load objects when no effective user.");
     }
 
-  /*
-   * First check that the c-file exists.
-   */
-  memset (real_name, 0, sizeof (real_name));
-  (void) strncpy (real_name, name, sizeof(real_name) - 1);
-  (void) strncat (real_name, ".c", sizeof(real_name) - strlen(real_name) - 1);
+  /* Canonicalize object name and the file path (sandboxing) */
+  if (!make_otable_name (name_or_path, otable_name, sizeof (otable_name)))
+    error ("*Filenames with consecutive /'s in them aren't allowed (%s).", name_or_path);
+  memset (source_file, 0, sizeof (source_file));
+  (void) strncpy (source_file, otable_name, sizeof(source_file) - 1);
+  (void) strncat (source_file, ".c", sizeof(source_file) - strlen(source_file) - 1);
 
-  /* Use verified absolute mudlib directory for source file I/O when available.
-   * Fallback to legacy relative path for non-main contexts (e.g., some unit tests).
+  /* Reject illegal path names before any filesystem or virtual-object lookup. */
+  if (!legal_path (source_file))
+    {
+      debug_message ("Illegal pathname: /%s\n", source_file);
+      error ("*Illegal path name '/%s'.", source_file);
+      return 0;
+    }
+  opt_trace (TT_COMPILE|2, "legal_path passed: \"%s\"", source_file);
+
+  /* Source file I/O must be anchored to a verified absolute mudlib directory.
+   * CWD-dependent relative fallback is deprecated and rejected.
    */
   mudlib_dir = MAIN_OPTION(mudlib_dir_absolute);
-  if (mudlib_dir && *mudlib_dir)
+  if (!(mudlib_dir && *mudlib_dir))
     {
-      mudlib_len = strlen (mudlib_dir);
-      real_len = strlen (real_name);
-      if (mudlib_len + 1 + real_len + 1 > sizeof (source_path))
-        {
-          error ("*Source file path too long for '/%s'.", real_name);
-        }
-      memcpy (source_path, mudlib_dir, mudlib_len);
-      source_path[mudlib_len] = '/';
-      memcpy (source_path + mudlib_len + 1, real_name, real_len + 1);
+      error ("*Cannot load '/%s' without an initialized mudlib_dir_absolute.", source_file);
     }
-  else
+  if (!filepath_join (mudlib_dir, source_file, source_path, sizeof (source_path)))
     {
-      (void) strncpy (source_path, real_name, sizeof(source_path) - 1);
-      source_path[sizeof(source_path) - 1] = '\0';
+      error ("*Source file path too long for '/%s'.", source_file);
     }
 
-  opt_trace(TT_COMPILE|1, "load_object: \"%s\"", real_name);
+  opt_trace(TT_COMPILE|1, "load_object: \"%s\"", source_file);
   if (stat (source_path, &c_st) == -1)
     {
-      if ((ob = load_virtual_object (name)))
+      if ((ob = load_virtual_object (otable_name)))
         {
           /* A virtual object is returned by the master object.
           * We don't care about its actual filename, just the object.
@@ -370,7 +365,7 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
           remove_object_hash (ob);
           if (ob->name)
             FREE (ob->name);
-          ob->name = alloc_cstring (name, "load_object");
+          ob->name = alloc_cstring (otable_name, "load_object");
           enter_object_hash (ob);
           ob->flags |= O_VIRTUAL;
           ob->load_time = current_time;
@@ -383,31 +378,17 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
           return 0;
         }
     }
-  else
-    {
-      /*
-      * Check if it's a legal name.
-      */
-      if (!legal_path (real_name))
-        {
-          debug_message ("Illegal pathname: /%s\n", real_name);
-          error ("*Illegal path name '/%s'.", real_name);
-          return 0;
-        }
-      opt_trace (TT_COMPILE|2, "legal_path passed: \"%s\"", real_name);
-    }
 
   /* Get the program by loading from binary or compiling from the source.
    * Skip binary load if pre_text is provided, since the cached binary was compiled
    * without the injected code.
    */
-  if (!pre_text) {
-    prog = load_binary (real_name, 0);
-  }
+  if (!pre_text)
+    prog = load_binary (source_file, 0);
 
   if (!prog && !inherit_file)
     {
-      opt_trace (TT_COMPILE|2, "no binary found, compiling: \"%s\"", real_name);
+      opt_trace (TT_COMPILE|2, "no binary found, compiling: \"%s\"", source_file);
 
       /* maybe move this section into compile_file? */
 #ifdef _WIN32
@@ -417,11 +398,11 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
 #endif
       if (f == -1 && !pre_text) /* [NEOLITH-EXTENSION] if pre_text is specified, the source file is optional */
         {
-      debug_perror ("open()", source_path);
-          error ("*Could not read the file '/%s'.", real_name);
+          debug_perror ("open()", source_path);
+          error ("*Could not read the file '/%s'.", source_file);
         }
       /* compile LPC program from the source, optionally using pre_text */
-      prog = compile_file (f, real_name, pre_text);
+      prog = compile_file (f, source_file, pre_text);
 
       update_compile_av (total_lines);
       total_lines = 0;
@@ -435,8 +416,8 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
       if (prog)
         free_prog (prog, 1);
       if (num_parse_error == 0 && prog == 0)
-        error ("*No program in object '/%s'!", name);
-      error ("*Error in loading object '/%s':", name);
+        error ("*No program in object '/%s'!", otable_name);
+      error ("*Error in loading object '/%s':", otable_name);
     }
 
   /*
@@ -461,7 +442,7 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
           free_prog (prog, 1);
           prog = 0;
         }
-      if (strcmp (inhbuf, name) == 0)
+      if (strcmp (inhbuf, otable_name) == 0)
         {
           error ("*Illegal to inherit self.");
         }
@@ -484,9 +465,9 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
        * create function. Without this check, that would crash the driver.
        * -Beek
        */
-      if (!(ob = lookup_object_hash (name)))
+      if (!(ob = lookup_object_hash (otable_name)))
         {
-          ob = load_object (name, 0);
+          ob = load_object (otable_name, 0);
           /* sigh, loading the inherited file removed us */
           if (!ob)
             {
@@ -499,36 +480,36 @@ object_t* load_object (const char *obj_name, const char *pre_text) {
       return ob;
     }
 
-  opt_trace (TT_COMPILE|2, "creating object: \"/%s\"", name);
+  opt_trace (TT_COMPILE|2, "creating object: \"/%s\"", otable_name);
   ob = get_empty_object (prog->num_variables_total);
   /* Shared string is no good here */
-  ob->name = alloc_cstring (name, "load_object");
+  ob->name = alloc_cstring (otable_name, "load_object");
   
   ob->prog = prog;
   ob->flags |= O_WILL_RESET;	/* must be before reset is first called */
   ob->next_all = obj_list;
   obj_list = ob;
 
-  opt_trace (TT_COMPILE|2, "adding to otable: \"%s\"", real_name);
+  opt_trace (TT_COMPILE|2, "adding to otable: \"%s\"", otable_name);
   enter_object_hash (ob);	/* add name to fast object lookup table */
 
   if (mud_state() >= MS_MUDLIB_LIMBO)
     {
-      opt_trace (TT_COMPILE|3, "calling master apply: valid_object() for: \"%s\"", name);
+      opt_trace (TT_COMPILE|3, "calling master apply: valid_object() for: \"%s\"", otable_name);
       push_object (ob);
       mret = APPLY_SLOT_MASTER_CALL (APPLY_VALID_OBJECT, 1);
       if (mret && !MASTER_APPROVED (mret))
         {
           APPLY_SLOT_FINISH_CALL();
           destruct_object (ob);
-          error ("*master::%s() denied permission to load '/%s'.", APPLY_VALID_OBJECT, name);
+          error ("*master::%s() denied permission to load '/%s'.", APPLY_VALID_OBJECT, otable_name);
         }
       APPLY_SLOT_FINISH_CALL();
     }
 
   if (init_object (ob))
     {
-      opt_trace (TT_COMPILE|3, "calling object create(): \"%s\"", name);
+      opt_trace (TT_COMPILE|3, "calling object create(): \"%s\"", otable_name);
       call_create (ob, 0);
     }
 
@@ -2258,8 +2239,8 @@ void setup_simulate() {
     fatal ("unable to determine mudlib directory.");
 
   /* Resolve absolute path of mudlib directory relative to the config file location */
-  if (!filepath_resolve_mudlib_dir (CONFIG_STR (__MUD_LIB_DIR__), MAIN_OPTION(config_file),
-                                    MAIN_OPTION(mudlib_dir_absolute), PATH_MAX))
+  if (!filepath_resolve_with_origin (CONFIG_STR (__MUD_LIB_DIR__), MAIN_OPTION(config_file),
+                                     MAIN_OPTION(mudlib_dir_absolute), PATH_MAX))
     {
       LOG_FATAL ("{}\t***** cannot resolve mudlib directory: \"%s\"\n", CONFIG_STR (__MUD_LIB_DIR__));
       exit (EXIT_FAILURE);

@@ -106,44 +106,27 @@ bool is_path_within_root(const char *path, const char *root) {
   return true;
 }
 
-bool filepath_strip_trailing_separators(const char *path, char *out, size_t out_size) {
-  if (!path || !out || out_size == 0) {
-    return false;
+void filepath_strip(char *path) {
+  size_t length;
+
+  if (!path || !*path) {
+    return;
   }
 
-  try {
-    std::string normalized = fs::path(path).generic_string();
-    if (normalized.empty()) {
-      return false;
-    }
-
-    while (normalized.size() > 1 && normalized.back() == '/') {
-      normalized.pop_back();
-    }
-
-    if (normalized.size() >= out_size) {
-      return false;
-    }
-
-    std::memcpy(out, normalized.c_str(), normalized.size() + 1);
-    return true;
-  } catch (...) {
-    return false;
+  length = std::strlen(path);
+  while (length > 1 && path[length - 1] == '/') {
+    path[length - 1] = '\0';
+    length--;
   }
 }
 
-bool filepath_join_dir_and_basename(const char *dir, const char *path, char *out, size_t out_size) {
+bool filepath_join(const char *dir, const char *path, char *out, size_t out_size) {
   if (!dir || !path || !out || out_size == 0) {
     return false;
   }
 
   try {
-    fs::path base = fs::path(path).filename();
-    if (base.empty()) {
-      return false;
-    }
-
-    std::string joined = (fs::path(dir) / base).generic_string();
+    std::string joined = (fs::path(dir) / fs::path(path)).generic_string();
     if (joined.size() >= out_size) {
       return false;
     }
@@ -155,25 +138,25 @@ bool filepath_join_dir_and_basename(const char *dir, const char *path, char *out
   }
 }
 
-bool filepath_resolve_mudlib_dir(const char *mudlib_dir, const char *config_file,
-                                 char *out, size_t out_size) {
-  if (!mudlib_dir || !config_file || !out || out_size == 0)
+bool filepath_resolve_with_origin(const char *path, const char *origin_file,
+                                  char *out, size_t out_size) {
+  if (!path || !origin_file || !out || out_size == 0)
     return false;
 
   try {
-    fs::path mud_path(mudlib_dir);
+    fs::path resolved_path(path);
     fs::path base;
 
-    if (mud_path.is_absolute())
+    if (resolved_path.is_absolute())
       {
-        base = mud_path;
+        base = resolved_path;
       }
     else
       {
-        fs::path config_dir = fs::path(config_file).parent_path();
-        if (config_dir.empty())
-          config_dir = ".";
-        base = config_dir / mud_path;
+        fs::path origin_dir = fs::path(origin_file).parent_path();
+        if (origin_dir.empty())
+          origin_dir = ".";
+        base = origin_dir / resolved_path;
       }
 
     std::error_code ec;
