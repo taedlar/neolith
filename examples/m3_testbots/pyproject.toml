@@ -32,5 +32,8 @@ dependencies = [
 smoke_test = "python src/smoke_test.py {args}"
 mcp_client = "python src/mcp_client.py {args}"
 
+[tool.hatch.envs.default]
+skip-install = true
+
 [tool.hatch.version]
 path = "src/__about__.py"
