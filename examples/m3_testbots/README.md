@@ -18,6 +18,14 @@
 
 Dependencies are declared in `pyproject.toml` and installed automatically by `hatch`.
 
+### Hatch environment note
+
+`pyproject.toml` sets `skip-install = true` for `[tool.hatch.envs.default]`.
+
+This project is script-only (entry points run files in `src/`) and is not intended to be installed as a wheel/editable package. Without `skip-install`, `hatch run` can fail during metadata generation with a file-selection error from hatchling.
+
+If this project is later converted into an installable package, remove `skip-install` and define explicit build targets under `[tool.hatch.build.targets.wheel]`.
+
 ## Running the Tests
 
 ### One-time hatch setup
