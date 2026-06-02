@@ -4,6 +4,62 @@
 
 ### Unreleased
 - refactor: resolve re-entrant return-value corruption risk in nested apply/function-pointer calls by replacing the shared legacy return buffer with caller-owned stack-slot placeholders, explicit slot call/finish wrappers, and no legacy fallback storage
+### 1.0.0-alpha.10 — 2026-06-02
+
+#### Changes since 1.0.0-alpha.9
+
+##### Features
+- 389a4da feat: support query_verb in process_input (#397)
+- 4f8ba75 feat: reorganize m3 testbots (#392)
+- 2637a12 feat: filesystem sandboxing and check hardening (#389)
+- ee0ca5f feat: add mud application interface (#386)
+- 5448aff feat: support byte-span string literals (#362)
+
+##### Bug Fixes
+- fece917 fix: m3_testbots settings (#399)
+- 12c82cb fix: check legal_path before calling compile_object apply (#398)
+- 9823f42 fix: console mode completion race issue (#395)
+- f580cbe fix: file efuns to return failure instead of raise error (#391)
+- 3095b4d fix: terminate signal and race-condition (#387)
+- 74de62f fix: LPC warning about return type not match (#385)
+- 990f2bb fix: limbo mud_state (#383)
+- e9df48a fix: windows header conflict with stdcxx header (#378)
+- bc04815 fix: heap allocation unwinding (#377)
+- ba11a34 fix: logger header (#373)
+- 0c06e83 test: fix process_command test (#372)
+- 90d1aac fix: define NOMINMAX before windows header (#364)
+- 7ceafbf fix: load_binary hardening (#363)
+
+##### Cleanup
+- 81e1c33 clean: test fixtures and mud_state() guards (#390)
+- 00fc89b clean: explicit bool semantic (#382)
+- 9d716b0 clean: enforce APPLY wrappers (#380)
+- 6915e3f clean: lpc types (#376)
+- 21f11c3 clean: tighten SVALUE_STRPTR as const string (#375)
+- ade4fd8 refactor: apply function returns with stack slot (#366)
+- 4632bc3 clean: merge guard header/source files (#365)
+- b99c4a3 clean: simulate header (#371)
+- aa687bd clean: add const contract to internals (#370)
+- c436b48 clean: harden macros with inline functions (#369)
+
+##### Chores & CI
+- 42082dc chore: arg type of formatting (#394)
+- ace1e69 chore: fix msvc win32 build warnings (#384)
+- e50379a chore: clean stem functions (#368)
+- e862780 chore: harden apply_low (#367)
+- 69ca8fa ci: upgrade codeql checkout and cache action version (#381)
+- 273a3fc chore: update readme (#361)
+
+##### Documentation
+- a42113d docs: fixed license contractict ion with GPL (#400)
+- b1e6b87 docs: update documentation instructions (#396)
+- 4bcf9f4 doc: add example calling OpenAI (#388)
+- e332a40 doc: updated README (#379)
+- 87d3b8c chore: archive completed plans (#360)
+
+##### Tests
+- 3b1f2be test: remove incorrect tests (#374)
+
 
 ### 1.0.0-alpha.9 — 2026-04-18
 
