@@ -101,19 +101,19 @@ Please take a look into the following documents before you jump in:
 - [Neolith LPMud Driver Internals](docs/manual/internals.md)
 - [Neolith Developor Reference](docs/manual/dev.md)
 
-## Credits & License
-Neolith is a LPMud Driver that run the [Eastern Stories 2 MUD](https://zh.wikipedia.org/wiki/%E6%9D%B1%E6%96%B9%E6%95%85%E4%BA%8B2_%E5%A4%A9%E6%9C%9D%E5%B8%9D%E5%9C%8B) (up since 1995).
-The code was modified from MudOS v22pre5 which is derived from the original LPMud by Lars Pensjö.
+## License
+
+Neolith is licensed under a **fair-code architecture** that balances permissive modification rights with non-commercial use requirements:
+
+- **Permissive Modifications**: You may freely modify, refactor, and optimize the driver source code. There is no copyleft enforcement; your custom code changes remain entirely closed-source and proprietary if you choose.
+- **Non-Commercial Use**: In accordance with the original copyright claims by Lars Pensjö, the driver may not be used for monetary gain or commercial purposes without explicit written permission from the original copyright holders.
+- **Community Contribution**: While closed research forks and private deployments are fully permitted, contributors are encouraged to submit upstream pull requests to maintain core compatibility with the primary Neolith toolchain.
+
+See [LICENSE](LICENSE) for the complete legal text.
+
+## Credits
+
+Neolith is a LPMud Driver that powered the [Eastern Stories 2 MUD](https://zh.wikipedia.org/wiki/%E6%9D%B1%E6%96%B9%E6%95%85%E4%BA%8B2_%E5%A4%A9%E6%9C%9D%E5%B8%9D%E5%9C%8B) (running since 1995).
+The code was modified from MudOS v22pre5, which is derived from the original LPMud by Lars Pensjö.
 Credits to original authors can be found in [Credits.LPmud](docs/Credits.LPmud) and [Credits.MudOS](docs/Credits.MudOS).
-
-The Neolith project is intended to be distributed under [GPLv2](docs/GPLv2_LICENSE), with the copyright notices from original authors of LPMud and MudOS still applies.
-
-> [!IMPORTANT]
-> Although GPLv2 allows commercial use, this project contains additional restrictions from original authors.
-> - "May not be used in any way whatsoever for monetary gain" (restriction by Lars Pensjö, origin of LPMud)
-> - GPLv2 (open source required, must comply all restrictions from all authors)
->
-> With all these terms combined, **Commercial Use is NOT ALLOWED**.
-
-See [Copyright](Copyright) for details.
 
