@@ -24,15 +24,14 @@ of the neolith driver, provided that:
        private optimizations or custom enhancements to this driver, allowing 
        for proprietary, closed driver forks for internal or research use.
 
-3. USER-SPACE PROCESSES AND REASONING BLUEPRINTS (The Mudlib Layer)
-The neolith driver remains entirely agnostic to the semantic nature of the 
-LPC files it compiles and executes. It treats all behavioral frameworks, 
-cognitive sub-systems, and spatial configurations strictly as user-space 
-objects running with specialized execution privileges. 
+3. MUDLIB / USER CONTENT
+The neolith driver is agnostic to the LPC files it compiles and executes.
 
-Because the concepts defining the running agent (the "Being") are constructed 
-entirely within this user-space layer, the following economic and legal 
-stewardship provisions apply:
+This license applies only to the neolith driver source code and accompanying
+documentation, unless a file explicitly states different terms.
+
+LPC mudlib code, game content, and other user-provided scripts are separate works
+and remain licensed by their respective authors under their own terms.
 
    (a) CUSTODIAL HOST OWNERSHIP & OPERATIONAL RIGHTS
        The physical individual or organization providing the computing 
@@ -55,5 +54,12 @@ stewardship provisions apply:
        autonomously settle their own operational liabilities, the human or 
        organizational Host acts as the legal proxy, guardian, and financial 
        sponsor of the executing processes.
+4. NO WARRANTY
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL ANY
+COPYRIGHT HOLDER OR CONTRIBUTOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ========================================================================
- 
