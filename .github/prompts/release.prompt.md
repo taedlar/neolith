@@ -106,23 +106,32 @@ ctest --preset ut-linux
 
 Do not proceed if tests fail. Summarize any failures for the user.
 
-## Step 8 — Commit release changes
+## Step 8 — Commit release changes on a release branch and open a PR
+
+The `main` branch is protected, so do not commit directly to `main`.
 
 Show the user the list of files changed (ChangeLog.md, CMakeLists.txt, and
 optionally binaries.c). Ask for confirmation, then run:
 
 ```
-git -C h:\github\neolith add docs/ChangeLog.md CMakeLists.txt lib/lpc/program/binaries.c
-git -C h:\github\neolith commit -m "chore: release v<NEW_VERSION>"
+git checkout -b release/v<NEW_VERSION>
+git add docs/ChangeLog.md CMakeLists.txt lib/lpc/program/binaries.c
+git commit -m "chore: release v<NEW_VERSION>"
+git push -u origin release/v<NEW_VERSION>
 ```
 
-## Step 9 — Create and push the tag
+Then create a PR from `release/v<NEW_VERSION>` into `main`, request review,
+and wait for it to be merged. Do not proceed to tagging until the PR is merged.
 
-Ask the user to confirm before running:
+## Step 9 — Create and push the tag after PR merge
+
+After Step 8 PR is merged into `main`, ask the user to confirm before running:
 
 ```
-git -C h:\github\neolith tag -a v<NEW_VERSION> -m "Release v<NEW_VERSION>"
-git -C h:\github\neolith push origin main --follow-tags
+git checkout main
+git pull --ff-only origin main
+git tag -a v<NEW_VERSION> -m "Release v<NEW_VERSION>"
+git push origin v<NEW_VERSION>
 ```
 
 ## Step 10 — Create GitHub release
