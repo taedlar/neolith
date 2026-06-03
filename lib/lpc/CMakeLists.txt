@@ -11,7 +11,7 @@ target_include_directories(edit_source PRIVATE
 )
 
 target_compile_definitions(edit_source PRIVATE _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(edit_source PRIVATE port misc)
+target_link_libraries(edit_source PRIVATE misc)
 configure_file(func_spec.c.in ${CMAKE_CURRENT_BINARY_DIR}/func_spec.c @ONLY)
 configure_file(options.h.in ${CMAKE_BINARY_DIR}/options.h @ONLY)
 
@@ -71,5 +71,5 @@ target_sources(lpc INTERFACE
     BASE_DIRS ..
     FILES array.h buffer.h class.h functional.h mapping.h object.h otable.h program.h svalue.h types.h
 )
-target_link_libraries(lpc PUBLIC port misc logger efuns rc)
+target_link_libraries(lpc PUBLIC port misc logger rc)
 target_include_directories(lpc PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})

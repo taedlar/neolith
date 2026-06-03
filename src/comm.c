@@ -408,16 +408,7 @@ void add_vmessage (object_t * who, char *format, ...) {
   va_list args;
 
   va_start (args, format);
-#ifdef _GNU_SOURCE
-  ret = vasprintf (&str, format, args);
-#else
-  ret = _vscprintf (format, args) + 1;
-  if (ret > 0)
-    {
-      str = DXALLOC (ret, TAG_TEMPORARY, "add_vmessage: str");
-      ret = vsprintf (str, format, args);
-    }
-#endif
+  ret = xvasprintf (&str, format, args);
   va_end (args);
   if (ret == -1)
     {

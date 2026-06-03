@@ -1915,17 +1915,11 @@ void move_object (object_t * item, object_t * dest) {
 static int proceeding_fatal_error = 0;
 
 void fatal (const char *fmt, ...) {
-  char *msg = "(error message buffer cannot be allocated)";
+  char *msg = NULL;
   va_list args;
 
   va_start (args, fmt);
-#ifdef _GNU_SOURCE
-  if (-1 == vasprintf (&msg, fmt, args))
-#else
-  int len = _vscprintf (fmt, args) + 1;
-  msg = (char *) DXALLOC (len, TAG_TEMPORARY, "fatal");
-  if (-1 == vsnprintf (msg, len, fmt, args))
-#endif
+  if (-1 == xvasprintf (&msg, fmt, args))
     {
       debug_message("{}\t***** failed to format fatal error message \"%s\".", fmt);
       exit (EXIT_FAILURE);

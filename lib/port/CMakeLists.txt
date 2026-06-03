@@ -5,6 +5,7 @@ set(port_SOURCES
     strput.c
     xcalloc.c
     xstrdup.c
+    xvasprintf.c
     socket_comm.c
     timer.cpp
     sync.cpp

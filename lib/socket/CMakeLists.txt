@@ -9,7 +9,7 @@ target_include_directories(socket INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(socket PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
-target_link_libraries(socket PRIVATE port misc efuns rc)
+target_link_libraries(socket PRIVATE port misc rc)
 
 if(TARGET c-ares::cares)
     target_link_libraries(socket PRIVATE c-ares::cares)

@@ -324,7 +324,7 @@ char* get_line_number (const char *p, const program_t * progp) {
     }
   if (!file)
     file = progp->name;
-  sprintf (buf, "/%s:%d", file, line);
+  snprintf (buf, sizeof(buf), "/%s:%d", file, line);
   return buf;
 }
 

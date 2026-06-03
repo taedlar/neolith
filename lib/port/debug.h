@@ -16,30 +16,30 @@ enum debug_severity {
 };
 
 /* generic loggers */
-#define LOG_FATAL(fmt, ...)    do{if(DEBUG_SEVERITY_FATAL >= current_log_severity) \
-   debug_message(fmt, ##__VA_ARGS__);}while(0)
-#define debug_fatal(fmt, ...)    do{if(DEBUG_SEVERITY_FATAL >= current_log_severity) \
-   debug_log_with_src("FATAL", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__);}while(0)
+#define LOG_FATAL(...)    do{if(DEBUG_SEVERITY_FATAL >= current_log_severity) \
+   debug_message(__VA_ARGS__);}while(0)
+#define debug_fatal(...)    do{if(DEBUG_SEVERITY_FATAL >= current_log_severity) \
+   debug_log_with_src("FATAL", __func__, __FILE__, __LINE__, __VA_ARGS__);}while(0)
 
-#define LOG_ERROR(fmt, ...)    do{if(DEBUG_SEVERITY_ERROR >= current_log_severity) \
-   debug_message(fmt, ##__VA_ARGS__);}while(0)
-#define debug_error(fmt, ...)    do{if(DEBUG_SEVERITY_ERROR >= current_log_severity) \
-   debug_log_with_src("ERROR", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__);}while(0)
+#define LOG_ERROR(...)    do{if(DEBUG_SEVERITY_ERROR >= current_log_severity) \
+   debug_message(__VA_ARGS__);}while(0)
+#define debug_error(...)    do{if(DEBUG_SEVERITY_ERROR >= current_log_severity) \
+   debug_log_with_src("ERROR", __func__, __FILE__, __LINE__, __VA_ARGS__);}while(0)
 
-#define LOG_WARN(fmt, ...)     do{if(DEBUG_SEVERITY_WARN >= current_log_severity) \
-   debug_message(fmt, ##__VA_ARGS__);}while(0)
-#define debug_warn(fmt, ...)     do{if(DEBUG_SEVERITY_WARN >= current_log_severity) \
-   debug_log_with_src("WARN", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__);}while(0)
+#define LOG_WARN(...)     do{if(DEBUG_SEVERITY_WARN >= current_log_severity) \
+   debug_message(__VA_ARGS__);}while(0)
+#define debug_warn(...)     do{if(DEBUG_SEVERITY_WARN >= current_log_severity) \
+   debug_log_with_src("WARN", __func__, __FILE__, __LINE__, __VA_ARGS__);}while(0)
 
-#define LOG_NOTICE(fmt, ...)     do{if(DEBUG_SEVERITY_NOTICE >= current_log_severity) \
-   debug_message(fmt, ##__VA_ARGS__);}while(0)
-#define debug_notice(fmt, ...)     do{if(DEBUG_SEVERITY_NOTICE >= current_log_severity) \
-   debug_log_with_src("NOTICE", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__);}while(0)
+#define LOG_NOTICE(...)     do{if(DEBUG_SEVERITY_NOTICE >= current_log_severity) \
+   debug_message(__VA_ARGS__);}while(0)
+#define debug_notice(...)     do{if(DEBUG_SEVERITY_NOTICE >= current_log_severity) \
+   debug_log_with_src("NOTICE", __func__, __FILE__, __LINE__, __VA_ARGS__);}while(0)
 
-#define LOG_TRACE(fmt, ...)	   do{if(DEBUG_SEVERITY_TRACE >= current_log_severity) \
-   debug_message(fmt, ##__VA_ARGS__);}while(0)
-#define debug_trace(fmt, ...)	   do{if(DEBUG_SEVERITY_TRACE >= current_log_severity) \
-   debug_log_with_src("TRACE", __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__);}while(0)
+#define LOG_TRACE(...)       do{if(DEBUG_SEVERITY_TRACE >= current_log_severity) \
+   debug_message(__VA_ARGS__);}while(0)
+#define debug_trace(...)       do{if(DEBUG_SEVERITY_TRACE >= current_log_severity) \
+   debug_log_with_src("TRACE", __func__, __FILE__, __LINE__, __VA_ARGS__);}while(0)
 
 #define debug_perror(what,file)  debug_perror_with_src(__func__, __FILE__, __LINE__, (what), (file))
 

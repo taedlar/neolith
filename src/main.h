@@ -38,12 +38,12 @@ extern main_options_t* g_main_options;
 }
 #endif
 
-#define opt_error(level, fmt, ...)  do{if(MAIN_OPTION(debug_level)>=(level)) \
-   debug_error(fmt, ##__VA_ARGS__);}while(0)
-#define opt_warn(level, fmt, ...)   do{if(MAIN_OPTION(debug_level)>=(level)) \
-   debug_warn(fmt, ##__VA_ARGS__);}while(0)
-#define opt_info(level, fmt, ...)   do{if(MAIN_OPTION(debug_level)>=(level)) \
-   debug_notice(fmt, ##__VA_ARGS__);}while(0)
+#define opt_error(level, ...)  do{if(MAIN_OPTION(debug_level)>=(level)) \
+   debug_error(__VA_ARGS__);}while(0)
+#define opt_warn(level, ...)   do{if(MAIN_OPTION(debug_level)>=(level)) \
+   debug_warn(__VA_ARGS__);}while(0)
+#define opt_info(level, ...)   do{if(MAIN_OPTION(debug_level)>=(level)) \
+   debug_notice(__VA_ARGS__);}while(0)
 
 /*
  * Trace levels and tiers are represented as octal values (starting with '0').
@@ -76,6 +76,6 @@ extern main_options_t* g_main_options;
  * @param fmt The format string for the log message, similar to printf.
  * @param ... The format string and additional arguments for the log message.
  */
-#define opt_trace(tier, fmt, ...) do{if((MAIN_OPTION(trace_flags)&(tier)&~TT_LEVEL_MASK) \
+#define opt_trace(tier, ...) do{if((MAIN_OPTION(trace_flags)&(tier)&~TT_LEVEL_MASK) \
    && ((MAIN_OPTION(trace_flags)&TT_LEVEL_MASK) + 1) > ((tier)&TT_LEVEL_MASK)) \
-   debug_trace(fmt, ## __VA_ARGS__);}while(0)
+   debug_trace(__VA_ARGS__);}while(0)
