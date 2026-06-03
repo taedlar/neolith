@@ -117,7 +117,7 @@ int cmd_alias (string arg) {
       return 1;
     }
 
-  // [Neolith Extension] allows C99 style local variable declarations anywhere in the function
+  // [Neolith Extension] supports C99-style mixed local declarations within normal { ... } blocks
   string name;
   string command;
   if (sscanf(arg, "%s %s", name, command) != 2)

@@ -4,7 +4,7 @@
 Enable C99-style declaration placement in compound blocks for LPC grammar and compiler generation.
 
 Status:
-- Phase 1 implemented: block-item grammar refactor landed.
+- Phase 1 implemented: block-item grammar refactor (pending merge).
 - Initial compiler test matrix subset implemented and passing.
 
 Target behavior:
@@ -89,7 +89,7 @@ Current `first_for_expr` supports either expression or single local-def-with-ini
 ### A. New Acceptance Tests (compile should succeed)
 1. Mixed declaration after executable statement in same block.
 2. Multiple declaration groups interleaved with statements.
-3. Nested block shadowing (`int x; { int x; ... }`).
+3. Nested inner-block declarations (no local-name redeclaration).
 4. Late declaration with initializer using prior computed value.
 5. Mixed declarations inside loop body block after non-declaration statement.
 

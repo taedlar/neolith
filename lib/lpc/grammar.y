@@ -671,8 +671,10 @@ local_declarations
         {
             if ($1.node && $2.node) {
                 CREATE_STATEMENTS($$.node, $1.node, $2.node);
-            } else $$.node = ($1.node ? $1.node : $2.node);
-                $$.num = $1.num + $2.num;
+            } else {
+                $$.node = ($1.node ? $1.node : $2.node);
+            }
+            $$.num = $1.num + $2.num;
         }
     ;
 

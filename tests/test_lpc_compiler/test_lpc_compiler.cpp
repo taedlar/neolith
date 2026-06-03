@@ -374,3 +374,20 @@ TEST_F(LPCCompilerTest, C99BlockDeclInitializerTypeMismatchFailsCompile) {
         free_prog(prog, 1);
     }
 }
+
+TEST_F(LPCCompilerTest, C99BlockDeclUseBeforeDeclarationFailsCompile) {
+    const char *test_code = R"(
+        int run_test() {
+            int sum = 0;
+            sum += x;
+            int x = 1;
+            return sum + x;
+        }
+    )";
+
+    program_t *prog = compile_file(-1, "test_c99_block_decl_use_before_decl_fail.c", test_code);
+    EXPECT_EQ(prog, nullptr) << "use-before-declaration unexpectedly compiled.";
+    if (prog) {
+        free_prog(prog, 1);
+    }
+}
