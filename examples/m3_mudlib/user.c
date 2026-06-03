@@ -110,8 +110,6 @@ int cmd_help (string arg) {
 }
 
 int cmd_alias (string arg) {
-  string name;
-  string command;
 
   if (!arg || arg == "")
     {
@@ -119,6 +117,9 @@ int cmd_alias (string arg) {
       return 1;
     }
 
+  // [Neolith Extension] supports C99-style mixed local declarations within normal { ... } blocks
+  string name;
+  string command;
   if (sscanf(arg, "%s %s", name, command) != 2)
     {
       write("Usage: alias <name> <command>\n");

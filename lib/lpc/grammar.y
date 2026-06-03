@@ -177,13 +177,14 @@ int yyparse(void);
 %type <node> expr_list4 assoc_pair expr4 lvalue function_call lvalue_list
 %type <node> new_local_def statement while cond do switch case
 %type <node> return optional_else_part block_or_semi
-%type <node> case_label statements switch_block
+%type <node> case_label switch_block
 %type <node> expr_list_node expr_or_block
 %type <node> single_new_local_def_with_init
 %type <node> class_init opt_class_init
 
 /* The following hold information about blocks and local vars */
 %type <decl> local_declarations local_name_list block decl_block
+%type <decl> block_items block_item local_declaration_stmt
 %type <decl> foreach_var foreach_vars first_for_expr foreach for
 
 /* This holds a flag */
@@ -607,13 +608,51 @@ new_name:
     ;
 
 block:
-        '{' local_declarations statements '}'
+        '{' block_items '}'
             {
-                if ($2.node && $3) {
-                    CREATE_STATEMENTS($$.node, $2.node, $3);
-                } else $$.node = ($2.node ? $2.node : $3);
-                $$.num = $2.num;
+                $$ = $2;
             }
+    ;
+
+block_items
+    :   /* empty */
+        {
+            $$.node = 0;
+            $$.num = 0;
+        }
+    |   block_items block_item
+        {
+            if ($1.node && $2.node) {
+                CREATE_STATEMENTS($$.node, $1.node, $2.node);
+            } else $$.node = ($1.node ? $1.node : $2.node);
+            $$.num = $1.num + $2.num;
+        }
+    ;
+
+block_item
+    :   statement
+        {
+            $$.node = $1;
+            $$.num = 0;
+        }
+    |   local_declaration_stmt
+    ;
+
+local_declaration_stmt
+    :   basic_type
+        {
+            if ($1 == TYPE_VOID)
+                yyerror("Illegal to declare local variable of type void.");
+            /* can't do this in basic_type b/c local_name_list contains
+             * expr0 which contains cast which contains basic_type
+             */
+            current_type = $1;
+        }
+        local_name_list ';'
+        {
+            $$.node = $3.node;
+            $$.num = $3.num;
+        }
     ;
 
 decl_block
@@ -628,21 +667,14 @@ local_declarations
             $$.node = 0;
             $$.num = 0;
         }
-    |	local_declarations basic_type
+    |   local_declarations local_declaration_stmt
         {
-            if ($2 == TYPE_VOID)
-                yyerror("Illegal to declare local variable of type void.");
-            /* can't do this in basic_type b/c local_name_list contains
-             * expr0 which contains cast which contains basic_type
-             */
-            current_type = $2;
-        }
-        local_name_list ';'
-        {
-            if ($1.node && $4.node) {
-                CREATE_STATEMENTS($$.node, $1.node, $4.node);
-            } else $$.node = ($1.node ? $1.node : $4.node);
-                $$.num = $1.num + $4.num;
+            if ($1.node && $2.node) {
+                CREATE_STATEMENTS($$.node, $1.node, $2.node);
+            } else {
+                $$.node = ($1.node ? $1.node : $2.node);
+            }
+            $$.num = $1.num + $2.num;
         }
     ;
 
@@ -731,17 +763,6 @@ local_name_list:
                 } else $$.node = ($1 ? $1 : $3.node);
                 $$.num = 1 + $3.num;
             }
-    ;
-
-statements
-    :	/* empty */		{ $$ = 0; }
-    |	statement statements
-        {
-            if ($1 && $2) {
-                CREATE_STATEMENTS($$, $1, $2);
-            } else $$ = ($1 ? $1 : $2);
-        }
-    |	error ';'		{ $$ = 0; }
     ;
 
 statement:

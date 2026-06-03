@@ -287,3 +287,107 @@ TEST_F(LPCCompilerTest, inheritPathWithEmbeddedNullFailsCompile) {
     pop_context (&econ);
     tear_down_simulate();
 }
+
+TEST_F(LPCCompilerTest, C99BlockDeclInterleavedCompiles) {
+    const char *test_code = R"(
+        int run_test() {
+            int sum = 0;
+            sum += 1;
+            int x = 41;
+            sum += x;
+            int y = 1;
+            return sum + y;
+        }
+    )";
+
+    program_t *prog = compile_file(-1, "test_c99_block_decl_interleaved_ok.c", test_code);
+    ASSERT_NE(prog, nullptr) << "interleaved block declarations unexpectedly failed to compile.";
+    free_prog(prog, 1);
+}
+
+TEST_F(LPCCompilerTest, C99BlockDeclNestedBlockCompiles) {
+    const char *test_code = R"(
+        int run_test() {
+            int x = 1;
+            {
+                int z = 2;
+                z += 1;
+            }
+            int y = x;
+            return y;
+        }
+    )";
+
+    program_t *prog = compile_file(-1, "test_c99_block_decl_nested_ok.c", test_code);
+    ASSERT_NE(prog, nullptr) << "nested mixed block declarations failed to compile.";
+    free_prog(prog, 1);
+}
+
+TEST_F(LPCCompilerTest, C99BlockDeclInLoopBodyCompiles) {
+    const char *test_code = R"(
+        int run_test() {
+            int i;
+            int total = 0;
+            for (i = 0; i < 3; i++) {
+                total += i;
+                int twice = i + i;
+                total += twice;
+            }
+            return total;
+        }
+    )";
+
+    program_t *prog = compile_file(-1, "test_c99_block_decl_loop_ok.c", test_code);
+    ASSERT_NE(prog, nullptr) << "loop-body interleaved declarations failed to compile.";
+    free_prog(prog, 1);
+}
+
+TEST_F(LPCCompilerTest, C99BlockDeclVoidFailsCompile) {
+    const char *test_code = R"(
+        int run_test() {
+            int x = 1;
+            void bad;
+            return x;
+        }
+    )";
+
+    program_t *prog = compile_file(-1, "test_c99_block_decl_void_fail.c", test_code);
+    EXPECT_EQ(prog, nullptr) << "void local declaration unexpectedly compiled.";
+    if (prog) {
+        free_prog(prog, 1);
+    }
+}
+
+TEST_F(LPCCompilerTest, C99BlockDeclInitializerTypeMismatchFailsCompile) {
+    const char *test_code = R"(
+        int run_test() {
+            int x = 1;
+            string s = "ok";
+            int bad = s;
+            return x;
+        }
+    )";
+
+    program_t *prog = compile_file(-1, "test_c99_block_decl_type_mismatch_fail.c", test_code);
+    EXPECT_EQ(prog, nullptr) << "type-mismatched interleaved declaration unexpectedly compiled.";
+    if (prog) {
+        free_prog(prog, 1);
+    }
+}
+
+TEST_F(LPCCompilerTest, C99BlockDeclUseBeforeDeclarationFailsCompile) {
+    const char *test_code = R"(
+        int run_test() {
+            int sum = 0;
+            sum += x;
+            int x = 1;
+            return sum + x;
+        }
+    )";
+
+    program_t *prog = compile_file(-1, "test_c99_block_decl_use_before_decl_fail.c", test_code);
+    EXPECT_EQ(prog, nullptr) << "use-before-declaration unexpectedly compiled.";
+    if (prog) {
+        free_prog(prog, 1);
+    }
+}

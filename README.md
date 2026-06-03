@@ -10,42 +10,16 @@ Most of the efforts are to improve the code quality, code stytle consistency, po
 The project goal is to provide mudlib developers and driver maintainers with a **minimalist code base** that keeps classic LPC workflows intact while making the driver easier to extend, port, and reason about.
 
 ## Features
-### Supported Platforms
-- Conventionally, Linux is the primary development platform for LPMud.
-- Neolith has done a heavy clean up effort on MudOS codebase to enable native MSVC build (not Mingw or Cygwin).
-- Clang-CL build is also supported now.
-- Apple Clang is on the plan, but not yet started.
 
-### Asynchronous Workers
-
-Neolith's event-driven architecture offloads blocking I/O such as DNS resolution and HTTP work to worker threads through a **unified event loop**, so mudlib code can keep using the normal single-threaded LPC model without freezing the backend. Key differentiators:
-
-- **Unified Event Loop**: Single `async_runtime_wait()` demultiplexes both I/O and worker completions
-- **Main Thread Single Blocking Site**: Non-blocking queue operations and timeouts guarantee responsiveness on LPMud backend (commands, heart beats, reset ... etc.)
-- **Zero Interpreter Coupling**: Workers never touch LPC state; results are self-contained
-- **Platform Portable**: Seamless IOCP (Winsock) / epoll (Linux sockets) / poll (fallback) backends
-
-**Current Use Cases**: DNS resolution (no driver freeze), console input with testbot automation, CURL efuns, foundation for future async features (REST APIs, GUI clients).
-
-### Console Mode
-Console mode lets Neolith treat standard input and output as a connected interactive user, so mudlib code can run without a telnet client or socket frontend. That makes it useful not only for deterministic test automation and local debugging, but also for instrumented mudlibs and VM-like CLI applications that use the LPC object model, command loop, and input APIs as a standalone [MUD application](docs/manual/mud-application.md) platform.
-
-### UTF-8 Support
-Neolith stores LPC strings as counted multi-byte strings and is designed for UTF-8 locales. For mudlib code, that means Unicode text can be handled without dropping back to raw C-string rules: wide string literals are validated at compile time, `explode(str, "")` can split UTF-8 text into characters, and `strsrch()` accepts wide-character search input while still returning byte offsets that match LPC range operators.
-
-### JSON Support
-When built with `PACKAGE_JSON`, mudlib code gets `to_json()` and `from_json()` efuns for moving LPC arrays, mappings, strings, ints, floats, and `undefined` values across JSON boundaries. `from_json()` also accepts `buffer` input for large payloads, and the JSON boundary is explicit about UTF-8 validation, Unicode escape handling, and embedded `\0` behavior.
-
-### CURL Support
-When built with `PACKAGE_CURL`, mudlib objects can configure and launch non-blocking HTTP requests with `perform_using()`, `perform_to()`, and `in_perform()`. Request state is stored per object, transfers run without blocking the backend, and the driver draws a clear line between text options and binary request bodies so outbound integrations stay predictable.
-
-### Upgraded LPC string, int, float
-Neolith upgrades the LPC runtime data model in ways that matter directly to mudlib code. LPC `int` is consistently 64-bits on every platform instead of depending on the host `long` size, LPC `float` now uses native `double` precision, taking advantage of 64-bits platform without increasing the storage cost of each LPC value because the payload already lives in a pointer-sized union. LPC `string` is a true counted byte-span value (similar to `std::string_view`) rather than implicit C strings, and string operators preserve that model instead of silently truncating values at the first embedded null byte.
-
-### Driver Robustness Enhancement
-- Migrated LPC error handling from `longjmp()` to C++ exceptions.
-- Harden heap allocation with C++ RAII wrappers and integrate with C++ stack unwinding.
-- Harden string memory management with semantic-explicit wrappers and const correctness API contract.
+- **Platforms**: Linux (primary), Windows (native MSVC and Clang-CL); Apple Clang planned.
+- **Async Workers**: Blocking I/O (DNS, HTTP) runs on worker threads through a unified event loop — mudlib code stays single-threaded and the backend never freezes.
+- **Console Mode**: Treats stdin/stdout as an interactive user; enables test automation, local debugging, and standalone [MUD applications](docs/manual/mud-application.md) without a telnet client.
+- **UTF-8**: Strings are counted byte-spans. Wide literals, `explode(str, "")` by character, and wide-char `strsrch()` work correctly across all string operators.
+- **JSON** (`PACKAGE_JSON`): `to_json()` / `from_json()` efuns with explicit UTF-8 and embedded-null handling; `from_json()` accepts `buffer` for large payloads.
+- **CURL** (`PACKAGE_CURL`): Non-blocking HTTP requests (`perform_using()`, `perform_to()`, `in_perform()`) without blocking the backend.
+- **Upgraded int / float / string**: `int` is 64-bit everywhere; `float` uses native `double` precision; `string` is a true counted byte-span preserving embedded nulls.
+- **C99-Style Mixed Local Declarations** Local variables can be declared after statements inside any `{ ... }` block. See [LPC Guide](docs/manual/lpc.md#c99-style-local-declarations-neolith-extension) for details and current limits.
+- **Driver Robustness**: LPC error handling migrated from `longjmp()` to C++ exceptions; heap allocation and string memory management hardened with RAII wrappers and const-correct APIs.
 
 ## How To Build
 

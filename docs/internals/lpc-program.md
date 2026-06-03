@@ -735,6 +735,34 @@ If binary loading fails for any reason (validation, corruption, version mismatch
 2. Falls back to normal compilation via `compile_file()`
 3. May trigger recursive loading of inherited files (via `inherit_file` global)
 
+## Neolith Extension: C99-Style Mixed Local Declarations
+
+Neolith extends LPC parsing to allow local declarations to appear after
+statements within compound blocks.
+
+Behavioral summary:
+
+1. Compound blocks accept an ordered sequence of block items.
+2. Each block item can be either a statement or a local declaration statement.
+3. Local declarations continue to use the same type-check and initializer
+  promotion logic as the pre-extension grammar.
+
+Scope and lifetime rules:
+
+1. Locals declared mid-block become visible from their declaration point
+  forward.
+2. Locals are still released at enclosing block exit (not per declaration).
+3. Existing local-count accounting remains part of parser semantic actions.
+
+Compatibility constraints:
+
+1. This is a Neolith-only language extension.
+2. It is not part of original MudOS/LPMud syntax.
+3. `switch` keeps its existing declaration-before-`case` behavior in this
+  phase.
+4. Local-name redeclaration in nested blocks remains rejected by current
+  symbol-table rules.
+
 ### Implementation Files
 
 - **Save/Load**: [lib/lpc/program/binaries.cpp](../../lib/lpc/program/binaries.cpp)

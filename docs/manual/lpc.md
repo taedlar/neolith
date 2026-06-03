@@ -1085,6 +1085,32 @@ or:
 call_other(object, function_name, arg1, arg2, ...);
 ```
 
+### C99-Style Local Declarations (Neolith Extension)
+
+Neolith allows local variable declarations to be mixed with statements inside
+compound blocks.
+
+```c
+int f() {
+    int total = 0;
+    total += 1;
+    int x = 41;
+    total += x;
+    return total;
+}
+```
+
+Compatibility note:
+
+- This is a Neolith language extension.
+- It is not available in original MudOS or vanilla LPMud.
+
+Current limits:
+
+- This extension applies to normal `{ ... }` statement blocks.
+- `switch` still follows the existing declaration-before-`case` behavior.
+- Redeclaring the same local name in nested blocks is still rejected.
+
 ### The `if` ... `else` statement:
 
 LPC's if statement is identical to that provided by C.  Syntax is as follows:
