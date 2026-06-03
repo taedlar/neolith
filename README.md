@@ -42,6 +42,24 @@ When built with `PACKAGE_CURL`, mudlib objects can configure and launch non-bloc
 ### Upgraded LPC string, int, float
 Neolith upgrades the LPC runtime data model in ways that matter directly to mudlib code. LPC `int` is consistently 64-bits on every platform instead of depending on the host `long` size, LPC `float` now uses native `double` precision, taking advantage of 64-bits platform without increasing the storage cost of each LPC value because the payload already lives in a pointer-sized union. LPC `string` is a true counted byte-span value (similar to `std::string_view`) rather than implicit C strings, and string operators preserve that model instead of silently truncating values at the first embedded null byte.
 
+### C99-Style Mixed Local Declarations (Neolith Extension)
+Neolith extends LPC block syntax so local declarations can be mixed with statements inside normal `{ ... }` blocks.
+
+Example:
+
+~~~c
+int f() {
+	int total = 0;
+	total += 1;
+	int x = 41;
+	return total + x;
+}
+~~~
+
+Compatibility note: this is a Neolith extension and is not available in original MudOS/LPMud.
+
+See [Neolith LPC Guide](docs/manual/lpc.md) for details and current limits.
+
 ### Driver Robustness Enhancement
 - Migrated LPC error handling from `longjmp()` to C++ exceptions.
 - Harden heap allocation with C++ RAII wrappers and integrate with C++ stack unwinding.
