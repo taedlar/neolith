@@ -12,7 +12,7 @@ The project goal is to provide mudlib developers and driver maintainers with a *
 ## Features
 
 - **Platforms**: Linux (primary), Windows (native MSVC and Clang-CL); Apple Clang planned.
-- **Async Workers**: Blocking I/O (DNS, HTTP) runs on worker threads through a unified event loop — mudlib code stays single-threaded and the backend never freezes.
+- **Async Workers**: Blocking I/O (DNS, HTTP) is offloaded to worker threads through a unified event loop, so mudlib execution stays single-threaded and responsive. Rule of thumb: *Concurrency lives in C/C++; LPC stays deterministic.*
 - **Console Mode**: Treats stdin/stdout as an interactive user; enables test automation, local debugging, and standalone [MUD applications](docs/manual/mud-application.md) without a telnet client.
 - **UTF-8**: Strings are counted byte-spans. Wide literals, `explode(str, "")` by character, and wide-char `strsrch()` work correctly across all string operators.
 - **JSON** (`PACKAGE_JSON`): `to_json()` / `from_json()` efuns with explicit UTF-8 and embedded-null handling; `from_json()` accepts `buffer` for large payloads.
