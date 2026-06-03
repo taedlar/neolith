@@ -141,11 +141,18 @@ endif()
 
 if(BUILD_TESTING)
 	find_package(GTest QUIET) # FindGTest.cmake or FetchContent-provided
-	if (TARGET GTest::gtest)
-		set(HAVE_GTEST 1 CACHE BOOL "GoogleTest framework is available")
+	set(NEOLITH_HAVE_GTEST_TARGET OFF)
+	if(TARGET GTest::gtest OR TARGET GTest::gtest_main)
+		set(NEOLITH_HAVE_GTEST_TARGET ON)
+	endif()
+	if (NEOLITH_HAVE_GTEST_TARGET)
+		set(HAVE_GTEST 1 CACHE BOOL "GoogleTest framework is available" FORCE)
 		message(STATUS "Found GoogleTest: ${GTest_INCLUDE_DIRS} (found version ${GTest_VERSION})")
-		include_directories(${GTest_INCLUDE_DIRS}) # for white-box tests that needs <gtest/gtest_prod.h> to access private members of stem
+		if(GTest_INCLUDE_DIRS)
+			include_directories(${GTest_INCLUDE_DIRS}) # for white-box tests that needs <gtest/gtest_prod.h> to access private members of stem
+		endif()
 	else()
+		set(HAVE_GTEST 0 CACHE BOOL "GoogleTest framework is available" FORCE)
 		message(STATUS "GoogleTest not found: ***** Unit-tests will not be built.")
 		message(STATUS "Disable BUILD_TESTING or configure FETCH_GOOGLETEST_FROM_SOURCE to suppress this message.")
 	endif()
@@ -173,7 +180,7 @@ add_subdirectory(src)
 
 # unit-tests
 include(CTest)
-if(BUILD_TESTING AND TARGET GTest::gtest)
+if(BUILD_TESTING AND NEOLITH_HAVE_GTEST_TARGET)
 	enable_testing()
 	include(GoogleTest)
 	add_subdirectory(tests/test_async_queue)
