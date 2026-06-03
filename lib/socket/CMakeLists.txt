@@ -10,6 +10,7 @@ target_include_directories(socket PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
 target_link_libraries(socket PRIVATE port misc rc)
+add_dependencies(socket lpc) # for func_spec dependency
 
 if(TARGET c-ares::cares)
     target_link_libraries(socket PRIVATE c-ares::cares)
