@@ -219,8 +219,14 @@ array_t* explode_string (const char *str, size_t slen, const char *del, size_t l
   /*
    * Skip leading 'del' strings, if any.
    */
-  while (strncmp (str, del, len) == 0)
+  while (*str)
     {
+      /* Only match delimiter at multibyte character boundaries. */
+      int mb = mblen (str, slen);
+      if ((mb <= 0) || ((int)len < mb) || (strncmp (str, del, len) != 0))
+        {
+          break;
+        }
       str += len;
       slen -= len;
       if (str[0] == '\0')
@@ -241,7 +247,7 @@ array_t* explode_string (const char *str, size_t slen, const char *del, size_t l
       /* Advance one multibyte character, don't compare with
           delimiter in the middle of a multibyte character */
       int mb = mblen (p, end - p);
-      if (((int)len >= mb) && (strncmp (p, del, len) == 0))
+      if ((mb > 0) && ((int)len >= mb) && (strncmp (p, del, len) == 0))
         {
           num++;
 #ifndef REVERSIBLE_EXPLODE_STRING
@@ -281,7 +287,7 @@ array_t* explode_string (const char *str, size_t slen, const char *del, size_t l
       /* Advance one multibyte character, don't compare with
           delimiter in the middle of a multibyte character */
       int mb = mblen (p, end - p);
-      if (((int)len >= mb) && (strncmp (p, del, len) == 0))
+      if ((mb > 0) && ((int)len >= mb) && (strncmp (p, del, len) == 0))
         {
           if (num >= ret->size)
             fatal ("Index out of bounds in explode!\n");
