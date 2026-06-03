@@ -72,4 +72,7 @@ target_sources(lpc INTERFACE
     FILES array.h buffer.h class.h functional.h mapping.h object.h otable.h program.h svalue.h types.h
 )
 target_link_libraries(lpc PUBLIC port misc logger rc)
+if(PACKAGE_CURL AND TARGET CURL::libcurl)
+    target_link_libraries(lpc PUBLIC CURL::libcurl)
+endif()
 target_include_directories(lpc PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
