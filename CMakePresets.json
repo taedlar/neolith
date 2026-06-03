@@ -214,7 +214,7 @@
         },
         {
             "name": "ci-macos-arm64",
-            "description": "Continous Integration Build (rebuild all)",
+            "description": "Continuous Integration Build (rebuild all)",
             "inherits": ["pr-macos-arm64"],
             "targets": ["all"],
             "cleanFirst": true

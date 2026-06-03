@@ -435,7 +435,7 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
   target.sin_port = htons((u_short)listen_port);
   
   // Rebind listen_fd to the specific port
-  EXPECT_EQ(socket_close(listen_fd, 1), EESUCCESS);
+  ASSERT_EQ(socket_close(listen_fd, 1), EESUCCESS);
   listen_fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(listen_fd, 0) << "Failed to recreate listening socket";
   ASSERT_EQ(socket_bind(listen_fd, listen_port), EESUCCESS) << "Bind to reserved port should succeed";

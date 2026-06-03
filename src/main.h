@@ -73,8 +73,8 @@ extern main_options_t* g_main_options;
  *  TT_SIMUL_EFUN = Simul_efun related traces.
  *  TT_BACKEND = Backend related traces.
  *  The lowest 3 bits specify the minimum level of tracing required to log the message.
- * @param fmt The format string for the log message, similar to printf.
- * @param ... The format string and additional arguments for the log message.
+ * Arguments follow printf-style: first a format string, then any format arguments.
+ *
  */
 #define opt_trace(tier, ...) do{if((MAIN_OPTION(trace_flags)&(tier)&~TT_LEVEL_MASK) \
    && ((MAIN_OPTION(trace_flags)&TT_LEVEL_MASK) + 1) > ((tier)&TT_LEVEL_MASK)) \

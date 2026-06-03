@@ -11,7 +11,7 @@ target_include_directories(edit_source PRIVATE
 )
 
 target_compile_definitions(edit_source PRIVATE _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(edit_source PRIVATE misc)
+target_link_libraries(edit_source PRIVATE port misc)
 configure_file(func_spec.c.in ${CMAKE_CURRENT_BINARY_DIR}/func_spec.c @ONLY)
 configure_file(options.h.in ${CMAKE_BINARY_DIR}/options.h @ONLY)
 
