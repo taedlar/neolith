@@ -1369,7 +1369,7 @@ int yylex () {
               incstate_t *p;
 
               p = inctop;
-              close (yyin_desc);
+              FILE_CLOSE (yyin_desc);
               opt_trace (TT_COMPILE|3, "closed (fd %d): \"%s\"", yyin_desc,
                          current_file ? current_file : "<unknown>");
               save_file_info (current_file_id, current_line - current_line_saved);
@@ -2551,7 +2551,7 @@ void end_new_file () {
       incstate_t *p;
 
       p = inctop;
-      close (yyin_desc);
+      FILE_CLOSE (yyin_desc);
       opt_trace (TT_COMPILE|3, "closed fd = %d (%s)\n", yyin_desc, current_file);
       free_string(to_shared_str(current_file));
       current_file = p->file;

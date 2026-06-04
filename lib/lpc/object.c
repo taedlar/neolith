@@ -1583,20 +1583,20 @@ int save_object (object_t * ob, const char *file, int save_zeros) {
   if (!success)
     {
       debug_message ("Failed to completely save file. Disk could be full.\n");
-      unlink (tmp_name);
+      FILE_UNLINK (tmp_name);
     }
   else
     {
 #ifdef WIN32
       /* Need to erase it to write over it. */
-      unlink (file);
+      FILE_UNLINK (file);
 #endif
       opt_trace (TT_EVAL|1, "renaming %s to %s", tmp_name, file);
       if (rename (tmp_name, file) < 0)
         {
           debug_perror ("rename()", file);
           debug_message ("save_obecjt(): Failed to rename /%s to /%s", tmp_name, file);
-          unlink (tmp_name);
+          FILE_UNLINK (tmp_name);
           success = 0;
         }
     }
@@ -1696,7 +1696,7 @@ int restore_object (object_t * ob, const char *file, int noclear) {
 
   opt_trace (TT_EVAL|1, "restoring object from file: %s", file);
   f = fopen (file, "r");
-  if (!f || fstat (fileno (f), &st) == -1)
+  if (!f || fstat (FILENO(f), &st) == -1)
     {
       if (f)
         (void) fclose (f);

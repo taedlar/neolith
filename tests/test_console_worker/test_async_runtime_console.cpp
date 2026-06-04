@@ -6,6 +6,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include "std.h"
 #include <gtest/gtest.h>
 
 #include "async/async_runtime.h"

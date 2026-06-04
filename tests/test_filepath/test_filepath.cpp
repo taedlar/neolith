@@ -2,6 +2,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include "src/std.h"
 #include "filepath.h"
 
 #include <gtest/gtest.h>
