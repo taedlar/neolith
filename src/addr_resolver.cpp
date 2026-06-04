@@ -553,8 +553,7 @@ cares_worker_main(void *arg)
       result.type       = task.type;
       result.request_id = task.request_id;
       result.cache_addr = task.cache_addr;
-      std::strncpy(result.query, task.query, sizeof(result.query) - 1);
-      result.query[sizeof(result.query) - 1] = '\0';
+      std::snprintf(result.query, sizeof(result.query), "%s", task.query);
 
       if (std::time(nullptr) >= task.deadline)
         {
