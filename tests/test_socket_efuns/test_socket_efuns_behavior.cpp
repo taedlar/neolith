@@ -406,13 +406,8 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
   socket_fd_t native_client_fd = INVALID_SOCKET_FD;
   int listen_fd;
   int accept_fd;
-  int reserve_port = 0;
-  socket_fd_t reserve_listener = INVALID_SOCKET_FD;
+  int listen_port = 0;
   struct sockaddr_in target;
-
-  ASSERT_TRUE(CreateLoopbackListener(&reserve_listener, &reserve_port))
-    << "Failed to reserve loopback port";
-  SOCKET_CLOSE(reserve_listener);
 
   lpc::svalue_view::from(read_cb.raw()).set_shared_string(make_shared_string("read_callback", NULL));
   lpc::svalue_view::from(listen_cb.raw()).set_shared_string(make_shared_string("listen_callback", NULL));
@@ -420,19 +415,47 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_008_AcceptListening_Success) {
 
   listen_fd = socket_create(STREAM, read_cb.raw(), nullptr);
   ASSERT_GE(listen_fd, 0) << "Failed to create listening socket";
-  ASSERT_EQ(socket_bind(listen_fd, reserve_port), EESUCCESS) << "Bind should succeed";
+  ASSERT_EQ(socket_bind(listen_fd, 0), EESUCCESS) << "Bind should succeed";
   ASSERT_EQ(socket_listen(listen_fd, listen_cb.raw()), EESUCCESS) << "Listen should succeed";
+
+  // We cannot query the bound LPC socket port directly in this test fixture,
+  // so reserve a loopback port and rebind the LPC listener to that specific port.
+  socket_fd_t reserve_listener = INVALID_SOCKET_FD;
+  int reserve_port = 0;
+  ASSERT_TRUE(CreateLoopbackListener(&reserve_listener, &reserve_port))
+    << "Failed to create loopback listener";
+  SOCKET_CLOSE(reserve_listener);
+  listen_port = reserve_port;
 
   native_client_fd = socket(AF_INET, SOCK_STREAM, 0);
   ASSERT_NE(native_client_fd, INVALID_SOCKET_FD) << "Failed to create native client socket";
   memset(&target, 0, sizeof(target));
   target.sin_family = AF_INET;
   target.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  target.sin_port = htons((u_short)reserve_port);
+  target.sin_port = htons((u_short)listen_port);
+  
+  // Rebind listen_fd to the specific port
+  ASSERT_EQ(socket_close(listen_fd, 1), EESUCCESS);
+  listen_fd = socket_create(STREAM, read_cb.raw(), nullptr);
+  ASSERT_GE(listen_fd, 0) << "Failed to recreate listening socket";
+  ASSERT_EQ(socket_bind(listen_fd, listen_port), EESUCCESS) << "Bind to reserved port should succeed";
+  ASSERT_EQ(socket_listen(listen_fd, listen_cb.raw()), EESUCCESS) << "Listen should succeed";
   ASSERT_NE(connect(native_client_fd, (struct sockaddr *)&target, sizeof(target)), SOCKET_ERROR)
     << "Native client connect should succeed";
 
-  accept_fd = socket_accept(listen_fd, read_cb.raw(), write_cb.raw());
+  accept_fd = EEWOULDBLOCK;
+  for (int attempt = 0; attempt < 20 && accept_fd == EEWOULDBLOCK; ++attempt) {
+    accept_fd = socket_accept(listen_fd, read_cb.raw(), write_cb.raw());
+#ifdef WINSOCK
+    if (accept_fd == EEWOULDBLOCK) {
+      Sleep(10);
+    }
+#else
+    if (accept_fd == EEWOULDBLOCK) {
+      usleep(10 * 1000);
+    }
+#endif
+  }
   EXPECT_GE(accept_fd, 0) << "socket_accept should return accepted fd";
   ExpectNoCallbacks();
 
@@ -933,12 +956,26 @@ TEST_F(SocketEfunsBehaviorTest, SOCK_BHV_020_ReadCallbackOrdering_InboundData) {
   ASSERT_TRUE(AcceptPendingConnection(listener_fd, &accepted_fd))
     << "Expected pending native connection after socket_connect";
 
+  // socket_connect leaves stream sockets write-blocked until writable completion.
+  // Flush that state so inbound payload exercises read callback delivery only.
+  socket_write_select_handler(fd);
   ClearCallbackOwnerEvents(callback_owner);
   ASSERT_NE(SOCKET_SEND(accepted_fd, payload, (int)strlen(payload), 0), SOCKET_ERROR)
     << "Native peer send should succeed";
 
-  socket_read_select_handler(fd);
-  CaptureCallbacksFromOwner(callback_owner);
+  // Data delivery can lag by a tick; poll read readiness briefly.
+  for (int attempt = 0; attempt < 20; ++attempt) {
+    socket_read_select_handler(fd);
+    CaptureCallbacksFromOwner(callback_owner);
+    if (!callback_records.empty()) {
+      break;
+    }
+#ifdef WINSOCK
+    Sleep(10);
+#else
+    usleep(10 * 1000);
+#endif
+  }
 
   ASSERT_EQ(callback_records.size(), 1U) << "Expected one read callback after inbound payload";
   EXPECT_TRUE(VerifyCallbackType(CallbackRecord::CB_READ, fd));

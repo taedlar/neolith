@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdarg.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
@@ -8,6 +9,7 @@ extern "C" {
 
 char* xstrdup(const char* s);
 void* xcalloc(size_t nmemb, size_t size);
+int xvasprintf(char **strp, const char *fmt, va_list ap);
 
 #ifndef	HAVE_STPCPY
 char* stpcpy (char* dest, const char* src);     /* POSIX-1.2008, <string.h> */

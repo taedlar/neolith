@@ -97,6 +97,25 @@
             "generator": "Ninja Multi-Config",
             "description": "Uses Ninja Multi-Config generator, architecture unspecified",
             "inherits": ["project-default", "linux-default"]
+        },
+        {
+            "name": "macos-default",
+            "hidden": true,
+            "generator": "Ninja Multi-Config",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
+            "name": "macos-arm64",
+            "displayName": "macOS ARM64",
+            "description": "Uses Ninja Multi-Config generator, ARM64 architecture",
+            "inherits": ["project-default", "macos-default"],
+            "cacheVariables": {
+                "CMAKE_OSX_ARCHITECTURES": "arm64"
+            }
         }
     ],
     "buildPresets": [
@@ -179,6 +198,26 @@
             "inherits": ["pr-linux"],
             "targets": ["all"],
             "cleanFirst": true
+        },
+        {
+            "name": "dev-macos-arm64",
+            "description": "Debug Build (build modified files)",
+            "configurePreset": "macos-arm64",
+            "configuration": "Debug",
+            "targets": ["all"]
+        },
+        {
+            "name": "pr-macos-arm64",
+            "description": "Pull-Request Validation Build (build modified files)",
+            "inherits": ["dev-macos-arm64"],
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "ci-macos-arm64",
+            "description": "Continuous Integration Build (rebuild all)",
+            "inherits": ["pr-macos-arm64"],
+            "targets": ["all"],
+            "cleanFirst": true
         }
     ],
     "testPresets": [
@@ -233,6 +272,25 @@
             "description": "Run unit-tests on Linux",
             "configurePreset": "linux",
             "inherits": ["ut-linux-defaults"]
+        },
+        {
+            "name": "ut-macos-defaults",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            },
+            "execution": {
+                "noTestsAction": "ignore"
+            }
+        },
+        {
+            "name": "ut-macos-arm64",
+            "displayName": "Unit Tests on macOS ARM64",
+            "description": "Run unit-tests on macOS ARM64",
+            "configurePreset": "macos-arm64",
+            "inherits": ["ut-macos-defaults"]
         }
     ]
 }

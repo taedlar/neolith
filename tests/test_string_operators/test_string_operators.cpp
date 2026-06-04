@@ -245,9 +245,7 @@ TEST_F(StringOperatorsTest, EqualityWithEmbeddedNuls) {
 
     svalue_t stack[2] = {};
     auto assert_f_eq = [&](const lpc::svalue &left, const lpc::svalue &right, int64_t expected) {
-        free_svalue(&stack[0], "EqualityWithEmbeddedNuls");
         assign_svalue_no_free(&stack[0], left.raw());
-        free_svalue(&stack[1], "EqualityWithEmbeddedNuls");
         assign_svalue_no_free(&stack[1], right.raw());
         sp = &stack[1];
 
@@ -276,9 +274,7 @@ TEST_F(StringOperatorsTest, OrderingOperatorsUseByteSpanForEmbeddedNul) {
     right.set_malloc_string(std::string_view("A\0C", 3));
 
     auto run_cmp = [&](void (*op)(), int64_t expected) {
-        free_svalue(&stack[0], "OrderingOperatorsUseByteSpanForEmbeddedNul");
         assign_svalue_no_free(&stack[0], left.raw());
-        free_svalue(&stack[1], "OrderingOperatorsUseByteSpanForEmbeddedNul");
         assign_svalue_no_free(&stack[1], right.raw());
         sp = &stack[1];
 
@@ -308,9 +304,7 @@ TEST_F(StringOperatorsTest, OrderingOperatorsUseLengthAfterEqualPrefix) {
     longer.set_malloc_string(std::string_view("A\0B", 3));
 
     auto run_cmp = [&](const lpc::svalue &lhs, const lpc::svalue &rhs, void (*op)(), int64_t expected) {
-        free_svalue(&stack[0], "OrderingOperatorsUseLengthAfterEqualPrefix");
         assign_svalue_no_free(&stack[0], lhs.raw());
-        free_svalue(&stack[1], "OrderingOperatorsUseLengthAfterEqualPrefix");
         assign_svalue_no_free(&stack[1], rhs.raw());
         sp = &stack[1];
 

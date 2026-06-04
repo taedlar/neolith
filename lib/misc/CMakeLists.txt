@@ -12,7 +12,6 @@ add_library(misc STATIC ${adt_SOURCES})
 target_include_directories(misc PRIVATE
     ${CMAKE_SOURCE_DIR}
 )
-target_link_libraries(misc PRIVATE port logger)
 target_compile_definitions(misc PRIVATE NO_OPCODES)
 
 # each misc. header is part of the public interface
