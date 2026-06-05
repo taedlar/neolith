@@ -4,14 +4,26 @@ Neolith LPMud Driver
 ![C++](https://img.shields.io/badge/C++-%2300599C.svg?style=plastic&logo=c%2B%2B&logoColor=white)
 ![CMake](https://img.shields.io/badge/CMake-%23008FBA.svg?style=plastic&logo=cmake&logoColor=white)
 
-Neolith is an open-source project of [LPMud](https://en.wikipedia.org/wiki/LPMud) driver forked from the **MudOS v22pre5** code base.
-Most of the efforts are to improve the code quality, code stytle consistency, portability, performance and other design issues.
+Neolith is a [LPMud](https://en.wikipedia.org/wiki/LPMud) driver forked from the **MudOS v22pre5** codebase, maintained as an independent project since 2004.
+It focuses on improving code structure, style consistency, portability, multi-core host performance, testability, and long-term maintainability.
 
-The project goal is to provide mudlib developers and driver maintainers with a **minimalist code base** that keeps classic LPC workflows intact while making the driver easier to extend, port, and reason about.
+The name **Neolith** reflects our core goal: enabling **tool-use** in both the driver and LPC layers:
+- **Driver**:
+  - Refactored to use CMake and Ninja for C/C++ builds.
+  - Supports console mode (or *single-user mode*), which enables command-line tools written in LPC.
+  - Uses GoogleTest for unit testing.
+  - Uses Python for automated integration tests (for example, smoke tests).
+- **LPC**:
+  - Preserves backward compatibility with the MudOS LPC language.
+  - Hardens memory management, the mudlib execution loop, and core LPC primitives.
+  - Adds foundational LPC/efun extensions for tool-use.
+
+As LLM technology advances, text-first MUD frameworks, especially LPMud, are well suited for hosting *LPC AI agents* and facilitating information exchange in *multi-agent AI systems*.
+This positions Neolith as a general-purpose LPC platform for building a wide range of multi-user applications.
 
 ## Features
 
-- **Platforms**: Linux (primary), Windows (native MSVC and Clang-CL); Apple Clang planned.
+- **Platforms**: Linux (primary), Windows (native MSVC and Clang-CL); Apple Clang (arm64).
 - **Async Workers**: Blocking I/O (DNS, HTTP) is offloaded to worker threads through a unified event loop, so mudlib execution stays single-threaded and responsive. Rule of thumb: *Concurrency lives in C/C++; LPC stays deterministic.*
 - **Console Mode**: Treats stdin/stdout as an interactive user; enables test automation, local debugging, and standalone [MUD applications](docs/manual/mud-application.md) without a telnet client.
 - **UTF-8**: Strings are counted byte-spans. Wide literals, `explode(str, "")` by character, and wide-char `strsrch()` work correctly across all string operators.
