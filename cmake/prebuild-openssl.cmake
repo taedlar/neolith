@@ -180,7 +180,7 @@ if (openssl_need_configure)
 		execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
 			${PERL_EXECUTABLE} ${openssl_SOURCE_DIR}/Configure ${platform}
 			--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-deprecated no-shared
-			no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
+			no-engine no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
 			-D"_WIN32_WINNT=0x0601"
 			RESULT_VARIABLE config_result
 		)
@@ -188,7 +188,7 @@ if (openssl_need_configure)
 		execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
 			${openssl_SOURCE_DIR}/config
 			--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-deprecated no-shared
-			no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
+			no-engine no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
 			-fPIC -fvisibility=hidden
 			RESULT_VARIABLE config_result
 		)
