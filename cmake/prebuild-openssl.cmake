@@ -26,11 +26,36 @@
 
 cmake_minimum_required(VERSION 3.28)
 
-if (EXISTS ${OPENSSL_ROOT_DIR})
-    # OPENSSL_ROOT_DIR already exists, assume OpenSSL is already built and installed
-	# Proceed to import the pre-built OpenSSL library in the main CMakeLists.txt
-	# via find_package(OpenSSL)
-    return()
+if (MSVC)
+	set(openssl_expected_ssl "${OPENSSL_ROOT_DIR}/lib/libssl.lib")
+	set(openssl_expected_crypto "${OPENSSL_ROOT_DIR}/lib/libcrypto.lib")
+else()
+	set(openssl_expected_ssl "${OPENSSL_ROOT_DIR}/lib/libssl.a")
+	set(openssl_expected_crypto "${OPENSSL_ROOT_DIR}/lib/libcrypto.a")
+endif()
+set(openssl_expected_header "${OPENSSL_ROOT_DIR}/include/openssl/ssl.h")
+
+function(_neolith_log_openssl_hint_once msg)
+	get_property(openssl_hint_logged GLOBAL PROPERTY NEOLITH_OPENSSL_HINT_LOGGED)
+	if (NOT openssl_hint_logged)
+		message(STATUS "${msg}")
+		set_property(GLOBAL PROPERTY NEOLITH_OPENSSL_HINT_LOGGED TRUE)
+	endif()
+endfunction()
+
+if (EXISTS "${openssl_expected_ssl}" AND EXISTS "${openssl_expected_crypto}" AND EXISTS "${openssl_expected_header}")
+	# OPENSSL_ROOT_DIR already contains a complete OpenSSL install.
+	# Proceed to import the pre-built OpenSSL library in the main CMakeLists.txt.
+	_neolith_log_openssl_hint_once("Using prebuilt OpenSSL from ${OPENSSL_ROOT_DIR} (forcing FindOpenSSL hints)")
+	set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include" CACHE PATH "OpenSSL include directory" FORCE)
+	if (MSVC)
+		set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.lib" CACHE FILEPATH "OpenSSL SSL library" FORCE)
+		set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.lib" CACHE FILEPATH "OpenSSL crypto library" FORCE)
+	else()
+		set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.a" CACHE FILEPATH "OpenSSL SSL library" FORCE)
+		set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.a" CACHE FILEPATH "OpenSSL crypto library" FORCE)
+	endif()
+	return()
 endif()
 
 # check build prerequisites
@@ -148,6 +173,7 @@ if (openssl_need_configure)
 	endif()
 endif()
 if (NOT config_result EQUAL 0)
+	message(CHECK_FAIL "OpenSSL configure failed with exit code: ${config_result}")
 	return()
 endif()
 
@@ -178,7 +204,7 @@ if (MSVC)
 			RESULT_VARIABLE install_result
 		)
 	else()
-		message(CHECK_FAIL "failed")
+		message(CHECK_FAIL "build failed with exit code: ${build_result}")
 	endif()
 elseif(UNIX)
 	execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
@@ -192,8 +218,26 @@ elseif(UNIX)
 			RESULT_VARIABLE install_result
 		)
 	else()
-		message(CHECK_FAIL "failed")
+		message(CHECK_FAIL "build failed with exit code: ${build_result}")
 	endif()
+endif()
+
+if (NOT install_result EQUAL 0)
+	message(CHECK_FAIL "OpenSSL install failed with exit code: ${install_result}")
+	set(ENV{LC_ALL} ${original_locale}) # restore original locale settings
+	return()
+endif()
+
+# Prefer the freshly prebuilt tree over Homebrew/system OpenSSL, notably on macOS
+# where FindOpenSSL can otherwise resolve /opt/homebrew first.
+_neolith_log_openssl_hint_once("Using freshly prebuilt OpenSSL from ${OPENSSL_ROOT_DIR} (forcing FindOpenSSL hints)")
+set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include" CACHE PATH "OpenSSL include directory" FORCE)
+if (MSVC)
+	set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.lib" CACHE FILEPATH "OpenSSL SSL library" FORCE)
+	set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.lib" CACHE FILEPATH "OpenSSL crypto library" FORCE)
+else()
+	set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.a" CACHE FILEPATH "OpenSSL SSL library" FORCE)
+	set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.a" CACHE FILEPATH "OpenSSL crypto library" FORCE)
 endif()
 
 set(ENV{LC_ALL} ${original_locale}) # restore original locale settings
