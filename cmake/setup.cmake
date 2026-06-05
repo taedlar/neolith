@@ -4,6 +4,102 @@ cmake_minimum_required(VERSION 3.28)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL TRUE)
 
+# Ensure try_compile() checks (for example, curl's OpenSSL feature probes)
+# inherit enough context to resolve OpenSSL imported targets.
+set(_neolith_try_compile_vars
+    CMAKE_PROJECT_TOP_LEVEL_INCLUDES
+    CMAKE_FIND_PACKAGE_TARGETS_GLOBAL
+    OPENSSL_ROOT_DIR
+    OPENSSL_INCLUDE_DIR
+    OPENSSL_SSL_LIBRARY
+    OPENSSL_CRYPTO_LIBRARY
+    OPENSSL_USE_STATIC_LIBS
+    OPENSSL_MSVC_STATIC_RT
+)
+foreach(_neolith_var IN LISTS _neolith_try_compile_vars)
+    if (NOT _neolith_var IN_LIST CMAKE_TRY_COMPILE_PLATFORM_VARIABLES)
+        list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES ${_neolith_var})
+    endif()
+endforeach()
+unset(_neolith_try_compile_vars)
+unset(_neolith_var)
+
+function(_neolith_require_fetched_openssl_artifacts)
+    if (NOT FETCH_OPENSSL_FROM_SOURCE)
+        return()
+    endif()
+
+    if (NOT DEFINED OPENSSL_ROOT_DIR OR OPENSSL_ROOT_DIR STREQUAL "")
+        message(FATAL_ERROR
+            "FETCH_OPENSSL_FROM_SOURCE is set, but OPENSSL_ROOT_DIR is not defined."
+        )
+    endif()
+
+    if (MSVC)
+        set(_neolith_expected_ssl "${OPENSSL_ROOT_DIR}/lib/libssl.lib")
+        set(_neolith_expected_crypto "${OPENSSL_ROOT_DIR}/lib/libcrypto.lib")
+    else()
+        set(_neolith_expected_ssl "${OPENSSL_ROOT_DIR}/lib/libssl.a")
+        set(_neolith_expected_crypto "${OPENSSL_ROOT_DIR}/lib/libcrypto.a")
+    endif()
+    set(_neolith_expected_header "${OPENSSL_ROOT_DIR}/include/openssl/ssl.h")
+
+    if (NOT EXISTS "${_neolith_expected_ssl}" OR NOT EXISTS "${_neolith_expected_crypto}" OR NOT EXISTS "${_neolith_expected_header}")
+        message(FATAL_ERROR
+            "FETCH_OPENSSL_FROM_SOURCE=${FETCH_OPENSSL_FROM_SOURCE} was explicitly requested, but fetched OpenSSL artifacts are unavailable. "
+            "Expected files under ${OPENSSL_ROOT_DIR} (ssl: ${_neolith_expected_ssl}, crypto: ${_neolith_expected_crypto}, header: ${_neolith_expected_header}). "
+            "This usually means the OpenSSL prebuild failed."
+        )
+    endif()
+
+    unset(_neolith_expected_ssl)
+    unset(_neolith_expected_crypto)
+    unset(_neolith_expected_header)
+endfunction()
+
+function(_neolith_enforce_fetched_openssl_usage)
+    if (NOT FETCH_OPENSSL_FROM_SOURCE)
+        return()
+    endif()
+
+    set(_neolith_openssl_found FALSE)
+    if (TARGET OpenSSL::SSL AND TARGET OpenSSL::Crypto)
+        set(_neolith_openssl_found TRUE)
+    endif()
+    if (DEFINED OPENSSL_FOUND AND OPENSSL_FOUND)
+        set(_neolith_openssl_found TRUE)
+    endif()
+    if (DEFINED OpenSSL_FOUND AND OpenSSL_FOUND)
+        set(_neolith_openssl_found TRUE)
+    endif()
+
+    if (NOT _neolith_openssl_found)
+        message(FATAL_ERROR
+            "FETCH_OPENSSL_FROM_SOURCE=${FETCH_OPENSSL_FROM_SOURCE} was explicitly requested, but OpenSSL was not found."
+        )
+    endif()
+
+    foreach(_neolith_openssl_path IN ITEMS "${OPENSSL_SSL_LIBRARY}" "${OPENSSL_CRYPTO_LIBRARY}" "${OPENSSL_INCLUDE_DIR}")
+        if (_neolith_openssl_path STREQUAL "")
+            message(FATAL_ERROR
+                "FETCH_OPENSSL_FROM_SOURCE=${FETCH_OPENSSL_FROM_SOURCE} was explicitly requested, but OpenSSL resolved with empty path fields. "
+                "OPENSSL_SSL_LIBRARY=${OPENSSL_SSL_LIBRARY}; OPENSSL_CRYPTO_LIBRARY=${OPENSSL_CRYPTO_LIBRARY}; OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}"
+            )
+        endif()
+        string(FIND "${_neolith_openssl_path}" "${OPENSSL_ROOT_DIR}" _neolith_prefix_index)
+        if (NOT _neolith_prefix_index EQUAL 0)
+            message(FATAL_ERROR
+                "FETCH_OPENSSL_FROM_SOURCE=${FETCH_OPENSSL_FROM_SOURCE} was explicitly requested, but OpenSSL resolved outside fetched root. "
+                "OPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR}; OPENSSL_SSL_LIBRARY=${OPENSSL_SSL_LIBRARY}; OPENSSL_CRYPTO_LIBRARY=${OPENSSL_CRYPTO_LIBRARY}; OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}"
+            )
+        endif()
+    endforeach()
+
+    unset(_neolith_openssl_path)
+    unset(_neolith_prefix_index)
+    unset(_neolith_openssl_found)
+endfunction()
+
 # setup dependency provider and source of fetchable dependencies
 include(FetchContent)
 
@@ -125,6 +221,7 @@ macro(setup_provide_dependency method package)
                 FetchContent_MakeAvailable(OpenSSL)
                 list(POP_BACK my_provider_args package method) # restore arguments
                 include(prebuild-openssl) # prebuild and install to OPENSSL_ROOT_DIR for FindOpenSSL to find
+                _neolith_require_fetched_openssl_artifacts()
             endif()
             set(OPENSSL_USE_STATIC_LIBS ON)
             if (MSVC)
@@ -134,6 +231,7 @@ macro(setup_provide_dependency method package)
                 # invoke FindOpenSSL to import well-known OpenSSL variables and targets
                 # keep provider-internal probe quiet; caller find_package() reports final status
                 find_package(OpenSSL MODULE BYPASS_PROVIDER QUIET ${ARGN})
+                _neolith_enforce_fetched_openssl_usage()
             endif()
             set(${package}_FOUND ${OPENSSL_FOUND})
         endif()
@@ -155,12 +253,30 @@ macro(setup_provide_dependency method package)
                         FetchContent_MakeAvailable(OpenSSL)
                         list(POP_BACK my_provider_args package method) # restore arguments
                         include(prebuild-openssl) # ensure OPENSSL_* hints point to the prebuilt tree
+                        _neolith_require_fetched_openssl_artifacts()
                     endif()
                     set(OPENSSL_USE_STATIC_LIBS ON)
                     if (MSVC)
                         set(OPENSSL_MSVC_STATIC_RT ${USE_STATIC_MSVC_RUNTIME})
                     endif()
                     find_package(OpenSSL MODULE BYPASS_PROVIDER QUIET)
+                    _neolith_enforce_fetched_openssl_usage()
+                endif()
+
+                # cURL probes AWS-LC/BoringSSL/LibreSSL via check_symbol_exists()
+                # while CMAKE_REQUIRED_LIBRARIES contains OpenSSL imported targets.
+                # On some CMake/toolchain combinations (observed with CMake 3.31
+                # in CI), the try-compile project cannot resolve those imported
+                # targets and configuration fails before libcurl is generated.
+                #
+                # When we fetch OpenSSL from the official openssl/openssl source,
+                # it is always upstream OpenSSL (not AWS-LC, BoringSSL, or
+                # LibreSSL). Pre-seed these cache entries so cURL can skip those
+                # symbol probes and proceed with the normal OpenSSL path.
+                if (CURL_USE_OPENSSL AND FETCH_OPENSSL_FROM_SOURCE)
+                    set(HAVE_AWSLC 0 CACHE INTERNAL "cURL OpenSSL probe result: fetched OpenSSL is not AWS-LC" FORCE)
+                    set(HAVE_BORINGSSL 0 CACHE INTERNAL "cURL OpenSSL probe result: fetched OpenSSL is not BoringSSL" FORCE)
+                    set(HAVE_LIBRESSL 0 CACHE INTERNAL "cURL OpenSSL probe result: fetched OpenSSL is not LibreSSL" FORCE)
                 endif()
 
                 # pre-build CURL from source code

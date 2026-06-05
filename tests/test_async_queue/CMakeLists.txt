@@ -6,6 +6,7 @@ add_executable(test_async_queue
 )
 
 target_link_libraries(test_async_queue PRIVATE async port GTest::gtest_main)
+target_compile_definitions(test_async_queue PRIVATE NO_STEM)
 
 # Windows needs ws2_32 for WSAStartup/WSACleanup
 if(WIN32)
