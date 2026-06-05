@@ -146,6 +146,22 @@ macro(setup_provide_dependency method package)
             set(${package}_FOUND TRUE)
         else()
             if (FETCH_CURL_FROM_SOURCE)
+                # cURL's OpenSSL detection performs compile/link checks that require
+                # imported OpenSSL targets to exist before cURL is configured.
+                if (CURL_USE_OPENSSL AND NOT (TARGET OpenSSL::SSL AND TARGET OpenSSL::Crypto))
+                    if (FETCH_OPENSSL_FROM_SOURCE)
+                        list(APPEND my_provider_args ${method} OpenSSL) # save arguments for macro reentrant
+                        FetchContent_MakeAvailable(OpenSSL)
+                        list(POP_BACK my_provider_args package method) # restore arguments
+                        include(prebuild-openssl) # ensure OPENSSL_* hints point to the prebuilt tree
+                    endif()
+                    set(OPENSSL_USE_STATIC_LIBS ON)
+                    if (MSVC)
+                        set(OPENSSL_MSVC_STATIC_RT ${USE_STATIC_MSVC_RUNTIME})
+                    endif()
+                    find_package(OpenSSL MODULE BYPASS_PROVIDER QUIET)
+                endif()
+
                 # pre-build CURL from source code
                 list(APPEND my_provider_args ${method} ${package}) # save arguments for macro reentrant
                 FetchContent_MakeAvailable(CURL)
