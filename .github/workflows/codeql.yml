@@ -24,7 +24,7 @@ on:
       - '**.hpp'
       - '**.y'
       - 'CMakeLists.txt'
-    types: [review_requested]
+    types: [opened, synchronize, reopened, ready_for_review, review_requested]
   schedule:
     - cron: '35 7 * * 5'
 

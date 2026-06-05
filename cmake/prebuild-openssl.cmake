@@ -26,6 +26,10 @@
 
 cmake_minimum_required(VERSION 3.28)
 
+if (NOT DEFINED OPENSSL_ROOT_DIR OR OPENSSL_ROOT_DIR STREQUAL "")
+	message(FATAL_ERROR "OPENSSL_ROOT_DIR must be set before including cmake/prebuild-openssl.cmake")
+endif()
+
 if (MSVC)
 	set(openssl_expected_ssl "${OPENSSL_ROOT_DIR}/lib/libssl.lib")
 	set(openssl_expected_crypto "${OPENSSL_ROOT_DIR}/lib/libcrypto.lib")
@@ -174,6 +178,7 @@ if (openssl_need_configure)
 endif()
 if (NOT config_result EQUAL 0)
 	message(CHECK_FAIL "OpenSSL configure failed with exit code: ${config_result}")
+	set(ENV{LC_ALL} ${original_locale}) # restore original locale settings
 	return()
 endif()
 
