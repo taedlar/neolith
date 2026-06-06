@@ -163,11 +163,8 @@ jobs:
       run: |
         extra_cmake_args=()
         if [[ "${{ runner.os }}" == "macOS" ]]; then
-          host_arch="$(uname -m)"
-          if [[ "$host_arch" == "arm64" || "$host_arch" == "x86_64" ]]; then
-            echo "Configuring macOS build for host architecture: $host_arch"
-            extra_cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=${host_arch}")
-          fi
+          echo "Configuring macOS build for Homebrew architecture: arm64"
+          extra_cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=arm64")
         fi
 
         cmake --preset ${{ matrix.configure-preset }} \
