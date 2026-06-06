@@ -60,8 +60,8 @@ jobs:
         - language: c-cpp
           build-mode: manual
           os: macos-15
-          configure-preset: macos-arm64
-          build-preset: ci-macos-arm64
+          configure-preset: macos
+          build-preset: ci-macos
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
@@ -144,15 +144,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-brew-boost-
 
-    - name: Assert ARM64 on macOS
-      if: matrix.build-mode == 'manual' && runner.os == 'macOS'
-      shell: bash
-      run: |
-        if [[ "$(uname -m)" != "arm64" ]]; then
-          echo "Expected arm64 runner for macOS job, got $(uname -m)" >&2
-          exit 0
-        fi
-
     - name: Install Boost on macOS
       if: matrix.build-mode == 'manual' && runner.os == 'macOS'
       shell: bash
@@ -170,12 +161,22 @@ jobs:
       if: matrix.build-mode == 'manual'
       shell: bash
       run: |
+        extra_cmake_args=()
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          host_arch="$(uname -m)"
+          if [[ "$host_arch" == "arm64" || "$host_arch" == "x86_64" ]]; then
+            echo "Configuring macOS build for host architecture: $host_arch"
+            extra_cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=${host_arch}")
+          fi
+        fi
+
         cmake --preset ${{ matrix.configure-preset }} \
+          "${extra_cmake_args[@]}" \
           -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 \
           -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 \
           -DFETCH_CURL_FROM_SOURCE=curl-8_19_0 \
           -DFETCH_CARES_FROM_SOURCE=v1.34.6
-        cmake --preset ${{ matrix.configure-preset }} -LA
+        cmake --preset ${{ matrix.configure-preset }} "${extra_cmake_args[@]}" -LA
         cmake --build --preset ${{ matrix.build-preset }} --clean-first
 
     - name: Perform CodeQL Analysis

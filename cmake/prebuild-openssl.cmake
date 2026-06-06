@@ -163,10 +163,33 @@ if (MSVC)
 elseif(APPLE)
 	set(openssl_arch "")
 	if (DEFINED CMAKE_OSX_ARCHITECTURES AND NOT CMAKE_OSX_ARCHITECTURES STREQUAL "")
-		list(GET CMAKE_OSX_ARCHITECTURES 0 openssl_arch)
+		set(openssl_arch_list ${CMAKE_OSX_ARCHITECTURES})
+		list(LENGTH openssl_arch_list openssl_arch_count)
+		if (openssl_arch_count GREATER 1)
+			# OpenSSL Configure cannot target multiple architectures in one pass.
+			# For universal CMake builds, align with the current process architecture.
+			execute_process(
+				COMMAND uname -m
+				OUTPUT_VARIABLE openssl_arch
+				OUTPUT_STRIP_TRAILING_WHITESPACE
+			)
+			message(STATUS "CMAKE_OSX_ARCHITECTURES has multiple entries (${CMAKE_OSX_ARCHITECTURES}); using uname -m=${openssl_arch} for OpenSSL prebuild")
+		else()
+			list(GET openssl_arch_list 0 openssl_arch)
+		endif()
+		unset(openssl_arch_count)
+		unset(openssl_arch_list)
 	else()
-		set(openssl_arch "${CMAKE_SYSTEM_PROCESSOR}")
+		execute_process(
+			COMMAND uname -m
+			OUTPUT_VARIABLE openssl_arch
+			OUTPUT_STRIP_TRAILING_WHITESPACE
+		)
+		if (openssl_arch STREQUAL "")
+			set(openssl_arch "${CMAKE_SYSTEM_PROCESSOR}")
+		endif()
 	endif()
+	string(TOLOWER "${openssl_arch}" openssl_arch)
 	if (openssl_arch MATCHES "^(arm64|aarch64)$")
 		set(openssl_config_target "darwin64-arm64-cc")
 	elseif (openssl_arch MATCHES "^(x86_64|amd64)$")
