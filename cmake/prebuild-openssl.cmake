@@ -153,19 +153,35 @@ set(ENV{LC_ALL} "C") # set locale to "C" to ensure consistent output from OpenSS
 set(config_result 0)
 set(openssl_configdata "${openssl_BINARY_DIR}/configdata.pm")
 set(openssl_need_configure TRUE)
+set(openssl_config_target "")
 if (MSVC)
 	if (${CMAKE_GENERATOR_PLATFORM} STREQUAL "x64")
-		set(platform "VC-WIN64A")
+		set(openssl_config_target "VC-WIN64A")
 	else()
-		set(platform "VC-WIN32")
+		set(openssl_config_target "VC-WIN32")
 	endif()
+elseif(APPLE)
+	set(openssl_arch "")
+	if (DEFINED CMAKE_OSX_ARCHITECTURES AND NOT CMAKE_OSX_ARCHITECTURES STREQUAL "")
+		list(GET CMAKE_OSX_ARCHITECTURES 0 openssl_arch)
+	else()
+		set(openssl_arch "${CMAKE_SYSTEM_PROCESSOR}")
+	endif()
+	if (openssl_arch MATCHES "^(arm64|aarch64)$")
+		set(openssl_config_target "darwin64-arm64-cc")
+	elseif (openssl_arch MATCHES "^(x86_64|amd64)$")
+		set(openssl_config_target "darwin64-x86_64-cc")
+	else()
+		message(STATUS "Unknown macOS architecture '${openssl_arch}', falling back to OpenSSL ./config")
+	endif()
+	unset(openssl_arch)
 endif()
 
 if (EXISTS ${openssl_configdata})
 	set(openssl_need_configure FALSE)
-	if (MSVC)
+	if (NOT openssl_config_target STREQUAL "")
 		file(READ ${openssl_configdata} configdata_text)
-		if (NOT configdata_text MATCHES "\"target\" => \"${platform}\"")
+		if (NOT configdata_text MATCHES "\"target\" => \"${openssl_config_target}\"")
 			message(STATUS "Detected OpenSSL config target mismatch, reconfiguring from scratch")
 			file(REMOVE_RECURSE ${openssl_BINARY_DIR})
 			file(MAKE_DIRECTORY ${openssl_BINARY_DIR})
@@ -175,20 +191,30 @@ if (EXISTS ${openssl_configdata})
 endif()
 
 if (openssl_need_configure)
-	if (MSVC)
-		message(STATUS "Configuring OpenSSL for platform ${platform}")
-		execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
-			${PERL_EXECUTABLE} ${openssl_SOURCE_DIR}/Configure ${platform}
-			--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-shared
-			no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
-			-D"_WIN32_WINNT=0x0601"
-			RESULT_VARIABLE config_result
-		)
+	if (NOT openssl_config_target STREQUAL "")
+		message(STATUS "Configuring OpenSSL for platform ${openssl_config_target}")
+		if (MSVC)
+			execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
+				${PERL_EXECUTABLE} ${openssl_SOURCE_DIR}/Configure ${openssl_config_target}
+				--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-shared
+				no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
+				-D"_WIN32_WINNT=0x0601"
+				RESULT_VARIABLE config_result
+			)
+		else()
+			execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
+				${PERL_EXECUTABLE} ${openssl_SOURCE_DIR}/Configure ${openssl_config_target}
+				--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-shared
+				no-pinshared no-async no-zlib no-autoload-config no-autoerrinit no-tests
+				-fPIC -fvisibility=hidden
+				RESULT_VARIABLE config_result
+			)
+		endif()
 	elseif(UNIX)
 		execute_process(WORKING_DIRECTORY ${openssl_BINARY_DIR} COMMAND
 			${openssl_SOURCE_DIR}/config
 			--prefix=${OPENSSL_ROOT_DIR} --openssldir=SSL --api=3.0 no-shared
-			no-pinshared no-sock no-async no-zlib no-autoload-config no-autoerrinit no-tests
+			no-pinshared no-async no-zlib no-autoload-config no-autoerrinit no-tests
 			-fPIC -fvisibility=hidden
 			RESULT_VARIABLE config_result
 		)

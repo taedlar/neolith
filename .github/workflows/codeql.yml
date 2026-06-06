@@ -109,6 +109,48 @@ jobs:
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         # queries: security-extended,security-and-quality
 
+    - name: Cache Ubuntu package archives
+      if: matrix.build-mode == 'manual' && runner.os == 'Linux'
+      uses: actions/cache@v5
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: ${{ runner.os }}-apt-boost-${{ hashFiles('.github/workflows/codeql.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-boost-
+
+    - name: Install Boost on Ubuntu
+      if: matrix.build-mode == 'manual' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        # Prefer the smallest package that satisfies Boost::json; fall back to broad dev package.
+        if apt-cache show libboost-json-dev >/dev/null 2>&1; then
+          sudo apt-get install -y --no-install-recommends libboost-json-dev
+        elif apt-cache show libboost-json1.83-dev >/dev/null 2>&1; then
+          sudo apt-get install -y --no-install-recommends libboost-json1.83-dev
+        else
+          sudo apt-get install -y --no-install-recommends libboost-all-dev
+        fi
+
+    - name: Cache Homebrew downloads
+      if: matrix.build-mode == 'manual' && runner.os == 'macOS'
+      uses: actions/cache@v5
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-brew-boost-${{ hashFiles('.github/workflows/codeql.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-brew-boost-
+
+    - name: Install Boost on macOS
+      if: matrix.build-mode == 'manual' && runner.os == 'macOS'
+      shell: bash
+      run: |
+        brew update
+        brew install boost
+
     # If the analyze step fails for one of the languages you are analyzing with
     # "We were unable to automatically build your code", modify the matrix above
     # to set the build mode to "manual" for that language. Then modify this step
