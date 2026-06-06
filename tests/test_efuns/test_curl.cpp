@@ -338,12 +338,14 @@ static const char kDestroyOwnerCode[] =
 static const char kConfigOwnerCode[] =
   "varargs int try_perform_using(mixed opt, mixed val) { return catch(perform_using(opt, val)) ? 1 : 0; }\n";
 
+#if defined(F_FROM_JSON) && defined(F_TO_JSON)
 static const char kConfigTransformOwnerCode[] = R"(
   int try_set_url_from_json_raw(string j) { return catch(perform_using("url", from_json(j))) ? 1 : 0; }
   int try_set_url_from_json_cstr(string j) { return catch(perform_using("url", c_str(from_json(j)))) ? 1 : 0; }
   int try_set_body_from_json_raw(string j) { return catch(perform_using("body", from_json(j))) ? 1 : 0; }
   int try_set_body_from_json_to_json(string j) { return catch(perform_using("body", to_json(from_json(j)))) ? 1 : 0; }
 )";
+#endif
 
 TEST_F(CurlEfunsTest, PerformToRejectsInvalidCallbackAndFlagTypes) {
   svalue_t* ret;
