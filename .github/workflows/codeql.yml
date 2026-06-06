@@ -59,7 +59,7 @@ jobs:
           build-preset: ci-linux
         - language: c-cpp
           build-mode: manual
-          os: macos-latest
+          os: macos-14
           configure-preset: macos-arm64
           build-preset: ci-macos-arm64
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
@@ -144,11 +144,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-brew-boost-
 
+    - name: Assert ARM64 on macOS
+      if: matrix.build-mode == 'manual' && runner.os == 'macOS'
+      shell: bash
+      run: |
+        if [[ "$(uname -m)" != "arm64" ]]; then
+          echo "Expected arm64 runner for macOS job, got $(uname -m)" >&2
+          exit 1
+        fi
+
     - name: Install Boost on macOS
       if: matrix.build-mode == 'manual' && runner.os == 'macOS'
       shell: bash
       run: |
-        brew update
+        export HOMEBREW_NO_AUTO_UPDATE=1
         brew install boost
 
     # If the analyze step fails for one of the languages you are analyzing with
