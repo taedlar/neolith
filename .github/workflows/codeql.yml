@@ -59,9 +59,9 @@ jobs:
           build-preset: ci-linux
         - language: c-cpp
           build-mode: manual
-          os: macos-latest
-          configure-preset: macos-arm64
-          build-preset: ci-macos-arm64
+          os: macos-15
+          configure-preset: macos
+          build-preset: ci-macos
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
@@ -109,6 +109,48 @@ jobs:
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         # queries: security-extended,security-and-quality
 
+    - name: Cache Ubuntu package archives
+      if: matrix.build-mode == 'manual' && runner.os == 'Linux'
+      uses: actions/cache@v5
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: ${{ runner.os }}-apt-boost-${{ hashFiles('.github/workflows/codeql.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-boost-
+
+    - name: Install Boost on Ubuntu
+      if: matrix.build-mode == 'manual' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        # Prefer the smallest package that satisfies Boost::json; fall back to broad dev package.
+        if apt-cache show libboost-json-dev >/dev/null 2>&1; then
+          sudo apt-get install -y --no-install-recommends libboost-json-dev
+        elif apt-cache show libboost-json1.83-dev >/dev/null 2>&1; then
+          sudo apt-get install -y --no-install-recommends libboost-json1.83-dev
+        else
+          sudo apt-get install -y --no-install-recommends libboost-all-dev
+        fi
+
+    - name: Cache Homebrew downloads
+      if: matrix.build-mode == 'manual' && runner.os == 'macOS'
+      uses: actions/cache@v5
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: ${{ runner.os }}-brew-boost-${{ hashFiles('.github/workflows/codeql.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-brew-boost-
+
+    - name: Install Boost on macOS
+      if: matrix.build-mode == 'manual' && runner.os == 'macOS'
+      shell: bash
+      run: |
+        export HOMEBREW_NO_AUTO_UPDATE=1
+        arch -arm64 brew install boost
+
     # If the analyze step fails for one of the languages you are analyzing with
     # "We were unable to automatically build your code", modify the matrix above
     # to set the build mode to "manual" for that language. Then modify this step
@@ -119,12 +161,19 @@ jobs:
       if: matrix.build-mode == 'manual'
       shell: bash
       run: |
+        extra_cmake_args=()
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          echo "Configuring macOS build for Homebrew architecture: arm64"
+          extra_cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=arm64")
+        fi
+
         cmake --preset ${{ matrix.configure-preset }} \
+          "${extra_cmake_args[@]}" \
           -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 \
           -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 \
           -DFETCH_CURL_FROM_SOURCE=curl-8_19_0 \
           -DFETCH_CARES_FROM_SOURCE=v1.34.6
-        cmake --preset ${{ matrix.configure-preset }} -LA
+        cmake --preset ${{ matrix.configure-preset }} "${extra_cmake_args[@]}" -LA
         cmake --build --preset ${{ matrix.build-preset }} --clean-first
 
     - name: Perform CodeQL Analysis
