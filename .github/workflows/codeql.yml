@@ -68,7 +68,7 @@ jobs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        cmake --preset macos
+        cmake --preset macos -DCMAKE_OSX_ARCHITECTURES=arm64
         cmake --build --preset ci-macos
 
     - name: Perform CodeQL Analysis
