@@ -29,12 +29,15 @@ jobs:
 
     strategy:
       fail-fast: true
+      # We only do quick build on github-hosted runners.
+      # See https://docs.github.com/en/actions/reference/runners/github-hosted-runners
       matrix:
         include:
         - language: c-cpp
           os: ubuntu-latest
-        - language: c-cpp
-          os: windows-2019
+        # There is no github-hosted Windows runner with BISON installed.
+        # - language: c-cpp
+        #   os: windows-latest
         - language: c-cpp
           os: macos-latest
     steps:
@@ -54,21 +57,21 @@ jobs:
       if: runner.os == 'Linux'
       shell: bash
       run: |
-        cmake --preset linux
+        cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
         cmake --build --preset ci-linux
 
-    - name: Run manual build steps (Windows)
-      if: runner.os == 'Windows'
-      shell: bash
-      run: |
-        cmake --preset vs16-x64
-        cmake --build --preset ci-vs16-x64
+    # - name: Run manual build steps (Windows)
+    #   if: runner.os == 'Windows'
+    #   shell: bash
+    #   run: |
+    #     cmake --preset vs16-x64
+    #     cmake --build --preset ci-vs16-x64
 
     - name: Run manual build steps (macOS)
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        cmake --preset macos -DCMAKE_OSX_ARCHITECTURES=arm64
+        cmake --preset macos -DCMAKE_OSX_ARCHITECTURES=arm64 -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
         cmake --build --preset ci-macos
 
     - name: Perform CodeQL Analysis
