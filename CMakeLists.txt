@@ -144,9 +144,12 @@ if(PACKAGE_JSON)
 endif()
 
 if(PACKAGE_CURL)
-	find_package(CURL REQUIRED)
-	set(HAVE_LIBCURL 1 CACHE BOOL "libcurl library is available")
-	message(STATUS "PACKAGE_CURL enabled: REST API efuns (perform_to, perform_using, in_perform) will be available")
+	if(CURL_FOUND)
+		message(STATUS "PACKAGE_CURL enabled: REST API efuns (perform_to, perform_using, in_perform) will be available")
+	else()
+		message(WARNING "PACKAGE_CURL requested but libcurl was not found; disabling PACKAGE_CURL.")
+		set(PACKAGE_CURL OFF CACHE BOOL "Enable REST API efuns (requires libcurl)" FORCE)
+	endif()
 endif()
 
 # unit-tests

@@ -1,19 +1,6 @@
-# For most projects, this workflow file will not need changing; you simply need
-# to commit it to your repository.
-#
-# You may wish to alter this file to override the set of languages analyzed,
-# or to provide custom queries or build logic.
-#
-# ******** NOTE ********
-# We have attempted to detect the languages in your repository. Please check
-# the `language` matrix defined below to confirm you have the correct set of
-# supported CodeQL languages.
-#
-name: "CodeQL Advanced"
+name: "CodeQL"
 
 on:
-  # push:
-  #   branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
     paths:
@@ -24,18 +11,10 @@ on:
       - '**.hpp'
       - '**.y'
       - 'CMakeLists.txt'
-    types: [opened, synchronize, reopened, ready_for_review, review_requested]
-  schedule:
-    - cron: '35 7 * * 5'
 
 jobs:
   analyze:
-    name: Analyze (${{ matrix.language }})
-    # Runner size impacts CodeQL analysis time. To learn more, please see:
-    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
-    #   - https://gh.io/supported-runners-and-hardware-resources
-    #   - https://gh.io/using-larger-runners (GitHub.com only)
-    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
+    name: Analyze (${{ matrix.language }} on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     permissions:
       # required for all workflows
@@ -49,132 +28,51 @@ jobs:
       contents: read
 
     strategy:
-      fail-fast: false
+      fail-fast: true
+      # We only do quick build on github-hosted runners.
+      # See https://docs.github.com/en/actions/reference/runners/github-hosted-runners
       matrix:
         include:
         - language: c-cpp
-          build-mode: manual
           os: ubuntu-latest
-          configure-preset: linux
-          build-preset: ci-linux
+        # There is no github-hosted Windows runner with BISON installed.
+        # - language: c-cpp
+        #   os: windows-latest
         - language: c-cpp
-          build-mode: manual
-          os: macos-15
-          configure-preset: macos
-          build-preset: ci-macos
-        # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
-        # Use `c-cpp` to analyze code written in C, C++ or both
-        # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
-        # Use 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
-        # To learn more about changing the languages that are analyzed or customizing the build mode for your analysis,
-        # see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning.
-        # If you are analyzing a compiled language, you can modify the 'build-mode' for that language to customize how
-        # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
+          os: macos-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
 
-    # Add any setup steps before running the `github/codeql-action/init` action.
-    # This includes steps like installing compilers or runtimes (`actions/setup-node`
-    # or others). This is typically only required for manual builds.
-    # - name: Setup runtime (example)
-    #   uses: actions/setup-example@v1
-
-    # Cache downloaded dependencies to speed up builds and analysis.
-    - name: Dependency caching
-      uses: actions/cache@v5
-      with:
-        path: |
-          out/build/${{ matrix.configure-preset }}/_deps
-          out/build/${{ matrix.configure-preset }}/openssl
-
-        key: ${{ runner.os }}-build-${{ hashFiles('cmake/*.cmake') }}
-        restore-keys: |
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-
-    # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v4
       with:
         languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
+        build-mode: manual
         config: |
           paths-ignore:
             - out/
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
 
-        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
-        # queries: security-extended,security-and-quality
-
-    - name: Cache Ubuntu package archives
-      if: matrix.build-mode == 'manual' && runner.os == 'Linux'
-      uses: actions/cache@v5
-      with:
-        path: |
-          /var/cache/apt/archives
-          /var/lib/apt/lists
-        key: ${{ runner.os }}-apt-boost-${{ hashFiles('.github/workflows/codeql.yml') }}
-        restore-keys: |
-          ${{ runner.os }}-apt-boost-
-
-    - name: Install Boost on Ubuntu
-      if: matrix.build-mode == 'manual' && runner.os == 'Linux'
+    - name: Run manual build steps (Ubuntu)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
-        set -euo pipefail
-        sudo apt-get update
-        # Prefer the smallest package that satisfies Boost::json; fall back to broad dev package.
-        if apt-cache show libboost-json-dev >/dev/null 2>&1; then
-          sudo apt-get install -y --no-install-recommends libboost-json-dev
-        elif apt-cache show libboost-json1.83-dev >/dev/null 2>&1; then
-          sudo apt-get install -y --no-install-recommends libboost-json1.83-dev
-        else
-          sudo apt-get install -y --no-install-recommends libboost-all-dev
-        fi
+        cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+        cmake --build --preset ci-linux
 
-    - name: Cache Homebrew downloads
-      if: matrix.build-mode == 'manual' && runner.os == 'macOS'
-      uses: actions/cache@v5
-      with:
-        path: ~/Library/Caches/Homebrew
-        key: ${{ runner.os }}-brew-boost-${{ hashFiles('.github/workflows/codeql.yml') }}
-        restore-keys: |
-          ${{ runner.os }}-brew-boost-
+    # - name: Run manual build steps (Windows)
+    #   if: runner.os == 'Windows'
+    #   shell: bash
+    #   run: |
+    #     cmake --preset vs16-x64
+    #     cmake --build --preset ci-vs16-x64
 
-    - name: Install Boost on macOS
-      if: matrix.build-mode == 'manual' && runner.os == 'macOS'
+    - name: Run manual build steps (macOS)
+      if: runner.os == 'macOS'
       shell: bash
       run: |
-        export HOMEBREW_NO_AUTO_UPDATE=1
-        arch -arm64 brew install boost
-
-    # If the analyze step fails for one of the languages you are analyzing with
-    # "We were unable to automatically build your code", modify the matrix above
-    # to set the build mode to "manual" for that language. Then modify this step
-    # to build your code.
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - name: Run manual build steps
-      if: matrix.build-mode == 'manual'
-      shell: bash
-      run: |
-        extra_cmake_args=()
-        if [[ "${{ runner.os }}" == "macOS" ]]; then
-          echo "Configuring macOS build for Homebrew architecture: arm64"
-          extra_cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=arm64")
-        fi
-
-        cmake --preset ${{ matrix.configure-preset }} \
-          "${extra_cmake_args[@]}" \
-          -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 \
-          -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 \
-          -DFETCH_CURL_FROM_SOURCE=curl-8_19_0 \
-          -DFETCH_CARES_FROM_SOURCE=v1.34.6
-        cmake --preset ${{ matrix.configure-preset }} "${extra_cmake_args[@]}" -LA
-        cmake --build --preset ${{ matrix.build-preset }} --clean-first
+        cmake --preset macos -DCMAKE_OSX_ARCHITECTURES=arm64 -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+        cmake --build --preset ci-macos
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

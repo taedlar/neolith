@@ -72,8 +72,6 @@
 /* standard C library portability wrappers */
 #include "port/wrapper.h"
 
-#ifndef NO_STEM
-
 #ifdef _WIN32
     #define STDIN_FILENO _fileno(stdin)
     #define STDOUT_FILENO _fileno(stdout)
@@ -97,6 +95,8 @@
     #define FILE_UNLINK unlink
     #define CHDIR       chdir
 #endif  /* !_WIN32 */
+
+#ifndef NO_STEM
 
 #include "port/byte_code.h"
 #include "port/debug.h"

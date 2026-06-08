@@ -1,0 +1,89 @@
+name: "CodeQL Deep"
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - '**.c'
+      - '**.cpp'
+      - '**.cmake'
+      - '**.h'
+      - '**.hpp'
+      - '**.y'
+      - 'CMakeLists.txt'
+  schedule:
+    - cron: '35 7 * * 5'
+
+jobs:
+  analyze:
+    name: Analyze (c-cpp on ubuntu-20.04)
+    runs-on: ubuntu-20.04
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: c-cpp
+        build-mode: manual
+        config: |
+          paths-ignore:
+            - out/
+
+    - name: Cache build dependencies
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/cache@v5
+      with:
+        path: |
+          out/build/linux/_deps
+          out/build/linux/openssl
+        key: ${{ runner.os }}-build-main-${{ hashFiles('cmake/*.cmake', 'CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-build-main-
+          ${{ runner.os }}-build-
+
+    - name: Cache Ubuntu package archives
+      uses: actions/cache@v5
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: ${{ runner.os }}-apt-boost-${{ hashFiles('.github/workflows/codeql-deep.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-boost-
+
+    - name: Install Boost on Ubuntu
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        if apt-cache show libboost-json-dev >/dev/null 2>&1; then
+          sudo apt-get install -y --no-install-recommends libboost-json-dev
+        elif apt-cache show libboost-json1.83-dev >/dev/null 2>&1; then
+          sudo apt-get install -y --no-install-recommends libboost-json1.83-dev
+        else
+          sudo apt-get install -y --no-install-recommends libboost-all-dev
+        fi
+
+    - name: Run manual build steps
+      shell: bash
+      run: |
+        cmake --preset linux \
+          -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 \
+          -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 \
+          -DFETCH_CURL_FROM_SOURCE=curl-8_19_0 \
+          -DFETCH_CARES_FROM_SOURCE=v1.34.6
+        cmake --preset linux -LA
+        cmake --build --preset ci-linux --clean-first
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:c-cpp"
