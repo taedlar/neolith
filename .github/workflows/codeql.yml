@@ -34,7 +34,7 @@ jobs:
         - language: c-cpp
           os: ubuntu-latest
         - language: c-cpp
-          os: windows-latest
+          os: windows-2019
         - language: c-cpp
           os: macos-latest
     steps:
@@ -45,13 +45,31 @@ jobs:
       uses: github/codeql-action/init@v4
       with:
         languages: ${{ matrix.language }}
-        build-mode: autobuild
+        build-mode: manual
         config: |
           paths-ignore:
             - out/
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+    - name: Run manual build steps (Ubuntu)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        cmake --preset linux
+        cmake --build --preset ci-linux
+
+    - name: Run manual build steps (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        cmake --preset vs16-x64
+        cmake --build --preset ci-vs16-x64
+
+    - name: Run manual build steps (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        cmake --preset macos
+        cmake --build --preset ci-macos
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

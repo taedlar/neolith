@@ -16,8 +16,8 @@ on:
 
 jobs:
   analyze:
-    name: Analyze (c-cpp on ubuntu-latest)
-    runs-on: ubuntu-latest
+    name: Analyze (c-cpp on ubuntu-20.04)
+    runs-on: ubuntu-20.04
     permissions:
       security-events: write
       packages: read
