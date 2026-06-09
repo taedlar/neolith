@@ -104,7 +104,7 @@ void yywarn (char* str) {
 
 void yyerrorp (char *str) {
   char buff[200];
-  sprintf (buff, str, ppchar);
+  snprintf (buff, sizeof (buff), str, ppchar);
   fprintf (stderr, "%s:%d: %s\n", current_file, current_line, buff);
   exit (EXIT_FAILURE);
 }
@@ -234,9 +234,9 @@ static void handle_define () {
               if (q == args[arg])
                 {
                   char buff[200];
-                  sprintf (buff,
-                           "Missing argument %d in #define parameter list",
-                           arg + 1);
+                  snprintf (buff, sizeof (buff),
+                            "Missing argument %d in #define parameter list",
+                            arg + 1);
                   yyerror (buff);
                 }
               arg++;
@@ -761,7 +761,7 @@ static void handle_include (char *name) {
     }
   else
     {
-      sprintf (xbuf, "Cannot %cinclude %s", ppchar, name);
+      snprintf (xbuf, sizeof (xbuf), "Cannot %cinclude %s", ppchar, name);
       yyerror (xbuf);
     }
 }
@@ -780,7 +780,7 @@ void handle_pragma (char *name) {
   else
     {
       char buff[200];
-      sprintf (buff, "warning: unknown pragma ignored: %s", name);
+      snprintf (buff, sizeof (buff), "warning: unknown pragma ignored: %s", name);
       yywarn (buff);
     }
 }
@@ -935,7 +935,7 @@ static void preprocess () {
           else
             {
               char buff[DEFMAX + 20];
-              sprintf (buff, "Unrecognised %c directive : %s\n", ppchar, yyp);
+              snprintf (buff, sizeof (buff), "Unrecognised %c directive : %s\n", ppchar, yyp);
               yyerror (buff);
             }
         }

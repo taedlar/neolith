@@ -534,7 +534,7 @@ static char *make_new_name (const char *str) {
   static int i = 1;
   char *p = DXALLOC (strlen (str) + 10, TAG_OBJ_NAME, "make_new_name");
 
-  (void) sprintf (p, "%s#%d", str, i);
+  (void) snprintf (p, strlen (str) + 10, "%s#%d", str, i);
   i++;
   return p;
 }
@@ -1462,11 +1462,11 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
       buff = v->u.ob->name;
       break;
     case T_NUMBER:
-      sprintf (txt_buf, "%" PRId64, v->u.number);
+      snprintf (txt_buf, sizeof (txt_buf), "%" PRId64, v->u.number);
       buff = txt_buf;
       break;
     case T_REAL:
-      sprintf (txt_buf, "%g", v->u.real);
+      snprintf (txt_buf, sizeof (txt_buf), "%g", v->u.real);
       buff = txt_buf;
       break;
     default:
@@ -1716,15 +1716,15 @@ static void print_svalue (svalue_t * arg) {
         tell_object (command_giver, SVALUE_STRPTR(arg));
         break;
       case T_OBJECT:
-        sprintf (tbuf, "OBJ(/%s)", arg->u.ob->name);
+        snprintf (tbuf, sizeof (tbuf), "OBJ(/%s)", arg->u.ob->name);
         tell_object (command_giver, tbuf);
         break;
       case T_NUMBER:
-        sprintf (tbuf, "%" PRId64, arg->u.number);
+        snprintf (tbuf, sizeof (tbuf), "%" PRId64, arg->u.number);
         tell_object (command_giver, tbuf);
         break;
       case T_REAL:
-        sprintf (tbuf, "%g", arg->u.real);
+        snprintf (tbuf, sizeof (tbuf), "%g", arg->u.real);
         tell_object (command_giver, tbuf);
         break;
       case T_ARRAY:

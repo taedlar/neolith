@@ -150,7 +150,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
 #endif
           COPY_SHORT (&sarg, p);
           offset = (unsigned short)(p - code + sarg);
-          sprintf (buff, "%04x (%04x)", (unsigned) sarg, (unsigned) offset);
+          snprintf (buff, sizeof (buff), "%04x (%04x)", (unsigned) sarg, (unsigned) offset);
           p += 2;
           break;
 
@@ -158,7 +158,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
         case F_BBRANCH_LT:
           COPY_SHORT (&sarg, p);
           offset = (unsigned short)(p - code - sarg);
-          sprintf (buff, "%04x (%04x)", (unsigned) sarg, (unsigned) offset);
+          snprintf (buff, sizeof (buff), "%04x (%04x)", (unsigned) sarg, (unsigned) offset);
           p += 2;
           break;
 
@@ -167,14 +167,14 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
             char tmp[32];
             int flags = EXTRACT_UCHAR (p++);
 
-            sprintf (buff, "(%s) %s %i",
+            snprintf (buff, sizeof (buff), "(%s) %s %i",
               (flags & 4) ? "mapping" : "array",
               (flags & 1) ? "global" : "local",
               EXTRACT_UCHAR (p++)
             );
             if (flags & 4)
               {
-                sprintf (tmp, ", %s %i", (flags & 2) ? "global" : "local", EXTRACT_UCHAR (p++));
+                snprintf (tmp, sizeof (tmp), ", %s %i", (flags & 2) ? "global" : "local", EXTRACT_UCHAR (p++));
                 strcat (buff, tmp);
               }
             break;
@@ -185,7 +185,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
         case F_BBRANCH:
           COPY_SHORT (&sarg, p);
           offset = (unsigned short)(p - code - sarg);
-          sprintf (buff, "%04x (%04x)", (unsigned) sarg, (unsigned) offset);
+          snprintf (buff, sizeof (buff), "%04x (%04x)", (unsigned) sarg, (unsigned) offset);
           p += 2;
           break;
 
@@ -198,20 +198,20 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
 #endif
         case F_CATCH:
           COPY_SHORT (&sarg, p);
-          sprintf (buff, "%04x", (unsigned) sarg);
+          snprintf (buff, sizeof (buff), "%04x", (unsigned) sarg);
           p += 2;
           break;
 
         case F_AGGREGATE:
         case F_AGGREGATE_ASSOC:
           COPY_SHORT (&sarg, p);
-          sprintf (buff, "%d", (int) sarg);
+          snprintf (buff, sizeof (buff), "%d", (int) sarg);
           p += 2;
           break;
 
         case F_MEMBER:
         case F_MEMBER_LVALUE:
-          sprintf (buff, "%d", (int) EXTRACT_UCHAR (p++));
+          snprintf (buff, sizeof (buff), "%d", (int) EXTRACT_UCHAR (p++));
           break;
 
         case F_EXPAND_VARARGS:
@@ -219,7 +219,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
             int which = EXTRACT_UCHAR (p++);
             if (which)
               {
-                sprintf (buff, "%d from top of stack", which);
+                snprintf (buff, sizeof (buff), "%d from top of stack", which);
               }
             else
               {
@@ -241,10 +241,10 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
           COPY_SHORT (&sarg, p);
           p += 3;
           if (sarg < NUM_FUNS(prog))
-            sprintf (buff, "%-12s %5d", function_name (prog, sarg),
+            snprintf (buff, sizeof (buff), "%-12s %5d", function_name (prog, sarg),
                      (int) sarg);
           else
-            sprintf (buff, "<out of range %d>", (int) sarg);
+            snprintf (buff, sizeof (buff), "<out of range %d>", (int) sarg);
           break;
 
         case F_CALL_INHERITED:
@@ -255,30 +255,30 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
             COPY_SHORT (&sarg, p);
             p += 3;
             if (sarg < newprog->num_functions_total)
-              sprintf (buff, "%30s::%-12s %5d", newprog->name,
+              snprintf (buff, sizeof (buff), "%30s::%-12s %5d", newprog->name,
                        function_name (newprog, sarg), (int) sarg);
             else
-              sprintf (buff, "<out of range in %30s - %d>", newprog->name,
+              snprintf (buff, sizeof (buff), "<out of range in %30s - %d>", newprog->name,
                        (int) sarg);
             break;
           }
         case F_GLOBAL_LVALUE:
         case F_GLOBAL:
           if ((unsigned) (iarg = EXTRACT_UCHAR (p)) < NUM_VARS)
-            sprintf (buff, "%s", variable_name (prog, iarg));
+            snprintf (buff, sizeof (buff), "%s", variable_name (prog, iarg));
           else
-            sprintf (buff, "<out of range %d>", iarg);
+            snprintf (buff, sizeof (buff), "<out of range %d>", iarg);
           p++;
           break;
 
         case F_LOOP_INCR:
-          sprintf (buff, "LV%d", EXTRACT_UCHAR (p));
+          snprintf (buff, sizeof (buff), "LV%d", EXTRACT_UCHAR (p));
           p++;
           break;
         case F_WHILE_DEC:
           COPY_SHORT (&sarg, p + 1);
           offset = (unsigned short)(p - code - sarg);
-          sprintf (buff, "LV%d--, branch %04x (%04x)", EXTRACT_UCHAR (p),
+          snprintf (buff, sizeof (buff), "LV%d--, branch %04x (%04x)", EXTRACT_UCHAR (p),
                    (unsigned) sarg, (unsigned) offset);
           p += 3;
           break;
@@ -286,7 +286,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
         case F_LOCAL:
         case F_LOCAL_LVALUE:
         case F_VOID_ASSIGN_LOCAL:
-          sprintf (buff, "LV%d", EXTRACT_UCHAR (p));
+          snprintf (buff, sizeof (buff), "LV%d", EXTRACT_UCHAR (p));
           p++;
           break;
         case F_LOOP_COND_NUMBER:
@@ -296,7 +296,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
           COPY_SHORT (&sarg, p);
           offset = (unsigned short)(p - code - sarg);
           p += 2;
-          sprintf (buff, "LV%d < %d bbranch_when_non_zero %04x (%04x)",
+          snprintf (buff, sizeof (buff), "LV%d < %d bbranch_when_non_zero %04x (%04x)",
                    i, iarg, sarg, offset);
           break;
         case F_LOOP_COND_LOCAL:
@@ -305,28 +305,28 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
           COPY_SHORT (&sarg, p);
           offset = (unsigned short)(p - code - sarg);
           p += 2;
-          sprintf (buff, "LV%d < LV%d bbranch_when_non_zero %04x (%04x)",
+          snprintf (buff, sizeof (buff), "LV%d < LV%d bbranch_when_non_zero %04x (%04x)",
                    i, iarg, sarg, offset);
           break;
         case F_STRING:
           COPY_SHORT (&sarg, p);
           if (sarg < NUM_STRS)
-            sprintf (buff, "\"%s\"", disassem_string (STRS[sarg]));
+            snprintf (buff, sizeof (buff), "\"%s\"", disassem_string (STRS[sarg]));
           else
-            sprintf (buff, "<out of range %d>", (int) sarg);
+            snprintf (buff, sizeof (buff), "<out of range %d>", (int) sarg);
           p += 2;
           break;
         case F_SHORT_STRING:
           if (EXTRACT_UCHAR (p) < NUM_STRS)
-            sprintf (buff, "\"%s\"",
+            snprintf (buff, sizeof (buff), "\"%s\"",
                      disassem_string (STRS[EXTRACT_UCHAR (p)]));
           else
-            sprintf (buff, "<out of range %d>", EXTRACT_UCHAR (p));
+            snprintf (buff, sizeof (buff), "<out of range %d>", EXTRACT_UCHAR (p));
           p++;
           break;
         case F_SIMUL_EFUN:
           COPY_SHORT (&sarg, p);
-          sprintf (buff, "\"%s\" %d", simuls[sarg].func->name, p[2]);
+          snprintf (buff, sizeof (buff), "\"%s\" %d", simuls[sarg].func->name, p[2]);
           p += 3; /* index(2), num_args(1)*/
           break;
 
@@ -335,31 +335,31 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
             {
             case FP_SIMUL:
               LOAD_SHORT (sarg, p);
-              sprintf (buff, "<simul_efun> \"%s\"", simuls[sarg].func->name);
+              snprintf (buff, sizeof (buff), "<simul_efun> \"%s\"", simuls[sarg].func->name);
               break;
             case FP_EFUN:
               LOAD_SHORT (sarg, p);
-              sprintf (buff, "<efun> %s", instrs[sarg].name);
+              snprintf (buff, sizeof (buff), "<efun> %s", instrs[sarg].name);
               break;
             case FP_LOCAL:
               LOAD_SHORT (sarg, p);
               if (sarg < NUM_FUNS(prog))
-                sprintf (buff, "<local_fun> %s", function_name (prog, sarg));
+                snprintf (buff, sizeof (buff), "<local_fun> %s", function_name (prog, sarg));
               else
-                sprintf (buff, "<local_fun> <out of range %d>", (int) sarg);
+                snprintf (buff, sizeof (buff), "<local_fun> <out of range %d>", (int) sarg);
               break;
             case FP_FUNCTIONAL:
             case FP_FUNCTIONAL | FP_NOT_BINDABLE:
-              sprintf (buff, "<functional, %d args>\nCode:", (int) p[0]);
+              snprintf (buff, sizeof (buff), "<functional, %d args>\nCode:", (int) p[0]);
               p += 3;
               break;
             case FP_ANONYMOUS:
             case FP_ANONYMOUS | FP_NOT_BINDABLE:
               COPY_SHORT (&sarg, &p[2]);
-              sprintf (buff,
-                       "<anonymous function, %d args, %d locals, ends at %04x>\nCode:",
-                       (int) p[0], (int) p[1],
-                       (int) (p + 3 + sarg - code));
+              snprintf (buff, sizeof (buff),
+                        "<anonymous function, %d args, %d locals, ends at %04x>\nCode:",
+                        (int) p[0], (int) p[1],
+                        (int) (p + 3 + sarg - code));
               p += 4;
               break;
             }
@@ -367,7 +367,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
 
         case F_NUMBER:
           COPY_INT (&iarg, p);
-          sprintf (buff, "%d", iarg);
+          snprintf (buff, sizeof (buff), "%d", iarg);
           p += 4;
           break;
 
@@ -376,9 +376,9 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
             int64_t larg;
             COPY_LONG (&larg, p);
 #ifdef _WIN32
-            sprintf (buff, "%I64d", larg);
+            snprintf (buff, sizeof (buff), "%I64d", larg);
 #else
-            sprintf (buff, "%lld", (long long)larg);
+            snprintf (buff, sizeof (buff), "%lld", (long long)larg);
 #endif
             p += 8;
             break;
@@ -389,7 +389,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
             double farg;
 
             COPY_FLOAT (&farg, p);
-            sprintf (buff, "%lf", farg);
+            snprintf (buff, sizeof (buff), "%lf", farg);
             p += 8; /* [NEOLITH-EXTENSION] always use double-precision */
             break;
           }
@@ -397,12 +397,12 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
         case F_SSCANF:
         case F_PARSE_COMMAND:
         case F_BYTE:
-          sprintf (buff, "%d", EXTRACT_UCHAR (p));
+          snprintf (buff, sizeof (buff), "%d", EXTRACT_UCHAR (p));
           p++;
           break;
 
         case F_NBYTE:
-          sprintf (buff, "-%d", EXTRACT_UCHAR (p));
+          snprintf (buff, sizeof (buff), "-%d", EXTRACT_UCHAR (p));
           p++;
           break;
 
@@ -471,7 +471,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
             continue;
           }
         case F_EFUNV:
-          sprintf (buff, "%d", EXTRACT_UCHAR (p++));
+          snprintf (buff, sizeof (buff), "%d", EXTRACT_UCHAR (p++));
           instr = EXTRACT_UCHAR (p++) + ONEARG_MAX;
           break;
         case F_EFUN0:
@@ -480,7 +480,7 @@ void disassemble (FILE *f, char *code, ptrdiff_t start, ptrdiff_t end, program_t
         case F_EFUN3:
           if (instrs[instr].min_arg != instrs[instr].max_arg)
             {
-              sprintf (buff, "%d", instr - F_EFUN0);
+              snprintf (buff, sizeof (buff), "%d", instr - F_EFUN0);
             }
           instr = EXTRACT_UCHAR (p++) + ONEARG_MAX;
           break;

@@ -143,7 +143,7 @@ set_timezone (char *timezone)
   char *old_tz;
 
   old_tz = getenv ("TZ");
-  sprintf (put_tz, "TZ=%s", timezone);
+  snprintf (put_tz, sizeof (put_tz), "TZ=%s", timezone);
   putenv (put_tz);
   tzset ();
   return old_tz;
@@ -179,7 +179,7 @@ reset_timezone (char *old_tz)
     }
   else
     {
-      sprintf (put_tz, "TZ=%s", old_tz);
+      snprintf (put_tz, sizeof (put_tz), "TZ=%s", old_tz);
       putenv (put_tz);
     }
   tzset ();

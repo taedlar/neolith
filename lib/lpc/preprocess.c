@@ -62,7 +62,7 @@ static void add_define (const char *name, int nargs, const char *exps) {
             {
               char buff[200 + NSIZE];
 
-              sprintf (buff, "redefinition of #define %s\n", name);
+              snprintf (buff, sizeof (buff), "redefinition of #define %s\n", name);
               yywarn (buff);
 
               p->exps = (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_COMPILER, "add_define: redef");

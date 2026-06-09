@@ -2307,7 +2307,7 @@ static char* inet_address (struct sockaddr_in *sin) {
   if (ntohs (sin->sin_port) == 0)
     strcpy (port, "*");
   else
-    sprintf (port, "%d", (int) ntohs (sin->sin_port));
+    snprintf (port, sizeof (port), "%d", (int) ntohs (sin->sin_port));
   strcat (addr, port);
 
   return (addr);

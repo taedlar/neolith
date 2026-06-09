@@ -20,8 +20,6 @@
 #include "svalue.h"
 
 #include "operator.h"
-#include "efuns/parse.h"
-#include "efuns/sscanf.h"
 
 void dealloc_funp (funptr_t * funptr) {
   free_object (funptr->hdr.owner, "free_funp");

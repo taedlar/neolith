@@ -286,7 +286,7 @@ void f_socket_address (void) {
         }
       inet_ntop (AF_INET, &sp->u.ob->interactive->addr.sin_addr.s_addr,
                  addr_str, sizeof (addr_str));
-      sprintf (buf, "%s %d", addr_str,
+      snprintf (buf, sizeof (buf), "%s %d", addr_str,
                ntohs (sp->u.ob->interactive->addr.sin_port));
       str = string_copy (buf, "f_socket_address");
       free_object (sp->u.ob, "f_socket_address:2");
@@ -294,7 +294,7 @@ void f_socket_address (void) {
       return;
     }
   get_socket_address ((int)sp->u.number, addr, &port);
-  sprintf (buf, "%s %d", addr, port);
+  snprintf (buf, sizeof (buf), "%s %d", addr, port);
   str = string_copy (buf, "f_socket_address");
   put_malloced_string (str);
 }				/* f_socket_address() */

@@ -1085,7 +1085,7 @@ int do_rename (const char *fr, const char *t, int flag) {
   mudlib_dir = MAIN_OPTION (mudlib_dir_absolute);
   if (!strlen (to) && !strcmp (t, "/"))
     {
-      sprintf (tbuf, "./");
+      snprintf (tbuf, sizeof (tbuf), "./");
       to = tbuf;
     }
 

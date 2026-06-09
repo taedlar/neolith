@@ -1009,7 +1009,7 @@ number_parse (array_t * obarr, array_t * warr, int *cix_in, int *fail)
   for (ten = 0; ten < 10; ten++)
     for (ones = 0; ones < 10; ones++)
       {
-        sprintf (buf, "%s%s", num10[ten],
+        snprintf (buf, sizeof (buf), "%s%s", num10[ten],
                  (ten > 1) ? num1[ones] : num1[ten * 10 + ones]);
         if (EQ (buf, SVALUE_STRPTR(&warr->item[cix])))
           {
@@ -1024,7 +1024,7 @@ number_parse (array_t * obarr, array_t * warr, int *cix_in, int *fail)
   for (ten = 0; ten < 10; ten++)
     for (ones = 0; ones < 10; ones++)
       {
-        sprintf (buf, "%s%s", (ones) ? ord10[ten] : sord10[ten],
+        snprintf (buf, sizeof (buf), "%s%s", (ones) ? ord10[ten] : sord10[ten],
                  (ten > 1) ? ord1[ones] : ord1[ten * 10 + ones]);
         if (EQ (buf, SVALUE_STRPTR(&warr->item[cix])))
           {

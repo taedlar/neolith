@@ -279,7 +279,7 @@ static void inc_lexically_normal (const char* abs_base, const char *name, char *
 static void yyerrorp (char *s) {
   char buf[200];
 
-  sprintf (buf, s, '#');
+  snprintf (buf, sizeof (buf), s, '#');
   yyerror (buf);
   lex_fatal++;
 }
@@ -552,7 +552,7 @@ static void handle_include (const char *inc_name, int optional) {
     }
   else if (!optional)
     {
-      sprintf (buf, "Cannot #include %s", name);
+      snprintf (buf, sizeof (buf), "Cannot #include %s", name);
       include_error (buf);
     }
   else
@@ -2884,7 +2884,7 @@ const char *query_opcode_name (int n) {
     {
       static char buf[30];
 
-      sprintf (buf, "<OTHER %d>", n);
+      snprintf (buf, sizeof (buf), "<OTHER %d>", n);
       return buf;
     }
 }
@@ -3162,7 +3162,7 @@ static void add_predefine (char *name, int nargs, char *exps) {
       if (nargs != p->nargs || strcmp (exps, p->exps))
         {
           char buf[200 + NSIZE];
-          sprintf (buf, "redefinition of #define %s\n", name);
+          snprintf (buf, sizeof (buf), "redefinition of #define %s\n", name);
           yywarn (buf);
         }
       p->exps = (char *) DREALLOC (p->exps, strlen (exps) + 1, TAG_PREDEFINES, "add_define: redef");

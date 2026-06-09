@@ -1174,7 +1174,7 @@ void eval_instruction (const char *p) {
                       {
                         char buff[30];
 
-                        sprintf (buff, "%" PRId64, (sp + 1)->u.number);
+                        snprintf (buff, sizeof (buff), "%" PRId64, (sp + 1)->u.number);
                         EXTEND_SVALUE_STRING (sp, buff, "f_add: 2");
                         break;
                       }
@@ -1198,7 +1198,7 @@ void eval_instruction (const char *p) {
                       {
                         char buff[40];
 
-                        sprintf (buff, "%lf", (sp + 1)->u.real);
+                        snprintf (buff, sizeof (buff), "%lf", (sp + 1)->u.real);
                         EXTEND_SVALUE_STRING (sp, buff, "f_add: 2");
                         break;
                       }
@@ -1244,7 +1244,7 @@ void eval_instruction (const char *p) {
                       {
                         char buff[30];
 
-                        sprintf (buff, "%" PRId64, (sp - 1)->u.number);
+                        snprintf (buff, sizeof (buff), "%" PRId64, (sp - 1)->u.number);
                         SVALUE_STRING_ADD_LEFT (buff, "f_add: 3");
                         break;
                       }		/* end of T_NUMBER + T_STRING */
@@ -1252,7 +1252,7 @@ void eval_instruction (const char *p) {
                       {
                         char buff[40];
 
-                        sprintf (buff, "%lf", (sp - 1)->u.real);
+                        snprintf (buff, sizeof (buff), "%lf", (sp - 1)->u.real);
                         SVALUE_STRING_ADD_LEFT (buff, "f_add: 3");
                         break;
                       }		/* end of T_REAL + T_STRING */
@@ -1290,14 +1290,14 @@ void eval_instruction (const char *p) {
                 {
                   char buff[30];
 
-                  sprintf (buff, "%" PRId64, sp->u.number);
+                  snprintf (buff, sizeof (buff), "%" PRId64, sp->u.number);
                   EXTEND_SVALUE_STRING (lval, buff, "f_add_eq: 2");
                 }
               else if (sp->type == T_REAL)
                 {
                   char buff[40];
 
-                  sprintf (buff, "%lf", sp->u.real);
+                  snprintf (buff, sizeof (buff), "%lf", sp->u.real);
                   EXTEND_SVALUE_STRING (lval, buff, "f_add_eq: 2");
                 }
               else

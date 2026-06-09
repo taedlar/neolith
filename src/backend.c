@@ -423,7 +423,7 @@ int heart_beat_status (outbuffer_t * ob, bool verbose) {
                    num_hb_objs, num_hb_calls);
 
       /* passing floats to varargs isn't highly portable so let sprintf handle it */
-      sprintf (buf, "%.2f", perc_hb_probes);
+      snprintf (buf, sizeof (buf), "%.2f", perc_hb_probes);
       outbuf_addv (ob, "Percentage of HB calls completed last time: %s\n", buf);
     }
   return (0);
@@ -484,7 +484,7 @@ void update_compile_av (int lines) {
 char* query_load_av () {
   static char buff[100];
 
-  sprintf (buff, "%.2f cmds/s, %.2f comp lines/s", load_av, compile_av);
+  snprintf (buff, sizeof (buff), "%.2f cmds/s, %.2f comp lines/s", load_av, compile_av);
   return (buff);
 }				/* query_load_av() */
 
