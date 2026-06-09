@@ -18,8 +18,6 @@
 #include "lpc/operator.h"
 #include "lpc/include/function.h"
 #include "lpc/include/origin.h"
-#include "efuns/parse.h"
-#include "efuns/sscanf.h"
 
 #include "efuns_prototype.h"
 #include "efuns_vector.h"
@@ -2298,9 +2296,11 @@ void eval_instruction (const char *p) {
         case F_OR_EQ:
           f_or_eq ();
           break;
+#ifdef F_PARSE_COMMAND
         case F_PARSE_COMMAND:
           f_parse_command ();
           break;
+#endif
         case F_POP_VALUE:
           pop_stack ();
           break;
@@ -2436,9 +2436,11 @@ void eval_instruction (const char *p) {
         case F_RSH_EQ:
           f_rsh_eq ();
           break;
+#ifdef F_SSCANF
         case F_SSCANF:
           f_sscanf ();
           break;
+#endif
         case F_STRING:
           LOAD_SHORT (offset, pc);
           DEBUG_CHECK1 (offset >= current_prog->num_strings, "string %d out of range in F_STRING!\n", offset);

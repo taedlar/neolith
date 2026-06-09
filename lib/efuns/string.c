@@ -10,8 +10,7 @@
 #include "lpc/buffer.h"
 #include "lpc/functional.h"
 #include "lpc/operator.h"
-#include "regexp.h"
-#include "sprintf.h"
+#include "lpc/regexp.h"
 
 #ifdef F_CAPITALIZE
 void f_capitalize (void) {

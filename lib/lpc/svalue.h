@@ -16,6 +16,13 @@ static inline int string_length_differs(const svalue_t *x, const svalue_t *y) {
 }
 int svalue_string_lexcmp(const svalue_t *lhs, const svalue_t *rhs);
 
+#define SV2STR_NOINDENT		0x0001	/* don't generate indention */
+#define SV2STR_DONEINDENT	0x0002	/* indent of this line is already done */
+#define SV2STR_NONEWLINE	0x0004	/* don't generate newline */
+
+void svalue_to_string(svalue_t *, outbuffer_t *, int, char, int);
+char *string_print_formatted(const char *, int, svalue_t *);
+
 #ifdef __cplusplus
 } // extern "C"
 

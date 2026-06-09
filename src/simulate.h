@@ -38,6 +38,16 @@ int mud_state();
 extern object_t *master_ob;
 extern object_t *obj_list;
 extern object_t *obj_list_destruct;
+
+/* replace_program() support */
+typedef struct replace_ob_s {
+    object_t *ob;
+    program_t *new_prog;
+    unsigned short var_offset;
+    struct replace_ob_s *next;
+} replace_ob_t;
+extern replace_ob_t *obj_list_replace;
+
 extern object_t *current_object;
 extern object_t *previous_ob;
 extern object_t *command_giver;

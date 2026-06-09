@@ -6,14 +6,15 @@
 #include "error_context.h"
 #include "frame.h"
 #include "interpret.h"
+#include "simul_efun.h"
 #include "lpc/array.h"
 #include "lpc/functional.h"
 #include "lpc/mapping.h"
 #include "lpc/object.h"
 #include "lpc/program.h"
+#include "lpc/include/function.h"
 #include "rc/rc.h"
 #include "port/ansi.h"
-#include "efuns/sprintf.h"
 
 control_stack_t *control_stack = 0;
 control_stack_t *csp;   /* Points to last control frame pushed */

@@ -29,9 +29,8 @@
 #ifdef PACKAGE_CURL
 #include "curl/curl_efuns.h"
 #endif
-#include "efuns/call_out.h"
-#include "efuns/ed.h"
-#include "efuns/replace_program.h"
+#include "call_out.h"
+#include "ed.h"
 
 #include <sys/stat.h>
 
@@ -44,6 +43,7 @@
 object_t *master_ob = 0;
 
 object_t *obj_list, *obj_list_destruct;
+replace_ob_t *obj_list_replace = 0;
 object_t *current_object;	/* The object interpreting a function. */
 object_t *previous_ob;  /* The object that called the current_object. */
 object_t *command_giver;	/* Where the current command came from. */
@@ -643,6 +643,59 @@ object_t *clone_object (const char *str1, int num_arg) {
     return (0);
   return (new_ob);
 }
+
+static void replace_programs () {
+  replace_ob_t *r_ob, *r_next;
+  int i, num_fewer, offset;
+  svalue_t *svp;
+
+  for (r_ob = obj_list_replace; r_ob; r_ob = r_next)
+    {
+      program_t *old_prog;
+
+      num_fewer =
+	r_ob->ob->prog->num_variables_total -
+	r_ob->new_prog->num_variables_total;
+      tot_alloc_object_size -= num_fewer * sizeof (svalue_t[1]);
+      if ((offset = r_ob->var_offset))
+	{
+	  svp = r_ob->ob->variables;
+	  /* move our variables up to the top */
+	  for (i = 0; i < r_ob->new_prog->num_variables_total; i++)
+	    {
+	      free_svalue (svp, "replace_programs");
+	      *svp = *(svp + offset);
+	      *(svp + offset) = const0u;
+	      svp++;
+	    }
+	  /* free the rest */
+	  for (i = 0; i < num_fewer; i++)
+	    {
+	      free_svalue (svp, "replace_programs");
+	      *svp++ = const0u;
+	    }
+	}
+      else
+	{
+	  /* We just need to remove the last num_fewer variables */
+	  svp = &r_ob->ob->variables[r_ob->new_prog->num_variables_total];
+	  for (i = 0; i < num_fewer; i++)
+	    {
+	      free_svalue (svp, "replace_programs");
+	      *svp++ = const0u;
+	    }
+	}
+
+      r_ob->new_prog->ref++;
+      old_prog = r_ob->ob->prog;
+      r_ob->ob->prog = r_ob->new_prog;
+      r_next = r_ob->next;
+      free_prog (old_prog, 1);
+      FREE ((char *) r_ob);
+    }
+  obj_list_replace = (replace_ob_t *) 0;
+}
+
 
 object_t* environment (svalue_t * arg) {
   object_t *ob = current_object;

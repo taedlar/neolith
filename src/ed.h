@@ -1,7 +1,7 @@
 #pragma once
 
-#include "src/comm.h"
-#include "regexp.h"
+#include "comm.h"
+#include "lpc/regexp.h"
 
 #ifdef __cplusplus
 extern "C" {

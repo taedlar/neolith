@@ -9,7 +9,7 @@
 #include "lpc/array.h"
 #include "src/interpret.h"
 #include "src/simul_efun.h"
-#include "replace_program.h"
+#include "src/simulate.h"
 
 /*
  * replace_program.c
@@ -18,64 +18,8 @@
  * Ported from Amylaars LP 3.2 driver
  */
 
-replace_ob_t *obj_list_replace = 0;
-
 static program_t *search_inherited (char *, program_t *, int *);
 static replace_ob_t *retrieve_replace_program_entry (void);
-
-void
-replace_programs ()
-{
-  replace_ob_t *r_ob, *r_next;
-  int i, num_fewer, offset;
-  svalue_t *svp;
-
-  for (r_ob = obj_list_replace; r_ob; r_ob = r_next)
-    {
-      program_t *old_prog;
-
-      num_fewer =
-	r_ob->ob->prog->num_variables_total -
-	r_ob->new_prog->num_variables_total;
-      tot_alloc_object_size -= num_fewer * sizeof (svalue_t[1]);
-      if ((offset = r_ob->var_offset))
-	{
-	  svp = r_ob->ob->variables;
-	  /* move our variables up to the top */
-	  for (i = 0; i < r_ob->new_prog->num_variables_total; i++)
-	    {
-	      free_svalue (svp, "replace_programs");
-	      *svp = *(svp + offset);
-	      *(svp + offset) = const0u;
-	      svp++;
-	    }
-	  /* free the rest */
-	  for (i = 0; i < num_fewer; i++)
-	    {
-	      free_svalue (svp, "replace_programs");
-	      *svp++ = const0u;
-	    }
-	}
-      else
-	{
-	  /* We just need to remove the last num_fewer variables */
-	  svp = &r_ob->ob->variables[r_ob->new_prog->num_variables_total];
-	  for (i = 0; i < num_fewer; i++)
-	    {
-	      free_svalue (svp, "replace_programs");
-	      *svp++ = const0u;
-	    }
-	}
-
-      r_ob->new_prog->ref++;
-      old_prog = r_ob->ob->prog;
-      r_ob->ob->prog = r_ob->new_prog;
-      r_next = r_ob->next;
-      free_prog (old_prog, 1);
-      FREE ((char *) r_ob);
-    }
-  obj_list_replace = (replace_ob_t *) 0;
-}
 
 #ifdef F_REPLACE_PROGRAM
 static program_t *

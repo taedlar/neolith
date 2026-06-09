@@ -49,7 +49,7 @@ struct interactive_s {
 #ifdef F_QUERY_IP_PORT
     int local_port;             /* which of our ports they connected to    */
 #endif
-    char *prompt;               /* prompt string for interactive object    */
+    const char *prompt;         /* prompt string for interactive object    */
     char text[MAX_TEXT];        /* input buffer for interactive object     */
     ptrdiff_t text_end;         /* first free char in buffer               */
     ptrdiff_t text_start;       /* where we are up to in user command buffer */

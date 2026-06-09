@@ -16,7 +16,7 @@
 #include "async/async_queue.h"
 #include "async/console_mode.h"
 #include "socket/socket_efuns.h"
-#include "efuns/ed.h"
+#include "ed.h"
 #ifdef PACKAGE_CURL
 #include "curl/curl_efuns.h"
 #endif

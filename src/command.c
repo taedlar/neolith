@@ -9,7 +9,7 @@
 #include "comm.h"
 #include "command.h"
 #include "rc/rc.h"
-#include "efuns/ed.h"
+#include "ed.h"
 
 static int illegal_sentence_action;
 
@@ -49,7 +49,7 @@ static void print_prompt (interactive_t *);
 static int user_parser (const char * buff);
 static void set_last_verb_from_input (const char *input, char *verb_buf, size_t verb_buf_size);
 
-void set_prompt (char *str) {
+void set_prompt (const char *str) {
   if (command_giver && command_giver->interactive)
     command_giver->interactive->prompt = str;
 }

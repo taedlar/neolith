@@ -21,7 +21,7 @@
 #include "lpc/compiler.h"
 #include "lpc/otable.h"
 #include "lpc/include/function.h"
-#include "efuns/ed.h"
+#include "src/ed.h"
 #include "src/backend.h"
 
 #ifdef F_ALLOCATE
