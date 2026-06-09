@@ -16,6 +16,7 @@ How it works:
 
 Usage:
         hatch run smoke_test              # Basic test with default config
+    hatch run smoke_test --driver clang-x64  # Force clang-cl build
         hatch run smoke_test -r5          # Test with max recursion depth 5
         hatch run smoke_test --debug      # Test with debug flags
 
@@ -27,6 +28,7 @@ Requirements:
 
 import sys
 import os
+import argparse
 from pathlib import Path
 
 try:
@@ -47,15 +49,47 @@ def test_console_mode():
     - Stress testing with multiple concurrent operations
     """
     
-    # Determine paths (relative to examples/ directory)
+    parser = argparse.ArgumentParser(
+        description="Run Neolith console-mode smoke tests."
+    )
+    parser.add_argument(
+        "--driver",
+        choices=["auto", "vs16-x64", "clang-x64", "linux"],
+        default="auto",
+        help="Select driver build to run (default: auto)",
+    )
+    args, extra_args = parser.parse_known_args()
+
+    # Resolve all paths from this script's location instead of the process CWD.
+    script_dir = Path(__file__).resolve().parent
+    repo_root = script_dir.parents[2]
+
     if os.name == 'nt':  # Windows
-        driver_path = Path("../../out/build/vs16-x64/src/RelWithDebInfo/neolith.exe")
-        if not driver_path.exists():
-            driver_path = Path("../../out/build/clang-x64/src/RelWithDebInfo/neolith.exe")
+        driver_by_build = {
+            "vs16-x64": repo_root / "out" / "build" / "vs16-x64" / "src" / "RelWithDebInfo" / "neolith.exe",
+            "clang-x64": repo_root / "out" / "build" / "clang-x64" / "src" / "RelWithDebInfo" / "neolith.exe",
+        }
+        auto_order = ["vs16-x64", "clang-x64"]
     else:  # Linux/WSL
-        driver_path = Path("../../out/build/linux/src/RelWithDebInfo/neolith")
-    
-    config_path = Path("../m3.conf")
+        driver_by_build = {
+            "linux": repo_root / "out" / "build" / "linux" / "src" / "RelWithDebInfo" / "neolith",
+            "clang-x64": repo_root / "out" / "build" / "clang-x64" / "src" / "RelWithDebInfo" / "neolith",
+        }
+        auto_order = ["linux", "clang-x64"]
+
+    if args.driver == "auto":
+        selected_builds = auto_order
+    else:
+        if args.driver not in driver_by_build:
+            print(f"❌ Driver build '{args.driver}' is not available on this platform")
+            print(f"   Available: {', '.join(driver_by_build.keys())}")
+            return 1
+        selected_builds = [args.driver]
+
+    driver_candidates = [driver_by_build[build] for build in selected_builds]
+
+    driver_path = next((p for p in driver_candidates if p.exists()), driver_candidates[0])
+    config_path = repo_root / "examples" / "m3.conf"
     
     # Verify files exist
     if not driver_path.exists():
@@ -67,11 +101,11 @@ def test_console_mode():
         print(f"❌ Config not found: {config_path}")
         return 1
     
+    print(f"✓ Driver selection: {args.driver}")
     print(f"✓ Using driver: {driver_path}")
     print(f"✓ Using config: {config_path}")
     
-    # Get additional command line arguments to pass to driver
-    extra_args = sys.argv[1:]
+    # Additional command line args not consumed by this script are passed to driver.
     if extra_args:
         print(f"✓ Extra driver args: {' '.join(extra_args)}")
     print()
@@ -95,7 +129,12 @@ def test_console_mode():
         print(f"Command: {' '.join(command)}")
         print()
         
-        child = PopenSpawn(command, timeout=10, encoding='utf-8', codec_errors='replace')
+        child = PopenSpawn(
+            command,
+            timeout=10,
+            encoding='utf-8',
+            codec_errors='replace',
+        )
         child.logfile_read = sys.stdout  # Log all output to stdout
         
         print("Driver started. Sending commands and verifying output...")
