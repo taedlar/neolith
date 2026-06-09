@@ -16,8 +16,8 @@ on:
 
 jobs:
   analyze:
-    name: Analyze (c-cpp on ubuntu-20.04)
-    runs-on: ubuntu-20.04
+    name: Analyze (c-cpp on ubuntu-latest)
+    runs-on: ubuntu-latest
     permissions:
       security-events: write
       packages: read
@@ -37,25 +37,27 @@ jobs:
           paths-ignore:
             - out/
 
+    # Cache CMake FetchContent dependencies (source code and build files)
+    # 
     - name: Cache build dependencies
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/cache@v5
       with:
         path: |
           out/build/linux/_deps
-          out/build/linux/openssl
-        key: ${{ runner.os }}-build-main-${{ hashFiles('cmake/*.cmake', 'CMakeLists.txt') }}
+        key: ${{ runner.os }}-deps-${{ hashFiles('cmake/*.cmake', 'CMakeLists.txt') }}
         restore-keys: |
-          ${{ runner.os }}-build-main-
-          ${{ runner.os }}-build-
+          ${{ runner.os }}-deps-
 
-    - name: Cache Ubuntu package archives
+    # Cache boost apt package archives (binary libraries) to speed up installation on subsequent runs
+    # Boost components are listed in CMakeLists.txt, so we can use that to determine the cache key
+    - name: Cache Boost apt package archives
       uses: actions/cache@v5
       with:
         path: |
           /var/cache/apt/archives
           /var/lib/apt/lists
-        key: ${{ runner.os }}-apt-boost-${{ hashFiles('.github/workflows/codeql-deep.yml') }}
+        key: ${{ runner.os }}-apt-boost-${{ hashFiles('CMakeLists.txt') }}
         restore-keys: |
           ${{ runner.os }}-apt-boost-
 
@@ -72,13 +74,18 @@ jobs:
           sudo apt-get install -y --no-install-recommends libboost-all-dev
         fi
 
+    # In github-hosted runner 'ubuntu-latest', we expect these packages are already installed:
+    # - bison
+    # - cmake
+    # - curl (libcurl)
+    # - g++ / gcc
+    # - jq (libjq1)
+    # - openssl (libssl, libcrypto)
     - name: Run manual build steps
       shell: bash
       run: |
         cmake --preset linux \
           -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 \
-          -DFETCH_OPENSSL_FROM_SOURCE=openssl-3.6.1 \
-          -DFETCH_CURL_FROM_SOURCE=curl-8_19_0 \
           -DFETCH_CARES_FROM_SOURCE=v1.34.6
         cmake --preset linux -LA
         cmake --build --preset ci-linux --clean-first
