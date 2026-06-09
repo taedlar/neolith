@@ -1,12 +1,12 @@
 /*
- * json.cpp — LPC to_json / from_json efuns backed by Boost.JSON.
+ * json.cpp — LPC to_json / from_json efuns.
  *
  * to_json(mixed) → string  — serializes an LPC value tree to a JSON string.
  * from_json(string|buffer) → mixed — parses JSON bytes into an LPC value tree.
  *
- * Conditional compilation: both efuns are absent unless HAVE_BOOST_JSON is
- * defined (i.e. PACKAGE_JSON=ON at cmake configure time with Boost.JSON
- * available).
+ * Conditional compilation: both efuns are absent unless HAVE_BOOST_JSON or
+ * HAVE_JSONCPP is defined (i.e. PACKAGE_JSON=ON at cmake configure time).
+ * Boost.JSON is preferred when available; JsonCpp is the fallback.
  *
  * error-boundary safety
  * ---------------------
@@ -14,12 +14,12 @@
  * Two strategies are used to avoid leaking live C++ objects across error paths:
  *
  *   f_to_json: validate_for_json() walks the entire LPC value tree and
- *     calls error() (if any mapping key is non-string) BEFORE any Boost.JSON
- *     objects are allocated.  After that point no error() is expected.
+ *     calls error() (if any mapping key is non-string) BEFORE any JSON
+ *     parser objects are allocated.  After that point no error() is expected.
  *
- *   f_from_json: uses the error_code overload of boost::json::parse() to
- *     avoid exceptions.  If parse fails, the returned boost::json::value is
- *     a default null (no heap allocation), so early error propagation is safe.
+ *   f_from_json: parse errors are reported via error codes / output strings,
+ *     not C++ exceptions.  If parse fails, error() is called before any
+ *     json_to_lpc() allocation occurs, so no heap cleanup is needed.
  *     OOM errors inside json_to_lpc() (allocate_array / allocate_mapping)
  *     are catastrophic-context events treated as unrecoverable.
  */
@@ -44,21 +44,17 @@
 #  undef min
 #endif
 
-#ifdef HAVE_BOOST_JSON
-#include <memory>
-#ifdef BOOST_JSON_HEADER_ONLY
-#include <boost/json/src.hpp>  // Boost.JSON header-only implementation
-#else
-#include <boost/json.hpp>
-#endif
+#if defined(HAVE_BOOST_JSON) || defined(HAVE_JSONCPP)
 
+#include <memory>
+#include <string>
 
 /* --------------------------------------------------------------------------
- * Validation pass (f_to_json only)
+ * Validation pass (f_to_json only) — shared across both parsers
  *
  * Recursively walks the LPC value tree and calls error() if any mapping key
  * is not T_STRING or if nesting exceeds MAX_SAVE_SVALUE_DEPTH.  Must complete
- * before any Boost.JSON objects are allocated.
+ * before any JSON parser objects are allocated.
  * -------------------------------------------------------------------------- */
 
 static void validate_for_json(svalue_t *v, int depth)
@@ -93,8 +89,20 @@ static void validate_for_json(svalue_t *v, int depth)
 }
 
 
+/* ========================================================================
+ * Boost.JSON implementation
+ * ======================================================================== */
+#ifdef HAVE_BOOST_JSON
+
+#ifdef BOOST_JSON_HEADER_ONLY
+#include <boost/json/src.hpp>  // Boost.JSON header-only implementation
+#else
+#include <boost/json.hpp>
+#endif
+
+
 /* --------------------------------------------------------------------------
- * LPC → JSON conversion
+ * LPC → JSON conversion (Boost.JSON)
  *
  * Called after a successful validate_for_json() pass; no error() is called
  * from here.  Objects, functions, buffers, and classes serialize as null.
@@ -153,7 +161,7 @@ static boost::json::value lpc_to_json(svalue_t *v)
 
 
 /* --------------------------------------------------------------------------
- * JSON → LPC conversion
+ * JSON → LPC conversion (Boost.JSON)
  *
  * Writes a JSON value into a pre-freed svalue_t slot.  Allocates LPC arrays
  * and mappings from the driver heap; recurses for compound types.
@@ -241,6 +249,147 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
   }
 }
 
+#else /* HAVE_JSONCPP */
+
+/* ========================================================================
+ * JsonCpp fallback implementation
+ * ======================================================================== */
+
+#include "json.h"
+
+
+/* --------------------------------------------------------------------------
+ * LPC → JSON conversion (JsonCpp)
+ * -------------------------------------------------------------------------- */
+
+static Json::Value lpc_to_json(svalue_t *v)
+{
+  mapping_t *m;
+  mapping_node_t *node;
+  int i;
+
+  switch (v->type) {
+  case T_NUMBER:
+    if (v->subtype == T_UNDEFINED)
+      return Json::Value();  /* null */
+    return Json::Value(static_cast<Json::Int64>(v->u.number));
+
+  case T_REAL:
+    return Json::Value(v->u.real);
+
+  case T_STRING:
+    /* Range constructor preserves embedded null bytes. */
+    return Json::Value(SVALUE_STRPTR(v), SVALUE_STRPTR(v) + SVALUE_STRLEN(v));
+
+  case T_ARRAY: {
+    Json::Value arr(Json::arrayValue);
+    for (i = 0; i < (int)v->u.arr->size; i++)
+      arr.append(lpc_to_json(&v->u.arr->item[i]));
+    return arr;
+  }
+
+  case T_MAPPING: {
+    Json::Value obj(Json::objectValue);
+    m = v->u.map;
+    for (i = 0; i <= (int)m->table_size; i++) {
+      for (node = m->table[i]; node; node = node->next) {
+        std::string key(SVALUE_STRPTR(&node->values[0]),
+                        SVALUE_STRLEN(&node->values[0]));
+        obj[key] = lpc_to_json(&node->values[1]);
+      }
+    }
+    return obj;
+  }
+
+  default:
+    /* T_OBJECT, T_FUNCTION, T_BUFFER, T_CLASS → null */
+    return Json::Value();
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+ * JSON → LPC conversion (JsonCpp)
+ * -------------------------------------------------------------------------- */
+
+static void json_to_lpc(Json::Value const& jv, svalue_t *out)
+{
+  switch (jv.type()) {
+
+  case Json::intValue:
+    out->type = T_NUMBER;
+    out->subtype = 0;
+    out->u.number = static_cast<int64_t>(jv.asInt64());
+    break;
+
+  case Json::uintValue:
+    out->type = T_NUMBER;
+    out->subtype = 0;
+    out->u.number = jv.asUInt64() > static_cast<Json::UInt64>(INT64_MAX)
+                      ? INT64_MAX
+                      : static_cast<int64_t>(jv.asUInt64());
+    break;
+
+  case Json::realValue:
+    out->type = T_REAL;
+    out->subtype = 0;
+    out->u.real = jv.asDouble();
+    break;
+
+  case Json::stringValue: {
+    char const *begin, *end;
+    jv.getString(&begin, &end);
+    /* Use span-based int_string_copy to preserve embedded null bytes. */
+    SET_SVALUE_MALLOC_STRING(out, int_string_copy(begin, end));
+    break;
+  }
+
+  case Json::booleanValue:
+    out->type = T_NUMBER;
+    out->subtype = 0;
+    out->u.number = jv.asBool() ? 1 : 0;
+    break;
+
+  case Json::nullValue:
+    out->type = T_NUMBER;
+    out->subtype = T_UNDEFINED;
+    out->u.number = 0;
+    break;
+
+  case Json::arrayValue: {
+    Json::ArrayIndex sz = jv.size();
+    array_t *arr = allocate_array(sz);
+    /* allocate_array initialises items to const0 (T_NUMBER 0); safe to
+     * overwrite without freeing. */
+    for (Json::ArrayIndex i = 0; i < sz; i++)
+      json_to_lpc(jv[i], &arr->item[i]);
+    out->type = T_ARRAY;
+    out->subtype = 0;
+    out->u.arr = arr;
+    break;
+  }
+
+  case Json::objectValue: {
+    Json::Value::Members keys = jv.getMemberNames();
+    mapping_t *m = allocate_mapping(keys.size());
+    for (auto const& k : keys) {
+      lpc::svalue key;
+      SET_SVALUE_MALLOC_STRING(key.raw(),
+                               int_string_copy(k.data(), k.data() + k.size()));
+      svalue_t *val = find_for_insert(m, key.raw(), 1);
+      val->type = T_INVALID;
+      json_to_lpc(jv[k], val);
+    }
+    out->type = T_MAPPING;
+    out->subtype = 0;
+    out->u.map = m;
+    break;
+  }
+  }
+}
+
+#endif /* HAVE_BOOST_JSON vs HAVE_JSONCPP */
+
 
 /* --------------------------------------------------------------------------
  * Efun bodies
@@ -261,8 +410,15 @@ void f_to_json(void)
   validate_for_json(sp, 0);  /* may call error(); no C++ objects allocated yet */
 
   {
+#ifdef HAVE_BOOST_JSON
     boost::json::value jv = lpc_to_json(sp);
     std::string s = boost::json::serialize(jv);
+#else /* HAVE_JSONCPP */
+    Json::Value jv = lpc_to_json(sp);
+    Json::StreamWriterBuilder wb;
+    wb["indentation"] = "";
+    std::string s = Json::writeString(wb, jv);
+#endif
     malloc_str_t result = string_copy(s.c_str(), "f_to_json");
     /* jv and s are destroyed here at end of inner scope, before free_svalue */
     free_svalue(sp, "f_to_json");
@@ -282,7 +438,6 @@ void f_to_json(void)
  */
 void f_from_json(void)
 {
-  std::unique_ptr<boost::json::value> parsed;
   const char *input = nullptr;
   size_t input_len = 0;
 
@@ -299,7 +454,10 @@ void f_from_json(void)
     return;
   }
 
+#ifdef HAVE_BOOST_JSON
   {
+    std::unique_ptr<boost::json::value> parsed;
+
     boost::system::error_code ec;
     boost::json::value jv = boost::json::parse(
         boost::json::string_view(input, input_len),
@@ -328,12 +486,34 @@ void f_from_json(void)
      * unique_ptr guarantees the heap value is destroyed even if error()
      * unwinds the C++ stack. */
     parsed = std::make_unique<boost::json::value>(std::move(jv));
+    json_to_lpc(*parsed, sp);
   }
+#else /* HAVE_JSONCPP */
+  {
+    Json::CharReaderBuilder rb;
+    std::unique_ptr<Json::CharReader> reader(rb.newCharReader());
+    Json::Value root;
+    std::string errors;
+    bool ok = reader->parse(input, input + input_len, &root, &errors);
 
-  json_to_lpc(*parsed, sp);
+    free_svalue(sp, "f_from_json");
+    sp->type = T_INVALID;
+
+    if (!ok) {
+      char errbuf[256];
+      snprintf(errbuf, sizeof(errbuf), "from_json: invalid JSON: %s\n",
+               errors.c_str());
+      sp->type = T_NUMBER;
+      sp->subtype = 0;
+      sp->u.number = 0;
+      error("%s", errbuf);
+    }
+    json_to_lpc(root, sp);
+  }
+#endif /* HAVE_BOOST_JSON vs HAVE_JSONCPP */
 }
 #endif /* F_FROM_JSON */
 
 }  /* extern "C" */
 
-#endif /* HAVE_BOOST_JSON */
+#endif /* HAVE_BOOST_JSON || HAVE_JSONCPP */

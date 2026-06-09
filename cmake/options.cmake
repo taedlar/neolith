@@ -17,7 +17,7 @@ cmake_dependent_option(USE_STATIC_MSVC_RUNTIME "Enable static MSVC Runtime libra
 # -------------------------------------------------------------------------
 # Neolith feature options
 # -------------------------------------------------------------------------
-option(PACKAGE_JSON "Enable JSON efuns to_json() and from_json() (requires Boost.JSON)" ON)
+option(PACKAGE_JSON "Enable JSON efuns to_json() and from_json() (uses Boost.JSON when available, falls back to JsonCpp)" ON)
 option(PACKAGE_CURL "Enable CURL efuns for REST API calls (perform_to, perform_using, in_perform; requires libcurl)" ON)
 
 # -------------------------------------------------------------------------
