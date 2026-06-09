@@ -34,6 +34,9 @@ mcp_client = "python src/mcp_client.py {args}"
 
 [tool.hatch.envs.default]
 skip-install = true
+dependencies = [
+  "pexpect"
+]
 
 [tool.hatch.version]
 path = "src/__about__.py"
