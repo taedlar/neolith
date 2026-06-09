@@ -27,6 +27,18 @@
 - [docs/history/](docs/history/) — recently completed plans and experimental features.
 - [docs/ChangeLog.md](docs/ChangeLog.md) — release-level change summaries
 
+## Architecture Layers and Runtime Contracts
+
+- Layering model:
+  - Driver layer is the foundation: it initializes subsystems, maintains `mud_state()`, and provides the runtime environment consumed by LPC and efuns (and `stem` integration for unit tests).
+  - LPC layer is built on top of Driver.
+  - Efuns layer is built on top of Driver and LPC.
+- Object/apply safety:
+  - After applies, re-check `ob->flags & O_DESTRUCTED` because targets may self-destruct.
+  - Keep apply paths stack-balanced on both success and failure.
+- Generated-file policy:
+  - Do not edit generated artifacts directly (`grammar.c`/`grammar.h`, generated efun tables); edit the source templates and regenerate.
+
 ## Critical Developer Workflows
 
 ### Building

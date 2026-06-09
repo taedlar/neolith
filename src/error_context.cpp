@@ -11,7 +11,6 @@
 #include "lpc/mapping.h"
 #include "lpc/object.h"
 #include "lpc/program.h"
-#include "efuns/sprintf.h"
 
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>

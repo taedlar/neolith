@@ -4,8 +4,7 @@
 
 ## SYNOPSIS
 ~~~cxx
-int parse_command( string command, object env|object *oblist,
-string pattern, mixed arg, ... );
+int parse_command (string command, object env|object *oblist, string pattern, mixed arg, ... );
 ~~~
 
 ## DESCRIPTION
@@ -20,9 +19,9 @@ parse_command() returns 1 if **command** is considered to have
 matched
 
 The **env** or **oblist** parameter either holds an object or a
-list of objects. If it holds a single object than a list of
+list of objects. If it holds a single object then a list of
 objects are automatically created by adding the
-deep_inventory of the object, ie this is identical:
+`deep_inventory` of the object, ie this is identical:
 
 parse_command(cmd, environment(), pattern, arg)
 
@@ -31,8 +30,12 @@ and
 parse_command( cmd, ({ environment() }) +
 deep_inventory(environment()), pattern, arg)
 
-Example string = " **get** / **take** %i "
+Example:
+```
+ string = " **get** / **take** %i "
+```
 Syntax:
+```
 **word**          obligatory text
 [word]          optional text
 /               Alternative marker
@@ -43,28 +46,29 @@ Syntax:
 %p              One of a list (prepositions)
 %i              Any items
 %d              Number 0- or tx(0-99)
-
+```
 The **arg** list is zero or more arguments. These are the
-result variables as in sscanf. Note that one variable is
-needed for each %_
+result variables as in `sscanf`. Note that one variable is
+needed for each `%_`
 
-The return types of different %_ is:
+The return types of different `%_` is:
+```
 %o      Returns an object
 %s      Returns a string of words
 %w      Returns a string of one word
-%p      Can on entry hold a list of word in array
-or an empty variable
+%p      Can on entry hold a list of word in array or an empty variable
+```
 Returns:
-if empty variable: a string
-if array: array[0] = matched word
-%i      Returns a special array on the form:
-[0] = (int) +(wanted) -(order) 0(all)
-[1..n] (object) Objectpointers
-%l      Returns a special array on the form:
-[0] = (int) +(wanted) -(order) 0(all)
-[1..n] (object) Objectpointers
+- if empty variable: a string
+- if array: array[0] = matched word
+- %i      Returns a special array on the form:
+  - [0] = (int) +(wanted) -(order) 0(all)
+  - [1..n] (object) Objectpointers
+- %l      Returns a special array on the form:
+  - [0] = (int) +(wanted) -(order) 0(all)
+  - [1..n] (object) Objectpointers
 These are only living objects.
-%d      Returns a number
+- %d      Returns a number
 
 The only types of % that uses all the loaded information
 from the objects are %i and %l. These are in fact identical
@@ -82,40 +86,28 @@ if numeral <0 then second, twentyfirst etc were matched
 if numeral==0 then **all** or a generic plural form such as
 **apples** were matched.
 
-NOTE!
-
-The efun makes no semantic implication on the given
-numeral. It does
-not matter if 'all apples' or 'second apple' is
-given. A %i will
-return ALL possible objects matching in the array. It
-is up to the
-caller to decide what **second** means in a given
-context.
-Also when given an object and not an explicit array
-of objects the
-entire recursive inventory of the given object is
-searched. It is up
-to the caller to decide which of the objects are
-actually visible
-meaning that **second** might not at all mean the
-second object in
-the returned array of objects.
+> [!NOTE]
+> The efun makes no semantic implication on the given numeral.
+> It does not matter if 'all apples' or 'second apple' is given.
+> A %i will return ALL possible objects matching in the array.
+> It is up to the caller to decide what **second** means in a given context.
+> Also when given an object and not an explicit array of objects the entire recursive inventory of the given object is searched.
+> It is up to the caller to decide which of the objects are actually visible meaning that **second** might not at all mean the second object in the returned array of objects.
 
 ## CAVEAT
-Patterns of type: "%s %w %i" Might not work as one would
-expect.  %w will always succeed so the arg corresponding to
-%s will always be empty.
+Patterns of type: `%s %w %i` Might not work as one would
+expect.  `%w` will always succeed so the arg corresponding to
+`%s` will always be empty.
 
 ## BUGS
 Patterns of the type: 'word' and [word] The 'word' can not
-contain spaces.  It must be a single word. This is so
-because the pattern is exploded on " " (space) and a pattern
+contain spaces.
+It must be a single word.
+This is so because the pattern is exploded on " " (space) and a pattern
 element can therefore not contain spaces.
 
 As another effect of the exploding on space, separate pieces
-of a pattern MUST be separated with space, ie not "
-'word'/%i " but " 'word' / %i"
+of a pattern MUST be separated with space, i.e. not `'word'/%i ` but `'word' / %i`
 
 ## EXAMPLE
 if (parse_command("spray car",environment(this_player()),
@@ -127,7 +119,7 @@ described under 'destargs' %i above.
 */
 }
 
-MUDLIB SUPPORT
+## MUDLIB SUPPORT
 
 To make the efun useful it must have a certain support from
 the mudlib, there is a set of functions that it needs to
@@ -143,15 +135,15 @@ long commands were parsed.
 The new version relies on the LPC objects to give it three
 lists of 'names'.
 
-1 - The normal singular names.
-2 - The plural forms of the names.
-3 - The acknowledged adjectives of the object.
+1. The normal singular names.
+2. The plural forms of the names.
+3. The acknowledged adjectives of the object.
 
 These are fetched by calls to the functions:
 
-1 - string *parse_command_id_list();
-2 - string *parse_command_plural_id_list();
-3 - string *parse_command_adjectiv_id_list();
+1. string *parse_command_id_list();
+2. string *parse_command_plural_id_list();
+3. string *parse_command_adjectiv_id_list();
 
 The only really needed list is the first. If the second does
 not exist than the efun will try to create one from the

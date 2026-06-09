@@ -50,12 +50,11 @@
  * Beek fixed Inspirals hacks, then later added the object_ed_* stuff.
  */
 
-#include "src/std.h"
+#include "std.h"
 #include "lpc/object.h"
 #include "lpc/include/origin.h"
-#include "src/interpret.h"
-#include "src/command.h"
-#include "file_utils.h"
+#include "interpret.h"
+#include "command.h"
 #include "ed.h"
 
 /* Regexp is Henry Spencer's package. WARNING: regsub is modified to return

@@ -16,9 +16,8 @@
 #include "lpc/program.h"
 #include "lpc/include/function.h"
 
-#include "call_out.h"
+#include "src/call_out.h"
 #include "file_utils.h"
-#include "sprintf.h"
 #include "dumpstat.h"
 
 

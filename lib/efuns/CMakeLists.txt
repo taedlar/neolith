@@ -3,13 +3,12 @@
 set(efuns_SOURCES
     bits.c
     call_other.c
-    call_out.cpp
+    call_out.c
     command.cpp
     datetime.c
     debug.c
     dump_prog.c
     dumpstat.c
-    ed.c
     file.c
     file_utils.c
     heart_beat.c
@@ -21,7 +20,6 @@ set(efuns_SOURCES
     parse.c
     prop.c
     reclaim_object.c
-    regexp.c
     replace_program.c
     sockets.c
     sprintf.c

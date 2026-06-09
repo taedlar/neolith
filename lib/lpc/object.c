@@ -17,7 +17,7 @@
 #include "src/simul_efun.h"
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
-#include "efuns/call_out.h"
+#include "src/call_out.h"
 #include "socket/socket_efuns.h"
 #ifdef PACKAGE_CURL
 #include "curl/curl_efuns.h"

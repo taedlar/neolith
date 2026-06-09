@@ -12,7 +12,7 @@ extern const char *last_verb;
 int process_command(char *buff, object_t *);
 
 /* prompts & input redirection */
-void set_prompt (char *);
+void set_prompt (const char *);
 int set_call (object_t *, sentence_t *, int);
 int call_function_interactive (interactive_t *, char *);
 

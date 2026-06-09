@@ -12,8 +12,10 @@ set(stem_SOURCES
     addr_resolver.cpp
     apply.cpp
     backend.c
+    call_out.cpp
     comm.c
     command.c
+    ed.c
     error_context.cpp
     frame.cpp
     interpret.c

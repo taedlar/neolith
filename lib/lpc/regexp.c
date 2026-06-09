@@ -61,7 +61,7 @@
 
 #include "src/std.h"
 #include "regexp.h"
-#include "efuns/ed.h"
+#include "src/ed.h"
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
