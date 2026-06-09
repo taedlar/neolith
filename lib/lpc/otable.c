@@ -257,9 +257,9 @@ show_otable_status (outbuffer_t * out, int verbose)
     {
       outbuf_add (out, "Object name hash table status:\n");
       outbuf_add (out, "------------------------------\n");
-      sprintf (sbuf, "%10.2f", objs_in_table / (float) otable_size);
+      snprintf (sbuf, sizeof (sbuf), "%10.2f", objs_in_table / (float) otable_size);
       outbuf_addv (out, "Average hash chain length:       %s\n", sbuf);
-      sprintf (sbuf, "%10.2f", (float) obj_probes / obj_searches);
+      snprintf (sbuf, sizeof (sbuf), "%10.2f", (float) obj_probes / obj_searches);
       outbuf_addv (out, "Average search length:           %s\n", sbuf);
       outbuf_addv (out, "Internal lookups (succeeded):    %u (%u)\n",
                    obj_searches - user_obj_lookups,

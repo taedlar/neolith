@@ -82,7 +82,7 @@ op: ID
     {
         char f_name[500],c;
         int i = 2;
-        sprintf(f_name, "F_%s", $1);
+        snprintf(f_name, sizeof(f_name), "F_%s", $1);
         while ((c = f_name[i])) {
             if (islower(c)) f_name[i++] = (char)toupper(c);
             else i++;
@@ -100,7 +100,7 @@ optional_default: /* empty */ { $$="DEFAULT_NONE"; }
                 | DEFAULT ':' NUM
                   {
                       static char xbuf[40];
-                      sprintf(xbuf, "%i", $3);
+                      snprintf(xbuf, sizeof(xbuf), "%i", $3);
                       $$ = xbuf;
                   }
                 | DEFAULT ':' ID 
@@ -121,7 +121,7 @@ func: type ID optional_ID '(' arg_list optional_default ')' ';'
         if ($3[0] == '\0') {
             if (strlen($2) + 1 + 2 > sizeof f_name)
                 mf_fatal("A local buffer was too small!(1)\n");
-            sprintf(f_name, "F_%s", $2);
+            snprintf(f_name, sizeof(f_name), "F_%s", $2);
             len = (int)strlen(f_name);
             for (i=0; i < len; i++) {
                 if (islower(f_name[i]))
@@ -143,7 +143,7 @@ func: type ID optional_ID '(' arg_list optional_default ')' ';'
         } else {
             if (strlen($3) + 1 + 17 > sizeof f_name)
                 mf_fatal("A local buffer was too small(2)!\n");
-            sprintf(f_name, "F_%s | F_ALIAS_FLAG", $3);
+            snprintf(f_name, sizeof(f_name), "F_%s | F_ALIAS_FLAG", $3);
             len = (int)strlen(f_name);
             for (i=0; i < len; i++) {
                 if (islower(f_name[i]))
@@ -172,7 +172,7 @@ func: type ID optional_ID '(' arg_list optional_default ')' ';'
         if (!strcmp($2, "call_other") && !lookup_define("CAST_CALL_OTHERS")) {
             $1 = L_MIXED;
         }
-        sprintf(buff, "{\"%s\",%s%s,0,0,%d,%d,%s,%s,%s,%s,%s,%d,%s},\n",
+        snprintf(buff, sizeof(buff), "{\"%s\",%s%s,0,0,%d,%d,%s,%s,%s,%s,%s,%d,%s},\n",
             $2, f_name,
             (pragmas & PRAGMA_ALLOW_DOT_CALL) ? "|IHE_ALLOW_DOT_CALL" : "",
             min_arg, limit_max ? -1 : $5, 
@@ -204,7 +204,7 @@ basic: ID
         }
         if (!$$) {
                 char xbuf[256];
-                sprintf(xbuf, "Invalid type: %s", $1);
+                snprintf(xbuf, sizeof(xbuf), "Invalid type: %s", $1);
                 yyerror(xbuf);
         }
         free($1);

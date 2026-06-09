@@ -35,6 +35,6 @@ char *strput (char *dest, char *end, const char *src) {
 
 char* strput_int (char *dest, char *end, int num) {
   char buf[20];
-  sprintf (buf, "%d", num);
+  snprintf (buf, sizeof (buf), "%d", num);
   return strput (dest, end, buf);
 }

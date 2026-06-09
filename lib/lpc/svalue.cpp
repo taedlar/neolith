@@ -291,7 +291,7 @@ typedef struct ColumnSlashTable {
 static outbuffer_t obuff;
 static cst *csts = 0;
 static int cur_arg;		/* current arg number */
-static svalue_t clean = { T_NUMBER, 0, 0 };
+static svalue_t clean = { T_NUMBER, 0, {0} };
 
 static void sprintf_error (int) NO_RETURN;
 static void add_justified (const char *str, size_t slen, pad_info_t * pad, int fs, format_info finfo, short int trailing);
@@ -351,7 +351,7 @@ static void sprintf_error (int which) {
       err = "undefined error in (s)printf!\n";
       break;
     }
-  sprintf (lbuf, "(s)printf(): %s (arg: %d)\n", err, cur_arg);
+  snprintf (lbuf, sizeof (lbuf), "(s)printf(): %s (arg: %d)\n", err, cur_arg);
   error (lbuf);
 }
 
@@ -820,12 +820,12 @@ void svalue_to_string (svalue_t * obj, outbuffer_t * outbuf, int indent, char de
               outbuf_add (outbuf, "<code>(");
               for (i = 1; i < n; i++)
                 {
-                  sprintf (buf, "$%i, ", i);
+                  snprintf (buf, sizeof (buf), "$%i, ", i);
                   outbuf_add (outbuf, buf);
                 }
               if (n)
                 {
-                  sprintf (buf, "$%i", n);
+                  snprintf (buf, sizeof (buf), "$%i", n);
                   outbuf_add (outbuf, buf);
                 }
               outbuf_add (outbuf, ")");
@@ -1429,7 +1429,7 @@ char* string_print_formatted (const char *format_str, int argc, svalue_t * argv)
                   if (pres)
                     {
                       cheat[i++] = '.';
-                      sprintf (cheat + i, "%d", pres);
+                      snprintf (cheat + i, sizeof (cheat) - i, "%d", pres);
                       i += (int)strlen (cheat + i);
                     }
                   switch (finfo & INFO_T)
@@ -1466,10 +1466,10 @@ char* string_print_formatted (const char *format_str, int argc, svalue_t * argv)
 
                   if (carg->type == T_REAL)
                     {
-                      sprintf (temp, cheat, carg->u.real);
+                      snprintf (temp, sizeof (temp), cheat, carg->u.real);
                     }
                   else
-                    sprintf (temp, cheat, carg->u.number);
+                    snprintf (temp, sizeof (temp), cheat, carg->u.number);
                   {
                     int tmpl = (int)strlen (temp);
 

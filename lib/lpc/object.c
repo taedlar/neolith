@@ -293,7 +293,7 @@ size_t svalue_save_size (const svalue_t * v) {
     case T_REAL:
       {
         char buf[256];
-        sprintf (buf, "%g", v->u.real);
+        snprintf (buf, sizeof (buf), "%g", v->u.real);
         return strlen (buf) + 1; /* 1 for comma/colon */
       }
 
@@ -397,7 +397,10 @@ void save_svalue (const svalue_t * v, char **buf) {
 
     case T_REAL:
       {
-        sprintf (*buf, "%g", v->u.real);
+        char real_buf[256];
+
+        snprintf (real_buf, sizeof (real_buf), "%g", v->u.real);
+        strcpy (*buf, real_buf);
         (*buf) += strlen (*buf);
         return;
       }
