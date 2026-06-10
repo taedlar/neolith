@@ -1044,18 +1044,29 @@ static void add_console_line (interactive_t *ip, const char *line_buffer, size_t
   if (len <= 0 || ip->text_end + len >= MAX_TEXT)
     return;
 
-  /* Convert newlines to null terminators for command parsing */
+  /* Convert newlines to null terminators for command parsing (line mode only)
+   * In SINGLE_CHAR mode, pass characters through as-is; no null separators needed */
   const char* from = line_buffer;
   char* to = ip->text + ip->text_end;
   int bytes = len;
   
-  while (bytes-- > 0)
+  if (ip->iflags & SINGLE_CHAR)
     {
-      if (*from == '\n' || *from == '\r')
-        *to++ = '\0';
-      else
-        *to++ = *from;
-      from++;
+      /* SINGLE_CHAR mode: pass bytes through as-is (no newline conversion) */
+      memcpy(to, from, bytes);
+      to += bytes;
+    }
+  else
+    {
+      /* Line mode: convert newlines to null terminators */
+      while (bytes-- > 0)
+        {
+          if (*from == '\n' || *from == '\r')
+            *to++ = '\0';
+          else
+            *to++ = *from;
+          from++;
+        }
     }
   
   ip->text_end = to - ip->text;

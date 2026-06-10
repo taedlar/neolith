@@ -182,7 +182,7 @@ static void input_prompt (string f, mixed args) {
           write("-> ");
         else
           write("   ");
-        write ("  [" + opt + "]\n");
+        write ("[" + opt + "]\n");
         pos++;
       }
       write (repeat_string (CUU, args["options"].len() + 1) + "\r" + args["prompt"]);
@@ -192,7 +192,7 @@ static void input_prompt (string f, mixed args) {
 
 static void confirm_shutdown (string answer, mixed args) {
   int cur = args["cursor"];
-  if (answer == " " || answer == "\n")
+  if (answer == " " || answer == "\r" || answer == "\n") // SPACE or ENTER
     answer = args["options"][cur];
   switch (answer)
     {
@@ -205,20 +205,21 @@ static void confirm_shutdown (string answer, mixed args) {
     case "n":
       write(CLR "\nShutdown cancelled.\n");
       return;
-    case CUU:
-      args["cursor"] = (cur - 1) % args["options"].len();
+    case " [A": /* up arrow, ESC is replaced as blank */
+      args["cursor"] = (cur - 1 + args["options"].len()) % args["options"].len();
       break;
-    case CUD:
+    case " [B": /* down arrow, ESC is replaced as blank */
       args["cursor"] = (cur + 1) % args["options"].len();
       break;
     }
-  get_char ("confirm_shutdown", args);
+  if (!get_char ("confirm_shutdown", 0, args))
+    confirm_shutdown("N", args);
 }
 
 int cmd_shutdown (string arg) {
   if (arg != "now")
     {
-      get_char("confirm_shutdown", ([
+      get_char("confirm_shutdown", 0, ([
         "prompt": "Are you sure to shutdown the MUD? ",
         "options": ({ "Y", "N" }),
         "cursor": 0
