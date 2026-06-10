@@ -86,7 +86,7 @@ static void print_prompt (interactive_t * ip) {
       svalue_t* ret;
       sentence_t *sent = ip->input_to;
       array_t *args = 0;
-      int num_arg = 1; /* always at least the callback identifier */
+      int num_arg = 2; /* always at least the callback identifier and the iflags */
       /* If the callback was specified as a function name string, pass the name;
        * otherwise pass the funptr itself. */
       if ((sent->function.f->hdr.type & FP_MASK) == FP_LOCAL)
@@ -94,6 +94,7 @@ static void print_prompt (interactive_t * ip) {
                                              sent->function.f->f.local.index));
       else
         push_refed_funp (sent->function.f);
+      push_number (ip->iflags & 0x3); /* pass the I_NOECHO and I_NOESC flags as arguments */
       if (sent->args)
         {
           args = sent->args;
@@ -768,33 +769,22 @@ static size_t single_char_token_len (const interactive_t *ip) {
   if (available == 1)
     return 0;
 
-  if (p[1] == '[')
+  if (p[1] == '[') /* CSI sequence */
     {
       i = 2;
       while (i < available && (isdigit (p[i]) || p[i] == ';'))
         i++;
 
-      if (i >= available)
-        return 0;
-
-      if (p[i] >= 'A' && p[i] <= 'D')
-        return i + 1;
-
-      return 1;
+      /* ESC [<digits and ';'> <command> */
+      return (i >= available) ? 0 : i + 1;
     }
 
-  if (p[1] == 'O')
+  if (p[1] == 'N' || p[1] == 'O') /* SS2 or SS3 */
     {
-      if (available < 3)
-        return 0;
-
-      if (p[2] >= 'A' && p[2] <= 'D')
-        return 3;
-
-      return 1;
+      return (available < 3) ? 0 : 3;
     }
 
-  return 1;
+  return (available < 2) ? 0 : 2; /* other ESC x sequences */
 }
 
 #ifdef F_QUERY_VERB

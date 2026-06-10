@@ -1440,6 +1440,7 @@ void tell_object (object_t * ob, const char *str) {
     tell_npc (ob, str);
 }
 
+#ifdef F_TELL_ROOM
 /*
  * Sends a string to all objects inside of a specific object.
  * Revised, bobf@metronet.com 9/6/93
@@ -1513,6 +1514,7 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
       pop_stack();
     }
 }
+#endif /* F_TELL_ROOM */
 
 void shout_string (const char *str) {
   object_t *ob;

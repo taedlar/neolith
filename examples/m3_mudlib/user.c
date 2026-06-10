@@ -167,7 +167,7 @@ int cmd_aliases (string arg) {
 }
 
 /* [NEOLITH-EXTENSION] */
-static void input_prompt (string f, mixed args) {
+static void input_prompt (string f, int flags, mixed args) {
 #define CSI "\x1b["
 #define CUU CSI "A" /* move cursor up one line */
 #define CUD CSI "B" /* move cursor down one line */
@@ -192,6 +192,7 @@ static void input_prompt (string f, mixed args) {
 
 static void confirm_shutdown (string answer, mixed args) {
   int cur = args["cursor"];
+  int num_options = args["options"].len();
   if (answer == " " || answer == "\r" || answer == "\n") // SPACE or ENTER
     answer = args["options"][cur];
   switch (answer)
@@ -210,14 +211,14 @@ static void confirm_shutdown (string answer, mixed args) {
 #else
     case "\x1b[A": /* up arrow */
 #endif
-      args["cursor"] = (cur - 1 + args["options"].len()) % args["options"].len();
+      args["cursor"] = (cur - 1 + num_options) % num_options;
       break;
 #ifdef __NO_ANSI__
     case " [B": /* down arrow, ESC is replaced as blank */
 #else
     case "\x1b[B": /* down arrow */
 #endif
-      args["cursor"] = (cur + 1) % args["options"].len();
+      args["cursor"] = (cur + 1) % num_options;
       break;
     }
   if (!get_char ("confirm_shutdown", 1, args))
