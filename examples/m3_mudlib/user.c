@@ -99,7 +99,7 @@ int cmd_help (string arg) {
   write("  say <message>  - Say something\n");
   write("  help           - Show this help\n");
   write("  quit           - Exit the MUD\n");
-  write("  shutdown       - Shutdown the driver\n");
+  write("  shutdown [now] - Shutdown the driver\n");
   write("  alias <n> <c>  - Set alias name <n> to command <c>\n");
   write("  unalias <n>    - Remove alias <n>\n");
   write("  aliases        - List all aliases\n");
@@ -166,9 +166,76 @@ int cmd_aliases (string arg) {
   return 1;
 }
 
+/* [NEOLITH-EXTENSION] */
+static void input_prompt (string f, int flags, mixed args) {
+#define CSI "\x1b["
+#define CUU CSI "A" /* move cursor up one line */
+#define CUD CSI "B" /* move cursor down one line */
+#define CLR CSI "J" /* clear from cursor to end of screen */
+
+  if (f == "confirm_shutdown") {
+    if (mapp(args)) {
+      int pos = 0;
+      write("\r" CLR "\n"); // placeholder for prompt
+      foreach (string opt in args["options"]) {
+        if (pos == args["cursor"])
+          write("-> ");
+        else
+          write("   ");
+        write ("[" + opt + "]\n");
+        pos++;
+      }
+      write (repeat_string (CUU, args["options"].len() + 1) + "\r" + args["prompt"]);
+    }
+  }
+}
+
+static void confirm_shutdown (string answer, mixed args) {
+  int cur = args["cursor"];
+  int num_options = args["options"].len();
+  if (answer == " " || answer == "\r" || answer == "\n") // SPACE or ENTER
+    answer = args["options"][cur];
+  switch (answer)
+    {
+    case "Y":
+    case "y":
+      write(CLR "\nShutting down...\n");
+      shutdown();
+      return;
+    case "N":
+    case "n":
+      write(CLR "\nShutdown cancelled.\n");
+      return;
+#ifdef __NO_ANSI__
+    case " [A": /* up arrow, ESC is replaced as blank */
+#else
+    case "\x1b[A": /* up arrow */
+#endif
+      args["cursor"] = (cur - 1 + num_options) % num_options;
+      break;
+#ifdef __NO_ANSI__
+    case " [B": /* down arrow, ESC is replaced as blank */
+#else
+    case "\x1b[B": /* down arrow */
+#endif
+      args["cursor"] = (cur + 1) % num_options;
+      break;
+    }
+  if (!get_char ("confirm_shutdown", 1, args))
+    confirm_shutdown("N", args);
+}
+
 int cmd_shutdown (string arg) {
-  write("Shutting down...\n");
-  shutdown();
+  if (arg != "now")
+    {
+      get_char("confirm_shutdown", 1, ([
+        "prompt": "Are you sure to shutdown the MUD? ",
+        "options": ({ "Y", "N" }),
+        "cursor": 0
+      ]));
+      return 1;
+    }
+  confirm_shutdown("Y", 0);
   return 1;
 }
 

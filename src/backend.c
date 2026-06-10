@@ -107,10 +107,10 @@ object_t* mudlib_connect(int port, const char* addr) {
   if (is_console_user(ob))
     ob->flags |= O_CONSOLE_USER; /* mark as console user */
   /*
-   * assume the existance of write_prompt and process_input in user.c
+   * assume the existance of write_prompt, input_prompt and process_input in user.c
    * until proven wrong (after trying to call them).
    */
-  ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_PROCESS_INPUT);
+  ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_INPUT_PROMPT | HAS_PROCESS_INPUT);
 
   if (ob == master_ob)
     {

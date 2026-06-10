@@ -2,6 +2,7 @@
 - [catch_tell](/docs/applies/interactive/catch_tell.md)
 - [logon](/docs/applies/interactive/logon.md)
 - [net_dead](/docs/applies/interactive/net_dead.md)
+- [input_prompt](/docs/applies/interactive/input_prompt.md)
 - [process_input](/docs/applies/interactive/process_input.md)
 - [receive_message](/docs/applies/interactive/receive_message.md)
 - [receive_snoop](/docs/applies/interactive/receive_snoop.md)

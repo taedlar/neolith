@@ -1420,15 +1420,14 @@ static void tell_npc (object_t * ob, const char *str) {
 void tell_object (object_t * ob, const char *str) {
   if (!ob || (ob->flags & O_DESTRUCTED))
     {
-      add_message (0, str);
-      debug_message ("*%s", str);
+      opt_warn (2, "*%s", str);
       return;
     }
 
   /* [NEOLITH-EXTENSION] master_ob can be used as a user object when in single-user mode */
   if ((ob == simul_efun_ob) || ((ob == master_ob) && !master_ob->interactive))
     {
-      debug_message ("*%s", str);
+      opt_warn (2, "*%s", str);
       return;
     }
 
@@ -1441,11 +1440,11 @@ void tell_object (object_t * ob, const char *str) {
     tell_npc (ob, str);
 }
 
+#ifdef F_TELL_ROOM
 /*
  * Sends a string to all objects inside of a specific object.
  * Revised, bobf@metronet.com 9/6/93
  */
-#ifdef F_TELL_ROOM
 void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
   object_t *ob;
   const char *buff;
@@ -1515,7 +1514,7 @@ void tell_room (object_t * room, svalue_t * v, array_t * avoid) {
       pop_stack();
     }
 }
-#endif
+#endif /* F_TELL_ROOM */
 
 void shout_string (const char *str) {
   object_t *ob;
@@ -1757,9 +1756,7 @@ void do_write (svalue_t * arg) {
 }
 
 #ifdef F_RECEIVE
-void
-f_receive (void)
-{
+void f_receive (void) {
   if (current_object->interactive)
     {
       check_legal_string (SVALUE_STRPTR(sp));

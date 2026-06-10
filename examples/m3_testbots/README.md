@@ -72,7 +72,7 @@ Platform: posix
 Input commands:
   1. say Hello from Python test!
   2. help
-  3. shutdown
+  3. shutdown now
 
 Driver started. Sending commands...
 ------------------------------------------------------------

@@ -125,7 +125,10 @@ static void receive_snoop (const char *buf, object_t * snooper) {
 
   /* command giver no longer set to snooper */
   copy_and_push_string (buf);
-  APPLY_CALL (APPLY_RECEIVE_SNOOP, snooper, 1, ORIGIN_DRIVER);
+  /* Use SAFE_CALL: if receive_snoop() in snooper fails, ignore the error
+   * and continue. Snoop delivery failure should not crash the driver or
+   * prevent the message from reaching the original recipient. */
+  APPLY_SAFE_CALL (APPLY_RECEIVE_SNOOP, snooper, 1, ORIGIN_DRIVER);
 }
 
 /**
@@ -330,8 +333,8 @@ void add_message (object_t * who, const char *data) {
   if (!who || (who->flags & O_DESTRUCTED) || !who->interactive ||
       (who->interactive->iflags & (NET_DEAD | CLOSING)))
     {
-      if (who == master_ob || who == simul_efun_ob)
-        debug_message ("%s", data);
+      if (who && (who == master_ob || who == simul_efun_ob))
+        opt_warn (2, "*%s", data);
       return;
     }
 
@@ -376,7 +379,7 @@ void add_message (object_t * who, const char *data) {
       ip->message_length++;
     }
 
-  /* snoop handling. */
+  /* snoop handling: use receive_snoop which now uses APPLY_SAFE_CALL */
   if (ip->snoop_by)
     receive_snoop (data, ip->snoop_by->ob);
 
@@ -485,12 +488,12 @@ void add_vmessage (object_t * who, char *format, ...) {
 /*
  * Flush outgoing message buffer of current interactive object.
  */
-int flush_message (interactive_t * ip) {
+bool flush_message (interactive_t * ip) {
   int length, num_bytes;
 
   /* if ip is not valid, do nothing. */
   if (!ip || (ip->iflags & (CLOSING | NET_DEAD)))
-    return 0;
+    return false;
 
   /*
    * write ip->message_buf[] to socket.
@@ -521,13 +524,13 @@ int flush_message (interactive_t * ip) {
                 {
                   async_runtime_modify (g_runtime, ip->fd, EVENT_READ | EVENT_WRITE, ip);
                 }
-              return 1;
+              return true;
             }
 
           if (SOCKET_ERRNO != EPIPE)
             debug_error ("send() failed: %d", SOCKET_ERRNO);
           ip->iflags |= NET_DEAD;
-          return 0;
+          return false;
         }
       ip->message_consumer = (ip->message_consumer + num_bytes) % MESSAGE_BUF_SIZE;
       ip->message_length -= num_bytes;
@@ -542,7 +545,7 @@ int flush_message (interactive_t * ip) {
       async_runtime_modify (g_runtime, ip->fd, EVENT_READ, ip);
     }
   
-  return 1;
+  return true;
 }				/* flush_message() */
 
 
@@ -1041,18 +1044,29 @@ static void add_console_line (interactive_t *ip, const char *line_buffer, size_t
   if (len <= 0 || ip->text_end + len >= MAX_TEXT)
     return;
 
-  /* Convert newlines to null terminators for command parsing */
+  /* Convert newlines to null terminators for command parsing (line mode only)
+   * In SINGLE_CHAR mode, pass characters through as-is; no null separators needed */
   const char* from = line_buffer;
   char* to = ip->text + ip->text_end;
   int bytes = len;
   
-  while (bytes-- > 0)
+  if (ip->iflags & SINGLE_CHAR)
     {
-      if (*from == '\n' || *from == '\r')
-        *to++ = '\0';
-      else
-        *to++ = *from;
-      from++;
+      /* SINGLE_CHAR mode: pass bytes through as-is (no newline conversion) */
+      memcpy(to, from, bytes);
+      to += bytes;
+    }
+  else
+    {
+      /* Line mode: convert newlines to null terminators */
+      while (bytes-- > 0)
+        {
+          if (*from == '\n' || *from == '\r')
+            *to++ = '\0';
+          else
+            *to++ = *from;
+          from++;
+        }
     }
   
   ip->text_end = to - ip->text;
@@ -2222,10 +2236,10 @@ int replace_interactive (object_t * ob, object_t * obfrom) {
     }
   ob->interactive = obfrom->interactive;
   /*
-   * assume the existance of write_prompt and process_input in user.c until
+    * assume the existance of write_prompt, input_prompt and process_input in user.c until
    * proven wrong (after trying to call them).
    */
-  ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_PROCESS_INPUT);
+    ob->interactive->iflags |= (HAS_WRITE_PROMPT | HAS_INPUT_PROMPT | HAS_PROCESS_INPUT);
   obfrom->interactive = 0;
   ob->interactive->ob = ob;
   ob->flags |= O_ONCE_INTERACTIVE;

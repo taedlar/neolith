@@ -37,6 +37,7 @@ enum msgtypes {
 #define USING_TELNET        0x0400
 #define	USING_LINEMODE      0x0800
 #define HAS_CMD_TURN        0x1000	/* user has command processing turn this cycle */
+#define HAS_INPUT_PROMPT    0x2000	/* interactive object has input_prompt()   */
 
 typedef struct interactive_s interactive_t;
 
@@ -119,7 +120,7 @@ void set_telnet_single_char (interactive_t *, bool single);
 
 int replace_interactive (object_t *, object_t *);
 void remove_interactive (object_t *ob, bool dested);
-int flush_message (interactive_t *);
+bool flush_message (interactive_t *);
 int query_addr_number (const char *, const char *);
 char *query_ip_name (object_t *);
 char *query_ip_number (object_t *);

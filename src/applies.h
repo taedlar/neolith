@@ -29,6 +29,7 @@ extern "C" {
 #define APPLY_FLAG                          "flag"
 #define APPLY_MOVE                          "move_or_destruct"
 #define APPLY_NET_DEAD                      "net_dead"
+#define APPLY_INPUT_PROMPT                  "input_prompt"
 #define APPLY_OBJECT_NAME                   "object_name"
 #define APPLY_PARSER_ERROR_MESSAGE	        "parser_error_message"
 #define APPLY_PRELOAD                       "preload"
