@@ -8,17 +8,12 @@ If GoogleTest is not found in the build environment, the unit-testing programs a
 
 ### Linux
 
-Install GoogleTest from the system package manager:
-
-~~~sh
-sudo apt install libgtest-dev
-~~~
-
-Alternatively, fetch it from source at configure time (see below).
+For CMake-based projects, prefer `FetchContent` over system packages.
+Neolith uses a local fetched GoogleTest source by default, controlled by `FETCH_GOOGLETEST_FROM_SOURCE`.
 
 ### Windows
 
-GoogleTest is not available as a system package on Windows. Pass `FETCH_GOOGLETEST_FROM_SOURCE` to the configure step with the desired Git tag:
+Use `FETCH_GOOGLETEST_FROM_SOURCE` to pin the GoogleTest tag when configuring:
 
 ~~~sh
 cmake --preset vs16-x64   -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
@@ -29,10 +24,16 @@ CMake will clone and build GoogleTest automatically before compiling the tests.
 
 ### Fetching from source (any platform)
 
-`FETCH_GOOGLETEST_FROM_SOURCE` can also be used on Linux to pin a specific version or to build in environments where the system package is unavailable:
+`FETCH_GOOGLETEST_FROM_SOURCE` can be used on any platform to pin a specific version:
 
 ~~~sh
 cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+~~~
+
+To skip building unit test targets entirely:
+
+~~~sh
+cmake --preset <configure-preset> -DBUILD_TESTING=OFF
 ~~~
 
 ## Running Tests
