@@ -12,7 +12,11 @@ extern "C" {
  
 #define CSI     "\x1b["         /* Control Sequence Introducer */
 
-#define HOME    CSI "H"         /* (CUP n=1; m=1) Move cursor left-top of scren */
+#define CUU     CSI "A"         /* (CUU n) Move cursor up n lines */
+#define CUD     CSI "B"         /* (CUD n) Move cursor down n lines */
+#define CUF     CSI "C"         /* (CUF n) Move cursor forward n columns */
+#define CUB     CSI "D"         /* (CUB n) Move cursor backward n columns */
+#define HOME    CSI "H"         /* (CUP n=1; m=1) Move cursor left-top of screen */
 #define CLR     CSI "J"         /* (ED n=2) Clear from cursor to end of screen */
 #define CLREOL  CSI "K"         /* (EL n=0) Clear from cursor to end of line */
 

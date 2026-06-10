@@ -99,7 +99,7 @@ int cmd_help (string arg) {
   write("  say <message>  - Say something\n");
   write("  help           - Show this help\n");
   write("  quit           - Exit the MUD\n");
-  write("  shutdown       - Shutdown the driver\n");
+  write("  shutdown [now] - Shutdown the driver\n");
   write("  alias <n> <c>  - Set alias name <n> to command <c>\n");
   write("  unalias <n>    - Remove alias <n>\n");
   write("  aliases        - List all aliases\n");
@@ -166,9 +166,66 @@ int cmd_aliases (string arg) {
   return 1;
 }
 
+/* [NEOLITH-EXTENSION] */
+static void input_prompt (string f, mixed args) {
+#define CSI "\x1b["
+#define CUU CSI "A" /* move cursor up one line */
+#define CUD CSI "B" /* move cursor down one line */
+#define CLR CSI "J" /* clear from cursor to end of screen */
+
+  if (f == "confirm_shutdown") {
+    if (mapp(args)) {
+      int pos = 0;
+      write("\n"); // placeholder for prompt
+      foreach (string opt in args["options"]) {
+        if (pos == args["cursor"])
+          write("-> ");
+        else
+          write("   ");
+        write ("  [" + opt + "]\n");
+        pos++;
+      }
+      write (repeat_string (CUU, args["options"].len() + 1) + "\r" + args["prompt"]);
+    }
+  }
+}
+
+static void confirm_shutdown (string answer, mixed args) {
+  int cur = args["cursor"];
+  if (answer == " " || answer == "\n")
+    answer = args["options"][cur];
+  switch (answer)
+    {
+    case "Y":
+    case "y":
+      write(CLR "\nShutting down...\n");
+      shutdown();
+      return;
+    case "N":
+    case "n":
+      write(CLR "\nShutdown cancelled.\n");
+      return;
+    case CUU:
+      args["cursor"] = (cur - 1) % args["options"].len();
+      break;
+    case CUD:
+      args["cursor"] = (cur + 1) % args["options"].len();
+      break;
+    }
+  get_char ("confirm_shutdown", args);
+}
+
 int cmd_shutdown (string arg) {
-  write("Shutting down...\n");
-  shutdown();
+  if (arg != "now")
+    {
+      get_char("confirm_shutdown", ([
+        "prompt": "Are you sure to shutdown the MUD? ",
+        "options": ({ "Y", "N" }),
+        "cursor": 0
+      ]));
+      return 1;
+    }
+  confirm_shutdown("Y", 0);
   return 1;
 }
 

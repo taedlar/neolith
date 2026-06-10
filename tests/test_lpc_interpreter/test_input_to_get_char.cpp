@@ -428,3 +428,60 @@ TEST_F(InputToGetCharTest, ArgumentOrderVerification) {
     }
 }
 
+TEST_F(InputToGetCharTest, GetCharEscAloneDeferredUntilNextByte) {
+    // ESC-alone is intentionally incomplete in SINGLE_CHAR mode.
+    lpc::svalue fun = make_function_name_svalue("callback");
+
+    int result = get_char(fun.raw(), 0, 0, nullptr);
+    ASSERT_EQ(result, 1);
+    ASSERT_TRUE(mock_ip->iflags & SINGLE_CHAR);
+
+    mock_ip->text[0] = '\x1b';
+    mock_ip->text[1] = '\0';
+    mock_ip->text_start = 0;
+    mock_ip->text_end = 1;
+
+    // Incomplete ESC sequence should not be considered a command yet.
+    EXPECT_EQ(cmd_in_buf(mock_ip), 0);
+
+    // Add next byte to complete a normal non-arrow token (ESC + 'x').
+    mock_ip->text[1] = 'x';
+    mock_ip->text[2] = '\0';
+    mock_ip->text_end = 2;
+
+    ASSERT_EQ(cmd_in_buf(mock_ip), 1);
+
+    // Driver now delivers one logical token (the two-byte sequence).
+    char token[] = "\x1bx";
+    simulate_input(token);
+    EXPECT_EQ(get_string_var("last_input"), "\x1bx");
+}
+
+TEST_F(InputToGetCharTest, GetCharAnsiArrowDeliveredAsSingleLogicalToken) {
+    // ANSI arrow key should be delivered atomically in SINGLE_CHAR mode.
+    lpc::svalue fun = make_function_name_svalue("callback");
+
+    int result = get_char(fun.raw(), 0, 0, nullptr);
+    ASSERT_EQ(result, 1);
+    ASSERT_TRUE(mock_ip->iflags & SINGLE_CHAR);
+
+    // Simulate fragmented arrival: ESC, then '[', then 'A'.
+    mock_ip->text[0] = '\x1b';
+    mock_ip->text_start = 0;
+    mock_ip->text_end = 1;
+    EXPECT_EQ(cmd_in_buf(mock_ip), 0);
+
+    mock_ip->text[1] = '[';
+    mock_ip->text_end = 2;
+    EXPECT_EQ(cmd_in_buf(mock_ip), 0);
+
+    mock_ip->text[2] = 'A';
+    mock_ip->text[3] = '\0';
+    mock_ip->text_end = 3;
+    ASSERT_EQ(cmd_in_buf(mock_ip), 1);
+
+    char token[] = "\x1b[A";
+    simulate_input(token);
+    EXPECT_EQ(get_string_var("last_input"), "\x1b[A");
+}
+

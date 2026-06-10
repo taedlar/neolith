@@ -5,7 +5,9 @@
 #include "std.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
+#include "lpc/include/function.h"
 #include "lpc/include/origin.h"
+#include "lpc/program.h"
 #include "comm.h"
 #include "command.h"
 #include "rc/rc.h"
@@ -48,6 +50,7 @@ static void next_cmd_in_buf (interactive_t *);
 static void print_prompt (interactive_t *);
 static int user_parser (const char * buff);
 static void set_last_verb_from_input (const char *input, char *verb_buf, size_t verb_buf_size);
+static size_t single_char_token_len (const interactive_t *ip);
 
 void set_prompt (const char *str) {
   if (command_giver && command_giver->interactive)
@@ -56,7 +59,7 @@ void set_prompt (const char *str) {
 
 
 /**
- *  @brief Print the prompt, but only if input_to is disabled.
+ *  @brief Print the prompt, and optionally let input_to customize it.
  */
 static void print_prompt (interactive_t * ip) {
   object_t *ob = ip->ob;
@@ -70,13 +73,44 @@ static void print_prompt (interactive_t * ip) {
       else if (ip->ed_buffer)
         tell_object (ip->ob, ip->prompt);
 #endif
-      else if (!APPLY_CALL (APPLY_WRITE_PROMPT, ip->ob, 0, ORIGIN_DRIVER))
+      else if (!APPLY_SAFE_CALL (APPLY_WRITE_PROMPT, ip->ob, 0, ORIGIN_DRIVER))
         {
           if (!IP_VALID (ip, ob))
             return;
           ip->iflags &= ~HAS_WRITE_PROMPT;
           tell_object (ip->ob, ip->prompt);
         }
+    }
+  else if (ip->iflags & HAS_INPUT_PROMPT)
+    {
+      svalue_t* ret;
+      sentence_t *sent = ip->input_to;
+      array_t *args = 0;
+      int num_arg = 1; /* always at least the callback identifier */
+      /* If the callback was specified as a function name string, pass the name;
+       * otherwise pass the funptr itself. */
+      if ((sent->function.f->hdr.type & FP_MASK) == FP_LOCAL)
+        copy_and_push_string (function_name (sent->function.f->hdr.owner->prog,
+                                             sent->function.f->f.local.index));
+      else
+        push_refed_funp (sent->function.f);
+      if (sent->args)
+        {
+          args = sent->args;
+          args->ref++;
+          num_arg += args->size;
+          for (int i = 0; i < args->size; i++)
+            {
+              push_svalue (&args->item[i]);
+            }
+        }
+      ret = APPLY_SAFE_CALL (APPLY_INPUT_PROMPT, ip->ob, num_arg, ORIGIN_DRIVER);
+      if (args)
+        free_array (args);
+      if (!IP_VALID (ip, ob))
+        return;
+      if (!ret)
+        ip->iflags &= ~HAS_INPUT_PROMPT;
     }
 
 #if 0
@@ -482,12 +516,37 @@ static char* get_user_command () {
   /*
    * telnet option parsing and negotiation.
    */
-  telnet_neg (buf, user_command);
+  if (ip->iflags & SINGLE_CHAR)
+    {
+      size_t token_len = single_char_token_len (ip);
 
-  /*
-   * move input buffer pointers to next command.
-   */
-  next_cmd_in_buf (ip);
+      if (!token_len || token_len >= MAX_TEXT)
+        {
+          if (!cmd_in_buf (ip))
+            ip->iflags &= ~CMD_IN_BUF;
+          return 0;
+        }
+
+      memcpy (buf, ip->text + ip->text_start, token_len);
+      buf[token_len] = '\0';
+
+      ip->text_start += token_len;
+      if (ip->text_start >= ip->text_end)
+        {
+          ip->text_start = ip->text_end = 0;
+          ip->text[0] = '\0';
+        }
+    }
+  else
+    {
+      telnet_neg (buf, user_command);
+
+      /*
+       * move input buffer pointers to next command.
+       */
+      next_cmd_in_buf (ip);
+    }
+
   if (!cmd_in_buf (ip))
     ip->iflags &= ~CMD_IN_BUF;
 
@@ -546,7 +605,8 @@ static char* first_cmd_in_buf (interactive_t * ip) {
   /* If we got here, must have something in the array */
   if (ip->iflags & SINGLE_CHAR)
     {
-      /* We need to return true here... */
+      if (!single_char_token_len (ip))
+        return 0;
       return (ip->text + ip->text_start);
     }
   /*
@@ -606,7 +666,7 @@ int cmd_in_buf (interactive_t * ip) {
 
   /* expecting single character input? */
   if (ip->iflags & SINGLE_CHAR)
-    return 1;
+    return (single_char_token_len (ip) > 0);
 
   /* find end of command */
   while ((p < (ip->text + ip->text_end)) && *p)
@@ -673,6 +733,68 @@ static void set_last_verb_from_input (const char *input, char *verb_buf, size_t 
   memcpy (verb_buf, start, len);
   verb_buf[len] = '\0';
   last_verb = verb_buf;
+}
+
+/**
+ * @brief Return the length of the next logical SINGLE_CHAR token.
+ *
+ * For normal input this is 1 byte. For ANSI cursor keys, this recognizes
+ * common escape sequences as a single logical token:
+ *   ESC [ A/B/C/D
+ *   ESC O A/B/C/D
+ *   ESC [ <digits and ';'> A/B/C/D
+ *
+ * By policy, a lone ESC byte is treated as incomplete and is not delivered.
+ * This intentionally trades ESC-alone behavior for robust arrow-key support
+ * under fragmented reads.
+ *
+ * @returns Token length in bytes, or 0 when more bytes are needed.
+ */
+static size_t single_char_token_len (const interactive_t *ip) {
+  const unsigned char *p;
+  size_t available;
+  size_t i;
+
+  if (!ip || ip->text_start >= ip->text_end)
+    return 0;
+
+  p = (const unsigned char *)(ip->text + ip->text_start);
+  available = ip->text_end - ip->text_start;
+
+  if (p[0] != 0x1b)
+    return 1;
+
+  /* ESC-alone limitation: require more bytes to determine intent. */
+  if (available == 1)
+    return 0;
+
+  if (p[1] == '[')
+    {
+      i = 2;
+      while (i < available && (isdigit (p[i]) || p[i] == ';'))
+        i++;
+
+      if (i >= available)
+        return 0;
+
+      if (p[i] >= 'A' && p[i] <= 'D')
+        return i + 1;
+
+      return 1;
+    }
+
+  if (p[1] == 'O')
+    {
+      if (available < 3)
+        return 0;
+
+      if (p[2] >= 'A' && p[2] <= 'D')
+        return 3;
+
+      return 1;
+    }
+
+  return 1;
 }
 
 #ifdef F_QUERY_VERB

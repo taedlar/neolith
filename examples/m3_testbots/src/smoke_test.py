@@ -192,8 +192,8 @@ def test_console_mode():
         print("✓ Alias navigation and room look checks verified")
         
         # Test 4: Send "shutdown" command
-        print("\nTest 4: Sending 'shutdown'")
-        child.sendline("shutdown")
+        print("\nTest 4: Sending 'shutdown now'")
+        child.sendline("shutdown now")
         child.expect('Shutting down...', timeout=5)
         print("✓ Shutdown command verified")
         
