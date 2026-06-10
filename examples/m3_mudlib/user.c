@@ -176,7 +176,7 @@ static void input_prompt (string f, mixed args) {
   if (f == "confirm_shutdown") {
     if (mapp(args)) {
       int pos = 0;
-      write("\n"); // placeholder for prompt
+      write("\r" CLR "\n"); // placeholder for prompt
       foreach (string opt in args["options"]) {
         if (pos == args["cursor"])
           write("-> ");
@@ -212,14 +212,14 @@ static void confirm_shutdown (string answer, mixed args) {
       args["cursor"] = (cur + 1) % args["options"].len();
       break;
     }
-  if (!get_char ("confirm_shutdown", 0, args))
+  if (!get_char ("confirm_shutdown", 1, args))
     confirm_shutdown("N", args);
 }
 
 int cmd_shutdown (string arg) {
   if (arg != "now")
     {
-      get_char("confirm_shutdown", 0, ([
+      get_char("confirm_shutdown", 1, ([
         "prompt": "Are you sure to shutdown the MUD? ",
         "options": ({ "Y", "N" }),
         "cursor": 0
