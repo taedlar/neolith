@@ -109,6 +109,10 @@ endfunction()
 include(FetchContent)
 
 # [ GoogleTest ]
+#
+# According to GoogleTest's documentation, users should prefer FetchContent over FindGTest.cmake
+# for CMake-based projects.
+set(FETCH_GOOGLETEST_FROM_SOURCE "v1.17.0" CACHE STRING "Our bundled GoogleTest version to fetch")
 if (FETCH_GOOGLETEST_FROM_SOURCE)
     # set(gtest_force_shared_crt ON CACHE INTERNAL "Override Googletest options.")
     # Pitfall: BUILD_SHARED_LIBS is a global cache variable shared by all subprojects.

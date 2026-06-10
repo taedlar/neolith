@@ -38,8 +38,7 @@ jobs:
             - out/
 
     # Cache CMake FetchContent dependencies (source code and build files)
-    # 
-    - name: Cache build dependencies
+    - name: Cache pre-built FetchContent dependencies
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/cache@v5
       with:
@@ -49,19 +48,19 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-deps-
 
-    # Cache boost apt package archives (binary libraries) to speed up installation on subsequent runs
-    # Boost components are listed in CMakeLists.txt, so we can use that to determine the cache key
-    - name: Cache Boost apt package archives
+    # Cache apt package archives (binary libraries) to speed up installation on subsequent runs
+    # find_package() calls are listed in CMakeLists.txt, so we can use that to determine the cache key
+    - name: Cache binary package archives
       uses: actions/cache@v5
       with:
         path: |
           /var/cache/apt/archives
           /var/lib/apt/lists
-        key: ${{ runner.os }}-apt-boost-${{ hashFiles('CMakeLists.txt') }}
+        key: ${{ runner.os }}-apt-${{ hashFiles('CMakeLists.txt') }}
         restore-keys: |
-          ${{ runner.os }}-apt-boost-
+          ${{ runner.os }}-apt-
 
-    - name: Install Boost on Ubuntu
+    - name: Install binary dependencies on Ubuntu
       shell: bash
       run: |
         set -euo pipefail
@@ -73,6 +72,7 @@ jobs:
         else
           sudo apt-get install -y --no-install-recommends libboost-all-dev
         fi
+        sudo apt-get install -y --no-install-recommends libc-ares-dev libcurl4-openssl-dev
 
     # In github-hosted runner 'ubuntu-latest', we expect these packages are already installed:
     # - bison
@@ -84,9 +84,7 @@ jobs:
     - name: Run manual build steps
       shell: bash
       run: |
-        cmake --preset linux \
-          -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0 \
-          -DFETCH_CARES_FROM_SOURCE=v1.34.6
+        cmake --preset linux
         cmake --preset linux -LA
         cmake --build --preset ci-linux --clean-first
 

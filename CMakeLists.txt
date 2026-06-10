@@ -8,6 +8,7 @@ project(neolith
 	LANGUAGES C CXX
 )
 
+include(CTest)
 include(cmake/options.cmake) # options (cached)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -106,9 +107,9 @@ find_package(CARES QUIET) # FindCARES.cmake, c-ares config, pkg-config, or libra
 if(TARGET c-ares::cares)
 	set(HAVE_CARES 1 CACHE BOOL "c-ares library is available")
 	if(DEFINED CARES_VERSION)
-		message(STATUS "Found c-ares: ${CARES_VERSION}")
+		message(STATUS "Found c-ares: ${CARES_INCLUDE_DIR} (found version ${CARES_VERSION})")
 	else()
-		message(STATUS "Found c-ares: ${CARES_LIBRARY}")
+		message(STATUS "Found c-ares: ${CARES_INCLUDE_DIR}")
 	endif()
 	add_compile_definitions(CARES_NO_DEPRECATED)
 endif()
@@ -152,15 +153,9 @@ if(PACKAGE_CURL)
 endif()
 
 # unit-tests
-include(CTest)
-set(NEOLITH_HAVE_GTEST_TARGET OFF)
-
-if(BUILD_TESTING)
-	find_package(GTest QUIET) # FindGTest.cmake or FetchContent-provided
+if(NEOLITH_BUILD_TESTS)
+	find_package(GTest QUIET) # Always do FetchContent_MakeAvailable() to pin the version of GTest we use.
 	if(TARGET GTest::gtest OR TARGET GTest::gtest_main)
-		set(NEOLITH_HAVE_GTEST_TARGET ON)
-	endif()
-	if (NEOLITH_HAVE_GTEST_TARGET)
 		set(HAVE_GTEST 1 CACHE BOOL "GoogleTest framework is available" FORCE)
 		message(STATUS "Found GoogleTest: ${GTest_INCLUDE_DIRS} (found version ${GTest_VERSION})")
 		if(GTest_INCLUDE_DIRS)
@@ -168,9 +163,11 @@ if(BUILD_TESTING)
 		endif()
 	else()
 		set(HAVE_GTEST 0 CACHE BOOL "GoogleTest framework is available" FORCE)
-		message(STATUS "GoogleTest not found: ***** Unit-tests will not be built.")
-		message(STATUS "Disable BUILD_TESTING or configure FETCH_GOOGLETEST_FROM_SOURCE to suppress this message.")
+		set(NEOLITH_BUILD_TESTS OFF CACHE BOOL "Build Neolith unit tests (requires BUILD_TESTING and GoogleTest)" FORCE)
+		message(STATUS "GoogleTest not found: disabling NEOLITH_BUILD_TESTS.")
 	endif()
+else()
+	set(HAVE_GTEST 0 CACHE BOOL "GoogleTest framework is available" FORCE)
 endif()
 
 # generate global header "config.h" for build configurations
@@ -194,7 +191,7 @@ add_subdirectory(lib/socket)
 add_subdirectory(lib/curl)
 add_subdirectory(src)
 
-if(BUILD_TESTING AND NEOLITH_HAVE_GTEST_TARGET)
+if(NEOLITH_BUILD_TESTS)
 	enable_testing()
 	include(GoogleTest)
 	add_subdirectory(tests/test_async_queue)

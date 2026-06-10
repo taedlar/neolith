@@ -35,13 +35,12 @@ GoogleTest is only required for unit tests. To skip test targets entirely, confi
 cmake --preset <configure-preset> -DBUILD_TESTING=OFF
 ~~~
 
-Linux package:
+For CMake-based projects, GoogleTest recommends using `FetchContent` instead of relying on system-installed `googletest` / `libgtest-dev`.
+Neolith follows that guidance: by default, configure uses a pinned FetchContent version and tests link against that local fetched copy.
 
-~~~sh
-sudo apt install libgtest-dev
-~~~
+Do not rely on `libgtest-dev` for this project; it is intentionally not the primary source in the default configure flow.
 
-You can also fetch GoogleTest from source with [FETCH_GOOGLETEST_FROM_SOURCE](#fetch_googletest_from_source).
+To pin or override the fetched tag, use [FETCH_GOOGLETEST_FROM_SOURCE](#fetch_googletest_from_source).
 
 ### OpenSSL
 
@@ -100,7 +99,8 @@ Resolution order still depends on `FETCHCONTENT_TRY_FIND_PACKAGE_MODE`.
 
 ### `FETCH_GOOGLETEST_FROM_SOURCE`
 
-If defined, this value is used as the Git tag for GoogleTest.
+This cache variable controls the Git tag used for the local FetchContent GoogleTest source.
+Default: `v1.17.0` (set in `cmake/setup.cmake`).
 
 ~~~sh
 # Windows

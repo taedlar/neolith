@@ -57,7 +57,7 @@ jobs:
       if: runner.os == 'Linux'
       shell: bash
       run: |
-        cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+        cmake --preset linux
         cmake --build --preset ci-linux
 
     # - name: Run manual build steps (Windows)
@@ -71,7 +71,7 @@ jobs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        cmake --preset macos -DCMAKE_OSX_ARCHITECTURES=arm64 -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
+        cmake --preset macos -DCMAKE_OSX_ARCHITECTURES=arm64
         cmake --build --preset ci-macos
 
     - name: Perform CodeQL Analysis
