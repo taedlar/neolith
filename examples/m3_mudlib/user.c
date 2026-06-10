@@ -205,10 +205,18 @@ static void confirm_shutdown (string answer, mixed args) {
     case "n":
       write(CLR "\nShutdown cancelled.\n");
       return;
+#ifdef __NO_ANSI__
     case " [A": /* up arrow, ESC is replaced as blank */
+#else
+    case "\x1b[A": /* up arrow */
+#endif
       args["cursor"] = (cur - 1 + args["options"].len()) % args["options"].len();
       break;
+#ifdef __NO_ANSI__
     case " [B": /* down arrow, ESC is replaced as blank */
+#else
+    case "\x1b[B": /* down arrow */
+#endif
       args["cursor"] = (cur + 1) % args["options"].len();
       break;
     }
