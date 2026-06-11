@@ -343,6 +343,9 @@ void init_debug_log() {
 
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
   /* log severity: 0 = most verbose, 4 = least verbose */
+#ifndef _WIN32
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
   debug_set_log_severity (
     max (
       0,
@@ -350,6 +353,9 @@ void init_debug_log() {
     )
     // MAIN_OPTION(trace_flags) ? DEBUG_SEVERITY_TRACE : DEBUG_SEVERITY_WARN
   ); /* default to warnings and above unless trace flags are set */
+#ifndef _WIN32
+#undef max
+#endif
 }
 
 /**
