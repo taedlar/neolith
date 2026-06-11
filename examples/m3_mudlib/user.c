@@ -235,7 +235,7 @@ int cmd_shutdown (string arg) {
       ]));
       return 1;
     }
-  confirm_shutdown("Y", ([]));
+  confirm_shutdown("Y", ([ "options": ({ "Y", "N" }), "cursor": 0 ]));
   return 1;
 }
 

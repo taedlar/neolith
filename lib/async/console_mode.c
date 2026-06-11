@@ -75,7 +75,7 @@ static int set_console_input_mode(console_worker_context_t *ctx,
 int set_console_input_line_mode(console_worker_context_t *ctx, int echo) {
   DWORD set_bits = ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT
                    | (echo ? ENABLE_ECHO_INPUT : 0);
-  DWORD clear_bits = echo ? 0 : ENABLE_ECHO_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT;
+  DWORD clear_bits = (echo ? 0 : ENABLE_ECHO_INPUT) | ENABLE_VIRTUAL_TERMINAL_INPUT;
   return set_console_input_mode(ctx, set_bits, clear_bits);
 }
 
