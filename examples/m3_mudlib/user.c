@@ -231,11 +231,11 @@ int cmd_shutdown (string arg) {
       get_char("confirm_shutdown", 1, ([
         "prompt": "Are you sure to shutdown the MUD? ",
         "options": ({ "Y", "N" }),
-        "cursor": 0
+        "cursor": 1
       ]));
       return 1;
     }
-  confirm_shutdown("Y", 0);
+  confirm_shutdown("Y", ([ "options": ({ "Y", "N" }), "cursor": 0 ]));
   return 1;
 }
 

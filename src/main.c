@@ -309,8 +309,8 @@ parse_command_line (int argc, char *argv[])
 #endif /* ! HAVE_ARGP_H */
 }
 
-void init_debug_log()
-{
+void init_debug_log() {
+
   if (CONFIG_STR (__DEBUG_LOG_FILE__))
     {
       if (CONFIG_STR (__LOG_DIR__))
@@ -342,9 +342,20 @@ void init_debug_log()
     }
 
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
+  /* log severity: 0 = most verbose, 4 = least verbose */
+#ifndef _WIN32
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
   debug_set_log_severity (
-    MAIN_OPTION(trace_flags) ? DEBUG_SEVERITY_TRACE : DEBUG_SEVERITY_WARN
+    max (
+      0,
+      MAIN_OPTION(trace_flags) ? DEBUG_SEVERITY_TRACE : (DEBUG_SEVERITY_ERROR - MAIN_OPTION(debug_level))
+    )
+    // MAIN_OPTION(trace_flags) ? DEBUG_SEVERITY_TRACE : DEBUG_SEVERITY_WARN
   ); /* default to warnings and above unless trace flags are set */
+#ifndef _WIN32
+#undef max
+#endif
 }
 
 /**
@@ -352,7 +363,11 @@ void init_debug_log()
  *        for debug logging system.
  */
 static void print_startup_info() {
-  LOG_NOTICE("{}\t===== %s version %s starting up =====", PACKAGE, VERSION);
+  if (0 > debug_message ("{}\t===== %s-%s starting up =====", PACKAGE, VERSION))
+    {
+      fprintf (stderr, "Failed to write to debug log.\n");
+      exit (EXIT_FAILURE);
+    }
 #ifdef HAVE_SYS_RESOURCE_H
   struct rlimit rl;
   if (getrlimit (RLIMIT_NOFILE, &rl) == 0)

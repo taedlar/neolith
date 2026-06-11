@@ -204,9 +204,9 @@ void init_console_user (bool reconnect) {
     int action = isatty(STDIN_FILENO) ? TCSAFLUSH : TCSANOW;
     tcsetattr (STDIN_FILENO, action, &tio); /* TTY: discard pending input, Pipe: preserve data */
   }
-#elif defined(WINSOCK)
+#elif _WIN32
   {
-    set_console_input_line_mode(1);
+    set_console_input_line_mode(g_console_worker, 1);
     enable_console_output_ansi();
   }
 #endif

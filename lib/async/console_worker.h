@@ -41,7 +41,9 @@ typedef struct console_worker_context_s {
     uintptr_t completion_key;      /**< Completion key for runtime */
     platform_mutex_t state_mutex;  /**< Guards worker state flags */
     bool eof_detected;             /**< Set true when stdin EOF is observed */
-#ifndef _WIN32
+#ifdef _WIN32
+    DWORD desired_console_mode; /**< Desired stdin console mode (Windows console only) */
+#else
     int stop_pipe_fds[2];          /**< Self-pipe for POSIX stop signaling: [0]=read, [1]=write */
 #endif
 } console_worker_context_t;
