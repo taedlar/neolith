@@ -54,6 +54,9 @@ static int set_console_input_mode(console_worker_context_t *ctx, DWORD mode) {
       platform_mutex_unlock(&ctx->state_mutex);
     }
 
+  if (!get_console_input_mode(&handle, &current_mode))
+    return 0;
+
   if ((mode ^ current_mode) & ENABLE_LINE_INPUT)
     {
       /* Switching between line mode and single-char mode requires canceling any pending ReadConsole */
@@ -63,10 +66,7 @@ static int set_console_input_mode(console_worker_context_t *ctx, DWORD mode) {
 #endif
     }
 
-  if (!get_console_input_mode(&handle, &current_mode))
-    return 0;
-
-  if (!SetConsoleMode(handle, mode))
+  if (!SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), mode))
     {
       debug_warn("SetConsoleMode failed for console stdin: %lu\n", GetLastError());
       return 0;
