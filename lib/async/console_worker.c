@@ -18,6 +18,22 @@
 
 #ifdef _WIN32
 #include <fcntl.h>
+
+static int restore_desired_console_input_mode(console_worker_context_t* ctx) {
+    DWORD mode;
+
+    if (!ctx)
+        return 0;
+
+    platform_mutex_lock(&ctx->state_mutex);
+    mode = (DWORD)ctx->desired_console_mode;
+    platform_mutex_unlock(&ctx->state_mutex);
+
+    if (mode & ENABLE_LINE_INPUT)
+        return set_console_input_line_mode(ctx, (mode & ENABLE_ECHO_INPUT) != 0);
+
+    return set_console_input_single_char(ctx, 1);
+}
 #else
 #include <unistd.h>
 #include <sys/select.h>
@@ -119,7 +135,7 @@ static void* console_worker_proc_win32(void* ctx) {
     SetConsoleCP(CP_UTF8);
 
     /* If standard input is a console, enable cooked line input with echo. */
-    set_console_input_line_mode(1);
+    restore_desired_console_input_mode(cctx);
 
     char line_buffer[CONSOLE_MAX_LINE];
     DWORD chars_read = 0;
@@ -148,8 +164,13 @@ static void* console_worker_proc_win32(void* ctx) {
             if (!result) {
                 /* the console worker can be interrupted by CancelIoEx during shutdown */
                 DWORD err = GetLastError();
-                if (err != ERROR_OPERATION_ABORTED)
-                    debug_error ("Read failed: %lu\n", err);
+                // if (err != ERROR_OPERATION_ABORTED)
+                //     debug_error ("Read failed: %lu\n", err);
+                if (err == ERROR_OPERATION_ABORTED) {
+                    restore_desired_console_input_mode(cctx);
+                    continue; /* Interrupted by shutdown, or switching input mode */
+                }
+                debug_error ("Read failed: %lu\n", err);
                 break;
             }
             
@@ -285,6 +306,13 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
     ctx->completion_key = completion_key;
     ctx->console_type = console_detect_type();
     ctx->eof_detected = false;
+#ifdef _WIN32
+    ctx->desired_console_mode = ENABLE_EXTENDED_FLAGS
+                                | ENABLE_QUICK_EDIT_MODE
+                                | ENABLE_PROCESSED_INPUT
+                                | ENABLE_LINE_INPUT
+                                | ENABLE_ECHO_INPUT;
+#endif
 
     if (!platform_mutex_init(&ctx->state_mutex)) {
         free(ctx);
@@ -333,13 +361,14 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
  * Shutdown console worker
  */
 bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
+    if (ctx && ctx->worker)
+        async_worker_signal_stop(ctx->worker); /* signal the stop event first */
 #if _WIN32_WINNT > 0x0602
     /* cancel any pending ReadConsole() in cooked mode */
     CancelIoEx (GetStdHandle(STD_INPUT_HANDLE), NULL);
 #endif
-    if (!ctx || !ctx->worker) {
+    if (!ctx || !ctx->worker)
         return true; /* No worker to shutdown */
-    }
 
 #ifndef _WIN32
     /* Wake the select() in the POSIX worker by writing to the stop pipe */
@@ -352,7 +381,6 @@ bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
     }
 #endif
 
-    async_worker_signal_stop(ctx->worker);
     return async_worker_join(ctx->worker, timeout_ms);
 }
 

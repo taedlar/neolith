@@ -8,6 +8,7 @@
 #define NO_STEM
 #include "src/std.h"
 #include "console_mode.h"
+#include "console_worker.h"
 
 #include "port/debug.h"
 
@@ -24,9 +25,43 @@ static int get_console_input_mode(HANDLE *handle, DWORD *mode) {
   return 1;
 }
 
-static int set_console_input_mode(DWORD mode) {
+static DWORD console_input_mode_line(int echo) {
+  DWORD mode = ENABLE_EXTENDED_FLAGS
+               | ENABLE_QUICK_EDIT_MODE
+               | ENABLE_PROCESSED_INPUT
+               | ENABLE_LINE_INPUT;
+
+  if (echo)
+    mode |= ENABLE_ECHO_INPUT;
+
+  return mode;
+}
+
+static DWORD console_input_mode_single_char(void) {
+  return ENABLE_EXTENDED_FLAGS
+         | ENABLE_QUICK_EDIT_MODE
+         | ENABLE_PROCESSED_INPUT;
+}
+
+static int set_console_input_mode(console_worker_context_t *ctx, DWORD mode) {
   HANDLE handle;
   DWORD current_mode;
+
+  if (ctx)
+    {
+      platform_mutex_lock(&ctx->state_mutex);
+      ctx->desired_console_mode = mode;
+      platform_mutex_unlock(&ctx->state_mutex);
+    }
+
+  if ((mode ^ current_mode) & ENABLE_LINE_INPUT)
+    {
+      /* Switching between line mode and single-char mode requires canceling any pending ReadConsole */
+      debug_message("Switching console input mode, canceling pending input...\n");
+#if _WIN32_WINNT > 0x0602
+      CancelIoEx(handle, NULL);
+#endif
+    }
 
   if (!get_console_input_mode(&handle, &current_mode))
     return 0;
@@ -40,19 +75,18 @@ static int set_console_input_mode(DWORD mode) {
   return 1;
 }
 
-int set_console_input_line_mode(int echo) {
-  DWORD mode = ENABLE_EXTENDED_FLAGS
-               | ENABLE_QUICK_EDIT_MODE
-               | ENABLE_PROCESSED_INPUT
-               | ENABLE_LINE_INPUT;
-
-  if (echo)
-    mode |= ENABLE_ECHO_INPUT;
-
-  return set_console_input_mode(mode);
+/**
+ * @brief Set the console input mode to the specified mode, preserving the original mode in the process.
+ * FIXME: When switching from line mode (cooked mode) to single-character mode, we must *cancel* the
+ * console line editing and discard any pending input. There is currently no official way to do this:
+ * @see https://github.com/microsoft/terminal/issues/12143
+ * @param mode The desired console input mode flags.
+ */
+int set_console_input_line_mode(console_worker_context_t *ctx, int echo) {
+  return set_console_input_mode(ctx, console_input_mode_line(echo));
 }
 
-int set_console_input_echo(int echo) {
+int set_console_input_echo(console_worker_context_t *ctx, int echo) {
   HANDLE handle;
   DWORD mode;
 
@@ -64,22 +98,14 @@ int set_console_input_echo(int echo) {
   else
     mode &= ~ENABLE_ECHO_INPUT;
 
-  if (!SetConsoleMode(handle, mode))
-    {
-      debug_warn("SetConsoleMode failed for console stdin echo: %lu\n", GetLastError());
-      return 0;
-    }
-
-  return 1;
+  return set_console_input_mode(ctx, mode);
 }
 
-int set_console_input_single_char(int single) {
+int set_console_input_single_char(console_worker_context_t *ctx, int single) {
   if (!single)
-    return set_console_input_line_mode(1);
+    return set_console_input_line_mode(ctx, 1);
 
-  return set_console_input_mode(ENABLE_EXTENDED_FLAGS
-                                | ENABLE_QUICK_EDIT_MODE
-                                | ENABLE_PROCESSED_INPUT);
+  return set_console_input_mode(ctx, console_input_mode_single_char());
 }
 
 int enable_console_output_ansi(void) {
@@ -103,18 +129,21 @@ int enable_console_output_ansi(void) {
 
   return 1;
 }
-#else
-int set_console_input_line_mode(int echo) {
+#else /* Non-Windows (POSIX): console is a plain file, no input mode manipulation needed */
+int set_console_input_line_mode(console_worker_context_t *ctx, int echo) {
+  (void)ctx;
   (void)echo;
   return 0;
 }
 
-int set_console_input_echo(int echo) {
+int set_console_input_echo(console_worker_context_t *ctx, int echo) {
+  (void)ctx;
   (void)echo;
   return 0;
 }
 
-int set_console_input_single_char(int single) {
+int set_console_input_single_char(console_worker_context_t *ctx, int single) {
+  (void)ctx;
   (void)single;
   return 0;
 }

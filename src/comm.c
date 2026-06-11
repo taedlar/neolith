@@ -950,7 +950,7 @@ void set_console_echo (bool echo) {
   /* Only real Windows consoles support ENABLE_ECHO_INPUT.
    * Pipes/files are handled by the console worker and should be left unchanged.
    */
-  set_console_input_echo (echo);
+  set_console_input_echo (g_console_worker, echo);
 #endif
 }
 
@@ -986,7 +986,7 @@ void set_telnet_single_char (interactive_t * ip, bool single) {
         tio.c_lflag |= ICANON|ECHO; /* enable canonical mode and echo: use line editing */
       safe_tcsetattr (ip->fd, &tio); /* TTY: discard pending input, Pipe: preserve data */
 #elif defined(_WIN32)
-      set_console_input_single_char (single);
+      set_console_input_single_char (g_console_worker, single);
 #endif
       return;
     }

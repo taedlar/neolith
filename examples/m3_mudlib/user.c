@@ -235,7 +235,7 @@ int cmd_shutdown (string arg) {
       ]));
       return 1;
     }
-  confirm_shutdown("Y", 0);
+  confirm_shutdown("Y", ([]));
   return 1;
 }
 

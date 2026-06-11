@@ -68,9 +68,9 @@ POSIX builds with termios use termios for echo and single-char mode.
 
 Windows builds use shared helpers in [lib/async/console_mode.h](../../lib/async/console_mode.h):
 
-- `set_console_input_line_mode(echo)`
-- `set_console_input_echo(echo)`
-- `set_console_input_single_char(single)`
+- `set_console_input_line_mode(context, echo)`
+- `set_console_input_echo(context, echo)`
+- `set_console_input_single_char(context, single)`
 - `enable_console_output_ansi()`
 
 These helpers are used by:
