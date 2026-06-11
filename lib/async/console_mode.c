@@ -25,50 +25,44 @@ static int get_console_input_mode(HANDLE *handle, DWORD *mode) {
   return 1;
 }
 
-static DWORD console_input_mode_line(int echo) {
-  DWORD mode = ENABLE_EXTENDED_FLAGS
-               | ENABLE_QUICK_EDIT_MODE
-               | ENABLE_PROCESSED_INPUT
-               | ENABLE_LINE_INPUT;
-
-  if (echo)
-    mode |= ENABLE_ECHO_INPUT;
-
-  return mode;
-}
-
-static DWORD console_input_mode_single_char(void) {
-  return ENABLE_EXTENDED_FLAGS
-         | ENABLE_QUICK_EDIT_MODE
-         | ENABLE_PROCESSED_INPUT;
-}
-
-static int set_console_input_mode(console_worker_context_t *ctx, DWORD mode) {
+/**
+ * @brief Apply a bit-delta to the current console input mode.
+ *
+ * Reads the current mode, sets @p set_bits and clears @p clear_bits, then
+ * writes the result back.  Only the bits that actually need to change are
+ * touched, so unrelated flags set by the terminal (e.g. ENABLE_QUICK_EDIT_MODE
+ * under Windows Terminal / ConPTY) are preserved, avoiding ERROR_INVALID_PARAMETER.
+ */
+static int set_console_input_mode(console_worker_context_t *ctx,
+                                  DWORD set_bits, DWORD clear_bits) {
   HANDLE handle;
   DWORD current_mode;
-
-  if (ctx)
-    {
-      platform_mutex_lock(&ctx->state_mutex);
-      ctx->desired_console_mode = mode;
-      platform_mutex_unlock(&ctx->state_mutex);
-    }
+  DWORD new_mode;
 
   if (!get_console_input_mode(&handle, &current_mode))
     return 0;
 
-  if ((mode ^ current_mode) & ENABLE_LINE_INPUT)
+  new_mode = (current_mode | set_bits) & ~clear_bits;
+
+  if (ctx)
+    {
+      platform_mutex_lock(&ctx->state_mutex);
+      ctx->desired_console_mode = new_mode;
+      platform_mutex_unlock(&ctx->state_mutex);
+    }
+
+  if ((new_mode ^ current_mode) & ENABLE_LINE_INPUT)
     {
       /* Switching between line mode and single-char mode requires canceling any pending ReadConsole */
-      debug_message("Switching console input mode, canceling pending input...\n");
+      LOG_TRACE ("Switching console input mode, canceling pending input...\n");
 #if _WIN32_WINNT > 0x0602
       CancelIoEx(handle, NULL);
 #endif
     }
 
-  if (!SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), mode))
+  if (!SetConsoleMode(handle, new_mode))
     {
-      debug_warn("SetConsoleMode failed for console stdin: %lu\n", GetLastError());
+      LOG_WARN("SetConsoleMode failed for console stdin: %lu\n", GetLastError());
       return 0;
     }
 
@@ -76,36 +70,34 @@ static int set_console_input_mode(console_worker_context_t *ctx, DWORD mode) {
 }
 
 /**
- * @brief Set the console input mode to the specified mode, preserving the original mode in the process.
- * FIXME: When switching from line mode (cooked mode) to single-character mode, we must *cancel* the
- * console line editing and discard any pending input. There is currently no official way to do this:
- * @see https://github.com/microsoft/terminal/issues/12143
- * @param mode The desired console input mode flags.
+ * @brief Switch to line (cooked) input mode, optionally enabling echo.
  */
 int set_console_input_line_mode(console_worker_context_t *ctx, int echo) {
-  return set_console_input_mode(ctx, console_input_mode_line(echo));
+  DWORD set_bits = ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT
+                   | (echo ? ENABLE_ECHO_INPUT : 0);
+  DWORD clear_bits = echo ? 0 : ENABLE_ECHO_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT;
+  return set_console_input_mode(ctx, set_bits, clear_bits);
 }
 
 int set_console_input_echo(console_worker_context_t *ctx, int echo) {
-  HANDLE handle;
-  DWORD mode;
-
-  if (!get_console_input_mode(&handle, &mode))
-    return 0;
-
-  if (echo)
-    mode |= ENABLE_ECHO_INPUT;
-  else
-    mode &= ~ENABLE_ECHO_INPUT;
-
-  return set_console_input_mode(ctx, mode);
+  DWORD set_bits = echo ? ENABLE_ECHO_INPUT : 0;
+  DWORD clear_bits = echo ? 0 : ENABLE_ECHO_INPUT;
+  return set_console_input_mode(ctx, set_bits, clear_bits);
 }
 
+/**
+ * @brief Switch to single-character (raw) input mode, disabling line input and echo.
+ * 
+ * Also enables Windows 10 ANSI processing to allow reading of virtual terminal sequences for special keys.
+ * @see https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
+ */
 int set_console_input_single_char(console_worker_context_t *ctx, int single) {
   if (!single)
     return set_console_input_line_mode(ctx, 1);
 
-  return set_console_input_mode(ctx, console_input_mode_single_char());
+  return set_console_input_mode(ctx,
+                                ENABLE_PROCESSED_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT,
+                                ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
 }
 
 int enable_console_output_ansi(void) {
@@ -123,7 +115,7 @@ int enable_console_output_ansi(void) {
   mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT;
   if (!SetConsoleMode(handle, mode))
     {
-      debug_warn("SetConsoleMode failed for console stdout: %lu\n", GetLastError());
+      LOG_WARN("SetConsoleMode failed for console stdout: %lu\n", GetLastError());
       return 0;
     }
 
