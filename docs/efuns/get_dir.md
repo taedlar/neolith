@@ -11,9 +11,9 @@ mixed *get_dir( string dir, int default: 0 );
 ## DESCRIPTION
 If `dir' is a filename ('*' and '?' wildcards are
 supported), an array of strings is returned containing all
-filenames that match the specification. If `dir' is a
-directory name (ending with a slash--ie: "/u/", "/adm/",
-etc), all filenames in that directory are returned.
+filenames that match the specification. If `dir' resolves to
+an existing directory name (for example "/u", "/u/", or
+"/u/."), all filenames in that directory are returned.
 
 If called with a second argument equal to -1, get_dir will
 return an array of subarrays, where the format of each

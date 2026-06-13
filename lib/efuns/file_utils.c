@@ -123,14 +123,12 @@ again:
  * but instead writing files right away to user this returns an array
  * containing those files. Actually most of code is copied from list_files()
  * function.
- * Differences with list_files:
+ * Behavior details:
  *
- *   - file_list("/w"); returns ({ "w" })
+ *   - get_dir("/w"); get_dir("/w/"); and get_dir("/w/."); all return
+ *     contents of directory "/w"
  *
- *   - file_list("/w/"); and file_list("/w/."); return contents of directory
- *     "/w"
- *
- *   - file_list("/");, file_list("."); and file_list("/."); return contents
+ *   - get_dir("/");, get_dir("."); and get_dir("/."); return contents
  *     of directory "/"
  *
  * With second argument equal to non-zero, instead of returning an array
@@ -192,9 +190,9 @@ array_t* get_dir (const char *path, int flags) {
   fs_path[sizeof (fs_path) - 1] = '\0';
   FREE_MSTR (resolved_path);
 
-  if (strlen (path) < 2)
+  if (strlen (temppath) < 2)
     {
-      temppath[0] = path[0] ? path[0] : '.';
+      temppath[0] = temppath[0] ? temppath[0] : '.';
       temppath[1] = '\000';
       p = temppath;
     }
@@ -234,7 +232,7 @@ array_t* get_dir (const char *path, int flags) {
       }
       do_match = 1;
     }
-  else if (*p != '\0' && strcmp (temppath, "."))
+  else if (*p != '\0' && strcmp (temppath, ".") && !(st.st_mode & S_IFDIR))
     {
       if (*p == '/' && *(p + 1) != '\0')
         p++;
