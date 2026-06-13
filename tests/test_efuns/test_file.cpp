@@ -16,8 +16,10 @@ TEST_F(EfunsTest, getDirDirectoryPathReturnsAllEntries) {
 
     fs::path temp_dir = fs::path(mudlib_root) / "tmp_get_dir_regression";
     fs::remove_all(temp_dir, ec);
+    ASSERT_FALSE(ec) << "Failed to clean up temp dir: " << ec.message();
     ec.clear();
-    ASSERT_TRUE(fs::create_directories(temp_dir, ec)) << "Failed to create temp dir: " << ec.message();
+    fs::create_directories(temp_dir, ec);
+    ASSERT_FALSE(ec) << "Failed to create temp dir: " << ec.message();
 
     fs::path alpha = temp_dir / "alpha.txt";
     fs::path beta = temp_dir / "beta.txt";

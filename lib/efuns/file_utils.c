@@ -125,10 +125,10 @@ again:
  * function.
  * Behavior details:
  *
- *   - file_list("/w"); file_list("/w/"); and file_list("/w/."); all return
+ *   - get_dir("/w"); get_dir("/w/"); and get_dir("/w/."); all return
  *     contents of directory "/w"
  *
- *   - file_list("/");, file_list("."); and file_list("/."); return contents
+ *   - get_dir("/");, get_dir("."); and get_dir("/."); return contents
  *     of directory "/"
  *
  * With second argument equal to non-zero, instead of returning an array
