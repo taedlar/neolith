@@ -1,3 +1,9 @@
 {
-    "cmake.useCMakePresets": "always"
+    "cmake.useCMakePresets": "always",
+    "C_Cpp.files.exclude": {
+        "examples/**": true,
+        "out/**": true,
+        "**/.vscode": true,
+        "**/.vs": true
+    }
 }
