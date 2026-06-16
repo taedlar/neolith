@@ -129,11 +129,13 @@ static tree *uids = NULL;
 userid_t *backbone_uid = NULL;
 userid_t *root_uid = NULL;
 
-static int uidcmp (userid_t *, userid_t *);
+static int uidcmp (void *a, void *b);
 
 static int
-uidcmp (userid_t * uid1, userid_t * uid2)
+uidcmp (void *a, void *b)
 {
+  userid_t *uid1 = (userid_t *)a;
+  userid_t *uid2 = (userid_t *)b;
   register char *name1, *name2;
 
   name1 = uid1->name;

@@ -15,7 +15,6 @@
         {
             "name": "windows-default",
             "hidden": true,
-            "generator": "Visual Studio 16 2019",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "BISON_ROOT": "C:/GnuWin32"
@@ -43,10 +42,22 @@
             }
         },
         {
+            "name": "vs18-x64",
+            "displayName": "x64 - VS2026",
+            "description": "Uses Visual Studio 2026 generator, x64 architecture",
+            "inherits": ["project-default", "windows-default"],
+            "generator": "Visual Studio 18 2026",
+            "architecture": {
+              "value": "x64",
+              "strategy": "set"
+            }
+        },
+        {
             "name": "vs16-x64",
             "displayName": "x64 - VS2019",
             "description": "Uses Visual Studio 2019 generator, x64 architecture",
             "inherits": ["project-default", "windows-default"],
+            "generator": "Visual Studio 16 2019",
             "architecture": {
               "value": "x64",
               "strategy": "set"
@@ -59,16 +70,6 @@
             "inherits": ["project-default", "windows-default", "msbuild-clang"],
             "architecture": {
               "value": "x64",
-              "strategy": "set"
-            }
-        },
-        {
-            "name": "vs16-win32",
-            "displayName": "Win32 - VS2019",
-            "description": "Uses Visual Studio 2019 generator, Win32 architecture",
-            "inherits": ["project-default", "windows-default"],
-            "architecture": {
-              "value": "Win32",
               "strategy": "set"
             }
         },
@@ -126,6 +127,26 @@
     ],
     "buildPresets": [
         {
+            "name": "dev-vs18-x64",
+            "description": "Debug Build (build modified files)",
+            "configurePreset": "vs18-x64",
+            "configuration": "Debug",
+            "targets": ["ALL_BUILD"]
+        },
+        {
+            "name": "pr-vs18-x64",
+            "description": "Pull-Request Validation Build (build modified files)",
+            "inherits": ["dev-vs18-x64"],
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "ci-vs18-x64",
+            "description": "Continous Integration Build (rebuild all)",
+            "inherits": ["pr-vs18-x64"],
+            "targets": ["ALL_BUILD"],
+            "cleanFirst": true
+        },
+        {
             "name": "dev-vs16-x64",
             "description": "Debug Build (build modified files)",
             "configurePreset": "vs16-x64",
@@ -162,26 +183,6 @@
             "name": "ci-clang-x64",
             "description": "Continous Integration Build (rebuild all)",
             "inherits": ["pr-clang-x64"],
-            "targets": ["ALL_BUILD"],
-            "cleanFirst": true
-        },
-        {
-            "name": "dev-vs16-win32",
-            "description": "Debug Build (build modified files)",
-            "configurePreset": "vs16-win32",
-            "configuration": "Debug",
-            "targets": ["ALL_BUILD"]
-        },
-        {
-            "name": "pr-vs16-win32",
-            "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-vs16-win32"],
-            "configuration": "RelWithDebInfo"
-        },
-        {
-            "name": "ci-vs16-win32",
-            "description": "Continous Integration Build (rebuild all)",
-            "inherits": ["pr-vs16-win32"],
             "targets": ["ALL_BUILD"],
             "cleanFirst": true
         },
@@ -260,10 +261,10 @@
             }
         },
         {
-            "name": "ut-vs16-win32",
-            "displayName": "Unit Tests Win32",
-            "description": "Run unit-tests for Windows 32-bits architecture",
-            "configurePreset": "vs16-win32",
+            "name": "ut-vs18-x64",
+            "displayName": "Unit Tests x64",
+            "description": "Run unit-tests for Windows 64-bits architecture",
+            "configurePreset": "vs18-x64",
             "inherits": ["ut-windows-defaults"]
         },
         {
