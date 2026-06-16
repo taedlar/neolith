@@ -51,17 +51,17 @@ static int set_console_input_mode(console_worker_context_t *ctx,
       platform_mutex_unlock(&ctx->state_mutex);
     }
 
+  if (!SetConsoleMode (handle, new_mode))
+    {
+      LOG_WARN("SetConsoleMode failed for console stdin: %lu\n", GetLastError());
+      return 0;
+    }
+
   if (clear_bits & ENABLE_LINE_INPUT)
     {
       /* Switching to single-char mode requires canceling any pending ReadConsole */
       LOG_INFO ("Switching to character mode, canceling pending line input ...\n");
       CancelIoEx (handle, NULL);
-    }
-
-  if (!SetConsoleMode (handle, new_mode))
-    {
-      LOG_WARN("SetConsoleMode failed for console stdin: %lu\n", GetLastError());
-      return 0;
     }
 
   return 1;
