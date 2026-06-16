@@ -44,9 +44,9 @@ this code, please leave my name (and Wirth's) in the comments.
 #include "avltree.h"
 
 /* prototypes for local functions */
-static void sprout (tree **, char *, int *, int (*)(), int (*)());
-static int recursive_delete (tree **, int (*)(), char *, int (*)(), int *, int *);
-static void del (tree **, int *, tree **, int (*)(), int *);
+static void sprout (tree **, char *, int *, int (*)(void *, void *), int (*)(void *));
+static int recursive_delete (tree **, int (*)(void *, void *), char *, int (*)(void *), int *, int *);
+static void del (tree **, int *, tree **, int (*)(void *), int *);
 static void balanceL (tree **, int *);
 static void balanceR (tree **, int *);
 
@@ -91,8 +91,8 @@ tree_srch (tree * ppr_tree, int (*pfi_compare) (void *, void *),
 
 
 void
-tree_add (tree ** ppr_tree, int (*pfi_compare) (), char *pc_user,
-          int (*pfi_delete) ())
+tree_add (tree ** ppr_tree, int (*pfi_compare) (void *, void *), char *pc_user,
+          int (*pfi_delete) (void *))
 {
   int i_balance = 0;
 
@@ -245,8 +245,8 @@ sprout (tree ** ppr, char *pc_data, int *pi_balance,
 
 
 int
-tree_delete (tree ** ppr_p, int (*pfi_compare) (), char *pc_user,
-             int (*pfi_uar) ())
+tree_delete (tree ** ppr_p, int (*pfi_compare) (void *, void *), char *pc_user,
+             int (*pfi_uar) (void *))
 {
   int i_balance = 0, i_uar_called = 0;
 
