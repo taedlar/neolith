@@ -19,7 +19,7 @@
 #ifdef _WIN32
 #include <fcntl.h>
 
-static int restore_desired_console_input_mode(console_worker_context_t* ctx) {
+static int restore_desired_console_input_mode (console_worker_context_t* ctx) {
     DWORD mode;
 
     if (!ctx)
@@ -138,6 +138,7 @@ static void* console_worker_proc_win32(void* ctx) {
     restore_desired_console_input_mode(cctx);
 
     char line_buffer[CONSOLE_MAX_LINE];
+    WCHAR wide_buffer[CONSOLE_MAX_LINE];
     DWORD chars_read = 0;
 
     debug_notice ("console worker started (type: %s)\n", console_type_str(cctx->console_type));
@@ -151,26 +152,58 @@ static void* console_worker_proc_win32(void* ctx) {
             /* stdin is signaled - data available, read it synchronously */
             BOOL result;
             if (cctx->console_type == CONSOLE_TYPE_REAL) {
-                /* Real console: ReadConsoleA (synchronous only)
-                 * NOTE: If in cooked mode, ReadConsoleA blocks until ENTER is pressed, it can be interrupted
-                 * by CancelIoEx() during shutdown. If in raw mode, it returns immediately with available characters.
+                /* Real console: ReadConsoleW (Unicode).
+                 * dwCtrlWakeupMask is only honored by ReadConsoleW, not ReadConsoleA.
+                 * Bit 27 (ESC = 0x1B) lets ESCAPE unblock ReadConsole in cooked mode.
                  */
-                result = ReadConsoleA(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL);
+                CONSOLE_READCONSOLE_CONTROL rdcon;
+                rdcon.nLength = sizeof(rdcon);
+                rdcon.nInitialChars = 0;
+                rdcon.dwCtrlWakeupMask = (1UL << 27); /* ESC = ASCII 27 */
+                rdcon.dwControlKeyState = 0;
+                DWORD wchars_read = 0;
+                result = ReadConsoleW(hStdin, wide_buffer, CONSOLE_MAX_LINE - 1, &wchars_read, &rdcon);
+                if (result && wchars_read > 0) {
+                    /* ESC wakeup: last wide char is ESC - discard the partial line */
+                    if (wide_buffer[wchars_read - 1] == L'\x1B')
+                        continue;
+                    /* Convert UTF-16 → UTF-8 into line_buffer */
+                    int nb = WideCharToMultiByte (CP_UTF8, 0, wide_buffer, (int)wchars_read,
+                                                 line_buffer, CONSOLE_MAX_LINE - 1, NULL, NULL);
+                    chars_read = (nb > 0) ? (DWORD)nb : 0;
+                }
+                else if (result) {
+                    /* ReadConsoleW returned TRUE with 0 chars: spurious wakeup from an
+                     * injected input event (e.g. VK_ESCAPE key-up during mode switch).
+                     * This is not EOF; loop back and wait for real input. */
+                    LOG_INFO ("Console woken with no chars (spurious wakeup), continuing\n");
+                    continue;
+                }
+                else {
+                    chars_read = 0;
+                }
             } else {
                 /* Pipe or file: Use ReadFile (synchronous) */
-                result = ReadFile(hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL);
+                result = ReadFile (hStdin, line_buffer, CONSOLE_MAX_LINE - 1, &chars_read, NULL);
             }
+            LOG_INFO ("Read %lu chars from console (result: %s)\n", chars_read, result ? "success" : "failure");
 
             if (!result) {
-                /* the console worker can be interrupted by CancelIoEx during shutdown */
                 DWORD err = GetLastError();
-                // if (err != ERROR_OPERATION_ABORTED)
-                //     debug_error ("Read failed: %lu\n", err);
                 if (err == ERROR_OPERATION_ABORTED) {
-                    restore_desired_console_input_mode(cctx);
-                    continue; /* Interrupted by shutdown, or switching input mode */
+                    LOG_INFO ("Console read interrupted by shutdown or input mode switch\n");
+                    restore_desired_console_input_mode (cctx);
+                    continue;
                 }
-                debug_error ("Read failed: %lu\n", err);
+                if (cctx->console_type == CONSOLE_TYPE_REAL) {
+                    /* SetConsoleMode changing ENABLE_LINE_INPUT while ReadConsoleW is blocking
+                     * can return errors such as ERROR_INVALID_FUNCTION; treat these as
+                     * non-fatal mode-switch interruptions rather than killing the thread. */
+                    LOG_WARN ("ReadConsoleW interrupted (err=%lu), restoring mode and continuing\n", err);
+                    restore_desired_console_input_mode (cctx);
+                    continue;
+                }
+                LOG_ERROR ("Read failed: %lu\n", err);
                 break;
             }
             
@@ -180,7 +213,7 @@ static void* console_worker_proc_win32(void* ctx) {
 
                 /* Enqueue line */
                 if (!async_queue_enqueue(cctx->line_queue, line_buffer, chars_read + 1)) {
-                    debug_warn ("Console line queue full, dropping line\n");
+                    LOG_WARN ("Console line queue full, dropping line\n");
                 }
 
                 /* Post completion to wake main thread */
@@ -195,12 +228,12 @@ static void* console_worker_proc_win32(void* ctx) {
             break;
         } else {
             /* Error or unexpected result */
-            debug_error ("WaitForMultipleObjects failed: %lu (error: %lu)\n", wait_result, GetLastError());
+            LOG_ERROR ("WaitForMultipleObjects failed: %lu (error: %lu)\n", wait_result, GetLastError());
             break;
         }
     }
 
-    debug_notice ("console worker stopped\n");
+    LOG_INFO ("console worker stopped\n");
     return NULL;
 }
 #else
@@ -338,9 +371,9 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
     }
 
 #ifdef _WIN32
-    ctx->worker = async_worker_create(console_worker_proc_win32, ctx, 0);
+    ctx->worker = async_worker_create (console_worker_proc_win32, ctx, 0);
 #else
-    ctx->worker = async_worker_create(console_worker_proc_posix, ctx, 0);
+    ctx->worker = async_worker_create (console_worker_proc_posix, ctx, 0);
 #endif
 
     if (!ctx->worker) {
@@ -361,13 +394,12 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
  * Shutdown console worker
  */
 bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
-    if (ctx && ctx->worker)
-        async_worker_signal_stop(ctx->worker); /* signal the stop event first */
-#if _WIN32_WINNT > 0x0602
-    /* cancel any pending ReadConsole() in cooked mode */
-    CancelIoEx (GetStdHandle(STD_INPUT_HANDLE), NULL);
-#endif
-    if (!ctx || !ctx->worker)
+    if (ctx && ctx->worker) {
+        async_worker_signal_stop (ctx->worker); /* signal the stop event first */
+        set_console_input_single_char (ctx, 1); /* interrupt line mode console read */
+        set_console_input_echo (ctx, true); /* re-enable echo to avoid leaving console in a bad state */
+    }
+    else
         return true; /* No worker to shutdown */
 
 #ifndef _WIN32

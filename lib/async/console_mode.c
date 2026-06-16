@@ -39,7 +39,7 @@ static int set_console_input_mode(console_worker_context_t *ctx,
   DWORD current_mode;
   DWORD new_mode;
 
-  if (!get_console_input_mode(&handle, &current_mode))
+  if (!get_console_input_mode (&handle, &current_mode))
     return 0;
 
   new_mode = (current_mode | set_bits) & ~clear_bits;
@@ -51,19 +51,25 @@ static int set_console_input_mode(console_worker_context_t *ctx,
       platform_mutex_unlock(&ctx->state_mutex);
     }
 
-  if ((new_mode ^ current_mode) & ENABLE_LINE_INPUT)
-    {
-      /* Switching between line mode and single-char mode requires canceling any pending ReadConsole */
-      LOG_TRACE ("Switching console input mode, canceling pending input...\n");
-#if _WIN32_WINNT > 0x0602
-      CancelIoEx(handle, NULL);
-#endif
-    }
-
-  if (!SetConsoleMode(handle, new_mode))
+  if (!SetConsoleMode (handle, new_mode))
     {
       LOG_WARN("SetConsoleMode failed for console stdin: %lu\n", GetLastError());
       return 0;
+    }
+
+  if ((clear_bits & ENABLE_LINE_INPUT) && (current_mode & ENABLE_LINE_INPUT))
+    {
+      /* Inject a key-DOWN ESC event so that dwCtrlWakeupMask (bit 27) fires inside
+       * ReadConsoleW and unblocks it.  Key-up events do not produce characters and
+       * therefore never trigger the wakeup mask. */
+      INPUT_RECORD esc_input = {0};
+      esc_input.EventType = KEY_EVENT;
+      esc_input.Event.KeyEvent.bKeyDown = TRUE;
+      esc_input.Event.KeyEvent.wRepeatCount = 1;
+      esc_input.Event.KeyEvent.wVirtualKeyCode = VK_ESCAPE;
+      esc_input.Event.KeyEvent.uChar.UnicodeChar = L'\x1B';
+      DWORD written = 0;
+      WriteConsoleInputW (handle, &esc_input, 1, &written);
     }
 
   return 1;
@@ -86,18 +92,19 @@ int set_console_input_echo(console_worker_context_t *ctx, int echo) {
 }
 
 /**
- * @brief Switch to single-character (raw) input mode, disabling line input and echo.
+ * @brief Switch to single-character (raw) input mode, disabling line input.
  * 
  * Also enables Windows 10 ANSI processing to allow reading of virtual terminal sequences for special keys.
  * @see https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
  */
-int set_console_input_single_char(console_worker_context_t *ctx, int single) {
+int set_console_input_single_char (console_worker_context_t *ctx, int single) {
   if (!single)
     return set_console_input_line_mode(ctx, 1);
 
-  return set_console_input_mode(ctx,
-                                ENABLE_PROCESSED_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT,
-                                ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+  return set_console_input_mode (ctx,
+    /* set */ ENABLE_PROCESSED_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT,
+    /* clear */ ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT
+  );
 }
 
 int enable_console_output_ansi(void) {
@@ -121,23 +128,79 @@ int enable_console_output_ansi(void) {
 
   return 1;
 }
-#else /* Non-Windows (POSIX): console is a plain file, no input mode manipulation needed */
+#else /* Non-Windows (POSIX) */
+
+#ifdef HAVE_TERMIOS_H
+#include <termios.h>
+
+/**
+ * @brief Apply terminal settings without data loss for pipes.
+ *
+ * Real TTY: Use TCSAFLUSH to discard stale input (security).
+ * Pipe:     Use TCSANOW to preserve all data (testbot).
+ */
+static void posix_tcsetattr(int fd, struct termios *tio) {
+  int action = isatty(fd) ? TCSAFLUSH : TCSANOW;
+  tcsetattr(fd, action, tio);
+}
+#endif /* HAVE_TERMIOS_H */
+
 int set_console_input_line_mode(console_worker_context_t *ctx, int echo) {
   (void)ctx;
+#ifdef HAVE_TERMIOS_H
+  struct termios tio;
+  if (tcgetattr(STDIN_FILENO, &tio) != 0)
+    return 0;
+  tio.c_lflag |= ICANON;
+  if (echo)
+    tio.c_lflag |= ECHO;
+  else
+    tio.c_lflag &= ~ECHO;
+  posix_tcsetattr(STDIN_FILENO, &tio);
+  return 1;
+#else
   (void)echo;
   return 0;
+#endif
 }
 
 int set_console_input_echo(console_worker_context_t *ctx, int echo) {
   (void)ctx;
+#ifdef HAVE_TERMIOS_H
+  struct termios tio;
+  if (tcgetattr(STDIN_FILENO, &tio) != 0)
+    return 0;
+  if (echo)
+    tio.c_lflag |= ECHO;
+  else
+    tio.c_lflag &= ~ECHO;
+  posix_tcsetattr(STDIN_FILENO, &tio);
+  return 1;
+#else
   (void)echo;
   return 0;
+#endif
 }
 
 int set_console_input_single_char(console_worker_context_t *ctx, int single) {
   (void)ctx;
-  (void)single;
+  if (!single)
+    return set_console_input_line_mode(ctx, 1);
+#ifdef HAVE_TERMIOS_H
+  {
+    struct termios tio;
+    if (tcgetattr(STDIN_FILENO, &tio) != 0)
+      return 0;
+    /* disable canonical mode and echo: input character is immediately available for read() */
+    tio.c_lflag &= ~(ICANON | ECHO);
+    tio.c_cc[VMIN] = 0;  /* use polling as like O_NONBLOCK was set */
+    tio.c_cc[VTIME] = 0; /* no timeout */
+    posix_tcsetattr(STDIN_FILENO, &tio);
+    return 1;
+  }
+#else
   return 0;
+#endif
 }
 
 int enable_console_output_ansi(void) {

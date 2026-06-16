@@ -62,7 +62,7 @@ typedef struct console_worker_context_s {
  * Detect console type
  * @returns Console type (REAL/PIPE/FILE/NONE)
  */
-console_type_t console_detect_type(void);
+console_type_t console_detect_type (void);
 
 /**
  * Initialize console worker
@@ -75,7 +75,7 @@ console_type_t console_detect_type(void);
  * @param completion_key Completion key (typically CONSOLE_COMPLETION_KEY)
  * @returns Console worker context, or NULL on failure
  */
-console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_queue_t* queue, uintptr_t completion_key);
+console_worker_context_t* console_worker_init (async_runtime_t* runtime, async_queue_t* queue, uintptr_t completion_key);
 
 /**
  * Shutdown console worker
@@ -86,7 +86,7 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
  * @param timeout_ms Timeout in milliseconds (0 = no wait, -1 = infinite)
  * @returns true if worker stopped cleanly, false on timeout
  */
-bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms);
+bool console_worker_shutdown (console_worker_context_t* ctx, int timeout_ms);
 
 /**
  * Destroy console worker
@@ -95,7 +95,7 @@ bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms);
  * 
  * @param ctx Console worker context
  */
-void console_worker_destroy(console_worker_context_t* ctx);
+void console_worker_destroy (console_worker_context_t* ctx);
 
 /**
  * Consume the console EOF signal.
@@ -103,14 +103,14 @@ void console_worker_destroy(console_worker_context_t* ctx);
  * Returns true once after EOF is observed by the worker, then resets the
  * internal flag to false.
  */
-bool console_worker_take_eof(console_worker_context_t* ctx);
+bool console_worker_take_eof (console_worker_context_t* ctx);
 
 /**
  * Get console type string (for logging)
  * @param type Console type
  * @returns Human-readable string
  */
-const char* console_type_str(console_type_t type);
+const char* console_type_str (console_type_t type);
 
 
 #ifdef __cplusplus

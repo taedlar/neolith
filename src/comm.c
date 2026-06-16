@@ -32,25 +32,8 @@
 #include <stdarg.h>
 #endif /* HAVE_STDARG_H */
 
-#ifdef HAVE_TERMIOS_H
-#include <termios.h>
-#endif
-
 #ifdef WINSOCK
 #pragma comment(lib, "ws2_32.lib")
-#endif
-
-#ifdef HAVE_TERMIOS_H
-/**
- * @brief Apply terminal settings without data loss for pipes
- * 
- * Real TTY: Use TCSAFLUSH to discard stale input (security)
- * Pipe:     Use TCSANOW to preserve all data (testbot)
- */
-static inline void safe_tcsetattr(int fd, struct termios *tio) {
-    int action = isatty(fd) ? TCSAFLUSH : TCSANOW;
-    tcsetattr(fd, action, tio);
-}
 #endif
 
 #define UCHAR	unsigned char
@@ -933,61 +916,56 @@ static size_t copy_chars (UCHAR* from, UCHAR* to, size_t count, interactive_t* i
 }
 
 
-void set_console_echo (bool echo) {
-#ifdef HAVE_TERMIOS_H
-  interactive_t *ip = all_users[0];
-  struct termios tty;
+/**
+ * @brief Set input echo on/off for an interactive object.
+ * For console user, we can directly control the console input echo mode.
+ * For telnet users, we use a TELNET negotiation by sending telnet WILL/WONT
+ * echo to client. For a sane telnet client, when we say "WILL ECHO", we can
+ * expect the client to stop echoing input characters, and when we say
+ * "WONT ECHO", the client should start echoing input characters.
+ * @param ob Interactive object to send the command to.
+ * @param echo true to echo input, false to hide input.
+ */
+void set_input_echo (object_t* ob, bool echo) {
+  if (ob->interactive == all_users[0]) /* console user */
+    {
+      set_console_input_echo (g_console_worker, echo);
+      return;
+    }
+  /*
+   * echo == true: send WONT ECHO and expect client to start echoing input characters.
+   * echo == false: send WILL ECHO and expect client to stop echoing input characters.
+   */
+  add_message (ob, echo ? telnet_no_echo : telnet_yes_echo);
+  flush_message (ob->interactive);
+}
 
+static void clear_interactive_input_buffer (interactive_t *ip) {
   if (!ip)
     return;
-  tcgetattr (ip->fd, &tty);
-  if (echo)
-    tty.c_lflag |= ECHO;
-  else
-    tty.c_lflag &= ~ECHO;
-  safe_tcsetattr (ip->fd, &tty); /* TTY: discard pending input, Pipe: preserve data */
-#elif defined(_WIN32)
-  /* Only real Windows consoles support ENABLE_ECHO_INPUT.
-   * Pipes/files are handled by the console worker and should be left unchanged.
-   */
-  set_console_input_echo (g_console_worker, echo);
-#endif
+
+  ip->text_start = 0;
+  ip->text_end = 0;
+  ip->text[0] = '\0';
+  ip->iflags &= ~CMD_IN_BUF;
 }
 
 /**
- * @brief Negotiate telnet echo by sending telnet WILL/WONT echo to client.
- * For a sane telnet client, when we say "WILL ECHO", we can expect the client to stop echoing
- * input characters, and when we say "WONT ECHO", the client should start echoing input characters.
- * @param ob Interactive object to send the command to.
- * @param echo true to say "will" echo, false to say "won't" echo.
+ *  @brief set_input_single_char () - set single-char mode on/off
  */
-void set_telnet_echo (object_t* ob, bool echo) {
-  add_message (ob, echo ? telnet_yes_echo : telnet_no_echo);
-}
+void set_input_single_char (interactive_t * ip, bool single) {
+  if (single)
+    {
+      clear_interactive_input_buffer (ip);
+    }
 
-/**
- *  @brief set_telnet_single_char () - set single-char mode on/off
- */
-void set_telnet_single_char (interactive_t * ip, bool single) {
   if (ip == all_users[0]) /* console user */
     {
-#ifdef HAVE_TERMIOS_H
-      /* console user, try termios */
-      struct termios tio;      
-      tcgetattr (ip->fd, &tio);
-      if (single)
+      if (single && g_console_queue)
         {
-          /* disable canonical mode and echo: input character is immediately available for read() */
-          tio.c_lflag &= ~(ICANON | ECHO);
-          tio.c_cc[VMIN] = 0; /* use polling as like O_NONBLOCK was set */
-          tio.c_cc[VTIME] = 0; /* no timeout */
+          async_queue_clear (g_console_queue);
         }
-      else
-        tio.c_lflag |= ICANON|ECHO; /* enable canonical mode and echo: use line editing */
-      safe_tcsetattr (ip->fd, &tio); /* TTY: discard pending input, Pipe: preserve data */
-#elif defined(_WIN32)
       set_console_input_single_char (g_console_worker, single);
-#endif
       return;
     }
 

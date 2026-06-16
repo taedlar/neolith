@@ -301,7 +301,7 @@ object_t *query_snooping (object_t * ob) {
 
 
 /**
- *  @brief Set up an input_to call for an interactive object.
+ *  @brief Set up an input_to or get_char call for an interactive object.
  *  @param ob The interactive object.
  *  @param sent The sentence (function and object) to call.
  *  @param flags Flags for the input_to call (I_NOECHO = 1, I_NOESC = 2, I_SINGLE_CHAR = 4).
@@ -314,23 +314,10 @@ int set_call (object_t * ob, sentence_t * sent, int flags) {
   ob->interactive->input_to = sent;
   ob->interactive->iflags |= (flags & (I_NOECHO | I_NOESC | I_SINGLE_CHAR));
 
-  if (ob->interactive == all_users[0])
-    {
-      /* don't try to set telnet options on console */
-      if (flags & I_NOECHO)
-        set_console_echo (false);
-    }
-  else
-    {
-      /* This is a TELNET trick to hide input by telling the client that we'll be doing echo,
-       * but we won't actually do it.
-       */
-      if (flags & I_NOECHO)
-        set_telnet_echo (ob, true);
-    }
+  set_input_echo (ob, (flags & I_NOECHO) ? false : true);
 
   if (flags & I_SINGLE_CHAR)
-    set_telnet_single_char (ob->interactive, true);
+    set_input_single_char (ob->interactive, true);
   return 1;
 }				/* set_call() */
 
@@ -380,7 +367,7 @@ int call_function_interactive (interactive_t * i, char *str) {
   if (i->iflags & SINGLE_CHAR)
     {
       i->iflags &= ~SINGLE_CHAR;
-      set_telnet_single_char (i, false);
+      set_input_single_char (i, false);
     }
 
   /* Push input FIRST.
@@ -551,22 +538,14 @@ static char* get_user_command () {
   if (!cmd_in_buf (ip))
     ip->iflags &= ~CMD_IN_BUF;
 
-  if (s_next_user-- == 0)
-    s_next_user = max_users - 1; /* wrap around */
+  s_next_user = (s_next_user - 1 + max_users) % max_users; /* wrap around */
 
   if (ip->iflags & NOECHO)
     {
       /*
        * Must not enable echo before the user input is received.
        */
-      if (ip->connection_type == CONSOLE_USER)
-        {
-          set_console_echo (true);
-        }
-      else if (ip->connection_type == PORT_TELNET)
-        {
-          set_telnet_echo (command_giver, false);
-        }
+      set_input_echo (command_giver, false);
       ip->iflags &= ~NOECHO;
     }
 
@@ -1194,7 +1173,7 @@ int process_user_command () {
               /* only 1 char ... switch to line buffer mode */
               ip->iflags |= WAS_SINGLE_CHAR;
               ip->iflags &= ~SINGLE_CHAR;
-              set_telnet_single_char (ip, false);
+              set_input_single_char (ip, false);
               /* come back later */
             }
           else
@@ -1204,7 +1183,7 @@ int process_user_command () {
                   /* we now have a string ... switch back to char mode */
                   ip->iflags &= ~WAS_SINGLE_CHAR;
                   ip->iflags |= SINGLE_CHAR;
-                  set_telnet_single_char (ip, true);
+                  set_input_single_char (ip, true);
                   VALIDATE_IP (ip, command_giver);
                 }
 

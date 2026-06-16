@@ -40,7 +40,7 @@ typedef enum {
  * @param stack_size Stack size in bytes (0 = platform default)
  * @returns Worker handle, or NULL on failure
  */
-async_worker_t* async_worker_create(async_worker_proc_t proc, void* context, size_t stack_size);
+async_worker_t* async_worker_create (async_worker_proc_t proc, void* context, size_t stack_size);
 
 /**
  * Destroy worker and free resources
@@ -48,7 +48,13 @@ async_worker_t* async_worker_create(async_worker_proc_t proc, void* context, siz
  * 
  * @param worker Worker to destroy
  */
-void async_worker_destroy(async_worker_t* worker);
+void async_worker_destroy (async_worker_t* worker);
+
+#ifdef _WIN32
+HANDLE async_worker_get_native_handle (async_worker_t* worker);
+#else
+pthread_t async_worker_get_native_handle (async_worker_t* worker);
+#endif
 
 /**
  * Signal worker to stop (non-blocking)
@@ -56,7 +62,7 @@ void async_worker_destroy(async_worker_t* worker);
  * 
  * @param worker Worker to signal
  */
-void async_worker_signal_stop(async_worker_t* worker);
+void async_worker_signal_stop (async_worker_t* worker);
 
 /**
  * Wait for worker thread to exit
@@ -65,7 +71,7 @@ void async_worker_signal_stop(async_worker_t* worker);
  * @param timeout_ms Timeout in milliseconds (-1 = infinite)
  * @returns true if worker exited, false if timeout
  */
-bool async_worker_join(async_worker_t* worker, int timeout_ms);
+bool async_worker_join (async_worker_t* worker, int timeout_ms);
 
 /**
  * Get current worker thread handle (called from worker thread)
@@ -80,7 +86,7 @@ async_worker_t* async_worker_current(void);
  * @param worker Worker to check (use async_worker_current())
  * @returns true if shutdown requested
  */
-bool async_worker_should_stop(async_worker_t* worker);
+bool async_worker_should_stop (async_worker_t* worker);
 
 /**
  * Get worker state
@@ -88,7 +94,7 @@ bool async_worker_should_stop(async_worker_t* worker);
  * @param worker Worker to query
  * @returns Current state
  */
-async_worker_state_t async_worker_get_state(const async_worker_t* worker);
+async_worker_state_t async_worker_get_state (const async_worker_t* worker);
 
 /**
  * Get stop event for worker thread
@@ -97,7 +103,7 @@ async_worker_state_t async_worker_get_state(const async_worker_t* worker);
  * @param worker Worker to query (use async_worker_current())
  * @returns Pointer to stop event, or NULL if invalid
  */
-platform_event_t* async_worker_get_stop_event(async_worker_t* worker);
+platform_event_t* async_worker_get_stop_event (async_worker_t* worker);
 
 
 #ifdef __cplusplus

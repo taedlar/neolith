@@ -39,11 +39,11 @@ extern main_options_t* g_main_options;
 #endif
 
 #define opt_error(level, ...)  do{if(MAIN_OPTION(debug_level)>=(level)) \
-   debug_error(__VA_ARGS__);}while(0)
+   LOG_ERROR(__VA_ARGS__);}while(0)
 #define opt_warn(level, ...)   do{if(MAIN_OPTION(debug_level)>=(level)) \
-   debug_warn(__VA_ARGS__);}while(0)
+   LOG_WARN(__VA_ARGS__);}while(0)
 #define opt_info(level, ...)   do{if(MAIN_OPTION(debug_level)>=(level)) \
-   debug_notice(__VA_ARGS__);}while(0)
+   LOG_INFO(__VA_ARGS__);}while(0)
 
 /*
  * Trace levels and tiers are represented as octal values (starting with '0').
