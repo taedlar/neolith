@@ -1212,7 +1212,7 @@ void destruct_object (object_t * ob) {
               if (ip->iflags & SINGLE_CHAR)
                 {
                   ip->iflags &= ~SINGLE_CHAR;
-                  /* Note: We don't call set_telnet_single_char() here because:
+                  /* Note: We don't call set_input_single_char() here because:
                    * 1. It's static in comm.c and would require API changes
                    * 2. The flag will be properly reset on next input_to/get_char call
                    * 3. User will revert to line mode on next input naturally */
@@ -1633,8 +1633,7 @@ int input_to (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
 
 
 /**
- * Set up a function in this object to be called with the next
- * user input character.
+ * Set up a function in this object to be called with the next user input character.
  */
 int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   sentence_t *s;
@@ -1661,12 +1660,12 @@ int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
       svalue_t dummy;
       dummy.type = T_NUMBER;
       dummy.u.number = 0;
-      opt_trace (TT_COMM|2, "set callback function to '%s' in object /%s", SVALUE_STRPTR(fun), current_object->name);
       callback_funp = make_lfun_funp_by_name (SVALUE_STRPTR(fun), &dummy);
       if (!callback_funp)
         {
           error ("Function '%s' not found in get_char", SVALUE_STRPTR(fun));
         }
+      opt_trace (TT_COMM|2, "char mode input callback '%s' in object /%s", SVALUE_STRPTR(fun), current_object->name);
     }
   else if (fun->type == T_FUNCTION)
     {
@@ -1676,16 +1675,28 @@ int get_char (svalue_t * fun, int flag, int num_arg, svalue_t * args) {
   else
     {
       free_sentence (s);
-      error ("get_char: fun must be string or function");
+      error ("get_char: callback must be specified as name of function or function closure");
     }
 
-  /* Store function pointer (always use V_FUNCTION now) */
+  /*
+   * Despite using string_or_func_t, Neolith always stores the function pointer (V_FUNCTION) in the
+   * sentence, even if the callback was specified as a string. This is because:
+   * 1. It simplifies the implementation of input_to/get_char by having a consistent representation
+   *    for the callback function.
+   * 2. The function pointer created from the string already holds a reference to the current_object,
+   *    so we can avoid extra reference management by always using the function pointer form.
+   * 3. The memory overhead of storing the function pointer is negligible compared to the benefits
+   *    of a simpler and more efficient implementation.
+   * 4. This design choice is an internal implementation detail and does not affect the external
+   *    behavior of input_to/get_char, which still accepts either a string or a function as the
+   *    callback specification.
+   */
   s->function.f = callback_funp;
   s->flags = V_FUNCTION;
   s->ob = 0; /* if callback is T_STRING, callback_funp already holds reference to the current_object */
 
-  /* Store carryover args in SENTENCE (not interactive_t) */
-  if (num_arg > 0)
+  /* store carryover args in SENTENCE (not interactive_t) */
+  if (args && num_arg > 0)
     {
       array_t *arg_array = allocate_empty_array (num_arg);
       for (int i = 0; i < num_arg; i++)

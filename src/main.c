@@ -310,7 +310,7 @@ parse_command_line (int argc, char *argv[])
 }
 
 void init_debug_log() {
-
+  int log_severity;
   if (CONFIG_STR (__DEBUG_LOG_FILE__))
     {
       if (CONFIG_STR (__LOG_DIR__))
@@ -346,13 +346,32 @@ void init_debug_log() {
 #ifndef _WIN32
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
-  debug_set_log_severity (
-    max (
-      0,
-      MAIN_OPTION(trace_flags) ? DEBUG_SEVERITY_TRACE : (DEBUG_SEVERITY_ERROR - MAIN_OPTION(debug_level))
-    )
-    // MAIN_OPTION(trace_flags) ? DEBUG_SEVERITY_TRACE : DEBUG_SEVERITY_WARN
-  ); /* default to warnings and above unless trace flags are set */
+  if (MAIN_OPTION(trace_flags))
+    {
+      log_severity = DEBUG_SEVERITY_TRACE; /* do not filter low severity messages */
+    }
+  else
+    {
+      switch (MAIN_OPTION(debug_level))
+        {
+        case 0:
+          log_severity = DEBUG_SEVERITY_WARN;
+          break;
+        case 1:
+          log_severity = DEBUG_SEVERITY_INFO;
+          break;
+        case 2:
+          log_severity = DEBUG_SEVERITY_NOTICE;
+          break;
+        case 3:
+          log_severity = DEBUG_SEVERITY_VERBOSE;
+          break;
+        default:
+          log_severity = DEBUG_SEVERITY_TRACE;
+          break;
+        }
+    }
+  debug_set_log_severity (log_severity);
 #ifndef _WIN32
 #undef max
 #endif

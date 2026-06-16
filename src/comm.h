@@ -112,11 +112,9 @@ void init_user_conn (void);
 void ipc_remove (void);
 void process_io (void);
 
-void set_console_echo (bool echo);
-
 void telnet_neg (char *, char *);
-void set_telnet_echo (object_t*, bool echo);
-void set_telnet_single_char (interactive_t *, bool single);
+void set_input_echo (object_t*, bool echo);
+void set_input_single_char (interactive_t *, bool single);
 
 int replace_interactive (object_t *, object_t *);
 void remove_interactive (object_t *ob, bool dested);

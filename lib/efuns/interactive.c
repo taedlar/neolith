@@ -98,9 +98,7 @@ void f_users (void) {
 
 
 #ifdef F_GET_CHAR
-void
-f_get_char (void)
-{
+void f_get_char (void) {
   svalue_t *arg;
   int i, tmp;
   int flag;
@@ -127,9 +125,7 @@ f_get_char (void)
 
 
 #ifdef F_INPUT_TO
-void
-f_input_to (void)
-{
+void f_input_to (void) {
   svalue_t *arg;
   int i, tmp;
   int flag;

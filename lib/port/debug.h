@@ -8,11 +8,13 @@ extern "C" {
 #endif
 
 enum debug_severity {
-    DEBUG_SEVERITY_FATAL = 4,
-    DEBUG_SEVERITY_ERROR = 3,
-    DEBUG_SEVERITY_WARN = 2,
-    DEBUG_SEVERITY_NOTICE = 1,
-    DEBUG_SEVERITY_TRACE = 0
+    DEBUG_SEVERITY_FATAL = 10,
+    DEBUG_SEVERITY_ERROR = 9,
+    DEBUG_SEVERITY_WARN = 8,
+    DEBUG_SEVERITY_INFO = 7, /* -d1 */
+    DEBUG_SEVERITY_NOTICE = 6, /* -d2 */
+    DEBUG_SEVERITY_VERBOSE = 5, /* -d3 */
+    DEBUG_SEVERITY_TRACE = 0 /* -t */
 };
 
 /* generic loggers */
@@ -30,6 +32,11 @@ enum debug_severity {
    debug_message(__VA_ARGS__);}while(0)
 #define debug_warn(...)     do{if(DEBUG_SEVERITY_WARN >= current_log_severity) \
    debug_log_with_src("WARN", __func__, __FILE__, __LINE__, __VA_ARGS__);}while(0)
+
+#define LOG_INFO(...)     do{if(DEBUG_SEVERITY_INFO >= current_log_severity) \
+   debug_message(__VA_ARGS__);}while(0)
+#define debug_info(...)   do{if(DEBUG_SEVERITY_INFO >= current_log_severity) \
+   debug_log_with_src("INFO", __func__, __FILE__, __LINE__, __VA_ARGS__);}while(0)
 
 #define LOG_NOTICE(...)     do{if(DEBUG_SEVERITY_NOTICE >= current_log_severity) \
    debug_message(__VA_ARGS__);}while(0)

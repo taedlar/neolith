@@ -77,8 +77,8 @@ These helpers are used by:
 
 - Console worker startup.
 - Console reconnect path in backend.
-- `set_console_echo()`.
-- Console branch of `set_telnet_single_char()`.
+- Console path in `set_input_echo()`.
+- Console branch of `set_input_single_char()`.
 
 For pipe and file stdin, helper calls are no-op by design, preserving scripted input behavior.
 

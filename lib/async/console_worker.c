@@ -363,10 +363,8 @@ console_worker_context_t* console_worker_init(async_runtime_t* runtime, async_qu
 bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
     if (ctx && ctx->worker)
         async_worker_signal_stop(ctx->worker); /* signal the stop event first */
-#if _WIN32_WINNT > 0x0602
     /* cancel any pending ReadConsole() in cooked mode */
     CancelIoEx (GetStdHandle(STD_INPUT_HANDLE), NULL);
-#endif
     if (!ctx || !ctx->worker)
         return true; /* No worker to shutdown */
 
