@@ -397,6 +397,7 @@ bool console_worker_shutdown(console_worker_context_t* ctx, int timeout_ms) {
     if (ctx && ctx->worker) {
         async_worker_signal_stop (ctx->worker); /* signal the stop event first */
         set_console_input_single_char (ctx, 1); /* interrupt line mode console read */
+        set_console_input_echo (ctx, true); /* re-enable echo to avoid leaving console in a bad state */
     }
     else
         return true; /* No worker to shutdown */
