@@ -82,6 +82,12 @@ void async_worker_destroy(async_worker_t* worker) {
     free(worker);
 }
 
+#ifdef _WIN32
+HANDLE async_worker_get_native_handle(async_worker_t* worker) {
+    return worker ? worker->thread : NULL;
+}
+#endif
+
 void async_worker_signal_stop(async_worker_t* worker) {
     if (worker) {
         platform_event_set(&worker->stop_event);

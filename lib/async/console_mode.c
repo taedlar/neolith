@@ -57,11 +57,19 @@ static int set_console_input_mode(console_worker_context_t *ctx,
       return 0;
     }
 
-  if (clear_bits & ENABLE_LINE_INPUT)
+  if ((clear_bits & ENABLE_LINE_INPUT) && (current_mode & ENABLE_LINE_INPUT))
     {
-      /* Switching to single-char mode requires canceling any pending ReadConsole */
-      LOG_INFO ("Switching to character mode, canceling pending line input ...\n");
-      CancelIoEx (handle, NULL);
+      /* Inject a key-DOWN ESC event so that dwCtrlWakeupMask (bit 27) fires inside
+       * ReadConsoleW and unblocks it.  Key-up events do not produce characters and
+       * therefore never trigger the wakeup mask. */
+      INPUT_RECORD esc_input = {0};
+      esc_input.EventType = KEY_EVENT;
+      esc_input.Event.KeyEvent.bKeyDown = TRUE;
+      esc_input.Event.KeyEvent.wRepeatCount = 1;
+      esc_input.Event.KeyEvent.wVirtualKeyCode = VK_ESCAPE;
+      esc_input.Event.KeyEvent.uChar.UnicodeChar = L'\x1B';
+      DWORD written = 0;
+      WriteConsoleInputW (handle, &esc_input, 1, &written);
     }
 
   return 1;
@@ -89,13 +97,13 @@ int set_console_input_echo(console_worker_context_t *ctx, int echo) {
  * Also enables Windows 10 ANSI processing to allow reading of virtual terminal sequences for special keys.
  * @see https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
  */
-int set_console_input_single_char(console_worker_context_t *ctx, int single) {
+int set_console_input_single_char (console_worker_context_t *ctx, int single) {
   if (!single)
     return set_console_input_line_mode(ctx, 1);
 
-  return set_console_input_mode(ctx,
+  return set_console_input_mode (ctx,
     /* set */ ENABLE_PROCESSED_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT,
-    /* clear */ ENABLE_LINE_INPUT
+    /* clear */ ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT
   );
 }
 
