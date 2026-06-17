@@ -23,14 +23,24 @@ Sends a "hello" message to the OpenAI Chat Completions API and prints the reply.
 
 **Requirements**: driver built with `PACKAGE_CURL=ON` and `PACKAGE_JSON=ON` (both are on by default in dev builds).
 
-**Setup**: place your OpenAI API key in a file named `.openai_api_key` in this directory:
-
-```bash
-echo "sk-..." > examples/apps/.openai_api_key
-```
-
 **Run**:
 ```bash
+OPENAI_API_KEY=sk-... /path/to/neolith -c hello_openai.c
+```
+
+The API key is read from the `OPENAI_API_KEY` environment variable. Two additional variables are optional:
+
+| Variable | Default | Description |
+|---|---|---|
+| `OPENAI_API_KEY` | *(required)* | API key |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Base URL — override for local or compatible endpoints |
+| `OPENAI_MODEL` | `gpt-4o` | Model name |
+
+Example using a local [Ollama](https://ollama.com) endpoint:
+```bash
+OPENAI_API_KEY=x \
+OPENAI_BASE_URL=http://localhost:11434/v1 \
+OPENAI_MODEL=llama3 \
 /path/to/neolith -c hello_openai.c
 ```
 

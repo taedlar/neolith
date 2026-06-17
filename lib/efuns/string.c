@@ -6,6 +6,7 @@
 #include "src/interpret.h"
 #include "rc.h"
 #include "crc32.h"
+#include "misc/envsubst.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/functional.h"
@@ -233,6 +234,36 @@ void f_crc32 (void) {
   crc = compute_crc32 (buf, len);
   free_svalue (sp, "f_crc32");
   put_number (crc);
+}
+#endif
+
+
+#ifdef F_ENVSUBST
+void f_envsubst (void) {
+  const char *src;
+  malloc_str_t result;
+  size_t out_len;
+  /* Upper bound: each $VAR can expand to at most PATH_MAX chars; using a
+   * generous fixed limit avoids a two-pass scan while staying bounded. */
+  enum { ENVSUBST_OUT_SIZE = 65536 };
+  char buf[ENVSUBST_OUT_SIZE];
+
+  src = SVALUE_STRPTR(sp);
+
+  if (!envsubst(src, buf, sizeof(buf))) {
+    /* Output too long: return the original string unchanged. */
+    return;
+  }
+
+  out_len = strlen(buf);
+  result = new_string(out_len, "f_envsubst");
+  if (out_len) {
+    memcpy(result, buf, out_len);
+  }
+  result[out_len] = '\0';
+
+  free_string_svalue(sp);
+  SET_SVALUE_MALLOC_STRING(sp, result);
 }
 #endif
 
