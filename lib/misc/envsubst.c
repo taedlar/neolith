@@ -19,12 +19,12 @@
 
 static int is_var_start(unsigned char c)
 {
-  return isalpha(c) || c == '_';
+  return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_');
 }
 
 static int is_var_cont(unsigned char c)
 {
-  return isalnum(c) || c == '_';
+  return ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_');
 }
 
 /*

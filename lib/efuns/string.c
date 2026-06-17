@@ -241,24 +241,26 @@ void f_crc32 (void) {
 #ifdef F_ENVSUBST
 void f_envsubst (void) {
   const char *src;
-  size_t src_len;
   malloc_str_t result;
+  size_t out_len;
   /* Upper bound: each $VAR can expand to at most PATH_MAX chars; using a
    * generous fixed limit avoids a two-pass scan while staying bounded. */
   enum { ENVSUBST_OUT_SIZE = 65536 };
   char buf[ENVSUBST_OUT_SIZE];
 
   src = SVALUE_STRPTR(sp);
-  src_len = SVALUE_STRLEN(sp);
-  (void)src_len; /* used only for the result allocation below */
 
   if (!envsubst(src, buf, sizeof(buf))) {
     /* Output too long: return the original string unchanged. */
     return;
   }
 
-  result = new_string(strlen(buf), "f_envsubst");
-  strcpy(result, buf);
+  out_len = strlen(buf);
+  result = new_string(out_len, "f_envsubst");
+  if (out_len) {
+    memcpy(result, buf, out_len);
+  }
+  result[out_len] = '\0';
 
   free_string_svalue(sp);
   SET_SVALUE_MALLOC_STRING(sp, result);

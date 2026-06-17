@@ -7,18 +7,16 @@
 #include <cstdlib>
 #include <cstring>
 
+#ifdef _WIN32
+  /* MSVC doesn't provide setenv()/unsetenv(); _putenv_s(name, "") removes the variable. */
+  #define setenv(name, value, overwrite) _putenv_s((name), (value))
+  #define unsetenv(name) _putenv_s((name), "")
+#endif
+
 /* Helper: unset a variable, ignoring any error. */
 static void unset_var(const char *name)
 {
-#ifdef HAVE_UNSETENV
-  unsetenv(name);
-#else
-  /* fallback: putenv("NAME=") leaves the variable empty but present */
-  /* good enough for platforms without unsetenv */
-  static char buf[256];
-  snprintf(buf, sizeof(buf), "%s=", name);
-  putenv(buf);
-#endif
+  (void)unsetenv(name);
 }
 
 
@@ -169,12 +167,12 @@ TEST_F(EfunsTest, envsubstDefaultCanBeEmpty) {
 TEST_F(EfunsTest, envsubstMultipleVariablesInOneString) {
   setenv("NEOLITH_HOST", "example.com", 1);
   setenv("NEOLITH_PORT", "8080", 1);
-  push_constant_string("http://${NEOLITH_HOST}:${NEOLITH_PORT}/path");
+  push_constant_string("https://${NEOLITH_HOST}:${NEOLITH_PORT}/path");
   f_envsubst();
 
   auto view = lpc::svalue_view::from(sp);
   ASSERT_TRUE(view.is_string());
-  EXPECT_STREQ(view.c_str(), "http://example.com:8080/path");
+  EXPECT_STREQ(view.c_str(), "https://example.com:8080/path");
   pop_stack();
   unset_var("NEOLITH_HOST");
   unset_var("NEOLITH_PORT");
