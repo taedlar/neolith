@@ -167,6 +167,7 @@ string upper_case(string);
 string lower_case(string);
 string replace_string(string, string, string,...);
 string repeat_string(string, int);
+string envsubst(string);
 string *explode(string, string);
 mixed implode(mixed *, string | function, void | mixed);
 #pragma no_dot_call
