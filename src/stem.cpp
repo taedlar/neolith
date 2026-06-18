@@ -57,10 +57,33 @@ int init_stem(int debug_level, unsigned long trace_flags, const char *config_fil
   memset(stem_opts.mud_app, 0, PATH_MAX);
   stem_opts.argc = 0;
   if (config_file)
-    strncpy(stem_opts.config_file, config_file, PATH_MAX - 1);
+    strncpy (stem_opts.config_file, config_file, PATH_MAX - 1);
 
   g_main_options = &stem_opts; /* this is required throughout the code*/
   return 0;
+}
+
+/**
+ * Resolve the absolute path of the mudlib directory and store it in
+ * `mudlib_dir_absolute` config option.
+ * The resolution is done by resolving the `__MUD_LIB_DIR__` config option relative
+ * to the config file location. If `mudlib_dir_absolute` is already set, it will not
+ * be resolved again.
+ */
+extern "C" bool resolve_mudlib_dir (void) {
+  if (MAIN_OPTION(mudlib_dir_absolute)[0] != '\0')
+    {
+      /* mudlib_dir_absolute already set, no need to resolve */
+      return true;
+    }
+  if (CONFIG_STR(__MUD_LIB_DIR__))
+    {
+      /* Resolve absolute path of mudlib directory relative to the config file location */
+      if (filepath_resolve_with_origin (CONFIG_STR (__MUD_LIB_DIR__), MAIN_OPTION(config_file),
+                                        MAIN_OPTION(mudlib_dir_absolute), PATH_MAX))
+        return true;
+    }
+  return false;
 }
 
 static int normalize_runtime_setting(int value) {

@@ -71,6 +71,7 @@ void try_reset(object_t *);
 #endif
 
 /* filesystem sandboxing */
+bool resolve_mudlib_dir (void);
 bool push_valid_path(const char* path, object_t *caller_ob, const char *call_fun, int writeflg);
 bool push_resolved_valid_path(const char* path, object_t *caller_ob, const char *call_fun, int writeflg);
 malloc_str_t resolve_path_in_mudlib(const char *relative_path, const char *mudlib_root);

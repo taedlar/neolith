@@ -138,26 +138,39 @@ bool filepath_join(const char *dir, const char *path, char *out, size_t out_size
   }
 }
 
-bool filepath_resolve_with_origin(const char *path, const char *origin_file,
+bool filepath_resolve_with_origin(const char *path, const char *origin_path,
                                   char *out, size_t out_size) {
-  if (!path || !origin_file || !out || out_size == 0)
+  if (!path || !origin_path || !out || out_size == 0)
     return false;
 
   try {
     fs::path resolved_path(path);
     fs::path base;
 
-    if (resolved_path.is_absolute())
-      {
-        base = resolved_path;
+    if (resolved_path.is_absolute()) {
+      base = resolved_path;
+    }
+    else {
+      fs::path origin_base;
+      fs::path parsed_origin_path(origin_path);
+      if (parsed_origin_path.empty())
+        return false;
+
+      std::error_code status_ec;
+      fs::file_status origin_status = fs::status(parsed_origin_path, status_ec);
+      if (!status_ec && fs::is_directory(origin_status)) {
+        origin_base = parsed_origin_path;
       }
-    else
-      {
-        fs::path origin_dir = fs::path(origin_file).parent_path();
-        if (origin_dir.empty())
-          origin_dir = ".";
-        base = origin_dir / resolved_path;
+      else {
+        origin_base = parsed_origin_path.parent_path();
       }
+
+      if (origin_base.empty()) {
+        origin_base = ".";
+      }
+
+      base = origin_base / resolved_path;
+    }
 
     std::error_code ec;
     fs::path canonical = fs::weakly_canonical(base, ec);

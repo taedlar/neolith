@@ -61,7 +61,7 @@ static RETSIGTYPE sig_bus (int sig);
 
 int main (int argc, char **argv) {
 
-  char* locale = NULL;
+  char* locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
 
 #ifndef _WIN32
   /* Setup signal handlers */
@@ -77,25 +77,29 @@ int main (int argc, char **argv) {
   signal (SIGCHLD, sig_cld);
 #endif
 
-  /* Initialize LPMud driver runtime environment */
-  locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
-  init_stem(0, 0, NULL);
-  parse_command_line (argc, argv);
+  init_stem (0, 0, NULL); /* initialize MAIN_OPTION() defaults */
+  parse_command_line (argc, argv); /* parse command line arguments, override MAIN_OPTION() */
   if (!*MAIN_OPTION(config_file) && !*MAIN_OPTION(mud_app))
     {
       fprintf (stderr, "%s: you must specify a configuration file, mudlib archive or master file.\n", argv[0]);
       exit (EXIT_FAILURE);
     }
-  init_config (MAIN_OPTION(config_file));
+  init_config (MAIN_OPTION(config_file)); /* initialize CONFIG_STR() / CONFIG_INT() */
+
+  /* Determine launch mode (default: use configured MasterFile) */
   if (*MAIN_OPTION(mud_app))
     {
-      char* dot = strrchr(MAIN_OPTION(mud_app), '.');
-      if (dot && (strcmp(dot, ".zip") == 0 || strcmp(dot, ".gz") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tgz") == 0))
-        init_mudlib_archive(MAIN_OPTION(mud_app),
-                            MAIN_OPTION(argc) > 0 ? MAIN_OPTION(argv)[0] : ""); /* use the first argument as label if exists */
+      char* dot = strrchr (MAIN_OPTION(mud_app), '.');
+      if (dot && (strcmp (dot, ".zip") == 0 || strcmp(dot, ".gz") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tgz") == 0))
+        init_mudlib_archive (MAIN_OPTION(mud_app),
+                             MAIN_OPTION(argc) > 0 ? MAIN_OPTION(argv)[0] : ""); /* use the first argument as label if exists */
       else
-        init_application(MAIN_OPTION(mud_app), MAIN_OPTION(config_file));
+        init_application (MAIN_OPTION(mud_app), MAIN_OPTION(config_file));
     }
+
+  /************************
+   * Initialize debug log *
+   ************************/
   init_debug_log();
 
   /* Print startup banner (and smoke-test debug settings) */
@@ -311,37 +315,32 @@ parse_command_line (int argc, char *argv[])
 
 void init_debug_log() {
   int log_severity;
-  if (CONFIG_STR (__DEBUG_LOG_FILE__))
+
+  (void)resolve_mudlib_dir();
+
+  /* allow LogDir be specified as absolute path or relative path to mudlib directory */
+  if (CONFIG_STR(__LOG_DIR__))
     {
-      if (CONFIG_STR (__LOG_DIR__))
+      char log_dir[PATH_MAX] = "";
+      if (filepath_resolve_with_origin (CONFIG_STR(__LOG_DIR__), MAIN_OPTION(mudlib_dir_absolute), log_dir, sizeof(log_dir)))
         {
-          char path[PATH_MAX];
-          if (filepath_resolve_with_origin (CONFIG_STR (__LOG_DIR__), MAIN_OPTION(config_file),
-                                             path, sizeof(path)))
+          SET_CONFIG_STR (__LOG_DIR__, log_dir);
+
+          /* DebugLogFile is always specified relative to the log directory */
+          if (CONFIG_STR (__DEBUG_LOG_FILE__))
             {
               char log_file[PATH_MAX];
-              if (filepath_join (path, CONFIG_STR (__DEBUG_LOG_FILE__),
-                                 log_file, sizeof (log_file)))
+              if (filepath_join (log_dir, CONFIG_STR (__DEBUG_LOG_FILE__), log_file, sizeof (log_file)))
                 {
                   debug_set_log_file (log_file);
                 }
-              else
-                {
-                  debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
-                }
             }
-          else
-            {
-              debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
-            }
-        }
-      else
-        {
-          debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
         }
     }
 
+  /* log date */
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
+
   /* log severity: 0 = most verbose, 4 = least verbose */
 #ifndef _WIN32
 #define max(a, b) ((a) > (b) ? (a) : (b))

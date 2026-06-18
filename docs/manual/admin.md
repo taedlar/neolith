@@ -14,10 +14,29 @@ Sometime people would wrap the starting command with a *shell script* and restar
 You may use Neolith this way if you're just running a traditional LPMud.
 If you are keen to add efuns or integrate LPMud with some other interesting stuff that involves *modifying* the driver, Neolith provides a ["console mode"](console-mode.md) for administrator to experiment with them:
 ~~~sh
-neolith -f neolith.conf -C
+neolith -f neolith.conf -c
 ~~~
 
 For troubleshooting and debugging, see [trace.md](trace.md) for information about enabling trace flags.
+
+## Running MUD applications from admin workflows
+
+Neolith can also run a LPC file directly as a MUD application (master file) instead of booting only the configured `MasterFile`.
+This is useful for maintenance tasks, scripted operations, and controlled experiments.
+
+Common admin patterns:
+
+- Single-file application (no config file):
+  ~~~sh
+  neolith -c /path/to/app.c
+  ~~~
+- Regular application with production settings:
+  ~~~sh
+  neolith -f neolith.conf -c mudlib/adm/apps/maintenance_task.c
+  ~~~
+
+When `-f` is used for MUD applications, keep the LPC file inside `MudlibDir`; paths outside mudlib are rejected.
+For architecture details and broader use cases, see [mud-application.md](mud-application.md).
 
 # Command Line Options
 
@@ -27,13 +46,14 @@ Neolith accepts several command line options to control its behavior. All option
 
 | Option | Short | Argument | Description |
 |--------|-------|----------|-------------|
-| `-f` | | `config-file` | Specifies the file path of the configuration file. If not provided, defaults to `/etc/neolith.conf`. |
+| | `-f` | `config-file` | Specifies the file path of the configuration file. |
 | `--console-mode` | `-c` | | Run the driver in console mode. See [console-mode.md](console-mode.md) for details. |
 | | `-D` | `macro[=definition]` | Predefines global preprocessor macro for use in mudlib. Can be specified multiple times. |
 | `--debug` | `-d` | `debug-level` | Specifies the runtime debug level (integer). Higher values produce more debug output. |
 | `--epilog` | `-e` | `epilog-level` | Specifies the epilog level to be passed to the master object's `epilog()` apply. |
 | `--pedantic` | `-p` | | Enable pedantic clean up on shutdown. Useful for testing memory leaks. |
 | `--trace` | `-t` | `trace-flags` | Specifies an integer of trace flags to enable trace messages in debug log. See [trace.md](trace.md) for details. |
+| (positional) | | `lpc-file` | Run a LPC file as a MUD application master file. Commonly used with `-c`; with `-f`, the file must be under `MudlibDir`. |
 
 ## Examples
 
@@ -62,7 +82,8 @@ neolith -f neolith.conf -d 2 -e 1
 Before you can start running your own MUD, you need a configuration file to tell Neolith where is the mudlib along with other settings.
 The source code of Neolith includes an example configuration in [src/neolith.conf](src/neolith.conf).
 
-> :bulb: If you don't specify the `-f` option in neolith command line, it finds the configuration file in default location `/etc/neolith.conf`.
+> [!TIP]
+> The configuration file is optional if you are launching a MUD application.
 
 ## Syntax
 
@@ -72,19 +93,18 @@ The source code of Neolith includes an example configuration in [src/neolith.con
 - A setting name is case-insensitive (usually in camel case)
 - A setting value is case-sensitive, with any trailing whitespace characters stripped for idiot-proof.
 
-
 ## Mandatory Settings
 
 Below is a list of settings that are mandatory.
 Name | Value |
 --- | --- |
 `MudlibDir` | Path of the mudlib directory in the host filesystem. It must be a full-path or a path relative to the configuration file location. |
-`MasterFile` | The file path of the privileged master object. |
-`Port` | The TCP port for which your MUD shall listen for new connections. |
+`MasterFile` | The file path of the privileged master object. It must be specified in the configuration file or as an argument for MUD applications. |
 
-### MudlibDir and Filesystem Sandboxing
+## MudlibDir and Filesystem Sandboxing
 
 Neolith treats `MudlibDir` as the root of the mudlib filesystem sandbox for driver-internal compile/load paths.
+The only exception for filesystem sandboxing is `LogDir`, which can be set to an absolute path outside of `MudlibDir`.
 
 - Keep `MudlibDir` set to the intended mudlib root directory.
 - Do not rely on the process current working directory as a security boundary.
@@ -104,14 +124,25 @@ For file access efuns (such as `cp`, `read_file`, `write_file`, `rm`, and `renam
 Operationally, this means mudlib code must pass both policy checks and path safety checks to access files.
 Path traversal patterns (notably `..`) are blocked by the driver.
 
+## Debug logging
+
+- `LogDir` is the base directory used to resolve the debug log file path.
+- `LogDir` can be specified as an absolute path or as a relative path to the mudlib directory.
+- `DebugLogFile` is interpreted as a relative path under `LogDir`, and the log file is opened in append mode.
+- Debug messages are written to a file only when both `LogDir` and `DebugLogFile` are set. Otherwise, debug messages go to stderr.
+- If `LogDir` cannot be resolved to a usable path, Neolith keeps logging on stderr.
+- If the configured log file cannot be opened (for example, missing directory or permission denied), Neolith falls back to stderr.
+- Neolith does not create missing directories automatically; create them and set permissions before startup.
+
 ## Optional Settings
 
 Below is a list of optional settings.
 Name | Value | Default |
 --- | --- | --- |
 `MudName` | Name of the MUD, which is made available to LPC by the pre-defined symbol `MUD_NAME`. | (empty string) |
-`LogDir` | The full-path for `log_file()` to create log files. | use stderr (ideal for *read-only* mudlib) |
-`DebugLogFile` | The filename of debug log file where the LPMud driver's log messages is appended to. | Use stderr |
+`Port` | The TCP port for which your MUD shall listen for new connections. | (none) |
+`LogDir` | Base directory for debug log file path resolution. If not set, `DebugLogFile` is ignored and all debug messages go to stderr. | use stderr (ideal for *read-only* mudlib) |
+`DebugLogFile` | Relative log file path under `LogDir`, opened in append mode. If unset (or if `LogDir` is unset), debug messages go to stderr. | Use stderr |
 `LogWithDate` | Prefix each log message with an ISO-8601 format date and time. | No |
 `IncludeDir` | The search path of LPC `#include`. Multiple paths can be assigned by separating them with `:`. Use `/` to mean mudlib top-level directory. | Not using |
 `GlobalInclude` | An #include header that is automatically included by all LPC programs. | Not using |

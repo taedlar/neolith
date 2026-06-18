@@ -12,7 +12,7 @@ extern "C" {
 
 typedef struct main_options {
   char config_file[PATH_MAX];   /* -f, --config-file */
-   char mudlib_dir_absolute[PATH_MAX]; /* verified absolute mudlib dir */
+  char mudlib_dir_absolute[PATH_MAX]; /* verified absolute mudlib dir */
   bool console_mode;            /* -c, --console-mode */
   bool pedantic;                /* -p, --pedantic */
   int epilog_level;             /* -e, --epilog-level */

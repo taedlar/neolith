@@ -78,3 +78,18 @@ TEST(FilepathHelpersTest, ResolveWithOriginHandlesRelativeAndAbsoluteInput) {
   fs::path expected_absolute = fs::weakly_canonical(absolute_input);
   EXPECT_EQ(fs::path(out).generic_string(), expected_absolute.generic_string());
 }
+
+TEST(FilepathHelpersTest, ResolveWithOriginUsesDirectoryOriginDirectly) {
+  fs::path temp_dir = fs::temp_directory_path() / "neolith_filepath_origin_dir";
+  fs::path origin_dir = temp_dir / "conf";
+
+  std::error_code ec;
+  fs::create_directories(origin_dir, ec);
+  ASSERT_FALSE(ec) << ec.message();
+
+  char out[PATH_MAX];
+  ASSERT_TRUE(filepath_resolve_with_origin("logs", origin_dir.string().c_str(), out, sizeof(out)));
+
+  fs::path expected = fs::weakly_canonical(origin_dir / "logs");
+  EXPECT_EQ(fs::path(out).generic_string(), expected.generic_string());
+}
