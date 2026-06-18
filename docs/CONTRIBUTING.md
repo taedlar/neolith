@@ -1,7 +1,23 @@
 Contributing
 ============
 
-The following skills would be required if you are intereseted in contributing:
+## Contribution Licensing Terms
+
+By opening a pull request, submitting a patch, or otherwise contributing code,
+tests, documentation, or other materials to this repository, you agree that:
+
+- once merged, your contribution becomes part of this project and is licensed
+	under the Fair-Code terms in the project LICENSE;
+- Neolith does not impose additional non-commercial-use restrictions on code
+	newly added or modified in this project by maintainers or contributors;
+- Neolith remains a derived work of MudOS/LPMud, so upstream non-commercial
+	restrictions can still limit commercial use of the combined work;
+- the Neolith project and contributors do not assume responsibility to enforce
+	or litigate upstream MudOS/LPMud licensing restrictions.
+
+See LICENSE for the authoritative legal terms.
+
+The following skills would be required if you are interested in contributing:
 - C/C++ programming
 - CMake scripting
 - LPMud administration (being wizard) and LPC programming

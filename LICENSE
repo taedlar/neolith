@@ -14,18 +14,30 @@ effect. This software and all derivative implementations MAY NOT be used in
 any way whatsoever for monetary gain or commercial purposes without prior 
 explicit written permission from the original copyright holders.
 
-2. DRIVER MODIFICATION AND PERMISSIVE FREEDOM (Fair-Code Architecture)
-This driver's modification rights are governed by a permissive, non-commercial 
-framework designed to maximize developer experimentation and infrastructure stability:
+2. DRIVER MODIFICATION, CONTRIBUTIONS, AND FAIR-CODE ALIGNMENT
+This driver's modification rights are governed by a permissive framework
+designed to maximize developer experimentation and infrastructure stability,
+while remaining aligned with upstream MudOS/LPMud licensing limits:
 
-   (a) PERMISSIVE MODIFICATION: You may freely modify, refactor, and optimize 
+   (a) PERMISSIVE MODIFICATION: You may freely modify, refactor, and optimize
        the driver source code. There is NO copyleft enforcement; you own your 
        modifications and may keep your custom code changes entirely closed-source, 
        proprietary, and private.
-   (b) COMMERCIAL COGNITIVE BOUNDARY: Any distribution, deployment, or execution 
-       of this driver—whether modified or unmodified—remains strictly bound by 
-       the upstream non-commercial requirements of the LPMud/MudOS ecosystem. 
-   (c) COMMUNITY ECOSYSTEM: While closed research and private performance forks 
+   (b) CONTRIBUTION INBOUND LICENSE: By submitting code, documentation, tests,
+       or other changes for inclusion in this repository, each contributor agrees
+       that once merged, the contribution becomes part of this project and is
+       licensed under this project's Fair-Code terms as stated in this LICENSE,
+       subject to the upstream MudOS/LPMud foundation described in Section 1.
+   (c) FAIR-CODE SCOPE FOR NEOLITH-ORIGINATED CHANGES: The Neolith project does
+       NOT impose any additional non-commercial-use restriction on code that was
+       newly added or modified within this project by Neolith maintainers or
+       contributors. This is intended as a more permissive project-level policy.
+   (d) UPSTREAM COMMERCIAL BOUNDARY: Any distribution, deployment, or execution
+       of this driver-whether modified or unmodified-remains constrained by the
+       upstream non-commercial requirements of the LPMud/MudOS ecosystem, because
+       Neolith is a derived work and upstream copyright holders' terms remain in
+       effect.
+   (e) COMMUNITY ECOSYSTEM: While closed research and private performance forks
        are fully permitted for internal or private deployment, contributors are 
        strongly encouraged to submit upstream pull requests to ensure core 
        compatibility with the primary neolith toolchain.
@@ -45,4 +57,15 @@ COPYRIGHT HOLDER OR CONTRIBUTOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+5. UPSTREAM RESTRICTION ENFORCEMENT AND LEGAL RESPONSIBILITY
+The non-commercial-use restrictions referenced in this LICENSE originate from
+upstream MudOS/LPMud rights holders. The Neolith project and its contributors
+do not claim ownership of those upstream restrictions, do not provide legal
+authorization for commercial use of derived works, and do not assume a duty to
+police, enforce, or litigate upstream licensing claims on behalf of upstream
+authors.
+
+If you need legal certainty for commercial activity, you must obtain permission
+directly from the relevant upstream rightsholders.
 ========================================================================
