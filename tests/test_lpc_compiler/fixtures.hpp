@@ -44,6 +44,7 @@ protected:
         // We do not do setup_simulate() here: only test bare LPC compilation without
         // loading master or simul_efun objects, to isolate the compiler behavior.
         // The LPC compiler tests should not depend on CWD for resolving file paths.
+        ASSERT_TRUE(resolve_mudlib_dir()) << "Failed to resolve mudlib directory.";
     }
 
     void TearDown() override {

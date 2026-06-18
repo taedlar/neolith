@@ -75,20 +75,21 @@ void filepath_strip(char *path);
 bool filepath_join(const char *dir, const char *path, char *out, size_t out_size);
 
 /**
- * @brief Resolve a path relative to an origin file path's location.
+ * @brief Resolve a path relative to an origin path.
  *
- * If @p path is a relative path, it is resolved relative to the directory
- * containing @p origin_file. Absolute paths are used as-is. The result is
- * canonicalized (symlinks resolved, . and .. collapsed) and written to @p out.
+ * If @p path is a relative path, it is resolved relative to @p origin_path.
+ * When @p origin_path is a regular file, its parent directory is used.
+ * When @p origin_path is a directory, it is used directly. Absolute @p path
+ * values are used as-is. The result is canonicalized (symlinks resolved,
+ * . and .. collapsed) and written to @p out.
  *
  * @param path        Path to resolve (absolute or relative).
- * @param origin_file  Path whose directory is used as the base for relative
- *                    @p path values.
+ * @param origin_path Path used as the base for relative @p path values.
  * @param out         Caller-provided destination buffer for the resolved path.
  * @param out_size    Size of @p out in bytes.
  * @return true on success, false if inputs are invalid or the path cannot be resolved.
  */
-bool filepath_resolve_with_origin(const char *path, const char *origin_file,
+bool filepath_resolve_with_origin(const char *path, const char *origin_path,
                                   char *out, size_t out_size);
 
 /* legacy LPMud file path validation. Now refactored to use C++17 filesystem */

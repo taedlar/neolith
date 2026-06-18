@@ -2290,21 +2290,11 @@ int mud_state() {
 void setup_simulate() {
   if (master_ob || simul_efun_ob || obj_list || obj_list_destruct)
     fatal ("setup_simulate() called when vital objects already exist.");
-  if (!CONFIG_STR(__MUD_LIB_DIR__))
-    fatal ("unable to determine mudlib directory.");
-
-  /* Resolve absolute path of mudlib directory relative to the config file location */
-  if (!filepath_resolve_with_origin (CONFIG_STR (__MUD_LIB_DIR__), MAIN_OPTION(config_file),
-                                     MAIN_OPTION(mudlib_dir_absolute), PATH_MAX))
-    {
-      LOG_FATAL ("{}\t***** cannot resolve mudlib directory: \"%s\"\n", CONFIG_STR (__MUD_LIB_DIR__));
-      exit (EXIT_FAILURE);
-    }
   /* Change working directory to MudLibDir */
-  if (-1 == CHDIR (MAIN_OPTION(mudlib_dir_absolute)))
+  if (!resolve_mudlib_dir() || -1 == CHDIR (MAIN_OPTION(mudlib_dir_absolute)))
     {
-      debug_perror ("chdir", CONFIG_STR (__MUD_LIB_DIR__));
-      LOG_FATAL ("{}\t***** cannot change working directory to \"%s\"\n", CONFIG_STR (__MUD_LIB_DIR__));
+      debug_perror ("chdir", MAIN_OPTION(mudlib_dir_absolute));
+      LOG_FATAL ("{}\t***** cannot change working directory to \"%s\"\n", MAIN_OPTION(mudlib_dir_absolute));
       exit (EXIT_FAILURE);
     }
   LOG_NOTICE ("{}\tmudlib directory: \"%s\"", MAIN_OPTION(mudlib_dir_absolute));

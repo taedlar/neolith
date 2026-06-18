@@ -20,16 +20,16 @@ private:
 protected:
     void SetUp() override {
         debug_set_log_with_date (false);
-        setlocale(LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
-        init_stem(3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
+        setlocale (LC_ALL, PLATFORM_UTF8_LOCALE); // force UTF-8 locale for consistent string handling
+        init_stem (3, (unsigned long)-1, "m3.conf"); // use highest debug level and enable all trace logs
         MAIN_OPTION(pedantic) = true; // enable pedantic mode for stricter checks
 
         init_config(MAIN_OPTION(config_file));
+        ASSERT_TRUE(resolve_mudlib_dir()) << "Failed to resolve mudlib directory";
 
         debug_message("[ SETUP    ] CTEST_FULL_OUTPUT");
-        ASSERT_TRUE(CONFIG_STR(__MUD_LIB_DIR__));
         namespace fs = std::filesystem;
-        auto mudlib_path = fs::path(CONFIG_STR(__MUD_LIB_DIR__)); // absolute or relative to cwd
+        auto mudlib_path = fs::path(MAIN_OPTION(mudlib_dir_absolute));
         if (mudlib_path.is_relative()) {
             mudlib_path = fs::current_path() / mudlib_path;
         }

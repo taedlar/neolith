@@ -8,11 +8,7 @@ using namespace testing;
 
 TEST_F(LPCCompilerTest, compileFile) {
     namespace fs = std::filesystem;
-    // without setup_simulate(), current directory is configuration directory initialized
-    // by test fixture.
-    EXPECT_TRUE(MAIN_OPTION(mudlib_dir_absolute)[0] == '\0')
-        << "MAIN_OPTION(mudlib_dir_absolute) should be empty before setup_simulate()";
-    fs::path path = fs::current_path() / CONFIG_STR(__MUD_LIB_DIR__) / "master.c";
+    fs::path path = fs::path(MAIN_OPTION(mudlib_dir_absolute)) / "master.c";
     ASSERT_TRUE(fs::exists(path)) << "Test file does not exist: " << path;
 
     // compile_file() is a low-level API that compiles a file and returns the compiled

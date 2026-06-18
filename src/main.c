@@ -61,7 +61,7 @@ static RETSIGTYPE sig_bus (int sig);
 
 int main (int argc, char **argv) {
 
-  char* locale = NULL;
+  char* locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
 
 #ifndef _WIN32
   /* Setup signal handlers */
@@ -77,25 +77,29 @@ int main (int argc, char **argv) {
   signal (SIGCHLD, sig_cld);
 #endif
 
-  /* Initialize LPMud driver runtime environment */
-  locale = setlocale (LC_ALL, PLATFORM_UTF8_LOCALE);
-  init_stem(0, 0, NULL);
-  parse_command_line (argc, argv);
+  init_stem (0, 0, NULL); /* initialize MAIN_OPTION() defaults */
+  parse_command_line (argc, argv); /* parse command line arguments, override MAIN_OPTION() */
   if (!*MAIN_OPTION(config_file) && !*MAIN_OPTION(mud_app))
     {
       fprintf (stderr, "%s: you must specify a configuration file, mudlib archive or master file.\n", argv[0]);
       exit (EXIT_FAILURE);
     }
-  init_config (MAIN_OPTION(config_file));
+  init_config (MAIN_OPTION(config_file)); /* initialize CONFIG_STR() / CONFIG_INT() */
+
+  /* Determine launch mode (default: use configured MasterFile) */
   if (*MAIN_OPTION(mud_app))
     {
-      char* dot = strrchr(MAIN_OPTION(mud_app), '.');
-      if (dot && (strcmp(dot, ".zip") == 0 || strcmp(dot, ".gz") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tgz") == 0))
-        init_mudlib_archive(MAIN_OPTION(mud_app),
-                            MAIN_OPTION(argc) > 0 ? MAIN_OPTION(argv)[0] : ""); /* use the first argument as label if exists */
+      char* dot = strrchr (MAIN_OPTION(mud_app), '.');
+      if (dot && (strcmp (dot, ".zip") == 0 || strcmp(dot, ".gz") == 0 || strcmp(dot, ".tar") == 0 || strcmp(dot, ".tgz") == 0))
+        init_mudlib_archive (MAIN_OPTION(mud_app),
+                             MAIN_OPTION(argc) > 0 ? MAIN_OPTION(argv)[0] : ""); /* use the first argument as label if exists */
       else
-        init_application(MAIN_OPTION(mud_app), MAIN_OPTION(config_file));
+        init_application (MAIN_OPTION(mud_app), MAIN_OPTION(config_file));
     }
+
+  /************************
+   * Initialize debug log *
+   ************************/
   init_debug_log();
 
   /* Print startup banner (and smoke-test debug settings) */
@@ -316,7 +320,8 @@ void init_debug_log() {
   if (CONFIG_STR(__LOG_DIR__))
     {
       char log_dir[PATH_MAX] = "";
-      if (filepath_resolve_with_origin (CONFIG_STR(__LOG_DIR__), CONFIG_STR(__MUD_LIB_DIR__), log_dir, sizeof(log_dir)))
+      if (resolve_mudlib_dir() &&
+          filepath_resolve_with_origin (CONFIG_STR(__LOG_DIR__), MAIN_OPTION(mudlib_dir_absolute), log_dir, sizeof(log_dir)))
         {
           SET_CONFIG_STR (__LOG_DIR__, log_dir);
 
