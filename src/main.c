@@ -311,37 +311,30 @@ parse_command_line (int argc, char *argv[])
 
 void init_debug_log() {
   int log_severity;
-  if (CONFIG_STR (__DEBUG_LOG_FILE__))
+
+  /* allow LogDir be specified as absolute path or relative path from configuration file's location */
+  if (CONFIG_STR(__LOG_DIR__))
     {
-      if (CONFIG_STR (__LOG_DIR__))
+      char log_dir[PATH_MAX] = "";
+      if (filepath_resolve_with_origin (CONFIG_STR(__LOG_DIR__), CONFIG_STR(__MUD_LIB_DIR__), log_dir, sizeof(log_dir)))
         {
-          char path[PATH_MAX];
-          if (filepath_resolve_with_origin (CONFIG_STR (__LOG_DIR__), MAIN_OPTION(config_file),
-                                             path, sizeof(path)))
+          SET_CONFIG_STR (__LOG_DIR__, log_dir);
+
+          /* DebugLogFile is always specified relative to the log directory */
+          if (CONFIG_STR (__DEBUG_LOG_FILE__))
             {
               char log_file[PATH_MAX];
-              if (filepath_join (path, CONFIG_STR (__DEBUG_LOG_FILE__),
-                                 log_file, sizeof (log_file)))
+              if (filepath_join (log_dir, CONFIG_STR (__DEBUG_LOG_FILE__), log_file, sizeof (log_file)))
                 {
                   debug_set_log_file (log_file);
                 }
-              else
-                {
-                  debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
-                }
             }
-          else
-            {
-              debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
-            }
-        }
-      else
-        {
-          debug_set_log_file (CONFIG_STR (__DEBUG_LOG_FILE__));
         }
     }
 
+  /* log date */
   debug_set_log_with_date (CONFIG_INT (__ENABLE_LOG_DATE__));
+
   /* log severity: 0 = most verbose, 4 = least verbose */
 #ifndef _WIN32
 #define max(a, b) ((a) > (b) ? (a) : (b))
