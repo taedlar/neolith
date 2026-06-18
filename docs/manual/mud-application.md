@@ -103,24 +103,10 @@ neolith -c package.zip migrate-player-file
 For console-mode applications, Neolith behaves like an LPC runtime hosted by the driver backend.
 Even in console mode, the program runs as a real LPMud session with one interactive user.
 
-### Quick start with `hello_openai.c`
-The example at `examples/apps/hello_openai.c` sends the message `"hello"` to OpenAI with CURL efuns and parses the JSON response with JSON efuns.
-
-1. Build Neolith with CURL and JSON support (`PACKAGE_CURL=ON`, `PACKAGE_JSON=ON`).
-2. Add your API key in a local file beside the app:
-   ```bash
-   echo "sk-..." > examples/apps/.openai_api_key
-   ```
-3. Run in console mode:
-   ```bash
-   neolith -c examples/apps/hello_openai.c
-   ```
-
-Expected flow:
-- `logon()` loads the API key and starts the request.
-- `perform_using()` sets URL, headers, request body, and timeout.
-- `perform_to()` dispatches a non-blocking HTTP transfer.
-- The completion callback receives `success` + `buffer|string`, parses with `from_json()`, prints output, then calls `shutdown()`.
+### Example programs
+For runnable examples (including `hello_openai.c`) and the current
+environment/configuration requirements, use the examples/apps README as the
+source of truth.
 
 ### Runtime characteristics
 A MUD application keeps core LPMud semantics:
