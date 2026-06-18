@@ -70,7 +70,7 @@ int init_stem(int debug_level, unsigned long trace_flags, const char *config_fil
  * to the config file location. If `mudlib_dir_absolute` is already set, it will not
  * be resolved again.
  */
-bool resolve_mudlib_dir() {
+extern "C" bool resolve_mudlib_dir (void) {
   if (MAIN_OPTION(mudlib_dir_absolute)[0] != '\0')
     {
       /* mudlib_dir_absolute already set, no need to resolve */

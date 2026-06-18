@@ -316,12 +316,13 @@ parse_command_line (int argc, char *argv[])
 void init_debug_log() {
   int log_severity;
 
-  /* allow LogDir be specified as absolute path or relative path from configuration file's location */
+  (void)resolve_mudlib_dir();
+
+  /* allow LogDir be specified as absolute path or relative path to mudlib directory */
   if (CONFIG_STR(__LOG_DIR__))
     {
       char log_dir[PATH_MAX] = "";
-      if (resolve_mudlib_dir() &&
-          filepath_resolve_with_origin (CONFIG_STR(__LOG_DIR__), MAIN_OPTION(mudlib_dir_absolute), log_dir, sizeof(log_dir)))
+      if (filepath_resolve_with_origin (CONFIG_STR(__LOG_DIR__), MAIN_OPTION(mudlib_dir_absolute), log_dir, sizeof(log_dir)))
         {
           SET_CONFIG_STR (__LOG_DIR__, log_dir);
 

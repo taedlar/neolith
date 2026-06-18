@@ -46,7 +46,7 @@ Neolith accepts several command line options to control its behavior. All option
 
 | Option | Short | Argument | Description |
 |--------|-------|----------|-------------|
-| `-f` | | `config-file` | Specifies the file path of the configuration file. If not provided and no LPC file argument is supplied, defaults to `/etc/neolith.conf`. |
+| | `-f` | `config-file` | Specifies the file path of the configuration file. |
 | `--console-mode` | `-c` | | Run the driver in console mode. See [console-mode.md](console-mode.md) for details. |
 | | `-D` | `macro[=definition]` | Predefines global preprocessor macro for use in mudlib. Can be specified multiple times. |
 | `--debug` | `-d` | `debug-level` | Specifies the runtime debug level (integer). Higher values produce more debug output. |
@@ -82,7 +82,8 @@ neolith -f neolith.conf -d 2 -e 1
 Before you can start running your own MUD, you need a configuration file to tell Neolith where is the mudlib along with other settings.
 The source code of Neolith includes an example configuration in [src/neolith.conf](src/neolith.conf).
 
-> :bulb: If you don't specify the `-f` option and you are not launching a positional LPC application file, neolith finds the configuration file in default location `/etc/neolith.conf`.
+> [!TIP]
+> The configuration file is optional if you are launching a MUD application.
 
 ## Syntax
 

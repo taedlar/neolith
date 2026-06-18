@@ -153,6 +153,8 @@ bool filepath_resolve_with_origin(const char *path, const char *origin_path,
     else {
       fs::path origin_base;
       fs::path parsed_origin_path(origin_path);
+      if (parsed_origin_path.empty())
+        return false;
 
       std::error_code status_ec;
       fs::file_status origin_status = fs::status(parsed_origin_path, status_ec);

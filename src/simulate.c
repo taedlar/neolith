@@ -2290,8 +2290,10 @@ int mud_state() {
 void setup_simulate() {
   if (master_ob || simul_efun_ob || obj_list || obj_list_destruct)
     fatal ("setup_simulate() called when vital objects already exist.");
+  if (!resolve_mudlib_dir())
+    fatal ("setup_simulate() failed to resolve mudlib directory.");
   /* Change working directory to MudLibDir */
-  if (!resolve_mudlib_dir() || -1 == CHDIR (MAIN_OPTION(mudlib_dir_absolute)))
+  if (-1 == CHDIR (MAIN_OPTION(mudlib_dir_absolute)))
     {
       debug_perror ("chdir", MAIN_OPTION(mudlib_dir_absolute));
       LOG_FATAL ("{}\t***** cannot change working directory to \"%s\"\n", MAIN_OPTION(mudlib_dir_absolute));
