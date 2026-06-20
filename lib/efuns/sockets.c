@@ -134,7 +134,7 @@ f_socket_connect (void)
       /*
        * socket descriptor is not bound yet
        */
-      char *s;
+      const char *s;
       int start = 0;
 
       addr[0] = '\0';
