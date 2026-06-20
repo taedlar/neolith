@@ -255,16 +255,16 @@ static void inc_lexically_normal (const char* abs_base, const char *name, char *
         }
       else
         {			/* append first component to dest */
+          const char* s1 = strchr (from, '/');
           if (*dest)
             strcat (dest, "/");	/* only if dest is not empty !! */
-          slash = strchr (from, '/');
 
-          if (slash)
+          if (s1)
             {			/* from has 2 or more components */
               while (*from == '/')	/* find the start */
                 from++;
-              strncat (dest, from, slash - from);
-              for (from = slash + 1; *from == '/'; from++);
+              strncat (dest, from, s1 - from);
+              for (from = s1 + 1; *from == '/'; from++);
             }
           else
             {
@@ -387,7 +387,7 @@ static int skip_to (char *token, char *atoken)
 static int inc_open (char *buf, size_t buf_size, const char *name) {
 
   int i, fd;
-  char *p;
+  const char *p;
   const char *mudlib_dir;
   size_t mudlib_len;
   size_t name_len;
