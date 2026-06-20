@@ -277,7 +277,7 @@ f_member_array (void)
 
   if (sp->type == T_STRING)
     {
-      char *res;
+      const char *res;
       CHECK_TYPES (sp - 1, T_NUMBER, 1, F_MEMBER_ARRAY);
       if (i > (int)SVALUE_STRLEN (sp))
         error ("Index to start search from in member_array() is > string length.\n");

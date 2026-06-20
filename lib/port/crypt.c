@@ -55,6 +55,7 @@ static void generate_salt(char *salt, size_t len) {
   salt[len] = '\0';
 }
 
+#ifdef HAVE_OPENSSL
 /**
  * Simple hex encoding of binary data.
  *
@@ -105,6 +106,7 @@ static void crypt_md5_encode(const unsigned char *input, char *output) {
   output[1] = base64_crypt[(val >> 6) & 0x3f];
   output[2] = '\0';
 }
+#endif /* HAVE_OPENSSL */
 
 /**
  * Portable crypt() implementation using OpenSSL MD5/SHA256.
