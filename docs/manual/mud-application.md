@@ -108,6 +108,39 @@ For runnable examples (including `hello_openai.c`) and the current
 environment/configuration requirements, use the examples/apps README as the
 source of truth.
 
+### Application arguments
+
+Extra arguments after the LPC file are forwarded to the application and made available at compile time through the `__ARGV__` predefined macro:
+
+```bash
+neolith [options] <lpc-file> [arg1 arg2 ...]
+```
+
+Inside the LPC file, retrieve the arguments as a string array:
+
+```cxx
+void logon() {
+    string* argv = __ARGV__;
+    if (sizeof(argv) == 0) {
+        write("No arguments.\n");
+    } else {
+        write("Arguments: " + implode(argv, ", ") + "\n");
+    }
+    shutdown();
+}
+```
+
+Running with:
+```bash
+neolith -c my_app.c foo bar
+```
+produces `__ARGV__` expanding to `({"foo","bar"})` at compile time, so `argv` holds `({ "foo", "bar" })` at runtime.
+
+When no extra arguments are supplied, `__ARGV__` expands to `({})` (an empty array), so `sizeof(__ARGV__) == 0` is a safe empty-check.
+
+> [!NOTE]
+> A maximum of 16 arguments is accepted. Arguments beyond that limit are silently ignored.
+
 ### Runtime characteristics
 A MUD application keeps core LPMud semantics:
 - **Application entry points**:
