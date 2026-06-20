@@ -2595,6 +2595,47 @@ static void add_quoted_predefine (char *def, char *val) {
   add_predefine (def, -1, save_buf);
 }
 
+/**
+ * @brief Define the __ARGV__ predefine with the mud application arguments.
+ *
+ * Produces a LPC string-array literal, e.g. ({"foo","bar"}), and registers it
+ * as the __ARGV__ predefined macro so LPC code can retrieve the arguments with:
+ *   string* argv = __ARGV__;
+ *
+ * @param argc Number of mud application arguments.
+ * @param argv Array of mud application argument strings. May be NULL when argc is 0.
+ */
+void set_argv_predefine (int argc, char* const* argv) {
+  char buf[MLEN];
+  char *p = buf;
+  char * const end = buf + sizeof(buf) - 4;  /* reserve 4 bytes for "})\0" */
+  int i;
+
+  *p++ = '(';
+  *p++ = '{';
+  for (i = 0; i < argc && p < end - 2; i++) {
+    const char *s;
+    if (i > 0)
+      *p++ = ',';
+    *p++ = '"';
+    for (s = argv[i]; *s && p < end - 1; s++) {
+      if (*s == '"' || *s == '\\') {
+        *p++ = '\\';
+        if (p >= end)
+          break;
+      }
+      *p++ = *s;
+    }
+    if (p < end)
+      *p++ = '"';
+  }
+  *p++ = '}';
+  *p++ = ')';
+  *p = '\0';
+
+  add_predefine ("__ARGV__", -1, buf);
+}
+
 void add_predefines () {
   int i;
   lpc_predef_t *tmpf;

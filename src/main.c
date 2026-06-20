@@ -122,6 +122,7 @@ int main (int argc, char **argv) {
     CONFIG_INT (__MAX_LOCAL_VARIABLES__),
     CONFIG_STR (__INCLUDE_DIRS__)
   ); /* lib/lpc/compiler.c */
+  set_argv_predefine (MAIN_OPTION(argc), MAIN_OPTION(argv)); /* __ARGV__ predefine */
 
   /* Setup the world simulation machine */
   setup_simulate();
@@ -377,15 +378,10 @@ void init_debug_log() {
 }
 
 /**
- * @brief Print startup information to debug log. Also serves as a smoke-test
- *        for debug logging system.
+ * @brief Print startup information to debug log.
  */
 static void print_startup_info() {
-  if (0 > debug_message ("{}\t===== %s-%s starting up =====", PACKAGE, VERSION))
-    {
-      fprintf (stderr, "Failed to write to debug log.\n");
-      exit (EXIT_FAILURE);
-    }
+  LOG_INFO ("{}\t===== %s-%s starting up =====", PACKAGE, VERSION);
 #ifdef HAVE_SYS_RESOURCE_H
   struct rlimit rl;
   if (getrlimit (RLIMIT_NOFILE, &rl) == 0)

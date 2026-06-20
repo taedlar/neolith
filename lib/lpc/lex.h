@@ -119,6 +119,7 @@ const char *main_file_name(void);
 
 int lookup_predef(char *);
 void add_predefines(void);
+void set_argv_predefine(int argc, char* const* argv);
 void free_defines (int include_predefs);
 
 char *show_error_context(void);
