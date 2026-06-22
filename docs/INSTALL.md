@@ -52,7 +52,12 @@ Linux packages:
 sudo apt install openssl libssl-dev
 ~~~
 
-You can also fetch OpenSSL from source with [FETCH_OPENSSL_FROM_SOURCE](#fetch_openssl_from_source).
+On Windows, you can use `winget` to install pre-built openssl libraries maintained by community:
+~~~powershell
+winget install ShiningLight.OpenSSL.Dev
+~~~
+
+You can also fetch OpenSSL from source with [FETCH_OPENSSL_FROM_SOURCE](#fetch_openssl_from_source). Building OpenSSL from source code on Windows requires Perl and NASM, both can be found in [StrawberryPerl](https://strawberryperl.com/) package.
 
 ### cURL
 
