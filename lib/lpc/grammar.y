@@ -4,9 +4,9 @@
 #endif	/* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "rc.h"
-#include "scratchpad.h"
 #include "src/simul_efun.h"
+#include "rc/rc.h"
+#include "misc/scratchpad.h"
 #include "lpc/object.h"
 #include "lpc/otable.h"
 #include "lpc/program/parse_trees.h"
@@ -14,6 +14,9 @@
 
 #include "lpc/include/function.h"
 #include "lpc/include/runtime_config.h"
+
+#define YYMALLOC(sz) DXALLOC(sz, TAG_GRAMMAR, "grammar.y")
+#define YYFREE(p) FREE(p)
 
 /*
  * This is the grammar definition of LPC, and its parse tree generator.
@@ -35,6 +38,9 @@ int64_t context;
  */
 int yyparse(void);
 
+#ifdef _MSC_VER
+#pragma warning(disable: 4244 4702)
+#endif
 %}
 
 /*

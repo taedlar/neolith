@@ -10,6 +10,9 @@
 
 #include "edit_source.h"
 
+#define YYMALLOC malloc
+#define YYFREE free
+
 void yyerror(char* s);
 
 #define mf_fatal(x)	yyerror(x)
@@ -52,6 +55,10 @@ struct type {
 };
 
 #define NELEMS(arr) 	(sizeof arr / sizeof arr[0])
+
+#ifdef _MSC_VER
+#pragma warning(disable: 4244 4702)
+#endif
 %}
 
 %union {
