@@ -17,11 +17,8 @@ if(MSVC)
     # add_compile_options(/W3 /WX /permissive- /Zc:__cplusplus)
     add_compile_options(/W4 /wd4706 /permissive- /Zc:__cplusplus /EHs /utf-8)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-elseif(APPLE)
+elseif(UNIX)
 	add_compile_options(-Wall -Wextra -Wpedantic -Wno-strict-prototypes)
-else()
-	add_compile_options(-Wall -Wextra -Wpedantic)
-	add_compile_definitions(_GNU_SOURCE)
 endif()
 
 # check for standard headers
@@ -54,12 +51,6 @@ check_symbol_exists(poll poll.h HAVE_POLL)
 check_symbol_exists(realpath stdlib.h HAVE_REALPATH)
 check_symbol_exists(stpcpy string.h HAVE_STPCPY)
 check_symbol_exists(strtod stdlib.h HAVE_STRTOD)
-
-# check for libraries
-include(CheckLibraryExists)
-if(UNIX)
-    # check_library_exists(rt clock_gettime "" HAVE_LIBRT)
-endif()
 
 # check dependencies
 find_package(BISON REQUIRED)

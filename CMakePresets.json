@@ -1,5 +1,10 @@
 {
     "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 28,
+        "patch": 0
+    },
     "configurePresets": [
         {
             "name": "project-default",
@@ -13,9 +18,8 @@
             }
         },
         {
-            "name": "windows-default",
+            "name": "msvc-x64",
             "hidden": true,
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "BISON_ROOT": "C:/GnuWin32",
                 "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
@@ -28,6 +32,10 @@
                     "enableClangTidyCodeAnalysis": true
                 }
             },
+            "architecture": {
+              "value": "x64",
+              "strategy": "set"
+            },
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -35,53 +43,30 @@
             }
         },
         {
-            "name": "msbuild-clang",
-            "hidden": true,
+            "name": "vs18-x64",
+            "description": "Uses Visual Studio 2026 generator, x64 architecture",
+            "inherits": ["project-default", "msvc-x64"],
+            "generator": "Visual Studio 18 2026"
+        },
+        {
+            "name": "vs16-x64",
+            "description": "Uses Visual Studio 2019 generator, x64 architecture",
+            "inherits": ["project-default", "msvc-x64"],
+            "generator": "Visual Studio 16 2019"
+        },
+        {
+            "name": "clangcl-x64",
+            "description": "Uses ClangCL compiler, x64 architecture",
+            "inherits": ["project-default", "msvc-x64"],
             "toolset": {
               "value": "ClangCL",
               "strategy": "set"
             }
         },
         {
-            "name": "vs18-x64",
-            "displayName": "x64 - VS2026",
-            "description": "Uses Visual Studio 2026 generator, x64 architecture",
-            "inherits": ["project-default", "windows-default"],
-            "generator": "Visual Studio 18 2026",
-            "architecture": {
-              "value": "x64",
-              "strategy": "set"
-            }
-        },
-        {
-            "name": "vs16-x64",
-            "displayName": "x64 - VS2019",
-            "description": "Uses Visual Studio 2019 generator, x64 architecture",
-            "inherits": ["project-default", "windows-default"],
-            "generator": "Visual Studio 16 2019",
-            "architecture": {
-              "value": "x64",
-              "strategy": "set"
-            }
-        },
-        {
-            "name": "clang-x64",
-            "displayName": "x64 - ClangCL",
-            "description": "Uses ClangCL compiler, x64 architecture",
-            "inherits": ["project-default", "windows-default", "msbuild-clang"],
-            "architecture": {
-              "value": "x64",
-              "strategy": "set"
-            }
-        },
-        {
             "name": "linux-default",
             "hidden": true,
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
-            "cacheVariables": {
-                "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_CXX_COMPILER": "g++"
-            },
+            "generator": "Ninja Multi-Config",
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
                   "hostOS": [ "Linux" ]
@@ -94,11 +79,22 @@
             }
         },
         {
-            "name": "linux",
-            "displayName": "Linux",
-            "generator": "Ninja Multi-Config",
-            "description": "Uses Ninja Multi-Config generator, architecture unspecified",
-            "inherits": ["project-default", "linux-default"]
+            "name": "linux-gcc",
+            "description": "Uses Ninja Multi-Config generator, GCC compiler",
+            "inherits": ["project-default", "linux-default"],
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++"
+            }
+        },
+        {
+            "name": "linux-clang",
+            "description": "Uses Ninja Multi-Config generator, Clang compiler",
+            "inherits": ["project-default", "linux-default"],
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
         },
         {
             "name": "macos-default",
@@ -111,14 +107,7 @@
             }
         },
         {
-            "name": "macos",
-            "displayName": "macOS",
-            "description": "Uses Ninja Multi-Config generator, host architecture",
-            "inherits": ["project-default", "macos-default"]
-        },
-        {
             "name": "macos-arm64",
-            "displayName": "macOS ARM64",
             "description": "Uses Ninja Multi-Config generator, ARM64 architecture",
             "inherits": ["project-default", "macos-default"],
             "cacheVariables": {
@@ -144,7 +133,6 @@
             "name": "ci-vs18-x64",
             "description": "Continous Integration Build (rebuild all)",
             "inherits": ["pr-vs18-x64"],
-            "targets": ["ALL_BUILD"],
             "cleanFirst": true
         },
         {
@@ -164,67 +152,63 @@
             "name": "ci-vs16-x64",
             "description": "Continous Integration Build (rebuild all)",
             "inherits": ["pr-vs16-x64"],
-            "targets": ["ALL_BUILD"],
             "cleanFirst": true
         },
         {
-            "name": "dev-clang-x64",
+            "name": "dev-clangcl-x64",
             "description": "Debug Build (build modified files)",
-            "configurePreset": "clang-x64",
+            "configurePreset": "clangcl-x64",
             "configuration": "Debug",
             "targets": ["ALL_BUILD"]
         },
         {
-            "name": "pr-clang-x64",
+            "name": "pr-clangcl-x64",
             "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-clang-x64"],
+            "inherits": ["dev-clangcl-x64"],
             "configuration": "RelWithDebInfo"
         },
         {
-            "name": "ci-clang-x64",
+            "name": "ci-clangcl-x64",
             "description": "Continous Integration Build (rebuild all)",
-            "inherits": ["pr-clang-x64"],
-            "targets": ["ALL_BUILD"],
+            "inherits": ["pr-clangcl-x64"],
             "cleanFirst": true
         },
         {
-            "name": "dev-linux",
+            "name": "dev-linux-gcc",
             "description": "Debug Build (build modified files)",
-            "configurePreset": "linux",
+            "configurePreset": "linux-gcc",
             "configuration": "Debug",
             "targets": ["all"]
         },
         {
-            "name": "pr-linux",
+            "name": "pr-linux-gcc",
             "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-linux"],
+            "inherits": ["dev-linux-gcc"],
             "configuration": "RelWithDebInfo"
         },
         {
-            "name": "ci-linux",
+            "name": "ci-linux-gcc",
             "description": "Continous Integration Build (rebuild all)",
-            "inherits": ["pr-linux"],
-            "targets": ["all"],
+            "inherits": ["pr-linux-gcc"],
             "cleanFirst": true
         },
         {
-            "name": "dev-macos",
+            "name": "dev-linux-clang",
             "description": "Debug Build (build modified files)",
-            "configurePreset": "macos",
+            "configurePreset": "linux-clang",
             "configuration": "Debug",
             "targets": ["all"]
         },
         {
-            "name": "pr-macos",
+            "name": "pr-linux-clang",
             "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-macos"],
+            "inherits": ["dev-linux-clang"],
             "configuration": "RelWithDebInfo"
         },
         {
-            "name": "ci-macos",
-            "description": "Continuous Integration Build (rebuild all)",
-            "inherits": ["pr-macos"],
-            "targets": ["all"],
+            "name": "ci-linux-clang",
+            "description": "Continous Integration Build (rebuild all)",
+            "inherits": ["pr-linux-clang"],
             "cleanFirst": true
         },
         {
@@ -244,81 +228,52 @@
             "name": "ci-macos-arm64",
             "description": "Continuous Integration Build (rebuild all)",
             "inherits": ["pr-macos-arm64"],
-            "targets": ["all"],
             "cleanFirst": true
         }
     ],
     "testPresets": [
         {
-            "name": "ut-windows-defaults",
+            "name": "ut-defaults",
             "hidden": true,
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            },
             "execution": {
                 "noTestsAction": "ignore"
             }
         },
         {
             "name": "ut-vs18-x64",
-            "displayName": "Unit Tests x64",
             "description": "Run unit-tests for Windows 64-bits architecture",
             "configurePreset": "vs18-x64",
-            "inherits": ["ut-windows-defaults"]
+            "inherits": ["ut-defaults"]
         },
         {
             "name": "ut-vs16-x64",
-            "displayName": "Unit Tests x64",
             "description": "Run unit-tests for Windows 64-bits architecture",
             "configurePreset": "vs16-x64",
-            "inherits": ["ut-windows-defaults"]
+            "inherits": ["ut-defaults"]
         },
         {
-            "name": "ut-clang-x64",
-            "displayName": "Unit Tests x64",
+            "name": "ut-clangcl-x64",
             "description": "Run unit-tests for Windows 64-bits architecture",
-            "configurePreset": "clang-x64",
-            "inherits": ["ut-windows-defaults"]
+            "configurePreset": "clangcl-x64",
+            "inherits": ["ut-defaults"]
         },
         {
-            "name": "ut-linux-defaults",
-            "hidden": true,
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Linux"
-            },
-            "execution": {
-                "noTestsAction": "ignore"
-            }
-        },
-        {
-            "name": "ut-linux",
-            "displayName": "Unit Tests on Linux",
+            "name": "ut-linux-gcc",
             "description": "Run unit-tests on Linux",
-            "configurePreset": "linux",
-            "inherits": ["ut-linux-defaults"]
+            "configurePreset": "linux-gcc",
+            "inherits": ["ut-defaults"]
         },
         {
-            "name": "ut-macos-defaults",
-            "hidden": true,
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Darwin"
-            },
-            "execution": {
-                "noTestsAction": "ignore"
-            }
+            "name": "ut-linux-clang",
+            "description": "Run unit-tests on Linux",
+            "configurePreset": "linux-clang",
+            "inherits": ["ut-defaults"]
         },
         {
             "name": "ut-macos-arm64",
-            "displayName": "Unit Tests on macOS ARM64",
             "description": "Run unit-tests on macOS ARM64",
             "configurePreset": "macos-arm64",
-            "inherits": ["ut-macos-defaults"]
+            "inherits": ["ut-defaults"]
         }
     ]
 }

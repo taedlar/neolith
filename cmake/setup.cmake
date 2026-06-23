@@ -141,13 +141,7 @@ if (FETCH_OPENSSL_FROM_SOURCE)
         EXCLUDE_FROM_ALL
     )
 else()
-    FetchContent_Declare(
-        OpenSSL
-        GIT_REPOSITORY https://github.com/openssl/openssl.git
-        GIT_TAG openssl-4.0.1
-        FIND_PACKAGE_ARGS
-            NAMES OpenSSL openssl
-    )
+    find_package(OpenSSL QUIET)
 endif()
 
 # [ CURL ]
