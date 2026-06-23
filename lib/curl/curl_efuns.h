@@ -1,5 +1,4 @@
-// lib/curl/curl_efuns.h
-/**
+/*
  * @file curl_efuns.h
  * @brief CURL REST API efuns for non-blocking HTTP requests.
  *
