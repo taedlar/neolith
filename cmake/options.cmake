@@ -12,7 +12,6 @@ include(CMakeDependentOption)
 #
 # For FETCH_*_FROM_SOURCE options, see cmake/setup.cmake which configures.
 # -------------------------------------------------------------------------
-cmake_dependent_option(USE_STATIC_MSVC_RUNTIME "Enable static MSVC Runtime library (-MT/-MD)" ON "MSVC" OFF)
 cmake_dependent_option(NEOLITH_BUILD_TESTS "Build Neolith unit tests (requires BUILD_TESTING and GoogleTest)" ON "BUILD_TESTING" OFF)
 
 # -------------------------------------------------------------------------
