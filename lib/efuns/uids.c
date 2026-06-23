@@ -14,7 +14,7 @@
 
 #include "src/std.h"
 #include "uids.h"
-#include "avltree.h"
+#include "misc/avltree.h"
 #include "lpc/types.h"
 #include "lpc/object.h"
 #include "lpc/operator.h"

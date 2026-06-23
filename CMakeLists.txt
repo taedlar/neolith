@@ -162,8 +162,8 @@ endif()
 # generate global header "config.h" for build configurations
 configure_file(config.h.in config.h @ONLY)
 include_directories(
-	${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/lib
-	${CMAKE_BINARY_DIR}
+	${CMAKE_SOURCE_DIR}	# for src/std.h
+	${CMAKE_BINARY_DIR} # for generated headers
 )
 add_compile_definitions(HAVE_CONFIG_H)
 

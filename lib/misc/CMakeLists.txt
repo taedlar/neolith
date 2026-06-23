@@ -16,4 +16,8 @@ target_include_directories(misc PRIVATE
 target_compile_definitions(misc PRIVATE NO_OPCODES)
 
 # each misc. header is part of the public interface
-target_include_directories(misc INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_sources(misc PUBLIC
+    FILE_SET HEADERS
+    BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
+    FILES avltree.h crc32.h envsubst.h filepath.h hash.h qsort.h scratchpad.h
+)

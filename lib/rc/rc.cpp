@@ -37,7 +37,7 @@
 #include "port/wrapper.h"
 #include "port/debug.h"
 #include "misc/filepath.h"
-#include "rc.h"
+#include "rc/rc.h"
 
 #include <filesystem>
 

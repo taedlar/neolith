@@ -5,7 +5,11 @@ set(curl_SOURCES
 )
 
 add_library(curl OBJECT ${curl_SOURCES})
-target_include_directories(curl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_sources(curl PUBLIC
+    FILE_SET HEADERS
+    BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
+    FILES curl_efuns.h
+)
 target_compile_definitions(curl PRIVATE NO_OPCODES)
 
 if(PACKAGE_CURL)

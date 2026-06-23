@@ -23,9 +23,9 @@ if(MSVC)
 endif()
 
 add_library(port STATIC ${port_SOURCES})
-target_sources(port INTERFACE
+target_sources(port PUBLIC
     FILE_SET HEADERS
-    BASE_DIRS ..
+    BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
     FILES ansi.h debug.h wrapper.h byte_code.h timer.h socket_comm.h sync.h
 )
 

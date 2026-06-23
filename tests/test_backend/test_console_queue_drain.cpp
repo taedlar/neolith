@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "src/backend.h"
 #include "src/comm.h"
 #include "src/command.h"

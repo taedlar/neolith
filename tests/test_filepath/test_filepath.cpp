@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "filepath.h"
+#include "misc/filepath.h"
 
 #include <gtest/gtest.h>
 

@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "hash.h"
+#include "misc/hash.h"
 #include "array.h"
 #include "class.h"
 #include "object.h"
@@ -12,7 +12,7 @@
 #include "program.h"
 #include "src/comm.h"
 #include "src/command.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "src/frame.h"
 #include "src/simul_efun.h"
 #include "lpc/include/origin.h"

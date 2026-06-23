@@ -4,7 +4,7 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "command.h"
 #include "frame.h"
 #include "interpret.h"

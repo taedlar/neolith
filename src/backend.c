@@ -11,7 +11,7 @@
 #include "lpc/program.h"
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "interpret.h"
 #include "backend.h"
 #include "command.h"

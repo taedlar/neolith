@@ -19,7 +19,7 @@
 #include "lpc/buffer.h"
 #include "lpc/object.h"
 #include "lpc/operator.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "port/socket_comm.h"
 #include "socket_efuns.h"
 #include "socket_err.h"

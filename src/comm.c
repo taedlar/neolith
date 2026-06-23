@@ -9,7 +9,7 @@
 #include "lpc/include/origin.h"
 #include "comm.h"
 #include "command.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "simul_efun.h"
 #include "interpret.h"
 #include "addr_resolver.h"

@@ -22,7 +22,7 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "comm.h"
 #include "simul_efun.h"
 #include "misc/filepath.h"

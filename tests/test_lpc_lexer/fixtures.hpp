@@ -1,11 +1,11 @@
 #pragma once
 
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "lpc/lex.h"
 #include "lpc/compiler.h"
 extern "C" {
-#include "grammar.h"
+#include "lpc/grammar.h"
 }
 
 #include <gtest/gtest.h>

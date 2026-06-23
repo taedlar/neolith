@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "interpret.h"
 #include "lpc/array.h"
 #include "lpc/compiler.h"
