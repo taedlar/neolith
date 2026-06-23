@@ -4,6 +4,9 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _WIN32
+    #include <malloc.h>
+#endif
 #include <string.h>
 #include <time.h>
 
@@ -64,7 +67,7 @@
 #endif
 
 /* dynamic memory allocations */
-#include "malloc.h"
+#include "dxalloc.h"
 #define ALLOCATE(type, tag, desc) ((type *)DXALLOC(sizeof(type), tag, desc))
 #define CALLOCATE(num, type, tag, desc) ((type *)DXALLOC(sizeof(type[1]) * (num), tag, desc))
 #define RESIZE(ptr, num, type, tag, desc) ((type *)DREALLOC((void *)ptr, sizeof(type) * (num), tag, desc))

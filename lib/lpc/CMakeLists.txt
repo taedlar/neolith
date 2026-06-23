@@ -1,6 +1,6 @@
 # lib/lpc/CMakeLists.txt
 
-BISON_TARGET(make_func make_func.y ${CMAKE_CURRENT_BINARY_DIR}/make_func.c)
+bison_target(make_func make_func.y ${CMAKE_CURRENT_BINARY_DIR}/make_func.c)
 
 set(edit_source_SOURCES edit_source.c)
 add_executable(edit_source ${edit_source_SOURCES} ${BISON_make_func_OUTPUTS})
@@ -18,7 +18,7 @@ configure_file(options.h.in ${CMAKE_BINARY_DIR}/options.h @ONLY)
 # preprocessor-only command
 if(MSVC)
     set(CPP_COMMAND ${CMAKE_C_COMPILER} /DHAVE_CONFIG_H
-        /I ${CMAKE_CURRENT_SOURCE_DIR} /I ${CMAKE_BINARY_DIR} /I ${CMAKE_CURRENT_BINARY_DIR} /EP) # cl
+        /I ${CMAKE_CURRENT_SOURCE_DIR} /I ${CMAKE_BINARY_DIR} /I ${CMAKE_CURRENT_BINARY_DIR} /EP /utf-8) # cl
 else()
     set(CPP_COMMAND ${CMAKE_C_COMPILER} -DHAVE_CONFIG_H -x c
         -I ${CMAKE_CURRENT_SOURCE_DIR} -I ${CMAKE_BINARY_DIR} -I ${CMAKE_CURRENT_BINARY_DIR} -E)  # gcc
@@ -39,7 +39,7 @@ add_custom_command(TARGET edit_source POST_BUILD
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-BISON_TARGET(grammar grammar.y ${CMAKE_CURRENT_BINARY_DIR}/grammar.c
+bison_target(grammar grammar.y ${CMAKE_CURRENT_BINARY_DIR}/grammar.c
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/grammar.h
 )
 add_custom_target(generate_grammar DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/grammar.h) # for generated header dependency
@@ -76,4 +76,4 @@ target_link_libraries(lpc PUBLIC port misc logger rc)
 if(PACKAGE_CURL AND TARGET CURL::libcurl)
     target_link_libraries(lpc PUBLIC CURL::libcurl)
 endif()
-target_include_directories(lpc PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(lpc PUBLIC ${CMAKE_CURRENT_BINARY_DIR}) # for grammar.h
