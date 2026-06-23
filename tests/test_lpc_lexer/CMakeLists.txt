@@ -5,7 +5,7 @@ add_executable(test_lpc_lexer
     test_preprocess.cpp
 )
 target_link_libraries(test_lpc_lexer PRIVATE stem GTest::gtest_main)
-add_dependencies(test_lpc_lexer generate_grammar)
+add_dependencies(test_lpc_lexer lpc_grammar)
 
 # setup testing data
 # (the default working directory is ${CMAKE_CURRENT_BINARY_DIR} when running tests)

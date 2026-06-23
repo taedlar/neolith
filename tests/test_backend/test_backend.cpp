@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "addr_resolver.h"
 #include "lpc/compiler.h"
 #include <gtest/gtest.h>

@@ -15,7 +15,7 @@
 #include "lpc/include/origin.h"
 #include "misc/filepath.h"
 #include "port/timer.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "simul_efun.h"
 #include "simulate.h"
 

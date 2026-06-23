@@ -2,7 +2,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "src/simul_efun.h"
 #include "uids.h"
 #include "lpc/lex.h"

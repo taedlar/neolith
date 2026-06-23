@@ -18,17 +18,17 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "src/std.h"
-#include "rc.h"
-#include "hash.h"
+#include "rc/rc.h"
+#include "misc/hash.h"
 #include "lex.h"
 #include "compiler.h"
-#include "scratchpad.h"
+#include "misc/scratchpad.h"
 #include "lpc/include/function.h"
 #include "misc/filepath.h"
 #include "src/main.h"
 
 #include "preprocess.h"
-#include "grammar.h"
+#include "lpc/grammar.h"
 
 #define SKIPWHITE while (isspace(*p) && (*p != '\n')) p++
 

@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/include/runtime_config.h"

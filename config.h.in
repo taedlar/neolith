@@ -47,7 +47,7 @@
 
 #cmakedefine HAVE_GTEST
 
-/* MudOS options */
+/* legacy MudOS options (generated from lib/lpc/options.h.in) */
 #include "options.h"
 
 #ifndef _LPC_FUNC_SPEC
@@ -76,5 +76,13 @@
 #ifndef _WIN32
 typedef unsigned char BYTE;
 #endif
+
+#ifdef HAVE_STDBOOL_H
+#include <stdbool.h>
+#else
+#define bool int
+#define true 1
+#define false 0
+#endif /* !HAVE_STDBOOL_H */
 
 #endif /* _LPC_FUNC_SPEC */

@@ -26,10 +26,10 @@
 #include "lpc/object.h"
 #include "lpc/otable.h"
 #include "lpc/include/runtime_config.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "binaries.h"
-#include "qsort.h"
-#include "hash.h"
+#include "misc/qsort.h"
+#include "misc/hash.h"
 
 static const char *magic_id = LPCBIN_MAGIC; /* magic id to identify valid binary files */
 static const uint32_t driver_id = LPCBIN_DRIVER_ID; /* increment when driver changes */

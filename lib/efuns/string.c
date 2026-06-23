@@ -4,8 +4,8 @@
 
 #include "src/std.h"
 #include "src/interpret.h"
-#include "rc.h"
-#include "crc32.h"
+#include "rc/rc.h"
+#include "misc/crc32.h"
 #include "misc/envsubst.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"

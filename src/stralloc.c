@@ -5,7 +5,7 @@
 #include "std.h"
 #include "lpc/include/runtime_config.h"
 #include "interpret.h"
-#include "hash.h"
+#include "misc/hash.h"
 
 #include <assert.h>
 

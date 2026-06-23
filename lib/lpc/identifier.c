@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "hash.h"
+#include "misc/hash.h"
 #include "identifier.h"
 #include "lex.h"
 

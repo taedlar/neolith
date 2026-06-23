@@ -11,7 +11,7 @@
 #include "functional.h"
 #include "object.h"
 #include "program.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "include/function.h"
 #include "include/origin.h"
 

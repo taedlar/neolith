@@ -4,7 +4,7 @@
 
 #include "src/std.h"
 #include "src/command.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "lpc/object.h"
 #include "lpc/array.h"
 

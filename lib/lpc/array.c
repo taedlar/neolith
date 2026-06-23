@@ -3,11 +3,11 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "src/interpret.h"
 #include "src/comm.h"
 #include "src/command.h"
-#include "qsort.h"
+#include "misc/qsort.h"
 
 #include "array.h"
 #include "object.h"

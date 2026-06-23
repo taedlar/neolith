@@ -42,7 +42,8 @@ add_custom_command(TARGET edit_source POST_BUILD
 bison_target(grammar grammar.y ${CMAKE_CURRENT_BINARY_DIR}/grammar.c
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/grammar.h
 )
-add_custom_target(generate_grammar DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/grammar.h) # for generated header dependency
+set_property(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/grammar.h PROPERTY GENERATED TRUE)
+add_custom_target(lpc_grammar DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/grammar.h)
 
 set(lpc_SOURCES
     array.c
@@ -67,13 +68,13 @@ set(lpc_SOURCES
 )
 add_library(lpc STATIC ${lpc_SOURCES} ${BISON_grammar_OUTPUTS})
 add_dependencies(lpc edit_source)
-target_sources(lpc INTERFACE
+target_sources(lpc PUBLIC
     FILE_SET HEADERS
-    BASE_DIRS ..
+    BASE_DIRS ${CMAKE_SOURCE_DIR}/lib ${CMAKE_BINARY_DIR}/lib
     FILES array.h buffer.h class.h functional.h mapping.h object.h otable.h program.h svalue.h types.h
+        ${CMAKE_CURRENT_BINARY_DIR}/grammar.h
 )
 target_link_libraries(lpc PUBLIC port misc logger rc)
 if(PACKAGE_CURL AND TARGET CURL::libcurl)
     target_link_libraries(lpc PUBLIC CURL::libcurl)
 endif()
-target_include_directories(lpc PUBLIC ${CMAKE_CURRENT_BINARY_DIR}) # for grammar.h

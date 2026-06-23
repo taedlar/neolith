@@ -3,7 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "command.h"
 #include "src/apply.h"
 #include "lpc/include/origin.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "hash.h"
+#include "misc/hash.h"
 #include "identifier.h"
 
 #ifdef __cplusplus

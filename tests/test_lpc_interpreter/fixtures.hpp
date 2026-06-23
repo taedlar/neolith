@@ -1,7 +1,7 @@
 #pragma once
 
 #include "std.h"
-#include "rc.h"
+#include "rc/rc.h"
 #include "command.h"
 #include "simul_efun.h"
 #include "uids.h"

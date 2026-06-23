@@ -6,7 +6,7 @@
 #include "types.h"
 #include "object.h"
 #include "otable.h"
-#include "hash.h"
+#include "misc/hash.h"
 
 #include "lpc/include/runtime_config.h"
 

@@ -7,8 +7,8 @@
 #endif
 
 #include "src/std.h"
-#include "crc32.h"
-#include "rc.h"
+#include "misc/crc32.h"
+#include "rc/rc.h"
 #include "file_utils.h"
 #include "parse.h"
 #include "dumpstat.h"
