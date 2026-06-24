@@ -13,3 +13,4 @@ target_sources(json PUBLIC
     BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
     FILES json.h
 )
+target_compile_definitions(json PRIVATE NO_OPCODES)

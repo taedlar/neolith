@@ -14,6 +14,7 @@ set(efuns_SOURCES
     heart_beat.c
     interactive.c
     inventory.c
+    json.cpp
     maps.c
     math.c
     objects.cpp
@@ -44,23 +45,12 @@ endif()
 
 target_link_libraries(efuns PUBLIC port misc logger lpc rc curl)
 
-if(HAVE_BOOST_JSON)
-    target_sources(efuns PRIVATE json.cpp)
-    if (BOOST_JSON_HEADER_ONLY OR TARGET Boost::json)
-        # Suppress Boost's MSVC autolink pragma so the linker uses only the
-        # full-path library that CMake resolves via the Boost::json target.
-        # BOOST_ALL_NO_LIB is a no-op on non-MSVC compilers (Linux/Clang),
-        # where the pragma-based autolink mechanism does not exist.
-        target_compile_definitions(efuns PRIVATE BOOST_ALL_NO_LIB)
-    endif()
+if(TARGET Boost::boost)
+    target_compile_definitions(efuns PRIVATE BOOST_ALL_NO_LIB)
     if(TARGET Boost::json)
         target_link_libraries(efuns PUBLIC Boost::json)
-    elseif(TARGET Boost::headers)
-        target_link_libraries(efuns PRIVATE Boost::headers)
-    elseif(TARGET Boost::boost)
-        target_link_libraries(efuns PRIVATE Boost::boost)
     endif()
-elseif(HAVE_JSONCPP)
-    target_sources(efuns PRIVATE json.cpp)
+    target_link_libraries(efuns PRIVATE Boost::boost)
+else()
     target_link_libraries(efuns PRIVATE json)
 endif()

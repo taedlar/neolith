@@ -11,3 +11,4 @@ target_sources(logger INTERFACE
     FILES logger.h
 )
 target_link_libraries(logger PRIVATE port)
+target_compile_definitions(logger PRIVATE NO_OPCODES)

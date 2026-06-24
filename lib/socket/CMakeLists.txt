@@ -11,6 +11,7 @@ target_sources(socket INTERFACE
     FILES socket_efuns.h socket_err.h
 )
 target_link_libraries(socket PRIVATE port misc rc)
+target_compile_definitions(socket PRIVATE NO_OPCODES)
 add_dependencies(socket lpc) # for func_spec dependency
 
 if(TARGET c-ares::cares)

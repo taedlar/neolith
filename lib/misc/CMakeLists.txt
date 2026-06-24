@@ -17,3 +17,4 @@ target_sources(misc PUBLIC
     BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
     FILES avltree.h crc32.h envsubst.h filepath.h hash.h qsort.h scratchpad.h
 )
+target_compile_definitions(misc PRIVATE NO_OPCODES)

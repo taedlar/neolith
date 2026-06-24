@@ -34,7 +34,9 @@ static inline char* alloc_cstring(const char* cstr, const char* caller) {
 }
 
 /* define this when included by something compiled before lib/lpc */
+#ifndef NO_OPCODES
 #include "efuns_opcode.h"
+#endif
 
 /* interfaces to the LPMud virtual machine */
 #include "lpc/types.h"

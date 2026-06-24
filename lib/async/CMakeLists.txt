@@ -32,6 +32,7 @@ target_sources(async INTERFACE
 )
 
 target_link_libraries(async PUBLIC port logger)
+target_compile_definitions(async PRIVATE NO_OPCODES)
 
 # Platform-specific libraries
 if(UNIX)
