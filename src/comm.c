@@ -32,10 +32,6 @@
 #include <stdarg.h>
 #endif /* HAVE_STDARG_H */
 
-#ifdef WINSOCK
-#pragma comment(lib, "ws2_32.lib")
-#endif
-
 #define UCHAR	unsigned char
 #ifdef __GNUC__
 /* casting integer to char: standard conforming */

@@ -42,7 +42,6 @@ if(PACKAGE_SOCKETS)
     target_link_libraries(efuns PRIVATE socket)
 endif()
 
-# target_include_directories(efuns INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}) # efun headers
 target_link_libraries(efuns PUBLIC port misc logger lpc rc curl)
 
 if(HAVE_BOOST_JSON)

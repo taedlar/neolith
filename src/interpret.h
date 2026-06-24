@@ -86,7 +86,6 @@ void eval_instruction (const char *p);
 
 void call_function (program_t *progp, int runtime_index, int num_args, svalue_t *ret_value);
 
-#ifndef NO_OPCODES
 typedef void (*func_t) (void);
 extern func_t efun_table[];
 
@@ -96,7 +95,6 @@ extern func_t efun_table[];
 static inline void call_efun (int instruction) {
   (*efun_table[instruction - BASE]) ();
 }
-#endif /* ! NO_OPCODES*/
 
 void process_efun_callback(int, function_to_call_t *, int);
 svalue_t *call_efun_callback(function_to_call_t *, int);
