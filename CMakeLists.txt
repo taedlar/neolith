@@ -12,6 +12,7 @@ include(CTest) # option: BUILD_TESTING
 include(cmake/options.cmake) # project options
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_OSX_ARCHITECTURES arm64)
 
 if(MSVC)
 	# Visual Studio 2019 or later
