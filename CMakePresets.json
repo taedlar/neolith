@@ -58,6 +58,7 @@
             "name": "clangcl-x64",
             "description": "Uses ClangCL compiler, x64 architecture",
             "inherits": ["project-default", "msvc-x64"],
+            "generator": "Visual Studio 16 2019",
             "toolset": {
               "value": "ClangCL",
               "strategy": "set"
