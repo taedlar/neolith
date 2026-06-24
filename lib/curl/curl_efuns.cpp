@@ -7,7 +7,7 @@
 #include <config.h>
 #endif
 
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
 
 #include "src/std.h"
 #include "src/apply.h"
@@ -827,7 +827,7 @@ void init_curl_subsystem(void) {
   }
 
   if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
-    debug_message("Warning: failed to initialize libcurl; PACKAGE_CURL disabled.\n");
+    debug_message("Warning: failed to initialize libcurl.\n");
     return;
   }
 
@@ -836,7 +836,7 @@ void init_curl_subsystem(void) {
   if (!s_curl_multi) {
     s_runtime = nullptr;
     curl_global_cleanup();
-    debug_message("Warning: failed to initialize CURL multi handle; PACKAGE_CURL disabled.\n");
+    debug_message("Warning: failed to initialize CURL multi handle.\n");
     return;
   }
 
@@ -845,7 +845,7 @@ void init_curl_subsystem(void) {
     curl_multi_cleanup(s_curl_multi);
     s_curl_multi = nullptr;
     curl_global_cleanup();
-    debug_message("Warning: failed to allocate CURL handle state; PACKAGE_CURL disabled.\n");
+    debug_message("Warning: failed to allocate CURL handle state.\n");
     return;
   }
 
@@ -867,7 +867,7 @@ void init_curl_subsystem(void) {
     s_curl_multi = nullptr;
     s_runtime = nullptr;
     curl_global_cleanup();
-    debug_message("Warning: failed to create CURL queues; PACKAGE_CURL disabled.\n");
+    debug_message("Warning: failed to create CURL queues.\n");
     return;
   }
 
@@ -884,7 +884,7 @@ void init_curl_subsystem(void) {
     s_curl_multi = nullptr;
     s_runtime = nullptr;
     curl_global_cleanup();
-    debug_message("Warning: failed to start CURL worker; PACKAGE_CURL disabled.\n");
+    debug_message("Warning: failed to start CURL worker.\n");
   }
 }
 
@@ -1052,4 +1052,4 @@ void drain_curl_completions(void) {
   }
 }
 
-#endif /* PACKAGE_CURL */
+#endif /* HAVE_CURL */

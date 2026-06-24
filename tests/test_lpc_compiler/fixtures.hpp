@@ -3,7 +3,7 @@
 #include "rc/rc.h"
 #include "src/simul_efun.h"
 #include "src/simulate.h"
-#include "uids.h"
+#include "efuns/uids.h"
 #include "lpc/object.h"
 #include "lpc/otable.h"
 

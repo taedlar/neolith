@@ -2,13 +2,13 @@
  * @file curl_efuns.h
  * @brief CURL REST API efuns for non-blocking HTTP requests.
  *
- * Provides perform_using(), perform_to(), and in_perform() efuns when PACKAGE_CURL is enabled.
+ * Provides perform_using(), perform_to(), and in_perform() efuns when HAVE_CURL is enabled.
  */
 
-#ifndef HAVE_CURL_EFUNS_H
-#define HAVE_CURL_EFUNS_H
+#ifndef CURL_EFUNS_H
+#define CURL_EFUNS_H
 
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
 
 #include <curl/curl.h>
 
@@ -181,6 +181,6 @@ void drain_curl_completions(void);
 }
 #endif
 
-#endif /* PACKAGE_CURL */
+#endif /* HAVE_CURL */
 
-#endif /* HAVE_CURL_EFUNS_H */
+#endif /* CURL_EFUNS_H */

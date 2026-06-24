@@ -8,9 +8,11 @@
 #include "src/std.h"
 #include "lpc/object.h"
 #include "src/interpret.h"
-#include "socket_err.h"
-#include "socket_efuns.h"
+#ifdef PACKAGE_SOCKETS
+#include "socket/socket_err.h"
+#include "socket/socket_efuns.h"
 #include "lpc/include/socket_err.h"
+#endif
 #include "src/comm.h"
 
 #define VALID_SOCKET(x) check_valid_socket((x), fd, get_socket_owner(fd), addr, port)

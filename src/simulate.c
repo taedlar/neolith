@@ -12,7 +12,7 @@
 #include "main.h"
 #include "simulate.h"
 #include "simul_efun.h"
-#include "uids.h"
+#include "efuns/uids.h"
 #include "lpc/array.h"
 #include "lpc/functional.h"
 #include "lpc/mapping.h"
@@ -26,7 +26,7 @@
 #include "lpc/include/runtime_config.h"
 #include "misc/filepath.h"
 #include "socket/socket_efuns.h"
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
 #include "curl/curl_efuns.h"
 #endif
 #include "call_out.h"
@@ -956,6 +956,7 @@ void destruct_object (object_t * ob) {
       error ("*Cannot destruct simul_efun_object while master_object exists.");
     }
 
+#ifdef PACKAGE_SOCKETS
   /*
    * check if object has an efun socket referencing it for a callback. if
    * so, close the efun socket.
@@ -964,8 +965,9 @@ void destruct_object (object_t * ob) {
     {
       close_referencing_sockets (ob);
     }
+#endif
 
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
   close_curl_handles (ob);
 #endif
 
@@ -2036,12 +2038,14 @@ void do_shutdown () {
 
   ipc_remove ();
 
+#ifdef PACKAGE_SOCKETS
   /* force close all LPC sockets if mudlib doesn't close them */
   for (i = 0; i < max_lpc_socks; i++)
     {
       if (lpc_socks[i].state != CLOSED)
         (void) SOCKET_CLOSE (lpc_socks[i].fd);
     }
+#endif
 
   for (i = 1; i < max_users; i++)
     {
@@ -2311,7 +2315,9 @@ void setup_simulate() {
 
 void tear_down_simulate() {
 
+#ifdef PACKAGE_SOCKETS
   deinit_dns_system();
+#endif
   addr_resolver_deinit();
 
   if (MAIN_OPTION(pedantic))

@@ -4,7 +4,7 @@
 
 #include "fixtures.hpp"
 
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
 
 #include <atomic>
 #include <cstring>
@@ -16,7 +16,9 @@
 #include "src/backend.h"
 #include "src/comm.h"
 #include "src/simulate.h"
+#ifdef HAVE_CURL
 #include "curl/curl_efuns.h"
+#endif
 #include "lpc/buffer.h"
 #include "lpc/functional.h"
 #include "lpc/mapping.h"
@@ -783,4 +785,4 @@ TEST_F(CurlEfunsTest, DestroyedOwnerSkipsCallbackDispatch) {
 
 } // namespace
 
-#endif /* PACKAGE_CURL */
+#endif /* HAVE_CURL */

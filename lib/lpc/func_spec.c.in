@@ -502,7 +502,7 @@ string socket_address(int | object);
 string dump_socket_status();
 #endif
 
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
 /*
  * CURL REST API efuns
  */

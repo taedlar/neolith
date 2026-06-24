@@ -21,7 +21,6 @@ set(efuns_SOURCES
     prop.c
     reclaim_object.c
     replace_program.c
-    sockets.c
     sprintf.c
     sscanf.c
     string.c
@@ -32,22 +31,30 @@ set(efuns_SOURCES
 )
 
 add_library(efuns STATIC ${efuns_SOURCES})
-target_include_directories(efuns PUBLIC ${CMAKE_CURRENT_BINARY_DIR})    # generated efuns tables
-target_include_directories(efuns INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}) # efun headers
-target_include_directories(efuns PRIVATE
-    ${CMAKE_SOURCE_DIR}
+target_sources(efuns INTERFACE
+    FILE_SET HEADERS
+    BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
+    FILES dumpstat.h file_utils.h parse.h reclaim_object.h replace_program.h sscanf.h uids.h
 )
-target_link_libraries(efuns PUBLIC port misc logger lpc rc socket curl)
+
+if(PACKAGE_SOCKETS)
+    target_sources(efuns PRIVATE sockets.c)
+    target_link_libraries(efuns PRIVATE socket)
+endif()
+
+# target_include_directories(efuns INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}) # efun headers
+target_link_libraries(efuns PUBLIC port misc logger lpc rc curl)
+
 if(HAVE_BOOST_JSON)
     target_sources(efuns PRIVATE json.cpp)
-    if (BOOST_JSON_HEADER_ONLY OR Boost_json_FOUND)
+    if (BOOST_JSON_HEADER_ONLY OR TARGET Boost::json)
         # Suppress Boost's MSVC autolink pragma so the linker uses only the
         # full-path library that CMake resolves via the Boost::json target.
         # BOOST_ALL_NO_LIB is a no-op on non-MSVC compilers (Linux/Clang),
         # where the pragma-based autolink mechanism does not exist.
         target_compile_definitions(efuns PRIVATE BOOST_ALL_NO_LIB)
     endif()
-    if(Boost_json_FOUND)
+    if(TARGET Boost::json)
         target_link_libraries(efuns PUBLIC Boost::json)
     elseif(TARGET Boost::headers)
         target_link_libraries(efuns PRIVATE Boost::headers)

@@ -17,7 +17,7 @@
 #include "async/console_mode.h"
 #include "socket/socket_efuns.h"
 #include "ed.h"
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
 #include "curl/curl_efuns.h"
 #endif
 
@@ -247,7 +247,7 @@ void init_user_conn () {
       }
   }
 
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
   init_curl_subsystem ();
 #endif
 
@@ -285,7 +285,7 @@ void ipc_remove () {
   addr_resolver_cache_reset ();
   addr_resolver_deinit ();
 
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
   deinit_curl_subsystem ();
 #endif
 }
@@ -1174,7 +1174,7 @@ void process_io () {
         {
           process_addr_resolver_completions ();
         }
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
       else if (evt->completion_key == CURL_COMPLETION_KEY)
         {
           drain_curl_completions ();
