@@ -19,7 +19,7 @@ if(MSVC)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 elseif(UNIX)
 	# GCC and Clang
-	add_compile_options(-Wall -Wextra -Wpedantic -Wno-strict-prototypes)
+	add_compile_options(-Wall -Wextra -Wpedantic "$<$<COMPILE_LANGUAGE:C>:-Wno-strict-prototypes>")
 endif()
 
 # check for standard headers
@@ -58,6 +58,13 @@ include(CheckLibraryExists)
 check_library_exists(m sqrt "" HAVE_LIBM)
 
 # check dependencies
+include(FetchContent)
+FetchContent_Declare(
+	GoogleTest
+	GIT_REPOSITORY https://github.com/google/googletest.git
+	GIT_TAG v1.17.0
+	EXCLUDE_FROM_ALL
+)
 find_package(BISON REQUIRED)
 set(Boost_NO_WARN_NEW_VERSIONS ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
@@ -65,7 +72,8 @@ set(Boost_COMPILER "-vc142")
 find_package(Boost CONFIG OPTIONAL_COMPONENTS json)
 find_package(OpenSSL)
 find_package(CURL)
-find_package(CARES)
+# find_package(CARES)
+find_package(c-ares CONFIG)
 
 if(Boost_FOUND AND TARGET Boost::boost)
 	set(HAVE_BOOST TRUE)

@@ -3,7 +3,6 @@ Unit-Testing
 Neolith uses **GoogleTest** as unit-testing framework.
 
 If GoogleTest is not found in the build environment, the configure step downloads GoogleTest from the GitHub.
-See `setup.cmake` for the `FetchContent_Declare` settings.
 
 ## Prerequisites
 

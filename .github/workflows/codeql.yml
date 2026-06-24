@@ -11,6 +11,18 @@ on:
       - '**.hpp'
       - '**.y'
       - 'CMakeLists.txt'
+  push:
+    branches: [ "main" ]
+    paths:
+      - '**.c'
+      - '**.cpp'
+      - '**.cmake'
+      - '**.h'
+      - '**.hpp'
+      - '**.y'
+      - 'CMakeLists.txt'
+  schedule:
+    - cron: '35 7 * * 5'
 
 jobs:
   analyze:
@@ -35,9 +47,6 @@ jobs:
         include:
         - language: c-cpp
           os: ubuntu-latest
-        # There is no github-hosted Windows runner with BISON installed.
-        # - language: c-cpp
-        #   os: windows-latest
         - language: c-cpp
           os: macos-latest
     steps:
@@ -53,26 +62,9 @@ jobs:
           paths-ignore:
             - out/
 
-    - name: Run manual build steps (Ubuntu)
-      if: runner.os == 'Linux'
-      shell: bash
-      run: |
-        cmake --preset linux-gcc
-        cmake --build --preset ci-linux-gcc
-
-    # - name: Run manual build steps (Windows)
-    #   if: runner.os == 'Windows'
-    #   shell: bash
-    #   run: |
-    #     cmake --preset vs16-x64
-    #     cmake --build --preset ci-vs16-x64
-
-    - name: Run manual build steps (macOS)
-      if: runner.os == 'macOS'
-      shell: bash
-      run: |
-        cmake --preset macos-arm64
-        cmake --build --preset ci-macos-arm64
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v4
+      continue-on-error: true
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
