@@ -94,11 +94,7 @@ static void validate_for_json(svalue_t *v, int depth)
  * ======================================================================== */
 #ifdef HAVE_BOOST_JSON
 
-#ifdef BOOST_JSON_HEADER_ONLY
-#include <boost/json/src.hpp>  // Boost.JSON header-only implementation
-#else
 #include <boost/json.hpp>
-#endif
 
 
 /* --------------------------------------------------------------------------
