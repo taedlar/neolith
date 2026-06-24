@@ -251,7 +251,7 @@ static void json_to_lpc(boost::json::value const& jv, svalue_t *out)
  * JsonCpp fallback implementation
  * ======================================================================== */
 
-#include "json.h"
+#include "json/json.h"
 
 
 /* --------------------------------------------------------------------------
