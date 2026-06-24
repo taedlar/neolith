@@ -40,8 +40,6 @@ Neolith follows that guidance: by default, configure uses a pinned FetchContent 
 
 Do not rely on `libgtest-dev` for this project; it is intentionally not the primary source in the default configure flow.
 
-To pin or override the fetched tag, use [FETCH_GOOGLETEST_FROM_SOURCE](#fetch_googletest_from_source).
-
 ### OpenSSL
 
 OpenSSL enables modern cryptography and HTTPS support.
@@ -101,19 +99,6 @@ This project uses CMake dependency provider hooks (via `cmake/setup.cmake`) so `
 
 If any of the following cache variables are set, configure will fetch that dependency source at the specified tag and make it available to the build.
 Resolution order still depends on `FETCHCONTENT_TRY_FIND_PACKAGE_MODE`.
-
-### `FETCH_GOOGLETEST_FROM_SOURCE`
-
-This cache variable controls the Git tag used for the local FetchContent GoogleTest source.
-Default: `v1.17.0` (set in `cmake/setup.cmake`).
-
-~~~sh
-# Windows
-cmake --preset vs16-x64 -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
-
-# Linux
-cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
-~~~
 
 ### `FETCH_OPENSSL_FROM_SOURCE`
 

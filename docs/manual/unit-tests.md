@@ -1,52 +1,25 @@
 Unit-Testing
 =====
-Neolith uses **googletest** as unit-testing framework.
+Neolith uses **GoogleTest** as unit-testing framework.
 
-If GoogleTest is not found in the build environment, the unit-testing programs are skipped automatically.
+If GoogleTest is not found in the build environment, the configure step downloads GoogleTest from the GitHub.
+See `setup.cmake` for the `FetchContent_Declare` settings.
 
 ## Prerequisites
 
-### Linux
-
-For CMake-based projects, prefer `FetchContent` over system packages.
-Neolith uses a local fetched GoogleTest source by default, controlled by `FETCH_GOOGLETEST_FROM_SOURCE`.
-
-### Windows
-
-Use `FETCH_GOOGLETEST_FROM_SOURCE` to pin the GoogleTest tag when configuring:
-
-~~~sh
-cmake --preset vs16-x64   -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
-cmake --preset clang-x64  -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
-~~~
-
-CMake will clone and build GoogleTest automatically before compiling the tests.
-
-### Fetching from source (any platform)
-
-`FETCH_GOOGLETEST_FROM_SOURCE` can be used on any platform to pin a specific version:
-
-~~~sh
-cmake --preset linux -DFETCH_GOOGLETEST_FROM_SOURCE=v1.17.0
-~~~
-
-To skip building unit test targets entirely:
-
-~~~sh
+Unit-Testing is enabled by default. To skip building unit-tests entirely:
+~~~bash
 cmake --preset <configure-preset> -DBUILD_TESTING=OFF
 ~~~
 
 ## Running Tests
 To run unit-tests, run the `ctest` command using preset:
 ~~~sh
-# Linux
-ctest --preset ut-linux
+# Show test presets
+ctest --list-presets
 
-# Windows (MSVC)
+# Run unit-tests. For example:
 ctest --preset ut-vs16-x64
-
-# Windows (Clang)
-ctest --preset ut-clang-x64
 ~~~
 
 ## Adding Unit Tests

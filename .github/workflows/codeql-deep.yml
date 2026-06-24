@@ -84,9 +84,9 @@ jobs:
     - name: Run manual build steps
       shell: bash
       run: |
-        cmake --preset linux
-        cmake --preset linux -LA
-        cmake --build --preset ci-linux --clean-first
+        cmake --preset linux-gcc
+        cmake --preset linux-gcc -LA
+        cmake --build --preset ci-linux-gcc --clean-first
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

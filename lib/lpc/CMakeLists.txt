@@ -75,6 +75,6 @@ target_sources(lpc PUBLIC
         ${CMAKE_CURRENT_BINARY_DIR}/grammar.h
 )
 target_link_libraries(lpc PUBLIC port misc logger rc)
-if(PACKAGE_CURL AND TARGET CURL::libcurl)
+if(HAVE_CURL AND TARGET CURL::libcurl)
     target_link_libraries(lpc PUBLIC CURL::libcurl)
 endif()

@@ -4,7 +4,7 @@
 #include "rc/rc.h"
 #include "efuns_prototype.h"
 #include "src/simul_efun.h"
-#include "uids.h"
+#include "efuns/uids.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/otable.h"

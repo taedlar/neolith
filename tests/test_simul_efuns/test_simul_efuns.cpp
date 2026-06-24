@@ -4,7 +4,7 @@
 #include "std.h"
 #include "rc/rc.h"
 #include "src/simul_efun.h"
-#include "uids.h"
+#include "efuns/uids.h"
 #include "lpc/lex.h"
 #include "lpc/object.h"
 

@@ -112,26 +112,21 @@ include(FetchContent)
 #
 # According to GoogleTest's documentation, users should prefer FetchContent over FindGTest.cmake
 # for CMake-based projects.
-set(FETCH_GOOGLETEST_FROM_SOURCE "v1.17.0" CACHE STRING "Our bundled GoogleTest version to fetch")
-if (FETCH_GOOGLETEST_FROM_SOURCE)
-    # set(gtest_force_shared_crt ON CACHE INTERNAL "Override Googletest options.")
-    # Pitfall: BUILD_SHARED_LIBS is a global cache variable shared by all subprojects.
-    # If a dependency flips it ON before GoogleTest is configured, tests may link to
-    # gtest.dll/gtest_main.dll and fail to start when those DLLs are unavailable.
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Global shared/static default for dependencies" FORCE)
-    set(gtest_build_tests OFF CACHE INTERNAL "Override Googletest options.")
-    set(gtest_build_samples OFF CACHE INTERNAL "Override Googletest options.")
-    set(INSTALL_GTEST OFF)
-    set(BUILD_GMOCK OFF)
-    FetchContent_Declare(
-        GoogleTest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG ${FETCH_GOOGLETEST_FROM_SOURCE}
-        EXCLUDE_FROM_ALL
-    )
-endif()
+FetchContent_Declare(
+    GoogleTest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.17.0
+    EXCLUDE_FROM_ALL
+)
 
 # [ OpenSSL ]
+#
+# OpenSSL is a complex dependency with many build options and platform-specific quirks.
+# If FETCH_OPENSSL_FROM_SOURCE is set, we fetch and pre-build OpenSSL from source code to
+# a known location. In most of the case, the system installed OpenSSL is sufficient and
+# FETCH_OPENSSL_FROM_SOURCE is not needed. However, in some rare cases when the system
+# OpenSSL has zero-day vulnerabilities or is too old, FETCH_OPENSSL_FROM_SOURCE can be
+# used to fetch and pre-build a newer OpenSSL version.
 if (FETCH_OPENSSL_FROM_SOURCE)
     set(OPENSSL_ROOT_DIR "${CMAKE_BINARY_DIR}/openssl" CACHE INTERNAL "Root location for FindOpenSSL")
     FetchContent_Declare(
@@ -139,15 +134,13 @@ if (FETCH_OPENSSL_FROM_SOURCE)
         GIT_REPOSITORY https://github.com/openssl/openssl.git
         GIT_TAG ${FETCH_OPENSSL_FROM_SOURCE}
         EXCLUDE_FROM_ALL
+        OVERRIDE_FIND_PACKAGE
     )
 else()
-    FetchContent_Declare(
-        OpenSSL
-        GIT_REPOSITORY https://github.com/openssl/openssl.git
-        GIT_TAG openssl-4.0.1
-        FIND_PACKAGE_ARGS
-            NAMES OpenSSL openssl
-    )
+    # Don't fetch OpenSSL from source unless explicitly requested.
+    # Building OpenSSL requires extra toolchains (Perls, NASM, etc.) and is not guaranteed to
+    # succeed on all platforms. Leave it for advanced users.
+    find_package(OpenSSL QUIET)
 endif()
 
 # [ CURL ]
@@ -199,31 +192,8 @@ endif()
 # CMake Dependency Provider
 # =========================
 
-macro(setup_provide_dependency method package)
+function(setup_provide_dependency method package)
     message(DEBUG "Providing dependency: ${package} via method: ${method}")
-
-    # GoogleTest (compatible with FindGTest.cmake)
-    if ("${package}" MATCHES "^(GTest|gtest|GoogleTest|googletest)$")
-        if (TARGET GTest::gtest AND TARGET GTest::gtest_main)
-            # GoogleTest targets are already available for build with CMake. We can use them directly.
-            set(GTest_FOUND TRUE)
-            set(${package}_FOUND ${GTest_FOUND})
-        else()
-            if (FETCH_GOOGLETEST_FROM_SOURCE)
-                # use fetched GoogleTest
-                list(APPEND my_provider_args ${method} ${package}) # save arguments for macro reentrant
-                FetchContent_MakeAvailable(GoogleTest)
-                list(POP_BACK my_provider_args package method) # restore arguments
-                if (TARGET GTest::gtest AND TARGET GTest::gtest_main)
-                    # GoogleTest targets are available for build with CMake. We can use them directly.
-                    set(GTest_FOUND TRUE)
-                    set(GTest_INCLUDE_DIRS "${googletest_SOURCE_DIR}/googletest/include")
-                    set(GTest_VERSION ${FETCH_GOOGLETEST_FROM_SOURCE})
-                endif()
-            endif()
-            set(${package}_FOUND ${GTest_FOUND})
-        endif()
-    endif()
 
     # OpenSSL (compatible with FindOpenSSL.cmake)
     if ("${package}" MATCHES "^(OpenSSL|openssl|OPENSSL)$")
@@ -331,7 +301,7 @@ macro(setup_provide_dependency method package)
             set(${package}_FOUND ${CARES_FOUND})
         endif()
     endif()
-endmacro()
+endfunction()
 
 cmake_language(
     SET_DEPENDENCY_PROVIDER setup_provide_dependency

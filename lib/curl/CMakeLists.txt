@@ -12,6 +12,6 @@ target_sources(curl PUBLIC
 )
 target_compile_definitions(curl PRIVATE NO_OPCODES)
 
-if(PACKAGE_CURL)
+if(HAVE_CURL)
     target_link_libraries(curl PUBLIC CURL::libcurl)
 endif()

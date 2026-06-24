@@ -19,7 +19,7 @@
 #include "lpc/include/runtime_config.h"
 #include "src/call_out.h"
 #include "socket/socket_efuns.h"
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
 #include "curl/curl_efuns.h"
 #endif
 
@@ -2143,12 +2143,14 @@ void reload_object (object_t * obj) {
       obj->variables[i] = const0u;
     }
 
+#ifdef PACKAGE_SOCKETS
   if (obj->flags & O_EFUN_SOCKET)
     {
       close_referencing_sockets (obj);
     }
+#endif
 
-#ifdef PACKAGE_CURL
+#ifdef HAVE_CURL
   /* Close any CURL transfers for this object */
   close_curl_handles (obj);
 #endif

@@ -30,10 +30,11 @@ set(stem_SOURCES
 add_library(stem OBJECT ${stem_SOURCES})
 target_link_libraries(stem PUBLIC port logger misc lpc efuns rc socket curl async)
 if(TARGET c-ares::cares)
+	target_compile_definitions(stem PRIVATE CARES_NO_DEPRECATED)
     target_link_libraries(stem PUBLIC c-ares::cares)
 endif()
-if(NOT WIN32)
-    target_link_libraries(stem PUBLIC -lm)
+if(HAVE_LIBM)
+    target_link_libraries(stem PUBLIC m)
 endif()
 target_include_directories(stem PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
