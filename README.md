@@ -66,7 +66,7 @@ cd examples
 /path/to/neolith -f m3.conf -c
 ~~~
 
-For automated testing, first build Neolith with `pr-*` or `ci-*` preset, and run (requires [hatch](https://pypi.org/project/hatch/)):
+For automated testing, first build Neolith with `ci-*` preset, and run (requires [hatch](https://pypi.org/project/hatch/)):
 ~~~sh
 # Run automated testbots against M3 mudlib using locally built LPMud driver
 cd examples/m3_testbots

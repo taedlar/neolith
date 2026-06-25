@@ -58,7 +58,6 @@
   ```
 - Preset prefixes:
   - `dev-`: incremental Debug builds
-  - `pr-`: incremental RelWithDebInfo builds
   - `ci-`: clean RelWithDebInfo rebuilds
 - Common clean build commands:
   ```bash

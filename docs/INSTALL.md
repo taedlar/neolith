@@ -210,14 +210,13 @@ For Linux `RelWithDebInfo`, the executable is typically at `out/build/linux/src/
 Preset|Configuration|Targets|Description
 ---|---|---|---
 `dev-linux`|Debug|`all`|Incremental development build.
-`pr-linux`|RelWithDebInfo|`all`|Incremental validation build.
 `ci-linux`|RelWithDebInfo|`all`|Clean rebuild (`cleanFirst=true`) for CI-style checks.
 
 Windows and ClangCL equivalents:
 
-- `dev-vs16-x64`, `pr-vs16-x64`, `ci-vs16-x64`
-- `dev-clang-x64`, `pr-clang-x64`, `ci-clang-x64`
-- `dev-vs16-win32`, `pr-vs16-win32`, `ci-vs16-win32`
+- `dev-vs16-x64`, `ci-vs16-x64`
+- `dev-clang-x64`, `ci-clang-x64`
+- `dev-vs16-win32`, `ci-vs16-win32`
 
 ### Running Unit Tests
 
