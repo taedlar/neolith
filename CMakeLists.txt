@@ -115,8 +115,9 @@ if(PACKAGE_JSON)
 				set(BOOST_JSON_HEADER_ONLY TRUE)
 				message(STATUS "PACKAGE_JSON enabled: JSON efuns will use Boost.JSON (header-only)")
 			else()
+				# Boost.JSON requires Boost 1.75 or later, so if the header is not found, we fall back to JsonCpp.
 				# Fall back to JsonCpp if Boost.JSON header is not found
-				message(STATUS "PACKAGE_JSON enabled: JSON efuns will use JsonCpp (boost/json.hpp not found).")
+				message(STATUS "PACKAGE_JSON enabled: JSON efuns will use JsonCpp (boost too old).")
 			endif()
 		endif()
 	else()

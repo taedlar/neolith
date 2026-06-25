@@ -45,7 +45,7 @@ endif()
 
 target_link_libraries(efuns PUBLIC port misc logger lpc rc curl)
 
-if(TARGET Boost::boost)
+if(HAVE_BOOST_JSON)
     target_compile_definitions(efuns PRIVATE BOOST_ALL_NO_LIB)
     if(TARGET Boost::json)
         target_link_libraries(efuns PUBLIC Boost::json)
