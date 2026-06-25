@@ -1,7 +1,9 @@
 # cmake/setup.cmake
-cmake_minimum_required(VERSION 3.28)
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+if (POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW)
+endif()
+
 set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL TRUE)
 
 # Ensure try_compile() checks (for example, curl's OpenSSL feature probes)

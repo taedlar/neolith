@@ -354,7 +354,7 @@ TEST_F(EfunsTest, fromJsonInvalidUtf8StringError) {
     try {
         copy_and_push_string(payload);
         f_from_json();
-#ifdef HAVE_BOOST_JSON
+#ifdef HAVE_BOOST_JSON_HPP
         FAIL() << "from_json with invalid UTF-8 string should have raised an error.";
 #endif
     }
@@ -378,7 +378,7 @@ TEST_F(EfunsTest, fromJsonInvalidUtf8BufferError) {
         memcpy(buf->item, payload, sizeof(payload) - 1);
         push_refed_buffer(buf);
         f_from_json();
-#ifdef HAVE_BOOST_JSON
+#ifdef HAVE_BOOST_JSON_HPP
         FAIL() << "from_json with invalid UTF-8 buffer should have raised an error.";
 #endif
     }
