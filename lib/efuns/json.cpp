@@ -4,7 +4,7 @@
  * to_json(mixed) → string  — serializes an LPC value tree to a JSON string.
  * from_json(string|buffer) → mixed — parses JSON bytes into an LPC value tree.
  *
- * Conditional compilation: both efuns are absent unless HAVE_BOOST_JSON or
+ * Conditional compilation: both efuns are absent unless HAVE_BOOST_JSON_HPP or
  * HAVE_JSONCPP is defined (i.e. PACKAGE_JSON=ON at cmake configure time).
  * Boost.JSON is preferred when available; JsonCpp is the fallback.
  *
@@ -44,7 +44,7 @@
 #  undef min
 #endif
 
-#if defined(HAVE_BOOST_JSON) || defined(HAVE_JSONCPP)
+#if defined(HAVE_BOOST_JSON_HPP) || defined(HAVE_JSONCPP)
 
 #include <memory>
 #include <string>
@@ -92,10 +92,12 @@ static void validate_for_json(svalue_t *v, int depth)
 /* ========================================================================
  * Boost.JSON implementation
  * ======================================================================== */
-#ifdef HAVE_BOOST_JSON
+#ifdef HAVE_BOOST_JSON_HPP
 
 #include <boost/json.hpp>
-
+#ifndef HAVE_BOOST_JSON
+#include <boost/json/src.hpp>
+#endif
 
 /* --------------------------------------------------------------------------
  * LPC → JSON conversion (Boost.JSON)
@@ -384,7 +386,7 @@ static void json_to_lpc(Json::Value const& jv, svalue_t *out)
   }
 }
 
-#endif /* HAVE_BOOST_JSON vs HAVE_JSONCPP */
+#endif /* HAVE_BOOST_JSON_HPP vs HAVE_JSONCPP */
 
 
 /* --------------------------------------------------------------------------
@@ -406,7 +408,7 @@ void f_to_json(void)
   validate_for_json(sp, 0);  /* may call error(); no C++ objects allocated yet */
 
   {
-#ifdef HAVE_BOOST_JSON
+#ifdef HAVE_BOOST_JSON_HPP
     boost::json::value jv = lpc_to_json(sp);
     std::string s = boost::json::serialize(jv);
 #else /* HAVE_JSONCPP */
@@ -450,7 +452,7 @@ void f_from_json(void)
     return;
   }
 
-#ifdef HAVE_BOOST_JSON
+#ifdef HAVE_BOOST_JSON_HPP
   {
     std::unique_ptr<boost::json::value> parsed;
 
@@ -506,10 +508,10 @@ void f_from_json(void)
     }
     json_to_lpc(root, sp);
   }
-#endif /* HAVE_BOOST_JSON vs HAVE_JSONCPP */
+#endif /* HAVE_BOOST_JSON_HPP vs HAVE_JSONCPP */
 }
 #endif /* F_FROM_JSON */
 
 }  /* extern "C" */
 
-#endif /* HAVE_BOOST_JSON || HAVE_JSONCPP */
+#endif /* HAVE_BOOST_JSON_HPP || HAVE_JSONCPP */

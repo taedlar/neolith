@@ -1,24 +1,29 @@
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.28)
 
+if(APPLE)
+	# this must be set before the project() command, otherwise it will be ignored
+	set(CMAKE_OSX_ARCHITECTURES arm64 CACHE STRING "Build architectures for Mac OS X")
+endif()
+
+# =====================
 # project configuration
+# =====================
 project(neolith
 	VERSION 1.0.0
 	DESCRIPTION "A LPMud server (MudOS fork) with modern build system and focus on supporting tool-use for developers."
 	LANGUAGES C CXX
 )
-
-include(CTest) # option: BUILD_TESTING
-include(cmake/options.cmake) # project options
-
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_OSX_ARCHITECTURES arm64)
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+include(CTest) # calls enable_testing() if BUILD_TESTING is ON
+include(options) # defines options
 
 if(MSVC)
 	# Visual Studio 2019 or later
     add_compile_options(/W4 /wd4706 /permissive- /Zc:__cplusplus /EHs /utf-8 /nologo)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-elseif(UNIX)
+elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 	# GCC and Clang
 	add_compile_options(-Wall -Wextra -Wpedantic "$<$<COMPILE_LANGUAGE:C>:-Wno-strict-prototypes>")
 endif()
@@ -58,7 +63,10 @@ check_symbol_exists(strtod stdlib.h HAVE_STRTOD)
 include(CheckLibraryExists)
 check_library_exists(m sqrt "" HAVE_LIBM)
 
+# ==================
 # check dependencies
+# ==================
+include(utils)
 include(FetchContent)
 FetchContent_Declare(
 	GoogleTest
@@ -68,19 +76,14 @@ FetchContent_Declare(
 )
 find_package(BISON REQUIRED)
 if(NEOLITH_USE_BOOST)
-	set(Boost_NO_WARN_NEW_VERSIONS ON)
-	set(Boost_USE_STATIC_RUNTIME OFF)
-	set(Boost_COMPILER "-vc142")
-	find_package(Boost 1.71 CONFIG COMPONENTS json)
+	# set(Boost_VERBOSE ON)
+	set(Boost_USE_MULTITHREADED ON)
+	find_boost(1.70 COMPONENTS json)
+	find_boost_headers(boost/json.hpp)
 endif()
 find_package(OpenSSL)
 find_package(CURL)
-include(cmake/FindCARES.cmake)
-
-if(Boost_FOUND AND TARGET Boost::boost)
-	set(HAVE_BOOST TRUE)
-	message(STATUS "Boost found: portable C++ features will be used")
-endif()
+find_package(CARES)
 
 if(OPENSSL_FOUND AND TARGET OpenSSL::Crypto)
 	set(HAVE_OPENSSL TRUE)
@@ -97,31 +100,20 @@ if(PACKAGE_SOCKETS)
 endif()
 
 if(PACKAGE_JSON)
-	set(HAVE_BOOST_JSON FALSE)
-	set(BOOST_JSON_HEADER_ONLY FALSE)
-	set(HAVE_JSONCPP TRUE)
-	if(Boost_FOUND AND TARGET Boost::boost)
-		# Boost.JSON is faster than JsonCpp and is the preferred JSON library for neolith.
-		if(Boost_json_FOUND AND TARGET Boost::json)
-			# Boost.JSON is available as a compiled library (Boost 1.81+)
-			set(HAVE_BOOST_JSON TRUE)
-			set(BOOST_JSON_HEADER_ONLY FALSE)
-			message(STATUS "PACKAGE_JSON enabled: JSON efuns will use Boost.JSON (fast, compiled library)")
-		else()
-			check_include_file(boost/json.hpp HAVE_BOOST_JSON_HEADER)
-			if(HAVE_BOOST_JSON_HEADER)
-				# Fall back to header-only mode (Boost.JSON supports header-only since Boost 1.75)
-				set(HAVE_BOOST_JSON TRUE)
-				set(BOOST_JSON_HEADER_ONLY TRUE)
-				message(STATUS "PACKAGE_JSON enabled: JSON efuns will use Boost.JSON (header-only)")
+	if(HAVE_BOOST)
+		if(HAVE_BOOST_JSON_HPP)
+			if(TARGET Boost::json)
+				message(STATUS "PACKAGE_JSON enabled: using Boost.JSON (compiled library).")
 			else()
-				# Boost.JSON requires Boost 1.75 or later, so if the header is not found, we fall back to JsonCpp.
-				# Fall back to JsonCpp if Boost.JSON header is not found
-				message(STATUS "PACKAGE_JSON enabled: JSON efuns will use JsonCpp (boost too old).")
+				message(STATUS "PACKAGE_JSON enabled: using Boost.JSON (header-only).")
 			endif()
+		else()
+			message(STATUS "PACKAGE_JSON enabled: using JsonCpp (Boost too old).")
+			set(HAVE_JSONCPP TRUE)
 		endif()
 	else()
-		message(STATUS "PACKAGE_JSON enabled: JSON efuns will use JsonCpp.")
+		message(STATUS "PACKAGE_JSON enabled: using JsonCpp.")
+		set(HAVE_JSONCPP TRUE)
 	endif()
 endif()
 
@@ -137,11 +129,13 @@ endif()
 
 # unit-tests
 if(NEOLITH_BUILD_TESTS)
+	# always fetch GoogleTest as recommended by GoogleTest maintainers
+	set(INSTALL_GTEST OFF CACHE BOOL "Disable installation of GoogleTest" FORCE)
 	FetchContent_MakeAvailable(GoogleTest)
 	if(TARGET GTest::gtest OR TARGET GTest::gtest_main)
 		set(HAVE_GTEST TRUE)
-		link_libraries(GTest::gtest) # for FRIEND_TEST() macro
-		message(STATUS "GoogleTest found: unit-tests will be enabled")
+		link_libraries(GTest::gtest) # make FRIEND_TEST() macro available to all targets
+		message(STATUS "GoogleTest found: ${googletest_BINARY_DIR}")
 	else()
 		set(NEOLITH_BUILD_TESTS FALSE CACHE BOOL "Enable unit-tests" FORCE)
 		message(WARNING "GoogleTest not found: unit-tests will be disabled. Check your internet connection, or disable tests. Re-run CMake configure with --fresh to apply changes.")
@@ -159,7 +153,6 @@ add_compile_definitions(HAVE_CONFIG_H)
 # add project components
 add_subdirectory(lib/port)
 add_subdirectory(lib/async)
-add_subdirectory(lib/json)
 add_subdirectory(lib/logger)
 add_subdirectory(lib/rc)
 add_subdirectory(lib/misc)
@@ -167,6 +160,9 @@ add_subdirectory(lib/efuns)
 add_subdirectory(lib/lpc)
 add_subdirectory(lib/socket)
 add_subdirectory(lib/curl)
+if(HAVE_JSONCPP)
+	add_subdirectory(lib/json)
+endif()
 add_subdirectory(src)
 
 if(NEOLITH_BUILD_TESTS)
