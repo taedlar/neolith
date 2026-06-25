@@ -12,6 +12,7 @@ include(CMakeDependentOption)
 #
 # For FETCH_*_FROM_SOURCE options, see cmake/setup.cmake which configures.
 # -------------------------------------------------------------------------
+option(NEOLITH_USE_BOOST "Use Boost libraries for JSON efuns (to_json, from_json) when available" ON)
 cmake_dependent_option(NEOLITH_BUILD_TESTS "Build Neolith unit tests (requires BUILD_TESTING and GoogleTest)" ON "BUILD_TESTING" OFF)
 
 # -------------------------------------------------------------------------
