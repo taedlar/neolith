@@ -7,11 +7,10 @@
 # Original source: https://github.com/open-source-parsers/jsoncpp.git
 
 set(json_SOURCES jsoncpp.cpp)
-add_library(json OBJECT ${json_SOURCES})
+add_library(json STATIC ${json_SOURCES})
 target_sources(json PUBLIC
     FILE_SET HEADERS
     BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
     FILES json.h
 )
-target_include_directories(json PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(json PRIVATE NO_OPCODES)

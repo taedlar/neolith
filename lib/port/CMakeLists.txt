@@ -28,6 +28,7 @@ target_sources(port PUBLIC
     BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
     FILES ansi.h debug.h wrapper.h byte_code.h timer.h socket_comm.h sync.h
 )
+target_compile_definitions(port PRIVATE NO_OPCODES)
 
 # C++11 required for timer implementation
 target_compile_features(port PUBLIC cxx_std_11)

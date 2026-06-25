@@ -1,4 +1,4 @@
-/*
+/**
  * @file curl_efuns.h
  * @brief CURL REST API efuns for non-blocking HTTP requests.
  *
@@ -95,6 +95,7 @@ typedef struct {
     int success;                     /* 1 if completed successfully, 0 on error */
 } curl_completion_t;
 
+#ifdef F_PERFORM_USING
 /**
  * @brief perform_using() efun: Configure CURL easy handle options for current object.
  * 
@@ -106,7 +107,9 @@ typedef struct {
  * @param val Option value (mixed: depends on option)
  */
 void f_perform_using(void);
+#endif /* F_PERFORM_USING */
 
+#ifdef F_PERFORM_TO
 /**
  * @brief perform_to() efun: Initiate non-blocking CURL transfer with callback.
  * 
@@ -124,7 +127,9 @@ void f_perform_using(void);
  * @param ... Carryover arguments passed to callback after standard args
  */
 void f_perform_to(void);
+#endif /* F_PERFORM_TO */
 
+#ifdef F_IN_PERFORM
 /**
  * @brief in_perform() efun: Query active transfer status for current object.
  * 
@@ -134,6 +139,7 @@ void f_perform_to(void);
  * @return int Non-zero if transfer active, zero if idle.
  */
 void f_in_perform(void);
+#endif /* F_IN_PERFORM */
 
 /**
  * @brief CURL subsystem initialization.

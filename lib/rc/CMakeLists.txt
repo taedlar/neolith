@@ -10,3 +10,4 @@ target_sources(rc PUBLIC
     FILES rc.h
 )
 target_link_libraries(rc PRIVATE port logger)
+target_compile_definitions(rc PRIVATE NO_OPCODES)

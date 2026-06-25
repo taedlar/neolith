@@ -12,6 +12,7 @@
     #define SOCKET_CLOSE(s)             closesocket(s)
     #define SOCKET_ERRNO                WSAGetLastError()
     /* SOCKET_ERROR defined in winsock2.h */
+    #pragma comment(lib, "ws2_32.lib")
 #else
     /* POSIX Sockets */
     #include <sys/socket.h>

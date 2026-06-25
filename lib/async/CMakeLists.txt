@@ -1,5 +1,4 @@
-# Async Library
-# Platform-agnostic async runtime for offloading blocking operations
+# lib/async/CMakeLists.txt
 
 add_library(async STATIC)
 
@@ -7,18 +6,33 @@ target_sources(async PRIVATE
     async_queue.c
     console_mode.c
     console_worker.c
-    $<IF:$<PLATFORM_ID:Windows>,async_worker_win32.c,async_worker_pthread.c>
-    $<IF:$<PLATFORM_ID:Windows>,async_runtime_iocp.c,$<IF:$<PLATFORM_ID:Linux>,async_runtime_epoll.c,async_runtime_poll.c>>
 )
 
-target_include_directories(async PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
+if(WIN32)
+    target_sources(async PRIVATE
+        async_runtime_iocp.c
+        async_worker_win32.c
+    )
+elseif(LINUX)
+    target_sources(async PRIVATE
+        async_runtime_epoll.c
+        async_worker_pthread.c
+    )
+elseif(APPLE)
+    target_sources(async PRIVATE
+        async_runtime_poll.c
+        async_worker_pthread.c
+    )
+endif()
+
+target_sources(async INTERFACE
+    FILE_SET HEADERS
+    BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
+    FILES async_queue.h console_mode.h console_worker.h async_worker.h async_runtime.h
 )
 
-target_link_libraries(async PUBLIC
-    port
-    logger
-)
+target_link_libraries(async PUBLIC port logger)
+target_compile_definitions(async PRIVATE NO_OPCODES)
 
 # Platform-specific libraries
 if(UNIX)

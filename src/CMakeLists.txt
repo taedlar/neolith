@@ -36,7 +36,7 @@ endif()
 if(HAVE_LIBM)
     target_link_libraries(stem PUBLIC m)
 endif()
-target_include_directories(stem PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(stem PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}) # for unit-tests
 
 # ================================================================
 # build neolith executable

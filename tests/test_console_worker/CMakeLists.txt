@@ -9,11 +9,6 @@ add_executable(test_console_worker
 # Link to the stem library and GoogleTest main entry point
 target_link_libraries(test_console_worker PRIVATE stem GTest::gtest_main)
 
-# Windows needs ws2_32 for socket functions
-if(WIN32)
-    target_link_libraries(test_console_worker PRIVATE ws2_32)
-endif()
-
 # Test discovery
 gtest_discover_tests(test_console_worker
     PROPERTIES
