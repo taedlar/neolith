@@ -1,6 +1,11 @@
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.28)
 
+if(APPLE)
+	# this must be set before the project() command, otherwise it will be ignored
+	set(CMAKE_OSX_ARCHITECTURES arm64 CACHE STRING "Build architectures for Mac OS X")
+endif()
+
 # =====================
 # project configuration
 # =====================
@@ -21,10 +26,6 @@ if(MSVC)
 elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 	# GCC and Clang
 	add_compile_options(-Wall -Wextra -Wpedantic "$<$<COMPILE_LANGUAGE:C>:-Wno-strict-prototypes>")
-endif()
-
-if(APPLE)
-	set(CMAKE_OSX_ARCHITECTURES arm64 CACHE STRING "Build architectures for Mac OS X")
 endif()
 
 # check for standard headers
