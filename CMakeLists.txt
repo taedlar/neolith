@@ -16,11 +16,13 @@ project(neolith
 )
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON) # for shared libraries
 include(CTest) # calls enable_testing() if BUILD_TESTING is ON
 include(options) # defines options
 
 if(MSVC)
 	# Visual Studio 2019 or later
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
     add_compile_options(/W4 /wd4706 /permissive- /Zc:__cplusplus /EHs /utf-8 /nologo)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")

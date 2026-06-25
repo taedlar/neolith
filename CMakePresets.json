@@ -12,7 +12,6 @@
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/setup.cmake"
             }
@@ -21,8 +20,7 @@
             "name": "msvc-x64",
             "hidden": true,
             "cacheVariables": {
-                "BISON_ROOT": "C:/GnuWin32",
-                "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+                "BISON_ROOT": "C:/GnuWin32"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -32,15 +30,8 @@
                     "enableClangTidyCodeAnalysis": true
                 }
             },
-            "architecture": {
-              "value": "x64",
-              "strategy": "set"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            }
+            "architecture": { "value": "x64", "strategy": "set" },
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
         },
         {
             "name": "vs18-x64",
@@ -59,10 +50,7 @@
             "description": "Uses ClangCL compiler, x64 architecture",
             "inherits": ["project-default", "msvc-x64"],
             "generator": "Visual Studio 16 2019",
-            "toolset": {
-              "value": "ClangCL",
-              "strategy": "set"
-            }
+            "toolset": { "value": "ClangCL", "strategy": "set" }
         },
         {
             "name": "linux-default",
@@ -73,11 +61,7 @@
                   "hostOS": [ "Linux" ]
                 }
             },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Linux"
-            }
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
         },
         {
             "name": "linux-gcc",
@@ -101,11 +85,7 @@
             "name": "macos-default",
             "hidden": true,
             "generator": "Ninja Multi-Config",
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Darwin"
-            }
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
         },
         {
             "name": "macos-arm64",
@@ -119,116 +99,92 @@
     "buildPresets": [
         {
             "name": "dev-vs18-x64",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
             "description": "Debug Build (build modified files)",
             "configurePreset": "vs18-x64",
             "configuration": "Debug",
             "targets": ["ALL_BUILD"]
         },
         {
-            "name": "pr-vs18-x64",
-            "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-vs18-x64"],
-            "configuration": "RelWithDebInfo"
-        },
-        {
             "name": "ci-vs18-x64",
             "description": "Continous Integration Build (rebuild all)",
-            "inherits": ["pr-vs18-x64"],
+            "inherits": ["dev-vs18-x64"],
+            "configuration": "RelWithDebInfo",
             "cleanFirst": true
         },
         {
             "name": "dev-vs16-x64",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
             "description": "Debug Build (build modified files)",
             "configurePreset": "vs16-x64",
             "configuration": "Debug",
             "targets": ["ALL_BUILD"]
         },
         {
-            "name": "pr-vs16-x64",
-            "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-vs16-x64"],
-            "configuration": "RelWithDebInfo"
-        },
-        {
             "name": "ci-vs16-x64",
             "description": "Continous Integration Build (rebuild all)",
-            "inherits": ["pr-vs16-x64"],
+            "inherits": ["dev-vs16-x64"],
+            "configuration": "RelWithDebInfo",
             "cleanFirst": true
         },
         {
             "name": "dev-clangcl-x64",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
             "description": "Debug Build (build modified files)",
             "configurePreset": "clangcl-x64",
             "configuration": "Debug",
             "targets": ["ALL_BUILD"]
         },
         {
-            "name": "pr-clangcl-x64",
-            "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-clangcl-x64"],
-            "configuration": "RelWithDebInfo"
-        },
-        {
             "name": "ci-clangcl-x64",
             "description": "Continous Integration Build (rebuild all)",
-            "inherits": ["pr-clangcl-x64"],
+            "inherits": ["dev-clangcl-x64"],
+            "configuration": "RelWithDebInfo",
             "cleanFirst": true
         },
         {
             "name": "dev-linux-gcc",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
             "description": "Debug Build (build modified files)",
             "configurePreset": "linux-gcc",
             "configuration": "Debug",
             "targets": ["all"]
         },
         {
-            "name": "pr-linux-gcc",
-            "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-linux-gcc"],
-            "configuration": "RelWithDebInfo"
-        },
-        {
             "name": "ci-linux-gcc",
             "description": "Continous Integration Build (rebuild all)",
-            "inherits": ["pr-linux-gcc"],
+            "inherits": ["dev-linux-gcc"],
+            "configuration": "RelWithDebInfo",
             "cleanFirst": true
         },
         {
             "name": "dev-linux-clang",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
             "description": "Debug Build (build modified files)",
             "configurePreset": "linux-clang",
             "configuration": "Debug",
             "targets": ["all"]
         },
         {
-            "name": "pr-linux-clang",
-            "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-linux-clang"],
-            "configuration": "RelWithDebInfo"
-        },
-        {
             "name": "ci-linux-clang",
             "description": "Continous Integration Build (rebuild all)",
-            "inherits": ["pr-linux-clang"],
+            "inherits": ["dev-linux-clang"],
+            "configuration": "RelWithDebInfo",
             "cleanFirst": true
         },
         {
             "name": "dev-macos-arm64",
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
             "description": "Debug Build (build modified files)",
             "configurePreset": "macos-arm64",
             "configuration": "Debug",
             "targets": ["all"]
         },
         {
-            "name": "pr-macos-arm64",
-            "description": "Pull-Request Validation Build (build modified files)",
-            "inherits": ["dev-macos-arm64"],
-            "configuration": "RelWithDebInfo"
-        },
-        {
             "name": "ci-macos-arm64",
             "description": "Continuous Integration Build (rebuild all)",
-            "inherits": ["pr-macos-arm64"],
+            "inherits": ["dev-macos-arm64"],
+            "configuration": "RelWithDebInfo",
             "cleanFirst": true
         }
     ],
@@ -241,40 +197,51 @@
             }
         },
         {
+            "name": "ut-windows",
+            "hidden": true,
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+        },
+        {
             "name": "ut-vs18-x64",
             "description": "Run unit-tests for Windows 64-bits architecture",
             "configurePreset": "vs18-x64",
-            "inherits": ["ut-defaults"]
+            "inherits": ["ut-defaults", "ut-windows"]
         },
         {
             "name": "ut-vs16-x64",
             "description": "Run unit-tests for Windows 64-bits architecture",
             "configurePreset": "vs16-x64",
-            "inherits": ["ut-defaults"]
+            "inherits": ["ut-defaults", "ut-windows"]
         },
         {
             "name": "ut-clangcl-x64",
             "description": "Run unit-tests for Windows 64-bits architecture",
             "configurePreset": "clangcl-x64",
-            "inherits": ["ut-defaults"]
+            "inherits": ["ut-defaults", "ut-windows"]
+        },
+        {
+            "name": "ut-linux",
+            "hidden": true,
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
         },
         {
             "name": "ut-linux-gcc",
             "description": "Run unit-tests on Linux",
             "configurePreset": "linux-gcc",
-            "inherits": ["ut-defaults"]
+            "inherits": ["ut-defaults", "ut-linux"]
         },
         {
             "name": "ut-linux-clang",
             "description": "Run unit-tests on Linux",
             "configurePreset": "linux-clang",
-            "inherits": ["ut-defaults"]
+            "inherits": ["ut-defaults", "ut-linux"]
         },
         {
             "name": "ut-macos-arm64",
             "description": "Run unit-tests on macOS ARM64",
             "configurePreset": "macos-arm64",
-            "inherits": ["ut-defaults"]
+            "inherits": ["ut-defaults"],
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
         }
     ]
 }
