@@ -10,6 +10,7 @@ target_sources(curl PUBLIC
     BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
     FILES curl_efuns.h
 )
+target_compile_definitions(curl PRIVATE NO_OPCODES)
 
 if(HAVE_CURL)
     target_link_libraries(curl PUBLIC CURL::libcurl)
