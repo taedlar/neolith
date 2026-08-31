@@ -110,7 +110,6 @@ endfunction()
 # setup dependency provider and source of fetchable dependencies
 include(FetchContent)
 
-
 # [ OpenSSL ]
 #
 # OpenSSL is a complex dependency with many build options and platform-specific quirks.

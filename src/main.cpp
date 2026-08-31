@@ -2,15 +2,9 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#ifdef	HAVE_ARGP_H
-#include <argp.h>
-#else
-  #ifdef _WIN32
-  #include "port/getopt.h"
-  #endif
-#endif /* ! HAVE_ARGP_H */
-
 #include <locale.h>
+
+#include <argparse/argparse.hpp>
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -26,11 +20,6 @@
 #include "comm.h"
 #include "simul_efun.h"
 #include "misc/filepath.h"
-
-#ifdef HAVE_ARGP_H
-const char *argp_program_version = PACKAGE "-" VERSION;
-const char *argp_program_bug_address = "https://github.com/taedlar/neolith";
-#endif /* HAVE_ARGP_H */
 
 #ifndef HAVE_REALPATH
 extern char* realpath(const char* path, char* resolved_path);
@@ -155,163 +144,95 @@ int main (int argc, char **argv) {
 }
 
 
-#ifdef	HAVE_ARGP_H
-static error_t
-parse_argument (int key, char *arg, struct argp_state *state)
-{
-  (void)state; /* unused */
-  switch (key)
-    {
-    case 'f':
-      if (NULL == realpath (arg, MAIN_OPTION(config_file)))
-        {
-          debug_perror ("configuration file", arg);
-          exit (EXIT_FAILURE);
-        }
-      break;
-    case 'c':
-      MAIN_OPTION(console_mode) = true;
-      break;
-    case 'D':
-      {
-        lpc_predef_t *def;
-
-        def =  (lpc_predef_t *) xcalloc (1, sizeof (lpc_predef_t));
-        def->expression = arg;
-        def->next = lpc_predefs;
-        lpc_predefs = def;
-        break;
-      }
-    case 'd':
-      MAIN_OPTION(debug_level) = atoi (arg);
-      break;
-    case 'e':
-      MAIN_OPTION(epilog_level) = atoi (arg);
-      break;
-    case 'p':
-      MAIN_OPTION(pedantic) = true;
-      break;
-    case 'r':
-      MAIN_OPTION(timer_flags) = (unsigned int) strtoul (arg, NULL, 0);
-      break;
-    case 't':
-      MAIN_OPTION(trace_flags) = strtoul (arg, NULL, 0);
-      break;
-    case ARGP_KEY_ARG:
-      if (state->arg_num == 0)
-        {
-          /* first non-option argument is master file or mudlib archive */
-          if (!realpath (arg, MAIN_OPTION(mud_app)))
-            {
-              perror (arg);
-              exit (EXIT_FAILURE);
-            }
-        }
-      else
-        {
-          /* store additional arguments for the mud application */
-          if (state->arg_num - 1 < MAX_MUD_APP_ARGS)
-            {
-              MAIN_OPTION(argv)[state->arg_num - 1] = arg;
-              MAIN_OPTION(argc)++;
-            }
-        }
-      break;
-    default:
-      return ARGP_ERR_UNKNOWN;
-    }
-  return 0;
-}
-#endif /* HAVE_ARGP_H */
-
 static void
 parse_command_line (int argc, char *argv[])
 {
-#ifdef	HAVE_ARGP_H
-  struct argp_option options[] = {
-    {.name = "console-mode", 'c', NULL, 0, "Run the driver in console mode."},
-    {.name = "debug", 'd', "debug-level", 0, "Specifies the runtime debug level."},
-    {.name = NULL, 'D', "macro[=definition]", 0, "Predefines global preprocessor macro for use in mudlib."},
-    {.name = "epilog", 'e', "epilog-level", 0, "Specifies the epilog level to be passed to the master object."},
-    {.name = NULL, 'f', "config-file", 0, "Specifies the file path of the configuration file."},
-    {.name = "pedantic", 'p', NULL, 0, "Enable pedantic clean up."},
-    {.name = "timers", 'r', "timers", 0, "Specifies an integer of timer flags to enable timers (reset, heart_beat, call_out)."},
-    {.name = "trace", 't', "trace-flags", 0, "Specifies an integer of trace flags to enable trace messages in debug log."},
-    {0}
-  };
-  struct argp parser = {
-    .options = options,
-    .parser = parse_argument,
-    .args_doc = "[MASTER-FILE|MUDLIB-ARCHIVE args ...]",
-    .doc = "\nA lightweight LPMud driver (MudOS fork) for easy extend."
-  };
+  argparse::ArgumentParser parser (argv[0], PACKAGE "-" VERSION);
+  parser.add_description ("A lightweight LPMud driver (MudOS fork) for easy extend.");
+  parser.add_epilog ("MASTER-FILE or MUDLIB-ARCHIVE may be followed by application arguments.");
 
-  argp_parse (&parser, argc, argv, 0, 0, 0);
-#else /* ! HAVE_ARGP_H */
-  int c;
+  parser.add_argument ("-c", "--console-mode")
+    .help ("Run the driver in console mode.")
+    .flag();
+  parser.add_argument ("-d", "--debug")
+    .metavar ("debug-level")
+    .help ("Specifies the runtime debug level.");
+  parser.add_argument ("-D")
+    .metavar ("macro[=definition]")
+    .append()
+    .help ("Predefines a global preprocessor macro for use in the mudlib.");
+  parser.add_argument ("-e", "--epilog")
+    .metavar ("epilog-level")
+    .help ("Specifies the epilog level to be passed to the master object.");
+  parser.add_argument ("-f")
+    .metavar ("config-file")
+    .help ("Specifies the file path of the configuration file.");
+  parser.add_argument ("-p", "--pedantic")
+    .help ("Enable pedantic clean up.")
+    .flag();
+  parser.add_argument ("-r", "--timers")
+    .metavar ("timers")
+    .help ("Specifies timer flags to enable timers (reset, heart_beat, call_out).");
+  parser.add_argument ("-t", "--trace")
+    .metavar ("trace-flags")
+    .help ("Specifies trace flags to enable trace messages in the debug log.");
+  parser.add_argument ("application")
+    .help ("Master file or mudlib archive, followed by application arguments.")
+    .remaining();
 
-  while ((c = getopt (argc, argv, "cd:D:e:f:pr:t:")) != -1)
+  try
     {
-      switch (c)
-        {
-        case 'f':
-          if (!realpath (optarg, MAIN_OPTION(config_file)))
-            {
-              debug_perror ("configuration file", optarg);
-              exit (EXIT_FAILURE);
-            }
-          break;
-        case 'c':
-          MAIN_OPTION(console_mode) = true;
-          break;
-        case 'd':
-          MAIN_OPTION(debug_level) = atoi (optarg);
-          break;
-        case 'e':
-          MAIN_OPTION(epilog_level) = atoi (optarg);
-          break;
-        case 'D':
-          {
-            lpc_predef_t *def;
-
-            def = (lpc_predef_t *) xcalloc (1, sizeof (lpc_predef_t));
-            def->expression = optarg;
-            def->next = lpc_predefs;
-            lpc_predefs = def;
-            break;
-          }
-        case 'p':
-          MAIN_OPTION(pedantic) = true;
-          break;
-        case 'r':
-          MAIN_OPTION(timer_flags) = (unsigned int) strtoul (optarg, NULL, 0);
-          break;
-        case 't':
-          MAIN_OPTION(trace_flags) = strtoul (optarg, NULL, 0);
-          break;
-        case '?':
-        default:
-          fatal ("invalid option: %c", c);
-        }
+      parser.parse_args (argc, argv);
     }
-  if (optind < argc)
+  catch (const std::exception &error)
     {
-      /* first non-option argument is master file or mudlib archive */
-      if (!realpath (argv[optind], MAIN_OPTION(mud_app)))
+      fprintf (stderr, "%s\n%s", error.what(), parser.help().str().c_str());
+      exit (EXIT_FAILURE);
+    }
+
+  if (parser.get<bool> ("--console-mode"))
+    MAIN_OPTION(console_mode) = true;
+  if (parser.get<bool> ("--pedantic"))
+    MAIN_OPTION(pedantic) = true;
+  if (const auto value = parser.present<std::string> ("--debug"))
+    MAIN_OPTION(debug_level) = atoi (value->c_str());
+  if (const auto value = parser.present<std::string> ("--epilog"))
+    MAIN_OPTION(epilog_level) = atoi (value->c_str());
+  if (const auto value = parser.present<std::string> ("--timers"))
+    MAIN_OPTION(timer_flags) = (unsigned int) strtoul (value->c_str(), NULL, 0);
+  if (const auto value = parser.present<std::string> ("--trace"))
+    MAIN_OPTION(trace_flags) = strtoul (value->c_str(), NULL, 0);
+
+  if (const auto value = parser.present<std::string> ("-f"))
+    {
+      if (!realpath (value->c_str(), MAIN_OPTION(config_file)))
         {
-          perror (argv[optind]);
+          debug_perror ("configuration file", value->c_str());
           exit (EXIT_FAILURE);
         }
-      optind++;
-      /* store additional arguments for the mud application */
-      while (optind < argc && MAIN_OPTION(argc) < MAX_MUD_APP_ARGS)
-        {
-          MAIN_OPTION(argv)[MAIN_OPTION(argc)] = argv[optind];
-          MAIN_OPTION(argc)++;
-          optind++;
-        }
     }
-#endif /* ! HAVE_ARGP_H */
+
+  if (const auto definitions = parser.present<std::vector<std::string>> ("-D"))
+    for (const auto &expression : *definitions)
+      {
+        lpc_predef_t *def = (lpc_predef_t *) xcalloc (1, sizeof (lpc_predef_t));
+        /* argparse owns its parsed strings, while LPC predefines outlive this parser. */
+        def->expression = xstrdup (expression.c_str());
+        def->next = lpc_predefs;
+        lpc_predefs = def;
+      }
+
+  if (const auto application = parser.present<std::vector<std::string>> ("application"))
+    {
+      if (!realpath (application->front().c_str(), MAIN_OPTION(mud_app)))
+        {
+          perror (application->front().c_str());
+          exit (EXIT_FAILURE);
+        }
+      for (size_t i = 1; i < application->size() && MAIN_OPTION(argc) < MAX_MUD_APP_ARGS; ++i)
+        /* __ARGV__ is created after this parser has been destroyed. */
+        MAIN_OPTION(argv)[MAIN_OPTION(argc)++] = xstrdup ((*application)[i].c_str());
+    }
 }
 
 void init_debug_log() {
