@@ -40,5 +40,5 @@ target_include_directories(stem PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}) # for unit-t
 
 # ================================================================
 # build neolith executable
-add_executable(neolith main.c ${neolith_SOURCES})
-target_link_libraries(neolith PRIVATE stem)
+add_executable(neolith main.cpp ${neolith_SOURCES})
+target_link_libraries(neolith PRIVATE stem argparse::argparse)

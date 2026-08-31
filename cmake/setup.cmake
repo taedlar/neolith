@@ -110,6 +110,12 @@ endfunction()
 # setup dependency provider and source of fetchable dependencies
 include(FetchContent)
 
+FetchContent_Declare(
+    argparse
+    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+    GIT_TAG v3.2
+    OVERRIDE_FIND_PACKAGE
+)
 
 # [ OpenSSL ]
 #
