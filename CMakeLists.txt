@@ -131,6 +131,12 @@ endif()
 
 find_package(argparse QUIET)
 if (NOT argparse_FOUND)
+	FetchContent_Declare(
+		argparse
+		GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+		GIT_TAG v3.2
+		OVERRIDE_FIND_PACKAGE
+	)
 	FetchContent_MakeAvailable(argparse) # fetch argparse from GitHub if not found
 endif()
 
