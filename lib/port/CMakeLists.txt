@@ -40,4 +40,31 @@ target_link_libraries(port PRIVATE Threads::Threads)
 # Link OpenSSL if available for portable crypt() implementation
 if(OPENSSL_FOUND)
     target_link_libraries(port PRIVATE OpenSSL::Crypto)
+    
+    # OpenSSL may be built with optional features that require transitive dependencies.
+    # These must be PUBLIC so they propagate to any target linking against port.
+    
+    # Try ZLIB via find_package first (which requires development files)
+    find_package(ZLIB QUIET)
+    if(ZLIB_FOUND)
+        target_link_libraries(port PUBLIC ZLIB::ZLIB)
+    else()
+        # Fall back to find_library if development package is missing
+        find_library(ZLIB_LIBRARY NAMES libz.so.1 libz.so z)
+        if(ZLIB_LIBRARY)
+            target_link_libraries(port PUBLIC ${ZLIB_LIBRARY})
+        endif()
+    endif()
+    
+    # zstd may not have CMake config, so use find_library with explicit library names
+    find_library(ZSTD_LIBRARY NAMES libzstd.so.1 libzstd.so libzstd)
+    if(ZSTD_LIBRARY)
+        target_link_libraries(port PUBLIC ${ZSTD_LIBRARY})
+    endif()
+    
+    # jitterentropy is optional; only link if available
+    find_library(JITTERENTROPY_LIBRARY NAMES jitterentropy)
+    if(JITTERENTROPY_LIBRARY)
+        target_link_libraries(port PUBLIC ${JITTERENTROPY_LIBRARY})
+    endif()
 endif()
