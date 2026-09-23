@@ -22,48 +22,55 @@
 
 #define MAX_EVENTS 64
 
-typedef struct {
+typedef struct async_registration_s {
     socket_fd_t fd;
     void* context;
+    struct async_registration_s* next;
 } async_registration_t;
 
 struct async_runtime_s {
     int epoll_fd;
     int event_fd;  /* For worker completions */
     console_type_t console_type;  /* Detected console type */
+    async_registration_t event_registration;
     async_registration_t* registrations;
-    size_t registration_count;
-    size_t registration_capacity;
+    async_registration_t* retired_registrations;
 };
 
 /* Helper functions */
 
-static int find_registration_index(async_runtime_t* runtime, socket_fd_t fd) {
-    size_t i;
+static async_registration_t* find_registration(async_runtime_t* runtime, socket_fd_t fd) {
+    async_registration_t* registration;
 
-    for (i = 0; i < runtime->registration_count; i++) {
-        if (runtime->registrations[i].fd == fd) return (int)i;
+    for (registration = runtime->registrations; registration; registration = registration->next) {
+        if (registration->fd == fd) return registration;
     }
 
-    return -1;
+    return NULL;
 }
 
-static int add_registration(async_runtime_t* runtime, socket_fd_t fd, void* context) {
-    async_registration_t* registrations;
-    size_t capacity;
+static async_registration_t* create_registration(socket_fd_t fd, void* context) {
+    async_registration_t* registration = malloc(sizeof(*registration));
 
-    if (runtime->registration_count == runtime->registration_capacity) {
-        capacity = runtime->registration_capacity ? runtime->registration_capacity * 2 : 16;
-        registrations = realloc(runtime->registrations, capacity * sizeof(*registrations));
-        if (!registrations) return -1;
-        runtime->registrations = registrations;
-        runtime->registration_capacity = capacity;
+    if (!registration) return NULL;
+
+    registration->fd = fd;
+    registration->context = context;
+    registration->next = NULL;
+    return registration;
+}
+
+static void free_registrations(async_registration_t* registrations) {
+    while (registrations) {
+        async_registration_t* next = registrations->next;
+        free(registrations);
+        registrations = next;
     }
+}
 
-    runtime->registrations[runtime->registration_count].fd = fd;
-    runtime->registrations[runtime->registration_count].context = context;
-    runtime->registration_count++;
-    return 0;
+static void reclaim_retired_registrations(async_runtime_t* runtime) {
+    free_registrations(runtime->retired_registrations);
+    runtime->retired_registrations = NULL;
 }
 
 static uint32_t events_to_epoll(uint32_t events) {
@@ -105,7 +112,8 @@ async_runtime_t* async_runtime_init(void) {
     /* Add eventfd to epoll */
     struct epoll_event ev = {0};
     ev.events = EPOLLIN;
-    ev.data.fd = runtime->event_fd;
+    runtime->event_registration.fd = runtime->event_fd;
+    ev.data.ptr = &runtime->event_registration;
     if (epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, runtime->event_fd, &ev) < 0) {
         close(runtime->event_fd);
         close(runtime->epoll_fd);
@@ -127,57 +135,67 @@ void async_runtime_deinit(async_runtime_t* runtime) {
         close(runtime->epoll_fd);
     }
 
-    free(runtime->registrations);
+    free_registrations(runtime->registrations);
+    free_registrations(runtime->retired_registrations);
     
     free(runtime);
 }
 
 int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
+    async_registration_t* registration;
+
     if (!runtime || fd < 0) return -1;
-    if (find_registration_index(runtime, fd) >= 0) return -1;
+    if (find_registration(runtime, fd)) return -1;
+
+    registration = create_registration(fd, context);
+    if (!registration) return -1;
     
     struct epoll_event ev = {0};
     ev.events = events_to_epoll(events);
-    ev.data.fd = fd;
+    ev.data.ptr = registration;
     
-    if (epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0) return -1;
-    if (add_registration(runtime, fd, context) != 0) {
-        epoll_ctl(runtime->epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+    if (epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0) {
+        free(registration);
         return -1;
     }
+
+    registration->next = runtime->registrations;
+    runtime->registrations = registration;
 
     return 0;
 }
 
 int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
-    int index;
+    async_registration_t* registration;
 
     if (!runtime || fd < 0) return -1;
-    index = find_registration_index(runtime, fd);
-    if (index < 0) return -1;
+    registration = find_registration(runtime, fd);
+    if (!registration) return -1;
     
     struct epoll_event ev = {0};
     ev.events = events_to_epoll(events);
-    ev.data.fd = fd;
+    ev.data.ptr = registration;
     
     if (epoll_ctl(runtime->epoll_fd, EPOLL_CTL_MOD, fd, &ev) < 0) return -1;
-    runtime->registrations[index].context = context;
+    registration->context = context;
     return 0;
 }
 
 int async_runtime_remove(async_runtime_t* runtime, socket_fd_t fd) {
-    int index;
+    async_registration_t* registration;
+    async_registration_t** link;
 
     if (!runtime || fd < 0) return -1;
-    index = find_registration_index(runtime, fd);
-    if (index < 0) return -1;
+    registration = find_registration(runtime, fd);
+    if (!registration) return -1;
     
     if (epoll_ctl(runtime->epoll_fd, EPOLL_CTL_DEL, fd, NULL) < 0) return -1;
 
-    runtime->registration_count--;
-    if ((size_t)index != runtime->registration_count) {
-        runtime->registrations[index] = runtime->registrations[runtime->registration_count];
+    for (link = &runtime->registrations; *link != registration; link = &(*link)->next) {
     }
+    *link = registration->next;
+    registration->next = runtime->retired_registrations;
+    runtime->retired_registrations = registration;
 
     return 0;
 }
@@ -193,6 +211,8 @@ int async_runtime_wakeup(async_runtime_t* runtime) {
 int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
                        int max_events, struct timeval* timeout) {
     if (!runtime || !events || max_events <= 0) return -1;
+
+    reclaim_retired_registrations(runtime);
     
     int timeout_ms = -1;
     if (timeout) {
@@ -212,8 +232,10 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
     
     int event_count = 0;
     for (int i = 0; i < result && event_count < max_events; i++) {
+        async_registration_t* registration = epoll_events[i].data.ptr;
+
         /* Check if this is the eventfd */
-        if (epoll_events[i].data.fd == runtime->event_fd) {
+        if (registration == &runtime->event_registration) {
             /* Drain eventfd and decode worker completions */
             uint64_t val;
             while (read(runtime->event_fd, &val, sizeof(val)) == sizeof(val)) {
@@ -229,10 +251,9 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
             }
         } else {
             /* Regular I/O event */
-            events[event_count].fd = epoll_events[i].data.fd;
+            events[event_count].fd = registration->fd;
             events[event_count].completion_key = 0;
-            int index = find_registration_index(runtime, events[event_count].fd);
-            events[event_count].context = index >= 0 ? runtime->registrations[index].context : NULL;
+            events[event_count].context = registration->context;
             events[event_count].event_type = epoll_to_events(epoll_events[i].events);
             events[event_count].bytes_transferred = 0;
             events[event_count].buffer = NULL;
