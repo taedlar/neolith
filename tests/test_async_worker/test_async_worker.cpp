@@ -7,13 +7,45 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "src/std.h"
+#include "async/async_runtime.h"
 #include "async/async_worker.h"
 
 #include <atomic>
 #include <gtest/gtest.h>
 
+#if defined(__linux__)
+#include <unistd.h>
+#endif
+
 class AsyncWorkerLifecycleTest : public ::testing::Test {
 };
+
+#if defined(__linux__)
+TEST(AsyncRuntimeEpollTest, ReadinessEventPreservesDescriptorAndContext) {
+    async_runtime_t* runtime;
+    io_event_t event = {};
+    struct timeval timeout = {1, 0};
+    int pipe_fds[2];
+    int context = 0;
+    char byte = 'x';
+
+    ASSERT_EQ(pipe(pipe_fds), 0);
+    runtime = async_runtime_init();
+    ASSERT_NE(runtime, nullptr);
+    ASSERT_EQ(async_runtime_add(runtime, pipe_fds[0], EVENT_READ, &context), 0);
+    ASSERT_EQ(write(pipe_fds[1], &byte, sizeof(byte)), sizeof(byte));
+
+    ASSERT_EQ(async_runtime_wait(runtime, &event, 1, &timeout), 1);
+    EXPECT_EQ(event.fd, pipe_fds[0]);
+    EXPECT_EQ(event.context, &context);
+    EXPECT_NE(event.fd, static_cast<socket_fd_t>(reinterpret_cast<uintptr_t>(&context)));
+
+    EXPECT_EQ(async_runtime_remove(runtime, pipe_fds[0]), 0);
+    async_runtime_deinit(runtime);
+    close(pipe_fds[0]);
+    close(pipe_fds[1]);
+}
+#endif
 
 static void* simple_worker(void* arg) {
     int* counter = (int*)arg;

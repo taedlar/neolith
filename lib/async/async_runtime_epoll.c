@@ -22,13 +22,49 @@
 
 #define MAX_EVENTS 64
 
+typedef struct {
+    socket_fd_t fd;
+    void* context;
+} async_registration_t;
+
 struct async_runtime_s {
     int epoll_fd;
     int event_fd;  /* For worker completions */
     console_type_t console_type;  /* Detected console type */
+    async_registration_t* registrations;
+    size_t registration_count;
+    size_t registration_capacity;
 };
 
 /* Helper functions */
+
+static int find_registration_index(async_runtime_t* runtime, socket_fd_t fd) {
+    size_t i;
+
+    for (i = 0; i < runtime->registration_count; i++) {
+        if (runtime->registrations[i].fd == fd) return (int)i;
+    }
+
+    return -1;
+}
+
+static int add_registration(async_runtime_t* runtime, socket_fd_t fd, void* context) {
+    async_registration_t* registrations;
+    size_t capacity;
+
+    if (runtime->registration_count == runtime->registration_capacity) {
+        capacity = runtime->registration_capacity ? runtime->registration_capacity * 2 : 16;
+        registrations = realloc(runtime->registrations, capacity * sizeof(*registrations));
+        if (!registrations) return -1;
+        runtime->registrations = registrations;
+        runtime->registration_capacity = capacity;
+    }
+
+    runtime->registrations[runtime->registration_count].fd = fd;
+    runtime->registrations[runtime->registration_count].context = context;
+    runtime->registration_count++;
+    return 0;
+}
 
 static uint32_t events_to_epoll(uint32_t events) {
     uint32_t epoll_events = 0;
@@ -90,34 +126,60 @@ void async_runtime_deinit(async_runtime_t* runtime) {
     if (runtime->epoll_fd >= 0) {
         close(runtime->epoll_fd);
     }
+
+    free(runtime->registrations);
     
     free(runtime);
 }
 
 int async_runtime_add(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
     if (!runtime || fd < 0) return -1;
+    if (find_registration_index(runtime, fd) >= 0) return -1;
     
     struct epoll_event ev = {0};
     ev.events = events_to_epoll(events);
-    ev.data.ptr = context;
+    ev.data.fd = fd;
     
-    return epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, fd, &ev);
+    if (epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0) return -1;
+    if (add_registration(runtime, fd, context) != 0) {
+        epoll_ctl(runtime->epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+        return -1;
+    }
+
+    return 0;
 }
 
 int async_runtime_modify(async_runtime_t* runtime, socket_fd_t fd, uint32_t events, void* context) {
+    int index;
+
     if (!runtime || fd < 0) return -1;
+    index = find_registration_index(runtime, fd);
+    if (index < 0) return -1;
     
     struct epoll_event ev = {0};
     ev.events = events_to_epoll(events);
-    ev.data.ptr = context;  /* Preserve context pointer when modifying events */
+    ev.data.fd = fd;
     
-    return epoll_ctl(runtime->epoll_fd, EPOLL_CTL_MOD, fd, &ev);
+    if (epoll_ctl(runtime->epoll_fd, EPOLL_CTL_MOD, fd, &ev) < 0) return -1;
+    runtime->registrations[index].context = context;
+    return 0;
 }
 
 int async_runtime_remove(async_runtime_t* runtime, socket_fd_t fd) {
+    int index;
+
     if (!runtime || fd < 0) return -1;
+    index = find_registration_index(runtime, fd);
+    if (index < 0) return -1;
     
-    return epoll_ctl(runtime->epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+    if (epoll_ctl(runtime->epoll_fd, EPOLL_CTL_DEL, fd, NULL) < 0) return -1;
+
+    runtime->registration_count--;
+    if ((size_t)index != runtime->registration_count) {
+        runtime->registrations[index] = runtime->registrations[runtime->registration_count];
+    }
+
+    return 0;
 }
 
 int async_runtime_wakeup(async_runtime_t* runtime) {
@@ -169,7 +231,8 @@ int async_runtime_wait(async_runtime_t* runtime, io_event_t* events,
             /* Regular I/O event */
             events[event_count].fd = epoll_events[i].data.fd;
             events[event_count].completion_key = 0;
-            events[event_count].context = epoll_events[i].data.ptr;
+            int index = find_registration_index(runtime, events[event_count].fd);
+            events[event_count].context = index >= 0 ? runtime->registrations[index].context : NULL;
             events[event_count].event_type = epoll_to_events(epoll_events[i].events);
             events[event_count].bytes_transferred = 0;
             events[event_count].buffer = NULL;
