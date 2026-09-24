@@ -4,6 +4,7 @@ set(efuns_SOURCES
     bits.c
     call_other.c
     call_out.c
+    cmark.cpp
     command.cpp
     datetime.c
     debug.c
@@ -44,6 +45,10 @@ if(PACKAGE_SOCKETS)
 endif()
 
 target_link_libraries(efuns PUBLIC port misc logger lpc rc curl)
+
+if(HAVE_CMARK)
+    target_link_libraries(efuns PUBLIC cmark::cmark)
+endif()
 
 if(HAVE_BOOST_JSON_HPP)
     if(TARGET Boost::json)

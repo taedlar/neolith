@@ -302,6 +302,11 @@
  */
 #cmakedefine PACKAGE_CURL
 
+/* PACKAGE_CMARK: Enables cmark_parse() for CommonMark AST traversal.
+ * Defined when cmark is available at build time.
+ */
+#cmakedefine PACKAGE_CMARK
+
 /*************************************************************************
  *                       FOR EXPERIENCED USERS                           *
  *                      -----------------------                          *
