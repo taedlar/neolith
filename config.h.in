@@ -43,6 +43,7 @@
 #cmakedefine HAVE_JSONCPP
 #cmakedefine HAVE_OPENSSL
 #cmakedefine HAVE_CURL
+#cmakedefine HAVE_CMARK
 #cmakedefine HAVE_CARES
 
 #cmakedefine HAVE_GTEST

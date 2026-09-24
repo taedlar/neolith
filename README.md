@@ -29,6 +29,7 @@ This positions Neolith as a general-purpose LPC platform for building a wide ran
 - **UTF-8**: Strings are counted byte-spans. Wide literals, `explode(str, "")` by character, and wide-char `strsrch()` work correctly across all string operators.
 - **JSON** (`PACKAGE_JSON`): `to_json()` / `from_json()` efuns with explicit UTF-8 and embedded-null handling; `from_json()` accepts `buffer` for large payloads.
 - **CURL** (`PACKAGE_CURL`): Non-blocking HTTP requests (`perform_using()`, `perform_to()`, `in_perform()`) without blocking the backend.
+- **CommonMark** (`PACKAGE_CMARK`): [`cmark_parse()`](docs/efuns/cmark_parse.md) traverses Markdown ASTs through LPC callbacks.
 - **Upgraded int / float / string**: `int` is 64-bit everywhere; `float` uses native `double` precision; `string` is a true counted byte-span preserving embedded nulls.
 - **C99-Style Mixed Local Declarations** Local variables can be declared after statements inside any `{ ... }` block. See [LPC Guide](docs/manual/lpc.md#c99-style-local-declarations-neolith-extension) for details and current limits.
 - **Driver Robustness**: LPC error handling migrated from `longjmp()` to C++ exceptions; heap allocation and string memory management hardened with RAII wrappers and const-correct APIs.

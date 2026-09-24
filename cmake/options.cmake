@@ -20,6 +20,7 @@ cmake_dependent_option(NEOLITH_BUILD_TESTS "Build Neolith unit tests (requires B
 # -------------------------------------------------------------------------
 option(PACKAGE_JSON "Enable JSON efuns to_json() and from_json() (uses Boost.JSON when available, falls back to JsonCpp)" ON)
 option(PACKAGE_CURL "Enable CURL efuns for REST API calls (perform_to, perform_using, in_perform; requires libcurl)" ON)
+option(PACKAGE_CMARK "Enable cmark_parse() for CommonMark AST traversal (requires cmark)" ON)
 
 # -------------------------------------------------------------------------
 # MudOS feature options

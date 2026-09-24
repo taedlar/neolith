@@ -145,6 +145,10 @@ string to_json(mixed);
 mixed from_json(string | buffer);
 #endif
 
+#ifdef PACKAGE_CMARK
+mixed cmark_parse(string | function, string);
+#endif
+
 #pragma no_dot_call
 
 object clone_object(string, ...);

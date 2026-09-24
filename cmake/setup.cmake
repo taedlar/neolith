@@ -179,6 +179,15 @@ if (FETCH_CARES_FROM_SOURCE)
     )
 endif()
 
+if (FETCH_CMARK_FROM_SOURCE)
+    FetchContent_Declare(
+        cmark
+        GIT_REPOSITORY https://github.com/commonmark/cmark.git
+        GIT_TAG ${FETCH_CMARK_FROM_SOURCE}
+        EXCLUDE_FROM_ALL
+    )
+endif()
+
 # =========================
 # CMake Dependency Provider
 # =========================
