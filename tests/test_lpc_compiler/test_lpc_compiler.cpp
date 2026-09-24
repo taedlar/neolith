@@ -4,6 +4,8 @@
 
 #include "fixtures.hpp"
 
+#include <fstream>
+
 using namespace testing;
 
 TEST_F(LPCCompilerTest, compileFile) {
@@ -119,6 +121,43 @@ TEST_F(LPCCompilerTest, loadObjectUsesVerifiedMudlibPathOutsideMudlibCwd) {
     tear_down_simulate();
 }
 
+TEST_F(LPCCompilerTest, loadObjectFallsBackToLegacyCWhenPreferredLpcIsNotRegularFile) {
+    namespace fs = std::filesystem;
+
+    setup_simulate();
+    init_master (CONFIG_STR (__MASTER_FILE__), NULL);
+    ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
+
+    const fs::path mudlib_root = fs::path(MAIN_OPTION(mudlib_dir_absolute));
+    const fs::path legacy_source = mudlib_root / "tests/review_non_regular_preferred.c";
+    const fs::path preferred_source = mudlib_root / "tests/review_non_regular_preferred.lpc";
+
+    std::error_code ec;
+    fs::remove_all(preferred_source, ec);
+    fs::remove(legacy_source, ec);
+    fs::create_directories(preferred_source.parent_path());
+    fs::create_directory(preferred_source);
+
+    std::ofstream out(legacy_source);
+    ASSERT_TRUE(out.is_open()) << "Failed to create fallback source file.";
+    out << "int source_marker() { return 2; }\n";
+    out.close();
+
+    current_object = master_ob;
+    object_t *obj = load_object("tests/review_non_regular_preferred", 0);
+    ASSERT_NE(obj, nullptr) << "load_object() did not fall back to the legacy .c file.";
+
+    svalue_t *marker = APPLY_SLOT_CALL("source_marker", obj, 0, ORIGIN_DRIVER);
+    ASSERT_NE(marker, nullptr) << "Unable to call source_marker on fallback object.";
+    ASSERT_EQ(marker->type, T_NUMBER) << "source_marker returned a non-numeric value.";
+    EXPECT_EQ(marker->u.number, 2) << "load_object() did not use the legacy .c fallback.";
+    APPLY_SLOT_FINISH_CALL();
+
+    tear_down_simulate();
+    fs::remove_all(preferred_source, ec);
+    fs::remove(legacy_source, ec);
+}
+
 TEST_F(LPCCompilerTest, includeUsesVerifiedMudlibPathOutsideMudlibCwd) {
     namespace fs = std::filesystem;
 
@@ -145,6 +184,42 @@ TEST_F(LPCCompilerTest, includeUsesVerifiedMudlibPathOutsideMudlibCwd) {
 
     fs::current_path(mudlib_cwd);
     tear_down_simulate();
+}
+
+TEST_F(LPCCompilerTest, qualifiedInheritedCallResolvesPreferredLpcParent) {
+    namespace fs = std::filesystem;
+
+    setup_simulate();
+    init_master (CONFIG_STR (__MASTER_FILE__), NULL);
+    ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
+
+    const fs::path mudlib_root = fs::path(MAIN_OPTION(mudlib_dir_absolute));
+    const fs::path parent_source = mudlib_root / "tests/review_inherited_parent.lpc";
+
+    std::error_code ec;
+    fs::remove(parent_source, ec);
+    fs::create_directories(parent_source.parent_path());
+
+    std::ofstream out(parent_source);
+    ASSERT_TRUE(out.is_open()) << "Failed to create inherited parent source file.";
+    out << "int inherited_value() { return 42; }\n";
+    out.close();
+
+    current_object = master_ob;
+    object_t *obj = load_object("tests/review_inherited_child.c", R"(
+        inherit "tests/review_inherited_parent.c";
+        int query_value() { return review_inherited_parent::inherited_value(); }
+    )");
+    ASSERT_NE(obj, nullptr) << "load_object() failed to compile the inherited child.";
+
+    svalue_t *value = APPLY_SLOT_CALL("query_value", obj, 0, ORIGIN_DRIVER);
+    ASSERT_NE(value, nullptr) << "Unable to call query_value on inherited child.";
+    ASSERT_EQ(value->type, T_NUMBER) << "query_value returned a non-numeric value.";
+    EXPECT_EQ(value->u.number, 42) << "Qualified inherited call did not resolve the .lpc parent.";
+    APPLY_SLOT_FINISH_CALL();
+
+    tear_down_simulate();
+    fs::remove(parent_source, ec);
 }
 
 TEST_F(LPCCompilerTest, programAlignment) {

@@ -330,7 +330,10 @@ object_t* load_object (const char *name_or_path, const char *pre_text) {
     error ("*Filenames with consecutive /'s in them aren't allowed (%s).", name_or_path);
   memset (source_file, 0, sizeof (source_file));
   if (!make_lpc_source_name (otable_name, source_file, sizeof (source_file)))
-    error ("*Source file path too long for '%s'.", otable_name);
+    {
+      if (snprintf (source_file, sizeof (source_file), "%s.c", otable_name) >= sizeof (source_file))
+        error ("*Source file path too long for '%s'.", otable_name);
+    }
 
   /* Reject illegal path names before any filesystem or virtual-object lookup. */
   if (!legal_path (source_file))
@@ -354,7 +357,7 @@ object_t* load_object (const char *name_or_path, const char *pre_text) {
       error ("*Source file path too long for '/%s'.", source_file);
     }
 
-  if (stat (source_path, &c_st) == -1)
+  if (stat (source_path, &c_st) == -1 || !S_ISREG (c_st.st_mode))
     {
       (void) snprintf (source_file, sizeof (source_file), "%s.c", otable_name);
       if (!filepath_join (mudlib_dir, source_file, source_path, sizeof (source_path)))
