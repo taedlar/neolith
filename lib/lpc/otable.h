@@ -19,6 +19,7 @@ void remove_object_hash(object_t *);
 object_t *lookup_object_hash(const char *);
 int show_otable_status(outbuffer_t *, int);
 bool make_otable_name (const char* path, char* out, size_t out_size);
+bool make_lpc_source_name (const char* path, char* out, size_t out_size);
 
 /* legacy LPMud strip_name() converts mudlib file names to otable names */
 static inline bool strip_name (const char *src, char *dest, size_t size) {

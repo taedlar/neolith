@@ -5,6 +5,7 @@
 #include "src/std.h"
 #include "lpc/types.h"
 #include "lpc/object.h"
+#include "lpc/otable.h"
 #include "lpc/program.h"
 #include "lpc/array.h"
 #include "src/interpret.h"
@@ -63,7 +64,7 @@ void
 f_replace_program (int num_arg, int instruction)
 {
   replace_ob_t *tmp;
-  size_t name_len;
+  size_t name_len, stem_len;
   char *name, *xname;
   program_t *new_prog;
   int var_offset;
@@ -80,14 +81,24 @@ f_replace_program (int num_arg, int instruction)
     error ("cannot replace a program with function references.\n");
 
   name_len = strlen (SVALUE_STRPTR(sp));
-  name = (char *) DMALLOC (name_len + 3, TAG_TEMPORARY, "replace_program");
+  name = (char *) DMALLOC (name_len + 5, TAG_TEMPORARY, "replace_program");
   xname = name;
-  strcpy (name, SVALUE_STRPTR(sp));
-  if (name[name_len - 2] != '.' || name[name_len - 1] != 'c')
-    strcat (name, ".c");
+  if (!make_lpc_source_name (SVALUE_STRPTR(sp), name, name_len + 5))
+    {
+      FREE (xname);
+      error ("replace_program name is too long\n");
+    }
   if (*name == '/')
     name++;
   new_prog = search_inherited (name, current_object->prog, &var_offset);
+  if (!new_prog)
+    {
+      stem_len = strlen (name);
+      stem_len -= 4;
+      name[stem_len] = 0;
+      strcat (name, ".c");
+      new_prog = search_inherited (name, current_object->prog, &var_offset);
+    }
   FREE (xname);
   if (!new_prog)
     {

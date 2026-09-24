@@ -75,6 +75,16 @@ TEST_F(LPCCompilerTest, loadObject) {
     // the object name removes leading slash and trailing ".c"
     EXPECT_STREQ(obj->name, "user") << "Loaded object name mismatch.";
 
+    // load_object prefers an existing .lpc source file before falling back to .c.
+    obj = load_object("etc/lpc_extension/object", 0);
+    ASSERT_NE(obj, nullptr) << "load_object() returned null for lpc_extension.";
+    EXPECT_STREQ(obj->name, "etc/lpc_extension/object") << "Loaded extension object name mismatch.";
+    svalue_t *marker = APPLY_SLOT_CALL("source_marker", obj, 0, ORIGIN_DRIVER);
+    ASSERT_NE(marker, nullptr) << "Unable to call source_marker on extension object.";
+    ASSERT_EQ(marker->type, T_NUMBER) << "source_marker returned a non-numeric value.";
+    EXPECT_EQ(marker->u.number, 1) << "load_object() did not prefer the .lpc source.";
+    APPLY_SLOT_FINISH_CALL();
+
     // load an object with pre-text (source file is optional if pre-text is provided)
     obj = load_object("path/to/test_object.c", "// Pre-text for testing\nvoid create() {}\n");
     ASSERT_NE(obj, nullptr) << "load_object() unable to load with pre-text.";

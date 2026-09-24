@@ -6,9 +6,9 @@
 
 | Path | Purpose |
 |------|---------|
-| `master.c` | Master object — implements driver applies (`valid_read`, `valid_write`, `connect`, etc.) |
-| `user.c` | Interactive user object — handles player input and built-in commands |
-| `simul_efun.c` | Simulated efuns available globally to all LPC code in the mudlib |
+| `master.lpc` | Master object — implements driver applies (`valid_read`, `valid_write`, `connect`, etc.) |
+| `user.lpc` | Interactive user object — handles player input and built-in commands |
+| `simul_efun.lpc` | Simulated efuns available globally to all LPC code in the mudlib |
 | `trait/command_giver.c` | Command-giver trait with a reusable input alias subsystem (`process_input`) |
 | `base/room.c` | Base room implementation |
 | `room/start_room.c` | Starting room players are moved into on login |

@@ -1,0 +1,3 @@
+int source_marker() {
+  return 1;
+}
