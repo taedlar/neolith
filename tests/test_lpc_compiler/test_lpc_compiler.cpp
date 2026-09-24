@@ -195,21 +195,27 @@ TEST_F(LPCCompilerTest, qualifiedInheritedCallResolvesPreferredLpcParent) {
 
     const fs::path mudlib_root = fs::path(MAIN_OPTION(mudlib_dir_absolute));
     const fs::path parent_source = mudlib_root / "tests/review_inherited_parent.lpc";
+    const fs::path child_source = mudlib_root / "tests/review_inherited_child.c";
 
     std::error_code ec;
     fs::remove(parent_source, ec);
+    fs::remove(child_source, ec);
     fs::create_directories(parent_source.parent_path());
 
-    std::ofstream out(parent_source);
-    ASSERT_TRUE(out.is_open()) << "Failed to create inherited parent source file.";
-    out << "int inherited_value() { return 42; }\n";
-    out.close();
+    {
+        std::ofstream out(parent_source);
+        ASSERT_TRUE(out.is_open()) << "Failed to create inherited parent source file.";
+        out << "int inherited_value() { return 42; }\n";
+    }
+    {
+        std::ofstream out(child_source);
+        ASSERT_TRUE(out.is_open()) << "Failed to create inherited child source file.";
+        out << "inherit \"tests/review_inherited_parent.c\";\n"
+               "int query_value() { return review_inherited_parent::inherited_value(); }\n";
+    }
 
     current_object = master_ob;
-    object_t *obj = load_object("tests/review_inherited_child.c", R"(
-        inherit "tests/review_inherited_parent.c";
-        int query_value() { return review_inherited_parent::inherited_value(); }
-    )");
+    object_t *obj = load_object("tests/review_inherited_child.c", 0);
     ASSERT_NE(obj, nullptr) << "load_object() failed to compile the inherited child.";
 
     svalue_t *value = APPLY_SLOT_CALL("query_value", obj, 0, ORIGIN_DRIVER);
@@ -220,6 +226,7 @@ TEST_F(LPCCompilerTest, qualifiedInheritedCallResolvesPreferredLpcParent) {
 
     tear_down_simulate();
     fs::remove(parent_source, ec);
+    fs::remove(child_source, ec);
 }
 
 TEST_F(LPCCompilerTest, programAlignment) {

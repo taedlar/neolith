@@ -331,7 +331,7 @@ object_t* load_object (const char *name_or_path, const char *pre_text) {
   memset (source_file, 0, sizeof (source_file));
   if (!make_lpc_source_name (otable_name, source_file, sizeof (source_file)))
     {
-      if (snprintf (source_file, sizeof (source_file), "%s.c", otable_name) >= sizeof (source_file))
+      if (snprintf (source_file, sizeof (source_file), "%s.c", otable_name) >= (int)sizeof (source_file))
         error ("*Source file path too long for '%s'.", otable_name);
     }
 
