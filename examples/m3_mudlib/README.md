@@ -6,9 +6,9 @@
 
 | Path | Purpose |
 |------|---------|
-| `master.c` | Master object — implements driver applies (`valid_read`, `valid_write`, `connect`, etc.) |
-| `user.c` | Interactive user object — handles player input and built-in commands |
-| `simul_efun.c` | Simulated efuns available globally to all LPC code in the mudlib |
+| `master.lpc` | Master object — implements driver applies (`valid_read`, `valid_write`, `connect`, etc.) |
+| `user.lpc` | Interactive user object — handles player input and built-in commands |
+| `simul_efun.lpc` | Simulated efuns available globally to all LPC code in the mudlib |
 | `trait/command_giver.c` | Command-giver trait with a reusable input alias subsystem (`process_input`) |
 | `base/room.c` | Base room implementation |
 | `room/start_room.c` | Starting room players are moved into on login |
@@ -34,7 +34,7 @@ Once connected (interactive or console mode), the following commands are availab
 
 ### Alias Subsystem (Command Giver Trait)
 
-The example `user.c` inherits `trait/command_giver.c`, which provides a small
+The example `user.lpc` inherits `trait/command_giver.c`, which provides a small
 command alias subsystem:
 
 - `set_alias(name, command)`
@@ -48,7 +48,7 @@ Aliases are applied in `process_input()` before normal command dispatch. The
 trait uses `query_verb()` to identify the current command token and rewrites
 only the first token of the input.
 
-Default aliases configured in `user.c` include `l -> look` and short movement
+Default aliases configured in `user.lpc` include `l -> look` and short movement
 aliases such as `n`, `s`, `e`, and `w`.
 
 ## Running Manually
@@ -89,7 +89,7 @@ cp m3.conf m3.local.conf
 
 ## Troubleshooting
 
-**Driver exits immediately** — Check that `MudlibDir` in the config points to this directory and that `master.c` compiles without errors. Run with `-t` for trace output.
+**Driver exits immediately** — Check that `MudlibDir` in the config points to this directory and that `master.lpc` compiles without errors. Run with `-t` for trace output.
 
 **"Failed to get console mode" warnings** — Expected on Windows when stdin/stdout are pipes. The driver handles this automatically.
 

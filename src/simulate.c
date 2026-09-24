@@ -290,9 +290,10 @@ void reset_load_object_limits() {
  * Save the command_giver, because reset() in the new object might change it.
  *
  * @param name_or_path The otable name or path of the object to load. Leading slashes
- *            are stripped. Extension ".c" is added if not present. Nested paths
- *            supported (e.g., "path/to/object.c"). The resulting object_t.name
- *            strips leading slashes and ".c" extension.
+ *            are stripped. Extension ".lpc" is preferred, with ".c" as a
+ *            fallback. Nested paths supported (e.g., "path/to/object.lpc").
+ *            The resulting object_t.name strips leading slashes and the source
+ *            extension.
  * @param pre_text [NEOLITH-EXTENSION] Optional LPC source code to compile.
  *            If NULL, a source file is required. If non-NULL, compiles from this
  *            string and the source file becomes optional. This enables unit
@@ -328,8 +329,11 @@ object_t* load_object (const char *name_or_path, const char *pre_text) {
   if (!make_otable_name (name_or_path, otable_name, sizeof (otable_name)))
     error ("*Filenames with consecutive /'s in them aren't allowed (%s).", name_or_path);
   memset (source_file, 0, sizeof (source_file));
-  (void) strncpy (source_file, otable_name, sizeof(source_file) - 1);
-  (void) strncat (source_file, ".c", sizeof(source_file) - strlen(source_file) - 1);
+  if (!make_lpc_source_name (otable_name, source_file, sizeof (source_file)))
+    {
+      if (snprintf (source_file, sizeof (source_file), "%s.c", otable_name) >= (int)sizeof (source_file))
+        error ("*Source file path too long for '%s'.", otable_name);
+    }
 
   /* Reject illegal path names before any filesystem or virtual-object lookup. */
   if (!legal_path (source_file))
@@ -351,6 +355,15 @@ object_t* load_object (const char *name_or_path, const char *pre_text) {
   if (!filepath_join (mudlib_dir, source_file, source_path, sizeof (source_path)))
     {
       error ("*Source file path too long for '/%s'.", source_file);
+    }
+
+  if (stat (source_path, &c_st) == -1 || !S_ISREG (c_st.st_mode))
+    {
+      (void) snprintf (source_file, sizeof (source_file), "%s.c", otable_name);
+      if (!filepath_join (mudlib_dir, source_file, source_path, sizeof (source_path)))
+        {
+          error ("*Source file path too long for '/%s'.", source_file);
+        }
     }
 
   opt_trace(TT_COMPILE|1, "load_object: \"%s\"", source_file);
@@ -875,9 +888,6 @@ void init_master (const char *master_file, const char *pre_text) {
       fprintf (stderr, "Illegal master file name '%s'", master_file);
       exit(-1);
     }
-
-  if (master_file[strlen (master_file) - 2] != '.')
-    strncat (buf, ".c", sizeof(buf) - strlen(buf) - 1);
 
   new_ob = load_object (buf, pre_text);
   if (new_ob == 0)

@@ -35,7 +35,7 @@ static object_t *find_obj_n (const char *, int*);
  * /foo.c.c -> /foo.c [no such exists, try to load] -> /foo created
  *
  * causing a duplicate object crash.  There are two ways to fix this:
- * (1) strip multiple .c's so that the output of this routine is something
+ * (1) strip multiple source extensions so that the output of this routine is something
  *     that doesn't change if this is run again.
  * (2) make sure this routine is only called once on any name.
  *
@@ -58,10 +58,32 @@ bool make_otable_name (const char *src, char *dest, size_t size) {
       last_c = (*p++ = *src++);
     }
 
-  while ((p - dest > 2) && (p[-1] == 'c') && (p[-2] == '.'))
-    p -= 2;
+  for (;;)
+    {
+      if ((p - dest > 2) && (p[-1] == 'c') && (p[-2] == '.'))
+        p -= 2;
+      else if ((p - dest > 4) && (p[-1] == 'c') && (p[-2] == 'p')
+               && (p[-3] == 'l') && (p[-4] == '.'))
+        p -= 4;
+      else
+        break;
+    }
 
   *p = 0;
+  return true;
+}
+
+bool make_lpc_source_name (const char *src, char *dest, size_t size) {
+  size_t length;
+
+  if (!make_otable_name (src, dest, size))
+    return false;
+
+  length = strlen (dest);
+  if (length + 4 >= size)
+    return false;
+
+  memcpy (dest + length, ".lpc", 5);
   return true;
 }
 

@@ -5,6 +5,7 @@
 #include "src/std.h"
 #include "rc/rc.h"
 #include "compiler.h"
+#include "otable.h"
 #include "misc/scratchpad.h"
 #include "misc/qsort.h"
 #include "lpc/program/binaries.h"
@@ -861,12 +862,17 @@ void arrange_call_inherited (char *name, parse_node_t * node) {
         {
           if (super_name)
             {
-              size_t l = SHARED_STRLEN (ip->prog->name);	/* Including .c */
+              size_t l = SHARED_STRLEN (ip->prog->name);
+              char inherited_name[l + 1];
 
-              if (l - 2 < super_length)
+              if (!make_otable_name (ip->prog->name, inherited_name, sizeof (inherited_name)))
                 continue;
-              if (strncmp (super_name, ip->prog->name + l - 2 - super_length, super_length) != 0 ||
-                  !((l - 2 == super_length) || ((ip->prog->name + l - 3 - super_length)[0] == '/')))
+
+              l = strlen (inherited_name);
+              if (l < super_length)
+                continue;
+              if (strncmp (super_name, inherited_name + l - super_length, super_length) != 0 ||
+                  !((l == super_length) || (inherited_name[l - 1 - super_length] == '/')))
                 continue;
             }
           if (find_matching_function (ip->prog, func_name, node))
