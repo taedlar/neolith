@@ -32,8 +32,7 @@ set(efuns_SOURCES
     variable.c
 )
 
-add_library(efuns STATIC ${efuns_SOURCES}
-    cmark.cpp)
+add_library(efuns STATIC ${efuns_SOURCES})
 target_sources(efuns INTERFACE
     FILE_SET HEADERS
     BASE_DIRS ${CMAKE_SOURCE_DIR}/lib

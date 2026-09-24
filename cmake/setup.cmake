@@ -184,6 +184,7 @@ if (FETCH_CMARK_FROM_SOURCE)
         cmark
         GIT_REPOSITORY https://github.com/commonmark/cmark.git
         GIT_TAG ${FETCH_CMARK_FROM_SOURCE}
+        OVERRIDE_FIND_PACKAGE
         EXCLUDE_FROM_ALL
     )
 endif()
