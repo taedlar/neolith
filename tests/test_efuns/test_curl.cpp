@@ -177,7 +177,7 @@ protected:
     }
     ASSERT_NE(g_runtime, nullptr) << "Failed to initialize async runtime";
 
-    init_master("/master.c", NULL);
+    init_master("/master.lpc", NULL);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
 
     init_curl_subsystem();

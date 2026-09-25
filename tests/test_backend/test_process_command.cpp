@@ -43,7 +43,7 @@ protected:
     init_lpc_compiler(CONFIG_INT(__MAX_LOCAL_VARIABLES__), CONFIG_STR(__INCLUDE_DIRS__));
     setup_simulate();
 
-    init_master("/master.c", NULL);
+    init_master("/master.lpc", NULL);
     ASSERT_NE(master_ob, nullptr);
   }
 

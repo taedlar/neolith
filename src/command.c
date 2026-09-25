@@ -219,7 +219,7 @@ void set_notify_fail_function (funptr_t * funp) {
  * This routine is almost identical to the old set_snoop. The main
  * difference is that the routine writes nothing to user directly,
  * all such communication is taken care of by the mudlib. It communicates
- * with master.c in order to find out if the operation is permissble or
+ * with master object in order to find out if the operation is permissble or
  * not. The old routine let everyone snoop anyone. This routine also returns
  * 0 or 1 depending on success.
  */

@@ -349,7 +349,7 @@ TEST_F(EfunsTest, errorHandlerCallableContract) {
         "}\n";
 
     // Load master with custom error_handler injected.
-    init_master("/master.c", master_pretext);
+    init_master("/master.lpc", master_pretext);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
 
     // Verify the custom error_handler exists in the compiled master.

@@ -10,15 +10,15 @@ using namespace testing;
 
 TEST_F(LPCCompilerTest, compileFile) {
     namespace fs = std::filesystem;
-    fs::path path = fs::path(MAIN_OPTION(mudlib_dir_absolute)) / "master.c";
+    fs::path path = fs::path(MAIN_OPTION(mudlib_dir_absolute)) / "master.lpc";
     ASSERT_TRUE(fs::exists(path)) << "Test file does not exist: " << path;
 
     // compile_file() is a low-level API that compiles a file and returns the compiled
     // program structure. It does not rely on CWD being set to the mudlib directory,
     // but it does require the file path to be correct.
     int fd = FILE_OPEN(path.u8string().c_str(), O_RDONLY);
-    ASSERT_NE(fd, -1) << "Failed to open master.c for reading.";
-    program_t* prog = compile_file (fd, "master.c", 0);
+    ASSERT_NE(fd, -1) << "Failed to open master.lpc for reading.";
+    program_t* prog = compile_file (fd, "master.lpc", 0);
     ASSERT_TRUE(prog != nullptr) << "compile_file returned null program.";
     total_lines = 0;
     FILE_CLOSE(fd);

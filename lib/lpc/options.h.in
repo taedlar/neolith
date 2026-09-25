@@ -266,7 +266,7 @@
  *   normally (and may save a new binary).
  *
  *   In order to save the binary, valid_save_binary() is called
- *   in master.c, and is passed the name of the source file.  If
+ *   in master object, and is passed the name of the source file.  If
  *   this returns a non-zero value, the binary is allowed to be
  *   saved.  Allowing any file by any wizard to be saved as a
  *   binary is convenient, but may take up a lot of disk space.

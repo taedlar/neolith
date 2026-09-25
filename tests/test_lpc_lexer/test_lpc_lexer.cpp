@@ -23,16 +23,16 @@ TEST_F(LPCLexerTest, getOpcodeName) {
 }
 
 TEST_F(LPCLexerTest, startNewFile) {
-    int fd = FILE_OPEN("master.c", O_RDONLY);
-    ASSERT_NE(fd, -1) << "Failed to open include file master.c";
-    current_file = make_shared_string("master.c", NULL);
+    int fd = FILE_OPEN("master.lpc", O_RDONLY);
+    ASSERT_NE(fd, -1) << "Failed to open include file master.lpc";
+    current_file = make_shared_string("master.lpc", NULL);
     current_file_id = 0;
 
     // run lexer until EOF
     start_new_file (fd, 0); // adds __FILE__ and __DIR__
     int n = 0;
     while (yylex() != -1) n++;
-    debug_message("Lexed %d tokens from master.c", n);
+    debug_message("Lexed %d tokens from master.lpc", n);
     end_new_file ();
 
     FILE_CLOSE(fd);

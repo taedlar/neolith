@@ -33,7 +33,7 @@ int RuntimeIndexFor(program_t *prog, const char *name) {
 
 TEST_F(LPCInterpreterTest, disassemble) {
     // compile a simple test file
-    program_t* prog = compile_file(-1, "master.c",
+    program_t* prog = compile_file(-1, "master.lpc",
         "int i; // global\n"
         "void create() { i = 1234; }\n"
     );
@@ -79,9 +79,9 @@ TEST_F(LPCInterpreterTest, callFunction) {
 }
 
 TEST_F(LPCInterpreterTest, callInheritedFunction) {
-    init_simul_efun("/simul_efun.c", NULL); // need simul efuns to load the inherited object
+    init_simul_efun("/simul_efun.lpc", NULL); // need simul efuns to load the inherited object
     ASSERT_NE(simul_efun_ob, nullptr) << "simul_efun_ob is null after init_simul_efun().";
-    init_master("/master.c", NULL);
+    init_master("/master.lpc", NULL);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null after init_master().";
 
     object_t* obj = load_object("room/start_room.c", 0); // start_room inherits from base/room.c which defines query_exit()
@@ -336,9 +336,9 @@ TEST_F(LPCInterpreterTest, foreachUtf8String) {
 TEST_F(LPCInterpreterTest, fromJsonBufferViaLpcVm) {
     /* Compile a small LPC object that calls from_json(buffer) through the
      * full LPC interpreter dispatch path, verifying end-to-end buffer→value. */
-    init_simul_efun("/simul_efun.c", NULL);
+    init_simul_efun("/simul_efun.lpc", NULL);
     ASSERT_NE(simul_efun_ob, nullptr) << "simul_efun_ob is null";
-    init_master("/master.c", NULL);
+    init_master("/master.lpc", NULL);
     ASSERT_NE(master_ob, nullptr) << "master_ob is null";
 
     program_t *prog = compile_file(-1, "json_buf_test.c",
