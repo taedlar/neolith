@@ -192,6 +192,7 @@
         {
             "name": "ut-defaults",
             "hidden": true,
+            "configuration": "Debug",
             "execution": {
                 "noTestsAction": "ignore"
             }

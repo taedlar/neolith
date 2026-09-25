@@ -118,7 +118,7 @@ protected:
     }
 
     // Initialize master object for apply dispatch
-    init_master("/master.c", NULL);
+    init_master("/master.lpc", NULL);
 
     // Clear callback queue before each test.
     ClearCallbacks();

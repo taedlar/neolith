@@ -1458,7 +1458,7 @@ void restore_object_from_buff (object_t * ob, char *theBuff, int noclear) {
 
 /*
  * Save an object to a file.
- * The routine checks with the function "valid_write()" in /obj/master.c
+ * The routine checks with the function "valid_write()" in master object
  * to assertain that the write is legal.
  * If 'save_zeros' is set, 0 valued variables will be saved
  */

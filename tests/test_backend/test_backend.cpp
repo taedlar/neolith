@@ -50,7 +50,7 @@ protected:
 
 TEST_F(BackendTest, preload) {
     ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
-    init_master ("/master.c", NULL);
+    init_master ("/master.lpc", NULL);
     // any error during preload_objects() will be caught.
     EXPECT_NO_THROW(preload_objects (0)) << "preload_objects() threw an exception";
     destruct_object(master_ob);
@@ -58,7 +58,7 @@ TEST_F(BackendTest, preload) {
 
 TEST_F(BackendTest, setHeartBeat) {
     ASSERT_EQ(mud_state(), MS_PRE_MUDLIB);
-    init_master ("/master.c", NULL);
+    init_master ("/master.lpc", NULL);
 
     object_t* ob = master_ob;
     EXPECT_EQ(query_heart_beat(ob), 0); // master_ob has no heart beat initially

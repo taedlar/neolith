@@ -6,9 +6,9 @@
 #include "lpc/preprocess.h"
 
 TEST_F(LPCLexerTest, handleInclude) {
-    int fd = FILE_OPEN("user.c", O_RDONLY);
-    ASSERT_NE(fd, -1) << "Failed to open include file user.c";
-    current_file = make_shared_string("user.c", NULL);
+    int fd = FILE_OPEN("user.lpc", O_RDONLY);
+    ASSERT_NE(fd, -1) << "Failed to open include file user.lpc";
+    current_file = make_shared_string("user.lpc", NULL);
     current_file_id = 0;
 
     // run lexer until EOF, which will process #include directives

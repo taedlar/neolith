@@ -66,7 +66,7 @@ protected:
 TEST_F(SimulEfunsTest, loadSimulEfun)
 {
     ASSERT_GE(mud_state(), MS_PRE_MUDLIB);
-    init_simul_efun ("/simul_efun.c", NULL);
+    init_simul_efun ("/simul_efun.lpc", NULL);
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
@@ -79,12 +79,12 @@ TEST_F(SimulEfunsTest, protectSimulEfun)
 {
     using namespace neolith;
     ASSERT_GE(mud_state(), MS_PRE_MUDLIB);
-    init_simul_efun ("/simul_efun.c", NULL);
+    init_simul_efun ("/simul_efun.lpc", NULL);
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
 
-    init_master ("/master.c", NULL);
+    init_master ("/master.lpc", NULL);
     ASSERT_TRUE(master_ob != nullptr) << "master_ob is null after init_master().";
     ASSERT_GE(mud_state(), MS_MUDLIB_LIMBO);
 
@@ -145,7 +145,7 @@ TEST_F(SimulEfunsTest, findSimulEfun)
 TEST_F(SimulEfunsTest, callSimulEfun)
 {
     ASSERT_GE(mud_state(), MS_PRE_MUDLIB);
-    init_simul_efun ("/simul_efun.c", NULL);
+    init_simul_efun ("/simul_efun.lpc", NULL);
     ASSERT_TRUE(simul_efun_ob != nullptr) << "simul_efun_ob is null after init_simul_efun().";
     // simul_efun_ob should have ref count 2: one from set_simul_efun, one from get_empty_object
     EXPECT_EQ(simul_efun_ob->ref, 2) << "simul_efun_ob reference count is not 2 after init_simul_efun().";
