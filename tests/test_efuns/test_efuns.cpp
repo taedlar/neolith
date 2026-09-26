@@ -228,6 +228,32 @@ TEST_F(EfunsTest, evaluateEfunReturnsExpressionValue) {
     destruct_object(obj);
 }
 
+TEST_F(EfunsTest, programFileReturnsNameAndIncludeList) {
+    object_t* obj = load_object("/tests/efuns/test_program_file", R"(
+        mixed get_pf(int all) { return program_file(this_object(), all); }
+    )");
+    ASSERT_NE(obj, nullptr) << "Failed to load program_file() test object";
+
+    push_number(0);
+    svalue_t *ret = APPLY_SLOT_CALL("get_pf", obj, 1, ORIGIN_DRIVER);
+    ASSERT_NE(ret, nullptr) << "get_pf(0) apply failed";
+    auto name_view = lpc::svalue_view::from(ret);
+    ASSERT_TRUE(name_view.is_string()) << "program_file(0) should return a string";
+    ASSERT_STREQ(name_view.c_str(), "/tests/efuns/test_program_file.c");
+    APPLY_SLOT_FINISH_CALL();
+
+    push_number(1);
+    ret = APPLY_SLOT_CALL("get_pf", obj, 1, ORIGIN_DRIVER);
+    ASSERT_NE(ret, nullptr) << "get_pf(1) apply failed";
+    auto arr_view = lpc::svalue_view::from(ret);
+    ASSERT_TRUE(arr_view.is_array()) << "program_file(all != 0) should return an array";
+    ASSERT_GE(ret->u.arr->size, 1);
+    ExpectArrayItemString(ret->u.arr, 0, "/tests/efuns/test_program_file.c");
+    APPLY_SLOT_FINISH_CALL();
+
+    destruct_object(obj);
+}
+
 TEST_F(EfunsTest, functionPointerSlotCallErrorPathKeepsRuntimeUsable) {
     object_t* obj = load_object("/tests/efuns/test_funp_slot_call", R"(
         mixed *capture(mixed a, mixed b) { return ({ a, b }); }

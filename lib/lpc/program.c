@@ -35,6 +35,8 @@ void deallocate_program (program_t * progp) {
 
   if (progp->file_info)
     FREE (progp->file_info);
+  if (progp->include_indices)
+    FREE (progp->include_indices);
 
   FREE ((char *) progp);
 }
