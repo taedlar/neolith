@@ -951,6 +951,32 @@ extern "C" program_t *load_binary (const char *name, unsigned long flags) {
       p->include_indices = (unsigned short *) DXALLOC (len, TAG_LINENUMBERS, "load binary: includes");
       if (fread ((char *) p->include_indices, len, 1, f.get()) == 1)
         {
+          for (i = 0; i < bin_count; i++)
+            {
+              if (p->include_indices[i] >= p->num_strings)
+                {
+                  opt_trace (TT_COMPILE|1, "include indices corrupted.");
+                  i = p->num_functions_defined;
+                  while (i-- > 0)
+                    {
+                      free_string(to_shared_str(p->function_table[i].name));
+                    }
+                  i = p->num_variables_defined;
+                  while (i-- > 0)
+                    {
+                      free_string(to_shared_str(p->variable_table[i]));
+                    }
+                  i = p->num_strings;
+                  while (i-- > 0)
+                    {
+                      free_string(to_shared_str(p->strings[i]));
+                    }
+                  free_string(to_shared_str(p->name));
+                  FREE (p->file_info);
+                  FREE (p->include_indices);
+                  return OUT_OF_DATE;
+                }
+            }
           p->num_includes = bin_count;
         }
       else
