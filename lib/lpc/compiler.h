@@ -64,7 +64,8 @@ typedef struct mem_block_s {
 #define A_FUNCTIONALS           21
 #define A_FUNCTION_DEFS         22
 #define A_VAR_TEMP              23	/* table of variables */
-#define NUMAREAS                24
+#define A_INCLUDE_IDS           24	/* string-table indices for A_INCLUDES entries */
+#define NUMAREAS                25
 
 extern mem_block_t mem_block[NUMAREAS];
 

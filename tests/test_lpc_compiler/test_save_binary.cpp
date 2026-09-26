@@ -144,4 +144,42 @@ TEST_F(LPCCompilerTest, loadBinaryUsesVerifiedMudlibPathOutsideMudlibCwd) {
 
     fs::current_path(mudlib_cwd);
 }
+
+TEST_F(LPCCompilerTest, compileTracksIncludeIndicesAndSurvivesBinaryRoundTrip) {
+    ASSERT_NE(CONFIG_STR(__SAVE_BINARIES_DIR__), nullptr)
+        << "__SAVE_BINARIES_DIR__ is not configured.";
+    init_binaries();
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::remove(fs::path(MAIN_OPTION(mudlib_dir_absolute)) / "bin/tests/test_save_binary/includes.b", ec);
+
+    auto find_config_h = [](program_t* prog) {
+        for (int i = 0; i < prog->num_includes; i++) {
+            const char* inc = prog->strings[prog->include_indices[i]];
+            if (strstr(inc, "config.h"))
+                return true;
+        }
+        return false;
+    };
+
+    program_t* prog = compile_file(-1, "tests/test_save_binary/includes.c", R"(
+        #pragma save_binary
+        #include "config.h"
+        int dummy() { return 1; }
+    )");
+    ASSERT_NE(prog, nullptr) << "compile_file returned null program.";
+    total_lines = 0;
+
+    ASSERT_GE(prog->num_includes, 1) << "Compiled program did not record any include indices.";
+    EXPECT_TRUE(find_config_h(prog)) << "Compiled program did not record config.h as an include.";
+
+    free_prog(prog, 1);
+
+    prog = load_binary("tests/test_save_binary/includes.c", BIN_IGNORE_SOURCE_FILE);
+    ASSERT_NE(prog, nullptr) << "load_binary failed to load saved binary.";
+    ASSERT_GE(prog->num_includes, 1) << "Loaded binary lost its include indices.";
+    EXPECT_TRUE(find_config_h(prog)) << "Loaded binary did not preserve config.h as an include.";
+
+    free_prog(prog, 1);
+}
 #endif

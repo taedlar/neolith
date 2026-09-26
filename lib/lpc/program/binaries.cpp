@@ -324,6 +324,17 @@ extern "C" void save_binary (program_t * prog, mem_block_t * includes, mem_block
     }
 
   /*
+   * [WRITE_INCLUDE_INDICES]
+   * Write out string-table indices for included files (num_includes already in program_t):
+   * - 16-bit count of indices
+   * - indices (16-bit each)
+   */
+  bin_count = p->num_includes;
+  fwrite ((char *) &bin_count, sizeof (bin_count), 1, f.get());
+  if (bin_count)
+    fwrite ((char *) p->include_indices, sizeof (unsigned short), bin_count, f.get());
+
+  /*
    * [WRITE_PATCHES]
    * Write out patch information:
    * - 16-bit length of patch info
@@ -929,6 +940,72 @@ extern "C" program_t *load_binary (const char *name, unsigned long flags) {
   opt_trace (TT_COMPILE|3, "loaded line number info ok.");
 
   /*
+   * [READ_INCLUDE_INDICES]
+   * Read string-table indices for included files.
+   */
+  p->include_indices = 0;
+  p->num_includes = 0;
+  if (fread ((char *) &bin_count, sizeof (bin_count), 1, f.get()) == 1 && bin_count)
+    {
+      len = (size_t) bin_count * sizeof (unsigned short);
+      p->include_indices = (unsigned short *) DXALLOC (len, TAG_LINENUMBERS, "load binary: includes");
+      if (fread ((char *) p->include_indices, len, 1, f.get()) == 1)
+        {
+          for (i = 0; i < bin_count; i++)
+            {
+              if (p->include_indices[i] >= p->num_strings)
+                {
+                  opt_trace (TT_COMPILE|1, "include indices corrupted.");
+                  i = p->num_functions_defined;
+                  while (i-- > 0)
+                    {
+                      free_string(to_shared_str(p->function_table[i].name));
+                    }
+                  i = p->num_variables_defined;
+                  while (i-- > 0)
+                    {
+                      free_string(to_shared_str(p->variable_table[i]));
+                    }
+                  i = p->num_strings;
+                  while (i-- > 0)
+                    {
+                      free_string(to_shared_str(p->strings[i]));
+                    }
+                  free_string(to_shared_str(p->name));
+                  FREE (p->file_info);
+                  FREE (p->include_indices);
+                  return OUT_OF_DATE;
+                }
+            }
+          p->num_includes = bin_count;
+        }
+      else
+        {
+          opt_trace (TT_COMPILE|1, "include indices corrupted.");
+          i = p->num_functions_defined;
+          while (i-- > 0)
+            {
+              free_string(to_shared_str(p->function_table[i].name));
+            }
+          i = p->num_variables_defined;
+          while (i-- > 0)
+            {
+              free_string(to_shared_str(p->variable_table[i]));
+            }
+          i = p->num_strings;
+          while (i-- > 0)
+            {
+              free_string(to_shared_str(p->strings[i]));
+            }
+          free_string(to_shared_str(p->name));
+          FREE (p->file_info);
+          FREE (p->include_indices);
+          return OUT_OF_DATE;
+        }
+    }
+  opt_trace (TT_COMPILE|3, "loaded include indices ok.");
+
+  /*
    * [READ_PATCHES]
    * Read patch information and fix up program.
    */
@@ -959,6 +1036,11 @@ extern "C" program_t *load_binary (const char *name, unsigned long flags) {
               FREE(p->file_info);
               p->file_info = nullptr;
               p->line_info = nullptr;
+            }
+          if (p->include_indices)
+            {
+              FREE(p->include_indices);
+              p->include_indices = nullptr;
             }
           return OUT_OF_DATE;
         }

@@ -207,6 +207,9 @@ typedef struct program_s
                                  * used to validate binary consistency */
     unsigned char *line_info;   /* Line number information (A_LINENUMBERS area) */
     unsigned short *file_info;  /* File information (A_FILE_INFO area)*/
+    unsigned short *include_indices; /* indices into `strings` for included files (A_INCLUDES area);
+                                       * heap-allocated separately, not part of the contiguous program block */
+    unsigned short num_includes;
     compiler_function_t *function_table; /* function definitions (A_COMPILER_FUNCTIONS area), indexed by function_number_t */
     function_flags_t *function_flags; /* function flags (A_FUNCTION_FLAGS area), indexed by function_index_t */
     runtime_function_u *function_offsets; /* runtime function table entry in A_RUNTIME_FUNCTIONS area, indexed by function_index_t */

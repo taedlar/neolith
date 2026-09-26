@@ -2260,6 +2260,15 @@ static program_t *epilog ()
   prog->line_info = (unsigned char *) (&prog->file_info[lnoff]);
   memcpy (((char *) &prog->file_info[lnoff]), mem_block[A_LINENUMBERS].block, mem_block[A_LINENUMBERS].current_size);
 
+  prog->num_includes = (unsigned short)(mem_block[A_INCLUDE_IDS].current_size / sizeof (short));
+  if (prog->num_includes)
+    {
+      prog->include_indices = (unsigned short *) DXALLOC (mem_block[A_INCLUDE_IDS].current_size, TAG_LINENUMBERS, "epilog: includes");
+      memcpy (prog->include_indices, mem_block[A_INCLUDE_IDS].block, mem_block[A_INCLUDE_IDS].current_size);
+    }
+  else
+    prog->include_indices = 0;
+
   p += ALIGN_SIZE (sizeof (program_t));
 
   prog->program = p;
@@ -2649,12 +2658,19 @@ void save_file_info (int file_id, int lines) {
  * @return The index in A_STRINGS where the name is stored + 1. The returned value is used as file ID.
  */
 int add_program_file (const char *name, int top) {
+  short id = -1;
+
+  if (mem_block[A_STRINGS].block)
+    id = store_prog_string (name);
+
   if (!top && mem_block[A_INCLUDES].block)
     {
       opt_trace (TT_COMPILE|2, "adding: \"%s\"", name);
       add_to_mem_block (A_INCLUDES, name, strlen (name) + 1);
+      if (id >= 0 && mem_block[A_INCLUDE_IDS].block)
+        add_to_mem_block (A_INCLUDE_IDS, (char *) &id, sizeof (id));
     }
-  return mem_block[A_STRINGS].block ? store_prog_string (name) + 1 : 0;
+  return id >= 0 ? id + 1 : 0;
 }
 
 void init_lpc_compiler(size_t max_locals, const char* include_dirs) {
