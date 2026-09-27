@@ -164,7 +164,9 @@ int sizeof(mixed);
 int strlen sizeof(string);
 
 #pragma allow_dot_call
-string file_name(object default: F_THIS_OBJECT);
+string file_name otable_key(object default: F_THIS_OBJECT);
+string otable_key(object default: F_THIS_OBJECT);
+mixed program_file(object, int default: 0);
 int len sizeof(mixed);
 string capitalize(string);
 string upper_case(string);

@@ -10,14 +10,45 @@
 #include "lpc/program.h"
 #include "lpc/types.h"
 
-#ifdef F_FILE_NAME
-extern "C" void f_file_name (void) {
+#ifdef F_OTABLE_KEY
+extern "C" void f_otable_key (void) {
   char *res;
 
   /* This function now returns a leading '/' */
   res = (char *) add_slash (sp->u.ob->name);
-  free_object (sp->u.ob, "f_file_name");
+  free_object (sp->u.ob, "f_otable_key");
   put_malloced_string (res);
+}
+#endif
+
+
+#ifdef F_PROGRAM_FILE
+extern "C" void f_program_file (void) {
+  svalue_t *arg = sp - 1;
+  program_t *prog = arg[0].u.ob->prog;
+  int all = (int) arg[1].u.number;
+
+  if (!all)
+    {
+      char *res = (char *) add_slash (prog->name);
+      pop_stack ();
+      pop_stack ();
+      push_malloced_string (res);
+    }
+  else
+    {
+      array_t *ret = allocate_empty_array (1 + prog->num_includes);
+      int i;
+
+      SET_SVALUE_MALLOC_STRING (&ret->item[0], add_slash (prog->name));
+      for (i = 0; i < prog->num_includes; i++)
+        {
+          SET_SVALUE_MALLOC_STRING (&ret->item[i + 1], add_slash (prog->strings[prog->include_indices[i]]));
+        }
+      pop_stack ();
+      pop_stack ();
+      push_refed_array (ret);
+    }
 }
 #endif
 
