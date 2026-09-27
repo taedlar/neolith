@@ -14,7 +14,6 @@
 #include "lpc/program.h"
 #include "lpc/include/function.h"
 #include "rc/rc.h"
-#include "port/ansi.h"
 
 control_stack_t *control_stack = 0;
 control_stack_t *csp;   /* Points to last control frame pushed */
@@ -533,24 +532,24 @@ char* dump_trace (int how) {
           get_trace_details (p[1].prog, p[0].fr.table_index, &ftd);
           num_arg = ftd.num_arg;
           num_local = ftd.num_local;
-          log_message (NULL, "\t" YEL "%s()" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n", ftd.name,
+          log_message (NULL, "\t%s() at %s, in program /%s (object %s)\n", ftd.name,
                        get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
           if (strcmp (ftd.name, "heart_beat") == 0)
             ret = p->ob ? p->ob->name : 0;
           break;
         case FRAME_FUNP:
-          log_message (NULL, "\t" YEL "(function)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
+          log_message (NULL, "\t(function) at %s, in program /%s (object %s)\n",
                        get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
           num_arg = p[0].fr.funp->f.functional.num_arg;
           num_local = p[0].fr.funp->f.functional.num_local;
           break;
         case FRAME_FAKE:
-          log_message (NULL, "\t" YEL "(function)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
+          log_message (NULL, "\t(function) at %s, in program /%s (object %s)\n",
                        get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
           num_arg = -1;
           break;
         case FRAME_CATCH:
-          log_message (NULL, "\t" YEL "(catch)" NOR " at " CYN "%s" NOR ", in program /%s (object %s)\n",
+          log_message (NULL, "\t(catch) at %s, in program /%s (object %s)\n",
                        get_line_number (p[1].pc, p[1].prog), p[1].prog->name, p[1].ob->name);
           num_arg = -1;
           break;
@@ -597,22 +596,22 @@ char* dump_trace (int how) {
       //offset = ftd.program_offset;
       num_arg = ftd.num_arg;
       num_local = ftd.num_local;
-      log_message (NULL, "\t" HIY "%s()" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n", ftd.name,
+      log_message (NULL, "\t%s() at %s, in program /%s (object %s)\n", ftd.name,
                    get_line_number (pc, current_prog), current_prog->name, current_object ? current_object->name : "<none>");
       break;
     case FRAME_FUNP:
-      log_message (NULL, "\t" HIY "(function)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
+      log_message (NULL, "\t(function) at %s, in program /%s (object %s)\n",
                    get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = p[0].fr.funp->f.functional.num_arg;
       num_local = p[0].fr.funp->f.functional.num_local;
       break;
     case FRAME_FAKE:
-      log_message (NULL, "\t" HIY "(function)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
+      log_message (NULL, "\t(function) at %s, in program /%s (object %s)\n",
                    get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = -1;
       break;
     case FRAME_CATCH:
-      log_message (NULL, "\t" HIY "(catch)" NOR " at " HIC "%s" NOR ", in program /%s (object %s)\n",
+      log_message (NULL, "\t(catch) at %s, in program /%s (object %s)\n",
                    get_line_number (pc, current_prog), current_prog->name, current_object->name);
       num_arg = -1;
       break;
