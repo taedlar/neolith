@@ -363,6 +363,12 @@ int call_function_interactive (interactive_t * i, char *str) {
   free_sentence (sent);
   i->input_to = 0;
 
+  if (i->iflags & NOECHO)
+    {
+      i->iflags &= ~NOECHO;
+      set_input_echo (i->ob, true);
+    }
+
   /* Disable single char mode if needed */
   if (i->iflags & SINGLE_CHAR)
     {
@@ -539,15 +545,6 @@ static char* get_user_command () {
     ip->iflags &= ~CMD_IN_BUF;
 
   s_next_user = (s_next_user - 1 + max_users) % max_users; /* wrap around */
-
-  if (ip->iflags & NOECHO)
-    {
-      /*
-       * Must not enable echo before the user input is received.
-       */
-      set_input_echo (command_giver, false);
-      ip->iflags &= ~NOECHO;
-    }
 
   ip->last_time = current_time;
   return buf;
