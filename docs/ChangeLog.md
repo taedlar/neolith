@@ -4,6 +4,7 @@
 
 ### Unreleased
 - refactor: resolve re-entrant return-value corruption risk in nested apply/function-pointer calls by replacing the shared legacy return buffer with caller-owned stack-slot placeholders, explicit slot call/finish wrappers, and no legacy fallback storage
+- fix: restore client echo after password-mode `input_to` or `get_char` consumes input
 ### 1.0.0-alpha.10 — 2026-06-02
 
 #### Changes since 1.0.0-alpha.9

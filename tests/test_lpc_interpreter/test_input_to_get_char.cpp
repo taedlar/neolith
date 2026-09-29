@@ -339,11 +339,12 @@ TEST_F(InputToGetCharTest, InputToNoEchoFlag) {
     int result = input_to(fun.raw(), I_NOECHO, 0, nullptr);
     EXPECT_EQ(result, 1);
     
-    // Verify flag set (NOTE: actual NOECHO handling is in comm layer, we just verify setting)
     ASSERT_NE(mock_ip->input_to, nullptr);
+    EXPECT_NE(mock_ip->iflags & NOECHO, 0);
     
     simulate_input("secret");
     EXPECT_EQ(get_string_var("last_input"), "secret");
+    EXPECT_EQ(mock_ip->iflags & NOECHO, 0);
 }
 
 TEST_F(InputToGetCharTest, InputToNoEscFlag) {
