@@ -1,7 +1,8 @@
 #pragma once
 
-#include "comm.h"
-#include "lpc/regexp.h"
+//#include "comm.h"
+#include "regexp.h"
+#include "lpc/types.h"
 
 #ifdef __cplusplus
 extern "C" {

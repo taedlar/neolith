@@ -3,15 +3,15 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
+#include "comm.h"
+#include "command.h"
+#include "efuns/ed.h"
 #include "lpc/array.h"
 #include "lpc/object.h"
 #include "lpc/include/function.h"
 #include "lpc/include/origin.h"
 #include "lpc/program.h"
-#include "comm.h"
-#include "command.h"
 #include "rc/rc.h"
-#include "ed.h"
 
 static int illegal_sentence_action;
 

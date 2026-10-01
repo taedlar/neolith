@@ -4,7 +4,6 @@
 
 #define SUPPRESS_COMPILER_INLINES
 #include "std.h"
-#include "rc/rc.h"
 #include "command.h"
 #include "frame.h"
 #include "interpret.h"
@@ -12,6 +11,7 @@
 #include "main.h"
 #include "simulate.h"
 #include "simul_efun.h"
+#include "efuns/ed.h"
 #include "efuns/uids.h"
 #include "lpc/array.h"
 #include "lpc/functional.h"
@@ -25,12 +25,12 @@
 #include "lpc/include/origin.h"
 #include "lpc/include/runtime_config.h"
 #include "misc/filepath.h"
+#include "rc/rc.h"
 #include "socket/socket_efuns.h"
 #ifdef HAVE_CURL
 #include "curl/curl_efuns.h"
 #endif
 #include "call_out.h"
-#include "ed.h"
 
 #include <sys/stat.h>
 

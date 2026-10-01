@@ -6,12 +6,14 @@
 #include <sys/resource.h>
 #endif
 
-#include "src/std.h"
-#include "misc/crc32.h"
-#include "rc/rc.h"
+#include "dumpstat.h"
+#include "ed.h"
 #include "file_utils.h"
 #include "parse.h"
-#include "dumpstat.h"
+#include "src/std.h"
+#include "src/comm.h"
+#include "misc/crc32.h"
+#include "rc/rc.h"
 #include "src/interpret.h"
 #include "lpc/object.h"
 #include "lpc/array.h"
@@ -21,7 +23,6 @@
 #include "lpc/compiler.h"
 #include "lpc/otable.h"
 #include "lpc/include/function.h"
-#include "src/ed.h"
 #include "src/backend.h"
 
 #ifdef F_ALLOCATE
