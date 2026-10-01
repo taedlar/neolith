@@ -1,6 +1,8 @@
 #ifndef DUMPSTAT_H
 #define DUMPSTAT_H
 
+#include "lpc/types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -3,20 +3,20 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "std.h"
+#include "comm.h"
+#include "command.h"
+#include "simul_efun.h"
+#include "interpret.h"
+#include "addr_resolver.h"
+#include "efuns/ed.h"
 #include "lpc/object.h"
 #include "lpc/array.h"
 #include "lpc/buffer.h"
 #include "lpc/include/origin.h"
-#include "comm.h"
-#include "command.h"
 #include "rc/rc.h"
-#include "simul_efun.h"
-#include "interpret.h"
-#include "addr_resolver.h"
 #include "async/async_queue.h"
 #include "async/console_mode.h"
 #include "socket/socket_efuns.h"
-#include "ed.h"
 #ifdef HAVE_CURL
 #include "curl/curl_efuns.h"
 #endif

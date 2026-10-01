@@ -15,7 +15,6 @@ set(stem_SOURCES
     call_out.cpp
     comm.c
     command.c
-    ed.c
     error_context.cpp
     frame.cpp
     interpret.c

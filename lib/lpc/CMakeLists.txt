@@ -58,7 +58,6 @@ set(lpc_SOURCES
     object.c
     operator.c
     otable.c
-    regexp.c
     svalue.cpp
     program.c
     program/binaries.cpp

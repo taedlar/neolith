@@ -10,6 +10,7 @@ set(efuns_SOURCES
     debug.c
     dump_prog.c
     dumpstat.c
+    ed.c
     file.c
     file_utils.c
     heart_beat.c
@@ -22,6 +23,7 @@ set(efuns_SOURCES
     parse.c
     prop.c
     reclaim_object.c
+    regexp.c
     replace_program.c
     sprintf.c
     sscanf.c
@@ -36,7 +38,7 @@ add_library(efuns STATIC ${efuns_SOURCES})
 target_sources(efuns INTERFACE
     FILE_SET HEADERS
     BASE_DIRS ${CMAKE_SOURCE_DIR}/lib
-    FILES dumpstat.h file_utils.h parse.h reclaim_object.h replace_program.h sscanf.h uids.h
+    FILES dumpstat.h ed.h file_utils.h parse.h reclaim_object.h regexp.h replace_program.h sscanf.h uids.h
 )
 
 if(PACKAGE_SOCKETS)

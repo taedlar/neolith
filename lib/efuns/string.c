@@ -11,7 +11,7 @@
 #include "lpc/buffer.h"
 #include "lpc/functional.h"
 #include "lpc/operator.h"
-#include "lpc/regexp.h"
+#include "regexp.h"
 
 #ifdef F_CAPITALIZE
 void f_capitalize (void) {
