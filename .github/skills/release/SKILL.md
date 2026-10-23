@@ -1,12 +1,8 @@
 ---
-agent: agent
-description: >
-  Automate the Neolith release process: validate state, gather commits, update
-  ChangeLog.md, bump CMakeLists.txt version, tag the release, and create a
-  GitHub release with generated notes.
-tools: [vscode, execute, read, agent, edit, search, web, browser, 'github/*', ms-vscode.cpp-devtools/Build_CMakeTools, ms-vscode.cpp-devtools/RunCtest_CMakeTools, ms-vscode.cpp-devtools/ListBuildTargets_CMakeTools, ms-vscode.cpp-devtools/ListTests_CMakeTools, todo]
+name: release
+description: "Automate the Neolith release process: validate state, gather commits, update ChangeLog.md, bump CMakeLists.txt version, tag the release, and create a GitHub release with generated notes."
+disable-model-invocation: true
 ---
-
 You are performing a Neolith driver release. Follow every step in order. Stop
 and ask the user before any destructive or irreversible action (git push,
 tagging, GitHub release creation).
